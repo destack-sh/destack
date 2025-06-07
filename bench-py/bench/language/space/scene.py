@@ -12,6 +12,7 @@ from bench.language.core import (
     IsOwnable,
     IsScriptable,
     IsTemplatable,
+    IsTracked,
     Node,
     NodeType,
     node_,
@@ -37,6 +38,7 @@ class Scene(
     IsBlockable,
     IsArchivable,
     IsDeletable,
+    IsTracked,
     IsInPackage,
     Node[SceneData],
 ):

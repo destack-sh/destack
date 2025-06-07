@@ -11,6 +11,7 @@ from bench.language.core import (
     IsOrdered,
     IsRunnable,
     IsTemplatable,
+    IsTracked,
     Node,
     NodeType,
     RunType,
@@ -47,6 +48,7 @@ class Action(
     IsDeletable,
     IsRunnable,
     IsInPackage,
+    IsTracked,
     Node[ActionData],
 ):
     """

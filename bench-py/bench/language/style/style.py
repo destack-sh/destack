@@ -6,6 +6,7 @@ from bench.language.core import (
     IsBlockable,
     IsInPackage,
     IsTemplatable,
+    IsTracked,
     TraitType,
     property_parent_,
     trait_,
@@ -24,6 +25,7 @@ class IsStyle(
     HasName,
     IsBlockable,
     IsInPackage,
+    IsTracked,
 ):
     """A Style is a graphical interface."""
 

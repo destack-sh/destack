@@ -40,7 +40,7 @@ def bump(revision: int | None = typer.Option(None)):
     # write version to 'version', Python files and TS files
     Path("version").write_text(new_version)
     for path in (
-        "bench-py/bench/language/core/const.py",
+        "bench-py/bench/language/core/builtin/const.py",
         "bench-py/bench/pb2/__init__.py",
         "bench-ts/package.json",
         "bench-ts/src/utils/globals.ts",

@@ -1,5 +1,4 @@
 from collections.abc import Sequence
-from datetime import datetime
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -30,7 +29,7 @@ from .property import (
     property_parent_,
     property_runtime_,
 )
-from .trait import IndexIn, IsSubject, NodeBase
+from .trait import IndexIn, NodeBase
 
 if TYPE_CHECKING:
     from bench.language import Graph, NodeInfo, NodeReference, QueryConnection, Session, Supergraph
@@ -45,6 +44,7 @@ tracer = trace.get_tracer(__name__)
 def node_(
     node_type: NodeType | None,
     root_type: NodeType | None = NodeType.BENCH,
+    frozen: bool = False,
     index: tuple[IndexIn, ...] = (),
 ):
     """Register a class as a concrete node for the given node type."""
@@ -56,25 +56,26 @@ def node_(
     def decorate(cls: type["Node"]) -> type["Node"]:
         assert cls.__name__ == "Node" or issubclass(cls, Node), f"{cls.__name__} is not a Node"
         cls.__is_trait__ = False  # override Trait.__is_trait__
+        traits = set()
+        for superclass in get_superclasses(cls):
+            if trait := _resolve_trait_type(superclass.__name__):
+                traits.add(trait)
+        cls.__traits__ = tuple(traits)
+
         cls, _ = _process_object_cls(
             cls=cls,
             object_type=node_type,
             is_concrete=node_type is not None,
             is_node=True,
             is_root_node=root_type is None,
+            is_frozen=frozen,
+            traits=cls.__traits__,
         )
         cls.__indexes__ = index
 
         if node_type is not None:
             cls.metatype = node_type
-            # index
             NODE_CLASS_BY_TYPE[node_type] = cls
-            traits = set()
-            for superclass in get_superclasses(cls):
-                if trait := _resolve_trait_type(superclass.__name__):
-                    traits.add(trait)
-            cls.__traits__ = tuple(traits)
-
             NODE_TYPE_BY_CLASS[cls] = node_type
             NODE_CLASS_BY_TYPE[node_type] = cls
 
@@ -116,7 +117,6 @@ class Node[NodeDataT: AnyNodeData](NodeBase[NodeDataT]):
     # 1-9: node identity
     # Node.metatype: 1
     id: UUID = property_(2, is_managed=True, is_eq=False, can_write="system")
-    # IsTemplatable.ck: 3
     parent: Optional["Node"] = property_parent_()
     if TYPE_CHECKING:
         parent_type: NodeType | None = None
@@ -128,33 +128,7 @@ class Node[NodeDataT: AnyNodeData](NodeBase[NodeDataT]):
     # IsInPackage.package: 7
 
     # 10-29: node tracking
-    created_at: datetime = property_(10, is_managed=True, is_eq=False, can_write="system")
-    created_by: Optional[IsSubject] = property_(
-        11,
-        default=None,
-        is_managed=True,
-        is_eq=False,
-        node_bench_from="self",
-        node_is_customizable=False,
-        can_write="system",
-    )
-    updated_at: datetime = property_(12, is_managed=True, is_eq=False, can_write="system")
-    updated_by: Optional[IsSubject] = property_(
-        13,
-        default=None,
-        is_managed=True,
-        is_eq=False,
-        node_bench_from="self",
-        node_is_customizable=False,
-        can_write="system",
-    )
-    if TYPE_CHECKING:
-        created_by_id: Optional[UUID] = None
-        created_by_type: NodeType | None = None
-        created_by_ptr: Optional[NodeReference] = None
-        updated_by_id: Optional[UUID] = None
-        updated_by_type: NodeType | None = None
-        updated_by_ptr: Optional[NodeReference] = None
+    # IsTracked.created_at/created_by/updated_at/updated_by: 10-13
     # IsArchivable.archived_at: 14
     # IsDeletable.deleted_at: 15
     # IsTemplatable.template: 16

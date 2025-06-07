@@ -7,6 +7,7 @@ from bench.language.core import (
     EnumType,
     IsArchivable,
     IsDeletable,
+    IsTracked,
     Node,
     NodeType,
     StructMutable,
@@ -107,6 +108,7 @@ class EffectStyle(
     IsStyle,
     IsDeletable,
     IsArchivable,
+    IsTracked,
     Node[EffectStyleData],
 ):
     """An effect style."""

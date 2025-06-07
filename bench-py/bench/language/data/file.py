@@ -22,6 +22,7 @@ from bench.language.core import (
     EnumType,
     IsInPackage,
     IsResource,
+    IsTracked,
     Node,
     NodeType,
     PrimitiveType,
@@ -460,7 +461,12 @@ MIME_TYPE_BY_FORMAT: dict[FileFormat, str] = {v: k for k, v in FILE_FORMAT_BY_MI
 
 
 @node_(NodeType.FILE)
-class File(IsResource, IsInPackage, Node[FileData]):
+class File(
+    IsTracked,
+    IsResource,
+    IsInPackage,
+    Node[FileData],
+):
     """
     A File stored somewhere.
     """

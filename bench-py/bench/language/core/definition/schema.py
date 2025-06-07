@@ -10,6 +10,7 @@ from ..builtin import (
     IsDeletable,
     IsInPackage,
     IsTemplatable,
+    IsTracked,
     Node,
     NodeType,
     node_,
@@ -25,9 +26,10 @@ if TYPE_CHECKING:
 
 @node_(NodeType.SCHEMA)
 class Schema(
-    IsTemplatable,
-    HasEnvironment,
     HasName,
+    HasEnvironment,
+    IsTracked,
+    IsTemplatable,
     IsBlockable,
     IsDeletable,
     IsArchivable,

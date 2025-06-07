@@ -6,6 +6,7 @@ from bench.language.core import (
     EnumType,
     IsArchivable,
     IsDeletable,
+    IsTracked,
     Node,
     NodeType,
     StructMutable,
@@ -72,6 +73,7 @@ class TransitionStyle(
     IsStyle,
     IsDeletable,
     IsArchivable,
+    IsTracked,
     Node[TransitionStyleData],
 ):
     """A transition style."""

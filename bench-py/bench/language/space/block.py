@@ -12,6 +12,7 @@ from bench.language.core import (
     IsInPackage,
     IsOrdered,
     IsTemplatable,
+    IsTracked,
     Node,
     NodeReference,
     NodeType,
@@ -72,6 +73,7 @@ class Block(
     IsInPackage,
     IsArchivable,
     IsDeletable,
+    IsTracked,
     Node[BlockData],
 ):
     """

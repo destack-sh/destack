@@ -10,6 +10,7 @@ from bench.language.core import (
     IsDeletable,
     IsInPackage,
     IsOwnable,
+    IsTracked,
     Node,
     NodeType,
     node_,
@@ -25,15 +26,16 @@ if TYPE_CHECKING:
 
 @node_(NodeType.ROUTE)
 class Route(
-    IsArchivable,
     HasIcon,
     HasSlug,
-    IsDeletable,
-    IsOwnable,
     HasName,
     HasEnvironment,
+    IsArchivable,
+    IsDeletable,
+    IsOwnable,
     IsBlockable,
     IsInPackage,
+    IsTracked,
     Node[RouteData],
 ):
     """A Route is a path to a Scene."""

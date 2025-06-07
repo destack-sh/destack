@@ -11,6 +11,7 @@ from bench.language.core import (
     IsInPackage,
     IsOwnable,
     IsTemplatable,
+    IsTracked,
     Node,
     NodeType,
     TextIn,
@@ -28,16 +29,17 @@ if TYPE_CHECKING:
 
 @node_(NodeType.PAGE)
 class Page(
-    IsTemplatable,
     HasEnvironment,
     HasTitle,
     HasIcon,
-    IsOwnable,
     HasSlug,
+    IsTemplatable,
+    IsOwnable,
     IsBlockable,
     IsDeletable,
     IsArchivable,
     IsInPackage,
+    IsTracked,
     Node[BlockData],
 ):
     """A Page of Blocks laying out rich Text, data, logic, resources -- anything software needs."""

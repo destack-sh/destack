@@ -10,6 +10,7 @@ from bench.language.core import (
     IsOrdered,
     IsOwnable,
     IsTemplatable,
+    IsTracked,
     Node,
     NodeType,
     Selection,
@@ -43,6 +44,7 @@ class Space(
     IsInPackage,
     IsDeletable,
     IsArchivable,
+    IsTracked,
     Node[SpaceData],
 ):
     """

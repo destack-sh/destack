@@ -10,6 +10,7 @@ from bench.language.core import (
     IsRunnable,
     IsScriptable,
     IsTemplatable,
+    IsTracked,
     Node,
     NodeType,
     node_,
@@ -25,6 +26,8 @@ if TYPE_CHECKING:
 
 @node_(NodeType.SERVICE)
 class Service(
+    HasEnvironment,
+    HasName,
     IsTemplatable,
     IsOwnable,
     IsDeletable,
@@ -32,8 +35,7 @@ class Service(
     IsRunnable,
     IsBlockable,
     IsScriptable,
-    HasEnvironment,
-    HasName,
+    IsTracked,
     Node[ServiceData],
 ):
     """

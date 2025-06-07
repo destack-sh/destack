@@ -103,6 +103,7 @@ def _generate_init_impl[ObjectT: BuiltinObjectBase](
     is_node: bool,
     is_root_node: bool,
     is_frozen: bool,
+    traits: tuple[TraitType, ...],
     properties: dict[str, Property],
 ) -> tuple[str, dict[str, Any]]:
     """Generates an __init__ for a BuiltinObject class."""
@@ -173,8 +174,9 @@ def _generate_init_impl[ObjectT: BuiltinObjectBase](
         # node setup
         body_properties.pop("id")
         body_properties.pop("ck", None)
-        body_properties.pop("created_at")
-        body_properties.pop("updated_at")
+        if TraitType.TRACKED in traits:
+            body_properties.pop("created_at")
+            body_properties.pop("updated_at")
         body_properties.pop("_session")
         body_properties.pop("_graph")
         body_properties.pop("_connection")
@@ -197,19 +199,28 @@ __setattr__(self, "_supergraph", _supergraph)
 # node identity
 if id is None:
     id = uuid4()
+    """)
+        if TraitType.TRACKED in traits:
+            method_body_lines.append("""\
     now = self._session.oracle.utc()
     created_at = now
     updated_at = now
+""")
+        method_body_lines.append(f"""\
     _is_new = True
     _is_attached = {"True" if is_root_node else "_graph is not None"}
 else:
     _is_new = False
     _is_attached = True # if we already have an id, assume we're attached
 __setattr__(self, "id", id)
+""")
 
-# node tracking
+        if TraitType.TRACKED in traits:
+            method_body_lines.append("""\
 __setattr__(self, "created_at", created_at)
 __setattr__(self, "updated_at", updated_at)
+""")
+        method_body_lines.append("""\
 __setattr__(self, "_hash", id.int)
 __setattr__(self, "_ref", None)
 __setattr__(self, "_is_new", _is_new)
@@ -901,6 +912,7 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
     is_struct: bool = False,
     is_node: bool = False,
     is_root_node: bool = False,
+    traits: tuple[TraitType, ...] = (),
 ) -> tuple[type[ObjectT], dict[str, "Property"]]:
     """Process a BuiltinObject base class and return the processed class and its properties."""
     assert isinstance(cls, type), f"expected type, got {cls} ({type(cls)})"
@@ -1043,6 +1055,7 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
             is_node=is_node,
             is_frozen=is_frozen,
             is_root_node=is_root_node,
+            traits=traits,
             properties=properties,
         )
         exec_(init_str, {**glbls, **init_glbls}, cls_dict, f"{cls.__name__}:init")

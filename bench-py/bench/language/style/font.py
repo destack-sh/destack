@@ -6,6 +6,7 @@ from bench.language.core import (
     EnumType,
     IsArchivable,
     IsDeletable,
+    IsTracked,
     Node,
     NodeType,
     StructMutable,
@@ -117,6 +118,7 @@ class FontStyle(
     IsStyle,
     IsDeletable,
     IsArchivable,
+    IsTracked,
     Node[FontStyleData],
 ):
     """A font style."""

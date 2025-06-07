@@ -6,6 +6,7 @@ from bench.language.core import (
     EnumType,
     IsArchivable,
     IsDeletable,
+    IsTracked,
     Node,
     NodeType,
     StructMutable,
@@ -65,6 +66,7 @@ class BorderStyle(
     IsStyle,
     IsDeletable,
     IsArchivable,
+    IsTracked,
     Node[BorderStyleData],
 ):
     """A border style."""

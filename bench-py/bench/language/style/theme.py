@@ -9,6 +9,7 @@ from bench.language.core import (
     IsArchivable,
     IsBlockable,
     IsDeletable,
+    IsTracked,
     Node,
     NodeType,
     enum_,
@@ -44,6 +45,7 @@ class Theme(
     IsBlockable,
     IsDeletable,
     IsArchivable,
+    IsTracked,
     Node[ThemeData],
 ):
     """A Theme with common styles."""
