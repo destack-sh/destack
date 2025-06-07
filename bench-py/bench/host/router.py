@@ -95,13 +95,13 @@ class HostRouterService(ServiceBase, HostBase):
     async def wait_stopped(self) -> None:
         await asyncio.gather(*[host.wait_stopped() for host in self.hosts.values()])
 
-    async def _start_host(self, bench_id: UUID) -> "HostService":
+    async def _start_host(self, space_id: UUID) -> "HostService":
         """Starts a Host for the given Bench."""
-        existing_host = self.hosts.get(bench_id)
-        assert existing_host is None, f"already have Host for {bench_id}: {existing_host!r}"
+        existing_host = self.hosts.get(space_id)
+        assert existing_host is None, f"already have Host for {space_id}: {existing_host!r}"
         host = HostService(
-            id=f"host-{bench_id}",
-            bench_id=bench_id,
+            id=f"host-{space_id}",
+            space_id=space_id,
             network=self.network,
             oracle=self.oracle,
             global_database=self.global_database,
@@ -110,7 +110,7 @@ class HostRouterService(ServiceBase, HostBase):
             on_error=self.on_error,
         )
         await host.start()
-        self.hosts[bench_id] = host
+        self.hosts[space_id] = host
         return host
 
     async def _get_host(self, request: ProtoMessage) -> "HostService":
@@ -120,17 +120,17 @@ class HostRouterService(ServiceBase, HostBase):
         scope: ScopeData | None = getattr(request, "scope")
         if scope is None:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "missing scope")
-        bench_id = UUID(scope.bench_id)
-        if bench_id is None:
+        space_id = UUID(scope.space_id)
+        if space_id is None:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "missing bench scope id")
 
         # get host
-        host = self.hosts.get(bench_id)
+        host = self.hosts.get(space_id)
         if host is None:
             async with self.hosts_lock:
-                host = self.hosts.get(bench_id)
+                host = self.hosts.get(space_id)
                 if host is None:
-                    host = await self._start_host(bench_id)
+                    host = await self._start_host(space_id)
         return host
 
     @override

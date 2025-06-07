@@ -29,7 +29,7 @@ class HostHandle(ServiceHandle[HostSpec, "HostService", HostClient]):
     async def start(self) -> "HostService":
         self._service = HostService(
             id=self.id,
-            bench_id=self.simulation.get_bench_id(self.spec.bench),
+            space_id=self.simulation.get_space_id(self.spec.bench),
             global_database=self.simulation.global_database,
             main_database=self.simulation.main_database,
             network=self.simulation.network.network,

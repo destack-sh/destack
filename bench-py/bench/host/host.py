@@ -9,7 +9,6 @@ from opentelemetry import trace
 from bench.language import (
     CLOUD,
     Area,
-    Bench,
     Change,
     Client,
     Database,
@@ -21,6 +20,7 @@ from bench.language import (
     Query,
     Scope,
     Session,
+    Space,
 )
 from bench.pb2 import (
     CommitRequest,
@@ -61,7 +61,7 @@ FILE_DOWNLOAD_URL_EXPIRY = get_from_env(
 
 class HostService(ServiceBase, HostBase):
     """
-    Host for a Bench. There is only one Host per Bench.
+    Host for a Space. There is only one Host per Space.
     """
 
     kind = ServiceKind.PUBLIC  # :ServiceKind
@@ -70,7 +70,7 @@ class HostService(ServiceBase, HostBase):
     def __init__(
         self,
         id: str,
-        bench_id: UUID,
+        space_id: UUID,
         network: Network,
         oracle: Oracle,
         global_database: DatabaseInfo,
@@ -86,9 +86,9 @@ class HostService(ServiceBase, HostBase):
             oracle=oracle,
             on_error=on_error,
         )
-        self.bench_id = bench_id
-        self.bench_ptr = NodeReference(node_type=NodeType.BENCH, id=bench_id, bench_id=bench_id)
-        self.scope = Scope(bench_id=bench_id)
+        self.space_id = space_id
+        self.space_ptr = NodeReference(node_type=NodeType.SPACE, id=space_id, space_id=space_id)
+        self.scope = Scope(space_id=space_id)
         self.plugins: tuple[HostPlugin, ...] = ()  # incl. provisioners
         self.global_database_store = PostgresStore(
             database=global_database, area=Area.GLOBAL_DATABASE
@@ -99,11 +99,11 @@ class HostService(ServiceBase, HostBase):
         self.database_provider = database_provider
 
     def __str__(self):
-        return f"{self.bench_id}"
+        return f"{self.space_id}"
 
     @override
     def get_service_baggage(self) -> dict[str, Any]:
-        return {"bench_id": self.bench_id}
+        return {"space_id": self.space_id}
 
     @property
     def is_idle(self) -> bool:
@@ -112,11 +112,11 @@ class HostService(ServiceBase, HostBase):
 
     async def start(self) -> None:
         async with Session(store=self.global_database_store):
-            bench = await Bench.get(
-                where=Bench.property("id").eq(self.bench_id),
+            space = await Space.get(
+                where=Space.property("id").eq(self.space_id),
                 Databases=Database.search(),
             ).execute_one()
-            if (database := bench.database) is not None:
+            if (database := space.database) is not None:
                 self.main_database_store = PostgresStore(
                     database=database.to_info(), area=Area.MAIN_DATABASE
                 )
@@ -207,14 +207,14 @@ class HostService(ServiceBase, HostBase):
         raise NotImplementedError
 
 
-def get_drive_bucket(bench: Bench) -> str:
-    bucket_name = f"bench-{ENV.value}-{CLOUD.name.lower()}-{bench.region.slug}-files"
+def get_drive_bucket(space: Space) -> str:
+    bucket_name = f"bench-{ENV.value}-{CLOUD.name.lower()}-{space.region.slug}-files"
     return bucket_name
 
 
-def get_file_key(bench: Bench, sha256: str, name: str | None) -> str:
+def get_file_key(space: Space, sha256: str, name: str | None) -> str:
     """Gets the key for a file in the given bucket."""
     if name is None:
-        return f"{bench.id}/{sha256}/__UNNAMED__"
+        return f"{space.id}/{sha256}/__UNNAMED__"
     else:
-        return f"{bench.id}/{sha256}/{name}"
+        return f"{space.id}/{sha256}/{name}"

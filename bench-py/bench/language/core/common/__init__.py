@@ -57,6 +57,7 @@ from .relation import (
     relation_ref,
 )
 from .schema import Schema
+from .signal import SignalDefinition, SignalInstance
 from .text import (
     Text,
     TextIn,
@@ -147,6 +148,8 @@ __all__ = [
     "Scope",
     "Select",
     "Selection",
+    "SignalDefinition",
+    "SignalInstance",
     "Sort",
     "SortMode",
     "SortType",

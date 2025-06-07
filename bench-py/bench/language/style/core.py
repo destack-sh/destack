@@ -48,9 +48,9 @@ class Distribute(BuiltinEnum):
     START = 1, "Start", "Start", "fas fa-align-left"
     CENTER = 2, "Center", "Center", "fas fa-align-center"
     END = 3, "End", "End", "fas fa-align-right"
-    SPACE_BETWEEN = 4, "Space Between", "Space Between"
-    SPACE_AROUND = 5, "Space Around", "Space Around"
-    SPACE_EVENLY = 6, "Space Evenly", "Space Evenly"
+    SPACE_BETWEEN = 4, "Viewport Between", "Viewport Between"
+    SPACE_AROUND = 5, "Viewport Around", "Viewport Around"
+    SPACE_EVENLY = 6, "Viewport Evenly", "Viewport Evenly"
 
 
 @enum_(EnumType.ALIGN)

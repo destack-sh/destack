@@ -26,7 +26,7 @@ from .graph import Supergraph
 from .store import OptimisticStore
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Edit, Origin, QueryConnection, Store
+    from bench.language import Edit, Origin, QueryConnection, Space, Store
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -41,7 +41,6 @@ class Session:
 
     __slots__ = (
         "_token",
-        "bench",
         "changes",
         "closed_at",
         "connections",
@@ -51,6 +50,7 @@ class Session:
         "oracle",
         "origin",
         "runtime",
+        "space",
         "store",
         "subject",
         "supergraph",
@@ -60,7 +60,7 @@ class Session:
         self,
         mode: EnvironmentType = EnvironmentType.STAGING,
         oracle: Oracle = REAL_ORACLE,
-        bench: Optional["Bench"] = None,
+        space: Optional["Space"] = None,
         origin: "Origin | None" = None,
         subject: IsSubject | None = None,
         store: "Store | None" = None,
@@ -68,7 +68,7 @@ class Session:
         self.supergraph = Supergraph(self)
         self.mode: EnvironmentType = mode
         self.oracle: Oracle = oracle
-        self.bench: Bench | None = bench
+        self.space: Space | None = space
         self.origin: Origin | None = origin
         self.subject: IsSubject | None = subject
         self.store: Store | None = store
@@ -85,8 +85,8 @@ class Session:
 
     def __str__(self) -> str:
         content_parts: list[str] = [f"mode={self.mode.name}"]
-        if self.bench:
-            content_parts.append(f"bench={self.bench.slug}")
+        if self.space:
+            content_parts.append(f"bench={self.space.slug}")
         if self.subject is not None:
             content_parts.append(f"subject={self.subject!r}")
         if self.store is not None:

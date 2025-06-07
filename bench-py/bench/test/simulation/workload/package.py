@@ -87,7 +87,7 @@ class WritePageTreeWorkload(ClientWorkload[WritePageTreeSpec]):
                 host.service.main_package._graph,
                 # NOTE :Test: Resources should also be in sync in Runtime?
                 #  (for some reason they're not right now)
-                ignore_node_types=(NodeType.BENCH, *RESOURCE_NODE_TYPES),
+                ignore_node_types=(NodeType.SPACE, *RESOURCE_NODE_TYPES),
             )
 
             # and wait for next tx

@@ -15,7 +15,7 @@ import { reflectionMergePartial } from "@protobuf-ts/runtime";
 import { MessageType } from "@protobuf-ts/runtime";
 import { OrganizationData } from "./language";
 import { NodeReferenceData } from "./language";
-import { BenchData } from "./language";
+import { SpaceData } from "./language";
 import { UserData } from "./language";
 import { ClientData } from "./language";
 import { Region } from "./language";
@@ -61,9 +61,9 @@ export interface SignupUserResponse {
      */
     client?: ClientData;
     /**
-     * @generated from protobuf field: symbol.bench.BenchData bench = 3;
+     * @generated from protobuf field: symbol.bench.SpaceData space = 3;
      */
-    bench?: BenchData;
+    space?: SpaceData;
     /**
      * @generated from protobuf field: string access_token = 4;
      */
@@ -354,7 +354,7 @@ class SignupUserResponse$Type extends MessageType<SignupUserResponse> {
         super("symbol.bench.SignupUserResponse", [
             { no: 1, name: "user", kind: "message", T: () => UserData },
             { no: 2, name: "client", kind: "message", T: () => ClientData },
-            { no: 3, name: "bench", kind: "message", T: () => BenchData },
+            { no: 3, name: "space", kind: "message", T: () => SpaceData },
             { no: 4, name: "access_token", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbol.bench.sensitive": true } }
         ]);
     }
@@ -376,8 +376,8 @@ class SignupUserResponse$Type extends MessageType<SignupUserResponse> {
                 case /* symbol.bench.ClientData client */ 2:
                     message.client = ClientData.internalBinaryRead(reader, reader.uint32(), options, message.client);
                     break;
-                case /* symbol.bench.BenchData bench */ 3:
-                    message.bench = BenchData.internalBinaryRead(reader, reader.uint32(), options, message.bench);
+                case /* symbol.bench.SpaceData space */ 3:
+                    message.space = SpaceData.internalBinaryRead(reader, reader.uint32(), options, message.space);
                     break;
                 case /* string access_token */ 4:
                     message.accessToken = reader.string();
@@ -400,9 +400,9 @@ class SignupUserResponse$Type extends MessageType<SignupUserResponse> {
         /* symbol.bench.ClientData client = 2; */
         if (message.client)
             ClientData.internalBinaryWrite(message.client, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.BenchData bench = 3; */
-        if (message.bench)
-            BenchData.internalBinaryWrite(message.bench, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.SpaceData space = 3; */
+        if (message.space)
+            SpaceData.internalBinaryWrite(message.space, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
         /* string access_token = 4; */
         if (message.accessToken !== "")
             writer.tag(4, WireType.LengthDelimited).string(message.accessToken);

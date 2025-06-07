@@ -332,7 +332,7 @@ def _generate_unpack_scalar(prop: "Property | IntoType", value_expr: str) -> str
             return f"{value_expr}"
     elif prop.scalar_type == ScalarType.ENUM:
         assert prop.enum_type is not None
-        enum_type_name = prop.enum_type.bench_name
+        enum_type_name = prop.enum_type.camel_name
         return f"{enum_type_name}({value_expr})"
     elif prop.scalar_type == ScalarType.NODE_REFERENCE:
         return f"NodeReference.__unpack_proto__({value_expr}, _supergraph=_supergraph)"
@@ -340,7 +340,7 @@ def _generate_unpack_scalar(prop: "Property | IntoType", value_expr: str) -> str
         raise RuntimeError(f"node_value cannot be wired directly: {prop!r}")
     elif prop.scalar_type == ScalarType.STRUCT:
         assert prop.struct_type is not None
-        struct_cls_name = prop.struct_type.bench_name
+        struct_cls_name = prop.struct_type.camel_name
         return f"{struct_cls_name}.__unpack_proto__({value_expr}, _supergraph=_supergraph)"
     else:
         assert_never(prop.scalar_type)

@@ -24,7 +24,6 @@ from bench.store.postgres.map import BUILTIN_GLOBAL_SCHEMA, BUILTIN_MAIN_SCHEMA
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.task import TaskManager
 
-from .bench import BenchHandle
 from .client import ClientHandle
 from .host import HostHandle
 from .machine import MachineHandle
@@ -32,6 +31,7 @@ from .network import NetworkHandle
 from .oracle import SimulatedEventLoop, SimulatedOracle
 from .runtime import RuntimeHandle
 from .service import ServiceHandle
+from .space import SpaceHandle
 from .spec import (
     BenchSpec,
     ClientSpec,
@@ -98,8 +98,8 @@ class Simulation:
 
         # content
         self.supervisor = SupervisorHandle("supervisor", spec.supervisor, self.oracle, self)
-        self.benches_by_name: dict[str, BenchHandle] = {}
-        self.benches_by_id: dict[UUID, BenchHandle] = {}
+        self.benches_by_name: dict[str, SpaceHandle] = {}
+        self.benches_by_id: dict[UUID, SpaceHandle] = {}
         self.hosts_by_name: dict[str, HostHandle] = {}
         self.users_by_name: dict[str, UserHandle] = {}
         self.machines_by_name: dict[str, MachineHandle] = {}
@@ -158,7 +158,7 @@ class Simulation:
             )
         return client
 
-    def get_bench(self, name: str | UUID) -> "BenchHandle":
+    def get_bench(self, name: str | UUID) -> "SpaceHandle":
         if isinstance(name, UUID):
             bench = self.benches_by_id.get(name)
         else:
@@ -206,9 +206,9 @@ class Simulation:
             raise ValueError(f"{self!r} has no workload group: '{name}'")
         return self.workloads_by_group[name]
 
-    def get_bench_id(self, name: str) -> UUID:
+    def get_space_id(self, name: str) -> UUID:
         bench = self.get_bench(name)
-        return bench.bench_id
+        return bench.space_id
 
     async def prepare(self):
         """Initialize the simulation from ths spec."""
@@ -267,11 +267,11 @@ class Simulation:
             parent.clients_by_name[client_spec.name] = client
             return client
 
-        def add_bench(bench_spec: BenchSpec) -> BenchHandle:
+        def add_bench(bench_spec: BenchSpec) -> SpaceHandle:
             """Add a Bench to the simulation."""
             if bench_spec.name in self.benches_by_name:
                 raise ValueError(f"duplicate bench name: {bench_spec.name} in {self!r}")
-            bench = BenchHandle(
+            bench = SpaceHandle(
                 id=f"bench:{bench_spec.name}",
                 spec=bench_spec,
                 oracle=self.oracle,
@@ -393,7 +393,7 @@ class Simulation:
             for bench in self.benches_by_name.values():
                 user = self.users_by_name.get(bench.spec.owner)
                 await bench.prepare(supervisor_client, user.some_client if user else None)
-                self.benches_by_id[bench.bench_id] = bench
+                self.benches_by_id[bench.space_id] = bench
             # prepare machines and their clients
             for machine in self.machines_by_name.values():
                 await machine.prepare()

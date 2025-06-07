@@ -63,13 +63,11 @@ message LocalStorage {
   // Space/Bench
   //
 
-  // The current Space. May be local if not in a current Bench.
-  optional NodeReferenceData space_ptr = 10;
-  // The current Bench.
-  optional NodeReferenceData bench_ptr = 11;
-  // The Bench->Package mapping for known Benches.
+  // The current Space.
+  optional NodeReferenceData space_ptr = 11;
+  // The Space->Package mapping for known Spaces.
   repeated NodeReferenceData package_ptrs = 12;
-  // The Bench->Space mapping for known Benches.
+  // The Space->Space mapping for known Spaces.
   repeated NodeReferenceData space_ptrs = 13;
   // Any local graphs.
   repeated LocalGraph local_graphs = 15;

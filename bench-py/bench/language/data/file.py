@@ -65,7 +65,7 @@ MAX_FILE_SIZE = get_from_env(
 
 @enum_(EnumType.FILE_SOURCE)
 class FileSource(BuiltinEnum):
-    BENCH = 1
+    SPACE = 1
     INLINE = 3
     EXTERNAL = 10
 
@@ -758,7 +758,7 @@ async def extract_file_info(  # noqa: RUF029
     size = len(content)
     sha256 = hashlib.sha256(content).hexdigest()
     file = File(
-        source=FileSource.BENCH,
+        source=FileSource.SPACE,
         name=name,
         type=type,
         mime_type=mime_type,
@@ -862,11 +862,11 @@ async def upload_file(
     if session is None:
         session = active_session()
     if parent is None:
-        bench = session.bench
+        space = session.space
         if session.runtime is not None and (runner := session.runtime.active_runner) is not None:
             parent = runner.thread.thread
         else:
-            package = bench.main_package if bench is not None else None
+            package = space.main_package if space is not None else None
             if package is None:
                 raise ValueError(f"no Package to upload file {name!r} to in {session!r}")
             parent = package

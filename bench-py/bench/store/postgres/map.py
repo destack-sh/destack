@@ -82,14 +82,14 @@ def map_builtin_node_to_database_table(node: type[Node]) -> DatabaseTable:
                     prop=prop,
                 )
                 columns.append(node_type_column)
-            if prop.node_has_bench:
-                bench_id_column = DatabaseColumn(
-                    name=f"{prop.name}_bench_id",
+            if prop.node_has_space:
+                space_id_column = DatabaseColumn(
+                    name=f"{prop.name}_space_id",
                     type=PrimitiveType.UUID,
                     is_nullable=prop.is_optional,
                     prop=prop,
                 )
-                columns.append(bench_id_column)
+                columns.append(space_id_column)
         else:
             # regular column
             assert prop.primitive_type is not None, f"undetermined type for {prop!r}"
@@ -118,7 +118,7 @@ def map_builtin_node_to_database_table(node: type[Node]) -> DatabaseTable:
     for index in node.__indexes__:
         assert not index.name or not index.name.startswith("bench_"), f"bad idnex name: {index!r}"
         extra_index = DatabaseIndex.from_index_in(
-            f"bench_idx_{index.name or '_'.join(index.columns)}", index
+            f"space_idx_{index.name or '_'.join(index.columns)}", index
         )
         indexes.append(extra_index)
 

@@ -58,7 +58,7 @@ PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, ProtoFieldType] = {
 }
 
 
-def _map_bench_property_to_proto_field(
+def _map_property_to_proto_field(
     prop: "Property", cache: dict[type[BuiltinObjectBase] | type[BuiltinEnum], ProtoThing]
 ) -> ProtoField:
     assert prop.id == 1 or prop.is_wired, f"not a wired property: {prop!r}"
@@ -179,7 +179,7 @@ def _map_builtin_object_to_proto_message(
     for prop in properties if properties is not None else cls.__properties__.values():
         if not prop.is_wired or prop.ptr_prop is not None:
             continue
-        field = _map_bench_property_to_proto_field(prop, cache)
+        field = _map_property_to_proto_field(prop, cache)
         message.fields.append(field)
     message.fields.sort(key=lambda f: cast(int, f.id))
     return message

@@ -253,7 +253,7 @@ class DatabaseColumn(DatabaseTableObject):
         table_name = self._table.name if self._table else None
         if args_str:
             args_str = ", " + args_str
-        return f"{table_name or '<detached>'}.{self.name} ({self.type.bench_name}{args_str})"
+        return f"{table_name or '<detached>'}.{self.name} ({self.type.camel_name}{args_str})"
 
     def __repr__(self):
         return f"<Column {self}>"

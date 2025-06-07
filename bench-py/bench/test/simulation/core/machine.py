@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, final
 from more_itertools import first
 
 from bench.language import (
-    Bench,
     Client,
     ClientType,
     Machine,
@@ -11,6 +10,7 @@ from bench.language import (
     NodeType,
     Package,
     ResourceStatus,
+    Space,
 )
 from bench.pb2 import ClientData, MachineData
 from bench.utils.func import generate_access_token
@@ -70,7 +70,7 @@ class MachineHandle:
         session = make_pg_session(self.simulation)
         async with session:
             # create machine and client
-            bench = await Bench.select_all().include_descendants(Package).get(slug=self.spec.bench)
+            bench = await Space.select_all().include_descendants(Package).get(slug=self.spec.bench)
             bench._graph.add_types(NodeType.MACHINE, NodeType.CLIENT)
             runtime = first(
                 (

@@ -20,8 +20,6 @@ from bench.language import (
     ACTIVE_SESSION,
     NODE_TYPES,
     STRUCT_TYPES,
-    Bench,
-    BenchStatus,
     BuiltinObjectBase,
     Database,
     EnvironmentType,
@@ -29,6 +27,8 @@ from bench.language import (
     Package,
     PackageType,
     Session,
+    Space,
+    SpaceStatus,
     StructType,
 )
 from bench.test.conftest import _setup_test_env
@@ -83,13 +83,13 @@ async def session_async(request):
 
 
 def make_package(session: Session):
-    bench = Bench(name="test", slug="test", status=BenchStatus.RUNNING)
+    space = Space(name="test", slug="test", status=SpaceStatus.RUNNING)
     package = Package(type=PackageType.HOME, name="Home", slug="home")
-    bench.add_child(package)
+    space.add_child(package)
     database = Database(name="Database")
     package.add_child(database)
-    bench.database = database
-    session.bench = bench
+    space.database = database
+    session.space = space
     return package
 
 

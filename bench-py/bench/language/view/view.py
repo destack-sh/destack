@@ -15,7 +15,7 @@ from bench.language.core import (
 )
 
 if TYPE_CHECKING:
-    from bench.language import Dimension, Page, Position, Space
+    from bench.language import Dimension, Page, Position, Viewport
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -32,7 +32,7 @@ class IsView(
 ):
     """A View is a graphical interface."""
 
-    parent: Union["Space", "IsView", "Page", None] = property_parent_()
+    parent: Union["Viewport", "IsView", "Page", None] = property_parent_()
     # variant_of, ...
 
     # sizing

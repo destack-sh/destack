@@ -63,7 +63,7 @@ class Message(
     parent: Union["Thread", None] = property_parent_()
     type: MessageType = property_(30, default=MessageType.DEFAULT, is_repr=True)
     # platform? source?
-    thread: Optional["Thread"] = property_(35, node_bench_from="self")
+    thread: Optional["Thread"] = property_(35, node_space_from="self")
     if TYPE_CHECKING:
         thread_id: Optional[UUID] = None
         thread_ptr: Optional[NodeReference] = None

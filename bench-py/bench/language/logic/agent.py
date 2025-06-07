@@ -48,12 +48,12 @@ class Agent(
     # content
     page: Optional["Page"] = property_(
         54,
-        node_bench_from="self",
+        node_space_from="self",
         description="The main Page used by this Agent.",
     )
     cursor: Optional["Cursor"] = property_(
         55,
-        node_bench_from="self",
+        node_space_from="self",
         description="The main Cursor for this Agent.",
     )
     if TYPE_CHECKING:

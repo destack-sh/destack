@@ -43,7 +43,7 @@ class Run(
     type: RunType = property_(30, can_write="system", is_repr=True)
     thread: Optional["Thread"] = property_(
         38,
-        node_bench_from="self",
+        node_space_from="self",
         description="The Thread to communicate with the Run. May be shared with other Runs.",
     )
     if TYPE_CHECKING:
@@ -66,7 +66,7 @@ class Run(
     error: Optional["Error"] = property_(82, is_repr=True)
     interruption: Optional["Interruption"] = property_(
         83,
-        node_bench_from="self",
+        node_space_from="self",
         description="The latest Interruption concerning the Node.",
         is_repr=True,
     )

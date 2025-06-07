@@ -14,7 +14,7 @@ from bench.language import (
     EMPTY_DICT,
     EdgeType,
     Field,
-    IsInBench,
+    IsInSpace,
     Json,
     Node,
     NodeReference,
@@ -135,9 +135,9 @@ def _generate_column_pack(prop: "Property") -> str:
             pack_lines.append("row_values.append(uuid.UUID(_node_ref['32']))  # id")
             if prop.node_has_type:
                 pack_lines.append("row_values.append(_node_ref['31'])  # node_type")
-            if prop.node_has_bench:
+            if prop.node_has_space:
                 pack_lines.append(
-                    "row_values.append(uuid.UUID(_node_ref['34']) if _node_ref.get('34') else None)  # bench_id"
+                    "row_values.append(uuid.UUID(_node_ref['34']) if _node_ref.get('34') else None)  # space_id"
                 )
             if prop.node_has_definition:
                 pack_lines.append(
@@ -149,9 +149,9 @@ def _generate_column_pack(prop: "Property") -> str:
             pack_lines.append("    row_values.append(uuid.UUID(_node_ref['32']))  # id")
             if prop.node_has_type:
                 pack_lines.append("    row_values.append(_node_ref['31'])  # node_type")
-            if prop.node_has_bench:
+            if prop.node_has_space:
                 pack_lines.append(
-                    "    row_values.append(uuid.UUID(_node_ref['34']) if _node_ref.get('34') else None)  # bench_id"
+                    "    row_values.append(uuid.UUID(_node_ref['34']) if _node_ref.get('34') else None)  # space_id"
                 )
             if prop.node_has_definition:
                 pack_lines.append(
@@ -161,8 +161,8 @@ def _generate_column_pack(prop: "Property") -> str:
             pack_lines.append("    row_values.append(None)  # id")
             if prop.node_has_type:
                 pack_lines.append("    row_values.append(None)  # node_type")
-            if prop.node_has_bench:
-                pack_lines.append("    row_values.append(None)  # bench_id")
+            if prop.node_has_space:
+                pack_lines.append("    row_values.append(None)  # space_id")
             if prop.node_has_definition:
                 pack_lines.append("    row_values.append(None)  # definition_id")
             return "\n".join(pack_lines)
@@ -216,14 +216,14 @@ def _generate_column_unpack(prop: "Property") -> str:
             node_type = prop.node_types[0]
             assert isinstance(node_type, NodeType), f"unexpected node type: {prop!r}"
             unpack_lines.append(f"    _node_ref['31'] = {node_type.value}")
-        # bench_id
-        if prop.node_has_bench:
+        # space_id
+        if prop.node_has_space:
             unpack_lines.append(
-                f"    _node_ref['34'] = str(row['{prop.name}_bench_id']) if row.get('{prop.name}_bench_id') else None"
+                f"    _node_ref['34'] = str(row['{prop.name}_space_id']) if row.get('{prop.name}_space_id') else None"
             )
-        elif any(issubclass(NODE_CLASS_BY_TYPE[node_type], IsInBench) for node_type in node_types):
+        elif any(issubclass(NODE_CLASS_BY_TYPE[node_type], IsInSpace) for node_type in node_types):
             unpack_lines.append(
-                "    _node_ref['34'] = str(row['bench_id']) if row.get('bench_id') else None"
+                "    _node_ref['34'] = str(row['space_id']) if row.get('space_id') else None"
             )
         # definition_id
         if prop.node_has_definition:
@@ -387,9 +387,9 @@ def pack_column_wide(
             column_type = f"{column_name}_type"
             if column_type in table._columns_by_name:
                 column_out[f"{column_name}_type"] = int(value["31"]) if value is not None else None
-            column_bench_id = f"{column_name}_bench_id"
-            if column_bench_id in table._columns_by_name:
-                column_out[column_bench_id] = (
+            column_space_id = f"{column_name}_space_id"
+            if column_space_id in table._columns_by_name:
+                column_out[column_space_id] = (
                     uuid.UUID(value["34"]) if value is not None and value.get("34") else None
                 )
             column_definition_id = f"{column_name}_definition_id"

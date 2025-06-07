@@ -25,9 +25,9 @@ async def sqlshell(
     region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,
     cell_name: Optional[str] = None,
     external_id: Optional[str] = None,
-    bench: Optional[str] = None,
+    space: Optional[str] = None,
 ):  # type: ignore
-    """Open a psql shell to either the global or a Bench-local database."""
+    """Open a psql shell to either the global or a Space-local database."""
     from bench.language import Area
     from bench.sharding import DATABASE_PROVIDER, get_global_database_from_env
 
@@ -44,7 +44,7 @@ async def sqlshell(
     logger.info(
         "shell.psql",
         area=area,
-        bench=bench,
+        space=space,
         database=database,
         sql_url=sanitize_connection_url(database.sql_url),
     )

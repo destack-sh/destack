@@ -37,7 +37,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.06.07.1"
+VERSION = "2025.06.07.2"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -123,7 +123,7 @@ class BuiltinEnum(enum.IntEnum):
         return obj
 
     @functools.cached_property
-    def bench_name(self):
+    def camel_name(self):
         from bench.utils.string import Casing, to_casing
 
         return to_casing(self.name, Casing.CAMEL)
@@ -289,7 +289,7 @@ class EnumType(BuiltinEnum):
     PROPERTY_REFERENCE_TYPE = 9
     USER_STATUS = 11
     ORGANIZATION_STATUS = 12
-    BENCH_STATUS = 57
+    SPACE_STATUS = 57
     PACKAGE_TYPE = 51
     ERROR_TYPE = 62
     VARIABLE_TYPE = 64
@@ -309,14 +309,14 @@ class EnumType(BuiltinEnum):
     QUERY_TYPE = 812
     QUERY_UPDATE_TYPE = 813
     # auth [200-600]
-    BENCH_ROLE_TYPE = 201
+    SPACE_ROLE_TYPE = 201
     ORGANIZATION_ROLE_TYPE = 211
     PACKAGE_ROLE_TYPE = 221
     CLIENT_TYPE = 231
     # ...
 
     # space [600-800]
-    SPACE_TYPE = 601
+    VIEWPORT_TYPE = 601
     BLOCK_TYPE = 611
     # ...
 
@@ -605,10 +605,10 @@ class StructType(BuiltinEnum):
 
 @enum_(EnumType.NODE_TYPE)
 class NodeType(BuiltinEnum):
-    # bench [1-200]
-    BENCH = 1, "Bench", "Universal Bench", "https://heybench.com/favicon.ico"
-    BENCH_MEMBERSHIP = 2, "Bench Membership", "Membership in a Bench", "fas fa-user-group"
-    BENCH_INVITE = 3, "Bench Invite", "Invite to a Bench", "fas fa-user-plus"
+    # space [1-200]
+    SPACE = 1, "Space", "Universal Space", "https://heybench.com/favicon.ico"
+    SPACE_MEMBERSHIP = 2, "Space Membership", "Membership in a Space", "fas fa-user-group"
+    SPACE_INVITE = 3, "Space Invite", "Invite to a Space", "fas fa-user-plus"
     # BENCH_MIGRATION?
     PACKAGE = 50, "Package", "Isolated sub-Bench", "fas fa-box-open"
     PACKAGE_MEMBERSHIP = 51, "Package Membership", "Membership in a Package", "fas fa-user-group"
@@ -644,8 +644,8 @@ class NodeType(BuiltinEnum):
     # PERMISSION, PERMISSION_GROUP, ...
     # CHALLENGE, FRIENDSHIP, ENTITLEMENT, POLICY, RULE, KICK/BAN, ...
 
-    # space [600-800]
-    SPACE = 600, "Space", "Space", "fas fa-galaxy"
+    # scene [600-800]
+    VIEWPORT = 600, "Viewport", "Viewport", "fas fa-galaxy"
     SCENE = 610, "Scene", "Scene of an Application", "fas fa-masks-theater"
     ROUTE = 620, "Route", "Route to a Scene", "fas fa-route"
     # COMMAND, OVERLAY, WIDGET, ...
@@ -678,14 +678,16 @@ class NodeType(BuiltinEnum):
     RUN = 1610, "Run", "Run", "fas fa-play"
     SPAN = 1620, "Span", "Span", "fas fa-ruler-horizontal"
     INTERRUPTION = 1630, "Interruption", "Interruption", "fas fa-hand"
+    LOG = 1640, "Log", "Log", "fas fa-file-lines"
     # ROOM, JOB, PLAN, LOCK, ...
     # EVENT, SIGNAL, ...
     # TIMER, BREAKPOINT, ...
     # INSTRUMENT, MEASUREMENT,
-    LOG = 1700, "Log", "Log", "fas fa-file-lines"
-    EDIT_LOG = 1701, "Edit Log", "Edit Log", "fas fa-file-lines"
-    CHANGE_LOG = 1702, "Change Log", "Change Log", "fas fa-file-lines"
-    QUERY_LOG = 1703, "Query Log", "Query Log", "fas fa-file-lines"
+    SIGNAL_DEFINITION = 1700, "Signal Definition", "Signal Definition", "fas fa-signal"
+    SIGNAL_INSTANCE = 1701, "Signal Instance", "Signal Instance", "fas fa-signal"
+    EDIT_EVENT = 1710, "Edit Event", "Edit Event", "fas fa-file-lines"
+    CHANGE_EVENT = 1711, "Change Event", "Change Event", "fas fa-file-lines"
+    QUERY_EVENT = 1712, "Query Event", "Query Event", "fas fa-file-lines"
 
     # data [2000-2400]
     SCHEMA = 2000, "Schema", "Schema", "fas fa-shapes"
@@ -820,7 +822,7 @@ class TraitType(BuiltinEnum):
     ORDERED = 25, "Ordered", "Is ordered", "fas fa-sort"
     TEMPLATABLE = 30, "Templatable", "Is templatable", "fas fa-puzzle-piece"
     EXTENSIBLE = 32, "Extensible", "Is extensible", "fas fa-expand"
-    IN_BENCH = 40, "Bench", "Is in a Bench", "fas fa-bench"
+    IN_SPACE = 40, "Bench", "Is in a Bench", "fas fa-bench"
     IN_PACKAGE = 41, "Package", "Is in a Package", "fas fa-box"
     RESOURCE = 51, "Resource", "Is a Resource", "fas fa-server"
     PROVISIONABLE = 52, "Provisionable", "Is provisionable", "fas fa-server"
@@ -849,7 +851,7 @@ class TraitType(BuiltinEnum):
     SOURCEABLE = 1202, "Script Sourceable", "Can be sourced from a Script", "fas fa-code"
     INSTRUMENT = 1210, "Instrument", "Is an instrument", "fas fa-microscope"
     MEASUREMENT = 1211, "Measurement", "Is a measurement", "fas fa-microscope"
-    LOG = 1212, "Log", "Is a log", "fas fa-file-lines"
+    EVENT = 1212, "Log", "Is a log", "fas fa-file-lines"
 
     # runtime [1600-2000]
     # LOG, ...
@@ -1385,4 +1387,4 @@ class BenchError(Exception):
 
 
 def repr_enums(enums: Iterable[BuiltinEnum]) -> str:
-    return "|".join(e.bench_name for e in enums)
+    return "|".join(e.camel_name for e in enums)

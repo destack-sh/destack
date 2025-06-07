@@ -363,10 +363,10 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
     # pointers
     ptr_prop: Optional["Property"] = None  # wired representation for pointers
     runtime_prop: Optional["Property"] = None  # for the proto property
-    node_bench_from: Literal["self"] | None = None
+    node_space_from: Literal["self"] | None = None
     node_is_customizable: bool = False
     node_has_type: bool = False
-    node_has_bench: bool = False
+    node_has_space: bool = False
     node_has_definition: bool = False
     edge_type: EdgeType | None = None
     cascade: CascadeAction | None = None
@@ -602,15 +602,15 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
     def finalize(self, object_type: NodeType | StructType | None) -> None:
         """Finalize the Property after all BuiltinObjects are defined."""
         if self.scalar_type == ScalarType.NODE_REFERENCE:
-            from .trait import IsInBench, expand_node_types
+            from .trait import IsInSpace, expand_node_types
 
             node_types = expand_node_types(self.node_types or ())
             self.node_has_type = len(node_types) > 1
             self.node_has_definition = (
                 self.node_is_customizable and NodeType.CUSTOM_NODE_INSTANCE in node_types
             )
-            self.node_has_bench = self.node_bench_from is None and any(
-                issubclass(NODE_CLASS_BY_TYPE[node_type], IsInBench) for node_type in node_types
+            self.node_has_space = self.node_space_from is None and any(
+                issubclass(NODE_CLASS_BY_TYPE[node_type], IsInSpace) for node_type in node_types
             )
 
 
@@ -623,7 +623,7 @@ def property_(
     primitive_type: PrimitiveType | None = UNSET,
     format: "Format | None" = None,
     constraint: "Constraint | None" = None,
-    node_bench_from: Literal["self"] | None = None,
+    node_space_from: Literal["self"] | None = None,
     node_is_customizable: bool = True,
     edge_type: EdgeType | None = None,
     cascade: CascadeAction | None = None,
@@ -642,7 +642,7 @@ def property_(
         primitive_type=primitive_type,
         format=format,
         constraint=constraint,
-        node_bench_from=node_bench_from,
+        node_space_from=node_space_from,
         node_is_customizable=node_is_customizable,
         edge_type=edge_type,
         cascade=cascade,
@@ -668,7 +668,7 @@ def property_parent_() -> Any:
         is_required=False,
         is_managed=True,
         is_eq=False,
-        node_bench_from="self",
+        node_space_from="self",
         node_is_customizable=True,
         cascade=CascadeAction.CASCADE,
     )
@@ -687,7 +687,7 @@ def property_ancestor_(
         is_wired=True,
         is_stored=True,
         is_eq=False,  # no point since it's derived
-        node_bench_from="self",
+        node_space_from="self",
         node_is_customizable=True,
     )
 

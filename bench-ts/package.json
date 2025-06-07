@@ -1,6 +1,6 @@
 {
   "name": "bench-ts",
-  "version": "2025.06.07.1",
+  "version": "2025.06.07.2",
   "private": true,
   "type": "module",
   "scripts": {

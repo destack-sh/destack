@@ -44,10 +44,10 @@ type_ = type
 
 @struct_(StructType.SCOPE, frozen=True)
 class Scope(StructFrozen[ScopeData]):
-    """The scope in the Bench graph."""
+    """The scope in the Space graph."""
 
     region: Optional[Region] = property_(31, is_repr=True)
-    bench_id: Optional[UUID] = property_(32, is_repr=True)
+    space_id: Optional[UUID] = property_(32, is_repr=True)
 
 
 @enum_(EnumType.RELATION_TYPE)
@@ -209,6 +209,6 @@ class NodeReference(StructFrozen[NodeReferenceData]):
 
     node_type: NodeType = property_(31, is_repr=True)
     id: UUID = property_(32, is_repr=True)
-    bench_id: Optional[UUID] = property_(34, is_repr=True)
+    space_id: Optional[UUID] = property_(34, is_repr=True)
     definition_id: Optional[UUID] = property_(35, is_repr=True)
     # area? external_id?
