@@ -1,4 +1,3 @@
-import asyncio
 from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING, Any, Callable, override
 
@@ -42,8 +41,6 @@ from bench.sharding import CellProvider, DatabaseProvider
 from bench.store import PostgresStore
 from bench.utils.env import ENV, get_from_env
 from bench.utils.oracle import Oracle
-
-from .plugin import HostPlugin
 
 if TYPE_CHECKING:
     pass
@@ -89,7 +86,6 @@ class HostService(ServiceBase, HostBase):
         self.space_id = space_id
         self.space_ptr = NodeReference(node_type=NodeType.SPACE, id=space_id, space_id=space_id)
         self.scope = Scope(space_id=space_id)
-        self.plugins: tuple[HostPlugin, ...] = ()  # incl. provisioners
         self.global_database_store = PostgresStore(
             database=global_database, area=Area.GLOBAL_DATABASE
         )
@@ -108,7 +104,7 @@ class HostService(ServiceBase, HostBase):
     @property
     def is_idle(self) -> bool:
         """Check if the Host is idle (no pending requests or processing)."""
-        return all(plugin.is_idle for plugin in self.plugins) and super().is_idle
+        return super().is_idle
 
     async def start(self) -> None:
         async with Session(store=self.global_database_store):
@@ -123,12 +119,9 @@ class HostService(ServiceBase, HostBase):
 
     def stop(self) -> None:
         super().stop()
-        for plugin in self.plugins:
-            plugin.close()
 
     async def wait_stopped(self) -> None:
         await super().wait_stopped()
-        await asyncio.gather(*(plugin.wait_closed() for plugin in self.plugins))
 
     @override
     async def make_session(self, metadata: RpcMetadata) -> Session:

@@ -1,16 +1,16 @@
 # BENCH: script for 0000-0000-0000-0000 (Event)
-# nocheckin: Scripts, custom Signals/Schemas/fields, ..
 
 from contextlib import contextmanager
 from typing import Any
 
-from bench import Client, CustomNodeInstance, EdgeType, IsSubject, Node, Session
+from bench import Client, CustomNodeInstance, EdgeType, IsSubject, Node, Session, User
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
 
 # ===============================================
-#  MOCK STUFF FOR PROTOTYPING
+# MOCK STUFF FOR PROTOTYPING
+# nocheckin: Scripts, custom Signals/Schemas/fields, ..
 # ===============================================
 
 
@@ -72,17 +72,12 @@ class Event(Node):
 @node
 class EventResponse(Node):
     parent: Event = field(2, edge_type=EdgeType.PARENT)
+    user: User = field(3)
 
 
 @schema
 class TestSchema(Schema):
     pass
-
-
-# action inputs (all optional)
-# session: Session
-# subject: IsSubject
-# client: Client
 
 
 @action
