@@ -34,7 +34,7 @@ from bench.language import (
     to_value,
 )
 
-from .core import DatabaseContext
+from .core import PostgresContext
 from .map import BENCH_CUSTOM_FIELD_PREFIX
 from .wiring import pack_column_flat, unpack_node_row
 
@@ -44,7 +44,7 @@ tracer = trace.get_tracer(__name__)
 MAX_RECURSION_DEPTH = 1_000
 
 
-def _compile_value(context: DatabaseContext, arguments_out: list[Any], value: Value) -> str:
+def _compile_value(context: PostgresContext, arguments_out: list[Any], value: Value) -> str:
     """Compile a Value into a SQL expression."""
     if value.type.scalar_type == ScalarType.NODE_REFERENCE:
         # unravel reference column into id
@@ -57,13 +57,13 @@ def _compile_value(context: DatabaseContext, arguments_out: list[Any], value: Va
         return f"${len(arguments_out)}"
 
 
-def _compile_select(context: DatabaseContext, arguments_out: list[Any], select: Select) -> str:
+def _compile_select(context: PostgresContext, arguments_out: list[Any], select: Select) -> str:
     """Compile a Select into a SQL SELECT clause."""
     raise NotImplementedError(select)
 
 
 def _compile_attribute(
-    context: DatabaseContext, arguments_out: list[Any], attribute: AttributeReference
+    context: PostgresContext, arguments_out: list[Any], attribute: AttributeReference
 ) -> str:
     """Compile an Attribute into a SQL expression."""
     if attribute.type == AttributeType.PROPERTY:
@@ -87,7 +87,7 @@ def _compile_attribute(
 
 
 def _compile_condition(
-    context: DatabaseContext, arguments_out: list[Any], condition: Condition
+    context: PostgresContext, arguments_out: list[Any], condition: Condition
 ) -> str:
     """Compile a Condition into a SQL WHERE clause."""
     # logical
@@ -144,7 +144,7 @@ def _compile_condition(
         assert_never(condition.type)
 
 
-def _compile_sort(context: DatabaseContext, arguments_out: list[Any], sort: Sequence[Sort]) -> str:
+def _compile_sort(context: PostgresContext, arguments_out: list[Any], sort: Sequence[Sort]) -> str:
     """Compile a Sort into a SQL ORDER BY clause."""
     from bench.language import SortType
 
@@ -162,7 +162,7 @@ def _compile_sort(context: DatabaseContext, arguments_out: list[Any], sort: Sequ
 
 
 def _compile_function(
-    context: DatabaseContext, arguments_out: list[Any], function: Function
+    context: PostgresContext, arguments_out: list[Any], function: Function
 ) -> str:
     """Compile a Function into a SQL expression."""
     from bench.language import FunctionType
@@ -198,7 +198,7 @@ def _compile_function(
 
 
 def _compile_aggregation(
-    context: DatabaseContext, arguments_out: list[Any], aggregation: Aggregation
+    context: PostgresContext, arguments_out: list[Any], aggregation: Aggregation
 ) -> str:
     """Compile an Aggregation into a SQL expression."""
     from bench.language import AggregationType
@@ -232,7 +232,7 @@ def _compile_aggregation(
 
 
 def _compile_expression(
-    context: DatabaseContext, arguments_out: list[Any], expr: Expression
+    context: PostgresContext, arguments_out: list[Any], expr: Expression
 ) -> str:
     """Compile an Expression into a SQL expression."""
     if expr.type == ExpressionType.LITERAL:
@@ -257,7 +257,7 @@ def _compile_expression(
 @tracer.start_as_current_span("database.walk_node")
 async def _walk_node(
     conn: asyncpg.Connection,
-    context: DatabaseContext,
+    context: PostgresContext,
     relation: RelationReference,
     roots_ptr: Sequence[NodeReference],
     roots_parents_ptr: Sequence[NodeReference],
@@ -346,7 +346,7 @@ FROM    tree;
 @tracer.start_as_current_span("database.query_node")
 async def _query_node(
     conn: asyncpg.Connection,
-    context: DatabaseContext,
+    context: PostgresContext,
     relation: RelationReference,
     select: Select | None,
     where: Condition | None,
@@ -390,7 +390,7 @@ async def _query_node(
 @tracer.start_as_current_span("database.query_scalar")
 async def _query_scalar(
     conn: asyncpg.Connection,
-    context: DatabaseContext,
+    context: PostgresContext,
     relation: RelationReference,
     aggregation: Aggregation,
     where: Condition | None,
@@ -424,7 +424,7 @@ async def _query_scalar(
 @tracer.start_as_current_span("database.query_grouped_node")
 async def _query_grouped_node(
     conn: asyncpg.Connection,
-    context: DatabaseContext,
+    context: PostgresContext,
     relation: RelationReference,
     select: Select | None,
     where: Condition | None,
@@ -441,7 +441,7 @@ async def _query_grouped_node(
 @tracer.start_as_current_span("database.query_grouped_scalar")
 async def _query_grouped_scalar(
     conn: asyncpg.Connection,
-    context: DatabaseContext,
+    context: PostgresContext,
     relation: RelationReference,
     aggregation: Aggregation,
     where: Condition | None,
@@ -454,7 +454,7 @@ async def _query_grouped_scalar(
 
 @tracer.start_as_current_span("database.query_clause")
 async def _query_clause(
-    conn: asyncpg.Connection, context: DatabaseContext, query: Query, where: Condition | None
+    conn: asyncpg.Connection, context: PostgresContext, query: Query, where: Condition | None
 ) -> tuple[QueryResult, Sequence[NodeReference]]:
     """Execute the specific Query "clause" (ignoring subqueries)."""
 
@@ -564,7 +564,7 @@ async def _query_clause(
 
 async def _execute_subquery(
     conn: asyncpg.Connection,
-    context: DatabaseContext,
+    context: PostgresContext,
     result: QueryResult,
     nodes_ptr: Sequence[NodeReference],
     subquery: Query,
@@ -655,7 +655,7 @@ async def _execute_subquery(
 
 @tracer.start_as_current_span("database.query")
 async def execute_query(
-    conn: asyncpg.Connection, context: DatabaseContext, query: Query, where: Condition | None = None
+    conn: asyncpg.Connection, context: PostgresContext, query: Query, where: Condition | None = None
 ) -> QueryResult:
     """Execute the Query (and any subqueries)."""
 

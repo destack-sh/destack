@@ -22,6 +22,7 @@ from bench.language import (
     join,
     text_line,
 )
+from bench.language.scene.scene import Scene
 from bench.store import PostgresStore
 
 
@@ -158,6 +159,14 @@ async def test_create_page_blocks_recursive(session: Session):
         pages_unpacked = connection.graph.get_roots(Page)
         assert len(pages_unpacked) == 1
         assert pages_unpacked[0].equals(page)
+
+
+async def test_create_scene_with_heterogeneous_views(session: Session):
+    """Create a Scene with heterogeneous Views, mutate it, querying along the way."""
+    # create
+    scene = Scene(name="Scene")
+    session.create(scene)
+    await session.commit()
 
 
 # nocheckin: Viewport/IsView/... recursive trait relation queries

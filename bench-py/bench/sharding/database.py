@@ -114,7 +114,7 @@ class StaticDatabaseProvider(DatabaseProvider):
                 region=region,
                 cell_name=cell_name,
                 external_name=external_name,
-                sql_url=database_url,
+                connection_url=database_url,
             )
             databases.append(database_info)
 

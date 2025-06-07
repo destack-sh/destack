@@ -25,7 +25,7 @@ from bench.store.postgres import (
     BUILTIN_MAIN_SCHEMA,
     BUILTIN_MAIN_TABLES,
     EXTENSIONS,
-    DatabaseSchema,
+    PostgresSchema,
     apply_migration_ops,
     generate_migration_ops,
     introspect_schema,
@@ -48,7 +48,7 @@ def get_database(name: str) -> DatabaseInfo:
         cell_name="test-0",
         external_name=name,
         tenancy=Tenancy.DEDICATED,
-        sql_url=sql_url,
+        connection_url=sql_url,
     )
     return database
 
@@ -60,7 +60,7 @@ async def create_blank_test_db(database: DatabaseInfo):
         await conn.execute(f'CREATE DATABASE "{database.external_name}"')
 
 
-async def create_test_db(database: DatabaseInfo, schema: DatabaseSchema):
+async def create_test_db(database: DatabaseInfo, schema: PostgresSchema):
     """Creates a postgres DB with one of our schemas"""
     await create_blank_test_db(database)
     async with pg_connection(database) as conn:
@@ -120,7 +120,7 @@ async def omni_database(request: pytest.FixtureRequest) -> AsyncGenerator[Databa
     omni_tables_by_name = {
         table.name: table for table in BUILTIN_GLOBAL_TABLES + BUILTIN_MAIN_TABLES
     }
-    omni_schema = DatabaseSchema(EXTENSIONS, tuple(omni_tables_by_name.values()))
+    omni_schema = PostgresSchema(EXTENSIONS, tuple(omni_tables_by_name.values()))
     database = get_database(f"test-{_clean_name(request.node.name)[:32]}-omni")
     await create_test_db(database, omni_schema)
     try:

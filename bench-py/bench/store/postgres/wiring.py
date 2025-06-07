@@ -32,7 +32,7 @@ from bench.language.registry import NODE_CLASS_BY_TYPE
 from bench.utils.code import exec_
 from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 
-from .core import DatabaseTable
+from .core import PostgresTable
 
 #
 # Builtin Node values
@@ -301,7 +301,7 @@ for node_type in NodeType:
     NODE_ROW_UNPACK[node_type] = locals[f"_unpack_{node_cls.__name__}_row"]
 
 
-def pack_node_row(table: DatabaseTable, value: Value) -> Sequence[Any]:
+def pack_node_row(table: PostgresTable, value: Value) -> Sequence[Any]:
     """Pack a Node Value into an asyncpg row (tuple)."""
     type = value.type
     assert type.scalar_type == ScalarType.NODE_VALUE, f"unexpected node value: {value!r}"
@@ -314,7 +314,7 @@ def pack_node_row(table: DatabaseTable, value: Value) -> Sequence[Any]:
     return node_packed
 
 
-def unpack_node_row(table: DatabaseTable, row: asyncpg.Record) -> tuple[Value, NodeReference]:
+def unpack_node_row(table: PostgresTable, row: asyncpg.Record) -> tuple[Value, NodeReference]:
     """Unpack an asyncpg row into a Node Value."""
     node_type = table.node_type
     assert node_type is not None, f"no node type for {table!r}"
@@ -375,7 +375,7 @@ def pack_column_flat(type: "Type | Field", value: Json) -> Any:
 def pack_column_wide(
     type: "Type | Field",
     value: Json | None,
-    table: DatabaseTable,
+    table: PostgresTable,
     column_name: str,
     column_out: dict[str, Any],
 ) -> None:

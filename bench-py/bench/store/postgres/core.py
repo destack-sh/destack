@@ -28,10 +28,10 @@ if TYPE_CHECKING:
 
 
 @dataclass(slots=True)
-class DatabaseSchema:
-    extensions: tuple["DatabaseExtension", ...]
-    tables: tuple["DatabaseTable", ...]
-    _tables_by_name: dict[str, "DatabaseTable"] = dataclasses.field(init=False)
+class PostgresSchema:
+    extensions: tuple["PostgresExtension", ...]
+    tables: tuple["PostgresTable", ...]
+    _tables_by_name: dict[str, "PostgresTable"] = dataclasses.field(init=False)
 
     def __post_init__(self):
         self._tables_by_name = {table.name: table for table in self.tables}
@@ -49,7 +49,7 @@ class DatabaseSchema:
 
     @staticmethod
     def blank():
-        return DatabaseSchema(extensions=(), tables=())
+        return PostgresSchema(extensions=(), tables=())
 
 
 class DatabaseObjectKind(enum.StrEnum):
@@ -61,7 +61,7 @@ class DatabaseObjectKind(enum.StrEnum):
 
 
 @dataclass(slots=True)
-class DatabaseObject:
+class PostgresObject:
     FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]]
     kind: ClassVar[DatabaseObjectKind]
 
@@ -79,7 +79,7 @@ class DatabaseObject:
         """Turns this object into a SQL block."""
         raise NotImplementedError
 
-    def walk(self) -> tuple["DatabaseObject", ...]:
+    def walk(self) -> tuple["PostgresObject", ...]:
         return (self,)
 
     def hash_flat(self) -> int:
@@ -91,7 +91,7 @@ class DatabaseObject:
         )
         return hash_stable(*values)
 
-    def diff_flat(self, other: "DatabaseTableObject") -> dict[str, Any]:
+    def diff_flat(self, other: "PostgresTableObject") -> dict[str, Any]:
         """Get a diff of this object's data attributes, ignoring nested objects."""
         assert type(self) is type(other), f"cannot diff {self!r} with {other!r}"
         return {
@@ -100,7 +100,7 @@ class DatabaseObject:
             if getattr(self, field_name) != getattr(other, field_name)
         }
 
-    def diff_keys(self, other: "DatabaseTableObject") -> tuple[str, ...]:
+    def diff_keys(self, other: "PostgresTableObject") -> tuple[str, ...]:
         """Get the keys (field names) where this object differs from another."""
         assert type(self) is type(other), f"cannot diff {self!r} with {other!r}"
         return tuple(
@@ -111,7 +111,7 @@ class DatabaseObject:
 
 
 @dataclass(slots=True)
-class DatabaseExtension(DatabaseObject):
+class PostgresExtension(PostgresObject):
     """
     A SQL extension.
     """
@@ -131,7 +131,7 @@ class DatabaseExtension(DatabaseObject):
         return hash_stable(self.kind, self.name)
 
     def __eq__(self, other):
-        return isinstance(other, DatabaseExtension) and self.name == other.name
+        return isinstance(other, PostgresExtension) and self.name == other.name
 
     @property
     def qualified_name(self) -> str:
@@ -142,9 +142,9 @@ class DatabaseExtension(DatabaseObject):
 
 
 @dataclass(slots=True)
-class DatabaseTableObject(DatabaseObject):
+class PostgresTableObject(PostgresObject):
     @property
-    def table(self) -> "DatabaseTable":
+    def table(self) -> "PostgresTable":
         assert self._table is not None, f"{self} is not attached to a table"
         return self._table
 
@@ -155,14 +155,14 @@ class DatabaseTableObject(DatabaseObject):
     @property
     def qualified_name(self) -> str:
         if self.kind == DatabaseObjectKind.TABLE:
-            return cast("DatabaseTable", self).name
+            return cast("PostgresTable", self).name
         elif self.kind == DatabaseObjectKind.INDEX:
-            return cast("DatabaseIndex", self).name
+            return cast("PostgresIndex", self).name
         else:
             return f"{self.table_name}.{getattr(self, 'name')}"
 
     @property
-    def _table(self) -> Union["DatabaseTable", None]:
+    def _table(self) -> Union["PostgresTable", None]:
         raise NotImplementedError
 
     def clone(self) -> "Self":
@@ -170,7 +170,7 @@ class DatabaseTableObject(DatabaseObject):
         return dataclasses.replace(self, _table=None)
 
 
-class SqlCascadeAction(enum.StrEnum):
+class PostgresCascadeAction(enum.StrEnum):
     """
     A SQL cascade action.
     """
@@ -183,7 +183,7 @@ class SqlCascadeAction(enum.StrEnum):
 
 
 @dataclass(slots=True)
-class DatabaseColumn(DatabaseTableObject):
+class PostgresColumn(PostgresTableObject):
     """
     A SQL column definition.
     """
@@ -209,14 +209,14 @@ class DatabaseColumn(DatabaseTableObject):
     is_array: bool = False
     is_primary_key: bool = False
     is_foreign_key_to: str | None = None
-    on_delete: SqlCascadeAction | None = None
+    on_delete: PostgresCascadeAction | None = None
     is_unique: bool = False  # handled via constraints
     is_nullable: bool = False
     length: int | None = None
     precision: int | None = None
     scale: int | None = None
     default: str | None = None
-    _table: Union["DatabaseTable", None] = None  # type: ignore
+    _table: Union["PostgresTable", None] = None  # type: ignore
 
     def clone(self) -> "Self":
         """Deep copy this Column without the Table / Field reference."""
@@ -285,7 +285,7 @@ class DatabaseColumn(DatabaseTableObject):
         return " ".join(parts)
 
 
-class DatabaseConstraintType(enum.StrEnum):
+class PostgresConstraintType(enum.StrEnum):
     """
     A SQL constraint type.
     """
@@ -297,7 +297,7 @@ class DatabaseConstraintType(enum.StrEnum):
 
 
 @dataclass(slots=True)
-class DatabaseConstraint(DatabaseTableObject):
+class PostgresConstraint(PostgresTableObject):
     """
     A SQL constraint.
     """
@@ -306,13 +306,13 @@ class DatabaseConstraint(DatabaseTableObject):
     kind: ClassVar[DatabaseObjectKind] = DatabaseObjectKind.CONSTRAINT
 
     inner_name: str
-    type: DatabaseConstraintType
+    type: PostgresConstraintType
     columns: tuple[str, ...] | None = None
     condition: str | None = None
     index: str | None = None  # existing index to use (name must be relative to same table)
     _full_name: str | None = None  # as introspected from pg (naming can change)
     _source: str | int | None = None
-    _table: Union["DatabaseTable", None] = None  # type: ignore
+    _table: Union["PostgresTable", None] = None  # type: ignore
 
     def __post_init__(self):
         if self.columns is not None:
@@ -336,9 +336,9 @@ class DatabaseConstraint(DatabaseTableObject):
 
     def sql(self) -> str:
         parts = [f'"{self.name}"', self.type]
-        if self.type == DatabaseConstraintType.CHECK:
+        if self.type == PostgresConstraintType.CHECK:
             parts.append(f"({self.condition})")
-        elif self.type == DatabaseConstraintType.UNIQUE:
+        elif self.type == PostgresConstraintType.UNIQUE:
             if self.index is not None:
                 parts.append(f"USING INDEX {self.table_name}_{self.index}")
             else:
@@ -346,7 +346,7 @@ class DatabaseConstraint(DatabaseTableObject):
         return " ".join(parts)
 
 
-class DatabaseIndexType(enum.StrEnum):
+class PostgresIndexType(enum.StrEnum):
     """
     A SQL index type.
     """
@@ -359,7 +359,7 @@ class DatabaseIndexType(enum.StrEnum):
 
 
 @dataclass(slots=True)
-class DatabaseIndex(DatabaseTableObject):
+class PostgresIndex(PostgresTableObject):
     """
     A SQL index.
     """
@@ -374,14 +374,14 @@ class DatabaseIndex(DatabaseTableObject):
     kind: ClassVar[DatabaseObjectKind] = DatabaseObjectKind.INDEX
 
     inner_name: str
-    type: DatabaseIndexType
+    type: PostgresIndexType
     columns: tuple[str, ...]
     cover: tuple[str, ...] = ()
     is_unique: bool = False
     condition: str | None = None
     _full_name: str | None = None  # as introspected from pg (naming may change)
     _source: str | int | None = None
-    _table: Union["DatabaseTable", None] = None  # type: ignore
+    _table: Union["PostgresTable", None] = None  # type: ignore
 
     def __post_init__(self):
         if self.condition is not None:
@@ -402,7 +402,7 @@ class DatabaseIndex(DatabaseTableObject):
         return self._full_name or f"{self.table_name}_{self.inner_name}"
 
     def sql(self) -> str:
-        assert isinstance(self._table, DatabaseTable), f"{self} is not attached to a table"
+        assert isinstance(self._table, PostgresTable), f"{self} is not attached to a table"
         parts = [
             f'"{self.name}"',
             f'ON "{self._table.name}"',
@@ -416,10 +416,10 @@ class DatabaseIndex(DatabaseTableObject):
         return " ".join(parts)
 
     @staticmethod
-    def from_index_in(name: str, index_in: IndexIn) -> "DatabaseIndex":
-        return DatabaseIndex(
+    def from_index_in(name: str, index_in: IndexIn) -> "PostgresIndex":
+        return PostgresIndex(
             inner_name=name,
-            type=DatabaseIndexType.BTREE,
+            type=PostgresIndexType.BTREE,
             columns=index_in.columns,
             cover=index_in.cover,
             is_unique=index_in.is_unique,
@@ -428,7 +428,7 @@ class DatabaseIndex(DatabaseTableObject):
 
 
 @dataclass(slots=True)
-class DatabaseTable(DatabaseTableObject):
+class PostgresTable(PostgresTableObject):
     """
     A SQL table for a Node (builtin or custom).
     """
@@ -438,11 +438,11 @@ class DatabaseTable(DatabaseTableObject):
 
     name: str  # type: ignore
     node_type: NodeType
-    columns: tuple[DatabaseColumn, ...]
-    indexes: tuple[DatabaseIndex, ...] = ()
-    constraints: tuple[DatabaseConstraint, ...] = ()
-    _columns_by_name: dict[str, DatabaseColumn] = dataclasses.field(init=False)
-    _primary_key: DatabaseColumn | None = dataclasses.field(init=False)
+    columns: tuple[PostgresColumn, ...]
+    indexes: tuple[PostgresIndex, ...] = ()
+    constraints: tuple[PostgresConstraint, ...] = ()
+    _columns_by_name: dict[str, PostgresColumn] = dataclasses.field(init=False)
+    _primary_key: PostgresColumn | None = dataclasses.field(init=False)
     _table: Union["CustomNodeDefinition", None] = None  # type: ignore
 
     def __post_init__(self):
@@ -468,19 +468,19 @@ class DatabaseTable(DatabaseTableObject):
         return hash_stable(self.kind, self.name, self.columns, self.indexes, self.constraints)
 
     @property
-    def table(self) -> "DatabaseTable":
+    def table(self) -> "PostgresTable":
         return self
 
     @property
-    def _table(self) -> "DatabaseTable":
+    def _table(self) -> "PostgresTable":
         return self
 
-    def walk(self) -> tuple[DatabaseTableObject, ...]:
+    def walk(self) -> tuple[PostgresTableObject, ...]:
         # NOTE: the order here matters and is assumed in the diff logic
         return self, *self.columns, *self.indexes, *self.constraints
 
 
-class DatabaseContext(abc.ABC):
+class PostgresContext(abc.ABC):
     """Progressive context for Database operations."""
 
     @abc.abstractmethod
@@ -494,12 +494,12 @@ class DatabaseContext(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def get_relation(self, relation: RelationReference | NodeReference) -> DatabaseTable:
+    def get_relation(self, relation: RelationReference | NodeReference) -> PostgresTable:
         """Get the (single) Table for a node / relation. Doesn't work for multi-relations."""
         ...
 
 
-class DatabaseColumnType(enum.StrEnum):
+class PostgresColumnType(enum.StrEnum):
     """
     A PostgreSQL column type.
     """
@@ -542,112 +542,49 @@ class DatabaseColumnType(enum.StrEnum):
 
 
 # internal postgres "udt"s (user-defined types) that we use
-POSTGRES_TYPE_BY_UDT: dict[str, DatabaseColumnType] = {
-    "uuid": DatabaseColumnType.UUID,
-    "varchar": DatabaseColumnType.CHARACTER_VARYING,
-    "bool": DatabaseColumnType.BOOLEAN,
-    "int2": DatabaseColumnType.SMALLINT,
-    "int4": DatabaseColumnType.INTEGER,
-    "int8": DatabaseColumnType.BIGINT,
-    "float4": DatabaseColumnType.REAL,
-    "float8": DatabaseColumnType.DOUBLE_PRECISION,
-    "timestamptz": DatabaseColumnType.TIMESTAMP,
-    "timestamp": DatabaseColumnType.TIMESTAMP,
-    "date": DatabaseColumnType.DATE,
-    "time": DatabaseColumnType.TIME,
-    "interval": DatabaseColumnType.INTERVAL,
-    "jsonb": DatabaseColumnType.JSONB,
-    "bytea": DatabaseColumnType.BYTEA,
-    "text": DatabaseColumnType.TEXT,
-    "numeric": DatabaseColumnType.NUMERIC,
+POSTGRES_TYPE_BY_UDT: dict[str, PostgresColumnType] = {
+    "uuid": PostgresColumnType.UUID,
+    "varchar": PostgresColumnType.CHARACTER_VARYING,
+    "bool": PostgresColumnType.BOOLEAN,
+    "int2": PostgresColumnType.SMALLINT,
+    "int4": PostgresColumnType.INTEGER,
+    "int8": PostgresColumnType.BIGINT,
+    "float4": PostgresColumnType.REAL,
+    "float8": PostgresColumnType.DOUBLE_PRECISION,
+    "timestamptz": PostgresColumnType.TIMESTAMP,
+    "timestamp": PostgresColumnType.TIMESTAMP,
+    "date": PostgresColumnType.DATE,
+    "time": PostgresColumnType.TIME,
+    "interval": PostgresColumnType.INTERVAL,
+    "jsonb": PostgresColumnType.JSONB,
+    "bytea": PostgresColumnType.BYTEA,
+    "text": PostgresColumnType.TEXT,
+    "numeric": PostgresColumnType.NUMERIC,
 }
 
 # our column types
-POSTGRES_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, DatabaseColumnType] = {
-    PrimitiveType.STRING: DatabaseColumnType.CHARACTER_VARYING,
-    PrimitiveType.BOOLEAN: DatabaseColumnType.BOOLEAN,
-    PrimitiveType.INT16: DatabaseColumnType.SMALLINT,
-    PrimitiveType.INT32: DatabaseColumnType.INTEGER,
-    PrimitiveType.INT64: DatabaseColumnType.BIGINT,
-    PrimitiveType.FLOAT32: DatabaseColumnType.REAL,
-    PrimitiveType.FLOAT64: DatabaseColumnType.DOUBLE_PRECISION,
-    PrimitiveType.DATETIME: DatabaseColumnType.TIMESTAMP,
-    PrimitiveType.DATE: DatabaseColumnType.DATE,
-    PrimitiveType.TIME: DatabaseColumnType.TIME,
-    PrimitiveType.DURATION: DatabaseColumnType.INTERVAL,
-    PrimitiveType.JSON: DatabaseColumnType.JSONB,
-    PrimitiveType.VECTOR: DatabaseColumnType.BYTEA,
-    PrimitiveType.UUID: DatabaseColumnType.UUID,
-    PrimitiveType.BYTES: DatabaseColumnType.BYTEA,
+POSTGRES_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, PostgresColumnType] = {
+    PrimitiveType.STRING: PostgresColumnType.CHARACTER_VARYING,
+    PrimitiveType.BOOLEAN: PostgresColumnType.BOOLEAN,
+    PrimitiveType.INT16: PostgresColumnType.SMALLINT,
+    PrimitiveType.INT32: PostgresColumnType.INTEGER,
+    PrimitiveType.INT64: PostgresColumnType.BIGINT,
+    PrimitiveType.FLOAT32: PostgresColumnType.REAL,
+    PrimitiveType.FLOAT64: PostgresColumnType.DOUBLE_PRECISION,
+    PrimitiveType.DATETIME: PostgresColumnType.TIMESTAMP,
+    PrimitiveType.DATE: PostgresColumnType.DATE,
+    PrimitiveType.TIME: PostgresColumnType.TIME,
+    PrimitiveType.DURATION: PostgresColumnType.INTERVAL,
+    PrimitiveType.JSON: PostgresColumnType.JSONB,
+    PrimitiveType.VECTOR: PostgresColumnType.BYTEA,
+    PrimitiveType.UUID: PostgresColumnType.UUID,
+    PrimitiveType.BYTES: PostgresColumnType.BYTEA,
 }
 PRIMITIVE_TYPE_BY_POSTGRES_TYPE = {v: k for k, v in POSTGRES_TYPE_BY_PRIMITIVE_TYPE.items()}
 
 
-PG_CAST_PRIMITIVE_TYPE: dict[PrimitiveType, str] = {
-    PrimitiveType.BOOLEAN: "boolean",
-    PrimitiveType.INT32: "int",
-    PrimitiveType.INT64: "bigint",
-    PrimitiveType.FLOAT32: "float",
-    PrimitiveType.FLOAT64: "double",
-    PrimitiveType.DECIMAL: "decimal",
-    PrimitiveType.STRING: "text",
-    PrimitiveType.VECTOR: "float[]",
-    PrimitiveType.BYTES: "bytea",
-    PrimitiveType.DATETIME: "timestamptz",
-    PrimitiveType.DATE: "date",
-    PrimitiveType.TIME: "time",
-    PrimitiveType.DURATION: "interval",
-    PrimitiveType.JSON: "jsonb",
-    PrimitiveType.UUID: "uuid",
-}
-
-
-class PostgresConditionalOp(enum.StrEnum):
-    # logical
-    TRUE = "TRUE"
-    FALSE = "FALSE"
-    AND = "AND"
-    OR = "OR"
-    NOT = "NOT"
-    # standard
-    IS_NULL = "IS NULL"
-    IS_NOT_NULL = "IS NOT NULL"
-    EQ = "="
-    NEQ = "!="
-    LT = "<"
-    LTE = "<="
-    GT = ">"
-    GTE = ">="
-    IN = "IN"
-    NOT_IN = "NOT IN"
-    # string
-    LIKE = "LIKE"
-    ILIKE = "ILIKE"
-    REGEXP = "~"
-    # array/json
-    CONTAINS = "@>"
-    CONTAINED_BY = "<@"
-    OVERLAPS = "&&"
-
-
-class PostgresJoinOp(enum.StrEnum):
-    INNER_JOIN = "INNER JOIN"
-    LEFT_OUTER_JOIN = "LEFT OUTER JOIN"
-    RIGHT_OUTER_JOIN = "RIGHT OUTER JOIN"
-    FULL_OUTER_JOIN = "FULL OUTER JOIN"
-
-
-class PostgresSortOp(enum.StrEnum):
-    ASC = "ASC"
-    DESC = "DESC"
-
-
-#
-# Default tables
-#
-
 EXTENSIONS = (
-    DatabaseExtension("plpgsql"),
-    DatabaseExtension("uuid-ossp"),
-    DatabaseExtension("pgcrypto"),
+    PostgresExtension("plpgsql"),
+    PostgresExtension("uuid-ossp"),
+    PostgresExtension("pgcrypto"),
 )

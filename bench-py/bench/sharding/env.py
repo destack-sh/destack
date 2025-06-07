@@ -10,7 +10,7 @@ def get_global_database_from_env() -> DatabaseInfo:
     sql_url = get_from_env("GLOBAL_DATABASE_URL", description="Global database URL")
     return DatabaseInfo(
         type=DatabaseType.POSTGRES,
-        sql_url=sql_url,
+        connection_url=sql_url,
         region=Region.ZURICH,
         external_name="bench-global",
     )
