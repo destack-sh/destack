@@ -14,6 +14,7 @@ from bench.language.core import (
     IsProcessable,
     IsSubject,
     IsTemplatable,
+    IsTracked,
     Node,
     NodeType,
     node_,
@@ -30,15 +31,16 @@ if TYPE_CHECKING:
 
 @node_(NodeType.TASK)
 class Task(
-    IsOwnable,
-    IsProcessable,
     HasEnvironment,
     HasTitle,
+    IsOwnable,
+    IsProcessable,
     IsTemplatable,
     IsBlockable,
     IsDeletable,
     IsArchivable,
     IsInPackage,
+    IsTracked,
     Node[TaskData],
 ):
     """A Task is like a to do item."""

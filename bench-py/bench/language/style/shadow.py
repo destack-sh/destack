@@ -6,6 +6,7 @@ from bench.language.core import (
     EnumType,
     IsArchivable,
     IsDeletable,
+    IsTracked,
     Node,
     NodeType,
     StructMutable,
@@ -71,6 +72,7 @@ class ShadowStyle(
     IsStyle,
     IsDeletable,
     IsArchivable,
+    IsTracked,
     Node[ShadowStyleData],
 ):
     """A shadow style."""

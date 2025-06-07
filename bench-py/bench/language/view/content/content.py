@@ -1,8 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
 from bench.language.core import (
-    IsArchivable,
-    IsDeletable,
     TraitType,
     VariableProperty,
     property_,
@@ -18,7 +16,7 @@ if TYPE_CHECKING:
 
 
 @trait_(TraitType.CONTENT_VIEW)
-class IsContentView(IsView, IsDeletable, IsArchivable):
+class IsContentView(IsView):
     """A content View."""
 
     # layout

@@ -6,6 +6,7 @@ from bench.language.core import (
     EnumType,
     IsArchivable,
     IsDeletable,
+    IsTracked,
     Node,
     NodeType,
     StructMutable,
@@ -116,6 +117,7 @@ class ColorStyle(
     IsStyle,
     IsDeletable,
     IsArchivable,
+    IsTracked,
     Node[ColorStyleData],
 ):
     """A color style, with an optional dark variant."""

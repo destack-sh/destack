@@ -12,6 +12,7 @@ from bench.language.core import (
     IsOwnable,
     IsProcessable,
     IsSubject,
+    IsTracked,
     Node,
     NodeType,
     enum_,
@@ -34,14 +35,15 @@ class ThreadStatus(BuiltinEnum):
 
 @node_(NodeType.THREAD)
 class Thread(
+    HasEnvironment,
+    HasTitle,
     IsArchivable,
     IsComputable,
     IsDeletable,
     IsJoinable,
-    HasEnvironment,
     IsOwnable,
     IsProcessable,
-    HasTitle,
+    IsTracked,
     Node[ThreadData],
 ):
     """

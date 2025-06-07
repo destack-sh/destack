@@ -38,7 +38,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.06.05.1"
+VERSION = "2025.06.07.0"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -806,6 +806,7 @@ class TraitType(BuiltinEnum):
     GLOBAL = 1, "Global", "Is global", "fas fa-globe"
     CUSTOM = 3, "Custom", "Is custom", "fas fa-globe"
     FROZEN = 4, "Frozen", "Is frozen", "fas fa-snowflake"
+    TRACKED = 10, "Tracked", "Is tracked", "fas fa-clock"
     ARCHIVABLE = 11, "Archivable", "Can be archived", "fas fa-box-archive"
     DELETABLE = 12, "Deletable", "Can be deleted", "fas fa-trash"
     HAS_ENVIRONMENT = 20, "Environment", "Has an environment", "fas fa-window-maximize"

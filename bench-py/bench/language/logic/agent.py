@@ -13,6 +13,7 @@ from bench.language.core import (
     IsProcessable,
     IsRunnable,
     IsSubject,
+    IsTracked,
     Node,
     NodeReference,
     NodeType,
@@ -29,16 +30,17 @@ if TYPE_CHECKING:
 
 @node_(NodeType.AGENT)
 class Agent(
-    IsOwnable,
     HasEnvironment,
+    HasName,
+    HasIcon,
+    IsOwnable,
     IsRunnable,
     IsProcessable,
     IsSubject,
     IsDeletable,
     IsArchivable,
-    HasName,
-    HasIcon,
     IsBlockable,
+    IsTracked,
     Node[AgentData],
 ):
     """

@@ -3,10 +3,11 @@ from typing import TYPE_CHECKING, Optional, Union
 from bench.language.core import (
     HasEnvironment,
     HasName,
-    IsBlockable,
+    IsDeletable,
     IsInPackage,
     IsScriptable,
     IsTemplatable,
+    IsTracked,
     TraitType,
     property_,
     property_parent_,
@@ -25,8 +26,9 @@ class IsView(
     HasName,
     IsScriptable,
     IsTemplatable,
-    IsBlockable,
     IsInPackage,
+    IsTracked,
+    IsDeletable,
 ):
     """A View is a graphical interface."""
 

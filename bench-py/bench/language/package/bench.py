@@ -14,6 +14,7 @@ from bench.language.core import (
     IsInvite,
     IsMembership,
     IsOwnable,
+    IsTracked,
     Node,
     NodeType,
     Region,
@@ -42,12 +43,13 @@ class BenchStatus(BuiltinEnum):
 
 @node_(NodeType.BENCH, root_type=None)
 class Bench(
-    IsGlobal,
-    IsOwnable,
-    IsInBench,
     HasName,
     HasSlug,
     HasIcon,
+    IsTracked,
+    IsGlobal,
+    IsOwnable,
+    IsInBench,
     Node[BenchData],
 ):
     """

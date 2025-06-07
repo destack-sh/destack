@@ -4,6 +4,7 @@ from bench.language.core import (
     HasSlug,
     IsGlobal,
     IsInBench,
+    IsTracked,
     Node,
     NodeType,
     node_,
@@ -19,9 +20,10 @@ if TYPE_CHECKING:
 
 @node_(NodeType.HANDLE)
 class Handle(
-    IsGlobal,
     HasSlug,
+    IsGlobal,
     IsInBench,
+    IsTracked,
     Node[HandleData],
 ):
     """A Bench @handle."""

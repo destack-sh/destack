@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
-from bench.language.core import IsArchivable, IsDeletable, Node, NodeType, Text, node_, property_
+from bench.language.core import Node, NodeType, Text, node_, property_
 from bench.pb2 import ThreadData
 
 from .node import IsNodeView
@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.THREAD_VIEW)
-class ThreadView(IsNodeView, IsArchivable, IsDeletable, Node[ThreadData]):
+class ThreadView(IsNodeView, Node[ThreadData]):
     """A Thread view."""
 
     draft_text: Optional[Text] = property_(100)

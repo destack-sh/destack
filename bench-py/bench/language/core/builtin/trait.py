@@ -103,6 +103,7 @@ def expand_node_types(types: Collection[NodeType | TraitType]) -> tuple[NodeType
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def trait_(
     node_trait: TraitType | None,
+    frozen: bool = False,
 ):
     """Register a class as a node trait."""
 
@@ -112,6 +113,7 @@ def trait_(
             object_type=None,
             is_concrete=False,
             is_node=True,
+            is_frozen=frozen,
         )
         if node_trait is not None:
             cls.metatype = node_trait
@@ -359,11 +361,6 @@ class Trait(Node if TYPE_CHECKING else NodeBase):
     __indexes__: ClassVar[tuple[IndexIn, ...]] = ()
 
 
-#
-# Traits
-#
-
-
 @trait_(TraitType.HAS_NAME)
 class HasName(Trait):
     """A Node with a plain name."""
@@ -407,6 +404,39 @@ class IsGlobal(Trait):
     """A Node that is global."""
 
     pass
+
+
+@trait_(TraitType.TRACKED)
+class IsTracked(Trait):
+    """A Node that is "tracked"."""
+
+    created_at: datetime = property_(10, is_managed=True, is_eq=False, can_write="system")
+    created_by: Optional["IsSubject"] = property_(
+        11,
+        default=None,
+        is_managed=True,
+        is_eq=False,
+        node_bench_from="self",
+        node_is_customizable=False,
+        can_write="system",
+    )
+    updated_at: datetime = property_(12, is_managed=True, is_eq=False, can_write="system")
+    updated_by: Optional["IsSubject"] = property_(
+        13,
+        default=None,
+        is_managed=True,
+        is_eq=False,
+        node_bench_from="self",
+        node_is_customizable=False,
+        can_write="system",
+    )
+    if TYPE_CHECKING:
+        created_by_id: Optional[UUID] = None
+        created_by_type: NodeType | None = None
+        created_by_ptr: Optional[NodeReference] = None
+        updated_by_id: Optional[UUID] = None
+        updated_by_type: NodeType | None = None
+        updated_by_ptr: Optional[NodeReference] = None
 
 
 @trait_(TraitType.ORDERED)
@@ -549,7 +579,7 @@ class IsComputable(Trait):
 
 
 @trait_(TraitType.SCRIPTABLE)
-class IsScriptable(Trait):
+class IsScriptable(Trait):  # nocheckin: split IsScriptable and IsScriptDefinable (or something)?
     """A Node that can be scripted."""
 
     script: Optional["Script"] = property_(104)

@@ -17,6 +17,7 @@ from bench.language.core import (
     IsMembership,
     IsOwnable,
     IsTemplatable,
+    IsTracked,
     Node,
     NodeType,
     enum_,
@@ -44,17 +45,18 @@ class PackageType(BuiltinEnum):
     index=(IndexIn(columns=("bench_id", "slug"), is_unique=True),),
 )
 class Package(
-    IsGlobal,
-    IsOwnable,
-    IsJoinable,
-    IsTemplatable,
     HasIcon,
     HasSlug,
     HasEnvironment,
     HasName,
+    IsGlobal,
+    IsOwnable,
+    IsJoinable,
+    IsTemplatable,
     IsInPackage,
     IsDeletable,
     IsArchivable,
+    IsTracked,
     Node[PackageData],
 ):
     """A Package is a semi-isolated area of a Bench."""

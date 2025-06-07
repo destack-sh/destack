@@ -10,6 +10,7 @@ from bench.language.core import (
     IsDeletable,
     IsInPackage,
     IsOwnable,
+    IsTracked,
     Node,
     NodeType,
     Selection,
@@ -64,11 +65,12 @@ class CursorStatus(BuiltinEnum):
 
 @node_(NodeType.CURSOR)
 class Cursor(
-    IsOwnable,
     HasEnvironment,
     HasTitle,
+    IsOwnable,
     IsInPackage,
     IsDeletable,
+    IsTracked,
     Node[CursorData],
 ):
     """

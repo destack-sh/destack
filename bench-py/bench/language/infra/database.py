@@ -6,6 +6,7 @@ from bench.language.core import (
     EnumType,
     IsInBench,
     IsResource,
+    IsTracked,
     Node,
     NodeType,
     Region,
@@ -64,7 +65,13 @@ class DatabaseInfo(DatabaseBase, StructMutable):
 
 
 @node_(NodeType.DATABASE)
-class Database(IsResource, IsInBench, DatabaseBase, Node[DatabaseData]):
+class Database(
+    IsResource,
+    IsInBench,
+    IsTracked,
+    DatabaseBase,
+    Node[DatabaseData],
+):
     """A relational Database."""
 
     parent: Optional["Bench"] = property_parent_()

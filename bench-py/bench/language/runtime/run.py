@@ -10,6 +10,7 @@ from bench.language.core import (
     IsInPackage,
     IsProcessable,
     IsRunnable,
+    IsTracked,
     Node,
     NodeType,
     ProcessStatus,
@@ -35,6 +36,7 @@ class Run(
     HasEnvironment,
     IsExtensible,
     IsInPackage,
+    IsTracked,
     Node[RunData],
 ):
     """

@@ -10,6 +10,7 @@ from bench.language.core import (
     IsExtensible,
     IsInPackage,
     IsRunnable,
+    IsTracked,
     Node,
     NodeReference,
     NodeType,
@@ -76,6 +77,7 @@ class Interruption(
     HasEnvironment,
     IsExtensible,
     IsInPackage,
+    IsTracked,
     Node[InterruptionData],
 ):
     """An Interruption in the processing or execution of something."""
@@ -119,30 +121,6 @@ class Interruption(
     @property
     def is_closed(self) -> bool:
         return self.status == InterruptionStatus.COMPLETED
-
-    def complete(self, _trigger_runtime: bool = True) -> None:
-        """Mark this Interrupt as closed."""
-        assert not self.is_closed, f"{self!r} is already closed"
-        assert self._session is not None, f"{self!r} has no session"
-        self.status = InterruptionStatus.COMPLETED
-        self.closed_at = self._session.oracle.utc()
-        self.duration = self.closed_at - self.created_at
-        runtime = self._session.runtime
-        if runtime and _trigger_runtime:
-            runs_to_resume = runtime.get_interrupted_runs(self._graph, self)
-            runtime.resume_run(*runs_to_resume)
-
-    def cancel(self, _trigger_runtime: bool = True) -> None:
-        """Mark this Interrupt as cancelled."""
-        assert not self.is_closed, f"{self!r} is already closed"
-        assert self._session is not None, f"{self!r} has no session"
-        self.status = InterruptionStatus.CANCELLED
-        self.closed_at = self._session.oracle.utc()
-        self.duration = self.closed_at - self.created_at
-        runtime = self._session.runtime
-        if runtime and _trigger_runtime:
-            runs_to_resume = runtime.get_interrupted_runs(self._graph, self)
-            runtime.resume_run(*runs_to_resume)
 
     @staticmethod
     def from_run(

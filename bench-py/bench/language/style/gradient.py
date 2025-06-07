@@ -6,6 +6,7 @@ from bench.language.core import (
     EnumType,
     IsArchivable,
     IsDeletable,
+    IsTracked,
     Node,
     NodeType,
     NumberFormat,
@@ -67,6 +68,7 @@ class GradientStyle(
     IsStyle,
     IsDeletable,
     IsArchivable,
+    IsTracked,
     Node[GradientStyleData],
 ):
     """A gradient style."""

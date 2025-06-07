@@ -37,8 +37,8 @@ def signal(cls, *args, **kwargs):
     return cls
 
 
-def on(cls, *args, **kwargs):
-    return cls
+def on(func, *args, **kwargs):
+    return func
 
 
 # ===============================================
@@ -82,13 +82,13 @@ def do_something_else(event: Event):
     pass
 
 
-@on(Event.EventFull)
+@on(EditType.CREATE, EventRSVP)
 @action
-def on_event_full(event: Event):
+def on_new_rsvp(event: Event):
     pass
 
 
-@on(EditType.CREATE, EventRSVP)
+@on(Event.EventFull)
 @action
-def on_event_create(event: Event):
+def on_event_full(event: Event):
     pass
