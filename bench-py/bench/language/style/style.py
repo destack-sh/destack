@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Union
 from bench.language.core import (
     HasEnvironment,
     HasName,
-    IsBlockable,
     IsInPackage,
     IsTemplatable,
     IsTracked,
@@ -13,7 +12,7 @@ from bench.language.core import (
 )
 
 if TYPE_CHECKING:
-    from bench.language import IsView, Page, Space
+    from bench.language import IsView, Scene
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -23,10 +22,9 @@ class IsStyle(
     IsTemplatable,
     HasEnvironment,
     HasName,
-    IsBlockable,
     IsInPackage,
     IsTracked,
 ):
     """A Style is a graphical interface."""
 
-    parent: Union["Space", "IsView", "Page", None] = property_parent_()
+    parent: Union["Scene", "IsView", None] = property_parent_()

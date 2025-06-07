@@ -26,7 +26,7 @@ console = Console()
 async def make(
     area: Annotated[Area | None, typer.Option(parser=parse_node_area)] = None,
     region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,
-    bench: str = typer.Option(default="bench", help="the bench to use as local reference"),
+    space: str = typer.Option(default="space", help="the space to use as local reference"),
     no_downgrade: bool = typer.Option(default=False, help="exclude downgrade operations"),
     dry_run: bool = typer.Option(default=False, help="only print, don't database"),
     overwrite: bool = typer.Option(default=False, help="overwrite existing migration for version"),

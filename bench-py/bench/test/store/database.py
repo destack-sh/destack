@@ -52,7 +52,7 @@ async def test_create_user_with_clients(session: Session):
         status=UserStatus.ACTIVE,
         name="Floof",
         slug="floof",
-        bench_ptr=NodeReference(node_type=NodeType.BENCH, id=uuid4()),
+        space_ptr=NodeReference(node_type=NodeType.SPACE, id=uuid4()),
     )
     session.create(user)
     await session.commit()
@@ -160,7 +160,7 @@ async def test_create_page_blocks_recursive(session: Session):
         assert pages_unpacked[0].equals(page)
 
 
-# nocheckin: Space/IsView/trait relation queries
+# nocheckin: Viewport/IsView/trait relation queries
 
 
 async def test_create_custom_node(session: Session):

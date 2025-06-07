@@ -45,7 +45,6 @@ from .property import (
 if TYPE_CHECKING:
     from bench.language import (
         AggregationType,
-        Bench,
         Block,
         Condition,
         Expression,
@@ -59,6 +58,7 @@ if TYPE_CHECKING:
         Query,
         Script,
         Sort,
+        Space,
         TextLine,
         TraitInfo,
         Value,
@@ -171,7 +171,7 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         query = Query(
             type=QueryType.NODE,
             relation=RELATION_REF_BY_CLASS[cls],
-            name=name or cls.metatype.bench_name,
+            name=name or cls.metatype.camel_name,
             join=to_join(join) if join is not None else None,
             where=where,
             subqueries=to_subqueries(subqueries),
@@ -199,7 +199,7 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         query = Query(
             type=QueryType.NODE if group_by is None else QueryType.GROUPED_NODE,
             relation=RELATION_REF_BY_CLASS[cls],
-            name=name or cls.metatype.bench_name,
+            name=name or cls.metatype.camel_name,
             join=to_join(join) if join is not None else None,
             where=where,
             having=having,
@@ -230,7 +230,7 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         query = Query(
             type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
             relation=RELATION_REF_BY_CLASS[cls],
-            name=name or cls.metatype.bench_name,
+            name=name or cls.metatype.camel_name,
             join=to_join(join) if join is not None else None,
             where=where,
             group_by=group_by or [],
@@ -255,7 +255,7 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         query = Query(
             type=QueryType.SCALAR,
             relation=RELATION_REF_BY_CLASS[cls],
-            name=name or cls.metatype.bench_name,
+            name=name or cls.metatype.camel_name,
             join=to_join(join) if join is not None else None,
             where=where,
             aggregation=Aggregation(type=AggregationType.EXISTS),
@@ -279,7 +279,7 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         query = Query(
             type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
             relation=RELATION_REF_BY_CLASS[cls],
-            name=name or cls.metatype.bench_name,
+            name=name or cls.metatype.camel_name,
             join=to_join(join) if join is not None else None,
             where=where,
             having=having,
@@ -306,7 +306,7 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         query = Query(
             type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
             relation=RELATION_REF_BY_CLASS[cls],
-            name=name or cls.metatype.bench_name,
+            name=name or cls.metatype.camel_name,
             join=to_join(join) if join is not None else None,
             where=where,
             having=having,
@@ -333,7 +333,7 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         query = Query(
             type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
             relation=RELATION_REF_BY_CLASS[cls],
-            name=name or cls.metatype.bench_name,
+            name=name or cls.metatype.camel_name,
             join=to_join(join) if join is not None else None,
             where=where,
             having=having,
@@ -360,7 +360,7 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         query = Query(
             type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
             relation=RELATION_REF_BY_CLASS[cls],
-            name=name or cls.metatype.bench_name,
+            name=name or cls.metatype.camel_name,
             join=to_join(join) if join is not None else None,
             where=where,
             having=having,
@@ -440,7 +440,7 @@ class IsTracked(Trait):
         default=None,
         is_managed=True,
         is_eq=False,
-        node_bench_from="self",
+        node_space_from="self",
         node_is_customizable=False,
         can_write="system",
     )
@@ -450,7 +450,7 @@ class IsTracked(Trait):
         default=None,
         is_managed=True,
         is_eq=False,
-        node_bench_from="self",
+        node_space_from="self",
         node_is_customizable=False,
         can_write="system",
     )
@@ -548,18 +548,18 @@ class IsExtensible(Trait):
     value: dict[UUID, "Value"] = property_(24)
 
 
-@trait_(TraitType.IN_BENCH)
-class IsInBench(Trait):
-    """A Node inside a Bench."""
+@trait_(TraitType.IN_SPACE)
+class IsInSpace(Trait):
+    """A Node inside a Space."""
 
-    bench: "Bench | None" = property_ancestor_(6, is_required=True)
+    space: "Space | None" = property_ancestor_(6, is_required=True)
     if TYPE_CHECKING:
-        bench_ptr: Optional[NodeReference] = None
-    _bench_ptr: Optional["NodeReference"] = property_runtime_(default=None)  # :CachedAncestors
+        space_ptr: Optional[NodeReference] = None
+    _space_ptr: Optional["NodeReference"] = property_runtime_(default=None)  # :CachedAncestors
 
 
 @trait_(TraitType.IN_PACKAGE)
-class IsInPackage(IsInBench):
+class IsInPackage(IsInSpace):
     """A Node in a Package."""
 
     package: "Package | None" = property_ancestor_(7, is_required=False)
@@ -575,7 +575,7 @@ class IsBlockable(IsOrdered, IsInPackage):
     parent: Union["Page", None] = property_parent_()
     block: "Block | None" = property_(
         35,
-        node_bench_from="self",
+        node_space_from="self",
         description="The Block where this Node is 'defined'.",
     )
     if TYPE_CHECKING:
@@ -625,9 +625,9 @@ class IsMeasurement(Trait):
     pass
 
 
-@trait_(TraitType.LOG)
-class IsLog(Trait):
-    """A Node that represents a Log."""
+@trait_(TraitType.EVENT)
+class IsEvent(Trait):
+    """A Node that represents an Event."""
 
     pass
 
@@ -636,7 +636,7 @@ class IsLog(Trait):
 class IsOwnable(Trait):
     """A Node that can be owned by another Node."""
 
-    owned_by: Optional["IsSubject"] = property_(19, node_bench_from="self")
+    owned_by: Optional["IsSubject"] = property_(19, node_space_from="self")
     if TYPE_CHECKING:
         owned_by_id: Optional[UUID] = None
         owned_by_type: Optional[NodeType] = None

@@ -24,7 +24,7 @@ from bench.language.core import (
 from bench.pb2 import OrganizationData, OrganizationInviteData, OrganizationMembershipData
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Handle
+    from bench.language import Handle, Space
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -53,11 +53,11 @@ class Organization(
         38, can_write="system", is_repr=True, default=OrganizationStatus.CREATING
     )
 
-    bench: "Bench" = property_(40, can_write="system")
+    space: "Space" = property_(40, can_write="system")
     handle: Optional["Handle"] = property_(41, can_write="system")
     if TYPE_CHECKING:
-        bench_id: UUID = property_()
-        bench_ptr: NodeReference = property_()
+        space_id: UUID = property_()
+        space_ptr: NodeReference = property_()
         handle_id: Optional[UUID] = None
         handle_ptr: Optional[NodeReference] = None
 

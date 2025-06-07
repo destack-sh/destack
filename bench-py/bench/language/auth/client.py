@@ -7,7 +7,7 @@ from bench.language.core import (
     ClientType,
     HasName,
     IsGlobal,
-    IsInBench,
+    IsInSpace,
     IsSubject,
     Node,
     NodeReference,
@@ -23,7 +23,7 @@ from bench.language.core.builtin.trait import IndexIn
 from bench.pb2 import ClientData, OriginData
 
 if TYPE_CHECKING:
-    from bench.language import Cursor, Machine, Space, User
+    from bench.language import Cursor, Machine, User
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -32,18 +32,15 @@ if TYPE_CHECKING:
     NodeType.CLIENT,
     index=(IndexIn(columns=("access_token",), is_unique=True),),
 )
-class Client(HasName, IsInBench, IsGlobal, Node[ClientData]):
+class Client(HasName, IsInSpace, IsGlobal, Node[ClientData]):
     """A Client to connect with the system."""
 
     # meta
     parent: Optional[IsSubject] = property_parent_()
     type: ClientType = property_(30)
-    space: Optional["Space"] = property_(35, can_write="system")
     machine: Optional["Machine"] = property_(36, can_write="system")
     user: Optional["User"] = property_(37, can_write="system")
     if TYPE_CHECKING:
-        space_id: Optional[UUID] = None
-        space_ptr: Optional[NodeReference] = None
         machine_id: Optional[UUID] = None
         machine_ptr: Optional[NodeReference] = None
         user_id: Optional[UUID] = None

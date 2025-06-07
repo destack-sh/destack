@@ -21,7 +21,7 @@ from bench.language import (
     Field,
     FieldType,
     IconType,
-    IsInBench,
+    IsInSpace,
     NodeReference,
     NodeType,
     PrimitiveType,
@@ -120,7 +120,7 @@ def get_scalar_type_strategy(
     elif typ.scalar_type == ScalarType.NODE_REFERENCE:
         return node_references(st.sampled_from(NODE_TYPES.tuple))
     elif typ.scalar_type == ScalarType.NODE_VALUE:
-        return from_object_type(typ.node_type or NodeType.BENCH)
+        return from_object_type(typ.node_type or NodeType.SPACE)
     else:
         assert_never(typ.scalar_type)
 
@@ -245,11 +245,11 @@ def node_references(draw: st.DrawFn, node_types: st.SearchStrategy[NodeType]):
     node_type = draw(node_types)
     node_id = draw(STRATEGY_BY_PRIMITIVE_TYPE[PrimitiveType.UUID])
     node_cls = NODE_CLASS_BY_TYPE[node_type]
-    if issubclass(node_cls, IsInBench):
-        bench_id = draw(STRATEGY_BY_PRIMITIVE_TYPE[PrimitiveType.UUID])
+    if issubclass(node_cls, IsInSpace):
+        space_id = draw(STRATEGY_BY_PRIMITIVE_TYPE[PrimitiveType.UUID])
     else:
-        bench_id = None
-    return NodeReference(node_type=node_type, id=node_id, bench_id=bench_id)
+        space_id = None
+    return NodeReference(node_type=node_type, id=node_id, space_id=space_id)
 
 
 @cacheable

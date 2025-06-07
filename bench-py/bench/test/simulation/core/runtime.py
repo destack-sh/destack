@@ -41,7 +41,7 @@ class RuntimeHandle(ServiceHandle[RuntimeSpec, "RuntimeService", RuntimeClient])
             supervisor=supervisor,
             network=self.simulation.network.network,
             oracle=self.simulation.oracle,
-            bench_id=self.simulation.get_bench_id(machine.spec.bench),
+            space_id=self.simulation.get_space_id(machine.spec.bench),
             client_type=ClientType.MACHINE,
             client_id=UUID(machine.client_data.id),
             client_access_token=machine.access_token,

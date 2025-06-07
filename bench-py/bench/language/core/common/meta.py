@@ -148,7 +148,7 @@ class NodeInfo(StructFrozen):
         return cls(
             id=node_cls.metatype.value,
             type=node_cls.metatype,
-            name=node_cls.metatype.bench_name,
+            name=node_cls.metatype.camel_name,
             icon=to_icon(node_cls.metatype.icon) if node_cls.metatype.icon else None,
             description=node_cls.__doc__,
             properties=[prop.info for prop in node_cls.__properties__.values() if prop.is_wired],
@@ -175,7 +175,7 @@ class StructInfo(StructFrozen):
         return cls(
             id=struct_cls.metatype.value,
             type=struct_cls.metatype,
-            name=struct_cls.metatype.bench_name,
+            name=struct_cls.metatype.camel_name,
             icon=to_icon(struct_cls.metatype.icon) if struct_cls.metatype.icon else None,
             description=struct_cls.__doc__,
             properties=[prop.info for prop in struct_cls.__properties__.values() if prop.is_wired],
@@ -201,7 +201,7 @@ class EnumInfo(StructFrozen):
         return cls(
             id=enum_type.value,
             type=enum_type,
-            name=enum_type.bench_name,
+            name=enum_type.camel_name,
             icon=to_icon(enum_type.icon) if enum_type.icon else None,
             description=enum_type.__doc__,
             options=[

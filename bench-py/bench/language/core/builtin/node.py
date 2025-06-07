@@ -42,7 +42,7 @@ tracer = trace.get_tracer(__name__)
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def node_(
     node_type: NodeType | None,
-    root_type: NodeType | None = NodeType.BENCH,
+    root_type: NodeType | None = NodeType.SPACE,
     frozen: bool = False,
     index: tuple[IndexIn, ...] = (),
 ):
@@ -110,7 +110,7 @@ class Node[NodeDataT: AnyNodeData](NodeBase[NodeDataT]):
         parent_ck: Optional[UUID] = None
         parent_ptr: Optional[NodeReference] = None
     # Node.area?
-    # IsInBench.bench: 6
+    # IsInSpace.space: 6
     # IsInPackage.package: 7
 
     _session: "Session" = property_runtime_()

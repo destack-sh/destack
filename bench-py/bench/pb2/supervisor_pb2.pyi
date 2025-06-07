@@ -35,16 +35,16 @@ class SignupUserRequest(_message.Message):
     def __init__(self, slug: _Optional[str] = ..., name: _Optional[str] = ..., email: _Optional[str] = ..., password: _Optional[str] = ..., region: _Optional[_Union[_language_pb2.Region, str]] = ..., client: _Optional[_Union[_language_pb2.ClientData, _Mapping]] = ...) -> None: ...
 
 class SignupUserResponse(_message.Message):
-    __slots__ = ("user", "client", "bench", "access_token")
+    __slots__ = ("user", "client", "space", "access_token")
     USER_FIELD_NUMBER: _ClassVar[int]
     CLIENT_FIELD_NUMBER: _ClassVar[int]
-    BENCH_FIELD_NUMBER: _ClassVar[int]
+    SPACE_FIELD_NUMBER: _ClassVar[int]
     ACCESS_TOKEN_FIELD_NUMBER: _ClassVar[int]
     user: _language_pb2.UserData
     client: _language_pb2.ClientData
-    bench: _language_pb2.BenchData
+    space: _language_pb2.SpaceData
     access_token: str
-    def __init__(self, user: _Optional[_Union[_language_pb2.UserData, _Mapping]] = ..., client: _Optional[_Union[_language_pb2.ClientData, _Mapping]] = ..., bench: _Optional[_Union[_language_pb2.BenchData, _Mapping]] = ..., access_token: _Optional[str] = ...) -> None: ...
+    def __init__(self, user: _Optional[_Union[_language_pb2.UserData, _Mapping]] = ..., client: _Optional[_Union[_language_pb2.ClientData, _Mapping]] = ..., space: _Optional[_Union[_language_pb2.SpaceData, _Mapping]] = ..., access_token: _Optional[str] = ...) -> None: ...
 
 class ChangeUserPasswordRequest(_message.Message):
     __slots__ = ("old_password", "new_password")

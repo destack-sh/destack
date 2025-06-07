@@ -10,10 +10,10 @@ from opentelemetry import trace
 from bench.language import (
     BENCH_PTR,
     BENCH_SLUG,
-    Bench,
     NodeReference,
     NodeType,
     Page,
+    Space,
     TextLineIn,
     text_line,
 )
@@ -53,7 +53,7 @@ class ClientWorkload[SpecT: ClientWorkloadSpec](Workload[SpecT], abc.ABC):
     @override
     @final
     async def prepare(self):
-        self.bench_id: UUID = self.simulation.get_bench_id(self.spec.bench)
+        self.space_id: UUID = self.simulation.get_space_id(self.spec.bench)
         self.client = self.simulation.get_client(self.spec.client)
         self.self_host = self.simulation.get_host(self.spec.bench)
         if self.spec.system:
@@ -63,7 +63,7 @@ class ClientWorkload[SpecT: ClientWorkloadSpec](Workload[SpecT], abc.ABC):
         self.session = await make_remote_session(
             simulation=self.simulation,
             source_id=self.id,
-            bench_id=self.bench_id,
+            space_id=self.space_id,
             client=self.client,
             host=self.self_host,
             oracle=self.oracle,
@@ -73,20 +73,20 @@ class ClientWorkload[SpecT: ClientWorkloadSpec](Workload[SpecT], abc.ABC):
 
         await self.session.open(_set_in_context=False)
         async with self.session.active():
-            bench_ptr = NodeReference(
-                node_type=NodeType.BENCH, id=self.bench_id, bench_id=self.bench_id
+            space_ptr = NodeReference(
+                node_type=NodeType.SPACE, id=self.space_id, space_id=self.space_id
             )
             self.bench = (
-                await Bench.include_descendants(NodeType.PACKAGE, *LOADED_PACKAGE_NODE_TYPES)
+                await Space.include_descendants(NodeType.PACKAGE, *LOADED_PACKAGE_NODE_TYPES)
                 .select_all()
-                .get(bench_ptr, live=True)
+                .get(space_ptr, live=True)
             )
             main_package = self.bench.package
             assert main_package is not None, f"{self!r} has no main package"
             self.main_package = main_package
             self.session.parent = self.bench  # patch in the session parent
             if self.bench_host is not None:
-                self.bench_bench = await Bench.include_descendants(*LOADED_PACKAGE_NODE_TYPES).get(
+                self.bench_bench = await Space.include_descendants(*LOADED_PACKAGE_NODE_TYPES).get(
                     BENCH_PTR, live=True
                 )
             else:

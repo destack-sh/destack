@@ -2,7 +2,7 @@ import abc
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, override
 
-from bench.language import REGION_BY_SLUG, Bench, DatabaseInfo, DatabaseType, Region, Tenancy
+from bench.language import REGION_BY_SLUG, DatabaseInfo, DatabaseType, Region, Space, Tenancy
 
 if TYPE_CHECKING:
     pass
@@ -12,8 +12,8 @@ class DatabaseProvider(abc.ABC):
     """A provider of known Bench-level Databases (excluding the global database)."""
 
     @abc.abstractmethod
-    async def acquire(self, region: Region, bench: Bench) -> "DatabaseInfo":
-        """Acquires a new unique (shared) Database for the Bench."""
+    async def acquire(self, region: Region, space: Space) -> "DatabaseInfo":
+        """Acquires a new unique (shared) Database for the Space."""
         ...
 
     @abc.abstractmethod
@@ -45,7 +45,7 @@ class StaticDatabaseProvider(DatabaseProvider):
         return f"<{self.__class__.__name__} {len(self.databases)} databases>"
 
     @override
-    async def acquire(self, region: Region, bench: Bench) -> "DatabaseInfo":
+    async def acquire(self, region: Region, space: Space) -> "DatabaseInfo":
         from bench.store.postgres import pg_connection
 
         # find main database
@@ -58,7 +58,7 @@ class StaticDatabaseProvider(DatabaseProvider):
             raise LookupError(f'no Database for "{region.slug}" in {self!r}')
 
         # create schema
-        bench_schema_name = f"bench_{str(bench.id).replace('-', '_')}"
+        bench_schema_name = f"bench_{str(space.id).replace('-', '_')}"
         async with pg_connection(base_database) as conn:
             await conn.execute(f"CREATE SCHEMA IF NOT EXISTS {bench_schema_name}")
         main_database = DatabaseInfo(

@@ -16,7 +16,7 @@ message SignupUserRequest {
 message SignupUserResponse {
   UserData user = 1;
   ClientData client = 2;
-  BenchData bench = 3;
+  SpaceData space = 3;
   string access_token = 4 [(sensitive) = true];
 }
 
@@ -63,13 +63,13 @@ message CreateOrganizationResponse {
 }
 
 message ResolveHostsRequest {
-  message BenchKey {
-    oneof bench {
+  message SpaceKey {
+    oneof space {
       string id = 1;
       string slug = 2;
     }
   }
-  repeated BenchKey benches = 1;
+  repeated SpaceKey spaces = 1;
 }
 message ResolveHostsResponse {
   message HostInfo {
@@ -77,7 +77,7 @@ message ResolveHostsResponse {
     int32 grpc_port = 2;
     int32 grpc_web_port = 3;
     bool ssl = 4;
-    NodeReferenceData bench = 5;
+    NodeReferenceData space = 5;
   }
   repeated HostInfo hosts = 1;
 }
@@ -95,6 +95,6 @@ service Supervisor {
   // Logout User with the current or other owned Clients.
   rpc LogoutUser(LogoutUserRequest) returns (LogoutUserResponse);
 
-  // Gets Bench host information.
+  // Gets Space host information.
   rpc ResolveHosts(ResolveHostsRequest) returns (ResolveHostsResponse);
 }

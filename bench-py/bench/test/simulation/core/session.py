@@ -22,7 +22,7 @@ def make_pg_session(
 async def make_remote_session(
     simulation: "Simulation",
     source_id: str,
-    bench_id: UUID,
+    space_id: UUID,
     client: "ClientHandle",
     host: "HostHandle",
     oracle: Oracle,

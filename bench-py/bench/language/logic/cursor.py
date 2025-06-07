@@ -22,7 +22,7 @@ from bench.language.core import (
 from bench.pb2 import CursorData
 
 if TYPE_CHECKING:
-    from bench.language import Agent, Run, Space, Thread
+    from bench.language import Agent, Run, Thread
 
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -79,7 +79,7 @@ class Cursor(
     """
 
     # meta
-    parent: Union["Space", "Agent", "Thread", "Run", None] = property_parent_()
+    parent: Union["Agent", "Thread", "Run", None] = property_parent_()
     type: CursorType = property_(30, is_repr=True)
 
     # status?

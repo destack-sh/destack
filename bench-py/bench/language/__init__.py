@@ -8,7 +8,6 @@ from .data import *  # noqa: F403
 from .finance import *  # noqa: F403
 from .infra import *  # noqa: F403
 from .logic import *  # noqa: F403
-from .package import *  # noqa: F403
 from .registry import (
     ENUM_CLASS_BY_TYPE,  # noqa: F401
     ENUM_INFO_BY_TYPE,  # noqa: F401
@@ -20,6 +19,7 @@ from .registry import (
     _complete_bench_setup,
 )
 from .runtime import *  # noqa: F403
+from .scene import *  # noqa: F403
 from .social import *  # noqa: F403
 from .space import *  # noqa: F403
 from .style import *  # noqa: F403
@@ -29,13 +29,13 @@ from .view import *  # noqa: F403
 _complete_bench_setup()
 
 # builtin benches (pointers) :Builtins
-BENCH_PTR = NodeReference(node_type=NodeType.BENCH, id=BENCH_ID, bench_id=BENCH_ID)
+BENCH_PTR = NodeReference(node_type=NodeType.SPACE, id=BENCH_ID, space_id=BENCH_ID)
 BENCH_BENCH_PACKAGE_PTR = NodeReference(
-    node_type=NodeType.PACKAGE, id=BENCH_BENCH_PACKAGE_ID, bench_id=BENCH_ID
+    node_type=NodeType.PACKAGE, id=BENCH_BENCH_PACKAGE_ID, space_id=BENCH_ID
 )
-SYSTEM_BENCH_PTR = NodeReference(node_type=NodeType.BENCH, id=SYSTEM_ID, bench_id=SYSTEM_ID)
+SYSTEM_BENCH_PTR = NodeReference(node_type=NodeType.SPACE, id=SYSTEM_ID, space_id=SYSTEM_ID)
 SYSTEM_MAIN_PACKAGE_PTR = NodeReference(
-    node_type=NodeType.PACKAGE, id=SYSTEM_SYSTEM_PACKAGE_ID, bench_id=SYSTEM_ID
+    node_type=NodeType.PACKAGE, id=SYSTEM_SYSTEM_PACKAGE_ID, space_id=SYSTEM_ID
 )
 
 BENCH_ICON = icon("https://heybench.com/favicon.ico")

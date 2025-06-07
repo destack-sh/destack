@@ -6,7 +6,7 @@ from bench.language.core import (
     VERSION,
     BuiltinEnum,
     EnumType,
-    IsInBench,
+    IsInSpace,
     IsProvisionable,
     IsSubject,
     IsTracked,
@@ -38,7 +38,7 @@ class MachineType(BuiltinEnum):
 class Machine(
     IsSubject,
     IsProvisionable,
-    IsInBench,
+    IsInSpace,
     IsTracked,
     Node[MachineData],
 ):
@@ -55,7 +55,7 @@ class Machine(
     image_id: Optional[str] = property_(64, can_read="system", can_write="system")
     grpc_url: Optional[str] = property_(65, can_read="system", can_write="system")
     vnc_url: Optional[str] = property_(66, can_read="system", can_write="system")
-    client: Optional["Client"] = property_(69, node_bench_from="self")
+    client: Optional["Client"] = property_(69, node_space_from="self")
     if TYPE_CHECKING:
         client_ptr: Optional[NodeReference] = None
         client_id: Optional[UUID] = None

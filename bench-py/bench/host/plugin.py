@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, ClassVar
 import structlog
 from opentelemetry import trace
 
-from bench.language import Bench, Node, NodeType, Session, bittuple
+from bench.language import Node, NodeType, Session, Space, bittuple
 from bench.proto import Network
 from bench.utils.oracle import Oracle
 from bench.utils.string import Casing, to_casing
@@ -31,14 +31,14 @@ class HostPlugin[T: Node]:
 
     watch_types: ClassVar[bittuple[NodeType] | None] = None
 
-    def __init__(self, host: "HostService", bench: "Bench"):
+    def __init__(self, host: "HostService", space: "Space"):
         self.host = host
-        self.bench = bench
+        self.space = space
         self.tasks = TaskManager(
             owner=self,
             logger=logger,
             on_error=host.on_error,
-            task_id_prefix=f"{self.bench.slug}_{self.__class__.__name__}",
+            task_id_prefix=f"{self.space.slug}_{self.__class__.__name__}",
             oracle=host.oracle,
         )
 
@@ -48,9 +48,9 @@ class HostPlugin[T: Node]:
     def __repr__(self) -> str:
         content_str = str(self)
         if content_str:
-            return f"<{self.__class__.__name__} {content_str} in '{self.bench.slug}'>"
+            return f"<{self.__class__.__name__} {content_str} in '{self.space.slug}'>"
         else:
-            return f"<{self.__class__.__name__} in '{self.bench.slug}'>"
+            return f"<{self.__class__.__name__} in '{self.space.slug}'>"
 
     @cached_property
     def name(self) -> str:

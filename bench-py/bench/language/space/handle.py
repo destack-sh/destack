@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Optional
 from bench.language.core import (
     HasSlug,
     IsGlobal,
-    IsInBench,
+    IsInSpace,
     IsTracked,
     Node,
     NodeType,
@@ -13,7 +13,7 @@ from bench.language.core import (
 from bench.pb2 import HandleData
 
 if TYPE_CHECKING:
-    from bench.language import Bench
+    from bench.language import Space
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -22,10 +22,10 @@ if TYPE_CHECKING:
 class Handle(
     HasSlug,
     IsGlobal,
-    IsInBench,
+    IsInSpace,
     IsTracked,
     Node[HandleData],
 ):
     """A Bench @handle."""
 
-    parent: Optional["Bench"] = property_parent_()
+    parent: Optional["Space"] = property_parent_()

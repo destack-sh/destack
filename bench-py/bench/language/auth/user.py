@@ -22,7 +22,7 @@ from bench.language.core import (
 from bench.pb2 import UserData
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Cursor, Handle, NodeReference, User
+    from bench.language import Cursor, Handle, NodeReference, Space, User
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -56,12 +56,12 @@ class User(
     # last_active_at, seen_at, ...
     is_staff: bool = property_(45, default=False, can_write="system")
 
-    bench: "Bench" = property_(50, can_write="system", node_bench_from="self")
-    handle: Optional["Handle"] = property_(51, can_write="system", node_bench_from="self")
-    cursor: Optional["Cursor"] = property_(52, can_write="system", node_bench_from="self")
+    space: "Space" = property_(50, can_write="system", node_space_from="self")
+    handle: Optional["Handle"] = property_(51, can_write="system", node_space_from="self")
+    cursor: Optional["Cursor"] = property_(52, can_write="system", node_space_from="self")
     if TYPE_CHECKING:
-        bench_id: UUID = property_()
-        bench_ptr: NodeReference = property_()
+        space_id: UUID = property_()
+        space_ptr: NodeReference = property_()
         handle_id: Optional[UUID] = None
         handle_ptr: Optional[NodeReference] = None
         cursor_id: Optional[UUID] = None

@@ -484,13 +484,13 @@ def _generate_ref_impl[NodeT: "Node"](
     from ..common.relation import NodeReference
 
     assert cls.__is_node__, f"{cls.__name__} is not a Node"
-    if node_type == NodeType.BENCH:
+    if node_type == NodeType.SPACE:
         ref_impl = f"""\
 def __to_ref__(self) -> "NodeReference":
     return NodeReference(
         node_type=NodeType.{node_type.name},
         id=self.id,
-        bench_id=self.id,
+        space_id=self.id,
     )
 """
     elif node_type == NodeType.CUSTOM_NODE_INSTANCE:
@@ -500,16 +500,16 @@ def __to_ref__(self) -> "NodeReference":
         node_type=NodeType.{node_type.name},
         id=self.id,
         definition_id=self.definition_id,
-        bench_id=self.bench_id,
+        space_id=self.space_id,
     )
 """
-    elif TraitType.IN_BENCH in cls.__traits__:
+    elif TraitType.IN_SPACE in cls.__traits__:
         ref_impl = f"""\
 def __to_ref__(self) -> "NodeReference":
     return NodeReference(
         node_type=NodeType.{node_type.name},
         id=self.id,
-        bench_id=self.bench_id,
+        space_id=self.space_id,
     )
 """
     else:

@@ -4,7 +4,7 @@ from bench.language.core import (
     BuiltinEnum,
     BuiltinObjectMutable,
     EnumType,
-    IsInBench,
+    IsInSpace,
     IsResource,
     IsTracked,
     Node,
@@ -23,7 +23,7 @@ from bench.language.core import (
 from bench.pb2 import DatabaseData
 
 if TYPE_CHECKING:
-    from bench.language import Bench
+    from bench.language import Space
 
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -67,11 +67,11 @@ class DatabaseInfo(DatabaseBase, StructMutable):
 @node_(NodeType.DATABASE)
 class Database(
     IsResource,
-    IsInBench,
+    IsInSpace,
     IsTracked,
     DatabaseBase,
     Node[DatabaseData],
 ):
     """A relational Database."""
 
-    parent: Optional["Bench"] = property_parent_()
+    parent: Optional["Space"] = property_parent_()

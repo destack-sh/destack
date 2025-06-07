@@ -28,7 +28,7 @@ from bench.language.core import (
 from bench.pb2 import PackageData, PackageInviteData, PackageMembershipData
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Page, Scene
+    from bench.language import Page, Scene, Space
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -42,7 +42,7 @@ class PackageType(BuiltinEnum):
 
 @node_(
     NodeType.PACKAGE,
-    index=(IndexIn(columns=("bench_id", "slug"), is_unique=True),),
+    index=(IndexIn(columns=("space_id", "slug"), is_unique=True),),
 )
 class Package(
     HasIcon,
@@ -61,7 +61,7 @@ class Package(
 ):
     """A Package is a semi-isolated area of a Bench."""
 
-    parent: Optional["Bench"] = property_parent_()
+    parent: Optional["Space"] = property_parent_()
     type: PackageType = property_(30, is_repr=True)
 
     main_page: Optional["Page"] = property_(40)

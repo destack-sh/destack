@@ -66,7 +66,7 @@ class CustomNodeInstance(
     definition: "CustomNodeDefinition" = property_(
         40,
         description="The CustomNodeDefinition this CustomNode is an instance of.",
-        node_bench_from="self",
+        node_space_from="self",
     )
     if TYPE_CHECKING:
         definition_id: Optional[UUID] = None

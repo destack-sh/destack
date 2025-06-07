@@ -8,8 +8,6 @@ from opentelemetry import trace
 
 from bench.language import (
     Area,
-    Bench,
-    BenchStatus,
     Client,
     Database,
     DatabaseInfo,
@@ -20,6 +18,8 @@ from bench.language import (
     PackageType,
     Region,
     Session,
+    Space,
+    SpaceStatus,
     User,
     UserStatus,
 )
@@ -127,8 +127,8 @@ class SupervisorService(ServiceBase, SupervisorBase):
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "password required")
 
         region = Region(request.region)
-        bench = Bench(
-            status=BenchStatus.CREATING,
+        space = Space(
+            status=SpaceStatus.CREATING,
             slug=request.slug,
             name=request.slug,
             region=region,
@@ -141,13 +141,13 @@ class SupervisorService(ServiceBase, SupervisorBase):
             email=request.email,
             status=UserStatus.CREATING,
             last_logged_in_at=self.oracle.utc(),
-            bench=bench,
+            space=space,
         )
-        bench.owned_by = user
+        space.owned_by = user
         user.password_salt = generate_salt(SALT_LENGTH)
         user.password_hash = hash_password(request.password, user.password_salt)
         session.create(user)
-        session.create(bench)
+        session.create(space)
         await session.stage()
 
         # create Client
@@ -157,13 +157,13 @@ class SupervisorService(ServiceBase, SupervisorBase):
         user.add_child(client)
         await session.stage()
         assert user.slug, f"{user!r} has no slug"
-        bench.handle = user.handle = Handle(slug=user.slug)
-        bench.add_child(user.handle)
+        space.handle = user.handle = Handle(slug=user.slug)
+        space.add_child(user.handle)
         await session.commit()
 
         # provision Bench
-        cell = await self.cell_provider.acquire(region, bench)
-        main_database = await self.database_provider.acquire(region, bench)
+        cell = await self.cell_provider.acquire(region, space)
+        main_database = await self.database_provider.acquire(region, space)
         database = Database(
             type=main_database.type,
             tenancy=main_database.tenancy,
@@ -173,7 +173,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
             external_name=main_database.external_name,
             custom_schema_name=main_database.custom_schema_name,
         )
-        bench.database = database
+        space.database = database
         session.store = SplitStore(
             store_by_area={
                 Area.GLOBAL_DATABASE: PostgresStore(
@@ -185,14 +185,14 @@ class SupervisorService(ServiceBase, SupervisorBase):
         await session.stage()
 
         # create main Package
-        main_package = Package(parent=bench, type=PackageType.HOME, name="Home", slug="home")
-        bench.add_child(main_package)
-        bench.main_package = main_package
+        main_package = Package(parent=space, type=PackageType.HOME, name="Home", slug="home")
+        space.add_child(main_package)
+        space.main_package = main_package
         await session.stage()
 
         # done
-        bench.status = BenchStatus.RUNNING
-        user.bench = bench
+        space.status = SpaceStatus.RUNNING
+        user.space = space
         user.status = UserStatus.ACTIVE
         await session.commit()
 
