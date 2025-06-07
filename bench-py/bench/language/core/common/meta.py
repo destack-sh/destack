@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from ..builtin import (
     BuiltinEnum,
@@ -9,29 +9,59 @@ from ..builtin import (
     Property,
     StructBase,
     StructFrozen,
-    StructMutable,
     StructType,
     TraitType,
     property_,
     struct_,
 )
-from .type import TypeBase
+from .type import (
+    CollectionConstraint,
+    DefaultFactory,
+    NodeConstraint,
+    NumberConstraint,
+    PrimitiveType,
+    ScalarType,
+    StringConstraint,
+    TypeCardinality,
+)
 
 if TYPE_CHECKING:
-    from bench.language import Icon, Node
+    from bench.language import Icon, Node, Type, Value
 
 
 _type = type
 
 
-@struct_(StructType.PROPERTY_INFO)
-class PropertyInfo(TypeBase, StructMutable):
+@struct_(StructType.PROPERTY_INFO, frozen=True)
+class PropertyInfo(StructFrozen):
     """Information about a Property."""
 
     id: int = property_(2)
     name: str = property_(31)
     icon: "Icon | None" = property_(34)
     description: str | None = property_(36)
+
+    # scalar
+    cardinality: TypeCardinality = property_(40, default=TypeCardinality.SCALAR, is_repr=True)
+    scalar_type: ScalarType = property_(41, is_repr=True)
+    primitive_type: Optional[PrimitiveType] = property_(42, is_repr=True)
+    enum_type: Optional[EnumType] = property_(43, is_repr=True)
+    node_type: Optional[NodeType] = property_(44, is_repr=True)
+    struct_type: Optional[StructType] = property_(46, is_repr=True)
+    key_type: Optional["Type"] = property_(48, is_repr=True)  # for maps
+
+    # meta
+    is_required: bool | None = property_(50)
+    is_variable: bool | None = property_(51)
+    # is_external
+    default: Optional["Value"] = property_(55)
+    default_factory: Optional[DefaultFactory] = property_(56)
+
+    # constraints
+    collection_constraint: Optional["CollectionConstraint"] = property_(60)
+    string_constraint: Optional["StringConstraint"] = property_(61)
+    number_constraint: Optional["NumberConstraint"] = property_(62)
+    node_constraint: Optional["NodeConstraint"] = property_(63)
 
     node_is_customizable: bool = property_(73)
     edge_type: EdgeType | None = property_(74)
@@ -62,10 +92,8 @@ class PropertyInfo(TypeBase, StructMutable):
             enum_type=type.enum_type,
             node_type=type.node_type,
             struct_type=type.struct_type,
-            base_type=type.base_type,
             key_type=type.key_type,
             is_required=type.is_required,
-            is_variable=type.is_variable,
             default=type.default,
             default_factory=type.default_factory,
             collection_constraint=type.collection_constraint,

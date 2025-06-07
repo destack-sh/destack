@@ -25,7 +25,6 @@ from bench.utils.string import Casing, to_casing
 if TYPE_CHECKING:
     from bench.language import (
         Session,
-        SpanType,
     )
 
 
@@ -344,7 +343,6 @@ class EnumType(BuiltinEnum):
     # runtime [1600-2000]
     RUN_STATUS = 1611
     RUN_TYPE = 1612
-    SPAN_TYPE = 1621
     SCHEDULE_FREQUENCY = 1631
     INTERRUPTION_TYPE = 1632
     INTERRUPTION_STATUS = 1633
@@ -683,7 +681,11 @@ class NodeType(BuiltinEnum):
     # ROOM, JOB, PLAN, LOCK, ...
     # EVENT, SIGNAL, ...
     # TIMER, BREAKPOINT, ...
-    # INSTRUMENT, MEASUREMENT, LOG/EDIT_LOG/CHANGE_LOG/QUERY_LOG/..., ...
+    # INSTRUMENT, MEASUREMENT,
+    LOG = 1700, "Log", "Log", "fas fa-file-lines"
+    EDIT_LOG = 1701, "Edit Log", "Edit Log", "fas fa-file-lines"
+    CHANGE_LOG = 1702, "Change Log", "Change Log", "fas fa-file-lines"
+    QUERY_LOG = 1703, "Query Log", "Query Log", "fas fa-file-lines"
 
     # data [2000-2400]
     SCHEMA = 2000, "Schema", "Schema", "fas fa-shapes"
@@ -844,7 +846,7 @@ class TraitType(BuiltinEnum):
     # logic [1200-1600]
     RUNNABLE = 1200, "Runnable", "Can be run", "fas fa-play"
     SCRIPTABLE = 1201, "Scriptable", "Can be scripted", "fas fa-code"
-    SCRIPT_SOURCEABLE = 1202, "Script Sourceable", "Can be sourced from a Script", "fas fa-code"
+    SOURCEABLE = 1202, "Script Sourceable", "Can be sourced from a Script", "fas fa-code"
     INSTRUMENT = 1210, "Instrument", "Is an instrument", "fas fa-microscope"
     MEASUREMENT = 1211, "Measurement", "Is a measurement", "fas fa-microscope"
     LOG = 1212, "Log", "Is a log", "fas fa-file-lines"
@@ -1264,31 +1266,6 @@ class RunType(BuiltinEnum):
     ACTION = 10
     FLOW = 11
     AGENT = 15
-
-
-@enum_(EnumType.SPAN_TYPE)
-class SpanType(BuiltinEnum):
-    # general
-    ATTEMPT = 1, None, None, "fas fa-play"
-    WAIT = 2, None, None, "fas fa-hourglass-end"
-    ACQUIRE = 3, None, None, "fas fa-toolbox"
-    CODE = 10, None, None, "fas fa-code"
-    # agent
-    AGENT_TURN = 100, None, None, "fas fa-hexagon-nodes"
-    # action
-    # ...
-    # application (action)
-    # ...
-    # model
-    MODEL_PREPARE = 300, None, None, "fas fa-hexagon-nodes"
-    MODEL_GENERATE = 310, None, None, "fas fa-hexagon-nodes"
-    MODEL_PARSE = 320, None, None, "fas fa-hexagon-nodes"
-    # file
-    FILE_UPLOAD = 500, None, None, "fas fa-upload"
-    FILE_PREPARE_UPLOAD = 501, None, None, "fas fa-upload"
-    FILE_DOWNLOAD = 502, None, None, "fas fa-download"
-    FILE_PREPARE_DOWNLOAD = 503, None, None, "fas fa-download"
-    # ...
 
 
 @enum_(EnumType.RESOURCE_STATUS)

@@ -10,6 +10,7 @@ from bench.language.core import (
     IsInPackage,
     IsOrdered,
     IsRunnable,
+    IsSourceable,
     IsTemplatable,
     IsTracked,
     Node,
@@ -40,9 +41,10 @@ class ActionCardinality(BuiltinEnum):
 
 @node_(NodeType.ACTION)
 class Action(
-    IsTemplatable,
     HasName,
     HasEnvironment,
+    IsTemplatable,
+    IsSourceable,
     IsOrdered,
     IsArchivable,
     IsDeletable,

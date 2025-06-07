@@ -85,7 +85,6 @@ from .type import (
     StringConstraint,
     StringFormat,
     Type,
-    TypeBase,
     to_type,
 )
 from .validation import ValidationError
@@ -163,7 +162,6 @@ __all__ = [
     "TextSpanType",
     "TraitInfo",
     "Type",
-    "TypeBase",
     "ValidationError",
     "Value",
     "Variable",

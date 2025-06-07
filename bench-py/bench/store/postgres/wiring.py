@@ -13,6 +13,7 @@ import pytz
 from bench.language import (
     EMPTY_DICT,
     EdgeType,
+    Field,
     IsInBench,
     Json,
     Node,
@@ -23,7 +24,6 @@ from bench.language import (
     ScalarType,
     StructType,
     Type,
-    TypeBase,
     TypeCardinality,
     Value,
     expand_node_types,
@@ -333,7 +333,7 @@ def unpack_node_row(table: DatabaseTable, row: asyncpg.Record) -> tuple[Value, N
 #
 
 
-def pack_column_scalar(type: TypeBase, value: Json) -> Any:
+def pack_column_scalar(type: "Type | Field", value: Json) -> Any:
     assert type.scalar_type != ScalarType.NODE_REFERENCE, f"unhandled node ref: {type!r}"
     if type.scalar_type == ScalarType.PRIMITIVE:
         if type.primitive_type == PrimitiveType.BYTES:
@@ -360,7 +360,7 @@ def pack_column_scalar(type: TypeBase, value: Json) -> Any:
         assert_never(type.scalar_type)
 
 
-def pack_column_flat(type: TypeBase, value: Json) -> Any:
+def pack_column_flat(type: "Type | Field", value: Json) -> Any:
     """Pack a dynamic column value into a single column value."""
     if type.cardinality == TypeCardinality.SCALAR:
         return pack_column_scalar(type, value)
@@ -373,7 +373,7 @@ def pack_column_flat(type: TypeBase, value: Json) -> Any:
 
 
 def pack_column_wide(
-    type: TypeBase,
+    type: "Type | Field",
     value: Json | None,
     table: DatabaseTable,
     column_name: str,
@@ -408,7 +408,7 @@ def pack_column_wide(
         assert_never(type.cardinality)
 
 
-def unpack_column_scalar(type: TypeBase, value: Any) -> Json:
+def unpack_column_scalar(type: "Type | Field", value: Any) -> Json:
     assert type.scalar_type != ScalarType.NODE_REFERENCE, f"unhandled node ref: {type!r}"
     if type.scalar_type == ScalarType.PRIMITIVE:
         if type.primitive_type == PrimitiveType.BYTES:
@@ -435,7 +435,7 @@ def unpack_column_scalar(type: TypeBase, value: Any) -> Json:
         assert_never(type.scalar_type)
 
 
-def unpack_column(type: TypeBase, value: Any) -> Json:
+def unpack_column(type: "Type | Field", value: Any) -> Json:
     if type.cardinality == TypeCardinality.SCALAR:
         return unpack_column_scalar(type, value)
     elif type.cardinality == TypeCardinality.LIST:

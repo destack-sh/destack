@@ -1,7 +1,5 @@
-import abc
-import asyncio
 from functools import cached_property
-from typing import TYPE_CHECKING, ClassVar, final, override
+from typing import TYPE_CHECKING, ClassVar
 
 import structlog
 from opentelemetry import trace
@@ -115,64 +113,3 @@ class HostPlugin[T: Node]:
         React to a failed commit.
         """
         pass
-
-
-class DeferredHostPlugin[T: Node](HostPlugin, abc.ABC):
-    """A Host plugin with async event handlers."""
-
-    def __init__(self, host: "HostService", bench: "Bench"):
-        super().__init__(host, bench)
-        self._processing_commit: Commit[T] | None = None
-        self._commit_queue: asyncio.Queue[Commit[T]] = asyncio.Queue()
-
-    @property
-    def is_idle(self) -> bool:
-        """Check if the plugin is idle (no pending requests or processing)."""
-        return self._commit_queue._unfinished_tasks == 0  # type: ignore
-
-    @override
-    async def start(self) -> None:
-        await super().start()
-        self.tasks.run(self.process_commit_queue())
-
-    def filter_commit(self, commit: Commit) -> bool:
-        """Filter a commit before adding it to the queue."""
-        return True
-
-    @override
-    async def post_commit(self, session: Session, commit: Commit) -> None:
-        # queue commit if relevant
-        if self.filter_commit(commit):
-            self._commit_queue.put_nowait(commit)
-
-    @final
-    async def wait_idle(self, timeout: float) -> None:
-        if self._commit_queue.empty():
-            return  # nothing to wait for
-        try:
-            await asyncio.wait_for(self._commit_queue.join(), timeout=timeout)
-        except asyncio.TimeoutError as e:
-            raise RuntimeError(
-                f"{self!r} timed out after {timeout}s waiting for {self._commit_queue.qsize()} commits"
-            ) from e
-        self.tasks.check_no_errors()
-
-    async def process_commit_queue(self) -> None:
-        """Process the commit queue."""
-        while True:
-            commit = await self._commit_queue.get()
-            try:
-                self._processing_commit = commit
-                await self.post_commit_deferred(commit)
-            except Exception as e:
-                # suppress errors and keep going
-                self.host.on_error(e)
-            finally:
-                self._processing_commit = None
-                self._commit_queue.task_done()
-
-    async def post_commit_deferred(self, commit: Commit) -> None:
-        """
-        React to the committed changes (outside the request, later, one at a time).
-        """
-        pass  # to be overridden

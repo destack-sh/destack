@@ -92,7 +92,6 @@ def map_builtin_node_to_database_table(node: type[Node]) -> DatabaseTable:
                 columns.append(bench_id_column)
         else:
             # regular column
-            assert not prop.name.endswith("_ptr"), f"unexpected regular ptr: {prop!r}"
             assert prop.primitive_type is not None, f"undetermined type for {prop!r}"
             column = DatabaseColumn(
                 name=prop.name,

@@ -144,6 +144,38 @@ class IntoType:
             if self.default is not UNSET and self.default is not None
             else None
         )
+
+        # build constraints first since they're frozen
+        string_constraint = None
+        number_constraint = None
+        collection_constraint = None
+        node_constraint = None
+
+        # constraints
+        if self.constraint is not None:
+            if isinstance(self.constraint, StringConstraint):
+                string_constraint = self.constraint
+            elif isinstance(self.constraint, NumberConstraint):
+                number_constraint = self.constraint
+            elif isinstance(self.constraint, CollectionConstraint):
+                collection_constraint = self.constraint
+            elif isinstance(self.constraint, NodeConstraint):
+                node_constraint = self.constraint
+            else:
+                assert_never(self.constraint)
+
+        # format
+        if self.format is not None:
+            if isinstance(self.format, StringFormat):
+                assert string_constraint is None, f"conflicting string constraint: {self!r}"
+                string_constraint = StringConstraint(format=self.format)
+            elif isinstance(self.format, NumberFormat):
+                assert number_constraint is None, f"conflicting number constraint: {self!r}"
+                number_constraint = NumberConstraint(format=self.format)
+            else:
+                assert_never(self.format)
+
+        # type
         type_obj = Type(
             cardinality=self.cardinality,
             scalar_type=self.scalar_type,
@@ -156,33 +188,11 @@ class IntoType:
             default=default,
             default_factory=self.default_factory,
             key_type=self.key_type._to_type() if self.key_type else None,
+            string_constraint=string_constraint,
+            number_constraint=number_constraint,
+            collection_constraint=collection_constraint,
+            node_constraint=node_constraint,
         )
-
-        # constraints
-        if self.constraint is not None:
-            if isinstance(self.constraint, StringConstraint):
-                type_obj.string_constraint = self.constraint
-            elif isinstance(self.constraint, NumberConstraint):
-                type_obj.number_constraint = self.constraint
-            elif isinstance(self.constraint, CollectionConstraint):
-                type_obj.collection_constraint = self.constraint
-            elif isinstance(self.constraint, NodeConstraint):
-                type_obj.node_constraint = self.constraint
-            else:
-                assert_never(self.constraint)
-
-        # format
-        if self.format is not None:
-            if isinstance(self.format, StringFormat):
-                if not isinstance(self.constraint, StringConstraint):
-                    self.constraint = StringConstraint()
-                self.constraint.format = self.format
-            elif isinstance(self.format, NumberFormat):
-                if not isinstance(self.constraint, NumberConstraint):
-                    self.constraint = NumberConstraint()
-                self.constraint.format = self.format
-            else:
-                assert_never(self.format)
 
         return type_obj
 
