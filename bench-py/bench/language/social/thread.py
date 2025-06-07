@@ -6,11 +6,9 @@ from bench.language.core import (
     HasEnvironment,
     HasTitle,
     IsArchivable,
-    IsComputable,
     IsDeletable,
     IsJoinable,
     IsOwnable,
-    IsProcessable,
     IsSubject,
     IsTracked,
     Node,
@@ -38,11 +36,9 @@ class Thread(
     HasEnvironment,
     HasTitle,
     IsArchivable,
-    IsComputable,
     IsDeletable,
     IsJoinable,
     IsOwnable,
-    IsProcessable,
     IsTracked,
     Node[ThreadData],
 ):
@@ -54,8 +50,6 @@ class Thread(
 
     # meta
     parent: Union["Package", "Page", "Thread", None] = property_parent_()
-
-    # ...IsProcessable[80-]
 
     def get_cursor(self, *, type: "CursorType", owned_by: "IsSubject | None") -> "Cursor | None":
         """Get a Cursor of the given type."""

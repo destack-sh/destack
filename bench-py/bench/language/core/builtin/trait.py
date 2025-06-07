@@ -26,16 +26,17 @@ from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.tenacity import RetryOptions
 
 from .const import (
+    UNSET,
     EdgeType,
     EnvironmentType,
     NodeType,
-    ProcessStatus,
     ResourceStatus,
     TraitType,
 )
 from .object import BuiltinObjectMutable, _process_object_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
+    Property,
     property_,
     property_ancestor_,
     property_parent_,
@@ -48,14 +49,11 @@ if TYPE_CHECKING:
         Bench,
         Block,
         Condition,
-        Error,
         Expression,
         ExpressionIn,
         Icon,
-        Interruption,
-        ModelDeveloper,
-        ModelProvider,
         Node,
+        NodeInfo,
         NodeReference,
         Package,
         Page,
@@ -127,10 +125,37 @@ def trait_(
 
 @trait_(node_trait=None)  # type: ignore
 class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
-    """A base class for all Nodes."""
+    """A Node with Properties and a persistent identity."""
 
     metatype: ClassVar[TraitType | NodeType]
     __is_node__: ClassVar[bool] = True
+
+    __info__: ClassVar["NodeInfo"]
+
+    __is_node__: ClassVar[bool] = True
+    __is_trait__: ClassVar[bool] = False  # override Trait.__is_trait__
+    __traits__: ClassVar[tuple[TraitType, ...]] = ()
+    __indexes__: ClassVar[tuple[IndexIn, ...]] = ()
+
+    __root_type__: ClassVar[NodeType | None] = None
+    __parent_property__: ClassVar[Property] = UNSET
+    __parent_types__: ClassVar[tuple[NodeType, ...]] = ()
+    __child_types__: ClassVar[tuple[NodeType, ...]] = ()
+
+    # 10-29: node tracking
+    # IsTracked.created_at/created_by/updated_at/updated_by: 10-13
+    # IsArchivable.archived_at: 14
+    # IsDeletable.deleted_at: 15
+    # IsTemplatable.template: 16
+    # IsModal.mode: 17/18
+    # IsOwnable.owned_by: 19
+    # IsClaimable.claimed_by: 20
+    # ...managed_by/controlled_by?
+    # IsOrdered.order_key: 23
+    # IsExtensible.value: 24
+
+    # 30+ for general properties
+    # ...
 
     @classmethod
     def get(
@@ -565,19 +590,6 @@ class IsBlockable(IsOrdered, IsInPackage):
         return Block.wrap(self)
 
 
-@trait_(TraitType.COMPUTABLE)
-class IsComputable(Trait):
-    """A Node that can have computation applied to it somehow."""
-
-    # model
-    # NOTE :Incomplete: IsComputable.model_id should probably be plural (model_ids?)
-    model_developer: Optional["ModelDeveloper"] = property_(100)
-    model_provider: Optional["ModelProvider"] = property_(101)
-    model_id: Optional[str] = property_(102)
-    model_name: Optional[str] = property_(103)
-    # compute/cost/effort/budget/'juice'...?
-
-
 @trait_(TraitType.SCRIPTABLE)
 class IsScriptable(Trait):  # nocheckin: split IsScriptable and IsScriptDefinable (or something)?
     """A Node that can be scripted."""
@@ -586,7 +598,7 @@ class IsScriptable(Trait):  # nocheckin: split IsScriptable and IsScriptDefinabl
 
 
 @trait_(TraitType.RUNNABLE)
-class IsRunnable(IsComputable):
+class IsRunnable(Trait):
     """A Node that can be run (at runtime in a Run)."""
 
     # control
@@ -602,78 +614,6 @@ class IsRunnable(IsComputable):
             retry_interval=retry_interval,
             backoff=self.backoff or 22,
             max_retry_interval=max(30, retry_interval * 5),
-        )
-
-
-@trait_(TraitType.PROCESSABLE)
-class IsProcessable(Trait):
-    """A Node that can be processed somehow."""
-
-    status: ProcessStatus = property_(80, default=ProcessStatus.CREATED, is_repr=True)
-    duration: Optional[timedelta] = property_(
-        81,
-        default=None,
-        description="Duration from first attempt start to last attempt termination.",
-        is_repr=True,
-    )
-    error: Optional["Error"] = property_(82, is_repr=True)
-    interruption: Optional["Interruption"] = property_(
-        83,
-        node_bench_from="self",
-        description="The latest Interruption concerning the Node.",
-        is_repr=True,
-    )
-    scheduled_at: Optional[datetime] = property_(
-        85, description="When the Node is scheduled to start."
-    )
-    started_at: Optional[datetime] = property_(
-        86, description="When the Node first started.", is_repr=True
-    )
-    active_at: Optional[datetime] = property_(87, description="When the Node was last active.")
-    interrupted_at: Optional[datetime] = property_(88, description="When the Node was interrupted.")
-    terminated_at: Optional[datetime] = property_(
-        89, description="When the Node was last terminated."
-    )
-    requested_stop_at: Optional[datetime] = property_(
-        90, description="When the Node was requested to stop."
-    )
-    requested_pause_at: Optional[datetime] = property_(
-        91, description="When the Node was requested to pause."
-    )
-    requested_resume_at: Optional[datetime] = property_(
-        92, description="When the Node was requested to resume."
-    )
-    if TYPE_CHECKING:
-        interruption_ptr: Optional[NodeReference] = None
-        interruption_id: Optional[UUID] = None
-
-    def touch(self) -> None:
-        """'Touch' the Node to update the active_at timestamp."""
-        self.active_at = self._session.oracle.utc()
-
-    @property
-    def should_stop(self) -> bool:
-        return not (self.status.is_terminal) and (self.requested_stop_at is not None)
-
-    @property
-    def should_pause(self) -> bool:
-        return not (self.status.is_terminal or self.requested_stop_at is not None) and (
-            self.requested_pause_at is not None
-            and (
-                self.requested_resume_at is None
-                or self.requested_pause_at > self.requested_resume_at
-            )
-        )
-
-    @property
-    def should_resume(self) -> bool:
-        return not (self.status.is_terminal or self.requested_stop_at is not None) and (
-            self.requested_resume_at is not None
-            and (
-                self.requested_pause_at is None
-                or self.requested_pause_at < self.requested_resume_at
-            )
-            and (self.interrupted_at is None or self.interrupted_at < self.requested_resume_at)
         )
 
 

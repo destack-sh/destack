@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Union
 from bench.language.core import (
     HasEnvironment,
     IsInPackage,
-    IsProcessable,
     Node,
     NodeType,
     SpanType,
@@ -23,7 +22,6 @@ if TYPE_CHECKING:
 @node_(NodeType.SPAN)
 class Span(
     HasEnvironment,
-    IsProcessable,
     IsInPackage,
     Node[SpanData],
 ):
@@ -36,9 +34,3 @@ class Span(
     type: SpanType = property_(30)
     # content
     title: str | None = property_(60)
-
-    # ...IsProcessable[80-]
-
-    @property
-    def is_retryable(self) -> bool:
-        return self.error is None or self.error.is_retryable
