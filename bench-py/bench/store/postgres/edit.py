@@ -18,7 +18,7 @@ from bench.language import (
 )
 from bench.language.registry import NODE_CLASS_BY_TYPE
 
-from .core import DatabaseContext, DatabaseTable
+from .core import PostgresContext, PostgresTable
 from .wiring import pack_column_wide, pack_node_row
 
 tracer = trace.get_tracer(__name__)
@@ -27,7 +27,7 @@ logger = structlog.get_logger(__name__)
 
 @tracer.start_as_current_span("database.execute_change")
 async def execute_change(
-    conn: asyncpg.Connection, context: DatabaseContext, change: Change
+    conn: asyncpg.Connection, context: PostgresContext, change: Change
 ) -> tuple[Sequence[Edit], Sequence[Edit]]:
     """Execute the Change."""
     assert change.edits, f"no Edits in {change!r}"
@@ -79,7 +79,7 @@ async def execute_change(
 
 
 @tracer.start_as_current_span("database.optimize_change")
-def _optimize_change(context: DatabaseContext, edits: Sequence[Edit]) -> list[Edit]:
+def _optimize_change(context: PostgresContext, edits: Sequence[Edit]) -> list[Edit]:
     """
     Optimize the Change/Edits *while retaining semantic equivalence*.
     Reorder and batch non-interfering Edits to minimize roundtrips.
@@ -116,8 +116,8 @@ def _optimize_change(context: DatabaseContext, edits: Sequence[Edit]) -> list[Ed
 @tracer.start_as_current_span("database.execute_cascade")
 async def _execute_cascade(
     conn: asyncpg.Connection,
-    context: DatabaseContext,
-    table: DatabaseTable,
+    context: PostgresContext,
+    table: PostgresTable,
     node_ptrs: Sequence[NodeReference],
 ) -> Sequence[NodeReference]:
     """Get the cascaded Nodes for an Edit."""
@@ -127,7 +127,7 @@ async def _execute_cascade(
 @tracer.start_as_current_span("database.execute_schema_edits")
 async def _execute_schema_edits(
     conn: asyncpg.Connection,
-    context: DatabaseContext,
+    context: PostgresContext,
     edits: Sequence[Edit],
 ) -> None:
     """Execute the Edits against the schema (schema only, no data)."""
@@ -137,9 +137,9 @@ async def _execute_schema_edits(
 @tracer.start_as_current_span("database.execute_data_edit")
 async def _execute_data_edit(
     conn: asyncpg.Connection,
-    context: DatabaseContext,
+    context: PostgresContext,
     change: Change,
-    table: DatabaseTable,
+    table: PostgresTable,
     edit_type: EditType,
     edits: list[Edit],
 ) -> tuple[Sequence[Edit], Sequence[Edit]]:

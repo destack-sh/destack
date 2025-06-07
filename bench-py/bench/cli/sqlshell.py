@@ -40,18 +40,18 @@ async def sqlshell(
     else:
         raise ValueError(f"invalid area: {area!r}")
 
-    assert database.sql_url, f"database {database!r} has no connection_uri"
+    assert database.connection_url, f"database {database!r} has no connection_uri"
     logger.info(
         "shell.psql",
         area=area,
         space=space,
         database=database,
-        sql_url=sanitize_connection_url(database.sql_url),
+        sql_url=sanitize_connection_url(database.connection_url),
     )
     sigint_handler = signal.getsignal(signal.SIGINT)
     try:
         # allow SIGINT to pass to psql to abort queries
         signal.signal(signal.SIGINT, signal.SIG_IGN)
-        subprocess.run(["psql", database.sql_url], check=True)  # noqa: ASYNC221
+        subprocess.run(["psql", database.connection_url], check=True)  # noqa: ASYNC221
     finally:
         signal.signal(signal.SIGINT, sigint_handler)

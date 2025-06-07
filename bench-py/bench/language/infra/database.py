@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 @enum_(EnumType.DATABASE_TYPE)
 class DatabaseType(BuiltinEnum):
     POSTGRES = 1
-    # CASSANDRA?
+    # CASSANDRA, CLICKHOUSE, ...
 
 
 @object_()
@@ -45,7 +45,7 @@ class DatabaseBase(BuiltinObjectMutable):
         53, can_read="system", can_write="system", is_repr=True
     )
     tenancy: Tenancy = property_(55, default=Tenancy.DEDICATED, is_repr=True)
-    sql_url: str | None = property_(58, can_read="system", can_write="system")
+    connection_url: str | None = property_(58, can_read="system", can_write="system")
 
     def to_info(self) -> "DatabaseInfo":
         return DatabaseInfo(
@@ -55,7 +55,7 @@ class DatabaseBase(BuiltinObjectMutable):
             external_name=self.external_name,
             custom_schema_name=self.custom_schema_name,
             tenancy=self.tenancy,
-            sql_url=self.sql_url,
+            connection_url=self.connection_url,
         )
 
 
@@ -72,6 +72,6 @@ class Database(
     DatabaseBase,
     Node[DatabaseData],
 ):
-    """A relational Database."""
+    """A primary storage Database of some flavor."""
 
     parent: Optional["Space"] = property_parent_()

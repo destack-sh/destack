@@ -17,12 +17,12 @@ from bench.language.registry import NODE_CLASS_BY_TYPE
 
 from .core import (
     EXTENSIONS,
-    DatabaseColumn,
-    DatabaseConstraint,
-    DatabaseIndex,
-    DatabaseSchema,
+    PostgresColumn,
+    PostgresConstraint,
+    PostgresIndex,
+    PostgresSchema,
 )
-from .core import DatabaseTable as DatabaseTable
+from .core import PostgresTable as PostgresTable
 
 BENCH_BUILTIN_TABLE_PREFIX = "bench_"
 BENCH_CUSTOM_TABLE_PREFIX = "bench_custom_"
@@ -37,13 +37,13 @@ def get_table_name(node_ptr: NodeReference) -> str:
         return f"{BENCH_CUSTOM_TABLE_PREFIX}{node_ptr.definition_id}"
 
 
-def map_builtin_node_to_database_table(node: type[Node]) -> DatabaseTable:
+def map_builtin_node_to_database_table(node: type[Node]) -> PostgresTable:
     """Maps a node type into its builtin Table schema."""
 
     table_name = f"{BENCH_BUILTIN_TABLE_PREFIX}{node.metatype.name.lower()}"
-    columns: list[DatabaseColumn] = []
-    constraints: list[DatabaseConstraint] = []
-    indexes: list[DatabaseIndex] = []
+    columns: list[PostgresColumn] = []
+    constraints: list[PostgresConstraint] = []
+    indexes: list[PostgresIndex] = []
     properties = [p for p in node.__properties__.values() if p.is_stored and p.ptr_prop is None]
     properties.sort(key=lambda p: p.id or -1)
 
@@ -59,7 +59,7 @@ def map_builtin_node_to_database_table(node: type[Node]) -> DatabaseTable:
             assert prop.cardinality == TypeCardinality.SCALAR, (
                 f"non-scalar node reference: {prop!r}"
             )
-            column = DatabaseColumn(
+            column = PostgresColumn(
                 name=f"{prop.name}_id",
                 type=PrimitiveType.UUID,
                 is_nullable=not prop.is_required,
@@ -67,7 +67,7 @@ def map_builtin_node_to_database_table(node: type[Node]) -> DatabaseTable:
             )
             columns.append(column)
             if prop.node_has_definition:
-                table_id_column = DatabaseColumn(
+                table_id_column = PostgresColumn(
                     name=f"{prop.name}_definition_id",
                     type=PrimitiveType.UUID,
                     is_nullable=prop.is_optional,
@@ -75,7 +75,7 @@ def map_builtin_node_to_database_table(node: type[Node]) -> DatabaseTable:
                 )
                 columns.append(table_id_column)
             if prop.node_has_type:
-                node_type_column = DatabaseColumn(
+                node_type_column = PostgresColumn(
                     name=f"{prop.name}_type",
                     type=PrimitiveType.INT16,
                     is_nullable=prop.is_optional,
@@ -83,7 +83,7 @@ def map_builtin_node_to_database_table(node: type[Node]) -> DatabaseTable:
                 )
                 columns.append(node_type_column)
             if prop.node_has_space:
-                space_id_column = DatabaseColumn(
+                space_id_column = PostgresColumn(
                     name=f"{prop.name}_space_id",
                     type=PrimitiveType.UUID,
                     is_nullable=prop.is_optional,
@@ -93,7 +93,7 @@ def map_builtin_node_to_database_table(node: type[Node]) -> DatabaseTable:
         else:
             # regular column
             assert prop.primitive_type is not None, f"undetermined type for {prop!r}"
-            column = DatabaseColumn(
+            column = PostgresColumn(
                 name=prop.name,
                 type=prop.primitive_type,
                 is_array=prop.cardinality == TypeCardinality.LIST,
@@ -106,7 +106,7 @@ def map_builtin_node_to_database_table(node: type[Node]) -> DatabaseTable:
         # variable properties
         if prop.is_variable:
             column.is_nullable = True
-            variable_column = DatabaseColumn(
+            variable_column = PostgresColumn(
                 name=f"{prop.name}_variable",
                 type=PrimitiveType.JSON,
                 is_nullable=True,
@@ -117,12 +117,12 @@ def map_builtin_node_to_database_table(node: type[Node]) -> DatabaseTable:
     # extras
     for index in node.__indexes__:
         assert not index.name or not index.name.startswith("bench_"), f"bad idnex name: {index!r}"
-        extra_index = DatabaseIndex.from_index_in(
+        extra_index = PostgresIndex.from_index_in(
             f"space_idx_{index.name or '_'.join(index.columns)}", index
         )
         indexes.append(extra_index)
 
-    table = DatabaseTable(
+    table = PostgresTable(
         name=table_name,
         node_type=node.metatype,
         columns=tuple(columns),
@@ -132,34 +132,34 @@ def map_builtin_node_to_database_table(node: type[Node]) -> DatabaseTable:
     return table
 
 
-def map_custom_node_to_database_table(definition: CustomNodeDefinition) -> DatabaseTable:
+def map_custom_node_to_database_table(definition: CustomNodeDefinition) -> PostgresTable:
     """Maps a CustomNodeDefinition to its corresponding CustomNodeTable."""
 
     raise NotImplementedError(definition)
 
 
-BUILTIN_TABLE_BY_NODE_TYPE: Mapping[NodeType, DatabaseTable] = {
+BUILTIN_TABLE_BY_NODE_TYPE: Mapping[NodeType, PostgresTable] = {
     node_type: map_builtin_node_to_database_table(NODE_CLASS_BY_TYPE[node_type])
     for node_type in NODE_TYPES
 }
-BUILTIN_TABLE_BY_NAME: Mapping[str, DatabaseTable] = {
+BUILTIN_TABLE_BY_NAME: Mapping[str, PostgresTable] = {
     table.name: table for table in BUILTIN_TABLE_BY_NODE_TYPE.values()
 }
-BUILTIN_NODE_TABLES: tuple[DatabaseTable, ...] = tuple(BUILTIN_TABLE_BY_NODE_TYPE.values())
+BUILTIN_NODE_TABLES: tuple[PostgresTable, ...] = tuple(BUILTIN_TABLE_BY_NODE_TYPE.values())
 
-BUILTIN_GLOBAL_TABLES: tuple[DatabaseTable, ...] = tuple(
+BUILTIN_GLOBAL_TABLES: tuple[PostgresTable, ...] = tuple(
     BUILTIN_TABLE_BY_NODE_TYPE[node.metatype]
     for node in NODE_CLASS_BY_TYPE.values()
     if TraitType.GLOBAL in node.__traits__ and node.metatype != NodeType.CUSTOM_NODE_INSTANCE
 )
-BUILTIN_MAIN_TABLES: tuple[DatabaseTable, ...] = tuple(
+BUILTIN_MAIN_TABLES: tuple[PostgresTable, ...] = tuple(
     BUILTIN_TABLE_BY_NODE_TYPE[node.metatype]
     for node in NODE_CLASS_BY_TYPE.values()
     if TraitType.GLOBAL not in node.__traits__ and node.metatype != NodeType.CUSTOM_NODE_INSTANCE
 )
-BUILTIN_TABLE_BY_AREA: Mapping[Area, tuple[DatabaseTable, ...]] = {
+BUILTIN_TABLE_BY_AREA: Mapping[Area, tuple[PostgresTable, ...]] = {
     Area.GLOBAL_DATABASE: BUILTIN_GLOBAL_TABLES,
     Area.MAIN_DATABASE: BUILTIN_MAIN_TABLES,
 }
-BUILTIN_GLOBAL_SCHEMA = DatabaseSchema(EXTENSIONS, BUILTIN_GLOBAL_TABLES)
-BUILTIN_MAIN_SCHEMA = DatabaseSchema(EXTENSIONS, BUILTIN_MAIN_TABLES)
+BUILTIN_GLOBAL_SCHEMA = PostgresSchema(EXTENSIONS, BUILTIN_GLOBAL_TABLES)
+BUILTIN_MAIN_SCHEMA = PostgresSchema(EXTENSIONS, BUILTIN_MAIN_TABLES)

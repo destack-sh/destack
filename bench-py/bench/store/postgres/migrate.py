@@ -31,19 +31,19 @@ from bench.utils.oracle import Oracle
 from .core import (
     POSTGRES_TYPE_BY_UDT,
     PRIMITIVE_TYPE_BY_POSTGRES_TYPE,
-    DatabaseColumn,
-    DatabaseColumnType,
-    DatabaseConstraint,
-    DatabaseConstraintType,
-    DatabaseExtension,
-    DatabaseIndex,
-    DatabaseIndexType,
-    DatabaseObject,
     DatabaseObjectKind,
-    DatabaseSchema,
-    DatabaseTable,
-    DatabaseTableObject,
-    SqlCascadeAction,
+    PostgresCascadeAction,
+    PostgresColumn,
+    PostgresColumnType,
+    PostgresConstraint,
+    PostgresConstraintType,
+    PostgresExtension,
+    PostgresIndex,
+    PostgresIndexType,
+    PostgresObject,
+    PostgresSchema,
+    PostgresTable,
+    PostgresTableObject,
 )
 
 if TYPE_CHECKING:
@@ -280,8 +280,8 @@ class DatabaseMigrationOpType(enum.Enum):
 @dataclass
 class DatabaseMigrationOp:
     type: DatabaseMigrationOpType
-    new_object: Optional[DatabaseObject]
-    old_object: Optional[DatabaseObject]
+    new_object: Optional[PostgresObject]
+    old_object: Optional[PostgresObject]
     diff_keys: Optional[tuple[str, ...]] = None
 
     def __str__(self) -> str:
@@ -320,11 +320,11 @@ class DatabaseMigrationOp:
             raise RuntimeError(f"no object set for {self!r}")
 
     @property
-    def table(self) -> "DatabaseTable":
+    def table(self) -> "PostgresTable":
         if self.new_object is not None:
-            return cast("DatabaseTableObject", self.new_object).table
+            return cast("PostgresTableObject", self.new_object).table
         elif self.old_object is not None:
-            return cast("DatabaseTableObject", self.old_object).table
+            return cast("PostgresTableObject", self.old_object).table
         else:
             raise RuntimeError(f"no object set for {self!r}")
 
@@ -395,8 +395,8 @@ def generate_migration_code(
 @tracer.start_as_current_span("database.generate_migration_ops")
 def generate_migration_ops(
     *,
-    old_schema: DatabaseSchema,
-    new_schema: DatabaseSchema,
+    old_schema: PostgresSchema,
+    new_schema: PostgresSchema,
     include_types: tuple[DatabaseMigrationOpType, ...] = tuple(DatabaseMigrationOpType),
 ) -> list[DatabaseMigrationOp]:
     """Generates the migration operations to go from the old tables to the new tables."""
@@ -407,11 +407,11 @@ def generate_migration_ops(
     new_extensions = {ext.name for ext in new_schema.extensions}
     for ext_name in new_extensions - old_extensions:
         extension_ops.append(
-            DatabaseMigrationOp(DatabaseMigrationOpType.CREATE, DatabaseExtension(ext_name), None)
+            DatabaseMigrationOp(DatabaseMigrationOpType.CREATE, PostgresExtension(ext_name), None)
         )
     # NOTE: we don't remove extensions for now
 
-    def _to_id(obj: DatabaseTableObject) -> str:
+    def _to_id(obj: PostgresTableObject) -> str:
         return obj.qualified_name
 
     # order of walk is table -> column -> index -> constraint
@@ -481,7 +481,7 @@ def generate_migration_ops(
             continue
 
         if op.object_kind == DatabaseObjectKind.TABLE:
-            assert isinstance(op.new_object, DatabaseTable)
+            assert isinstance(op.new_object, PostgresTable)
             # only columns are created implicitly in migration ops
             first_columns, deferred_columns = partition(
                 lambda col: bool(col.is_foreign_key_to),
@@ -497,7 +497,7 @@ def generate_migration_ops(
                     DatabaseMigrationOp(DatabaseMigrationOpType.CREATE, col, None)
                 )
         elif op.object_kind == DatabaseObjectKind.COLUMN:
-            assert isinstance(op.new_object, DatabaseColumn)
+            assert isinstance(op.new_object, PostgresColumn)
             if op.new_object.is_foreign_key_to:
                 patch_table_cru_ops.append(op)
             else:
@@ -520,14 +520,14 @@ def _render_migration_body(ops: list[DatabaseMigrationOp] | None) -> str:
         return "raise NotImplementedError"
 
     lines: list[str] = []
-    current_table: Optional[DatabaseTable] = None
+    current_table: Optional[PostgresTable] = None
     current_table_stmts: list[str] = []
 
-    def _emit_alter(table: DatabaseTable, statements: list[str]) -> None:
+    def _emit_alter(table: PostgresTable, statements: list[str]) -> None:
         alter_content = ",\n    ".join(statements)
         lines.append(f'"""\n    ALTER TABLE "{table.name}"    \n    {alter_content}\n"""')
 
-    def _emit(table: DatabaseTable, statements: list[str]) -> None:
+    def _emit(table: PostgresTable, statements: list[str]) -> None:
         # batch successive ALTER TABLE statements, otherwise leave them as-is
         lines.append(f"\n# {table.name}")
         current_alter_statements: list[str] = []
@@ -651,38 +651,38 @@ def _render_migration_op(op: DatabaseMigrationOp) -> str | None:
     Generally 'flat' - ops do not include nested objects - except for CREATE TABLE.
     """
     if op.type == DatabaseMigrationOpType.CREATE:
-        if isinstance(op.new_object, DatabaseExtension):
+        if isinstance(op.new_object, PostgresExtension):
             return f'CREATE EXTENSION IF NOT EXISTS "{op.new_object.name}"'
-        elif isinstance(op.new_object, DatabaseTable):
+        elif isinstance(op.new_object, PostgresTable):
             table_contents = ",\n".join(f"    {col.sql()}" for col in op.new_object.columns)
             return f'CREATE TABLE "{op.new_object.name}" (\n{table_contents}\n)'
-        elif isinstance(op.new_object, DatabaseColumn):
+        elif isinstance(op.new_object, PostgresColumn):
             return f'ALTER TABLE "{op.new_object.table.name}" ADD COLUMN {op.new_object.sql()}'
-        elif isinstance(op.new_object, DatabaseIndex):
+        elif isinstance(op.new_object, PostgresIndex):
             if op.new_object.is_unique:
                 return f"CREATE UNIQUE INDEX {op.new_object.sql()}"
             else:
                 return f"CREATE INDEX {op.new_object.sql()}"
-        elif isinstance(op.new_object, DatabaseConstraint):
+        elif isinstance(op.new_object, PostgresConstraint):
             return f'ALTER TABLE "{op.new_object.table.name}" ADD CONSTRAINT {op.new_object.sql()}'
 
     elif op.type == DatabaseMigrationOpType.RENAME:
         assert op.new_object is not None, f"expected a new object: {op!r}"
-        if isinstance(op.old_object, DatabaseTable):
+        if isinstance(op.old_object, PostgresTable):
             return f'ALTER TABLE "{op.old_object.name}" RENAME TO "{op.new_object.name}"'
-        elif isinstance(op.old_object, DatabaseColumn):
+        elif isinstance(op.old_object, PostgresColumn):
             return f'ALTER TABLE "{op.old_object.table.name}" RENAME COLUMN "{op.old_object.name}" TO "{op.new_object.name}"'
-        elif isinstance(op.old_object, DatabaseIndex):
+        elif isinstance(op.old_object, PostgresIndex):
             return f'ALTER INDEX "{op.old_object.name}" RENAME TO "{op.new_object.name}"'
-        elif isinstance(op.old_object, DatabaseConstraint):
+        elif isinstance(op.old_object, PostgresConstraint):
             return f'ALTER TABLE "{op.old_object.table.name}" RENAME CONSTRAINT "{op.old_object.name}" TO "{op.new_object.name}"'
 
     elif op.type == DatabaseMigrationOpType.UPDATE:
-        if isinstance(op.old_object, DatabaseTable):
+        if isinstance(op.old_object, PostgresTable):
             # there are no table properties we can update (outside name, which is handled by rename)
             raise NotImplementedError(f"cannot render {op!r}")
-        elif isinstance(op.old_object, DatabaseColumn):
-            assert isinstance(op.new_object, DatabaseColumn), (
+        elif isinstance(op.old_object, PostgresColumn):
+            assert isinstance(op.new_object, PostgresColumn), (
                 f"expected a column: {op.new_object!r}"
             )
             updates: list[str] = []
@@ -741,16 +741,16 @@ def _render_migration_op(op: DatabaseMigrationOp) -> str | None:
             if not updates:
                 return None
             return f'ALTER TABLE "{op.old_object.table.name}" ' + ",\n".join(updates)
-        elif isinstance(op.old_object, DatabaseIndex):
+        elif isinstance(op.old_object, PostgresIndex):
             # drop and recreate
-            assert isinstance(op.new_object, DatabaseIndex), f"expected an index: {op.new_object!r}"
+            assert isinstance(op.new_object, PostgresIndex), f"expected an index: {op.new_object!r}"
             drop = f'DROP INDEX "{op.old_object.name}"'
             if op.new_object.is_unique:
                 create = f"CREATE UNIQUE INDEX {op.new_object.sql()}"
             else:
                 create = f"CREATE INDEX {op.new_object.sql()}"
             return "\n".join([drop, create])
-        elif isinstance(op.old_object, DatabaseConstraint):
+        elif isinstance(op.old_object, PostgresConstraint):
             # drop and recreate
             assert op.new_object is not None, f"expected a new object: {op!r}"
             return (
@@ -760,15 +760,15 @@ def _render_migration_op(op: DatabaseMigrationOp) -> str | None:
             )
 
     elif op.type == DatabaseMigrationOpType.DELETE:
-        if isinstance(op.old_object, DatabaseExtension):
+        if isinstance(op.old_object, PostgresExtension):
             return f'DROP EXTENSION IF EXISTS "{op.old_object.name}"'
-        elif isinstance(op.old_object, DatabaseTable):
+        elif isinstance(op.old_object, PostgresTable):
             return f'DROP TABLE "{op.old_object.name}"'
-        elif isinstance(op.old_object, DatabaseColumn):
+        elif isinstance(op.old_object, PostgresColumn):
             return f'ALTER TABLE "{op.old_object.table.name}" DROP COLUMN "{op.old_object.name}"'
-        elif isinstance(op.old_object, DatabaseIndex):
+        elif isinstance(op.old_object, PostgresIndex):
             return f'DROP INDEX "{op.old_object.name}"'
-        elif isinstance(op.old_object, DatabaseConstraint):
+        elif isinstance(op.old_object, PostgresConstraint):
             return (
                 f'ALTER TABLE "{op.old_object.table.name}" DROP CONSTRAINT "{op.old_object.name}"'
             )
@@ -871,7 +871,7 @@ async def introspect_schema(
     include_extensions: bool = True,
     include_table_prefixes: tuple[str, ...],
     exclude_table_prefixes: tuple[str, ...],
-) -> DatabaseSchema:
+) -> PostgresSchema:
     # extensions
     extensions_query = """
     SELECT
@@ -881,7 +881,7 @@ async def introspect_schema(
     """
     if include_extensions:
         extensions_rows = await conn.fetch(extensions_query)
-        extensions = tuple(DatabaseExtension(name=row["extname"]) for row in extensions_rows)
+        extensions = tuple(PostgresExtension(name=row["extname"]) for row in extensions_rows)
     else:
         extensions = ()
 
@@ -947,7 +947,7 @@ GROUP BY
     col.table_name, col.column_name, col.data_type, col.udt_name, col.is_nullable, col.column_default;
                """
         columns_rows: list[asyncpg.Record] = await conn.fetch(columns_query, tables_names)
-        columns_by_table: dict[str, list[DatabaseColumn]] = defaultdict(list)
+        columns_by_table: dict[str, list[PostgresColumn]] = defaultdict(list)
         for row in columns_rows:
             udt_name: str = row["udt_name"]
             if udt_name.startswith("_"):
@@ -956,8 +956,8 @@ GROUP BY
             else:
                 is_array = False
             postgres_type = POSTGRES_TYPE_BY_UDT[udt_name]
-            if postgres_type == DatabaseColumnType.TEXT:
-                postgres_type = DatabaseColumnType.CHARACTER_VARYING  # we don't do TEXT
+            if postgres_type == PostgresColumnType.TEXT:
+                postgres_type = PostgresColumnType.CHARACTER_VARYING  # we don't do TEXT
             primitive_type = PRIMITIVE_TYPE_BY_POSTGRES_TYPE[postgres_type]
             is_foreign_key_to = (
                 row["target_table_names"]
@@ -965,7 +965,7 @@ GROUP BY
                 else None
             )
             cascade_action = (
-                SqlCascadeAction(row["delete_rules"].split(",")[0])  # type: ignore
+                PostgresCascadeAction(row["delete_rules"].split(",")[0])  # type: ignore
                 if row.get("delete_rules")
                 else None
             )
@@ -989,7 +989,7 @@ GROUP BY
                 is_foreign_key_to = None
                 scalar_constraint_types = ()
 
-            column = DatabaseColumn(
+            column = PostgresColumn(
                 name=row["column_name"],
                 type=primitive_type,
                 is_primary_key="PRIMARY KEY" in constraint_types,
@@ -1031,7 +1031,7 @@ GROUP BY
     tc.table_name, tc.constraint_name, tc.constraint_type, chk.check_clause;
         """
         constraints_rows = await conn.fetch(constraints_query, tables_names)
-        constraints_by_table: dict[str, list[DatabaseConstraint]] = defaultdict(list)
+        constraints_by_table: dict[str, list[PostgresConstraint]] = defaultdict(list)
         for row in constraints_rows:
             columns = tuple(row["column_names"].split(", ")) if row["column_names"] else ()
             if not columns:
@@ -1040,9 +1040,9 @@ GROUP BY
             condition = row.get("condition")
             if condition:
                 condition = _strip_condition(condition)
-            constraint = DatabaseConstraint(
+            constraint = PostgresConstraint(
                 inner_name=constraint_name,
-                type=DatabaseConstraintType(row["constraint_type"]),
+                type=PostgresConstraintType(row["constraint_type"]),
                 columns=columns,
                 condition=condition,
             )
@@ -1052,7 +1052,7 @@ GROUP BY
 
     # indexes
     if include_indexes:
-        indexes_by_table: dict[str, list[DatabaseIndex]] = defaultdict(list)
+        indexes_by_table: dict[str, list[PostgresIndex]] = defaultdict(list)
         indexes_query = """\
 SELECT 
     idx.tablename AS table_name,
@@ -1089,10 +1089,10 @@ WHERE
             )
             table_name: str = row["table_name"]
             index_name: str = row["index_name"][len(table_name) + 1 :]  # type: ignore
-            index = DatabaseIndex(
+            index = PostgresIndex(
                 inner_name=index_name,
                 _full_name=row["index_name"],
-                type=DatabaseIndexType(index_type.upper()),
+                type=PostgresIndexType(index_type.upper()),
                 columns=tuple(columns),
                 cover=cover,
                 is_unique="UNIQUE" in definition,
@@ -1100,7 +1100,7 @@ WHERE
             )
             # ignore simple primary/foreign key index
             if (
-                index.type == DatabaseIndexType.BTREE
+                index.type == PostgresIndexType.BTREE
                 and len(index.columns) == 1
                 and (index.columns[0].endswith("_id") or index.columns[0] == "id")
                 and (index.name.endswith("_pkey") or index.name.endswith("_fkey"))
@@ -1116,9 +1116,9 @@ WHERE
         indexes_by_table = {}
 
     # assemble the tables
-    tables: list[DatabaseTable] = []
+    tables: list[PostgresTable] = []
     for table_name in tables_names:
-        table = DatabaseTable(
+        table = PostgresTable(
             name=table_name,
             columns=tuple(columns_by_table.get(table_name, [])),
             indexes=tuple(indexes_by_table.get(table_name, [])),
@@ -1128,4 +1128,4 @@ WHERE
 
     logger.trace("database.introspect", conn=conn, tables=tables, span="current")
 
-    return DatabaseSchema(extensions=extensions, tables=tuple(tables))
+    return PostgresSchema(extensions=extensions, tables=tuple(tables))

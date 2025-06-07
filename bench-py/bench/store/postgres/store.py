@@ -28,7 +28,7 @@ from bench.language import (
 from bench.language.registry import NODE_CLASS_BY_TYPE, NODE_TYPES_BY_TRAIT, RELATION_REF_BY_CLASS
 
 from .client import pg_connection
-from .core import DatabaseContext, DatabaseTable
+from .core import PostgresContext, PostgresTable
 from .edit import execute_change
 from .map import (
     BENCH_BUILTIN_TABLE_PREFIX,
@@ -70,7 +70,7 @@ class PostgresStore(Store):
         if database.type != DatabaseType.POSTGRES:
             raise ValueError(f"unexpected {database!r}")
         self.database = database
-        self.context: DatabaseStoreContext | None = None
+        self.context: PostgresStoreContext | None = None
         self.area = area
 
     def __str__(self) -> str:
@@ -79,23 +79,23 @@ class PostgresStore(Store):
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} {self!s}>"
 
-    @tracer.start_as_current_span("database.load")
-    async def _load_context(self, conn: asyncpg.Connection) -> "DatabaseStoreContext":
-        context = DatabaseStoreContext(self)
+    @tracer.start_as_current_span("postgres.load")
+    async def _load_context(self, conn: asyncpg.Connection) -> "PostgresStoreContext":
+        context = PostgresStoreContext(self)
         return context
 
     @override
-    @tracer.start_as_current_span("database.query")
+    @tracer.start_as_current_span("postgres.query")
     async def query(self, query: Query) -> QueryResult:
         async with pg_connection(self.database) as conn:
             if self.context is None:
                 self.context = await self._load_context(conn)
             result = await execute_query(conn, self.context, query)
-        logger.debug("database.query", query=query, result=result, span="current")
+        logger.debug("postgres.query", query=query, result=result, span="current")
         return result
 
     @override
-    @tracer.start_as_current_span("database.commit")
+    @tracer.start_as_current_span("postgres.commit")
     async def commit(self, changes: Sequence[Change]) -> Sequence[ChangeResult]:
         results: list[ChangeResult] = []
         async with pg_connection(self.database) as conn:
@@ -115,7 +115,7 @@ class PostgresStore(Store):
                     async with conn.transaction():
                         edits, cascaded_edits = await execute_change(conn, local_context, change)
                         logger.debug(
-                            "database.commit.change",
+                            "postgres.commit.change",
                             change=change,
                             edits=len(edits),
                             cascaded_edits=len(cascaded_edits),
@@ -133,20 +133,20 @@ class PostgresStore(Store):
                         self.context.apply(edits)
                 except Exception as e:
                     logger.error(
-                        "database.commit.change.error", change=change, exc_info=e, span="current"
+                        "postgres.commit.change.error", change=change, exc_info=e, span="current"
                     )
                     result = ChangeResult(id=change.id, status=ChangeStatus.FAILED)
                 results.append(result)
-        logger.debug("database.commit", changes=changes, results=results, span="current")
+        logger.debug("postgres.commit", changes=changes, results=results, span="current")
         return results
 
 
-class DatabaseStoreContext(DatabaseContext):
+class PostgresStoreContext(PostgresContext):
     __slots__ = ("store", "tables_by_name")
 
     def __init__(self, store: PostgresStore):
         self.store = store
-        self.tables_by_name: dict[str, DatabaseTable] = {}
+        self.tables_by_name: dict[str, PostgresTable] = {}
         if store.area is None:
             self.tables_by_name.update(BUILTIN_TABLE_BY_NAME)
         else:
@@ -186,7 +186,7 @@ class DatabaseStoreContext(DatabaseContext):
             assert_never(relation.type)
 
     @override
-    def get_relation(self, relation: RelationReference | NodeReference) -> DatabaseTable:
+    def get_relation(self, relation: RelationReference | NodeReference) -> PostgresTable:
         # map relations to table names
         if isinstance(relation, NodeReference):
             if relation.node_type != NodeType.CUSTOM_NODE_INSTANCE:
