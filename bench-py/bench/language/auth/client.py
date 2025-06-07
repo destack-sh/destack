@@ -36,7 +36,7 @@ class Client(HasName, IsInSpace, IsGlobal, Node[ClientData]):
     """A Client to connect with the system."""
 
     # meta
-    parent: Optional[IsSubject] = property_parent_()
+    parent: Optional[IsSubject] = property_parent_(node_is_customizable=False)
     type: ClientType = property_(30)
     machine: Optional["Machine"] = property_(36, can_write="system")
     user: Optional["User"] = property_(37, can_write="system")

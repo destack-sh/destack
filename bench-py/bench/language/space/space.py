@@ -98,7 +98,7 @@ class SpaceInvite(
     A SpaceInvite is an invite to a Space.
     """
 
-    parent: Optional["Space"] = property_parent_()
+    parent: Optional["Space"] = property_parent_(node_is_customizable=False)
 
     role_type: SpaceRoleType = property_(45, is_repr=True)
 
@@ -115,6 +115,6 @@ class SpaceMembership(
     A SpaceMembership is a membership to a Space.
     """
 
-    parent: Optional["Space"] = property_parent_()
+    parent: Optional["Space"] = property_parent_(node_is_customizable=False)
 
     role_type: SpaceRoleType = property_(45, is_repr=True)

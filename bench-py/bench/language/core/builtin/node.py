@@ -103,7 +103,7 @@ class Node[NodeDataT: AnyNodeData](NodeBase[NodeDataT]):
     # 1-9: node identity
     # Node.metatype: 1
     id: UUID = property_(2, is_managed=True, is_eq=False, can_write="system")
-    parent: Optional["Node"] = property_parent_()
+    parent: Optional["Node"] = property_parent_(node_is_customizable=True)
     if TYPE_CHECKING:
         parent_type: NodeType | None = None
         parent_id: Optional[UUID] = None

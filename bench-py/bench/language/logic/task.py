@@ -44,7 +44,7 @@ class Task(
     """A Task is like a to do item."""
 
     # meta
-    parent: Union["Page", "Task", None] = property_parent_()
+    parent: Union["Page", "Task", None] = property_parent_(node_is_customizable=True)
     # type?
     # priority?
 

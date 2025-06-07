@@ -41,4 +41,4 @@ class Schema(
 ):
     """A Schema for a specific Type."""
 
-    parent: Union["Page", None] = property_parent_()
+    parent: Union["Page", None] = property_parent_(node_is_customizable=True)

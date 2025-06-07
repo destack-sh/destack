@@ -79,7 +79,7 @@ class Cursor(
     """
 
     # meta
-    parent: Union["Agent", "Thread", "Run", None] = property_parent_()
+    parent: Union["Agent", "Thread", "Run", None] = property_parent_(node_is_customizable=True)
     type: CursorType = property_(30, is_repr=True)
 
     # status?

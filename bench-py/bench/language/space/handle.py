@@ -28,4 +28,4 @@ class Handle(
 ):
     """A Bench @handle."""
 
-    parent: Optional["Space"] = property_parent_()
+    parent: Optional["Space"] = property_parent_(node_is_customizable=False)

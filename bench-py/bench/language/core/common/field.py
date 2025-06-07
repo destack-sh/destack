@@ -82,7 +82,7 @@ class Field(
     """
 
     parent: Union["Agent", "Action", "Schema", "CustomNodeDefinition", "Scene", "IsView", None] = (
-        property_parent_()
+        property_parent_(node_is_customizable=True)
     )
     type: FieldType = property_(30, default=FieldType.MEMBER)
 

@@ -49,7 +49,7 @@ class Thread(
     """
 
     # meta
-    parent: Union["Package", "Page", "Thread", None] = property_parent_()
+    parent: Union["Package", "Page", "Thread", None] = property_parent_(node_is_customizable=True)
 
     def get_cursor(self, *, type: "CursorType", owned_by: "IsSubject | None") -> "Cursor | None":
         """Get a Cursor of the given type."""

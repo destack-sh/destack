@@ -657,7 +657,7 @@ def property_(
     )
 
 
-def property_parent_() -> Any:
+def property_parent_(*, node_is_customizable: bool) -> Any:
     """The parent of a node, must be of one of the given types."""
     return Property(
         id=4,  # NOTE: never change this id!
@@ -669,7 +669,7 @@ def property_parent_() -> Any:
         is_managed=True,
         is_eq=False,
         node_space_from="self",
-        node_is_customizable=True,
+        node_is_customizable=node_is_customizable,
         cascade=CascadeAction.CASCADE,
     )
 

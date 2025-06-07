@@ -25,7 +25,7 @@ class Script(
 ):
     """A Script."""
 
-    parent: IsScriptable | None = property_parent_()
+    parent: IsScriptable | None = property_parent_(node_is_customizable=True)
     # type, language, code, ...
 
     code: str | None = property_(100)

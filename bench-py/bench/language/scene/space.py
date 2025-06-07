@@ -48,7 +48,7 @@ class Viewport(
     Viewports to all Benches are stored in the owning User's Bench.
     """
 
-    parent: Optional["Package"] = property_parent_()
+    parent: Optional["Package"] = property_parent_(node_is_customizable=False)
 
     type: ViewportType = property_(30)
     name: str | None = property_(31, format=StringFormat.NAME)

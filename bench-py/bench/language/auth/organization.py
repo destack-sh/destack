@@ -74,7 +74,7 @@ class OrganizationInvite(IsInvite, IsDeletable, Node[OrganizationInviteData]):
     An OrganizationInvite is an invite to an Organization.
     """
 
-    parent: Optional["Organization"] = property_parent_()
+    parent: Optional["Organization"] = property_parent_(node_is_customizable=False)
 
     role_type: OrganizationRoleType = property_(45)
 
@@ -85,6 +85,6 @@ class OrganizationMembership(IsMembership, IsDeletable, Node[OrganizationMembers
     An OrganizationMembership is a membership to an Organization.
     """
 
-    parent: Optional["Organization"] = property_parent_()
+    parent: Optional["Organization"] = property_parent_(node_is_customizable=False)
 
     role_type: OrganizationRoleType = property_(45)
