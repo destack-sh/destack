@@ -572,7 +572,7 @@ class IsInPackage(IsInSpace):
 class IsBlockable(IsOrdered, IsInPackage):
     """A Node that can (but may not be) be inline on a Page as a Block."""
 
-    parent: Union["Page", None] = property_parent_()
+    parent: Union["Page", None] = property_parent_(node_is_customizable=True)
     block: "Block | None" = property_(
         35,
         node_space_from="self",

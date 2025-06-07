@@ -45,7 +45,7 @@ class Page(
     """A Page of Blocks laying out rich Text, data, logic, resources -- anything software needs."""
 
     # meta
-    parent: Union["Package", "Page", None] = property_parent_()
+    parent: Union["Package", "Page", None] = property_parent_(node_is_customizable=True)
     # NOTE: :Architecture: maybe some IsBlockables should have their own Page? or is that confusing?
     # app? scene? plugin? Page/Record/View/... tying? :NodeTying
 

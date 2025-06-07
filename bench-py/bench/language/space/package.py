@@ -61,7 +61,7 @@ class Package(
 ):
     """A Package is a semi-isolated area of a Bench."""
 
-    parent: Optional["Space"] = property_parent_()
+    parent: Optional["Space"] = property_parent_(node_is_customizable=False)
     type: PackageType = property_(30, is_repr=True)
 
     main_page: Optional["Page"] = property_(40)
@@ -84,7 +84,7 @@ class PackageMembership(
 ):
     """A PackageMembership is a membership to a Package."""
 
-    parent: Optional["Package"] = property_parent_()
+    parent: Optional["Package"] = property_parent_(node_is_customizable=False)
 
     role_type: PackageRoleType = property_(45)
 
@@ -99,6 +99,6 @@ class PackageInvite(
 ):
     """A PackageInvite is an invite to a Package."""
 
-    parent: Optional["Package"] = property_parent_()
+    parent: Optional["Package"] = property_parent_(node_is_customizable=False)
 
     role_type: PackageRoleType = property_(45)

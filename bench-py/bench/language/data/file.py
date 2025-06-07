@@ -480,7 +480,7 @@ class File(
         "Message",
         "Run",
         None,
-    ] = property_parent_()
+    ] = property_parent_(node_is_customizable=True)
 
     type: FileType = property_(30, is_repr=True)
 

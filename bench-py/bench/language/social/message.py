@@ -60,7 +60,7 @@ class Message(
     """
 
     # meta
-    parent: Union["Thread", None] = property_parent_()
+    parent: Union["Thread", None] = property_parent_(node_is_customizable=True)
     type: MessageType = property_(30, default=MessageType.DEFAULT, is_repr=True)
     # platform? source?
     thread: Optional["Thread"] = property_(35, node_space_from="self")

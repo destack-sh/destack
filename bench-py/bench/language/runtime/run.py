@@ -39,7 +39,7 @@ class Run(
     """
 
     # meta
-    parent: Union["Thread", "Agent", "Run", None] = property_parent_()
+    parent: Union["Thread", "Agent", "Run", None] = property_parent_(node_is_customizable=False)
     type: RunType = property_(30, can_write="system", is_repr=True)
     thread: Optional["Thread"] = property_(
         38,

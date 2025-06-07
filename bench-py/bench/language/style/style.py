@@ -27,4 +27,4 @@ class IsStyle(
 ):
     """A Style is a graphical interface."""
 
-    parent: Union["Scene", "IsView", None] = property_parent_()
+    parent: Union["Scene", "IsView", None] = property_parent_(node_is_customizable=True)

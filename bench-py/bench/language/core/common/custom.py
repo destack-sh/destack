@@ -62,7 +62,9 @@ class CustomNodeInstance(
     An instance of a CustomNodeDefinition.
     """
 
-    parent: Union["CustomNodeDefinition", "CustomNodeInstance", None] = property_parent_()
+    parent: Union["CustomNodeDefinition", "CustomNodeInstance", None] = property_parent_(
+        node_is_customizable=True
+    )
     definition: "CustomNodeDefinition" = property_(
         40,
         description="The CustomNodeDefinition this CustomNode is an instance of.",

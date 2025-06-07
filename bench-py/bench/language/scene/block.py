@@ -80,7 +80,7 @@ class Block(
     A Block on a Page.
     """
 
-    parent: Union["Page", "Block", None] = property_parent_()
+    parent: Union["Page", "Block", None] = property_parent_(node_is_customizable=True)
 
     # meta
     type: BlockType = property_(30, description="The type of block.", is_repr=True)

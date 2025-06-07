@@ -32,7 +32,7 @@ class IsView(
 ):
     """A View is a graphical interface."""
 
-    parent: Union["Viewport", "IsView", "Page", None] = property_parent_()
+    parent: Union["Viewport", "IsView", "Page", None] = property_parent_(node_is_customizable=True)
     # variant_of, ...
 
     # sizing

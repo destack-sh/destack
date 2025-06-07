@@ -60,7 +60,7 @@ class Link(
         "Message",
         "Run",
         None,
-    ] = property_parent_()
+    ] = property_parent_(node_is_customizable=True)
     type: LinkType = property_(30, is_repr=True)
 
     # content

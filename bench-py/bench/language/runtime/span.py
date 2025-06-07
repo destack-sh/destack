@@ -28,4 +28,4 @@ class Span(
     """
 
     # meta
-    parent: Union["Run", None] = property_parent_()
+    parent: Union["Run", None] = property_parent_(node_is_customizable=False)

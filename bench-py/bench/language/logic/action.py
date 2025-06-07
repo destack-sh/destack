@@ -58,7 +58,7 @@ class Action(
     May defer to a builtin or some other service in a separate system.
     """
 
-    parent: Union["Service", None] = property_parent_()
+    parent: Union["Service", None] = property_parent_(node_is_customizable=True)
 
     cardinality: ActionCardinality = property_(40, default=ActionCardinality.UNARY)
     text: Optional["Text"] = property_(41)
