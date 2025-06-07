@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 import structlog
 from fastuuid import UUID
@@ -48,10 +48,6 @@ class CustomNodeDefinition(
 
     # type?
     traits: list[TraitType] = property_(40, description="Dynamic traits.")
-
-    @property
-    def records(self) -> Any:
-        raise NotImplementedError
 
 
 @node_(NodeType.CUSTOM_NODE_INSTANCE)

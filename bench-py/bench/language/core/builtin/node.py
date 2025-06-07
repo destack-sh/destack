@@ -195,7 +195,7 @@ class Node[NodeDataT: AnyNodeData](NodeBase[NodeDataT]):
         If the Node IsOrdered, it will be positioned (relative to after/before).
         (The same applies to all descendants.)
         """
-        from ..helper import SingletonGraph
+        from ..platform import SingletonGraph
 
         old_graph = child._graph
         new_graph = self._graph

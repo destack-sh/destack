@@ -481,7 +481,7 @@ def _generate_ref_impl[NodeT: "Node"](
     cls: type[NodeT], node_type: NodeType
 ) -> tuple[str, dict[str, Any]]:
     """Generates Node.__to_ref__ method."""
-    from ..definition.relation import NodeReference
+    from ..common.relation import NodeReference
 
     assert cls.__is_node__, f"{cls.__name__} is not a Node"
     if node_type == NodeType.BENCH:

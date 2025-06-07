@@ -33,7 +33,7 @@ from .type import Json, ScalarType, Type, TypeCardinality, to_type
 
 if TYPE_CHECKING:
     from ..builtin import BuiltinObjectBase
-    from ..helper import Graph, QueryConnection, Session, Supergraph
+    from ..platform import Graph, QueryConnection, Session, Supergraph
 
 
 # ruff: noqa: FURB113

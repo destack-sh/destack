@@ -10,10 +10,7 @@ from typing import (
 import structlog
 from opentelemetry import trace
 
-from bench.language.registry import (
-    STRUCT_CLASS_BY_TYPE,
-    STRUCT_TYPE_BY_CLASS,
-)
+from bench.language.registry import STRUCT_CLASS_BY_TYPE, STRUCT_TYPE_BY_CLASS
 from bench.pb2 import AnyStructData
 
 from .const import StructType

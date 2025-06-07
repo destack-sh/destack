@@ -43,7 +43,7 @@ if TYPE_CHECKING:
         Type,
     )
 
-    from ..definition.query import IntoQuery
+    from ..common.query import IntoQuery
 
 
 def _resolve_enum_type(class_name: str) -> EnumType | None:
@@ -127,7 +127,7 @@ class IntoType:
 
     def _to_type(self) -> "Type":
         """Create the Type for this Property."""
-        from ..definition.type import (
+        from ..common.type import (
             CollectionConstraint,
             NodeConstraint,
             NumberConstraint,
@@ -136,7 +136,7 @@ class IntoType:
             StringFormat,
             Type,
         )
-        from ..definition.value import to_value
+        from ..common.value import to_value
 
         # type
         default = (
@@ -399,7 +399,7 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
         """A pointer to this property. `to_ref()` for consistency with `Node.to_ref()`."""
 
         if self._ref is None:
-            from ..definition import PropertyReference, PropertyReferenceType
+            from ..common import PropertyReference, PropertyReferenceType
 
             assert self.component is not None, f"{self!r} has no component"
             assert self.id is not None, f"{self!r} has no id"
@@ -443,7 +443,7 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
     @property
     def info(self) -> "PropertyInfo":
         if self._info is None:
-            from ..definition.meta import PropertyInfo
+            from ..common.meta import PropertyInfo
 
             self._info = PropertyInfo.from_property(self)
         return self._info

@@ -1,3 +1,9 @@
+[project]
+name = "bench-py"
+version = "2025.06.07.1"
+description = "Bench SDK for Python"
+authors = [{ name = "Symbol Industries", email = "hello@symbol.industries" }]
+
 [tool.ruff]
 line-length = 100
 

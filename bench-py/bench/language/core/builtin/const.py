@@ -38,7 +38,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.06.07.0"
+VERSION = "2025.06.07.1"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -286,7 +286,8 @@ class EnumType(BuiltinEnum):
     TRAIT_TYPE = 5
     ENVIRONMENT_TYPE = 6
     AREA = 7
-    PROPERTY_REFERENCE_TYPE = 8
+    RUNTIME_TYPE = 8
+    PROPERTY_REFERENCE_TYPE = 9
     USER_STATUS = 11
     ORGANIZATION_STATUS = 12
     BENCH_STATUS = 57
@@ -842,7 +843,8 @@ class TraitType(BuiltinEnum):
 
     # logic [1200-1600]
     RUNNABLE = 1200, "Runnable", "Can be run", "fas fa-play"
-    SCRIPTABLE = 1203, "Scriptable", "Can be scripted", "fas fa-code"
+    SCRIPTABLE = 1201, "Scriptable", "Can be scripted", "fas fa-code"
+    SCRIPT_SOURCEABLE = 1202, "Script Sourceable", "Can be sourced from a Script", "fas fa-code"
     INSTRUMENT = 1210, "Instrument", "Is an instrument", "fas fa-microscope"
     MEASUREMENT = 1211, "Measurement", "Is a measurement", "fas fa-microscope"
     LOG = 1212, "Log", "Is a log", "fas fa-file-lines"
@@ -892,6 +894,12 @@ class Area(BuiltinEnum):
     # GLOBAL_SEARCH?
     MAIN_DATABASE = 100
     # MAIN_SEARCH, MAIN_WAREHOUSE, ...
+
+
+@enum_(EnumType.RUNTIME_TYPE)
+class RuntimeType(BuiltinEnum):
+    PYTHON = 1
+    JAVASCRIPT = 2
 
 
 @enum_(EnumType.ENVIRONMENT_TYPE)

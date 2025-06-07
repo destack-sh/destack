@@ -131,7 +131,7 @@ def _complete_bench_setup():
             prop.finalize(metatype)
 
     # generate pack/unpack methods
-    from bench.language.core.definition.value import generate_pack_value_impl
+    from bench.language.core.common.value import generate_pack_value_impl
     from bench.proto.wiring import generate_pack_proto_impl
 
     builtin_class_by_name: dict[str, Any] = {**pb2.__dict__, "UUID": UUID}

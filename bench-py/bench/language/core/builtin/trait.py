@@ -1,6 +1,6 @@
 from collections.abc import Collection
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -23,7 +23,6 @@ from bench.language.registry import (
 )
 from bench.pb2 import AnyObjectData
 from bench.utils.fractional import INTEGER_ZERO
-from bench.utils.tenacity import RetryOptions
 
 from .const import (
     UNSET,
@@ -65,7 +64,7 @@ if TYPE_CHECKING:
         Value,
     )
 
-    from ..definition.query import JoinIn
+    from ..common.query import JoinIn
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -166,8 +165,8 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         join: Optional["JoinIn"] = None,
         **subqueries: "Query",
     ) -> "Query[Self]":  # type: ignore
-        from ..definition.query import Query, QueryType, to_subqueries
-        from ..definition.query import join as to_join
+        from ..common.query import Query, QueryType, to_subqueries
+        from ..common.query import join as to_join
 
         query = Query(
             type=QueryType.NODE,
@@ -194,8 +193,8 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         offset: Optional[int] = None,
         **subqueries: "Query",
     ) -> "Query[Self]":  # type: ignore
-        from ..definition.query import Query, QueryType, to_subqueries
-        from ..definition.query import join as to_join
+        from ..common.query import Query, QueryType, to_subqueries
+        from ..common.query import join as to_join
 
         query = Query(
             type=QueryType.NODE if group_by is None else QueryType.GROUPED_NODE,
@@ -224,9 +223,9 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         group_by: Optional[list["Expression"]] = None,
         sort: Optional[list["Sort"]] = None,
     ) -> "Query[Self]":  # type: ignore
-        from ..definition.query import Aggregation, Query, QueryType
-        from ..definition.query import expression as to_expression
-        from ..definition.query import join as to_join
+        from ..common.query import Aggregation, Query, QueryType
+        from ..common.query import expression as to_expression
+        from ..common.query import join as to_join
 
         query = Query(
             type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
@@ -250,8 +249,8 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         name: str | None = None,
         join: Optional["JoinIn"] = None,
     ) -> "Query[Self]":  # type: ignore
-        from ..definition.query import Aggregation, AggregationType, Query, QueryType
-        from ..definition.query import join as to_join
+        from ..common.query import Aggregation, AggregationType, Query, QueryType
+        from ..common.query import join as to_join
 
         query = Query(
             type=QueryType.SCALAR,
@@ -273,9 +272,9 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         group_by: Optional[list["ExpressionIn"]] = None,
         having: Optional["Condition"] = None,
     ) -> "Query[Self]":  # type: ignore
-        from ..definition.query import Aggregation, AggregationType, Query, QueryType
-        from ..definition.query import expression as to_expression
-        from ..definition.query import join as to_join
+        from ..common.query import Aggregation, AggregationType, Query, QueryType
+        from ..common.query import expression as to_expression
+        from ..common.query import join as to_join
 
         query = Query(
             type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
@@ -300,9 +299,9 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         having: Optional["Condition"] = None,
         group_by: Optional[list["ExpressionIn"]] = None,
     ) -> "Query[Self]":  # type: ignore
-        from ..definition.query import Aggregation, AggregationType, Query, QueryType
-        from ..definition.query import expression as to_expression
-        from ..definition.query import join as to_join
+        from ..common.query import Aggregation, AggregationType, Query, QueryType
+        from ..common.query import expression as to_expression
+        from ..common.query import join as to_join
 
         query = Query(
             type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
@@ -327,9 +326,9 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         having: Optional["Condition"] = None,
         group_by: Optional[list["ExpressionIn"]] = None,
     ) -> "Query[Self]":  # type: ignore
-        from ..definition.query import Aggregation, AggregationType, Query, QueryType
-        from ..definition.query import expression as to_expression
-        from ..definition.query import join as to_join
+        from ..common.query import Aggregation, AggregationType, Query, QueryType
+        from ..common.query import expression as to_expression
+        from ..common.query import join as to_join
 
         query = Query(
             type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
@@ -354,9 +353,9 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         having: Optional["Condition"] = None,
         group_by: Optional[list["ExpressionIn"]] = None,
     ) -> "Query[Self]":  # type: ignore
-        from ..definition.query import Aggregation, AggregationType, Query, QueryType
-        from ..definition.query import expression as to_expression
-        from ..definition.query import join as to_join
+        from ..common.query import Aggregation, AggregationType, Query, QueryType
+        from ..common.query import expression as to_expression
+        from ..common.query import join as to_join
 
         query = Query(
             type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
@@ -591,30 +590,25 @@ class IsBlockable(IsOrdered, IsInPackage):
 
 
 @trait_(TraitType.SCRIPTABLE)
-class IsScriptable(Trait):  # nocheckin: split IsScriptable and IsScriptDefinable (or something)?
+class IsScriptable(Trait):
     """A Node that can be scripted."""
 
     script: Optional["Script"] = property_(104)
 
 
+@trait_(TraitType.SCRIPT_SOURCEABLE)
+class IsScriptSourceable(Trait):
+    """A Node that can be sourced from a Script."""
+
+    script: Optional["Script"] = property_(104)
+    # token_range, ...
+
+
 @trait_(TraitType.RUNNABLE)
 class IsRunnable(Trait):
-    """A Node that can be run (at runtime in a Run)."""
+    """A Node that can be run (at runtime, in a Run)."""
 
-    # control
-    max_attempts: Optional[int] = property_(110)
-    retry_interval: Optional[timedelta] = property_(111)
-    backoff: Optional[float] = property_(112)
-
-    def to_retry(self) -> RetryOptions:
-        """Turns the options into our RetryOptions."""
-        retry_interval = self.retry_interval.total_seconds() if self.retry_interval else 1
-        return RetryOptions(
-            max_attempts=self.max_attempts or 1,
-            retry_interval=retry_interval,
-            backoff=self.backoff or 22,
-            max_retry_interval=max(30, retry_interval * 5),
-        )
+    pass
 
 
 @trait_(TraitType.INSTRUMENT)

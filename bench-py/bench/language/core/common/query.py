@@ -348,7 +348,7 @@ class Query[RootT: "Trait | Node"](StructFrozen):
 
     async def execute(self) -> "QueryConnection[RootT]":
         """Execute the Query."""
-        from ..helper.connection import QueryConnection
+        from ..platform.connection import QueryConnection
 
         session = active_session()
         store = session.store
