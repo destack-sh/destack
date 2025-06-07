@@ -13,7 +13,7 @@ from opentelemetry import trace
 from bench.utils.oracle import REAL_ORACLE, Oracle
 
 from ..builtin import ACTIVE_SESSION, EnvironmentType, IsSubject, Node, TypeCardinality
-from ..definition import (
+from ..common import (
     Change,
     ChangeResult,
     ChangeStatus,

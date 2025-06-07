@@ -28,7 +28,7 @@ from ..builtin import (
     Property,
     StructType,
 )
-from ..definition import NodeReference, PropertyReference, TypeBase
+from ..common import NodeReference, PropertyReference, TypeBase
 from .graph import Supergraph
 
 if TYPE_CHECKING:

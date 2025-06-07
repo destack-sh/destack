@@ -3,7 +3,6 @@ from .graph import Graph, PolyGraph, SingletonGraph, Supergraph
 from .render import Aliasing, Renderer, RenderOptions, get_active_aliasing
 from .session import Session
 from .store import LiveStore, OptimisticStore, Store
-from .validation import ValidationError
 
 __all__ = [
     "Aliasing",
@@ -18,6 +17,5 @@ __all__ = [
     "SingletonGraph",
     "Store",
     "Supergraph",
-    "ValidationError",
     "get_active_aliasing",
 ]

@@ -88,6 +88,7 @@ from .type import (
     TypeBase,
     to_type,
 )
+from .validation import ValidationError
 from .value import Value, pack_value, to_value, unpack_value
 from .variable import Variable, VariableProperty, VariableType
 
@@ -163,6 +164,7 @@ __all__ = [
     "TraitInfo",
     "Type",
     "TypeBase",
+    "ValidationError",
     "Value",
     "Variable",
     "VariableProperty",

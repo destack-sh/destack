@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Optional, cast
 from fastuuid import UUID
 
 from ..builtin import Node, Trait
-from ..definition import Query, QueryResult
+from ..common import Query, QueryResult
 from .session import Session
 
 if TYPE_CHECKING:
@@ -67,7 +67,7 @@ class QueryConnection[RootT: "Trait | Node"]:
 
     def _add_result(self, result: QueryResult, is_root: bool) -> None:
         """Add a QueryResult to the connection (recursively)."""
-        from ..definition.value import unpack_value
+        from ..common.value import unpack_value
 
         for node_value in result.nodes:
             node = unpack_value(
