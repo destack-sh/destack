@@ -227,7 +227,6 @@ __setattr__(self, "_is_new", _is_new)
 __setattr__(self, "_is_attached", _is_attached)
 __setattr__(self, "_dirty", None)
 """)
-        # nocheckin: NodeMutable/NodeFrozen for high frequency (readonly?) nodes - Logs, Spans, Metrics, etc.?
 
     else:
         # struct setup

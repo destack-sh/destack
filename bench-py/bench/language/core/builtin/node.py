@@ -19,11 +19,10 @@ from bench.language.registry import NODE_CLASS_BY_TYPE, NODE_TYPE_BY_CLASS
 from bench.pb2 import AnyNodeData
 from bench.utils.func import get_superclasses
 
-from .const import UNSET, NodeType, TraitType
+from .const import NodeType, TraitType
 from .object import _process_object_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
-    Property,
     _resolve_trait_type,
     property_,
     property_parent_,
@@ -32,7 +31,7 @@ from .property import (
 from .trait import IndexIn, NodeBase
 
 if TYPE_CHECKING:
-    from bench.language import Graph, NodeInfo, NodeReference, QueryConnection, Session, Supergraph
+    from bench.language import Graph, NodeReference, QueryConnection, Session, Supergraph
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -97,22 +96,9 @@ _object_set = object.__setattr__
 class Node[NodeDataT: AnyNodeData](NodeBase[NodeDataT]):
     """
     A Node with Properties and a persistent identity.
-    Conceptually, all Nodes live together happily in a single giant Supergraph.
-    In practice, there are multiple areas and we work with partial Graphs.
     """
 
     metatype: ClassVar[NodeType]
-    __info__: ClassVar["NodeInfo"]
-
-    __is_node__: ClassVar[bool] = True
-    __is_trait__: ClassVar[bool] = False  # override Trait.__is_trait__
-    __traits__: ClassVar[tuple[TraitType, ...]] = ()
-    __indexes__: ClassVar[tuple[IndexIn, ...]] = ()
-
-    __root_type__: ClassVar[NodeType | None] = None
-    __parent_property__: ClassVar[Property] = UNSET
-    __parent_types__: ClassVar[tuple[NodeType, ...]] = ()
-    __child_types__: ClassVar[tuple[NodeType, ...]] = ()
 
     # 1-9: node identity
     # Node.metatype: 1
@@ -126,21 +112,6 @@ class Node[NodeDataT: AnyNodeData](NodeBase[NodeDataT]):
     # Node.area?
     # IsInBench.bench: 6
     # IsInPackage.package: 7
-
-    # 10-29: node tracking
-    # IsTracked.created_at/created_by/updated_at/updated_by: 10-13
-    # IsArchivable.archived_at: 14
-    # IsDeletable.deleted_at: 15
-    # IsTemplatable.template: 16
-    # IsModal.mode: 17/18
-    # IsOwnable.owned_by: 19
-    # IsClaimable.claimed_by: 20
-    # ...managed_by/controlled_by?
-    # IsOrdered.order_key: 23
-    # IsExtensible.value: 24
-
-    # 30+ for general properties
-    # ...
 
     _session: "Session" = property_runtime_()
     _supergraph: "Supergraph" = property_runtime_()

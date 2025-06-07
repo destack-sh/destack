@@ -341,7 +341,7 @@ class EnumType(BuiltinEnum):
     # ...
 
     # runtime [1600-2000]
-    PROCESS_STATUS = 1611
+    RUN_STATUS = 1611
     RUN_TYPE = 1612
     SPAN_TYPE = 1621
     SCHEDULE_FREQUENCY = 1631
@@ -842,8 +842,6 @@ class TraitType(BuiltinEnum):
 
     # logic [1200-1600]
     RUNNABLE = 1200, "Runnable", "Can be run", "fas fa-play"
-    PROCESSABLE = 1201, "Processable", "Can be processed", "fas fa-cogs"
-    COMPUTABLE = 1202, "Computable", "Can be computed", "fas fa-calculator"
     SCRIPTABLE = 1203, "Scriptable", "Can be scripted", "fas fa-code"
     INSTRUMENT = 1210, "Instrument", "Is an instrument", "fas fa-microscope"
     MEASUREMENT = 1211, "Measurement", "Is a measurement", "fas fa-microscope"
@@ -1324,8 +1322,8 @@ class ResourceStatus(BuiltinEnum):
         return 30 <= self.value <= 40
 
 
-@enum_(EnumType.PROCESS_STATUS)
-class ProcessStatus(BuiltinEnum):
+@enum_(EnumType.RUN_STATUS)
+class RunStatus(BuiltinEnum):
     # pre
     CREATED = 1, "Created", "Created but not yet assigned", "fas fa-circle"
     ASSIGNED = 2, "Assigned", "Assigned to someone", "fas fa-clock"
@@ -1370,7 +1368,7 @@ class ProcessStatus(BuiltinEnum):
 
     @property
     def is_bad(self) -> bool:
-        return self in (ProcessStatus.FAILED, ProcessStatus.ABORTED, ProcessStatus.CANCELLED)
+        return self in (RunStatus.FAILED, RunStatus.ABORTED, RunStatus.CANCELLED)
 
 
 @enum_(EnumType.CLIENT_TYPE)

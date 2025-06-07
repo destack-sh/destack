@@ -10,7 +10,6 @@ from bench.language.core import (
     EnumType,
     HasEnvironment,
     HasTitle,
-    IsComputable,
     IsDeletable,
     IsInPackage,
     IsOwnable,
@@ -49,7 +48,6 @@ class MessageType(BuiltinEnum):
 
 @node_(NodeType.MESSAGE)
 class Message(
-    IsComputable,
     IsOwnable,
     IsDeletable,
     HasTitle,

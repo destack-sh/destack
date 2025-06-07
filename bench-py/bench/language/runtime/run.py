@@ -1,19 +1,18 @@
 from collections.abc import Sequence
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Optional, Union
 
 from fastuuid import UUID
 
 from bench.language.core import (
     HasEnvironment,
-    IsComputable,
     IsExtensible,
     IsInPackage,
-    IsProcessable,
     IsRunnable,
     IsTracked,
     Node,
     NodeType,
-    ProcessStatus,
+    RunStatus,
     RunType,
     SpanType,
     node_,
@@ -23,7 +22,7 @@ from bench.language.core import (
 from bench.pb2 import RunData
 
 if TYPE_CHECKING:
-    from bench.language import Agent, NodeReference, Span, Thread
+    from bench.language import Agent, Error, Interruption, NodeReference, Span, Thread
 
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -31,8 +30,6 @@ if TYPE_CHECKING:
 
 @node_(NodeType.RUN)
 class Run(
-    IsComputable,
-    IsProcessable,
     HasEnvironment,
     IsExtensible,
     IsInPackage,
@@ -61,14 +58,43 @@ class Run(
         runnable_ptr: Optional[NodeReference] = None
         runnable_id: Optional[UUID] = None
 
-    # ...IsProcessable[80-]
-
-    @property
-    def ancestors(self):
-        parent = self.parent
-        while isinstance(parent, Run):
-            yield parent
-            parent = parent.parent
+    status: RunStatus = property_(80, default=RunStatus.CREATED, is_repr=True)
+    duration: Optional[timedelta] = property_(
+        81,
+        default=None,
+        description="Duration from first attempt start to last attempt termination.",
+        is_repr=True,
+    )
+    error: Optional["Error"] = property_(82, is_repr=True)
+    interruption: Optional["Interruption"] = property_(
+        83,
+        node_bench_from="self",
+        description="The latest Interruption concerning the Node.",
+        is_repr=True,
+    )
+    scheduled_at: Optional[datetime] = property_(
+        85, description="When the Node is scheduled to start."
+    )
+    started_at: Optional[datetime] = property_(
+        86, description="When the Node first started.", is_repr=True
+    )
+    active_at: Optional[datetime] = property_(87, description="When the Node was last active.")
+    interrupted_at: Optional[datetime] = property_(88, description="When the Node was interrupted.")
+    terminated_at: Optional[datetime] = property_(
+        89, description="When the Node was last terminated."
+    )
+    requested_stop_at: Optional[datetime] = property_(
+        90, description="When the Node was requested to stop."
+    )
+    requested_pause_at: Optional[datetime] = property_(
+        91, description="When the Node was requested to pause."
+    )
+    requested_resume_at: Optional[datetime] = property_(
+        92, description="When the Node was requested to resume."
+    )
+    if TYPE_CHECKING:
+        interruption_ptr: Optional[NodeReference] = None
+        interruption_id: Optional[UUID] = None
 
     @property
     def attempts(self) -> Sequence["Span"]:
@@ -80,6 +106,35 @@ class Run(
             if span.type == SpanType.ATTEMPT:
                 return span
         return None
+
+    def touch(self) -> None:
+        """'Touch' the Node to update the active_at timestamp."""
+        self.active_at = self._session.oracle.utc()
+
+    @property
+    def should_stop(self) -> bool:
+        return not (self.status.is_terminal) and (self.requested_stop_at is not None)
+
+    @property
+    def should_pause(self) -> bool:
+        return not (self.status.is_terminal or self.requested_stop_at is not None) and (
+            self.requested_pause_at is not None
+            and (
+                self.requested_resume_at is None
+                or self.requested_pause_at > self.requested_resume_at
+            )
+        )
+
+    @property
+    def should_resume(self) -> bool:
+        return not (self.status.is_terminal or self.requested_stop_at is not None) and (
+            self.requested_resume_at is not None
+            and (
+                self.requested_pause_at is None
+                or self.requested_pause_at < self.requested_resume_at
+            )
+            and (self.interrupted_at is None or self.interrupted_at < self.requested_resume_at)
+        )
 
     def pause(self):
         """Mark this Run as paused."""
@@ -95,26 +150,5 @@ class Run(
         """Mark this Run as stopped."""
         assert self._session is not None, f"{self!r} has no session"
         self.requested_stop_at = self._session.oracle.utc()
-
-    def _mark_terminated(self):
-        """Mark this Run as stopped."""
-        assert self._session is not None, f"{self!r} has no session"
-        if self.status.is_terminal:
-            return  # already terminated
-
-        # run
-        self.terminated_at = self._session.oracle.utc()
-        if self.started_at:
-            self.duration = self.terminated_at - self.started_at
-        self.status = ProcessStatus.ABORTED if self.status.is_active else ProcessStatus.CANCELLED
-
-        # last attempt
-        if (last_attempt := self.current_attempt) is not None:
-            last_attempt.terminated_at = self.terminated_at
-            if last_attempt.started_at:
-                last_attempt.duration = last_attempt.terminated_at - last_attempt.started_at
-            last_attempt.status = (
-                ProcessStatus.ABORTED if last_attempt.status.is_active else ProcessStatus.CANCELLED
-            )
 
     cancel = abort = stop

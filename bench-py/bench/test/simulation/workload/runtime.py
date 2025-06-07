@@ -3,7 +3,7 @@ from collections.abc import Awaitable
 from dataclasses import dataclass
 from typing import Any, Callable, override
 
-from bench.language import EnvironmentType, IsRunnable, ProcessStatus, Run
+from bench.language import EnvironmentType, IsRunnable, Run, RunStatus
 from bench.test.simulation.core import Simulation
 
 from .client import ClientWorkload, ClientWorkloadSpec
@@ -42,7 +42,7 @@ class RuntimeWorkload[SpecT: RuntimeWorkloadSpec](ClientWorkload[SpecT], abc.ABC
                 mode=mode,
                 parent=self.main_package,
                 session=self.session,
-                status=ProcessStatus.QUEUED,
+                status=RunStatus.QUEUED,
             )
             await self.session.commit()
         runner = await self.runtime.run(run, _return_error=return_error)
