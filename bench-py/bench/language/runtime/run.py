@@ -1,4 +1,3 @@
-from collections.abc import Sequence
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Optional, Union
 
@@ -14,7 +13,6 @@ from bench.language.core import (
     NodeType,
     RunStatus,
     RunType,
-    SpanType,
     node_,
     property_,
     property_parent_,
@@ -22,7 +20,7 @@ from bench.language.core import (
 from bench.pb2 import RunData
 
 if TYPE_CHECKING:
-    from bench.language import Agent, Error, Interruption, NodeReference, Span, Thread
+    from bench.language import Agent, Error, Interruption, NodeReference, Thread
 
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -95,17 +93,6 @@ class Run(
     if TYPE_CHECKING:
         interruption_ptr: Optional[NodeReference] = None
         interruption_id: Optional[UUID] = None
-
-    @property
-    def attempts(self) -> Sequence["Span"]:
-        return tuple(span for span in self.get_children(Span) if span.type == SpanType.ATTEMPT)
-
-    @property
-    def current_attempt(self) -> "Span | None":
-        for span in reversed(self.get_children(Span)):
-            if span.type == SpanType.ATTEMPT:
-                return span
-        return None
 
     def touch(self) -> None:
         """'Touch' the Node to update the active_at timestamp."""

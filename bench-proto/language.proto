@@ -338,7 +338,8 @@ enum EnumType {
   ENUM_TYPE_TRAIT_TYPE = 5;
   ENUM_TYPE_ENVIRONMENT_TYPE = 6;
   ENUM_TYPE_AREA = 7;
-  ENUM_TYPE_PROPERTY_REFERENCE_TYPE = 8;
+  ENUM_TYPE_RUNTIME_TYPE = 8;
+  ENUM_TYPE_PROPERTY_REFERENCE_TYPE = 9;
   ENUM_TYPE_USER_STATUS = 11;
   ENUM_TYPE_ORGANIZATION_STATUS = 12;
   ENUM_TYPE_BENCH_STATUS = 57;
@@ -375,9 +376,8 @@ enum EnumType {
   ENUM_TYPE_ACTION_CARDINALITY = 1221;
   ENUM_TYPE_CURSOR_TYPE = 1321;
   ENUM_TYPE_CURSOR_STATUS = 1322;
-  ENUM_TYPE_PROCESS_STATUS = 1611;
+  ENUM_TYPE_RUN_STATUS = 1611;
   ENUM_TYPE_RUN_TYPE = 1612;
-  ENUM_TYPE_SPAN_TYPE = 1621;
   ENUM_TYPE_SCHEDULE_FREQUENCY = 1631;
   ENUM_TYPE_INTERRUPTION_TYPE = 1632;
   ENUM_TYPE_INTERRUPTION_STATUS = 1633;
@@ -828,6 +828,10 @@ enum NodeType {
   NODE_TYPE_RUN = 1610;
   NODE_TYPE_SPAN = 1620;
   NODE_TYPE_INTERRUPTION = 1630;
+  NODE_TYPE_LOG = 1700;
+  NODE_TYPE_EDIT_LOG = 1701;
+  NODE_TYPE_CHANGE_LOG = 1702;
+  NODE_TYPE_QUERY_LOG = 1703;
   NODE_TYPE_SCHEMA = 2000;
   NODE_TYPE_FIELD = 2010;
   NODE_TYPE_FILE = 2020;
@@ -931,26 +935,6 @@ enum PrimitiveType {
   PRIMITIVE_TYPE_DURATION = 33;
 }
 
-enum ProcessStatus {
-  PROCESS_STATUS_UNSPECIFIED = 0;
-  PROCESS_STATUS_CREATED = 1;
-  PROCESS_STATUS_ASSIGNED = 2;
-  PROCESS_STATUS_SCHEDULED = 4;
-  PROCESS_STATUS_QUEUED = 5;
-  PROCESS_STATUS_RUNNING = 10;
-  PROCESS_STATUS_FAILING = 11;
-  PROCESS_STATUS_PAUSED = 20;
-  PROCESS_STATUS_YIELDED = 21;
-  PROCESS_STATUS_WAITING = 22;
-  PROCESS_STATUS_IDLE = 30;
-  PROCESS_STATUS_CANCELLED = 50;
-  PROCESS_STATUS_ABORTED = 51;
-  PROCESS_STATUS_DIED = 52;
-  PROCESS_STATUS_FAILED = 53;
-  PROCESS_STATUS_COMPLETED = 54;
-  PROCESS_STATUS_SKIPPED = 55;
-}
-
 // The type of a property reference.
 enum PropertyReferenceType {
   PROPERTY_REFERENCE_TYPE_UNSPECIFIED = 0;
@@ -1033,12 +1017,38 @@ enum ResourceStatus {
   RESOURCE_STATUS_FAILED = 31;
 }
 
+enum RunStatus {
+  RUN_STATUS_UNSPECIFIED = 0;
+  RUN_STATUS_CREATED = 1;
+  RUN_STATUS_ASSIGNED = 2;
+  RUN_STATUS_SCHEDULED = 4;
+  RUN_STATUS_QUEUED = 5;
+  RUN_STATUS_RUNNING = 10;
+  RUN_STATUS_FAILING = 11;
+  RUN_STATUS_PAUSED = 20;
+  RUN_STATUS_YIELDED = 21;
+  RUN_STATUS_WAITING = 22;
+  RUN_STATUS_IDLE = 30;
+  RUN_STATUS_CANCELLED = 50;
+  RUN_STATUS_ABORTED = 51;
+  RUN_STATUS_DIED = 52;
+  RUN_STATUS_FAILED = 53;
+  RUN_STATUS_COMPLETED = 54;
+  RUN_STATUS_SKIPPED = 55;
+}
+
 enum RunType {
   RUN_TYPE_UNSPECIFIED = 0;
   RUN_TYPE_CODE = 1;
   RUN_TYPE_ACTION = 10;
   RUN_TYPE_FLOW = 11;
   RUN_TYPE_AGENT = 15;
+}
+
+enum RuntimeType {
+  RUNTIME_TYPE_UNSPECIFIED = 0;
+  RUNTIME_TYPE_PYTHON = 1;
+  RUNTIME_TYPE_JAVASCRIPT = 2;
 }
 
 // The type of a scalar.
@@ -1097,22 +1107,6 @@ enum SpaceType {
   SPACE_TYPE_BROWSER = 10;
   SPACE_TYPE_DESKTOP = 20;
   SPACE_TYPE_MOBILE = 30;
-}
-
-enum SpanType {
-  SPAN_TYPE_UNSPECIFIED = 0;
-  SPAN_TYPE_ATTEMPT = 1;
-  SPAN_TYPE_WAIT = 2;
-  SPAN_TYPE_ACQUIRE = 3;
-  SPAN_TYPE_CODE = 10;
-  SPAN_TYPE_AGENT_TURN = 100;
-  SPAN_TYPE_MODEL_PREPARE = 300;
-  SPAN_TYPE_MODEL_GENERATE = 310;
-  SPAN_TYPE_MODEL_PARSE = 320;
-  SPAN_TYPE_FILE_UPLOAD = 500;
-  SPAN_TYPE_FILE_PREPARE_UPLOAD = 501;
-  SPAN_TYPE_FILE_DOWNLOAD = 502;
-  SPAN_TYPE_FILE_PREPARE_DOWNLOAD = 503;
 }
 
 // Built-in spring types.
@@ -1322,9 +1316,8 @@ enum TraitType {
   TRAIT_TYPE_ROLE = 212;
   TRAIT_TYPE_BLOCKABLE = 630;
   TRAIT_TYPE_RUNNABLE = 1200;
-  TRAIT_TYPE_PROCESSABLE = 1201;
-  TRAIT_TYPE_COMPUTABLE = 1202;
-  TRAIT_TYPE_SCRIPTABLE = 1203;
+  TRAIT_TYPE_SCRIPTABLE = 1201;
+  TRAIT_TYPE_SOURCEABLE = 1202;
   TRAIT_TYPE_INSTRUMENT = 1210;
   TRAIT_TYPE_MEASUREMENT = 1211;
   TRAIT_TYPE_LOG = 1212;
@@ -1386,13 +1379,7 @@ message ActionData {
   string name = 31;
   ActionCardinality cardinality = 40;
   optional TextData text = 41;
-  optional ModelDeveloper model_developer = 100;
-  optional ModelProvider model_provider = 101;
-  optional string model_id = 102;
-  optional string model_name = 103;
-  optional int64 max_attempts = 110;
-  optional google.protobuf.Duration retry_interval = 111;
-  optional double backoff = 112;
+  optional NodeReferenceData source_ptr = 210;
 }
 
 // An Agent is an autonomous entity.
@@ -1416,25 +1403,6 @@ message AgentData {
   optional NodeReferenceData block_ptr = 35;
   optional NodeReferenceData page_ptr = 54;
   optional NodeReferenceData cursor_ptr = 55;
-  ProcessStatus status = 80;
-  optional google.protobuf.Duration duration = 81;
-  optional ErrorData error = 82;
-  optional NodeReferenceData interruption_ptr = 83;
-  optional google.protobuf.Timestamp scheduled_at = 85;
-  optional google.protobuf.Timestamp started_at = 86;
-  optional google.protobuf.Timestamp active_at = 87;
-  optional google.protobuf.Timestamp interrupted_at = 88;
-  optional google.protobuf.Timestamp terminated_at = 89;
-  optional google.protobuf.Timestamp requested_stop_at = 90;
-  optional google.protobuf.Timestamp requested_pause_at = 91;
-  optional google.protobuf.Timestamp requested_resume_at = 92;
-  optional ModelDeveloper model_developer = 100;
-  optional ModelProvider model_provider = 101;
-  optional string model_id = 102;
-  optional string model_name = 103;
-  optional int64 max_attempts = 110;
-  optional google.protobuf.Duration retry_interval = 111;
-  optional double backoff = 112;
 }
 
 message AggregationData {
@@ -1580,6 +1548,16 @@ message ChangeData {
   repeated EditData edits = 40;
 }
 
+// A Log of a Change.
+message ChangeLogData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 6;
+  optional NodeReferenceData package_ptr = 7;
+  EnvironmentType environment_type = 17;
+}
+
 message ChangeResultData {
   StructType metatype = 1;
   string id = 2;
@@ -1718,7 +1696,8 @@ message CustomNodeDefinitionData {
   string name = 31;
   optional NodeReferenceData block_ptr = 35;
   repeated TraitType traits = 40;
-  optional NodeReferenceData script_ptr = 104;
+  optional NodeReferenceData script_ptr = 200;
+  optional NodeReferenceData source_ptr = 210;
 }
 
 // An instance of a CustomNodeDefinition.
@@ -1777,6 +1756,23 @@ message DimensionData {
 message EditData {
   StructType metatype = 1;
   string id = 2;
+  EditType type = 30;
+  optional EditOperation operation = 31;
+  NodeReferenceData node_ptr = 32;
+  optional PropertyReferenceData prop_ptr = 33;
+  optional NodeReferenceData field_ptr = 34;
+  optional ValueData key = 35;
+  optional ValueData value = 40;
+}
+
+// A Log of an Edit.
+message EditLogData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 6;
+  optional NodeReferenceData package_ptr = 7;
+  EnvironmentType environment_type = 17;
   EditType type = 30;
   optional EditOperation operation = 31;
   NodeReferenceData node_ptr = 32;
@@ -1908,7 +1904,6 @@ message FieldData {
   optional NodeReferenceData base_type_ptr = 47;
   optional TypeData key_type = 48;
   optional bool is_required = 50;
-  optional bool is_variable = 51;
   optional ValueData default = 55;
   optional DefaultFactory default_factory = 56;
   optional CollectionConstraintData collection_constraint = 60;
@@ -1917,6 +1912,7 @@ message FieldData {
   optional NodeConstraintData node_constraint = 63;
   optional EdgeType edge_type = 70;
   optional CascadeAction cascade = 71;
+  optional NodeReferenceData source_ptr = 210;
 }
 
 // A File stored somewhere.
@@ -2094,7 +2090,8 @@ message FrameViewData {
     CornersData radius_value = 68;
     VariableData radius_variable = 17068;
   };
-  optional NodeReferenceData script_ptr = 104;
+  optional NodeReferenceData script_ptr = 200;
+  optional NodeReferenceData source_ptr = 210;
 }
 
 // A Friendship between two Users.
@@ -2335,7 +2332,8 @@ message LabelViewData {
     CornersData radius_value = 68;
     VariableData radius_variable = 17068;
   };
-  optional NodeReferenceData script_ptr = 104;
+  optional NodeReferenceData script_ptr = 200;
+  optional NodeReferenceData source_ptr = 210;
 }
 
 message LengthData {
@@ -2373,6 +2371,16 @@ message LinkData {
   optional google.protobuf.Timestamp published_at = 64;
   optional google.protobuf.Timestamp expires_at = 65;
   repeated string image_urls = 70;
+}
+
+// A Log.
+message LogData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 6;
+  optional NodeReferenceData package_ptr = 7;
+  EnvironmentType environment_type = 17;
 }
 
 // A Machine provides physical compute.
@@ -2431,10 +2439,6 @@ message MessageData {
   optional NodeReferenceData forwarded_from_ptr = 51;
   optional TextData text = 61;
   optional NodeReferenceData node_ptr = 62;
-  optional ModelDeveloper model_developer = 100;
-  optional ModelProvider model_provider = 101;
-  optional string model_id = 102;
-  optional string model_name = 103;
 }
 
 message NodeConstraintData {
@@ -2504,7 +2508,8 @@ message NumberInputViewData {
   };
   optional string value = 100;
   optional string placeholder = 101;
-  optional NodeReferenceData script_ptr = 104;
+  optional NodeReferenceData script_ptr = 200;
+  optional NodeReferenceData source_ptr = 210;
 }
 
 // An Organization with Users and Teams.
@@ -2639,9 +2644,7 @@ message PropertyInfoData {
   optional PrimitiveType primitive_type = 42;
   optional EnumType enum_type = 43;
   optional NodeType node_type = 44;
-  optional NodeReferenceData node_definition_ptr = 45;
   optional StructType struct_type = 46;
-  optional NodeReferenceData base_type_ptr = 47;
   optional TypeData key_type = 48;
   optional bool is_required = 50;
   optional bool is_variable = 51;
@@ -2688,6 +2691,16 @@ message QueryData {
   repeated SortData sort = 44;
   optional int64 limit = 50;
   optional int64 offset = 51;
+}
+
+// A Log of a Query.
+message QueryLogData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 6;
+  optional NodeReferenceData package_ptr = 7;
+  EnvironmentType environment_type = 17;
 }
 
 message QueryResultData {
@@ -2765,7 +2778,7 @@ message RunData {
   RunType type = 30;
   optional NodeReferenceData thread_ptr = 38;
   optional NodeReferenceData runnable_ptr = 67;
-  ProcessStatus status = 80;
+  RunStatus status = 80;
   optional google.protobuf.Duration duration = 81;
   optional ErrorData error = 82;
   optional NodeReferenceData interruption_ptr = 83;
@@ -2777,10 +2790,6 @@ message RunData {
   optional google.protobuf.Timestamp requested_stop_at = 90;
   optional google.protobuf.Timestamp requested_pause_at = 91;
   optional google.protobuf.Timestamp requested_resume_at = 92;
-  optional ModelDeveloper model_developer = 100;
-  optional ModelProvider model_provider = 101;
-  optional string model_id = 102;
-  optional string model_name = 103;
 }
 
 // A Scene is a container for a specific interaction point.
@@ -2805,7 +2814,8 @@ message SceneData {
   optional IconData icon = 34;
   optional NodeReferenceData block_ptr = 35;
   optional NodeReferenceData root_view_ptr = 40;
-  optional NodeReferenceData script_ptr = 104;
+  optional NodeReferenceData script_ptr = 200;
+  optional NodeReferenceData source_ptr = 210;
 }
 
 message ScheduleData {
@@ -2845,24 +2855,9 @@ message SchemaData {
   EnvironmentType environment_type = 17;
   optional string order_key = 23;
   string name = 31;
+  optional IconData icon = 34;
   optional NodeReferenceData block_ptr = 35;
-  TypeCardinality cardinality = 40;
-  ScalarType scalar_type = 41;
-  optional PrimitiveType primitive_type = 42;
-  optional EnumType enum_type = 43;
-  optional NodeType node_type = 44;
-  optional NodeReferenceData node_definition_ptr = 45;
-  optional StructType struct_type = 46;
-  optional NodeReferenceData base_type_ptr = 47;
-  optional TypeData key_type = 48;
-  optional bool is_required = 50;
-  optional bool is_variable = 51;
-  optional ValueData default = 55;
-  optional DefaultFactory default_factory = 56;
-  optional CollectionConstraintData collection_constraint = 60;
-  optional StringConstraintData string_constraint = 61;
-  optional NumberConstraintData number_constraint = 62;
-  optional NodeConstraintData node_constraint = 63;
+  optional NodeReferenceData source_ptr = 210;
 }
 
 message ScopeData {
@@ -2916,14 +2911,8 @@ message ServiceData {
   optional string order_key = 23;
   string name = 31;
   optional NodeReferenceData block_ptr = 35;
-  optional ModelDeveloper model_developer = 100;
-  optional ModelProvider model_provider = 101;
-  optional string model_id = 102;
-  optional string model_name = 103;
-  optional NodeReferenceData script_ptr = 104;
-  optional int64 max_attempts = 110;
-  optional google.protobuf.Duration retry_interval = 111;
-  optional double backoff = 112;
+  optional NodeReferenceData script_ptr = 200;
+  optional NodeReferenceData source_ptr = 210;
 }
 
 message ShadowData {
@@ -3000,7 +2989,8 @@ message SliderInputViewData {
   optional double min_value = 101;
   optional double max_value = 102;
   optional double step = 103;
-  optional NodeReferenceData script_ptr = 104;
+  optional NodeReferenceData script_ptr = 200;
+  optional NodeReferenceData source_ptr = 210;
 }
 
 message SortData {
@@ -3038,7 +3028,7 @@ message SpaceData {
   optional NodeReferenceData thread_ptr = 75;
 }
 
-// A Span is a sub-part of a Run that represents a small, isolated unit of work inside a Run.
+// A Span is a trace inside a Run.
 message SpanData {
   NodeType metatype = 1;
   string id = 2;
@@ -3046,20 +3036,6 @@ message SpanData {
   optional NodeReferenceData bench_ptr = 6;
   optional NodeReferenceData package_ptr = 7;
   EnvironmentType environment_type = 17;
-  SpanType type = 30;
-  optional string title = 60;
-  ProcessStatus status = 80;
-  optional google.protobuf.Duration duration = 81;
-  optional ErrorData error = 82;
-  optional NodeReferenceData interruption_ptr = 83;
-  optional google.protobuf.Timestamp scheduled_at = 85;
-  optional google.protobuf.Timestamp started_at = 86;
-  optional google.protobuf.Timestamp active_at = 87;
-  optional google.protobuf.Timestamp interrupted_at = 88;
-  optional google.protobuf.Timestamp terminated_at = 89;
-  optional google.protobuf.Timestamp requested_stop_at = 90;
-  optional google.protobuf.Timestamp requested_pause_at = 91;
-  optional google.protobuf.Timestamp requested_resume_at = 92;
 }
 
 // A split container View.
@@ -3146,7 +3122,8 @@ message SplitViewData {
     CornersData radius_value = 68;
     VariableData radius_variable = 17068;
   };
-  optional NodeReferenceData script_ptr = 104;
+  optional NodeReferenceData script_ptr = 200;
+  optional NodeReferenceData source_ptr = 210;
 }
 
 message StringConstraintData {
@@ -3188,18 +3165,6 @@ message TaskData {
   optional NodeReferenceData block_ptr = 35;
   optional google.protobuf.Timestamp due_at = 50;
   optional NodeReferenceData assigned_to_ptr = 51;
-  ProcessStatus status = 80;
-  optional google.protobuf.Duration duration = 81;
-  optional ErrorData error = 82;
-  optional NodeReferenceData interruption_ptr = 83;
-  optional google.protobuf.Timestamp scheduled_at = 85;
-  optional google.protobuf.Timestamp started_at = 86;
-  optional google.protobuf.Timestamp active_at = 87;
-  optional google.protobuf.Timestamp interrupted_at = 88;
-  optional google.protobuf.Timestamp terminated_at = 89;
-  optional google.protobuf.Timestamp requested_stop_at = 90;
-  optional google.protobuf.Timestamp requested_pause_at = 91;
-  optional google.protobuf.Timestamp requested_resume_at = 92;
 }
 
 message TextData {
@@ -3281,7 +3246,8 @@ message TextViewData {
     string text_value = 100;
     VariableData text_variable = 17100;
   };
-  optional NodeReferenceData script_ptr = 104;
+  optional NodeReferenceData script_ptr = 200;
+  optional NodeReferenceData source_ptr = 210;
 }
 
 // A Theme with common styles.
@@ -3321,22 +3287,6 @@ message ThreadData {
   EnvironmentType environment_type = 17;
   optional NodeReferenceData owned_by_ptr = 19;
   optional TextLineData title = 32;
-  ProcessStatus status = 80;
-  optional google.protobuf.Duration duration = 81;
-  optional ErrorData error = 82;
-  optional NodeReferenceData interruption_ptr = 83;
-  optional google.protobuf.Timestamp scheduled_at = 85;
-  optional google.protobuf.Timestamp started_at = 86;
-  optional google.protobuf.Timestamp active_at = 87;
-  optional google.protobuf.Timestamp interrupted_at = 88;
-  optional google.protobuf.Timestamp terminated_at = 89;
-  optional google.protobuf.Timestamp requested_stop_at = 90;
-  optional google.protobuf.Timestamp requested_pause_at = 91;
-  optional google.protobuf.Timestamp requested_resume_at = 92;
-  optional ModelDeveloper model_developer = 100;
-  optional ModelProvider model_provider = 101;
-  optional string model_id = 102;
-  optional string model_name = 103;
 }
 
 // A Thread view.
@@ -3363,7 +3313,8 @@ message ThreadViewData {
   optional DimensionData max_height = 46;
   optional TextData draft_text = 100;
   optional NodeReferenceData draft_reply_to_ptr = 102;
-  optional NodeReferenceData script_ptr = 104;
+  optional NodeReferenceData script_ptr = 200;
+  optional NodeReferenceData source_ptr = 210;
 }
 
 message TraitInfoData {
@@ -3515,7 +3466,8 @@ message WizardViewData {
   optional DimensionData min_height = 44;
   optional DimensionData max_width = 45;
   optional DimensionData max_height = 46;
-  optional NodeReferenceData script_ptr = 104;
+  optional NodeReferenceData script_ptr = 200;
+  optional NodeReferenceData source_ptr = 210;
 }
 
 message SomeNodeData {
@@ -3550,6 +3502,10 @@ message SomeNodeData {
     RunData run = 1610;
     SpanData span = 1620;
     InterruptionData interruption = 1630;
+    LogData log = 1700;
+    EditLogData edit_log = 1701;
+    ChangeLogData change_log = 1702;
+    QueryLogData query_log = 1703;
     SchemaData schema = 2000;
     FieldData field = 2010;
     FileData file = 2020;

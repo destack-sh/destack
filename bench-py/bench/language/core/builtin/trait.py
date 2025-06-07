@@ -589,19 +589,19 @@ class IsBlockable(IsOrdered, IsInPackage):
         return Block.wrap(self)
 
 
+@trait_(TraitType.SOURCEABLE)
+class IsSourceable(Trait):
+    """A Node that can be sourced from / defined by a Script."""
+
+    source: Optional["Script"] = property_(210)
+    # token_range, ...
+
+
 @trait_(TraitType.SCRIPTABLE)
-class IsScriptable(Trait):
+class IsScriptable(IsSourceable):
     """A Node that can be scripted."""
 
-    script: Optional["Script"] = property_(104)
-
-
-@trait_(TraitType.SCRIPT_SOURCEABLE)
-class IsScriptSourceable(Trait):
-    """A Node that can be sourced from a Script."""
-
-    script: Optional["Script"] = property_(104)
-    # token_range, ...
+    script: Optional["Script"] = property_(200)
 
 
 @trait_(TraitType.RUNNABLE)
@@ -612,7 +612,7 @@ class IsRunnable(Trait):
 
 
 @trait_(TraitType.INSTRUMENT)
-class IsInstrument(Trait):
+class IsInstrument(IsSourceable):
     """A Node that represents an Instrument."""
 
     pass

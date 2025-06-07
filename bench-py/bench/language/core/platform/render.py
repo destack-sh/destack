@@ -28,7 +28,7 @@ from ..builtin import (
     Property,
     StructType,
 )
-from ..common import NodeReference, PropertyReference, TypeBase
+from ..common import NodeReference, PropertyReference
 from .graph import Supergraph
 
 if TYPE_CHECKING:
@@ -193,14 +193,6 @@ class Renderer:
             prop = prop.resolve_or_error()
         return f'{prop.component.__name__}.get_property("{prop.name}")'
 
-    def render_value_scalar(self, value: Any, typ: "TypeBase") -> str:
-        """Renders single scalar value into an expression."""
-        raise NotImplementedError
-
-    def render_value(self, value: Any, typ: "TypeBase") -> str:
-        """Renders a value into an expression."""
-        raise NotImplementedError
-
     def render_kwargs(self, **kwargs: Any) -> str:
         """Renders kwargs into a string."""
         return ", ".join(f"{k}={v}" for k, v in kwargs.items())
@@ -310,10 +302,7 @@ def _deconstruct_builtin_object(
 def _render_builtin_object_kwargs(
     renderer: Renderer, obj: BuiltinObjectBase, kwargs: dict[Property, Any]
 ) -> dict[str, str]:
-    rendered_kwargs: dict[str, str] = {}
-    for prop, value in kwargs.items():
-        rendered_kwargs[prop.name] = renderer.render_value(value, prop.type)
-    return rendered_kwargs
+    raise NotImplementedError
 
 
 #

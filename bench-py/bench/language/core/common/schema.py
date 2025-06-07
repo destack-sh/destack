@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, Union
 
+from bench.language.core.builtin.trait import HasIcon
 from bench.pb2 import SchemaData
 
 from ..builtin import (
@@ -9,6 +10,7 @@ from ..builtin import (
     IsBlockable,
     IsDeletable,
     IsInPackage,
+    IsSourceable,
     IsTemplatable,
     IsTracked,
     Node,
@@ -16,7 +18,6 @@ from ..builtin import (
     node_,
     property_parent_,
 )
-from .type import TypeBase
 
 if TYPE_CHECKING:
     from bench.language import Page
@@ -28,13 +29,14 @@ if TYPE_CHECKING:
 class Schema(
     HasName,
     HasEnvironment,
+    HasIcon,
     IsTracked,
     IsTemplatable,
     IsBlockable,
     IsDeletable,
     IsArchivable,
     IsInPackage,
-    TypeBase,
+    IsSourceable,
     Node[SchemaData],
 ):
     """A Schema for a specific Type."""
