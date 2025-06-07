@@ -9,6 +9,7 @@ from .edit import (
     EditType,
     edit_graph,
 )
+from .event import ChangeEvent, EditEvent, QueryEvent
 from .field import Field, FieldType
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
 from .meta import EnumInfo, EnumOptionInfo, NodeInfo, PropertyInfo, StructInfo, TraitInfo
@@ -99,6 +100,7 @@ __all__ = [
     "AttributeReference",
     "AttributeType",
     "Change",
+    "ChangeEvent",
     "ChangeResult",
     "ChangeStatus",
     "CollectionConstraint",
@@ -108,6 +110,7 @@ __all__ = [
     "CustomNodeDefinition",
     "CustomNodeInstance",
     "Edit",
+    "EditEvent",
     "EditOperation",
     "EditType",
     "EnumInfo",
@@ -136,6 +139,7 @@ __all__ = [
     "PropertyReference",
     "PropertyReferenceType",
     "Query",
+    "QueryEvent",
     "QueryResult",
     "QueryResultBase",
     "QueryResultGroup",

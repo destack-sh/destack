@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, Any
 
 import structlog
 import typer
-import uvloop
 from opentelemetry import trace
 
 if TYPE_CHECKING:
@@ -38,7 +37,12 @@ def async_to_sync(func=None):
             if is_in_loop:
                 return func(*args, **kwargs)
             else:
-                return uvloop.run(func(*args, **kwargs))
+                try:
+                    import uvloop
+
+                    return uvloop.run(func(*args, **kwargs))
+                except ImportError:
+                    return asyncio.run(func(*args, **kwargs))
 
         return wrapped
 

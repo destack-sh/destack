@@ -160,7 +160,7 @@ async def test_create_page_blocks_recursive(session: Session):
         assert pages_unpacked[0].equals(page)
 
 
-# nocheckin: Viewport/IsView/trait relation queries
+# nocheckin: Viewport/IsView/... recursive trait relation queries
 
 
 async def test_create_custom_node(session: Session):
