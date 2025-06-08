@@ -1,13 +1,13 @@
 from typing import TYPE_CHECKING, Optional
 
 from bench.language.core import (
-    HasEnvironment,
     HasIcon,
     HasName,
     HasSlug,
     IsArchivable,
     IsBlockable,
     IsDeletable,
+    IsEnvironmental,
     IsInPackage,
     IsOwnable,
     IsScriptable,
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 @node_(NodeType.SCENE)
 class Scene(
     HasName,
-    HasEnvironment,
+    IsEnvironmental,
     HasSlug,
     HasIcon,
     IsScriptable,

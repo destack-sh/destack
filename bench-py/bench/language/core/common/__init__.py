@@ -1,4 +1,3 @@
-from .custom import CustomNode, CustomNodeDefinition
 from .edit import (
     CASCADING_EDIT_TYPES,
     Change,
@@ -9,6 +8,7 @@ from .edit import (
     EditType,
     edit_graph,
 )
+from .entity import CustomEntity, CustomEntityDefinition
 from .event import ChangeEvent, CustomEvent, CustomEventDefinition, EditEvent, QueryEvent
 from .field import Field, FieldType
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
@@ -106,10 +106,10 @@ __all__ = [
     "Condition",
     "ConditionalType",
     "Constraint",
+    "CustomEntity",
+    "CustomEntityDefinition",
     "CustomEvent",
     "CustomEventDefinition",
-    "CustomNode",
-    "CustomNodeDefinition",
     "Edit",
     "EditEvent",
     "EditOperation",

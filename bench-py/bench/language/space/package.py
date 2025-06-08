@@ -3,13 +3,13 @@ from typing import TYPE_CHECKING, Optional
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
-    HasEnvironment,
     HasIcon,
     HasName,
     HasSlug,
     IndexIn,
     IsArchivable,
     IsDeletable,
+    IsEnvironmental,
     IsGlobal,
     IsInPackage,
     IsInvite,
@@ -47,7 +47,7 @@ class PackageType(BuiltinEnum):
 class Package(
     HasIcon,
     HasSlug,
-    HasEnvironment,
+    IsEnvironmental,
     HasName,
     IsGlobal,
     IsOwnable,

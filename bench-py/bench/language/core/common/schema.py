@@ -4,11 +4,11 @@ from bench.language.core.builtin.trait import HasIcon
 from bench.pb2 import SchemaData
 
 from ..builtin import (
-    HasEnvironment,
     HasName,
     IsArchivable,
     IsBlockable,
     IsDeletable,
+    IsEnvironmental,
     IsInPackage,
     IsSourceable,
     IsTemplatable,
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 @node_(NodeType.SCHEMA)
 class Schema(
     HasName,
-    HasEnvironment,
+    IsEnvironmental,
     HasIcon,
     IsTracked,
     IsTemplatable,

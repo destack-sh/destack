@@ -33,7 +33,7 @@ from ..builtin import (
 )
 
 if TYPE_CHECKING:
-    from bench.language import CustomNodeDefinition, Node, NodeReference, Value
+    from bench.language import CustomEntityDefinition, Node, NodeReference, Value
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
@@ -125,7 +125,7 @@ class Type(StructFrozen):
     primitive_type: Optional[PrimitiveType] = property_(42, is_repr=True)
     enum_type: Optional[EnumType] = property_(43, is_repr=True)
     node_type: Optional[NodeType] = property_(44, is_repr=True)
-    node_definition: Optional["CustomNodeDefinition"] = property_(45, is_repr=True)
+    node_definition: Optional["CustomEntityDefinition"] = property_(45, is_repr=True)
     struct_type: Optional[StructType] = property_(46, is_repr=True)
     base_type: Optional["Node"] = property_(47, is_repr=True)
     key_type: Optional["Type"] = property_(48, is_repr=True)  # for maps

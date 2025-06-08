@@ -3,14 +3,14 @@
 from contextlib import contextmanager
 from typing import Any
 
-from bench import Client, CustomNode, EdgeType, IsSubject, Node, Session, User
+from bench import Client, CustomEntity, EdgeType, IsSubject, Session, User
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
 
 # ===============================================
 # MOCK STUFF FOR PROTOTYPING
-# nocheckin: Scripts, custom Events/Schemas/fields, ..
+# nocheckin: Scripts, custom Entities/Events/Schemas/fields, ..
 # ===============================================
 
 
@@ -19,6 +19,7 @@ session: Any = ...
 script: Any = ...
 
 
+Entity: Any = ...
 Event: Any = ...
 Schema: Any = ...
 field: Any = ...
@@ -56,7 +57,7 @@ SECRET = script.member("secret_key", 1, str)
 
 
 @node
-class Meetup(Node):
+class Meetup(Entity):
     name: str | None = field(1)
     capacity: int = field(2)
 
@@ -70,7 +71,7 @@ class Meetup(Node):
 
 
 @node
-class MeetupResponse(Node):
+class MeetupResponse(Entity):
     parent: Meetup = field(2, edge_type=EdgeType.PARENT)
     user: User = field(3)
 
@@ -85,7 +86,7 @@ async def do_something(
     session: Session,
     subject: IsSubject,
     client: Client,
-    event: CustomNode,
+    event: CustomEntity,
 ):
     secret_value = await SECRET.read()
     log("something_happened", secret_value)

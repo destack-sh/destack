@@ -146,12 +146,12 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
     # IsArchivable.archived_at: 14
     # IsDeletable.deleted_at: 15
     # IsTemplatable.template: 16
-    # IsModal.mode: 17/18
-    # IsOwnable.owned_by: 19
-    # IsClaimable.claimed_by: 20
+    # IsCustomNode.definition: 17
+    # IsExtensible.value: 18
+    # IsOrdered.order_key: 19
+    # IsEnvironmental.: 20/21
+    # IsOwnable.owned_by: 22
     # ...managed_by/controlled_by?
-    # IsOrdered.order_key: 23
-    # IsExtensible.value: 24
 
     # 30+ for general properties
     # ...
@@ -413,14 +413,14 @@ class HasIcon(Trait):
     icon: Optional["Icon"] = property_(34)
 
 
-@trait_(TraitType.HAS_ENVIRONMENT)
-class HasEnvironment(Trait):
-    """A Node that can be in different environments."""
+@trait_(TraitType.ENVIRONMENTAL)
+class IsEnvironmental(Trait):
+    """A Node that may be in different environments."""
 
     environment_type: EnvironmentType = property_(
-        17, is_eq=False, default=EnvironmentType.PRODUCTION
+        20, is_eq=False, default=EnvironmentType.PRODUCTION
     )
-    # environment: "Environment | None", ...
+    # environment: "Environment | None", ... (21)
 
 
 @trait_(TraitType.GLOBAL)
@@ -461,13 +461,6 @@ class IsTracked(Trait):
         updated_by_id: Optional[UUID] = None
         updated_by_type: NodeType | None = None
         updated_by_ptr: Optional[NodeReference] = None
-
-
-@trait_(TraitType.ORDERED)
-class IsOrdered(Trait):
-    """A Node that can be ordered."""
-
-    order_key: str | None = property_(23, is_eq=False, default=INTEGER_ZERO)
 
 
 @trait_(TraitType.FROZEN)
@@ -541,11 +534,35 @@ class IsTemplatable(Trait):
         raise NotImplementedError
 
 
+@trait_(TraitType.CUSTOM_NODE_DEFINITION)
+class IsCustomNodeDefinition(Trait):
+    """A Node that defines a Custom Node type."""
+
+    pass
+
+
+@trait_(TraitType.CUSTOM_NODE)
+class IsCustomNode(Trait):
+    """A Node that is asome Custom Node."""
+
+    definition: "IsCustomNodeDefinition" = property_(17)
+    if TYPE_CHECKING:
+        definition_id: Optional[UUID] = None
+        definition_ptr: Optional[NodeReference] = None
+
+
 @trait_(TraitType.EXTENSIBLE)
 class IsExtensible(Trait):
     """A Node that can be extended with custom Values (one Value per Field)."""
 
-    value: dict[UUID, "Value"] = property_(24)
+    value: dict[UUID, "Value"] = property_(18)
+
+
+@trait_(TraitType.ORDERED)
+class IsOrdered(Trait):
+    """A Node that can be ordered."""
+
+    order_key: str | None = property_(19, is_eq=False, default=INTEGER_ZERO)
 
 
 @trait_(TraitType.IN_SPACE)
@@ -612,17 +629,17 @@ class IsRunnable(Trait):
 
 
 @trait_(TraitType.INSTRUMENT)
-class IsInstrument(IsSourceable):
+class IsInstrument(IsSourceable, IsCustomNodeDefinition):
     """A Node that represents an Instrument."""
 
     pass
 
 
 @trait_(TraitType.MEASUREMENT)
-class IsMeasurement(Trait):
+class IsMeasurement(IsCustomNode):
     """A Node that represents a Measurement."""
 
-    pass
+    definition: "IsInstrument" = property_(17)
 
 
 @trait_(TraitType.EVENT)
@@ -636,7 +653,7 @@ class IsEvent(Trait):
 class IsOwnable(Trait):
     """A Node that can be owned by another Node."""
 
-    owned_by: Optional["IsSubject"] = property_(19, node_space_from="self")
+    owned_by: Optional["IsSubject"] = property_(22, node_space_from="self")
     if TYPE_CHECKING:
         owned_by_id: Optional[UUID] = None
         owned_by_type: Optional[NodeType] = None
@@ -679,7 +696,7 @@ class IsRole(Trait):
 
 
 @trait_(TraitType.RESOURCE)
-class IsResource(HasEnvironment, IsOwnable, HasName):
+class IsResource(IsEnvironmental, IsOwnable, HasName):
     """
     A Resource in a Bench, typically representing some external object.
     """

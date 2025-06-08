@@ -1,11 +1,11 @@
 from typing import TYPE_CHECKING
 
 from bench.language.core import (
-    HasEnvironment,
     HasName,
     IsArchivable,
     IsBlockable,
     IsDeletable,
+    IsEnvironmental,
     IsOwnable,
     IsRunnable,
     IsScriptable,
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 @node_(NodeType.SERVICE)
 class Service(
-    HasEnvironment,
+    IsEnvironmental,
     HasName,
     IsTemplatable,
     IsOwnable,

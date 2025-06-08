@@ -71,13 +71,13 @@ export interface ActionData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
-     */
-    environmentType: EnvironmentType;
-    /**
-     * @generated from protobuf field: optional string order_key = 23;
+     * @generated from protobuf field: optional string order_key = 19;
      */
     orderKey?: string;
+    /**
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
+     */
+    environmentType: EnvironmentType;
     /**
      * @generated from protobuf field: string name = 31;
      */
@@ -146,17 +146,17 @@ export interface AgentData {
      */
     deletedAt?: Timestamp;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
+     * @generated from protobuf field: optional string order_key = 19;
+     */
+    orderKey?: string;
+    /**
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
      */
     environmentType: EnvironmentType;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 19;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 22;
      */
     ownedByPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional string order_key = 23;
-     */
-    orderKey?: string;
     /**
      * @generated from protobuf field: string name = 31;
      */
@@ -317,13 +317,13 @@ export interface BlockData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
-     */
-    environmentType: EnvironmentType;
-    /**
-     * @generated from protobuf field: optional string order_key = 23;
+     * @generated from protobuf field: optional string order_key = 19;
      */
     orderKey?: string;
+    /**
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
+     */
+    environmentType: EnvironmentType;
     /**
      * @generated from protobuf field: symbol.bench.BlockType type = 30;
      */
@@ -421,7 +421,7 @@ export interface BorderStyleData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
      */
     environmentType: EnvironmentType;
     /**
@@ -526,7 +526,7 @@ export interface ChangeEventData {
      */
     packagePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
      */
     environmentType: EnvironmentType;
 }
@@ -747,7 +747,7 @@ export interface ColorStyleData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
      */
     environmentType: EnvironmentType;
     /**
@@ -889,11 +889,11 @@ export interface CursorData {
      */
     deletedAt?: Timestamp;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
      */
     environmentType: EnvironmentType;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 19;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 22;
      */
     ownedByPtr?: NodeReferenceData;
     /**
@@ -948,6 +948,115 @@ export interface CursorData {
      * @generated from protobuf field: optional string url = 55;
      */
     url?: string;
+}
+/**
+ * An Entity is an instance of a CustomEntityDefinition.
+ *
+ * @generated from protobuf message symbol.bench.CustomEntityData
+ */
+export interface CustomEntityData {
+    /**
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
+     */
+    metatype: NodeType;
+    /**
+     * @generated from protobuf field: string id = 2;
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData parent_ptr = 4;
+     */
+    parentPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData space_ptr = 6;
+     */
+    spacePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData package_ptr = 7;
+     */
+    packagePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 15;
+     */
+    deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: symbol.bench.NodeReferenceData definition_ptr = 17;
+     */
+    definitionPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: map<string, symbol.bench.ValueData> value = 18;
+     */
+    value: {
+        [key: string]: ValueData;
+    };
+    /**
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
+     */
+    environmentType: EnvironmentType;
+}
+/**
+ * A definition for a generic Entity type (instantiated in CustomEntities).
+ * Custom Entities may be materialized as physical or logical tables in primary storage.
+ *
+ * @generated from protobuf message symbol.bench.CustomEntityDefinitionData
+ */
+export interface CustomEntityDefinitionData {
+    /**
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
+     */
+    metatype: NodeType;
+    /**
+     * @generated from protobuf field: string id = 2;
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData parent_ptr = 4;
+     */
+    parentPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData space_ptr = 6;
+     */
+    spacePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData package_ptr = 7;
+     */
+    packagePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 15;
+     */
+    deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional string order_key = 19;
+     */
+    orderKey?: string;
+    /**
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
+     */
+    environmentType: EnvironmentType;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 22;
+     */
+    ownedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: string name = 31;
+     */
+    name: string;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData block_ptr = 35;
+     */
+    blockPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: repeated symbol.bench.TraitType traits = 40;
+     */
+    traits: TraitType[];
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData script_ptr = 200;
+     */
+    scriptPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData source_ptr = 210;
+     */
+    sourcePtr?: NodeReferenceData;
 }
 /**
  * An instance of a CustomEventDefinition.
@@ -1020,11 +1129,9 @@ export interface CustomEventDefinitionData {
     sourcePtr?: NodeReferenceData;
 }
 /**
- * An instance of a CustomNodeDefinition.
- *
- * @generated from protobuf message symbol.bench.CustomNodeData
+ * @generated from protobuf message symbol.bench.CustomViewData
  */
-export interface CustomNodeData {
+export interface CustomViewData {
     /**
      * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
@@ -1038,38 +1145,16 @@ export interface CustomNodeData {
      */
     parentPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData space_ptr = 6;
-     */
-    spacePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData package_ptr = 7;
-     */
-    packagePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 15;
-     */
-    deletedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
-     */
-    environmentType: EnvironmentType;
-    /**
-     * @generated from protobuf field: map<string, symbol.bench.ValueData> value = 24;
-     */
-    value: {
-        [key: string]: ValueData;
-    };
-    /**
-     * @generated from protobuf field: symbol.bench.NodeReferenceData definition_ptr = 40;
+     * @generated from protobuf field: symbol.bench.NodeReferenceData definition_ptr = 17;
      */
     definitionPtr?: NodeReferenceData;
 }
 /**
- * A definition for a custom Node type (instantiated in CustomNodes).
+ * A definition for a custom View type.
  *
- * @generated from protobuf message symbol.bench.CustomNodeDefinitionData
+ * @generated from protobuf message symbol.bench.CustomViewDefinitionData
  */
-export interface CustomNodeDefinitionData {
+export interface CustomViewDefinitionData {
     /**
      * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
@@ -1082,50 +1167,6 @@ export interface CustomNodeDefinitionData {
      * @generated from protobuf field: optional symbol.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData space_ptr = 6;
-     */
-    spacePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData package_ptr = 7;
-     */
-    packagePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 15;
-     */
-    deletedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
-     */
-    environmentType: EnvironmentType;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 19;
-     */
-    ownedByPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional string order_key = 23;
-     */
-    orderKey?: string;
-    /**
-     * @generated from protobuf field: string name = 31;
-     */
-    name: string;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData block_ptr = 35;
-     */
-    blockPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: repeated symbol.bench.TraitType traits = 40;
-     */
-    traits: TraitType[];
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData script_ptr = 200;
-     */
-    scriptPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData source_ptr = 210;
-     */
-    sourcePtr?: NodeReferenceData;
 }
 /**
  * A primary storage Database of some flavor.
@@ -1166,11 +1207,11 @@ export interface DatabaseData {
      */
     updatedByPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
      */
     environmentType: EnvironmentType;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 19;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 22;
      */
     ownedByPtr?: NodeReferenceData;
     /**
@@ -1332,7 +1373,7 @@ export interface EditEventData {
      */
     packagePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
      */
     environmentType: EnvironmentType;
     /**
@@ -1492,7 +1533,7 @@ export interface EffectStyleData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
      */
     environmentType: EnvironmentType;
     /**
@@ -1739,13 +1780,13 @@ export interface FieldData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
-     */
-    environmentType: EnvironmentType;
-    /**
-     * @generated from protobuf field: optional string order_key = 23;
+     * @generated from protobuf field: optional string order_key = 19;
      */
     orderKey?: string;
+    /**
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
+     */
+    environmentType: EnvironmentType;
     /**
      * @generated from protobuf field: symbol.bench.FieldType type = 30;
      */
@@ -1878,11 +1919,11 @@ export interface FileData {
      */
     updatedByPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
      */
     environmentType: EnvironmentType;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 19;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 22;
      */
     ownedByPtr?: NodeReferenceData;
     /**
@@ -2107,7 +2148,7 @@ export interface FontStyleData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
      */
     environmentType: EnvironmentType;
     /**
@@ -2210,15 +2251,15 @@ export interface FrameViewData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
-     */
-    environmentType: EnvironmentType;
-    /**
-     * @generated from protobuf field: map<string, symbol.bench.ValueData> value = 24;
+     * @generated from protobuf field: map<string, symbol.bench.ValueData> value = 18;
      */
     value: {
         [key: string]: ValueData;
     };
+    /**
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
+     */
+    environmentType: EnvironmentType;
     /**
      * @generated from protobuf field: string name = 31;
      */
@@ -2712,7 +2753,7 @@ export interface GradientStyleData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
      */
     environmentType: EnvironmentType;
     /**
@@ -2959,15 +3000,15 @@ export interface InterruptionData {
      */
     updatedByPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
-     */
-    environmentType: EnvironmentType;
-    /**
-     * @generated from protobuf field: map<string, symbol.bench.ValueData> value = 24;
+     * @generated from protobuf field: map<string, symbol.bench.ValueData> value = 18;
      */
     value: {
         [key: string]: ValueData;
     };
+    /**
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
+     */
+    environmentType: EnvironmentType;
     /**
      * @generated from protobuf field: symbol.bench.InterruptionType type = 30;
      */
@@ -3085,15 +3126,15 @@ export interface LabelViewData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
-     */
-    environmentType: EnvironmentType;
-    /**
-     * @generated from protobuf field: map<string, symbol.bench.ValueData> value = 24;
+     * @generated from protobuf field: map<string, symbol.bench.ValueData> value = 18;
      */
     value: {
         [key: string]: ValueData;
     };
+    /**
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
+     */
+    environmentType: EnvironmentType;
     /**
      * @generated from protobuf field: string name = 31;
      */
@@ -3467,11 +3508,11 @@ export interface LinkData {
      */
     updatedByPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
      */
     environmentType: EnvironmentType;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 19;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 22;
      */
     ownedByPtr?: NodeReferenceData;
     /**
@@ -3566,7 +3607,7 @@ export interface LogData {
      */
     packagePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
      */
     environmentType: EnvironmentType;
     /**
@@ -3614,11 +3655,11 @@ export interface MachineData {
      */
     updatedByPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
      */
     environmentType: EnvironmentType;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 19;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 22;
      */
     ownedByPtr?: NodeReferenceData;
     /**
@@ -3745,11 +3786,11 @@ export interface MessageData {
      */
     deletedAt?: Timestamp;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
      */
     environmentType: EnvironmentType;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 19;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 22;
      */
     ownedByPtr?: NodeReferenceData;
     /**
@@ -3948,7 +3989,7 @@ export interface NumberInputViewData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
      */
     environmentType: EnvironmentType;
     /**
@@ -4221,11 +4262,11 @@ export interface PackageData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
      */
     environmentType: EnvironmentType;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 19;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 22;
      */
     ownedByPtr?: NodeReferenceData;
     /**
@@ -4386,17 +4427,17 @@ export interface PageData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
+     * @generated from protobuf field: optional string order_key = 19;
+     */
+    orderKey?: string;
+    /**
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
      */
     environmentType: EnvironmentType;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 19;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 22;
      */
     ownedByPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional string order_key = 23;
-     */
-    orderKey?: string;
     /**
      * @generated from protobuf field: optional symbol.bench.TextLineData title = 32;
      */
@@ -4689,7 +4730,7 @@ export interface QueryEventData {
      */
     packagePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
      */
     environmentType: EnvironmentType;
 }
@@ -4860,17 +4901,17 @@ export interface RouteData {
      */
     deletedAt?: Timestamp;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
+     * @generated from protobuf field: optional string order_key = 19;
+     */
+    orderKey?: string;
+    /**
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
      */
     environmentType: EnvironmentType;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 19;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 22;
      */
     ownedByPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional string order_key = 23;
-     */
-    orderKey?: string;
     /**
      * @generated from protobuf field: string name = 31;
      */
@@ -4935,15 +4976,15 @@ export interface RunData {
      */
     updatedByPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
-     */
-    environmentType: EnvironmentType;
-    /**
-     * @generated from protobuf field: map<string, symbol.bench.ValueData> value = 24;
+     * @generated from protobuf field: map<string, symbol.bench.ValueData> value = 18;
      */
     value: {
         [key: string]: ValueData;
     };
+    /**
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
+     */
+    environmentType: EnvironmentType;
     /**
      * @generated from protobuf field: symbol.bench.RunType type = 30;
      */
@@ -5060,17 +5101,17 @@ export interface SceneData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
+     * @generated from protobuf field: optional string order_key = 19;
+     */
+    orderKey?: string;
+    /**
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
      */
     environmentType: EnvironmentType;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 19;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 22;
      */
     ownedByPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional string order_key = 23;
-     */
-    orderKey?: string;
     /**
      * @generated from protobuf field: string name = 31;
      */
@@ -5228,13 +5269,13 @@ export interface SchemaData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
-     */
-    environmentType: EnvironmentType;
-    /**
-     * @generated from protobuf field: optional string order_key = 23;
+     * @generated from protobuf field: optional string order_key = 19;
      */
     orderKey?: string;
+    /**
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
+     */
+    environmentType: EnvironmentType;
     /**
      * @generated from protobuf field: string name = 31;
      */
@@ -5405,17 +5446,17 @@ export interface ServiceData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
+     * @generated from protobuf field: optional string order_key = 19;
+     */
+    orderKey?: string;
+    /**
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
      */
     environmentType: EnvironmentType;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 19;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 22;
      */
     ownedByPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional string order_key = 23;
-     */
-    orderKey?: string;
     /**
      * @generated from protobuf field: string name = 31;
      */
@@ -5529,7 +5570,7 @@ export interface ShadowStyleData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
      */
     environmentType: EnvironmentType;
     /**
@@ -5620,7 +5661,7 @@ export interface SliderInputViewData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
      */
     environmentType: EnvironmentType;
     /**
@@ -5776,7 +5817,7 @@ export interface SpaceData {
      */
     updatedByPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 19;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 22;
      */
     ownedByPtr?: NodeReferenceData;
     /**
@@ -5913,7 +5954,7 @@ export interface SpanData {
      */
     packagePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
      */
     environmentType: EnvironmentType;
 }
@@ -5968,15 +6009,15 @@ export interface SplitViewData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
-     */
-    environmentType: EnvironmentType;
-    /**
-     * @generated from protobuf field: map<string, symbol.bench.ValueData> value = 24;
+     * @generated from protobuf field: map<string, symbol.bench.ValueData> value = 18;
      */
     value: {
         [key: string]: ValueData;
     };
+    /**
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
+     */
+    environmentType: EnvironmentType;
     /**
      * @generated from protobuf field: string name = 31;
      */
@@ -6403,17 +6444,17 @@ export interface TaskData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
+     * @generated from protobuf field: optional string order_key = 19;
+     */
+    orderKey?: string;
+    /**
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
      */
     environmentType: EnvironmentType;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 19;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 22;
      */
     ownedByPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional string order_key = 23;
-     */
-    orderKey?: string;
     /**
      * @generated from protobuf field: optional symbol.bench.TextLineData title = 32;
      */
@@ -6613,7 +6654,7 @@ export interface TextViewData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
      */
     environmentType: EnvironmentType;
     /**
@@ -6792,13 +6833,13 @@ export interface ThemeData {
      */
     deletedAt?: Timestamp;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
-     */
-    environmentType: EnvironmentType;
-    /**
-     * @generated from protobuf field: optional string order_key = 23;
+     * @generated from protobuf field: optional string order_key = 19;
      */
     orderKey?: string;
+    /**
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
+     */
+    environmentType: EnvironmentType;
     /**
      * @generated from protobuf field: string name = 31;
      */
@@ -6863,11 +6904,11 @@ export interface ThreadData {
      */
     deletedAt?: Timestamp;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
      */
     environmentType: EnvironmentType;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 19;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 22;
      */
     ownedByPtr?: NodeReferenceData;
     /**
@@ -6926,7 +6967,7 @@ export interface ThreadViewData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
      */
     environmentType: EnvironmentType;
     /**
@@ -7119,7 +7160,7 @@ export interface TransitionStyleData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
      */
     environmentType: EnvironmentType;
     /**
@@ -7409,12 +7450,12 @@ export interface Vector4Data {
     w: number;
 }
 /**
- * A Viewport for a User to interact with a Bench.
- * Viewports to all Benches are stored in the owning User's Bench.
+ * A Window for a User to interact with a Space.
+ * Windows to all Spaces are stored in the owning User's Space.
  *
- * @generated from protobuf message symbol.bench.ViewportData
+ * @generated from protobuf message symbol.bench.WindowData
  */
-export interface ViewportData {
+export interface WindowData {
     /**
      * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
      */
@@ -7460,17 +7501,17 @@ export interface ViewportData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 19;
-     */
-    ownedByPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional string order_key = 23;
+     * @generated from protobuf field: optional string order_key = 19;
      */
     orderKey?: string;
     /**
-     * @generated from protobuf field: symbol.bench.ViewportType type = 30;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData owned_by_ptr = 22;
      */
-    type: ViewportType;
+    ownedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbol.bench.WindowType type = 30;
+     */
+    type: WindowType;
     /**
      * @generated from protobuf field: optional string name = 31;
      */
@@ -7549,7 +7590,7 @@ export interface WizardViewData {
      */
     templatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
      */
     environmentType: EnvironmentType;
     /**
@@ -7685,11 +7726,11 @@ export interface SomeNodeData {
          */
         client: ClientData;
     } | {
-        oneofKind: "viewport";
+        oneofKind: "window";
         /**
-         * @generated from protobuf field: symbol.bench.ViewportData viewport = 600;
+         * @generated from protobuf field: symbol.bench.WindowData window = 600;
          */
-        viewport: ViewportData;
+        window: WindowData;
     } | {
         oneofKind: "scene";
         /**
@@ -7841,17 +7882,17 @@ export interface SomeNodeData {
          */
         link: LinkData;
     } | {
-        oneofKind: "customNodeDefinition";
+        oneofKind: "customEntityDefinition";
         /**
-         * @generated from protobuf field: symbol.bench.CustomNodeDefinitionData custom_node_definition = 2200;
+         * @generated from protobuf field: symbol.bench.CustomEntityDefinitionData custom_entity_definition = 2200;
          */
-        customNodeDefinition: CustomNodeDefinitionData;
+        customEntityDefinition: CustomEntityDefinitionData;
     } | {
-        oneofKind: "customNode";
+        oneofKind: "customEntity";
         /**
-         * @generated from protobuf field: symbol.bench.CustomNodeData custom_node = 2201;
+         * @generated from protobuf field: symbol.bench.CustomEntityData custom_entity = 2201;
          */
-        customNode: CustomNodeData;
+        customEntity: CustomEntityData;
     } | {
         oneofKind: "thread";
         /**
@@ -7876,6 +7917,18 @@ export interface SomeNodeData {
          * @generated from protobuf field: symbol.bench.LabelViewData label_view = 8101;
          */
         labelView: LabelViewData;
+    } | {
+        oneofKind: "customViewDefinition";
+        /**
+         * @generated from protobuf field: symbol.bench.CustomViewDefinitionData custom_view_definition = 8110;
+         */
+        customViewDefinition: CustomViewDefinitionData;
+    } | {
+        oneofKind: "customView";
+        /**
+         * @generated from protobuf field: symbol.bench.CustomViewData custom_view = 8111;
+         */
+        customView: CustomViewData;
     } | {
         oneofKind: "splitView";
         /**
@@ -9088,9 +9141,9 @@ export enum EnumType {
      */
     CLIENT_TYPE = 231,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_VIEWPORT_TYPE = 601;
+     * @generated from protobuf enum value: ENUM_TYPE_WINDOW_TYPE = 601;
      */
-    VIEWPORT_TYPE = 601,
+    WINDOW_TYPE = 601,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_BLOCK_TYPE = 611;
      */
@@ -10660,9 +10713,9 @@ export enum NodeType {
      */
     CLIENT = 300,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_VIEWPORT = 600;
+     * @generated from protobuf enum value: NODE_TYPE_WINDOW = 600;
      */
-    VIEWPORT = 600,
+    WINDOW = 600,
     /**
      * @generated from protobuf enum value: NODE_TYPE_SCENE = 610;
      */
@@ -10764,13 +10817,13 @@ export enum NodeType {
      */
     LINK = 2050,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_NODE_DEFINITION = 2200;
+     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_ENTITY_DEFINITION = 2200;
      */
-    CUSTOM_NODE_DEFINITION = 2200,
+    CUSTOM_ENTITY_DEFINITION = 2200,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_NODE = 2201;
+     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_ENTITY = 2201;
      */
-    CUSTOM_NODE = 2201,
+    CUSTOM_ENTITY = 2201,
     /**
      * @generated from protobuf enum value: NODE_TYPE_THREAD = 2400;
      */
@@ -10787,6 +10840,14 @@ export enum NodeType {
      * @generated from protobuf enum value: NODE_TYPE_LABEL_VIEW = 8101;
      */
     LABEL_VIEW = 8101,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_VIEW_DEFINITION = 8110;
+     */
+    CUSTOM_VIEW_DEFINITION = 8110,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_VIEW = 8111;
+     */
+    CUSTOM_VIEW = 8111,
     /**
      * @generated from protobuf enum value: NODE_TYPE_SPLIT_VIEW = 8120;
      */
@@ -12312,9 +12373,25 @@ export enum TraitType {
      */
     DELETABLE = 12,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_HAS_ENVIRONMENT = 20;
+     * @generated from protobuf enum value: TRAIT_TYPE_TEMPLATABLE = 13;
      */
-    HAS_ENVIRONMENT = 20,
+    TEMPLATABLE = 13,
+    /**
+     * @generated from protobuf enum value: TRAIT_TYPE_EXTENSIBLE = 14;
+     */
+    EXTENSIBLE = 14,
+    /**
+     * @generated from protobuf enum value: TRAIT_TYPE_CUSTOM_NODE_DEFINITION = 15;
+     */
+    CUSTOM_NODE_DEFINITION = 15,
+    /**
+     * @generated from protobuf enum value: TRAIT_TYPE_CUSTOM_NODE = 16;
+     */
+    CUSTOM_NODE = 16,
+    /**
+     * @generated from protobuf enum value: TRAIT_TYPE_ENVIRONMENTAL = 20;
+     */
+    ENVIRONMENTAL = 20,
     /**
      * @generated from protobuf enum value: TRAIT_TYPE_HAS_NAME = 21;
      */
@@ -12335,14 +12412,6 @@ export enum TraitType {
      * @generated from protobuf enum value: TRAIT_TYPE_ORDERED = 25;
      */
     ORDERED = 25,
-    /**
-     * @generated from protobuf enum value: TRAIT_TYPE_TEMPLATABLE = 30;
-     */
-    TEMPLATABLE = 30,
-    /**
-     * @generated from protobuf enum value: TRAIT_TYPE_EXTENSIBLE = 32;
-     */
-    EXTENSIBLE = 32,
     /**
      * @generated from protobuf enum value: TRAIT_TYPE_IN_SPACE = 40;
      */
@@ -12523,23 +12592,23 @@ export enum VariableType {
     FIELD = 10
 }
 /**
- * @generated from protobuf enum symbol.bench.ViewportType
+ * @generated from protobuf enum symbol.bench.WindowType
  */
-export enum ViewportType {
+export enum WindowType {
     /**
-     * @generated from protobuf enum value: VIEWPORT_TYPE_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: WINDOW_TYPE_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: VIEWPORT_TYPE_BROWSER = 10;
+     * @generated from protobuf enum value: WINDOW_TYPE_BROWSER = 10;
      */
     BROWSER = 10,
     /**
-     * @generated from protobuf enum value: VIEWPORT_TYPE_DESKTOP = 20;
+     * @generated from protobuf enum value: WINDOW_TYPE_DESKTOP = 20;
      */
     DESKTOP = 20,
     /**
-     * @generated from protobuf enum value: VIEWPORT_TYPE_MOBILE = 30;
+     * @generated from protobuf enum value: WINDOW_TYPE_MOBILE = 30;
      */
     MOBILE = 30
 }
@@ -12559,8 +12628,8 @@ class ActionData$Type extends MessageType$<ActionData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
-            { no: 23, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 19, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "cardinality", kind: "enum", T: () => ["symbol.bench.ActionCardinality", ActionCardinality, "ACTION_CARDINALITY_"] },
             { no: 41, name: "text", kind: "message", T: () => TextData },
@@ -12619,11 +12688,11 @@ class ActionData$Type extends MessageType$<ActionData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
-                    message.environmentType = reader.int32();
-                    break;
-                case /* optional string order_key */ 23:
+                case /* optional string order_key */ 19:
                     message.orderKey = reader.string();
+                    break;
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
+                    message.environmentType = reader.int32();
                     break;
                 case /* string name */ 31:
                     message.name = reader.string();
@@ -12685,12 +12754,12 @@ class ActionData$Type extends MessageType$<ActionData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
-        if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
-        /* optional string order_key = 23; */
+        /* optional string order_key = 19; */
         if (message.orderKey !== undefined)
-            writer.tag(23, WireType.LengthDelimited).string(message.orderKey);
+            writer.tag(19, WireType.LengthDelimited).string(message.orderKey);
+        /* symbol.bench.EnvironmentType environment_type = 20; */
+        if (message.environmentType !== 0)
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -12728,9 +12797,9 @@ class AgentData$Type extends MessageType$<AgentData> {
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
-            { no: 19, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 23, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 19, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
+            { no: 22, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
@@ -12786,14 +12855,14 @@ class AgentData$Type extends MessageType$<AgentData> {
                 case /* optional google.protobuf.Timestamp deleted_at */ 15:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
+                case /* optional string order_key */ 19:
+                    message.orderKey = reader.string();
+                    break;
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
                     message.environmentType = reader.int32();
                     break;
-                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 19:
+                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 22:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
-                    break;
-                case /* optional string order_key */ 23:
-                    message.orderKey = reader.string();
                     break;
                 case /* string name */ 31:
                     message.name = reader.string();
@@ -12855,15 +12924,15 @@ class AgentData$Type extends MessageType$<AgentData> {
         /* optional google.protobuf.Timestamp deleted_at = 15; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
-        if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
-        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 19; */
-        if (message.ownedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(19, WireType.LengthDelimited).fork(), options).join();
-        /* optional string order_key = 23; */
+        /* optional string order_key = 19; */
         if (message.orderKey !== undefined)
-            writer.tag(23, WireType.LengthDelimited).string(message.orderKey);
+            writer.tag(19, WireType.LengthDelimited).string(message.orderKey);
+        /* symbol.bench.EnvironmentType environment_type = 20; */
+        if (message.environmentType !== 0)
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
+        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 22; */
+        if (message.ownedByPtr)
+            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -13179,8 +13248,8 @@ class BlockData$Type extends MessageType$<BlockData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
-            { no: 23, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 19, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.BlockType", BlockType, "BLOCK_TYPE_"] },
             { no: 40, name: "line", kind: "message", T: () => TextLineData },
             { no: 41, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
@@ -13238,11 +13307,11 @@ class BlockData$Type extends MessageType$<BlockData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
-                    message.environmentType = reader.int32();
-                    break;
-                case /* optional string order_key */ 23:
+                case /* optional string order_key */ 19:
                     message.orderKey = reader.string();
+                    break;
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
+                    message.environmentType = reader.int32();
                     break;
                 case /* symbol.bench.BlockType type */ 30:
                     message.type = reader.int32();
@@ -13304,12 +13373,12 @@ class BlockData$Type extends MessageType$<BlockData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
-        if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
-        /* optional string order_key = 23; */
+        /* optional string order_key = 19; */
         if (message.orderKey !== undefined)
-            writer.tag(23, WireType.LengthDelimited).string(message.orderKey);
+            writer.tag(19, WireType.LengthDelimited).string(message.orderKey);
+        /* symbol.bench.EnvironmentType environment_type = 20; */
+        if (message.environmentType !== 0)
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
         /* symbol.bench.BlockType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -13424,7 +13493,7 @@ class BorderStyleData$Type extends MessageType$<BorderStyleData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.BorderType", BorderType, "BORDER_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
@@ -13484,7 +13553,7 @@ class BorderStyleData$Type extends MessageType$<BorderStyleData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
                     message.environmentType = reader.int32();
                     break;
                 case /* symbol.bench.BorderType type */ 30:
@@ -13550,9 +13619,9 @@ class BorderStyleData$Type extends MessageType$<BorderStyleData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
+        /* symbol.bench.EnvironmentType environment_type = 20; */
         if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
         /* symbol.bench.BorderType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -13749,7 +13818,7 @@ class ChangeEventData$Type extends MessageType$<ChangeEventData> {
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "space_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 7, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] }
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] }
         ]);
     }
     create(value?: PartialMessage<ChangeEventData>): ChangeEventData {
@@ -13781,7 +13850,7 @@ class ChangeEventData$Type extends MessageType$<ChangeEventData> {
                 case /* optional symbol.bench.NodeReferenceData package_ptr */ 7:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
                     message.environmentType = reader.int32();
                     break;
                 default:
@@ -13811,9 +13880,9 @@ class ChangeEventData$Type extends MessageType$<ChangeEventData> {
         /* optional symbol.bench.NodeReferenceData package_ptr = 7; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
+        /* symbol.bench.EnvironmentType environment_type = 20; */
         if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -14253,7 +14322,7 @@ class ColorStyleData$Type extends MessageType$<ColorStyleData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.ColorType", ColorType, "COLOR_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 42, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
@@ -14318,7 +14387,7 @@ class ColorStyleData$Type extends MessageType$<ColorStyleData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
                     message.environmentType = reader.int32();
                     break;
                 case /* symbol.bench.ColorType type */ 30:
@@ -14399,9 +14468,9 @@ class ColorStyleData$Type extends MessageType$<ColorStyleData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
+        /* symbol.bench.EnvironmentType environment_type = 20; */
         if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
         /* symbol.bench.ColorType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -14607,8 +14676,8 @@ class CursorData$Type extends MessageType$<CursorData> {
             { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
-            { no: 19, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
+            { no: 22, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.CursorType", CursorType, "CURSOR_TYPE_"] },
             { no: 32, name: "title", kind: "message", T: () => TextLineData },
             { no: 40, name: "status", kind: "enum", T: () => ["symbol.bench.CursorStatus", CursorStatus, "CURSOR_STATUS_"] },
@@ -14671,10 +14740,10 @@ class CursorData$Type extends MessageType$<CursorData> {
                 case /* optional google.protobuf.Timestamp deleted_at */ 15:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
                     message.environmentType = reader.int32();
                     break;
-                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 19:
+                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 22:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
                     break;
                 case /* symbol.bench.CursorType type */ 30:
@@ -14758,12 +14827,12 @@ class CursorData$Type extends MessageType$<CursorData> {
         /* optional google.protobuf.Timestamp deleted_at = 15; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
+        /* symbol.bench.EnvironmentType environment_type = 20; */
         if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
-        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 19; */
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
+        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 22; */
         if (message.ownedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(19, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
         /* symbol.bench.CursorType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -14813,6 +14882,282 @@ class CursorData$Type extends MessageType$<CursorData> {
  * @generated MessageType for protobuf message symbol.bench.CursorData
  */
 export const CursorData = new CursorData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class CustomEntityData$Type extends MessageType$<CustomEntityData> {
+    constructor() {
+        super("symbol.bench.CustomEntityData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 6, name: "space_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 17, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 18, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueData } },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] }
+        ]);
+    }
+    create(value?: PartialMessage<CustomEntityData>): CustomEntityData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.value = {};
+        message.environmentType = 0;
+        if (value !== undefined)
+            reflectionMergePartial<CustomEntityData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CustomEntityData): CustomEntityData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.NodeType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* optional symbol.bench.NodeReferenceData parent_ptr */ 4:
+                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData space_ptr */ 6:
+                    message.spacePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData package_ptr */ 7:
+                    message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 15:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* symbol.bench.NodeReferenceData definition_ptr */ 17:
+                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                case /* map<string, symbol.bench.ValueData> value */ 18:
+                    this.binaryReadMap18(message.value, reader, options);
+                    break;
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
+                    message.environmentType = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    private binaryReadMap18(map: CustomEntityData["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
+        let len = reader.uint32(), end = reader.pos + len, key: keyof CustomEntityData["value"] | undefined, val: CustomEntityData["value"][any] | undefined;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case 1:
+                    key = reader.string();
+                    break;
+                case 2:
+                    val = ValueData.internalBinaryRead(reader, reader.uint32(), options);
+                    break;
+                default: throw new globalThis.Error("unknown map entry field for field symbol.bench.CustomEntityData.value");
+            }
+        }
+        map[key ?? ""] = val ?? ValueData.create();
+    }
+    internalBinaryWrite(message: CustomEntityData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.NodeType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbol.bench.NodeReferenceData parent_ptr = 4; */
+        if (message.parentPtr)
+            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData space_ptr = 6; */
+        if (message.spacePtr)
+            NodeReferenceData.internalBinaryWrite(message.spacePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData package_ptr = 7; */
+        if (message.packagePtr)
+            NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 15; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.NodeReferenceData definition_ptr = 17; */
+        if (message.definitionPtr)
+            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(17, WireType.LengthDelimited).fork(), options).join();
+        /* map<string, symbol.bench.ValueData> value = 18; */
+        for (let k of globalThis.Object.keys(message.value)) {
+            writer.tag(18, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
+            writer.tag(2, WireType.LengthDelimited).fork();
+            ValueData.internalBinaryWrite(message.value[k], writer, options);
+            writer.join().join();
+        }
+        /* symbol.bench.EnvironmentType environment_type = 20; */
+        if (message.environmentType !== 0)
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.CustomEntityData
+ */
+export const CustomEntityData = new CustomEntityData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class CustomEntityDefinitionData$Type extends MessageType$<CustomEntityDefinitionData> {
+    constructor() {
+        super("symbol.bench.CustomEntityDefinitionData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 6, name: "space_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 19, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
+            { no: 22, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "traits", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.bench.TraitType", TraitType, "TRAIT_TYPE_"] },
+            { no: 200, name: "script_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 210, name: "source_ptr", kind: "message", T: () => NodeReferenceData }
+        ]);
+    }
+    create(value?: PartialMessage<CustomEntityDefinitionData>): CustomEntityDefinitionData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.environmentType = 0;
+        message.name = "";
+        message.traits = [];
+        if (value !== undefined)
+            reflectionMergePartial<CustomEntityDefinitionData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CustomEntityDefinitionData): CustomEntityDefinitionData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.NodeType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* optional symbol.bench.NodeReferenceData parent_ptr */ 4:
+                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData space_ptr */ 6:
+                    message.spacePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData package_ptr */ 7:
+                    message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 15:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional string order_key */ 19:
+                    message.orderKey = reader.string();
+                    break;
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
+                    message.environmentType = reader.int32();
+                    break;
+                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 22:
+                    message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
+                    break;
+                case /* string name */ 31:
+                    message.name = reader.string();
+                    break;
+                case /* optional symbol.bench.NodeReferenceData block_ptr */ 35:
+                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
+                    break;
+                case /* repeated symbol.bench.TraitType traits */ 40:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.traits.push(reader.int32());
+                    else
+                        message.traits.push(reader.int32());
+                    break;
+                case /* optional symbol.bench.NodeReferenceData script_ptr */ 200:
+                    message.scriptPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.scriptPtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData source_ptr */ 210:
+                    message.sourcePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.sourcePtr);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: CustomEntityDefinitionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.NodeType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbol.bench.NodeReferenceData parent_ptr = 4; */
+        if (message.parentPtr)
+            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData space_ptr = 6; */
+        if (message.spacePtr)
+            NodeReferenceData.internalBinaryWrite(message.spacePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData package_ptr = 7; */
+        if (message.packagePtr)
+            NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 15; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* optional string order_key = 19; */
+        if (message.orderKey !== undefined)
+            writer.tag(19, WireType.LengthDelimited).string(message.orderKey);
+        /* symbol.bench.EnvironmentType environment_type = 20; */
+        if (message.environmentType !== 0)
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
+        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 22; */
+        if (message.ownedByPtr)
+            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* string name = 31; */
+        if (message.name !== "")
+            writer.tag(31, WireType.LengthDelimited).string(message.name);
+        /* optional symbol.bench.NodeReferenceData block_ptr = 35; */
+        if (message.blockPtr)
+            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbol.bench.TraitType traits = 40; */
+        if (message.traits.length) {
+            writer.tag(40, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.traits.length; i++)
+                writer.int32(message.traits[i]);
+            writer.join();
+        }
+        /* optional symbol.bench.NodeReferenceData script_ptr = 200; */
+        if (message.scriptPtr)
+            NodeReferenceData.internalBinaryWrite(message.scriptPtr, writer.tag(200, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData source_ptr = 210; */
+        if (message.sourcePtr)
+            NodeReferenceData.internalBinaryWrite(message.sourcePtr, writer.tag(210, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.CustomEntityDefinitionData
+ */
+export const CustomEntityDefinitionData = new CustomEntityDefinitionData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CustomEventData$Type extends MessageType$<CustomEventData> {
     constructor() {
@@ -14995,31 +15340,24 @@ class CustomEventDefinitionData$Type extends MessageType$<CustomEventDefinitionD
  */
 export const CustomEventDefinitionData = new CustomEventDefinitionData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class CustomNodeData$Type extends MessageType$<CustomNodeData> {
+class CustomViewData$Type extends MessageType$<CustomViewData> {
     constructor() {
-        super("symbol.bench.CustomNodeData", [
+        super("symbol.bench.CustomViewData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 6, name: "space_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 7, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
-            { no: 24, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueData } },
-            { no: 40, name: "definition_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 17, name: "definition_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
-    create(value?: PartialMessage<CustomNodeData>): CustomNodeData {
+    create(value?: PartialMessage<CustomViewData>): CustomViewData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.environmentType = 0;
-        message.value = {};
         if (value !== undefined)
-            reflectionMergePartial<CustomNodeData>(this, message, value);
+            reflectionMergePartial<CustomViewData>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CustomNodeData): CustomNodeData {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CustomViewData): CustomViewData {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -15033,22 +15371,7 @@ class CustomNodeData$Type extends MessageType$<CustomNodeData> {
                 case /* optional symbol.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
-                case /* optional symbol.bench.NodeReferenceData space_ptr */ 6:
-                    message.spacePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData package_ptr */ 7:
-                    message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
-                    break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 15:
-                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
-                    break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
-                    message.environmentType = reader.int32();
-                    break;
-                case /* map<string, symbol.bench.ValueData> value */ 24:
-                    this.binaryReadMap24(message.value, reader, options);
-                    break;
-                case /* symbol.bench.NodeReferenceData definition_ptr */ 40:
+                case /* symbol.bench.NodeReferenceData definition_ptr */ 17:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
                 default:
@@ -15062,23 +15385,7 @@ class CustomNodeData$Type extends MessageType$<CustomNodeData> {
         }
         return message;
     }
-    private binaryReadMap24(map: CustomNodeData["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
-        let len = reader.uint32(), end = reader.pos + len, key: keyof CustomNodeData["value"] | undefined, val: CustomNodeData["value"][any] | undefined;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case 1:
-                    key = reader.string();
-                    break;
-                case 2:
-                    val = ValueData.internalBinaryRead(reader, reader.uint32(), options);
-                    break;
-                default: throw new globalThis.Error("unknown map entry field for field symbol.bench.CustomNodeData.value");
-            }
-        }
-        map[key ?? ""] = val ?? ValueData.create();
-    }
-    internalBinaryWrite(message: CustomNodeData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: CustomViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
@@ -15088,28 +15395,9 @@ class CustomNodeData$Type extends MessageType$<CustomNodeData> {
         /* optional symbol.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData space_ptr = 6; */
-        if (message.spacePtr)
-            NodeReferenceData.internalBinaryWrite(message.spacePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData package_ptr = 7; */
-        if (message.packagePtr)
-            NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 15; */
-        if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
-        if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
-        /* map<string, symbol.bench.ValueData> value = 24; */
-        for (let k of globalThis.Object.keys(message.value)) {
-            writer.tag(24, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
-            writer.tag(2, WireType.LengthDelimited).fork();
-            ValueData.internalBinaryWrite(message.value[k], writer, options);
-            writer.join().join();
-        }
-        /* symbol.bench.NodeReferenceData definition_ptr = 40; */
+        /* symbol.bench.NodeReferenceData definition_ptr = 17; */
         if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(17, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -15117,41 +15405,27 @@ class CustomNodeData$Type extends MessageType$<CustomNodeData> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbol.bench.CustomNodeData
+ * @generated MessageType for protobuf message symbol.bench.CustomViewData
  */
-export const CustomNodeData = new CustomNodeData$Type();
+export const CustomViewData = new CustomViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class CustomNodeDefinitionData$Type extends MessageType$<CustomNodeDefinitionData> {
+class CustomViewDefinitionData$Type extends MessageType$<CustomViewDefinitionData> {
     constructor() {
-        super("symbol.bench.CustomNodeDefinitionData", [
+        super("symbol.bench.CustomViewDefinitionData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 6, name: "space_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 7, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
-            { no: 19, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 23, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 40, name: "traits", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.bench.TraitType", TraitType, "TRAIT_TYPE_"] },
-            { no: 200, name: "script_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 210, name: "source_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
-    create(value?: PartialMessage<CustomNodeDefinitionData>): CustomNodeDefinitionData {
+    create(value?: PartialMessage<CustomViewDefinitionData>): CustomViewDefinitionData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.environmentType = 0;
-        message.name = "";
-        message.traits = [];
         if (value !== undefined)
-            reflectionMergePartial<CustomNodeDefinitionData>(this, message, value);
+            reflectionMergePartial<CustomViewDefinitionData>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CustomNodeDefinitionData): CustomNodeDefinitionData {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CustomViewDefinitionData): CustomViewDefinitionData {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -15165,43 +15439,6 @@ class CustomNodeDefinitionData$Type extends MessageType$<CustomNodeDefinitionDat
                 case /* optional symbol.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
-                case /* optional symbol.bench.NodeReferenceData space_ptr */ 6:
-                    message.spacePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData package_ptr */ 7:
-                    message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
-                    break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 15:
-                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
-                    break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
-                    message.environmentType = reader.int32();
-                    break;
-                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 19:
-                    message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
-                    break;
-                case /* optional string order_key */ 23:
-                    message.orderKey = reader.string();
-                    break;
-                case /* string name */ 31:
-                    message.name = reader.string();
-                    break;
-                case /* optional symbol.bench.NodeReferenceData block_ptr */ 35:
-                    message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
-                    break;
-                case /* repeated symbol.bench.TraitType traits */ 40:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.traits.push(reader.int32());
-                    else
-                        message.traits.push(reader.int32());
-                    break;
-                case /* optional symbol.bench.NodeReferenceData script_ptr */ 200:
-                    message.scriptPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.scriptPtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData source_ptr */ 210:
-                    message.sourcePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.sourcePtr);
-                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -15213,7 +15450,7 @@ class CustomNodeDefinitionData$Type extends MessageType$<CustomNodeDefinitionDat
         }
         return message;
     }
-    internalBinaryWrite(message: CustomNodeDefinitionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: CustomViewDefinitionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
@@ -15223,43 +15460,6 @@ class CustomNodeDefinitionData$Type extends MessageType$<CustomNodeDefinitionDat
         /* optional symbol.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData space_ptr = 6; */
-        if (message.spacePtr)
-            NodeReferenceData.internalBinaryWrite(message.spacePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData package_ptr = 7; */
-        if (message.packagePtr)
-            NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 15; */
-        if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
-        if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
-        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 19; */
-        if (message.ownedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(19, WireType.LengthDelimited).fork(), options).join();
-        /* optional string order_key = 23; */
-        if (message.orderKey !== undefined)
-            writer.tag(23, WireType.LengthDelimited).string(message.orderKey);
-        /* string name = 31; */
-        if (message.name !== "")
-            writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.bench.NodeReferenceData block_ptr = 35; */
-        if (message.blockPtr)
-            NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbol.bench.TraitType traits = 40; */
-        if (message.traits.length) {
-            writer.tag(40, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.traits.length; i++)
-                writer.int32(message.traits[i]);
-            writer.join();
-        }
-        /* optional symbol.bench.NodeReferenceData script_ptr = 200; */
-        if (message.scriptPtr)
-            NodeReferenceData.internalBinaryWrite(message.scriptPtr, writer.tag(200, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData source_ptr = 210; */
-        if (message.sourcePtr)
-            NodeReferenceData.internalBinaryWrite(message.sourcePtr, writer.tag(210, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -15267,9 +15467,9 @@ class CustomNodeDefinitionData$Type extends MessageType$<CustomNodeDefinitionDat
     }
 }
 /**
- * @generated MessageType for protobuf message symbol.bench.CustomNodeDefinitionData
+ * @generated MessageType for protobuf message symbol.bench.CustomViewDefinitionData
  */
-export const CustomNodeDefinitionData = new CustomNodeDefinitionData$Type();
+export const CustomViewDefinitionData = new CustomViewDefinitionData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class DatabaseData$Type extends MessageType$<DatabaseData> {
     constructor() {
@@ -15282,8 +15482,8 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
             { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
-            { no: 19, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
+            { no: 22, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.DatabaseType", DatabaseType, "DATABASE_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "region", kind: "enum", T: () => ["symbol.bench.Region", Region, "REGION_"] },
@@ -15337,10 +15537,10 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
                 case /* optional symbol.bench.NodeReferenceData updated_by_ptr */ 13:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
                     message.environmentType = reader.int32();
                     break;
-                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 19:
+                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 22:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
                     break;
                 case /* symbol.bench.DatabaseType type */ 30:
@@ -15403,12 +15603,12 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
         /* optional symbol.bench.NodeReferenceData updated_by_ptr = 13; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
+        /* symbol.bench.EnvironmentType environment_type = 20; */
         if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
-        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 19; */
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
+        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 22; */
         if (message.ownedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(19, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
         /* symbol.bench.DatabaseType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -15728,7 +15928,7 @@ class EditEventData$Type extends MessageType$<EditEventData> {
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "space_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 7, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.EditType", EditType, "EDIT_TYPE_"] },
             { no: 31, name: "operation", kind: "enum", opt: true, T: () => ["symbol.bench.EditOperation", EditOperation, "EDIT_OPERATION_"] },
             { no: 32, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
@@ -15768,7 +15968,7 @@ class EditEventData$Type extends MessageType$<EditEventData> {
                 case /* optional symbol.bench.NodeReferenceData package_ptr */ 7:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
                     message.environmentType = reader.int32();
                     break;
                 case /* symbol.bench.EditType type */ 30:
@@ -15819,9 +16019,9 @@ class EditEventData$Type extends MessageType$<EditEventData> {
         /* optional symbol.bench.NodeReferenceData package_ptr = 7; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
+        /* symbol.bench.EnvironmentType environment_type = 20; */
         if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
         /* symbol.bench.EditType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -16029,7 +16229,7 @@ class EffectStyleData$Type extends MessageType$<EffectStyleData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.EffectType", EffectType, "EFFECT_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
@@ -16101,7 +16301,7 @@ class EffectStyleData$Type extends MessageType$<EffectStyleData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
                     message.environmentType = reader.int32();
                     break;
                 case /* symbol.bench.EffectType type */ 30:
@@ -16203,9 +16403,9 @@ class EffectStyleData$Type extends MessageType$<EffectStyleData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
+        /* symbol.bench.EnvironmentType environment_type = 20; */
         if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
         /* symbol.bench.EffectType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -16628,8 +16828,8 @@ class FieldData$Type extends MessageType$<FieldData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
-            { no: 23, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 19, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.FieldType", FieldType, "FIELD_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
@@ -16708,11 +16908,11 @@ class FieldData$Type extends MessageType$<FieldData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
-                    message.environmentType = reader.int32();
-                    break;
-                case /* optional string order_key */ 23:
+                case /* optional string order_key */ 19:
                     message.orderKey = reader.string();
+                    break;
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
+                    message.environmentType = reader.int32();
                     break;
                 case /* symbol.bench.FieldType type */ 30:
                     message.type = reader.int32();
@@ -16828,12 +17028,12 @@ class FieldData$Type extends MessageType$<FieldData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
-        if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
-        /* optional string order_key = 23; */
+        /* optional string order_key = 19; */
         if (message.orderKey !== undefined)
-            writer.tag(23, WireType.LengthDelimited).string(message.orderKey);
+            writer.tag(19, WireType.LengthDelimited).string(message.orderKey);
+        /* symbol.bench.EnvironmentType environment_type = 20; */
+        if (message.environmentType !== 0)
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
         /* symbol.bench.FieldType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -16923,8 +17123,8 @@ class FileData$Type extends MessageType$<FileData> {
             { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
-            { no: 19, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
+            { no: 22, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.FileType", FileType, "FILE_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 60, name: "source", kind: "enum", T: () => ["symbol.bench.FileSource", FileSource, "FILE_SOURCE_"] },
@@ -16993,10 +17193,10 @@ class FileData$Type extends MessageType$<FileData> {
                 case /* optional symbol.bench.NodeReferenceData updated_by_ptr */ 13:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
                     message.environmentType = reader.int32();
                     break;
-                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 19:
+                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 22:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
                     break;
                 case /* symbol.bench.FileType type */ 30:
@@ -17101,12 +17301,12 @@ class FileData$Type extends MessageType$<FileData> {
         /* optional symbol.bench.NodeReferenceData updated_by_ptr = 13; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
+        /* symbol.bench.EnvironmentType environment_type = 20; */
         if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
-        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 19; */
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
+        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 22; */
         if (message.ownedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(19, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
         /* symbol.bench.FileType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -17404,7 +17604,7 @@ class FontStyleData$Type extends MessageType$<FontStyleData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.FontType", FontType, "FONT_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
@@ -17470,7 +17670,7 @@ class FontStyleData$Type extends MessageType$<FontStyleData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
                     message.environmentType = reader.int32();
                     break;
                 case /* symbol.bench.FontType type */ 30:
@@ -17554,9 +17754,9 @@ class FontStyleData$Type extends MessageType$<FontStyleData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
+        /* symbol.bench.EnvironmentType environment_type = 20; */
         if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
         /* symbol.bench.FontType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -17616,8 +17816,8 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
-            { no: 24, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueData } },
+            { no: 18, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueData } },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "position", kind: "message", T: () => PositionData },
             { no: 41, name: "width", kind: "message", T: () => DimensionData },
@@ -17667,8 +17867,8 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.environmentType = 0;
         message.value = {};
+        message.environmentType = 0;
         message.name = "";
         message.direction = { oneofKind: undefined };
         message.distribute = { oneofKind: undefined };
@@ -17729,11 +17929,11 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
-                    message.environmentType = reader.int32();
+                case /* map<string, symbol.bench.ValueData> value */ 18:
+                    this.binaryReadMap18(message.value, reader, options);
                     break;
-                case /* map<string, symbol.bench.ValueData> value */ 24:
-                    this.binaryReadMap24(message.value, reader, options);
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
+                    message.environmentType = reader.int32();
                     break;
                 case /* string name */ 31:
                     message.name = reader.string();
@@ -17959,7 +18159,7 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
         }
         return message;
     }
-    private binaryReadMap24(map: FrameViewData["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
+    private binaryReadMap18(map: FrameViewData["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
         let len = reader.uint32(), end = reader.pos + len, key: keyof FrameViewData["value"] | undefined, val: FrameViewData["value"][any] | undefined;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -18012,16 +18212,16 @@ class FrameViewData$Type extends MessageType$<FrameViewData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
-        if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
-        /* map<string, symbol.bench.ValueData> value = 24; */
+        /* map<string, symbol.bench.ValueData> value = 18; */
         for (let k of globalThis.Object.keys(message.value)) {
-            writer.tag(24, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
+            writer.tag(18, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
             writer.tag(2, WireType.LengthDelimited).fork();
             ValueData.internalBinaryWrite(message.value[k], writer, options);
             writer.join().join();
         }
+        /* symbol.bench.EnvironmentType environment_type = 20; */
+        if (message.environmentType !== 0)
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -18551,7 +18751,7 @@ class GradientStyleData$Type extends MessageType$<GradientStyleData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.GradientType", GradientType, "GRADIENT_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
@@ -18614,7 +18814,7 @@ class GradientStyleData$Type extends MessageType$<GradientStyleData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
                     message.environmentType = reader.int32();
                     break;
                 case /* symbol.bench.GradientType type */ 30:
@@ -18686,9 +18886,9 @@ class GradientStyleData$Type extends MessageType$<GradientStyleData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
+        /* symbol.bench.EnvironmentType environment_type = 20; */
         if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
         /* symbol.bench.GradientType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -19234,8 +19434,8 @@ class InterruptionData$Type extends MessageType$<InterruptionData> {
             { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
-            { no: 24, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueData } },
+            { no: 18, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueData } },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.InterruptionType", InterruptionType, "INTERRUPTION_TYPE_"] },
             { no: 32, name: "runnable_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 37, name: "span_ptr", kind: "message", T: () => NodeReferenceData },
@@ -19251,8 +19451,8 @@ class InterruptionData$Type extends MessageType$<InterruptionData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.environmentType = 0;
         message.value = {};
+        message.environmentType = 0;
         message.type = 0;
         message.status = 0;
         if (value !== undefined)
@@ -19291,11 +19491,11 @@ class InterruptionData$Type extends MessageType$<InterruptionData> {
                 case /* optional symbol.bench.NodeReferenceData updated_by_ptr */ 13:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
-                    message.environmentType = reader.int32();
+                case /* map<string, symbol.bench.ValueData> value */ 18:
+                    this.binaryReadMap18(message.value, reader, options);
                     break;
-                case /* map<string, symbol.bench.ValueData> value */ 24:
-                    this.binaryReadMap24(message.value, reader, options);
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
+                    message.environmentType = reader.int32();
                     break;
                 case /* symbol.bench.InterruptionType type */ 30:
                     message.type = reader.int32();
@@ -19335,7 +19535,7 @@ class InterruptionData$Type extends MessageType$<InterruptionData> {
         }
         return message;
     }
-    private binaryReadMap24(map: InterruptionData["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
+    private binaryReadMap18(map: InterruptionData["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
         let len = reader.uint32(), end = reader.pos + len, key: keyof InterruptionData["value"] | undefined, val: InterruptionData["value"][any] | undefined;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -19379,16 +19579,16 @@ class InterruptionData$Type extends MessageType$<InterruptionData> {
         /* optional symbol.bench.NodeReferenceData updated_by_ptr = 13; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
-        if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
-        /* map<string, symbol.bench.ValueData> value = 24; */
+        /* map<string, symbol.bench.ValueData> value = 18; */
         for (let k of globalThis.Object.keys(message.value)) {
-            writer.tag(24, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
+            writer.tag(18, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
             writer.tag(2, WireType.LengthDelimited).fork();
             ValueData.internalBinaryWrite(message.value[k], writer, options);
             writer.join().join();
         }
+        /* symbol.bench.EnvironmentType environment_type = 20; */
+        if (message.environmentType !== 0)
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
         /* symbol.bench.InterruptionType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -19525,8 +19725,8 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
-            { no: 24, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueData } },
+            { no: 18, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueData } },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "position", kind: "message", T: () => PositionData },
             { no: 41, name: "width", kind: "message", T: () => DimensionData },
@@ -19576,8 +19776,8 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.environmentType = 0;
         message.value = {};
+        message.environmentType = 0;
         message.name = "";
         message.direction = { oneofKind: undefined };
         message.distribute = { oneofKind: undefined };
@@ -19635,11 +19835,11 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
-                    message.environmentType = reader.int32();
+                case /* map<string, symbol.bench.ValueData> value */ 18:
+                    this.binaryReadMap18(message.value, reader, options);
                     break;
-                case /* map<string, symbol.bench.ValueData> value */ 24:
-                    this.binaryReadMap24(message.value, reader, options);
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
+                    message.environmentType = reader.int32();
                     break;
                 case /* string name */ 31:
                     message.name = reader.string();
@@ -19865,7 +20065,7 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
         }
         return message;
     }
-    private binaryReadMap24(map: LabelViewData["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
+    private binaryReadMap18(map: LabelViewData["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
         let len = reader.uint32(), end = reader.pos + len, key: keyof LabelViewData["value"] | undefined, val: LabelViewData["value"][any] | undefined;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -19915,16 +20115,16 @@ class LabelViewData$Type extends MessageType$<LabelViewData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
-        if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
-        /* map<string, symbol.bench.ValueData> value = 24; */
+        /* map<string, symbol.bench.ValueData> value = 18; */
         for (let k of globalThis.Object.keys(message.value)) {
-            writer.tag(24, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
+            writer.tag(18, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
             writer.tag(2, WireType.LengthDelimited).fork();
             ValueData.internalBinaryWrite(message.value[k], writer, options);
             writer.join().join();
         }
+        /* symbol.bench.EnvironmentType environment_type = 20; */
+        if (message.environmentType !== 0)
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -20140,8 +20340,8 @@ class LinkData$Type extends MessageType$<LinkData> {
             { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
-            { no: 19, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
+            { no: 22, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.LinkType", LinkType, "LINK_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "title", kind: "message", T: () => TextLineData },
@@ -20204,10 +20404,10 @@ class LinkData$Type extends MessageType$<LinkData> {
                 case /* optional symbol.bench.NodeReferenceData updated_by_ptr */ 13:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
                     message.environmentType = reader.int32();
                     break;
-                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 19:
+                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 22:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
                     break;
                 case /* symbol.bench.LinkType type */ 30:
@@ -20297,12 +20497,12 @@ class LinkData$Type extends MessageType$<LinkData> {
         /* optional symbol.bench.NodeReferenceData updated_by_ptr = 13; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
+        /* symbol.bench.EnvironmentType environment_type = 20; */
         if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
-        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 19; */
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
+        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 22; */
         if (message.ownedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(19, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
         /* symbol.bench.LinkType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -20370,7 +20570,7 @@ class LogData$Type extends MessageType$<LogData> {
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "space_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 7, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
             { no: 40, name: "content", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
@@ -20404,7 +20604,7 @@ class LogData$Type extends MessageType$<LogData> {
                 case /* optional symbol.bench.NodeReferenceData package_ptr */ 7:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
                     message.environmentType = reader.int32();
                     break;
                 case /* string content */ 40:
@@ -20437,9 +20637,9 @@ class LogData$Type extends MessageType$<LogData> {
         /* optional symbol.bench.NodeReferenceData package_ptr = 7; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
+        /* symbol.bench.EnvironmentType environment_type = 20; */
         if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
         /* string content = 40; */
         if (message.content !== "")
             writer.tag(40, WireType.LengthDelimited).string(message.content);
@@ -20465,8 +20665,8 @@ class MachineData$Type extends MessageType$<MachineData> {
             { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
-            { no: 19, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
+            { no: 22, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.MachineType", MachineType, "MACHINE_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "status", kind: "enum", T: () => ["symbol.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
@@ -20540,10 +20740,10 @@ class MachineData$Type extends MessageType$<MachineData> {
                 case /* optional symbol.bench.NodeReferenceData updated_by_ptr */ 13:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
                     message.environmentType = reader.int32();
                     break;
-                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 19:
+                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 22:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
                     break;
                 case /* symbol.bench.MachineType type */ 30:
@@ -20651,12 +20851,12 @@ class MachineData$Type extends MessageType$<MachineData> {
         /* optional symbol.bench.NodeReferenceData updated_by_ptr = 13; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
+        /* symbol.bench.EnvironmentType environment_type = 20; */
         if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
-        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 19; */
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
+        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 22; */
         if (message.ownedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(19, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
         /* symbol.bench.MachineType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -20746,8 +20946,8 @@ class MessageData$Type extends MessageType$<MessageData> {
             { no: 6, name: "space_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 7, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
-            { no: 19, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
+            { no: 22, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.MessageType", MessageType, "MESSAGE_TYPE_"] },
             { no: 32, name: "title", kind: "message", T: () => TextLineData },
             { no: 35, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
@@ -20791,10 +20991,10 @@ class MessageData$Type extends MessageType$<MessageData> {
                 case /* optional google.protobuf.Timestamp deleted_at */ 15:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
                     message.environmentType = reader.int32();
                     break;
-                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 19:
+                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 22:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
                     break;
                 case /* symbol.bench.MessageType type */ 30:
@@ -20851,12 +21051,12 @@ class MessageData$Type extends MessageType$<MessageData> {
         /* optional google.protobuf.Timestamp deleted_at = 15; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
+        /* symbol.bench.EnvironmentType environment_type = 20; */
         if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
-        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 19; */
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
+        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 22; */
         if (message.ownedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(19, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
         /* symbol.bench.MessageType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -21260,7 +21460,7 @@ class NumberInputViewData$Type extends MessageType$<NumberInputViewData> {
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "position", kind: "message", T: () => PositionData },
             { no: 41, name: "width", kind: "message", T: () => DimensionData },
@@ -21329,7 +21529,7 @@ class NumberInputViewData$Type extends MessageType$<NumberInputViewData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
                     message.environmentType = reader.int32();
                     break;
                 case /* string name */ 31:
@@ -21437,9 +21637,9 @@ class NumberInputViewData$Type extends MessageType$<NumberInputViewData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
+        /* symbol.bench.EnvironmentType environment_type = 20; */
         if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -21864,8 +22064,8 @@ class PackageData$Type extends MessageType$<PackageData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
-            { no: 19, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
+            { no: 22, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.PackageType", PackageType, "PACKAGE_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -21926,10 +22126,10 @@ class PackageData$Type extends MessageType$<PackageData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
                     message.environmentType = reader.int32();
                     break;
-                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 19:
+                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 22:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
                     break;
                 case /* symbol.bench.PackageType type */ 30:
@@ -21998,12 +22198,12 @@ class PackageData$Type extends MessageType$<PackageData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
+        /* symbol.bench.EnvironmentType environment_type = 20; */
         if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
-        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 19; */
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
+        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 22; */
         if (message.ownedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(19, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
         /* symbol.bench.PackageType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -22244,9 +22444,9 @@ class PageData$Type extends MessageType$<PageData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
-            { no: 19, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 23, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 19, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
+            { no: 22, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 32, name: "title", kind: "message", T: () => TextLineData },
             { no: 33, name: "slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
@@ -22303,14 +22503,14 @@ class PageData$Type extends MessageType$<PageData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
+                case /* optional string order_key */ 19:
+                    message.orderKey = reader.string();
+                    break;
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
                     message.environmentType = reader.int32();
                     break;
-                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 19:
+                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 22:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
-                    break;
-                case /* optional string order_key */ 23:
-                    message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.TextLineData title */ 32:
                     message.title = TextLineData.internalBinaryRead(reader, reader.uint32(), options, message.title);
@@ -22372,15 +22572,15 @@ class PageData$Type extends MessageType$<PageData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
-        if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
-        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 19; */
-        if (message.ownedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(19, WireType.LengthDelimited).fork(), options).join();
-        /* optional string order_key = 23; */
+        /* optional string order_key = 19; */
         if (message.orderKey !== undefined)
-            writer.tag(23, WireType.LengthDelimited).string(message.orderKey);
+            writer.tag(19, WireType.LengthDelimited).string(message.orderKey);
+        /* symbol.bench.EnvironmentType environment_type = 20; */
+        if (message.environmentType !== 0)
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
+        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 22; */
+        if (message.ownedByPtr)
+            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.TextLineData title = 32; */
         if (message.title)
             TextLineData.internalBinaryWrite(message.title, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
@@ -22992,7 +23192,7 @@ class QueryEventData$Type extends MessageType$<QueryEventData> {
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "space_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 7, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] }
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] }
         ]);
     }
     create(value?: PartialMessage<QueryEventData>): QueryEventData {
@@ -23024,7 +23224,7 @@ class QueryEventData$Type extends MessageType$<QueryEventData> {
                 case /* optional symbol.bench.NodeReferenceData package_ptr */ 7:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
                     message.environmentType = reader.int32();
                     break;
                 default:
@@ -23054,9 +23254,9 @@ class QueryEventData$Type extends MessageType$<QueryEventData> {
         /* optional symbol.bench.NodeReferenceData package_ptr = 7; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
+        /* symbol.bench.EnvironmentType environment_type = 20; */
         if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -23419,9 +23619,9 @@ class RouteData$Type extends MessageType$<RouteData> {
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
-            { no: 19, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 23, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 19, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
+            { no: 22, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
@@ -23477,14 +23677,14 @@ class RouteData$Type extends MessageType$<RouteData> {
                 case /* optional google.protobuf.Timestamp deleted_at */ 15:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
+                case /* optional string order_key */ 19:
+                    message.orderKey = reader.string();
+                    break;
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
                     message.environmentType = reader.int32();
                     break;
-                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 19:
+                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 22:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
-                    break;
-                case /* optional string order_key */ 23:
-                    message.orderKey = reader.string();
                     break;
                 case /* string name */ 31:
                     message.name = reader.string();
@@ -23546,15 +23746,15 @@ class RouteData$Type extends MessageType$<RouteData> {
         /* optional google.protobuf.Timestamp deleted_at = 15; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
-        if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
-        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 19; */
-        if (message.ownedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(19, WireType.LengthDelimited).fork(), options).join();
-        /* optional string order_key = 23; */
+        /* optional string order_key = 19; */
         if (message.orderKey !== undefined)
-            writer.tag(23, WireType.LengthDelimited).string(message.orderKey);
+            writer.tag(19, WireType.LengthDelimited).string(message.orderKey);
+        /* symbol.bench.EnvironmentType environment_type = 20; */
+        if (message.environmentType !== 0)
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
+        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 22; */
+        if (message.ownedByPtr)
+            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -23593,8 +23793,8 @@ class RunData$Type extends MessageType$<RunData> {
             { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
-            { no: 24, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueData } },
+            { no: 18, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueData } },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.RunType", RunType, "RUN_TYPE_"] },
             { no: 38, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 67, name: "runnable_ptr", kind: "message", T: () => NodeReferenceData },
@@ -23616,8 +23816,8 @@ class RunData$Type extends MessageType$<RunData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.environmentType = 0;
         message.value = {};
+        message.environmentType = 0;
         message.type = 0;
         message.status = 0;
         if (value !== undefined)
@@ -23656,11 +23856,11 @@ class RunData$Type extends MessageType$<RunData> {
                 case /* optional symbol.bench.NodeReferenceData updated_by_ptr */ 13:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
-                    message.environmentType = reader.int32();
+                case /* map<string, symbol.bench.ValueData> value */ 18:
+                    this.binaryReadMap18(message.value, reader, options);
                     break;
-                case /* map<string, symbol.bench.ValueData> value */ 24:
-                    this.binaryReadMap24(message.value, reader, options);
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
+                    message.environmentType = reader.int32();
                     break;
                 case /* symbol.bench.RunType type */ 30:
                     message.type = reader.int32();
@@ -23718,7 +23918,7 @@ class RunData$Type extends MessageType$<RunData> {
         }
         return message;
     }
-    private binaryReadMap24(map: RunData["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
+    private binaryReadMap18(map: RunData["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
         let len = reader.uint32(), end = reader.pos + len, key: keyof RunData["value"] | undefined, val: RunData["value"][any] | undefined;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -23762,16 +23962,16 @@ class RunData$Type extends MessageType$<RunData> {
         /* optional symbol.bench.NodeReferenceData updated_by_ptr = 13; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
-        if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
-        /* map<string, symbol.bench.ValueData> value = 24; */
+        /* map<string, symbol.bench.ValueData> value = 18; */
         for (let k of globalThis.Object.keys(message.value)) {
-            writer.tag(24, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
+            writer.tag(18, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
             writer.tag(2, WireType.LengthDelimited).fork();
             ValueData.internalBinaryWrite(message.value[k], writer, options);
             writer.join().join();
         }
+        /* symbol.bench.EnvironmentType environment_type = 20; */
+        if (message.environmentType !== 0)
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
         /* symbol.bench.RunType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -23843,9 +24043,9 @@ class SceneData$Type extends MessageType$<SceneData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
-            { no: 19, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 23, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 19, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
+            { no: 22, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
@@ -23906,14 +24106,14 @@ class SceneData$Type extends MessageType$<SceneData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
+                case /* optional string order_key */ 19:
+                    message.orderKey = reader.string();
+                    break;
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
                     message.environmentType = reader.int32();
                     break;
-                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 19:
+                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 22:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
-                    break;
-                case /* optional string order_key */ 23:
-                    message.orderKey = reader.string();
                     break;
                 case /* string name */ 31:
                     message.name = reader.string();
@@ -23984,15 +24184,15 @@ class SceneData$Type extends MessageType$<SceneData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
-        if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
-        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 19; */
-        if (message.ownedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(19, WireType.LengthDelimited).fork(), options).join();
-        /* optional string order_key = 23; */
+        /* optional string order_key = 19; */
         if (message.orderKey !== undefined)
-            writer.tag(23, WireType.LengthDelimited).string(message.orderKey);
+            writer.tag(19, WireType.LengthDelimited).string(message.orderKey);
+        /* symbol.bench.EnvironmentType environment_type = 20; */
+        if (message.environmentType !== 0)
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
+        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 22; */
+        if (message.ownedByPtr)
+            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -24291,8 +24491,8 @@ class SchemaData$Type extends MessageType$<SchemaData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
-            { no: 23, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 19, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
@@ -24350,11 +24550,11 @@ class SchemaData$Type extends MessageType$<SchemaData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
-                    message.environmentType = reader.int32();
-                    break;
-                case /* optional string order_key */ 23:
+                case /* optional string order_key */ 19:
                     message.orderKey = reader.string();
+                    break;
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
+                    message.environmentType = reader.int32();
                     break;
                 case /* string name */ 31:
                     message.name = reader.string();
@@ -24416,12 +24616,12 @@ class SchemaData$Type extends MessageType$<SchemaData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
-        if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
-        /* optional string order_key = 23; */
+        /* optional string order_key = 19; */
         if (message.orderKey !== undefined)
-            writer.tag(23, WireType.LengthDelimited).string(message.orderKey);
+            writer.tag(19, WireType.LengthDelimited).string(message.orderKey);
+        /* symbol.bench.EnvironmentType environment_type = 20; */
+        if (message.environmentType !== 0)
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -24758,9 +24958,9 @@ class ServiceData$Type extends MessageType$<ServiceData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
-            { no: 19, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 23, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 19, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
+            { no: 22, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 200, name: "script_ptr", kind: "message", T: () => NodeReferenceData },
@@ -24818,14 +25018,14 @@ class ServiceData$Type extends MessageType$<ServiceData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
+                case /* optional string order_key */ 19:
+                    message.orderKey = reader.string();
+                    break;
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
                     message.environmentType = reader.int32();
                     break;
-                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 19:
+                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 22:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
-                    break;
-                case /* optional string order_key */ 23:
-                    message.orderKey = reader.string();
                     break;
                 case /* string name */ 31:
                     message.name = reader.string();
@@ -24887,15 +25087,15 @@ class ServiceData$Type extends MessageType$<ServiceData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
-        if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
-        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 19; */
-        if (message.ownedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(19, WireType.LengthDelimited).fork(), options).join();
-        /* optional string order_key = 23; */
+        /* optional string order_key = 19; */
         if (message.orderKey !== undefined)
-            writer.tag(23, WireType.LengthDelimited).string(message.orderKey);
+            writer.tag(19, WireType.LengthDelimited).string(message.orderKey);
+        /* symbol.bench.EnvironmentType environment_type = 20; */
+        if (message.environmentType !== 0)
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
+        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 22; */
+        if (message.ownedByPtr)
+            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -25039,7 +25239,7 @@ class ShadowStyleData$Type extends MessageType$<ShadowStyleData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.ShadowType", ShadowType, "SHADOW_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
@@ -25104,7 +25304,7 @@ class ShadowStyleData$Type extends MessageType$<ShadowStyleData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
                     message.environmentType = reader.int32();
                     break;
                 case /* symbol.bench.ShadowType type */ 30:
@@ -25182,9 +25382,9 @@ class ShadowStyleData$Type extends MessageType$<ShadowStyleData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
+        /* symbol.bench.EnvironmentType environment_type = 20; */
         if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
         /* symbol.bench.ShadowType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -25237,7 +25437,7 @@ class SliderInputViewData$Type extends MessageType$<SliderInputViewData> {
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "position", kind: "message", T: () => PositionData },
             { no: 41, name: "width", kind: "message", T: () => DimensionData },
@@ -25308,7 +25508,7 @@ class SliderInputViewData$Type extends MessageType$<SliderInputViewData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
                     message.environmentType = reader.int32();
                     break;
                 case /* string name */ 31:
@@ -25422,9 +25622,9 @@ class SliderInputViewData$Type extends MessageType$<SliderInputViewData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
+        /* symbol.bench.EnvironmentType environment_type = 20; */
         if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -25570,7 +25770,7 @@ class SpaceData$Type extends MessageType$<SpaceData> {
             { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 19, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
@@ -25622,7 +25822,7 @@ class SpaceData$Type extends MessageType$<SpaceData> {
                 case /* optional symbol.bench.NodeReferenceData updated_by_ptr */ 13:
                     message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 19:
+                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 22:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
                     break;
                 case /* string name */ 31:
@@ -25688,9 +25888,9 @@ class SpaceData$Type extends MessageType$<SpaceData> {
         /* optional symbol.bench.NodeReferenceData updated_by_ptr = 13; */
         if (message.updatedByPtr)
             NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 19; */
+        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 22; */
         if (message.ownedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(19, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -25919,7 +26119,7 @@ class SpanData$Type extends MessageType$<SpanData> {
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 6, name: "space_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 7, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] }
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] }
         ]);
     }
     create(value?: PartialMessage<SpanData>): SpanData {
@@ -25951,7 +26151,7 @@ class SpanData$Type extends MessageType$<SpanData> {
                 case /* optional symbol.bench.NodeReferenceData package_ptr */ 7:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
                     message.environmentType = reader.int32();
                     break;
                 default:
@@ -25981,9 +26181,9 @@ class SpanData$Type extends MessageType$<SpanData> {
         /* optional symbol.bench.NodeReferenceData package_ptr = 7; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
+        /* symbol.bench.EnvironmentType environment_type = 20; */
         if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -26009,8 +26209,8 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
-            { no: 24, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueData } },
+            { no: 18, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueData } },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "position", kind: "message", T: () => PositionData },
             { no: 41, name: "width", kind: "message", T: () => DimensionData },
@@ -26060,8 +26260,8 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.environmentType = 0;
         message.value = {};
+        message.environmentType = 0;
         message.name = "";
         message.direction = { oneofKind: undefined };
         message.distribute = { oneofKind: undefined };
@@ -26119,11 +26319,11 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
-                    message.environmentType = reader.int32();
+                case /* map<string, symbol.bench.ValueData> value */ 18:
+                    this.binaryReadMap18(message.value, reader, options);
                     break;
-                case /* map<string, symbol.bench.ValueData> value */ 24:
-                    this.binaryReadMap24(message.value, reader, options);
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
+                    message.environmentType = reader.int32();
                     break;
                 case /* string name */ 31:
                     message.name = reader.string();
@@ -26349,7 +26549,7 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
         }
         return message;
     }
-    private binaryReadMap24(map: SplitViewData["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
+    private binaryReadMap18(map: SplitViewData["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
         let len = reader.uint32(), end = reader.pos + len, key: keyof SplitViewData["value"] | undefined, val: SplitViewData["value"][any] | undefined;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -26399,16 +26599,16 @@ class SplitViewData$Type extends MessageType$<SplitViewData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
-        if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
-        /* map<string, symbol.bench.ValueData> value = 24; */
+        /* map<string, symbol.bench.ValueData> value = 18; */
         for (let k of globalThis.Object.keys(message.value)) {
-            writer.tag(24, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
+            writer.tag(18, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
             writer.tag(2, WireType.LengthDelimited).fork();
             ValueData.internalBinaryWrite(message.value[k], writer, options);
             writer.join().join();
         }
+        /* symbol.bench.EnvironmentType environment_type = 20; */
+        if (message.environmentType !== 0)
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -26732,9 +26932,9 @@ class TaskData$Type extends MessageType$<TaskData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
-            { no: 19, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 23, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 19, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
+            { no: 22, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 32, name: "title", kind: "message", T: () => TextLineData },
             { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "due_at", kind: "message", T: () => Timestamp },
@@ -26791,14 +26991,14 @@ class TaskData$Type extends MessageType$<TaskData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
+                case /* optional string order_key */ 19:
+                    message.orderKey = reader.string();
+                    break;
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
                     message.environmentType = reader.int32();
                     break;
-                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 19:
+                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 22:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
-                    break;
-                case /* optional string order_key */ 23:
-                    message.orderKey = reader.string();
                     break;
                 case /* optional symbol.bench.TextLineData title */ 32:
                     message.title = TextLineData.internalBinaryRead(reader, reader.uint32(), options, message.title);
@@ -26860,15 +27060,15 @@ class TaskData$Type extends MessageType$<TaskData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
-        if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
-        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 19; */
-        if (message.ownedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(19, WireType.LengthDelimited).fork(), options).join();
-        /* optional string order_key = 23; */
+        /* optional string order_key = 19; */
         if (message.orderKey !== undefined)
-            writer.tag(23, WireType.LengthDelimited).string(message.orderKey);
+            writer.tag(19, WireType.LengthDelimited).string(message.orderKey);
+        /* symbol.bench.EnvironmentType environment_type = 20; */
+        if (message.environmentType !== 0)
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
+        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 22; */
+        if (message.ownedByPtr)
+            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.TextLineData title = 32; */
         if (message.title)
             TextLineData.internalBinaryWrite(message.title, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
@@ -27233,7 +27433,7 @@ class TextViewData$Type extends MessageType$<TextViewData> {
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "position", kind: "message", T: () => PositionData },
             { no: 41, name: "width", kind: "message", T: () => DimensionData },
@@ -27309,7 +27509,7 @@ class TextViewData$Type extends MessageType$<TextViewData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
                     message.environmentType = reader.int32();
                     break;
                 case /* string name */ 31:
@@ -27444,9 +27644,9 @@ class TextViewData$Type extends MessageType$<TextViewData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
+        /* symbol.bench.EnvironmentType environment_type = 20; */
         if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -27535,8 +27735,8 @@ class ThemeData$Type extends MessageType$<ThemeData> {
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
-            { no: 23, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 19, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
@@ -27592,11 +27792,11 @@ class ThemeData$Type extends MessageType$<ThemeData> {
                 case /* optional google.protobuf.Timestamp deleted_at */ 15:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
-                    message.environmentType = reader.int32();
-                    break;
-                case /* optional string order_key */ 23:
+                case /* optional string order_key */ 19:
                     message.orderKey = reader.string();
+                    break;
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
+                    message.environmentType = reader.int32();
                     break;
                 case /* string name */ 31:
                     message.name = reader.string();
@@ -27671,12 +27871,12 @@ class ThemeData$Type extends MessageType$<ThemeData> {
         /* optional google.protobuf.Timestamp deleted_at = 15; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
-        if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
-        /* optional string order_key = 23; */
+        /* optional string order_key = 19; */
         if (message.orderKey !== undefined)
-            writer.tag(23, WireType.LengthDelimited).string(message.orderKey);
+            writer.tag(19, WireType.LengthDelimited).string(message.orderKey);
+        /* symbol.bench.EnvironmentType environment_type = 20; */
+        if (message.environmentType !== 0)
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -27716,8 +27916,8 @@ class ThreadData$Type extends MessageType$<ThreadData> {
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
-            { no: 19, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
+            { no: 22, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 32, name: "title", kind: "message", T: () => TextLineData }
         ]);
     }
@@ -27762,10 +27962,10 @@ class ThreadData$Type extends MessageType$<ThreadData> {
                 case /* optional google.protobuf.Timestamp deleted_at */ 15:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
                     message.environmentType = reader.int32();
                     break;
-                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 19:
+                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 22:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
                     break;
                 case /* optional symbol.bench.TextLineData title */ 32:
@@ -27810,12 +28010,12 @@ class ThreadData$Type extends MessageType$<ThreadData> {
         /* optional google.protobuf.Timestamp deleted_at = 15; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
+        /* symbol.bench.EnvironmentType environment_type = 20; */
         if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
-        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 19; */
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
+        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 22; */
         if (message.ownedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(19, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.bench.TextLineData title = 32; */
         if (message.title)
             TextLineData.internalBinaryWrite(message.title, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
@@ -27844,7 +28044,7 @@ class ThreadViewData$Type extends MessageType$<ThreadViewData> {
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "position", kind: "message", T: () => PositionData },
             { no: 41, name: "width", kind: "message", T: () => DimensionData },
@@ -27907,7 +28107,7 @@ class ThreadViewData$Type extends MessageType$<ThreadViewData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
                     message.environmentType = reader.int32();
                     break;
                 case /* string name */ 31:
@@ -27991,9 +28191,9 @@ class ThreadViewData$Type extends MessageType$<ThreadViewData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
+        /* symbol.bench.EnvironmentType environment_type = 20; */
         if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -28292,7 +28492,7 @@ class TransitionStyleData$Type extends MessageType$<TransitionStyleData> {
             { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.TransitionType", TransitionType, "TRANSITION_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
@@ -28359,7 +28559,7 @@ class TransitionStyleData$Type extends MessageType$<TransitionStyleData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
                     message.environmentType = reader.int32();
                     break;
                 case /* symbol.bench.TransitionType type */ 30:
@@ -28447,9 +28647,9 @@ class TransitionStyleData$Type extends MessageType$<TransitionStyleData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
+        /* symbol.bench.EnvironmentType environment_type = 20; */
         if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
         /* symbol.bench.TransitionType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
@@ -29150,9 +29350,9 @@ class Vector4Data$Type extends MessageType$<Vector4Data> {
  */
 export const Vector4Data = new Vector4Data$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class ViewportData$Type extends MessageType$<ViewportData> {
+class WindowData$Type extends MessageType$<WindowData> {
     constructor() {
-        super("symbol.bench.ViewportData", [
+        super("symbol.bench.WindowData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
@@ -29164,9 +29364,9 @@ class ViewportData$Type extends MessageType$<ViewportData> {
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 19, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 23, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.ViewportType", ViewportType, "VIEWPORT_TYPE_"] },
+            { no: 19, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 22, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.WindowType", WindowType, "WINDOW_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 70, name: "selection", kind: "message", T: () => SelectionData },
             { no: 71, name: "focus_ptr", kind: "message", T: () => NodeReferenceData },
@@ -29176,16 +29376,16 @@ class ViewportData$Type extends MessageType$<ViewportData> {
             { no: 75, name: "thread_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
-    create(value?: PartialMessage<ViewportData>): ViewportData {
+    create(value?: PartialMessage<WindowData>): WindowData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
         message.type = 0;
         if (value !== undefined)
-            reflectionMergePartial<ViewportData>(this, message, value);
+            reflectionMergePartial<WindowData>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ViewportData): ViewportData {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: WindowData): WindowData {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -29223,13 +29423,13 @@ class ViewportData$Type extends MessageType$<ViewportData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 19:
-                    message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
-                    break;
-                case /* optional string order_key */ 23:
+                case /* optional string order_key */ 19:
                     message.orderKey = reader.string();
                     break;
-                case /* symbol.bench.ViewportType type */ 30:
+                case /* optional symbol.bench.NodeReferenceData owned_by_ptr */ 22:
+                    message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
+                    break;
+                case /* symbol.bench.WindowType type */ 30:
                     message.type = reader.int32();
                     break;
                 case /* optional string name */ 31:
@@ -29264,7 +29464,7 @@ class ViewportData$Type extends MessageType$<ViewportData> {
         }
         return message;
     }
-    internalBinaryWrite(message: ViewportData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: WindowData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.bench.NodeType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
@@ -29298,13 +29498,13 @@ class ViewportData$Type extends MessageType$<ViewportData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 19; */
-        if (message.ownedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(19, WireType.LengthDelimited).fork(), options).join();
-        /* optional string order_key = 23; */
+        /* optional string order_key = 19; */
         if (message.orderKey !== undefined)
-            writer.tag(23, WireType.LengthDelimited).string(message.orderKey);
-        /* symbol.bench.ViewportType type = 30; */
+            writer.tag(19, WireType.LengthDelimited).string(message.orderKey);
+        /* optional symbol.bench.NodeReferenceData owned_by_ptr = 22; */
+        if (message.ownedByPtr)
+            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.WindowType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
         /* optional string name = 31; */
@@ -29335,9 +29535,9 @@ class ViewportData$Type extends MessageType$<ViewportData> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbol.bench.ViewportData
+ * @generated MessageType for protobuf message symbol.bench.WindowData
  */
-export const ViewportData = new ViewportData$Type();
+export const WindowData = new WindowData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class WizardViewData$Type extends MessageType$<WizardViewData> {
     constructor() {
@@ -29353,7 +29553,7 @@ class WizardViewData$Type extends MessageType$<WizardViewData> {
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "position", kind: "message", T: () => PositionData },
             { no: 41, name: "width", kind: "message", T: () => DimensionData },
@@ -29414,7 +29614,7 @@ class WizardViewData$Type extends MessageType$<WizardViewData> {
                 case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
                     message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
                     break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
                     message.environmentType = reader.int32();
                     break;
                 case /* string name */ 31:
@@ -29492,9 +29692,9 @@ class WizardViewData$Type extends MessageType$<WizardViewData> {
         /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
         if (message.templatePtr)
             NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
+        /* symbol.bench.EnvironmentType environment_type = 20; */
         if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -29553,7 +29753,7 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
             { no: 251, name: "organization_membership", kind: "message", oneof: "node", T: () => OrganizationMembershipData },
             { no: 252, name: "organization_invite", kind: "message", oneof: "node", T: () => OrganizationInviteData },
             { no: 300, name: "client", kind: "message", oneof: "node", T: () => ClientData },
-            { no: 600, name: "viewport", kind: "message", oneof: "node", T: () => ViewportData },
+            { no: 600, name: "window", kind: "message", oneof: "node", T: () => WindowData },
             { no: 610, name: "scene", kind: "message", oneof: "node", T: () => SceneData },
             { no: 620, name: "route", kind: "message", oneof: "node", T: () => RouteData },
             { no: 700, name: "page", kind: "message", oneof: "node", T: () => PageData },
@@ -29579,12 +29779,14 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
             { no: 2010, name: "field", kind: "message", oneof: "node", T: () => FieldData },
             { no: 2020, name: "file", kind: "message", oneof: "node", T: () => FileData },
             { no: 2050, name: "link", kind: "message", oneof: "node", T: () => LinkData },
-            { no: 2200, name: "custom_node_definition", kind: "message", oneof: "node", T: () => CustomNodeDefinitionData },
-            { no: 2201, name: "custom_node", kind: "message", oneof: "node", T: () => CustomNodeData },
+            { no: 2200, name: "custom_entity_definition", kind: "message", oneof: "node", T: () => CustomEntityDefinitionData },
+            { no: 2201, name: "custom_entity", kind: "message", oneof: "node", T: () => CustomEntityData },
             { no: 2400, name: "thread", kind: "message", oneof: "node", T: () => ThreadData },
             { no: 2420, name: "message", kind: "message", oneof: "node", T: () => MessageData },
             { no: 8100, name: "frame_view", kind: "message", oneof: "node", T: () => FrameViewData },
             { no: 8101, name: "label_view", kind: "message", oneof: "node", T: () => LabelViewData },
+            { no: 8110, name: "custom_view_definition", kind: "message", oneof: "node", T: () => CustomViewDefinitionData },
+            { no: 8111, name: "custom_view", kind: "message", oneof: "node", T: () => CustomViewData },
             { no: 8120, name: "split_view", kind: "message", oneof: "node", T: () => SplitViewData },
             { no: 8200, name: "text_view", kind: "message", oneof: "node", T: () => TextViewData },
             { no: 8300, name: "number_input_view", kind: "message", oneof: "node", T: () => NumberInputViewData },
@@ -29697,10 +29899,10 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
                         client: ClientData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).client)
                     };
                     break;
-                case /* symbol.bench.ViewportData viewport */ 600:
+                case /* symbol.bench.WindowData window */ 600:
                     message.node = {
-                        oneofKind: "viewport",
-                        viewport: ViewportData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).viewport)
+                        oneofKind: "window",
+                        window: WindowData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).window)
                     };
                     break;
                 case /* symbol.bench.SceneData scene */ 610:
@@ -29853,16 +30055,16 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
                         link: LinkData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).link)
                     };
                     break;
-                case /* symbol.bench.CustomNodeDefinitionData custom_node_definition */ 2200:
+                case /* symbol.bench.CustomEntityDefinitionData custom_entity_definition */ 2200:
                     message.node = {
-                        oneofKind: "customNodeDefinition",
-                        customNodeDefinition: CustomNodeDefinitionData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customNodeDefinition)
+                        oneofKind: "customEntityDefinition",
+                        customEntityDefinition: CustomEntityDefinitionData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customEntityDefinition)
                     };
                     break;
-                case /* symbol.bench.CustomNodeData custom_node */ 2201:
+                case /* symbol.bench.CustomEntityData custom_entity */ 2201:
                     message.node = {
-                        oneofKind: "customNode",
-                        customNode: CustomNodeData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customNode)
+                        oneofKind: "customEntity",
+                        customEntity: CustomEntityData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customEntity)
                     };
                     break;
                 case /* symbol.bench.ThreadData thread */ 2400:
@@ -29887,6 +30089,18 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
                     message.node = {
                         oneofKind: "labelView",
                         labelView: LabelViewData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).labelView)
+                    };
+                    break;
+                case /* symbol.bench.CustomViewDefinitionData custom_view_definition */ 8110:
+                    message.node = {
+                        oneofKind: "customViewDefinition",
+                        customViewDefinition: CustomViewDefinitionData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customViewDefinition)
+                    };
+                    break;
+                case /* symbol.bench.CustomViewData custom_view */ 8111:
+                    message.node = {
+                        oneofKind: "customView",
+                        customView: CustomViewData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customView)
                     };
                     break;
                 case /* symbol.bench.SplitViewData split_view */ 8120:
@@ -30027,9 +30241,9 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
         /* symbol.bench.ClientData client = 300; */
         if (message.node.oneofKind === "client")
             ClientData.internalBinaryWrite(message.node.client, writer.tag(300, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.ViewportData viewport = 600; */
-        if (message.node.oneofKind === "viewport")
-            ViewportData.internalBinaryWrite(message.node.viewport, writer.tag(600, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.WindowData window = 600; */
+        if (message.node.oneofKind === "window")
+            WindowData.internalBinaryWrite(message.node.window, writer.tag(600, WireType.LengthDelimited).fork(), options).join();
         /* symbol.bench.SceneData scene = 610; */
         if (message.node.oneofKind === "scene")
             SceneData.internalBinaryWrite(message.node.scene, writer.tag(610, WireType.LengthDelimited).fork(), options).join();
@@ -30105,12 +30319,12 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
         /* symbol.bench.LinkData link = 2050; */
         if (message.node.oneofKind === "link")
             LinkData.internalBinaryWrite(message.node.link, writer.tag(2050, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.CustomNodeDefinitionData custom_node_definition = 2200; */
-        if (message.node.oneofKind === "customNodeDefinition")
-            CustomNodeDefinitionData.internalBinaryWrite(message.node.customNodeDefinition, writer.tag(2200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.CustomNodeData custom_node = 2201; */
-        if (message.node.oneofKind === "customNode")
-            CustomNodeData.internalBinaryWrite(message.node.customNode, writer.tag(2201, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.CustomEntityDefinitionData custom_entity_definition = 2200; */
+        if (message.node.oneofKind === "customEntityDefinition")
+            CustomEntityDefinitionData.internalBinaryWrite(message.node.customEntityDefinition, writer.tag(2200, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.CustomEntityData custom_entity = 2201; */
+        if (message.node.oneofKind === "customEntity")
+            CustomEntityData.internalBinaryWrite(message.node.customEntity, writer.tag(2201, WireType.LengthDelimited).fork(), options).join();
         /* symbol.bench.ThreadData thread = 2400; */
         if (message.node.oneofKind === "thread")
             ThreadData.internalBinaryWrite(message.node.thread, writer.tag(2400, WireType.LengthDelimited).fork(), options).join();
@@ -30123,6 +30337,12 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
         /* symbol.bench.LabelViewData label_view = 8101; */
         if (message.node.oneofKind === "labelView")
             LabelViewData.internalBinaryWrite(message.node.labelView, writer.tag(8101, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.CustomViewDefinitionData custom_view_definition = 8110; */
+        if (message.node.oneofKind === "customViewDefinition")
+            CustomViewDefinitionData.internalBinaryWrite(message.node.customViewDefinition, writer.tag(8110, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.CustomViewData custom_view = 8111; */
+        if (message.node.oneofKind === "customView")
+            CustomViewData.internalBinaryWrite(message.node.customView, writer.tag(8111, WireType.LengthDelimited).fork(), options).join();
         /* symbol.bench.SplitViewData split_view = 8120; */
         if (message.node.oneofKind === "splitView")
             SplitViewData.internalBinaryWrite(message.node.splitView, writer.tag(8120, WireType.LengthDelimited).fork(), options).join();
@@ -30183,7 +30403,7 @@ export const SomeNodeData = new SomeNodeData$Type();
 //
 
 // Any...
-export type AnyNodeData = CustomNodeDefinitionData | CustomNodeData | EditEventData | ChangeEventData | QueryEventData | CustomEventDefinitionData | CustomEventData | FieldData | SchemaData | ClientData | FriendshipData | FriendshipInviteData | OrganizationData | OrganizationInviteData | OrganizationMembershipData | UserData | FileData | LinkData | DatabaseData | MachineData | ActionData | AgentData | CursorData | ScriptData | ServiceData | TaskData | InterruptionData | LogData | RunData | SpanData | BlockData | PageData | RouteData | SceneData | ViewportData | MessageData | ThreadData | HandleData | PackageData | PackageMembershipData | PackageInviteData | SpaceData | SpaceInviteData | SpaceMembershipData | ColorStyleData | BorderStyleData | TransitionStyleData | EffectStyleData | GradientStyleData | FontStyleData | ShadowStyleData | ThemeData | FrameViewData | LabelViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | WizardViewData | ThreadViewData
+export type AnyNodeData = CustomEntityDefinitionData | CustomEntityData | EditEventData | ChangeEventData | QueryEventData | CustomEventDefinitionData | CustomEventData | FieldData | SchemaData | ClientData | FriendshipData | FriendshipInviteData | OrganizationData | OrganizationInviteData | OrganizationMembershipData | UserData | FileData | LinkData | DatabaseData | MachineData | ActionData | AgentData | CursorData | ScriptData | ServiceData | TaskData | InterruptionData | LogData | RunData | SpanData | BlockData | PageData | RouteData | SceneData | WindowData | MessageData | ThreadData | HandleData | PackageData | PackageMembershipData | PackageInviteData | SpaceData | SpaceInviteData | SpaceMembershipData | ColorStyleData | BorderStyleData | TransitionStyleData | EffectStyleData | GradientStyleData | FontStyleData | ShadowStyleData | ThemeData | CustomViewDefinitionData | CustomViewData | FrameViewData | LabelViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | WizardViewData | ThreadViewData
 export type AnyStructData = ScopeData | RelationReferenceData | AttributeReferenceData | PropertyReferenceData | NodeReferenceData | EditData | ChangeData | ChangeResultData | StringConstraintData | NumberConstraintData | CollectionConstraintData | NodeConstraintData | TypeData | ValueData | FunctionData | ConditionData | AggregationData | ExpressionData | SortData | SelectData | JoinData | QueryData | HistogramData | QueryResultData | QueryResultGroupData | QueryUpdateData | SelectionData | IconData | PropertyInfoData | TraitInfoData | NodeInfoData | StructInfoData | EnumInfoData | EnumOptionInfoData | TextSpanData | TextLineData | TextData | VariableData | OriginData | CellInfoData | DatabaseInfoData | ScheduleData | ErrorData | ColorData | LengthData | PositionData | DimensionData | InsetsData | CornersData | Axis2Data | Axis3Data | Vector2Data | Vector3Data | Vector4Data | GridData | GridSpanData | BorderData | TransitionData | EffectData | GradientStopData | GradientData | FillData | FontData | ShadowData
 
     

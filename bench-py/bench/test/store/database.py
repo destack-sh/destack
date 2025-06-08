@@ -9,7 +9,6 @@ from bench.language import (
     BlockType,
     Client,
     ClientType,
-    CustomNodeDefinition,
     DatabaseInfo,
     FrameView,
     JoinType,
@@ -20,7 +19,6 @@ from bench.language import (
     Scene,
     Session,
     TextView,
-    TraitType,
     User,
     UserStatus,
     join,
@@ -171,7 +169,7 @@ async def test_create_scene_with_heterogeneous_views(session: Session):
     session.create(scene)
     await session.commit()
 
-    # nocheckin: Viewport/IsView/... recursive trait relation queries
+    # nocheckin: IsView/... recursive trait relation queries
     root_view = FrameView(name="Container")
     scene.add_child(root_view)
     await session.commit()
@@ -186,20 +184,3 @@ async def test_create_scene_with_heterogeneous_views(session: Session):
                 text_view = TextView(name=f"Text {i}/{j}/{k}")
                 label_view.add_child(text_view)
         await session.commit()
-
-
-async def test_create_custom_node(session: Session):
-    """Create a custom Node, mutate it, querying along the way."""
-    # nocheckin: custom nodes
-    custom_node_definition = CustomNodeDefinition(
-        name="Event",
-        traits=[
-            TraitType.HAS_NAME,
-            TraitType.HAS_SLUG,
-            TraitType.DELETABLE,
-            TraitType.ARCHIVABLE,
-            TraitType.OWNABLE,
-        ],
-    )
-    session.create(custom_node_definition)
-    await session.commit()

@@ -1,13 +1,13 @@
 from typing import TYPE_CHECKING, Optional, Union
 
 from bench.language.core import (
-    HasEnvironment,
     HasIcon,
     HasSlug,
     HasTitle,
     IsArchivable,
     IsBlockable,
     IsDeletable,
+    IsEnvironmental,
     IsInPackage,
     IsOwnable,
     IsTemplatable,
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 @node_(NodeType.PAGE)
 class Page(
-    HasEnvironment,
+    IsEnvironmental,
     HasTitle,
     HasIcon,
     HasSlug,

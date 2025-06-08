@@ -3,13 +3,15 @@ from typing import TYPE_CHECKING, Optional, Union
 import structlog
 from fastuuid import UUID
 
-from bench.pb2 import CustomNodeDefinitionData, CustomNodeInstanceData
+from bench.pb2 import CustomEntityData, CustomEntityDefinitionData
 
 from ..builtin import (
-    HasEnvironment,
     HasName,
     IsBlockable,
+    IsCustomNode,
+    IsCustomNodeDefinition,
     IsDeletable,
+    IsEnvironmental,
     IsExtensible,
     IsInPackage,
     IsOwnable,
@@ -31,43 +33,46 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-@node_(NodeType.CUSTOM_NODE_DEFINITION)
-class CustomNodeDefinition(
-    HasEnvironment,
+@node_(NodeType.CUSTOM_ENTITY_DEFINITION)
+class CustomEntityDefinition(
+    IsEnvironmental,
     HasName,
+    IsCustomNodeDefinition,
     IsOwnable,
     IsBlockable,
     IsDeletable,
     IsScriptable,
     IsInPackage,
-    Node[CustomNodeDefinitionData],
+    Node[CustomEntityDefinitionData],
 ):
     """
-    A definition for a custom Node type (instantiated in CustomNodes).
+    A definition for a generic Entity type (instantiated in CustomEntities).
+    Custom Entities may be materialized as physical or logical tables in primary storage.
     """
 
     # type?
     traits: list[TraitType] = property_(40, description="Dynamic traits.")
 
 
-@node_(NodeType.CUSTOM_NODE)
-class CustomNode(
-    HasEnvironment,
+@node_(NodeType.CUSTOM_ENTITY)
+class CustomEntity(
+    IsEnvironmental,
     IsExtensible,
     IsInPackage,
     IsDeletable,
-    Node[CustomNodeInstanceData],
+    IsCustomNode,
+    Node[CustomEntityData],
 ):
     """
-    An instance of a CustomNodeDefinition.
+    An Entity is an instance of a CustomEntityDefinition.
     """
 
-    parent: Union["CustomNodeDefinition", "CustomNode", None] = property_parent_(
+    parent: Union["CustomEntityDefinition", "CustomEntity", None] = property_parent_(
         node_is_customizable=True
     )
-    definition: "CustomNodeDefinition" = property_(
-        40,
-        description="The CustomNodeDefinition this CustomNode is an instance of.",
+    definition: "CustomEntityDefinition" = property_(
+        17,
+        description="The CustomEntityDefinition this CustomEntity is an instance of.",
     )
     if TYPE_CHECKING:
         definition_id: Optional[UUID] = None

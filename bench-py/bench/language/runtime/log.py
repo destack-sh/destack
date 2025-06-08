@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 from bench.language.core import (
-    HasEnvironment,
+    IsEnvironmental,
     IsInPackage,
     Node,
     NodeType,
@@ -15,11 +15,12 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-# nocheckin: LogDefinition/LogInstance
-
-
 @node_(NodeType.LOG)
-class Log(HasEnvironment, IsInPackage, Node):
+class Log(
+    IsEnvironmental,
+    IsInPackage,
+    Node,
+):
     """A Log message."""
 
     content: str = property_(40)
