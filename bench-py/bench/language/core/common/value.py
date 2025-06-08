@@ -76,7 +76,7 @@ def generate_pack_value_impl(cls: type["BuiltinObjectBase"]) -> tuple[str, dict[
     pack_value = textwrap.indent(_generate_pack_value(cls), "    ")
     unpack_value = textwrap.indent(_generate_unpack_value(cls), "    ")
 
-    if cls.__is_frozen__:
+    if cls.__is_frozen__ and not cls.__is_node__:
         to_value = """\
 def to_value(self: "Self") -> dict[str, "JsonValue"]:
     if self._value is None:
@@ -155,7 +155,7 @@ def _generate_unpack_value(cls: type["BuiltinObjectBase"]) -> str:
         else:
             unpack_method_parts.extend(unpack_code)
             unpack_assignments.append(f"{prop.name}=_unpacked_{prop.name}")
-    if cls.__is_frozen__:
+    if cls.__is_frozen__ and not cls.__is_node__:
         unpack_assignments.append("_value = _object_value")
 
     unpack_method_parts.append("return cls(")

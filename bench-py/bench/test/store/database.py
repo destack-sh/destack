@@ -2,6 +2,7 @@ from collections.abc import AsyncGenerator
 
 import pytest
 from fastuuid import uuid4
+from hypothesis import HealthCheck, given, settings
 
 from bench.language import (
     ACTIVE_SESSION,
@@ -13,6 +14,7 @@ from bench.language import (
     FrameView,
     JoinType,
     LabelView,
+    Node,
     NodeReference,
     NodeType,
     Page,
@@ -25,11 +27,13 @@ from bench.language import (
     text_line,
 )
 from bench.store import PostgresStore
+from bench.test.strategies import examples, nodes
+from bench.test.unit.conftest import NODES
 
 
 @pytest.fixture
-def postgres_store(omni_database: DatabaseInfo) -> PostgresStore:
-    return PostgresStore(database=omni_database, area=None)
+def postgres_store(omni_postgres_database: DatabaseInfo) -> PostgresStore:
+    return PostgresStore(database=omni_postgres_database, area=None)
 
 
 @pytest.fixture  # :PytestAsyncContext
@@ -45,6 +49,17 @@ def session(session_async: Session):
     token = ACTIVE_SESSION.set(session_async)
     yield session_async
     ACTIVE_SESSION.reset(token)
+
+
+@given(node=nodes)
+@examples([{"node": node} for node in NODES])
+@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+async def test_roundtrip_builtin_object(node: Node, session: Session):
+    session.create(node)
+    await session.commit()
+
+    node_unpacked = await node.get(where=node.property("id").eq(node.id)).execute_one()
+    assert node.equals(node_unpacked)
 
 
 async def test_create_user_with_clients(session: Session):
