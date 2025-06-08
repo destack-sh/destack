@@ -90,7 +90,7 @@ from .type import (
 )
 from .validation import ValidationError
 from .value import Value, pack_value, to_value, unpack_value
-from .variable import Variable, VariableProperty, VariableType
+from .variable import Variable, VariableType
 
 __all__ = [
     "CASCADING_EDIT_TYPES",
@@ -171,7 +171,6 @@ __all__ = [
     "ValidationError",
     "Value",
     "Variable",
-    "VariableProperty",
     "VariableType",
     "aggregation",
     "attribute_ref",

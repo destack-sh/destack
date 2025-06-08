@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING, Optional
 
 from bench.language.core import (
     TraitType,
-    VariableProperty,
     property_,
     trait_,
 )
@@ -23,5 +22,5 @@ class IsContentView(IsView):
     align: Optional["Align"] = property_(53)
 
     # appearance
-    is_visible: VariableProperty[bool] = property_(60)
-    opacity: VariableProperty[float] = property_(61)
+    is_visible: Optional[bool] = property_(60)
+    opacity: Optional[float] = property_(61)

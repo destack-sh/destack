@@ -1288,7 +1288,6 @@ enum TimeInterval {
 enum TraitType {
   TRAIT_TYPE_UNSPECIFIED = 0;
   TRAIT_TYPE_GLOBAL = 1;
-  TRAIT_TYPE_CUSTOM = 3;
   TRAIT_TYPE_FROZEN = 4;
   TRAIT_TYPE_TRACKED = 10;
   TRAIT_TYPE_ARCHIVABLE = 11;
@@ -1697,7 +1696,46 @@ message CustomViewData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData package_ptr = 7;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
   NodeReferenceData definition_ptr = 17;
+  map<string, ValueData> value = 18;
+  EnvironmentType environment_type = 20;
+  string name = 31;
+  optional PositionData position = 40;
+  optional DimensionData width = 41;
+  optional DimensionData height = 42;
+  optional DimensionData min_width = 43;
+  optional DimensionData min_height = 44;
+  optional DimensionData max_width = 45;
+  optional DimensionData max_height = 46;
+  optional Layout layout = 50;
+  optional Direction direction = 51;
+  optional Distribute distribute = 52;
+  optional Align align = 53;
+  optional Axis2Data gap = 54;
+  optional InsetsData padding = 55;
+  optional GridData grid = 56;
+  optional GridSpanData grid_span = 57;
+  optional double aspect_ratio = 58;
+  optional bool is_wrap = 59;
+  optional bool is_visible = 60;
+  optional double opacity = 61;
+  optional FillData fill = 62;
+  optional Axis3Data rotation = 63;
+  optional Vector2Data skew = 64;
+  optional double scale = 65;
+  optional ShadowData shadow = 66;
+  optional BorderData border = 67;
+  optional CornersData radius = 68;
+  optional NodeReferenceData script_ptr = 200;
+  optional NodeReferenceData source_ptr = 210;
 }
 
 // A definition for a custom View type.
@@ -1705,6 +1743,45 @@ message CustomViewDefinitionData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData package_ptr = 7;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  map<string, ValueData> value = 18;
+  EnvironmentType environment_type = 20;
+  string name = 31;
+  optional PositionData position = 40;
+  optional DimensionData width = 41;
+  optional DimensionData height = 42;
+  optional DimensionData min_width = 43;
+  optional DimensionData min_height = 44;
+  optional DimensionData max_width = 45;
+  optional DimensionData max_height = 46;
+  optional Layout layout = 50;
+  optional Direction direction = 51;
+  optional Distribute distribute = 52;
+  optional Align align = 53;
+  optional Axis2Data gap = 54;
+  optional InsetsData padding = 55;
+  optional GridData grid = 56;
+  optional GridSpanData grid_span = 57;
+  optional double aspect_ratio = 58;
+  optional bool is_wrap = 59;
+  optional bool is_visible = 60;
+  optional double opacity = 61;
+  optional FillData fill = 62;
+  optional Axis3Data rotation = 63;
+  optional Vector2Data skew = 64;
+  optional double scale = 65;
+  optional ShadowData shadow = 66;
+  optional BorderData border = 67;
+  optional CornersData radius = 68;
+  optional NodeReferenceData script_ptr = 200;
+  optional NodeReferenceData source_ptr = 210;
 }
 
 // A primary storage Database of some flavor.
@@ -2020,66 +2097,24 @@ message FrameViewData {
   optional DimensionData max_width = 45;
   optional DimensionData max_height = 46;
   optional Layout layout = 50;
-  oneof direction {
-    Direction direction_value = 51;
-    VariableData direction_variable = 17051;
-  };
-  oneof distribute {
-    Distribute distribute_value = 52;
-    VariableData distribute_variable = 17052;
-  };
-  oneof align {
-    Align align_value = 53;
-    VariableData align_variable = 17053;
-  };
-  oneof gap {
-    Axis2Data gap_value = 54;
-    VariableData gap_variable = 17054;
-  };
-  oneof padding {
-    InsetsData padding_value = 55;
-    VariableData padding_variable = 17055;
-  };
+  optional Direction direction = 51;
+  optional Distribute distribute = 52;
+  optional Align align = 53;
+  optional Axis2Data gap = 54;
+  optional InsetsData padding = 55;
   optional GridData grid = 56;
   optional GridSpanData grid_span = 57;
   optional double aspect_ratio = 58;
   optional bool is_wrap = 59;
-  oneof is_visible {
-    bool is_visible_value = 60;
-    VariableData is_visible_variable = 17060;
-  };
-  oneof opacity {
-    double opacity_value = 61;
-    VariableData opacity_variable = 17061;
-  };
-  oneof fill {
-    FillData fill_value = 62;
-    VariableData fill_variable = 17062;
-  };
-  oneof rotation {
-    Axis3Data rotation_value = 63;
-    VariableData rotation_variable = 17063;
-  };
-  oneof skew {
-    Vector2Data skew_value = 64;
-    VariableData skew_variable = 17064;
-  };
-  oneof scale {
-    double scale_value = 65;
-    VariableData scale_variable = 17065;
-  };
-  oneof shadow {
-    ShadowData shadow_value = 66;
-    VariableData shadow_variable = 17066;
-  };
-  oneof border {
-    BorderData border_value = 67;
-    VariableData border_variable = 17067;
-  };
-  oneof radius {
-    CornersData radius_value = 68;
-    VariableData radius_variable = 17068;
-  };
+  optional bool is_visible = 60;
+  optional double opacity = 61;
+  optional FillData fill = 62;
+  optional Axis3Data rotation = 63;
+  optional Vector2Data skew = 64;
+  optional double scale = 65;
+  optional ShadowData shadow = 66;
+  optional BorderData border = 67;
+  optional CornersData radius = 68;
   optional NodeReferenceData script_ptr = 200;
   optional NodeReferenceData source_ptr = 210;
 }
@@ -2260,66 +2295,24 @@ message LabelViewData {
   optional DimensionData max_width = 45;
   optional DimensionData max_height = 46;
   optional Layout layout = 50;
-  oneof direction {
-    Direction direction_value = 51;
-    VariableData direction_variable = 17051;
-  };
-  oneof distribute {
-    Distribute distribute_value = 52;
-    VariableData distribute_variable = 17052;
-  };
-  oneof align {
-    Align align_value = 53;
-    VariableData align_variable = 17053;
-  };
-  oneof gap {
-    Axis2Data gap_value = 54;
-    VariableData gap_variable = 17054;
-  };
-  oneof padding {
-    InsetsData padding_value = 55;
-    VariableData padding_variable = 17055;
-  };
+  optional Direction direction = 51;
+  optional Distribute distribute = 52;
+  optional Align align = 53;
+  optional Axis2Data gap = 54;
+  optional InsetsData padding = 55;
   optional GridData grid = 56;
   optional GridSpanData grid_span = 57;
   optional double aspect_ratio = 58;
   optional bool is_wrap = 59;
-  oneof is_visible {
-    bool is_visible_value = 60;
-    VariableData is_visible_variable = 17060;
-  };
-  oneof opacity {
-    double opacity_value = 61;
-    VariableData opacity_variable = 17061;
-  };
-  oneof fill {
-    FillData fill_value = 62;
-    VariableData fill_variable = 17062;
-  };
-  oneof rotation {
-    Axis3Data rotation_value = 63;
-    VariableData rotation_variable = 17063;
-  };
-  oneof skew {
-    Vector2Data skew_value = 64;
-    VariableData skew_variable = 17064;
-  };
-  oneof scale {
-    double scale_value = 65;
-    VariableData scale_variable = 17065;
-  };
-  oneof shadow {
-    ShadowData shadow_value = 66;
-    VariableData shadow_variable = 17066;
-  };
-  oneof border {
-    BorderData border_value = 67;
-    VariableData border_variable = 17067;
-  };
-  oneof radius {
-    CornersData radius_value = 68;
-    VariableData radius_variable = 17068;
-  };
+  optional bool is_visible = 60;
+  optional double opacity = 61;
+  optional FillData fill = 62;
+  optional Axis3Data rotation = 63;
+  optional Vector2Data skew = 64;
+  optional double scale = 65;
+  optional ShadowData shadow = 66;
+  optional BorderData border = 67;
+  optional CornersData radius = 68;
   optional NodeReferenceData script_ptr = 200;
   optional NodeReferenceData source_ptr = 210;
 }
@@ -2370,6 +2363,7 @@ message LogData {
   optional NodeReferenceData package_ptr = 7;
   EnvironmentType environment_type = 20;
   string content = 40;
+  map<string, google.protobuf.Value> attributes = 41;
 }
 
 // A Machine provides physical compute.
@@ -2388,12 +2382,7 @@ message MachineData {
   MachineType type = 30;
   string name = 31;
   ResourceStatus status = 40;
-  optional google.protobuf.Timestamp requested_activate_at = 41;
-  optional google.protobuf.Timestamp requested_deactivate_at = 42;
-  optional google.protobuf.Timestamp requested_reset_at = 43;
-  optional google.protobuf.Timestamp requested_suspend_at = 44;
-  optional google.protobuf.Timestamp requested_decommission_at = 45;
-  optional google.protobuf.Timestamp active_at = 46;
+  optional google.protobuf.Timestamp target_status = 41;
   optional google.protobuf.Timestamp failed_at = 47;
   int64 failed_attempts = 48;
   string version = 60;
@@ -2487,14 +2476,8 @@ message NumberInputViewData {
   optional DimensionData min_height = 44;
   optional DimensionData max_width = 45;
   optional DimensionData max_height = 46;
-  oneof is_visible {
-    bool is_visible_value = 60;
-    VariableData is_visible_variable = 17060;
-  };
-  oneof opacity {
-    double opacity_value = 61;
-    VariableData opacity_variable = 17061;
-  };
+  optional bool is_visible = 60;
+  optional double opacity = 61;
   optional string value = 100;
   optional string placeholder = 101;
   optional NodeReferenceData script_ptr = 200;
@@ -2964,14 +2947,8 @@ message SliderInputViewData {
   optional DimensionData min_height = 44;
   optional DimensionData max_width = 45;
   optional DimensionData max_height = 46;
-  oneof is_visible {
-    bool is_visible_value = 60;
-    VariableData is_visible_variable = 17060;
-  };
-  oneof opacity {
-    double opacity_value = 61;
-    VariableData opacity_variable = 17061;
-  };
+  optional bool is_visible = 60;
+  optional double opacity = 61;
   optional double value = 100;
   optional double min_value = 101;
   optional double max_value = 102;
@@ -3065,66 +3042,24 @@ message SplitViewData {
   optional DimensionData max_width = 45;
   optional DimensionData max_height = 46;
   optional Layout layout = 50;
-  oneof direction {
-    Direction direction_value = 51;
-    VariableData direction_variable = 17051;
-  };
-  oneof distribute {
-    Distribute distribute_value = 52;
-    VariableData distribute_variable = 17052;
-  };
-  oneof align {
-    Align align_value = 53;
-    VariableData align_variable = 17053;
-  };
-  oneof gap {
-    Axis2Data gap_value = 54;
-    VariableData gap_variable = 17054;
-  };
-  oneof padding {
-    InsetsData padding_value = 55;
-    VariableData padding_variable = 17055;
-  };
+  optional Direction direction = 51;
+  optional Distribute distribute = 52;
+  optional Align align = 53;
+  optional Axis2Data gap = 54;
+  optional InsetsData padding = 55;
   optional GridData grid = 56;
   optional GridSpanData grid_span = 57;
   optional double aspect_ratio = 58;
   optional bool is_wrap = 59;
-  oneof is_visible {
-    bool is_visible_value = 60;
-    VariableData is_visible_variable = 17060;
-  };
-  oneof opacity {
-    double opacity_value = 61;
-    VariableData opacity_variable = 17061;
-  };
-  oneof fill {
-    FillData fill_value = 62;
-    VariableData fill_variable = 17062;
-  };
-  oneof rotation {
-    Axis3Data rotation_value = 63;
-    VariableData rotation_variable = 17063;
-  };
-  oneof skew {
-    Vector2Data skew_value = 64;
-    VariableData skew_variable = 17064;
-  };
-  oneof scale {
-    double scale_value = 65;
-    VariableData scale_variable = 17065;
-  };
-  oneof shadow {
-    ShadowData shadow_value = 66;
-    VariableData shadow_variable = 17066;
-  };
-  oneof border {
-    BorderData border_value = 67;
-    VariableData border_variable = 17067;
-  };
-  oneof radius {
-    CornersData radius_value = 68;
-    VariableData radius_variable = 17068;
-  };
+  optional bool is_visible = 60;
+  optional double opacity = 61;
+  optional FillData fill = 62;
+  optional Axis3Data rotation = 63;
+  optional Vector2Data skew = 64;
+  optional double scale = 65;
+  optional ShadowData shadow = 66;
+  optional BorderData border = 67;
+  optional CornersData radius = 68;
   optional NodeReferenceData script_ptr = 200;
   optional NodeReferenceData source_ptr = 210;
 }
@@ -3231,24 +3166,12 @@ message TextViewData {
   optional DimensionData max_width = 45;
   optional DimensionData max_height = 46;
   optional Align align = 53;
-  oneof is_visible {
-    bool is_visible_value = 60;
-    VariableData is_visible_variable = 17060;
-  };
-  oneof opacity {
-    double opacity_value = 61;
-    VariableData opacity_variable = 17061;
-  };
+  optional bool is_visible = 60;
+  optional double opacity = 61;
   optional bool user_select = 65;
   optional FontData font = 66;
-  oneof color {
-    FillData color_value = 67;
-    VariableData color_variable = 17067;
-  };
-  oneof text {
-    string text_value = 100;
-    VariableData text_variable = 17100;
-  };
+  optional FillData color = 67;
+  optional string text = 100;
   optional NodeReferenceData script_ptr = 200;
   optional NodeReferenceData source_ptr = 210;
 }

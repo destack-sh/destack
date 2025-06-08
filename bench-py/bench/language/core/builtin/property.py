@@ -209,15 +209,6 @@ def parse_type_annotation(
     struct_type: StructType | None = None
     node_types: list[NodeType | TraitType] | None = None
 
-    # unwrap VariableProperty[...]
-    if (
-        isinstance(origin_cls := typing.get_origin(py_type), typing.TypeAliasType)
-        and origin_cls.__name__ == "VariableProperty"
-    ):
-        is_variable = True
-        is_required = False  # variable Properties are automatically optional
-        py_type = typing.get_args(py_type)[0]
-
     # try to resolve
     if not isinstance(py_type, type):
         if isinstance(py_type, typing.ForwardRef):

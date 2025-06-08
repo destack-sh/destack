@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional
 
 from ..builtin import BuiltinEnum, EnumType, StructFrozen, StructType, enum_, property_, struct_
 
@@ -25,4 +25,3 @@ class Variable[T: Any](StructFrozen):
         raise NotImplementedError
 
 
-type VariableProperty[T] = Union[T, Variable[T], None]
