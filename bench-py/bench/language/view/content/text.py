@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Optional
 from bench.language.core import (
     Node,
     NodeType,
-    VariableProperty,
     node_,
     property_,
 )
@@ -24,7 +23,7 @@ class TextView(IsContentView, Node[TextViewData]):
     # appearance
     user_select: Optional[bool] = property_(65)
     font: Optional["Font"] = property_(66)
-    color: VariableProperty["Fill"] = property_(67)
+    color: Optional["Fill"] = property_(67)
 
     # text
-    text: VariableProperty[str] = property_(100)
+    text: Optional[str] = property_(100)
