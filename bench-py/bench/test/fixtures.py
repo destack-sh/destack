@@ -115,7 +115,9 @@ async def main_database(request: pytest.FixtureRequest) -> AsyncGenerator[Databa
 
 
 @pytest.fixture
-async def omni_database(request: pytest.FixtureRequest) -> AsyncGenerator[DatabaseInfo, None]:
+async def omni_postgres_database(
+    request: pytest.FixtureRequest,
+) -> AsyncGenerator[DatabaseInfo, None]:
     """Gets the per test function omni Database"""
     omni_tables_by_name = {
         table.name: table for table in BUILTIN_GLOBAL_TABLES + BUILTIN_MAIN_TABLES

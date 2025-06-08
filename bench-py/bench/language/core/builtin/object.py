@@ -684,10 +684,10 @@ def _path_key(self) -> str:
     return self.title
 """
     else:
-        path_key_str = """\
+        path_key_str = f"""\
 @property
 def _path_key(self) -> str:
-    return f"{self.metatype.bench_name}[id={self.id}]"
+    return f"{cls.__name__}[id={{self.id}}]"
 """
 
     # Node.path

@@ -27,7 +27,6 @@ from bench.language import (
     PrimitiveType,
     ScalarType,
     StructType,
-    ThemeColor,
     Type,
     TypeCardinality,
     icon,
@@ -186,9 +185,8 @@ def get_type_strategy(typ: Type) -> st.SearchStrategy[Any]:
 
 
 @cached({})
-def get_naive_object_strategy(object_type: NodeType | StructType):
+def get_naive_object_strategy(object_cls: type[BuiltinObjectBase]):
     """Gets the default uncorrelated strategies for every (init) property of an object type."""
-    object_cls = get_builtin_object_cls(object_type)
     object_kwargs: dict[str, st.SearchStrategy] = {}
     for prop in object_cls.__wired_properties__.values():
         if (
@@ -199,9 +197,7 @@ def get_naive_object_strategy(object_type: NodeType | StructType):
             or prop.is_computed
         ):
             continue  # ignore internal properties
-        if (object_type, prop.name) in STRATEGY_BY_OBJECT_PROPERTY:
-            object_kwargs[prop.name] = STRATEGY_BY_OBJECT_PROPERTY[object_type, prop.name]
-        elif prop.name in STRATEGY_BY_PROPERTY:
+        if prop.name in STRATEGY_BY_PROPERTY:
             object_kwargs[prop.name] = STRATEGY_BY_PROPERTY[prop.name]
         else:
             object_kwargs[prop.name] = get_type_strategy(prop.type)
@@ -217,26 +213,27 @@ def from_object_type(
     **custom_strategies: st.SearchStrategy,
 ) -> st.SearchStrategy[BuiltinObjectBase]:
     # special cases
-    if object_type == StructType.TYPE:
-        return cast(st.SearchStrategy[BuiltinObjectBase], types(SIMPLE_TYPE_CARDINALITIES))
-    elif object_type == StructType.PROPERTY_REFERENCE:
-        return cast(
-            st.SearchStrategy[BuiltinObjectBase],
-            properties(object_type=None).map(lambda p: p.to_ref()),
-        )
-    elif object_type == NodeType.FIELD:
-        return cast(st.SearchStrategy[BuiltinObjectBase], fields(SIMPLE_TYPE_CARDINALITIES))
-    elif object_type == StructType.ICON:
-        return cast(st.SearchStrategy[BuiltinObjectBase], icons())
+    if isinstance(object_type, StructType):
+        if object_type == StructType.TYPE:
+            return cast(st.SearchStrategy[BuiltinObjectBase], types(SIMPLE_TYPE_CARDINALITIES))
+        elif object_type == StructType.PROPERTY_REFERENCE:
+            return cast(
+                st.SearchStrategy[BuiltinObjectBase],
+                properties(object_type=None).map(lambda p: p.to_ref()),
+            )
+        elif object_type == StructType.ICON:
+            return cast(st.SearchStrategy[BuiltinObjectBase], icons())
+    elif isinstance(object_type, NodeType):
+        if object_type == NodeType.FIELD:
+            return cast(st.SearchStrategy[BuiltinObjectBase], fields(SIMPLE_TYPE_CARDINALITIES))
 
     # naive strategy
     object_cls = get_builtin_object_cls(object_type)
-    object_dict = get_naive_object_strategy(object_type)
+    object_dict = get_naive_object_strategy(object_cls)
     if custom_strategies:
         object_dict = {**object_dict}
         object_dict.update(custom_strategies)
-    buildf = object_cls
-    return st.builds(buildf, **object_dict)
+    return st.builds(object_cls, **object_dict)
 
 
 @cacheable
@@ -296,23 +293,6 @@ STRATEGY_BY_PROPERTY: dict[str, st.SearchStrategy] = {
     "name": NAME_STRATEGY,
     "slug": SLUG_STRATEGY,
 }
-STRATEGY_BY_OBJECT_PROPERTY: dict[tuple[NodeType | StructType, str], st.SearchStrategy] = {
-    (NodeType.THEME, "colors"): st.dictionaries(
-        keys=st.sampled_from(ThemeColor), values=from_object_type(StructType.COLOR)
-    ),
-    (NodeType.FILE, "inline_content"): BYTES_STRATEGY,
-    # Text is pretty limited right now :CrummyMarkdown
-    (StructType.TEXT, "lines"): st.lists(from_object_type(StructType.TEXT_LINE), max_size=0),
-    (StructType.TEXT_LINE, "spans"): st.lists(
-        from_object_type(StructType.TEXT_SPAN), min_size=1, max_size=1
-    ),
-    (StructType.TEXT_SPAN, "content"): st.text(min_size=1, max_size=64, alphabet=ascii_lowercase),
-    **{
-        (s, p): st.just(None)
-        for p in ("color", "is_bold", "is_italic", "is_strikethrough", "is_underline", "is_code")
-        for s in (StructType.TEXT_LINE, StructType.TEXT_SPAN)
-    },
-}
 
 
 def draw_type_base_dict(
@@ -360,7 +340,7 @@ def types(draw: st.DrawFn, cardinalities: st.SearchStrategy[TypeCardinality]):
 @st.composite
 def fields(draw: st.DrawFn, cardinalities: st.SearchStrategy[TypeCardinality]):
     type_base_dict = draw_type_base_dict(draw, cardinalities)
-    naive_base_dict = get_naive_object_strategy(NodeType.FIELD)
+    naive_base_dict = get_naive_object_strategy(Field)
     naive_base_dict["type"] = st.just(FieldType.INPUT)
     combined_dict = {}
     for key in naive_base_dict:

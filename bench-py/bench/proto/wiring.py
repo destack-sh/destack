@@ -46,7 +46,7 @@ def generate_pack_proto_impl(cls: type["BuiltinObjectBase"]) -> tuple[str, dict[
     pack_proto = textwrap.indent(_generate_pack_proto(cls), "    ")
     unpack_proto = textwrap.indent(_generate_unpack_proto(cls), "    ")
 
-    if cls.__is_frozen__:
+    if cls.__is_frozen__ and not cls.__is_node__:
         to_proto = """\
 def to_proto(self: "Self") -> "StructDataT":
     if self._proto is None:
@@ -127,7 +127,7 @@ def _generate_unpack_proto(cls: type["BuiltinObjectBase"]) -> str:
                 unpack_assignments.append(f"{prop.name}=_unpacked_{prop.name}")
         else:
             unpack_assignments.append(f"{prop.name}=_object_data.{prop.name}")
-    if cls.__is_frozen__:
+    if cls.__is_frozen__ and not cls.__is_node__:
         unpack_assignments.append("_proto=_object_data")
 
     unpack_method_parts.append("return cls(")
