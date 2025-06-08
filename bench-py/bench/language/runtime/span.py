@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Union
 
 from bench.language.core import (
     IsEnvironmental,
+    IsFrozen,
     IsInPackage,
     Node,
     NodeType,
@@ -20,6 +21,7 @@ if TYPE_CHECKING:
 @node_(NodeType.SPAN)
 class Span(
     IsEnvironmental,
+    IsFrozen,
     IsInPackage,
     Node[SpanData],
 ):
