@@ -66,14 +66,6 @@ def map_builtin_node_to_database_table(node: type[Node]) -> PostgresTable:
                 prop=prop,
             )
             columns.append(column)
-            if prop.node_has_definition:
-                table_id_column = PostgresColumn(
-                    name=f"{prop.name}_definition_id",
-                    type=PrimitiveType.UUID,
-                    is_nullable=prop.is_optional,
-                    prop=prop,
-                )
-                columns.append(table_id_column)
             if prop.node_has_type:
                 node_type_column = PostgresColumn(
                     name=f"{prop.name}_type",
@@ -90,6 +82,14 @@ def map_builtin_node_to_database_table(node: type[Node]) -> PostgresTable:
                     prop=prop,
                 )
                 columns.append(space_id_column)
+            if prop.node_has_definition:
+                table_id_column = PostgresColumn(
+                    name=f"{prop.name}_definition_id",
+                    type=PrimitiveType.UUID,
+                    is_nullable=prop.is_optional,
+                    prop=prop,
+                )
+                columns.append(table_id_column)
         else:
             # regular column
             assert prop.primitive_type is not None, f"undetermined type for {prop!r}"
