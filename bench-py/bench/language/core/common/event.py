@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(NodeType.EDIT_EVENT)
+@node_(NodeType.EDIT_EVENT, pretend_frozen=True)
 class EditEvent(IsEnvironmental, IsEvent, IsInPackage, Node):
     """A Event of an Edit."""
 
@@ -53,14 +53,14 @@ class EditEvent(IsEnvironmental, IsEvent, IsInPackage, Node):
     value: "Value | None" = property_(40)
 
 
-@node_(NodeType.CHANGE_EVENT)
+@node_(NodeType.CHANGE_EVENT, pretend_frozen=True)
 class ChangeEvent(IsEnvironmental, IsEvent, IsInPackage, Node):
     """A Event of a Change."""
 
     pass
 
 
-@node_(NodeType.QUERY_EVENT)
+@node_(NodeType.QUERY_EVENT, pretend_frozen=True)
 class QueryEvent(IsEnvironmental, IsEvent, IsInPackage, Node):
     """A Event of a Query."""
 
@@ -80,8 +80,8 @@ class CustomEventDefinition(
     pass
 
 
-@node_(NodeType.CUSTOM_EVENT)
-class CustomEvent(IsInPackage, Node):
+@node_(NodeType.CUSTOM_EVENT, pretend_frozen=True)
+class CustomEvent(IsInPackage, IsEvent, Node):
     """An instance of a CustomEventDefinition."""
 
     definition: CustomEventDefinition = property_(

@@ -100,7 +100,7 @@ def expand_node_types(types: Collection[NodeType | TraitType]) -> tuple[NodeType
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def trait_(
     node_trait: TraitType | None,
-    frozen: bool = False,
+    pretend_frozen: bool = False,  # :PretendFrozen
 ):
     """Register a class as a node trait."""
 
@@ -110,7 +110,7 @@ def trait_(
             object_type=None,
             is_concrete=False,
             is_node=True,
-            is_frozen=frozen,
+            is_frozen=pretend_frozen,
         )
         if node_trait is not None:
             cls.metatype = node_trait
@@ -463,9 +463,14 @@ class IsTracked(Trait):
         updated_by_ptr: Optional[NodeReference] = None
 
 
-@trait_(TraitType.FROZEN)
+@trait_(TraitType.FROZEN, pretend_frozen=True)
 class IsFrozen(Trait):
-    """A Node that is frozen."""
+    """
+    A Node that is frozen (read-only).
+    TODO :Cleanup: Nodes don't set 'real' frozen=True (like StructFrozen) :PretendFrozen
+     (because that would require two separate inheritance chains for NodeMutable and NodeFrozen,
+      which would have to include copies of every relevant trait and .. ughh no)
+    """
 
     pass
 
@@ -642,8 +647,8 @@ class IsMeasurement(IsCustomNode):
     definition: "IsInstrument" = property_(17)
 
 
-@trait_(TraitType.EVENT)
-class IsEvent(Trait):
+@trait_(TraitType.EVENT, pretend_frozen=True)
+class IsEvent(IsFrozen):
     """A Node that represents an Event."""
 
     pass
@@ -712,67 +717,9 @@ class IsProvisionable(IsResource):
 
     # status
     status: ResourceStatus = property_(40, default=ResourceStatus.PENDING)
-    requested_activate_at: Optional[datetime] = property_(41)
-    requested_deactivate_at: Optional[datetime] = property_(42)
-    requested_reset_at: Optional[datetime] = property_(43)
-    requested_suspend_at: Optional[datetime] = property_(44)
-    requested_decommission_at: Optional[datetime] = property_(45)
-    active_at: Optional[datetime] = property_(46, can_write="system")
+    target_status: Optional[datetime] = property_(41)
     failed_at: Optional[datetime] = property_(47, can_write="system")
     failed_attempts: int = property_(48, default=0, can_write="system")
     if TYPE_CHECKING:
         scaler_ptr: Optional[NodeReference] = None
         scaler_id: Optional[UUID] = None
-
-    @property
-    def should_retry(self) -> bool:
-        """Whether this Resource should be retried."""
-        return self.failed_at is None or (
-            self.requested_reset_at is not None and self.requested_reset_at > self.failed_at
-        )
-
-    @property
-    def should_reset(self) -> bool:
-        """Whether this Resource should be reset."""
-        return (
-            self.status.is_extant
-            and self.requested_reset_at is not None
-            and self.requested_activate_at is not None
-            and self.requested_reset_at > self.requested_activate_at
-        )
-
-    @property
-    def target_status(self) -> ResourceStatus:
-        """The implied target status of this Resource."""
-        if self.requested_decommission_at is not None:
-            return ResourceStatus.OFFLINE
-        elif self.requested_suspend_at is not None and not (
-            self.requested_activate_at is not None
-            and self.requested_activate_at > self.requested_suspend_at
-        ):
-            return ResourceStatus.SLEEPING
-        elif self.requested_deactivate_at is not None and not (
-            self.requested_activate_at is not None
-            and self.requested_activate_at > self.requested_deactivate_at
-        ):
-            return ResourceStatus.UNAVAILABLE
-        else:
-            return ResourceStatus.AVAILABLE
-
-    def provision(self) -> None:
-        """Request to provision this Resource."""
-        self.requested_activate_at = self._session.oracle.utc()
-
-    def decommission(self) -> None:
-        """Request to decommission this Resource."""
-        self.requested_decommission_at = self._session.oracle.utc()
-
-    def update_status(self, status: ResourceStatus) -> None:
-        """Set the actual current status of this Resource."""
-        self.status = status
-        if status == ResourceStatus.FAILED or status == ResourceStatus.RETRYING:
-            self.failed_at = self._session.oracle.utc()
-            self.failed_attempts += 1
-        elif status.is_extant:
-            self.active_at = self._session.oracle.utc()
-            self.failed_attempts = 0

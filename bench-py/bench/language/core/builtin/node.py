@@ -43,7 +43,7 @@ tracer = trace.get_tracer(__name__)
 def node_(
     node_type: NodeType | None,
     root_type: NodeType | None = NodeType.SPACE,
-    frozen: bool = False,
+    pretend_frozen: bool = False,  # :PretendFrozen
     index: tuple[IndexIn, ...] = (),
 ):
     """Register a class as a concrete node for the given node type."""
@@ -67,7 +67,7 @@ def node_(
             is_concrete=node_type is not None,
             is_node=True,
             is_root_node=root_type is None,
-            is_frozen=frozen,
+            is_frozen=pretend_frozen,
             traits=cls.__traits__,
         )
         cls.__indexes__ = index

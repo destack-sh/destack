@@ -815,7 +815,7 @@ class NodeType(BuiltinEnum):
 class TraitType(BuiltinEnum):
     # bench [1-200]
     GLOBAL = 1, "Global", "Is global", "fas fa-globe"
-    CUSTOM = 3, "Custom", "Is custom", "fas fa-globe"
+    # nocheckin: GLOBAL, ENTITY, ... traits?
     FROZEN = 4, "Frozen", "Is frozen", "fas fa-snowflake"
     TRACKED = 10, "Tracked", "Is tracked", "fas fa-clock"
     ARCHIVABLE = 11, "Archivable", "Can be archived", "fas fa-box-archive"

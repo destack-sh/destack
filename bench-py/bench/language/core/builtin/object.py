@@ -163,11 +163,14 @@ def _generate_init_impl[ObjectT: BuiltinObjectBase](
     extra_glbls["uuid4"] = uuid4
     extra_glbls["REGION"] = REGION
 
-    method_body_lines = [
-        "__setattr__ = object.__setattr__",
-    ]
+    method_body_lines = []
     body_properties = dict(properties)
     body_properties.pop("_supergraph")
+    if not is_frozen and is_node:
+        method_body_lines.append("__setattr__ = object.__setattr__")
+        set_template_str = "__setattr__(self, '{0}', {1})"
+    else:
+        set_template_str = "self.{0} = {1}"
 
     # setup
     if is_node:
@@ -191,10 +194,10 @@ if _session is None:
     _session = ACTIVE_SESSION.get()
     if _session is None:
         raise RuntimeError("no active session for {cls.__name__}")
-__setattr__(self, "_session", _session)
+{set_template_str.format("_session", "_session")}
 if _supergraph is None:
     _supergraph = _session.supergraph
-__setattr__(self, "_supergraph", _supergraph)
+{set_template_str.format("_supergraph", "_supergraph")}
 
 # node identity
 if id is None:
@@ -212,30 +215,30 @@ if id is None:
 else:
     _is_new = False
     _is_attached = True # if we already have an id, assume we're attached
-__setattr__(self, "id", id)
+{set_template_str.format("id", "id")}
 """)
 
         if TraitType.TRACKED in traits:
-            method_body_lines.append("""\
-__setattr__(self, "created_at", created_at)
-__setattr__(self, "updated_at", updated_at)
+            method_body_lines.append(f"""\
+{set_template_str.format("created_at", "created_at")}
+{set_template_str.format("updated_at", "updated_at")}
 """)
-        method_body_lines.append("""\
-__setattr__(self, "_hash", id.int)
-__setattr__(self, "_ref", None)
-__setattr__(self, "_is_new", _is_new)
-__setattr__(self, "_is_attached", _is_attached)
-__setattr__(self, "_dirty", None)
+        method_body_lines.append(f"""\
+{set_template_str.format("_hash", "id.int")}
+{set_template_str.format("_ref", "None")}
+{set_template_str.format("_is_new", "_is_new")}
+{set_template_str.format("_is_attached", "_is_attached")}
+{set_template_str.format("_dirty", "None")}
 """)
 
     else:
         # struct setup
-        method_body_lines.append("""\
+        method_body_lines.append(f"""\
 # session
 if _supergraph is None:
     if (session := ACTIVE_SESSION.get()) is not None:
         _supergraph = session.supergraph
-self._supergraph = _supergraph
+{set_template_str.format("_supergraph", "_supergraph")}
 """)
 
     # property assignments
@@ -308,13 +311,13 @@ if {prop.name} is None:
     {prop.name} = {"{}" if not is_frozen else "EMPTY_DICT"}""")
 
         # regular assignment
-        if is_node:
+        if is_node and not is_frozen:
             method_body_lines.append(f"__setattr__(self, '{prop.name}', {prop.name})")
         else:
             method_body_lines.append(f"self.{prop.name} = {prop.name}")
 
     if is_node:
-        method_body_lines.append("""\
+        method_body_lines.append(f"""\
 # graph
 if _graph is None:
     from bench.language.core import SingletonGraph
@@ -323,8 +326,8 @@ if _graph is None:
     _supergraph.add_graph(_graph)
 else:
     _graph.add(self)
-__setattr__(self, "_graph", _graph)
-__setattr__(self, "_connection", _connection)
+{set_template_str.format("_graph", "_graph")}
+{set_template_str.format("_connection", "_connection")}
 """)
 
     method_body = "\n".join(method_body_lines) or "pass"
