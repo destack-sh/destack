@@ -4,11 +4,11 @@ from typing import TYPE_CHECKING, Optional, Union
 from fastuuid import UUID
 
 from bench.language.core import (
-    HasEnvironment,
     HasTitle,
     IsArchivable,
     IsBlockable,
     IsDeletable,
+    IsEnvironmental,
     IsInPackage,
     IsOwnable,
     IsSubject,
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
 @node_(NodeType.TASK)
 class Task(
-    HasEnvironment,
+    IsEnvironmental,
     HasTitle,
     IsOwnable,
     IsTemplatable,

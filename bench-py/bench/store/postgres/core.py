@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Self, Union, cast
 from more_itertools import first
 
 from bench.language import (
-    CustomNodeDefinition,
+    CustomEntityDefinition,
     Edit,
     Field,
     IndexIn,
@@ -443,7 +443,7 @@ class PostgresTable(PostgresTableObject):
     constraints: tuple[PostgresConstraint, ...] = ()
     _columns_by_name: dict[str, PostgresColumn] = dataclasses.field(init=False)
     _primary_key: PostgresColumn | None = dataclasses.field(init=False)
-    _table: Union["CustomNodeDefinition", None] = None  # type: ignore
+    _table: Union["CustomEntityDefinition", None] = None  # type: ignore
 
     def __post_init__(self):
         for object in chain(self.columns, self.indexes, self.constraints):

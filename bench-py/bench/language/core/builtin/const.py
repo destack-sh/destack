@@ -37,7 +37,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.06.07.2"
+VERSION = "2025.06.08.0"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -316,7 +316,7 @@ class EnumType(BuiltinEnum):
     # ...
 
     # space [600-800]
-    VIEWPORT_TYPE = 601
+    WINDOW_TYPE = 601
     BLOCK_TYPE = 611
     # ...
 
@@ -645,7 +645,7 @@ class NodeType(BuiltinEnum):
     # CHALLENGE, FRIENDSHIP, ENTITLEMENT, POLICY, RULE, KICK/BAN, ...
 
     # scene [600-800]
-    VIEWPORT = 600, "Viewport", "Viewport", "fas fa-galaxy"
+    WINDOW = 600, "Window", "Window", "fas fa-galaxy"
     SCENE = 610, "Scene", "Scene of an Application", "fas fa-masks-theater"
     ROUTE = 620, "Route", "Route to a Scene", "fas fa-route"
     # COMMAND, OVERLAY, WIDGET, ...
@@ -695,13 +695,13 @@ class NodeType(BuiltinEnum):
     FILE = 2020, "File", "File", "fas fa-file"
     LINK = 2050, "Link", "Link to something", "fas fa-link"
     # STREAM, SECRET, ...
-    CUSTOM_NODE_DEFINITION = (
+    CUSTOM_ENTITY_DEFINITION = (
         2200,
         "Custom Node Definition",
         "Custom Node Definition",
         "fas fa-table",
     )
-    CUSTOM_NODE = 2201, "Custom Node Instance", "Custom Node Instance", "fas fa-database"
+    CUSTOM_ENTITY = 2201, "Custom Node Instance", "Custom Node Instance", "fas fa-database"
     # INDEX, CONSTRAINT, MIGRATION, ...
 
     # social [2400-2800]
@@ -740,7 +740,13 @@ class NodeType(BuiltinEnum):
     FRAME_VIEW = 8100, "Frame View", "Fixed Container", "fas fa-frame"
     LABEL_VIEW = 8101, "Label View", "Label Container", "fas fa-font-case"
     # FORM_VIEW, MENU_VIEW, EMAIL_VIEW, ...
-    # COMPONENT_VIEW = 8110, "Component View", "Component Container", "fas fa-cube"
+    CUSTOM_VIEW_DEFINITION = (
+        8110,
+        "Custom View Definition",
+        "Custom View Definition",
+        "fas fa-table",
+    )
+    CUSTOM_VIEW = 8111, "Custom View", "Custom View", "fas fa-table"
     SPLIT_VIEW = 8120, "Split View", "Split Container", "fas fa-columns"
     # TAB_VIEW = 8120, "Tab Container View", "Tab Container", "fas fa-tabs"
     # DRAWER_VIEW, SPLIT_DRAWER_VIEW, GRID/GRID_ELEMENT_VIEW, ...
@@ -814,15 +820,22 @@ class TraitType(BuiltinEnum):
     TRACKED = 10, "Tracked", "Is tracked", "fas fa-clock"
     ARCHIVABLE = 11, "Archivable", "Can be archived", "fas fa-box-archive"
     DELETABLE = 12, "Deletable", "Can be deleted", "fas fa-trash"
-    HAS_ENVIRONMENT = 20, "Environment", "Has an environment", "fas fa-window-maximize"
+    TEMPLATABLE = 13, "Templatable", "Is templatable", "fas fa-puzzle-piece"
+    EXTENSIBLE = 14, "Extensible", "Is extensible", "fas fa-expand"
+    CUSTOM_NODE_DEFINITION = (
+        15,
+        "Custom Node Definition",
+        "Is a Custom Node Definition",
+        "fas fa-table",
+    )
+    CUSTOM_NODE = 16, "Custom Node", "Is a Custom Node", "fas fa-database"
+    ENVIRONMENTAL = 20, "Environment", "Has an environment", "fas fa-window-maximize"
     HAS_NAME = 21, "Name", "Has a name", "fas fa-font-case"
     HAS_TITLE = 22, "Title", "Has a title", "fas fa-font-case"
     HAS_SLUG = 23, "Slug", "Has a slug", "fas fa-hashtag"
     HAS_ICON = 24, "Icon", "Has an icon", "fas fa-icons"
     ORDERED = 25, "Ordered", "Is ordered", "fas fa-sort"
-    TEMPLATABLE = 30, "Templatable", "Is templatable", "fas fa-puzzle-piece"
-    EXTENSIBLE = 32, "Extensible", "Is extensible", "fas fa-expand"
-    IN_SPACE = 40, "Bench", "Is in a Bench", "fas fa-bench"
+    IN_SPACE = 40, "Space", "Is in a Space", "fas fa-bench"
     IN_PACKAGE = 41, "Package", "Is in a Package", "fas fa-box"
     RESOURCE = 51, "Resource", "Is a Resource", "fas fa-server"
     PROVISIONABLE = 52, "Provisionable", "Is provisionable", "fas fa-server"

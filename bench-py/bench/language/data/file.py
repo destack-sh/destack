@@ -38,10 +38,8 @@ from bench.utils.env import get_from_env
 from bench.utils.func import group_by
 
 if TYPE_CHECKING:
-    from magika import Magika
-
     from bench.language import (
-        CustomNodeDefinition,
+        CustomEntityDefinition,
         File,
         Message,
         Package,
@@ -475,7 +473,7 @@ class File(
     parent: Union[
         "Package",
         "Page",
-        "CustomNodeDefinition",
+        "CustomEntityDefinition",
         "Thread",
         "Message",
         "Run",
@@ -848,7 +846,7 @@ async def upload_file(
     mime_type: str | None = None,
     type: FileType | None = None,
     format: FileFormat | str | None = None,
-    parent: Union["Package", "Page", "CustomNodeDefinition", "Thread", "Run", None] = None,
+    parent: Union["Package", "Page", "CustomEntityDefinition", "Thread", "Run", None] = None,
     session: "Session | None" = None,
 ) -> "File":
     """Uploads the given file to the given (or current) session."""
@@ -880,26 +878,7 @@ async def upload_file(
     return file
 
 
-_magika: "Magika | None" = None
-
-
-def _get_magika() -> "Magika":
-    from magika import Magika
-
-    global _magika
-    if _magika is None:
-        _magika = Magika()
-    return _magika
-
-
 @tracer.start_as_current_span("file.detect_format")
 def detect_file_format(content: bytes) -> tuple[str | None, FileFormat | None]:
     """Detects the file format from the given file content."""
-    magika = _get_magika()
-    magika_result = magika.identify_bytes(content)
-    if magika_result:
-        mime_type = magika_result.output.mime_type
-        format = FILE_FORMAT_BY_MIME_TYPE.get(mime_type)
-        return mime_type, format
-    else:
-        return None, None
+    raise NotImplementedError

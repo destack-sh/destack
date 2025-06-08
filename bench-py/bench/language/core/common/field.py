@@ -7,11 +7,11 @@ from ..builtin import (
     CascadeAction,
     EdgeType,
     EnumType,
-    HasEnvironment,
     HasIcon,
     HasName,
     IsArchivable,
     IsDeletable,
+    IsEnvironmental,
     IsInPackage,
     IsOrdered,
     IsSourceable,
@@ -42,7 +42,7 @@ if TYPE_CHECKING:
     from bench.language import (
         Action,
         Agent,
-        CustomNodeDefinition,
+        CustomEntityDefinition,
         IsView,
         NodeReference,
         Scene,
@@ -64,7 +64,7 @@ class FieldType(BuiltinEnum):
 
 @node_(NodeType.FIELD)
 class Field(
-    HasEnvironment,
+    IsEnvironmental,
     HasName,
     HasIcon,
     IsTracked,
@@ -81,9 +81,9 @@ class Field(
     A Field is a user-defined attribute.
     """
 
-    parent: Union["Agent", "Action", "Schema", "CustomNodeDefinition", "Scene", "IsView", None] = (
-        property_parent_(node_is_customizable=True)
-    )
+    parent: Union[
+        "Agent", "Action", "Schema", "CustomEntityDefinition", "Scene", "IsView", None
+    ] = property_parent_(node_is_customizable=True)
     type: FieldType = property_(30, default=FieldType.MEMBER)
 
     # scalar
@@ -92,7 +92,7 @@ class Field(
     primitive_type: Optional[PrimitiveType] = property_(42, is_repr=True)
     enum_type: Optional[EnumType] = property_(43, is_repr=True)
     node_type: Optional[NodeType] = property_(44, is_repr=True)
-    node_definition: Optional["CustomNodeDefinition"] = property_(45, is_repr=True)
+    node_definition: Optional["CustomEntityDefinition"] = property_(45, is_repr=True)
     struct_type: Optional[StructType] = property_(46, is_repr=True)
     base_type: Optional["Node"] = property_(47, is_repr=True)
     key_type: Optional["Type"] = property_(48, is_repr=True)  # for maps

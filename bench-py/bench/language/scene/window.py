@@ -18,7 +18,7 @@ from bench.language.core import (
     property_,
     property_parent_,
 )
-from bench.pb2 import ViewportData
+from bench.pb2 import WindowData
 
 if TYPE_CHECKING:
     from bench.language import Package, Page, Thread
@@ -26,37 +26,37 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.VIEWPORT_TYPE)
-class ViewportType(BuiltinEnum):
+@enum_(EnumType.WINDOW_TYPE)
+class WindowType(BuiltinEnum):
     BROWSER = 10
     DESKTOP = 20
     MOBILE = 30
 
 
-@node_(NodeType.VIEWPORT)
-class Viewport(
+@node_(NodeType.WINDOW)
+class Window(
     IsOwnable,
     IsTemplatable,
     IsOrdered,
     IsInPackage,
     IsDeletable,
     IsTracked,
-    Node[ViewportData],
+    Node[WindowData],
 ):
     """
-    A Viewport for a User to interact with a Bench.
-    Viewports to all Benches are stored in the owning User's Bench.
+    A Window for a User to interact with a Space.
+    Windows to all Spaces are stored in the owning User's Space.
     """
 
     parent: Optional["Package"] = property_parent_(node_is_customizable=False)
 
-    type: ViewportType = property_(30)
+    type: WindowType = property_(30)
     name: str | None = property_(31, format=StringFormat.NAME)
 
     selection: Optional[Selection] = property_(
         70,
         default=None,
-        description="The current selection of the Viewport.",
+        description="The current selection of the Window.",
     )
     focus: Optional[Node] = property_(71, default=None, description="The current main focus.")
     inspection: Optional[Node] = property_(

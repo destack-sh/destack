@@ -1,9 +1,9 @@
 from typing import TYPE_CHECKING, Optional, Union
 
 from bench.language.core import (
-    HasEnvironment,
     HasName,
     IsDeletable,
+    IsEnvironmental,
     IsInPackage,
     IsScriptable,
     IsTemplatable,
@@ -15,14 +15,14 @@ from bench.language.core import (
 )
 
 if TYPE_CHECKING:
-    from bench.language import Dimension, Page, Position, Viewport
+    from bench.language import Dimension, Page, Position, Window
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
 @trait_(TraitType.VIEW)
 class IsView(
-    HasEnvironment,
+    IsEnvironmental,
     HasName,
     IsScriptable,
     IsTemplatable,
@@ -32,7 +32,7 @@ class IsView(
 ):
     """A View is a graphical interface."""
 
-    parent: Union["Viewport", "IsView", "Page", None] = property_parent_(node_is_customizable=True)
+    parent: Union["Window", "IsView", "Page", None] = property_parent_(node_is_customizable=True)
     # variant_of, ...
 
     # sizing

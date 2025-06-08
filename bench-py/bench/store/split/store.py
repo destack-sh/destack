@@ -9,7 +9,7 @@ from bench.language import (
     Area,
     Change,
     ChangeResult,
-    CustomNode,
+    CustomEntity,
     IsGlobal,
     Query,
     QueryResult,
@@ -65,7 +65,7 @@ def _get_query_node_area(query: Query) -> Area | None:
         assert query.relation.node_type is not None, f"no node_type for {query.relation!r}"
         node_cls = NODE_CLASS_BY_TYPE[query.relation.node_type]
     elif query.relation.type == RelationType.CUSTOM_NODE:
-        node_cls = CustomNode
+        node_cls = CustomEntity
     else:
         return None
     if issubclass(node_cls, IsGlobal):

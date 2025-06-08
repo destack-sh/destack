@@ -11,7 +11,7 @@ from bench.language import (
     Change,
     ChangeResult,
     ChangeStatus,
-    CustomNodeDefinition,
+    CustomEntityDefinition,
     DatabaseInfo,
     DatabaseType,
     Edit,
@@ -106,7 +106,7 @@ class PostgresStore(Store):
             for change in changes:
                 # duplicate context if we're mutating custom node definitions
                 has_custom_edits = any(
-                    edit.node_type in (NodeType.CUSTOM_NODE_DEFINITION, NodeType.FIELD)
+                    edit.node_type in (NodeType.CUSTOM_ENTITY_DEFINITION, NodeType.FIELD)
                     for edit in change.edits
                 )
                 local_context = self.context.copy() if has_custom_edits else self.context
@@ -152,7 +152,7 @@ class PostgresStoreContext(PostgresContext):
         else:
             for table in BUILTIN_TABLE_BY_AREA[store.area]:
                 self.tables_by_name[table.name] = table
-        self.custom_node_definitions: dict[UUID, CustomNodeDefinition] = {}
+        self.custom_node_definitions: dict[UUID, CustomEntityDefinition] = {}
 
     def __str__(self) -> str:
         return f"store={self.store!r}, tables={list(self.tables_by_name.keys())}"
@@ -167,7 +167,7 @@ class PostgresStoreContext(PostgresContext):
     def apply(self, edits: Sequence[Edit]) -> Sequence[Edit]:
         applied_edits: list[Edit] = []
         for edit in edits:
-            if edit.node_type in (NodeType.CUSTOM_NODE_DEFINITION, NodeType.FIELD):
+            if edit.node_type in (NodeType.CUSTOM_ENTITY_DEFINITION, NodeType.FIELD):
                 applied_edits.append(edit)
                 raise NotImplementedError(f"apply database context edit: {edit!r}")
         return applied_edits
@@ -189,7 +189,7 @@ class PostgresStoreContext(PostgresContext):
     def get_relation(self, relation: RelationReference | NodeReference) -> PostgresTable:
         # map relations to table names
         if isinstance(relation, NodeReference):
-            if relation.node_type != NodeType.CUSTOM_NODE:
+            if relation.node_type != NodeType.CUSTOM_ENTITY:
                 table_name = f"{BENCH_BUILTIN_TABLE_PREFIX}{relation.node_type.name.lower()}"
             else:
                 assert relation.definition_id is not None, f"no definition_id for {relation!r}"

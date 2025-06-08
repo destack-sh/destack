@@ -493,7 +493,7 @@ def __to_ref__(self) -> "NodeReference":
         space_id=self.id,
     )
 """
-    elif node_type == NodeType.CUSTOM_NODE:
+    elif node_type == NodeType.CUSTOM_ENTITY:
         ref_impl = f"""\
 def __to_ref__(self) -> "NodeReference":
     return NodeReference(
@@ -969,7 +969,7 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
         for name, prop in component.__declared_properties__.items():
             existing = properties.get(name)
             if existing is not None:
-                if existing.name in ("metatype", "parent", "_supergraph"):
+                if existing.name in ("metatype", "parent", "definition", "_supergraph"):
                     continue  # may be narrowed
                 raise RuntimeError(
                     f"property '{name}' from '{component.__name__}' conflicts with '{cls.__name__}': {prop!r}, {existing!r}"

@@ -3,7 +3,7 @@ from collections.abc import Mapping
 from bench.language import (
     NODE_TYPES,
     Area,
-    CustomNodeDefinition,
+    CustomEntityDefinition,
     EdgeType,
     Node,
     NodeReference,
@@ -30,7 +30,7 @@ BENCH_CUSTOM_FIELD_PREFIX = "field_"
 
 
 def get_table_name(node_ptr: NodeReference) -> str:
-    if node_ptr.node_type != NodeType.CUSTOM_NODE:
+    if node_ptr.node_type != NodeType.CUSTOM_ENTITY:
         return f"{BENCH_BUILTIN_TABLE_PREFIX}{node_ptr.node_type.name.lower()}"
     else:
         assert node_ptr.definition_id is not None, f"no definition_id for {node_ptr!r}"
@@ -132,7 +132,7 @@ def map_builtin_node_to_database_table(node: type[Node]) -> PostgresTable:
     return table
 
 
-def map_custom_node_to_database_table(definition: CustomNodeDefinition) -> PostgresTable:
+def map_custom_node_to_database_table(definition: CustomEntityDefinition) -> PostgresTable:
     """Maps a CustomNodeDefinition to its corresponding CustomNodeTable."""
 
     raise NotImplementedError(definition)
@@ -150,12 +150,12 @@ BUILTIN_NODE_TABLES: tuple[PostgresTable, ...] = tuple(BUILTIN_TABLE_BY_NODE_TYP
 BUILTIN_GLOBAL_TABLES: tuple[PostgresTable, ...] = tuple(
     BUILTIN_TABLE_BY_NODE_TYPE[node.metatype]
     for node in NODE_CLASS_BY_TYPE.values()
-    if TraitType.GLOBAL in node.__traits__ and node.metatype != NodeType.CUSTOM_NODE
+    if TraitType.GLOBAL in node.__traits__ and node.metatype != NodeType.CUSTOM_ENTITY
 )
 BUILTIN_MAIN_TABLES: tuple[PostgresTable, ...] = tuple(
     BUILTIN_TABLE_BY_NODE_TYPE[node.metatype]
     for node in NODE_CLASS_BY_TYPE.values()
-    if TraitType.GLOBAL not in node.__traits__ and node.metatype != NodeType.CUSTOM_NODE
+    if TraitType.GLOBAL not in node.__traits__ and node.metatype != NodeType.CUSTOM_ENTITY
 )
 BUILTIN_TABLE_BY_AREA: Mapping[Area, tuple[PostgresTable, ...]] = {
     Area.GLOBAL_DATABASE: BUILTIN_GLOBAL_TABLES,

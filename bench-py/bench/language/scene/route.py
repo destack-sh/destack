@@ -1,13 +1,13 @@
 from typing import TYPE_CHECKING, Optional
 
 from bench.language.core import (
-    HasEnvironment,
     HasIcon,
     HasName,
     HasSlug,
     IsArchivable,
     IsBlockable,
     IsDeletable,
+    IsEnvironmental,
     IsInPackage,
     IsOwnable,
     IsTracked,
@@ -29,7 +29,7 @@ class Route(
     HasIcon,
     HasSlug,
     HasName,
-    HasEnvironment,
+    IsEnvironmental,
     IsArchivable,
     IsDeletable,
     IsOwnable,

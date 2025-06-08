@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Optional, Union
 from fastuuid import UUID
 
 from bench.language.core import (
-    HasEnvironment,
+    IsEnvironmental,
     IsExtensible,
     IsInPackage,
     IsRunnable,
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 @node_(NodeType.RUN)
 class Run(
-    HasEnvironment,
+    IsEnvironmental,
     IsExtensible,
     IsInPackage,
     IsTracked,

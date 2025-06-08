@@ -4,9 +4,9 @@ from fastuuid import UUID
 
 from ..builtin import (
     UNSET,
-    HasEnvironment,
     HasName,
     HasSlug,
+    IsEnvironmental,
     IsEvent,
     IsInPackage,
     IsSourceable,
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.EDIT_EVENT)
-class EditEvent(HasEnvironment, IsEvent, IsInPackage, Node):
+class EditEvent(IsEnvironmental, IsEvent, IsInPackage, Node):
     """A Event of an Edit."""
 
     # key
@@ -54,14 +54,14 @@ class EditEvent(HasEnvironment, IsEvent, IsInPackage, Node):
 
 
 @node_(NodeType.CHANGE_EVENT)
-class ChangeEvent(HasEnvironment, IsEvent, IsInPackage, Node):
+class ChangeEvent(IsEnvironmental, IsEvent, IsInPackage, Node):
     """A Event of a Change."""
 
     pass
 
 
 @node_(NodeType.QUERY_EVENT)
-class QueryEvent(HasEnvironment, IsEvent, IsInPackage, Node):
+class QueryEvent(IsEnvironmental, IsEvent, IsInPackage, Node):
     """A Event of a Query."""
 
     pass

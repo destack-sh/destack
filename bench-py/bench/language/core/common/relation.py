@@ -33,7 +33,7 @@ from ..builtin import (
 )
 
 if TYPE_CHECKING:
-    from bench.language import CustomNodeDefinition, Field, Node, NodeBase
+    from bench.language import CustomEntityDefinition, Field, Node, NodeBase
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -64,7 +64,7 @@ class RelationReference(StructFrozen):
 
     type: RelationType = property_(30, is_repr=True)
     node_type: Optional[NodeType] = property_(31, is_repr=True)
-    definition: Optional["CustomNodeDefinition"] = property_(32, is_repr=True)
+    definition: Optional["CustomEntityDefinition"] = property_(32, is_repr=True)
     trait_type: Optional[TraitType] = property_(33, is_repr=True)
     if TYPE_CHECKING:
         definition_id: Optional[UUID] = None
@@ -81,7 +81,7 @@ class RelationReference(StructFrozen):
             return NODE_CLASS_BY_TYPE.get(self.node_type)
         elif self.type == RelationType.CUSTOM_NODE:
             assert self.definition is not None, f"no definition for {self!r}"
-            return NODE_CLASS_BY_TYPE.get(NodeType.CUSTOM_NODE)
+            return NODE_CLASS_BY_TYPE.get(NodeType.CUSTOM_ENTITY)
         elif self.type == RelationType.TRAIT:
             assert self.trait_type is not None, f"no trait_type for {self!r}"
             return NODE_CLASS_BY_TRAIT.get(self.trait_type)
@@ -103,7 +103,7 @@ class RelationReference(StructFrozen):
         return resolved
 
 
-def relation_ref(base: "NodeType | type[NodeBase] | CustomNodeDefinition") -> RelationReference:
+def relation_ref(base: "NodeType | type[NodeBase] | CustomEntityDefinition") -> RelationReference:
     if isinstance(base, NodeType):
         return RelationReference(type=RelationType.BUILTIN_NODE, node_type=base)
     elif isinstance(base, type):
@@ -116,7 +116,7 @@ def relation_ref(base: "NodeType | type[NodeBase] | CustomNodeDefinition") -> Re
     elif isinstance(base, Node):
         return RelationReference(
             type=RelationType.CUSTOM_NODE,
-            node_type=NodeType.CUSTOM_NODE,
+            node_type=NodeType.CUSTOM_ENTITY,
             definition=base,
         )
     else:

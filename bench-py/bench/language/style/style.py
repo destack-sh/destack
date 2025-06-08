@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING, Union
 
 from bench.language.core import (
-    HasEnvironment,
     HasName,
+    IsEnvironmental,
     IsInPackage,
     IsTemplatable,
     IsTracked,
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 @trait_(TraitType.STYLE)
 class IsStyle(
     IsTemplatable,
-    HasEnvironment,
+    IsEnvironmental,
     HasName,
     IsInPackage,
     IsTracked,

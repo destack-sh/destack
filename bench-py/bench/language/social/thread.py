@@ -3,10 +3,10 @@ from typing import TYPE_CHECKING, Union
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
-    HasEnvironment,
     HasTitle,
     IsArchivable,
     IsDeletable,
+    IsEnvironmental,
     IsJoinable,
     IsOwnable,
     IsSubject,
@@ -33,7 +33,7 @@ class ThreadStatus(BuiltinEnum):
 
 @node_(NodeType.THREAD)
 class Thread(
-    HasEnvironment,
+    IsEnvironmental,
     HasTitle,
     IsArchivable,
     IsDeletable,
