@@ -15,6 +15,9 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
+# nocheckin: LogDefinition/LogInstance
+
+
 @node_(NodeType.LOG)
 class Log(HasEnvironment, IsInPackage, Node):
     """A Log message."""

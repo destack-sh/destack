@@ -95,8 +95,8 @@ class SupervisorService(ServiceBase, SupervisorBase):
 
     @override
     async def make_session(self, metadata: RpcMetadata) -> "Session":
-        database_store = PostgresStore(database=self.global_database, area=Area.GLOBAL_DATABASE)
-        return Session(store=database_store)
+        postgres_store = PostgresStore(database=self.global_database, area=Area.GLOBAL_DATABASE)
+        return Session(store=postgres_store)
 
     @override
     async def resolve_client(

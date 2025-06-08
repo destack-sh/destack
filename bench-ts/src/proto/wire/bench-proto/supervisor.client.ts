@@ -50,7 +50,7 @@ export interface ISupervisorClient {
      */
     logoutUser(input: LogoutUserRequest, options?: OperationOptions): UnaryCall<LogoutUserRequest, LogoutUserResponse>;
     /**
-     * Gets Bench host information.
+     * Gets Space host information.
      *
      * @generated from protobuf rpc: ResolveHosts(symbol.bench.ResolveHostsRequest) returns (symbol.bench.ResolveHostsResponse);
      */
@@ -104,7 +104,7 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
         return stackIntercept<LogoutUserRequest, LogoutUserResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Gets Bench host information.
+     * Gets Space host information.
      *
      * @generated from protobuf rpc: ResolveHosts(symbol.bench.ResolveHostsRequest) returns (symbol.bench.ResolveHostsResponse);
      */

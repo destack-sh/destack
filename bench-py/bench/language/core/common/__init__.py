@@ -1,4 +1,4 @@
-from .custom import CustomNodeDefinition, CustomNodeInstance
+from .custom import CustomNode, CustomNodeDefinition
 from .edit import (
     CASCADING_EDIT_TYPES,
     Change,
@@ -9,7 +9,7 @@ from .edit import (
     EditType,
     edit_graph,
 )
-from .event import ChangeEvent, EditEvent, QueryEvent
+from .event import ChangeEvent, CustomEvent, CustomEventDefinition, EditEvent, QueryEvent
 from .field import Field, FieldType
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
 from .meta import EnumInfo, EnumOptionInfo, NodeInfo, PropertyInfo, StructInfo, TraitInfo
@@ -58,7 +58,6 @@ from .relation import (
     relation_ref,
 )
 from .schema import Schema
-from .signal import SignalDefinition, SignalInstance
 from .text import (
     Text,
     TextIn,
@@ -107,8 +106,10 @@ __all__ = [
     "Condition",
     "ConditionalType",
     "Constraint",
+    "CustomEvent",
+    "CustomEventDefinition",
+    "CustomNode",
     "CustomNodeDefinition",
-    "CustomNodeInstance",
     "Edit",
     "EditEvent",
     "EditOperation",
@@ -152,8 +153,6 @@ __all__ = [
     "Scope",
     "Select",
     "Selection",
-    "SignalDefinition",
-    "SignalInstance",
     "Sort",
     "SortMode",
     "SortType",

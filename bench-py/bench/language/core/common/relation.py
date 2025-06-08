@@ -81,7 +81,7 @@ class RelationReference(StructFrozen):
             return NODE_CLASS_BY_TYPE.get(self.node_type)
         elif self.type == RelationType.CUSTOM_NODE:
             assert self.definition is not None, f"no definition for {self!r}"
-            return NODE_CLASS_BY_TYPE.get(NodeType.CUSTOM_NODE_INSTANCE)
+            return NODE_CLASS_BY_TYPE.get(NodeType.CUSTOM_NODE)
         elif self.type == RelationType.TRAIT:
             assert self.trait_type is not None, f"no trait_type for {self!r}"
             return NODE_CLASS_BY_TRAIT.get(self.trait_type)
@@ -116,7 +116,7 @@ def relation_ref(base: "NodeType | type[NodeBase] | CustomNodeDefinition") -> Re
     elif isinstance(base, Node):
         return RelationReference(
             type=RelationType.CUSTOM_NODE,
-            node_type=NodeType.CUSTOM_NODE_INSTANCE,
+            node_type=NodeType.CUSTOM_NODE,
             definition=base,
         )
     else:

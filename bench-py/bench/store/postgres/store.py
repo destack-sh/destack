@@ -189,7 +189,7 @@ class PostgresStoreContext(PostgresContext):
     def get_relation(self, relation: RelationReference | NodeReference) -> PostgresTable:
         # map relations to table names
         if isinstance(relation, NodeReference):
-            if relation.node_type != NodeType.CUSTOM_NODE_INSTANCE:
+            if relation.node_type != NodeType.CUSTOM_NODE:
                 table_name = f"{BENCH_BUILTIN_TABLE_PREFIX}{relation.node_type.name.lower()}"
             else:
                 assert relation.definition_id is not None, f"no definition_id for {relation!r}"

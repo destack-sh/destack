@@ -43,15 +43,15 @@ class CustomNodeDefinition(
     Node[CustomNodeDefinitionData],
 ):
     """
-    A definition for a custom Node type (instantiated in CustomNodeInstances).
+    A definition for a custom Node type (instantiated in CustomNodes).
     """
 
     # type?
     traits: list[TraitType] = property_(40, description="Dynamic traits.")
 
 
-@node_(NodeType.CUSTOM_NODE_INSTANCE)
-class CustomNodeInstance(
+@node_(NodeType.CUSTOM_NODE)
+class CustomNode(
     HasEnvironment,
     IsExtensible,
     IsInPackage,
@@ -62,13 +62,12 @@ class CustomNodeInstance(
     An instance of a CustomNodeDefinition.
     """
 
-    parent: Union["CustomNodeDefinition", "CustomNodeInstance", None] = property_parent_(
+    parent: Union["CustomNodeDefinition", "CustomNode", None] = property_parent_(
         node_is_customizable=True
     )
     definition: "CustomNodeDefinition" = property_(
         40,
         description="The CustomNodeDefinition this CustomNode is an instance of.",
-        node_space_from="self",
     )
     if TYPE_CHECKING:
         definition_id: Optional[UUID] = None

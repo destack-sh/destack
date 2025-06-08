@@ -493,7 +493,7 @@ def __to_ref__(self) -> "NodeReference":
         space_id=self.id,
     )
 """
-    elif node_type == NodeType.CUSTOM_NODE_INSTANCE:
+    elif node_type == NodeType.CUSTOM_NODE:
         ref_impl = f"""\
 def __to_ref__(self) -> "NodeReference":
     return NodeReference(
