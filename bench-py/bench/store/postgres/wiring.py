@@ -12,6 +12,7 @@ import pytz
 
 from bench.language import (
     EMPTY_DICT,
+    EMPTY_LIST,
     EdgeType,
     Field,
     IsInSpace,
@@ -68,6 +69,8 @@ def _unpack_{node_cls.__name__}_row(row: "asyncpg.Record") -> "Json":
         "timedelta": timedelta,
         "timedelta_from_isoformat": timedelta_from_isoformat,
         "timedelta_to_isoformat": timedelta_to_isoformat,
+        "EMPTY_DICT": EMPTY_DICT,
+        "EMPTY_LIST": EMPTY_LIST,
     }
 
 
@@ -188,7 +191,7 @@ else:
         elif prop.cardinality == TypeCardinality.MAP:
             # Maps are stored as JSON
             return f"""_value = node_value.get('{prop.id}')
-row_values.append(orjson.dumps(_value) if _value else None)"""
+row_values.append(orjson.dumps(_value or EMPTY_DICT).decode())"""
         else:
             assert_never(prop.cardinality)
 
@@ -353,9 +356,9 @@ def pack_column_scalar(type: "Type | Field", value: Json) -> Any:
     elif type.scalar_type == ScalarType.ENUM:
         return value
     elif type.scalar_type == ScalarType.NODE_VALUE:  # noqa: SIM114
-        return orjson.dumps(value)  # keep json
+        return orjson.dumps(value).decode()  # keep json
     elif type.scalar_type == ScalarType.STRUCT:
-        return orjson.dumps(value)  # keep json
+        return orjson.dumps(value).decode()  # keep json
     else:
         assert_never(type.scalar_type)
 
@@ -367,7 +370,7 @@ def pack_column_flat(type: "Type | Field", value: Json) -> Any:
     elif type.cardinality == TypeCardinality.LIST:
         return [pack_column_scalar(type, v) for v in value]
     elif type.cardinality == TypeCardinality.MAP:
-        return orjson.dumps(value)  # keep json
+        return orjson.dumps(value).decode()  # keep json
     else:
         assert_never(type.cardinality)
 
@@ -403,7 +406,7 @@ def pack_column_wide(
     elif type.cardinality == TypeCardinality.LIST:
         column_out[column_name] = [pack_column_scalar(type, v) for v in value or ()]
     elif type.cardinality == TypeCardinality.MAP:
-        column_out[column_name] = orjson.dumps(value or EMPTY_DICT)  # keep json
+        column_out[column_name] = orjson.dumps(value or EMPTY_DICT).decode()  # keep json
     else:
         assert_never(type.cardinality)
 
