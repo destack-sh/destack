@@ -813,8 +813,8 @@ enum NodeType {
   NODE_TYPE_SPAN = 1620;
   NODE_TYPE_INTERRUPTION = 1630;
   NODE_TYPE_LOG = 1640;
-  NODE_TYPE_SIGNAL_DEFINITION = 1700;
-  NODE_TYPE_SIGNAL_INSTANCE = 1701;
+  NODE_TYPE_CUSTOM_EVENT_DEFINITION = 1700;
+  NODE_TYPE_CUSTOM_EVENT = 1701;
   NODE_TYPE_EDIT_EVENT = 1710;
   NODE_TYPE_CHANGE_EVENT = 1711;
   NODE_TYPE_QUERY_EVENT = 1712;
@@ -823,7 +823,7 @@ enum NodeType {
   NODE_TYPE_FILE = 2020;
   NODE_TYPE_LINK = 2050;
   NODE_TYPE_CUSTOM_NODE_DEFINITION = 2200;
-  NODE_TYPE_CUSTOM_NODE_INSTANCE = 2201;
+  NODE_TYPE_CUSTOM_NODE = 2201;
   NODE_TYPE_THREAD = 2400;
   NODE_TYPE_MESSAGE = 2420;
   NODE_TYPE_FRAME_VIEW = 8100;
@@ -1635,7 +1635,42 @@ message CursorData {
   optional string url = 55;
 }
 
-// A definition for a custom Node type (instantiated in CustomNodeInstances).
+// An instance of a CustomEventDefinition.
+message CustomEventData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData package_ptr = 7;
+  NodeReferenceData definition_ptr = 40;
+}
+
+// A CustomEventDefinition defines a kind of CustomEvent.
+message CustomEventDefinitionData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData package_ptr = 7;
+  string name = 31;
+  optional string slug = 33;
+  optional NodeReferenceData source_ptr = 210;
+}
+
+// An instance of a CustomNodeDefinition.
+message CustomNodeData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData package_ptr = 7;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  EnvironmentType environment_type = 17;
+  map<string, ValueData> value = 24;
+  NodeReferenceData definition_ptr = 40;
+}
+
+// A definition for a custom Node type (instantiated in CustomNodes).
 message CustomNodeDefinitionData {
   NodeType metatype = 1;
   string id = 2;
@@ -1653,20 +1688,7 @@ message CustomNodeDefinitionData {
   optional NodeReferenceData source_ptr = 210;
 }
 
-// An instance of a CustomNodeDefinition.
-message CustomNodeInstanceData {
-  NodeType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
-  optional NodeReferenceData package_ptr = 7;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  EnvironmentType environment_type = 17;
-  map<string, ValueData> value = 24;
-  NodeReferenceData definition_ptr = 40;
-}
-
-// A relational Database.
+// A primary storage Database of some flavor.
 message DatabaseData {
   NodeType metatype = 1;
   string id = 2;
@@ -1685,7 +1707,7 @@ message DatabaseData {
   string external_name = 52;
   optional string custom_schema_name = 53;
   Tenancy tenancy = 55;
-  optional string sql_url = 58;
+  optional string connection_url = 58;
 }
 
 message DatabaseInfoData {
@@ -1696,7 +1718,7 @@ message DatabaseInfoData {
   string external_name = 52;
   optional string custom_schema_name = 53;
   Tenancy tenancy = 55;
-  optional string sql_url = 58;
+  optional string connection_url = 58;
 }
 
 message DimensionData {
@@ -2901,27 +2923,6 @@ message ShadowStyleData {
   optional double diffusion = 55;
 }
 
-// A SignalDefinition is a definition of a Signal.
-message SignalDefinitionData {
-  NodeType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
-  optional NodeReferenceData package_ptr = 7;
-  string name = 31;
-  optional string slug = 33;
-  optional NodeReferenceData source_ptr = 210;
-}
-
-message SignalInstanceData {
-  NodeType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
-  optional NodeReferenceData package_ptr = 7;
-  NodeReferenceData definition_ptr = 40;
-}
-
 // A slider input View.
 message SliderInputViewData {
   NodeType metatype = 1;
@@ -3510,8 +3511,8 @@ message SomeNodeData {
     SpanData span = 1620;
     InterruptionData interruption = 1630;
     LogData log = 1640;
-    SignalDefinitionData signal_definition = 1700;
-    SignalInstanceData signal_instance = 1701;
+    CustomEventDefinitionData custom_event_definition = 1700;
+    CustomEventData custom_event = 1701;
     EditEventData edit_event = 1710;
     ChangeEventData change_event = 1711;
     QueryEventData query_event = 1712;
@@ -3520,7 +3521,7 @@ message SomeNodeData {
     FileData file = 2020;
     LinkData link = 2050;
     CustomNodeDefinitionData custom_node_definition = 2200;
-    CustomNodeInstanceData custom_node_instance = 2201;
+    CustomNodeData custom_node = 2201;
     ThreadData thread = 2400;
     MessageData message = 2420;
     FrameViewData frame_view = 8100;

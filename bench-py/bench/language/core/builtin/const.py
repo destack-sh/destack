@@ -683,8 +683,8 @@ class NodeType(BuiltinEnum):
     # EVENT, SIGNAL, ...
     # TIMER, BREAKPOINT, ...
     # INSTRUMENT, MEASUREMENT,
-    SIGNAL_DEFINITION = 1700, "Signal Definition", "Signal Definition", "fas fa-signal"
-    SIGNAL_INSTANCE = 1701, "Signal Instance", "Signal Instance", "fas fa-signal"
+    CUSTOM_EVENT_DEFINITION = 1700, "Signal Definition", "Signal Definition", "fas fa-signal"
+    CUSTOM_EVENT = 1701, "Signal Instance", "Signal Instance", "fas fa-signal"
     EDIT_EVENT = 1710, "Edit Event", "Edit Event", "fas fa-file-lines"
     CHANGE_EVENT = 1711, "Change Event", "Change Event", "fas fa-file-lines"
     QUERY_EVENT = 1712, "Query Event", "Query Event", "fas fa-file-lines"
@@ -701,7 +701,7 @@ class NodeType(BuiltinEnum):
         "Custom Node Definition",
         "fas fa-table",
     )
-    CUSTOM_NODE_INSTANCE = 2201, "Custom Node Instance", "Custom Node Instance", "fas fa-database"
+    CUSTOM_NODE = 2201, "Custom Node Instance", "Custom Node Instance", "fas fa-database"
     # INDEX, CONSTRAINT, MIGRATION, ...
 
     # social [2400-2800]

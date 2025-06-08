@@ -156,25 +156,19 @@ export interface LocalStorage {
     // 
 
     /**
-     * The current Space. May be local if not in a current Bench.
+     * The current Space.
      *
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData space_ptr = 10;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData space_ptr = 11;
      */
     spacePtr?: NodeReferenceData;
     /**
-     * The current Bench.
-     *
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData bench_ptr = 11;
-     */
-    benchPtr?: NodeReferenceData;
-    /**
-     * The Bench->Package mapping for known Benches.
+     * The Space->Package mapping for known Spaces.
      *
      * @generated from protobuf field: repeated symbol.bench.NodeReferenceData package_ptrs = 12;
      */
     packagePtrs: NodeReferenceData[];
     /**
-     * The Bench->Space mapping for known Benches.
+     * The Space->Space mapping for known Spaces.
      *
      * @generated from protobuf field: repeated symbol.bench.NodeReferenceData space_ptrs = 13;
      */
@@ -552,8 +546,7 @@ class LocalStorage$Type extends MessageType<LocalStorage> {
             { no: 3, name: "user_info", kind: "message", T: () => UserInfo },
             { no: 4, name: "client_info", kind: "message", T: () => ClientInfo },
             { no: 5, name: "badges", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => BadgeInfo },
-            { no: 10, name: "space_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 11, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 11, name: "space_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 12, name: "package_ptrs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 13, name: "space_ptrs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 15, name: "local_graphs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => LocalGraph },
@@ -587,11 +580,8 @@ class LocalStorage$Type extends MessageType<LocalStorage> {
                 case /* repeated symbol.bench.BadgeInfo badges */ 5:
                     message.badges.push(BadgeInfo.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional symbol.bench.NodeReferenceData space_ptr */ 10:
+                case /* optional symbol.bench.NodeReferenceData space_ptr */ 11:
                     message.spacePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData bench_ptr */ 11:
-                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* repeated symbol.bench.NodeReferenceData package_ptrs */ 12:
                     message.packagePtrs.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
@@ -629,12 +619,9 @@ class LocalStorage$Type extends MessageType<LocalStorage> {
         /* repeated symbol.bench.BadgeInfo badges = 5; */
         for (let i = 0; i < message.badges.length; i++)
             BadgeInfo.internalBinaryWrite(message.badges[i], writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData space_ptr = 10; */
+        /* optional symbol.bench.NodeReferenceData space_ptr = 11; */
         if (message.spacePtr)
-            NodeReferenceData.internalBinaryWrite(message.spacePtr, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData bench_ptr = 11; */
-        if (message.benchPtr)
-            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.spacePtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbol.bench.NodeReferenceData package_ptrs = 12; */
         for (let i = 0; i < message.packagePtrs.length; i++)
             NodeReferenceData.internalBinaryWrite(message.packagePtrs[i], writer.tag(12, WireType.LengthDelimited).fork(), options).join();

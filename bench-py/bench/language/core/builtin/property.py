@@ -607,7 +607,7 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
             node_types = expand_node_types(self.node_types or ())
             self.node_has_type = len(node_types) > 1
             self.node_has_definition = (
-                self.node_is_customizable and NodeType.CUSTOM_NODE_INSTANCE in node_types
+                self.node_is_customizable and NodeType.CUSTOM_NODE in node_types
             )
             self.node_has_space = self.node_space_from is None and any(
                 issubclass(NODE_CLASS_BY_TYPE[node_type], IsInSpace) for node_type in node_types

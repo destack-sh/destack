@@ -202,18 +202,18 @@ export interface CreateOrganizationResponse {
  */
 export interface ResolveHostsRequest {
     /**
-     * @generated from protobuf field: repeated symbol.bench.ResolveHostsRequest.BenchKey benches = 1;
+     * @generated from protobuf field: repeated symbol.bench.ResolveHostsRequest.SpaceKey spaces = 1;
      */
-    benches: ResolveHostsRequest_BenchKey[];
+    spaces: ResolveHostsRequest_SpaceKey[];
 }
 /**
- * @generated from protobuf message symbol.bench.ResolveHostsRequest.BenchKey
+ * @generated from protobuf message symbol.bench.ResolveHostsRequest.SpaceKey
  */
-export interface ResolveHostsRequest_BenchKey {
+export interface ResolveHostsRequest_SpaceKey {
     /**
-     * @generated from protobuf oneof: bench
+     * @generated from protobuf oneof: space
      */
-    bench: {
+    space: {
         oneofKind: "id";
         /**
          * @generated from protobuf field: string id = 1;
@@ -259,9 +259,9 @@ export interface ResolveHostsResponse_HostInfo {
      */
     ssl: boolean;
     /**
-     * @generated from protobuf field: symbol.bench.NodeReferenceData bench = 5;
+     * @generated from protobuf field: symbol.bench.NodeReferenceData space = 5;
      */
-    bench?: NodeReferenceData;
+    space?: NodeReferenceData;
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class SignupUserRequest$Type extends MessageType<SignupUserRequest> {
@@ -861,12 +861,12 @@ export const CreateOrganizationResponse = new CreateOrganizationResponse$Type();
 class ResolveHostsRequest$Type extends MessageType<ResolveHostsRequest> {
     constructor() {
         super("symbol.bench.ResolveHostsRequest", [
-            { no: 1, name: "benches", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ResolveHostsRequest_BenchKey }
+            { no: 1, name: "spaces", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ResolveHostsRequest_SpaceKey }
         ]);
     }
     create(value?: PartialMessage<ResolveHostsRequest>): ResolveHostsRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.benches = [];
+        message.spaces = [];
         if (value !== undefined)
             reflectionMergePartial<ResolveHostsRequest>(this, message, value);
         return message;
@@ -876,8 +876,8 @@ class ResolveHostsRequest$Type extends MessageType<ResolveHostsRequest> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* repeated symbol.bench.ResolveHostsRequest.BenchKey benches */ 1:
-                    message.benches.push(ResolveHostsRequest_BenchKey.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbol.bench.ResolveHostsRequest.SpaceKey spaces */ 1:
+                    message.spaces.push(ResolveHostsRequest_SpaceKey.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -891,9 +891,9 @@ class ResolveHostsRequest$Type extends MessageType<ResolveHostsRequest> {
         return message;
     }
     internalBinaryWrite(message: ResolveHostsRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* repeated symbol.bench.ResolveHostsRequest.BenchKey benches = 1; */
-        for (let i = 0; i < message.benches.length; i++)
-            ResolveHostsRequest_BenchKey.internalBinaryWrite(message.benches[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbol.bench.ResolveHostsRequest.SpaceKey spaces = 1; */
+        for (let i = 0; i < message.spaces.length; i++)
+            ResolveHostsRequest_SpaceKey.internalBinaryWrite(message.spaces[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -905,33 +905,33 @@ class ResolveHostsRequest$Type extends MessageType<ResolveHostsRequest> {
  */
 export const ResolveHostsRequest = new ResolveHostsRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class ResolveHostsRequest_BenchKey$Type extends MessageType<ResolveHostsRequest_BenchKey> {
+class ResolveHostsRequest_SpaceKey$Type extends MessageType<ResolveHostsRequest_SpaceKey> {
     constructor() {
-        super("symbol.bench.ResolveHostsRequest.BenchKey", [
-            { no: 1, name: "id", kind: "scalar", oneof: "bench", T: 9 /*ScalarType.STRING*/ },
-            { no: 2, name: "slug", kind: "scalar", oneof: "bench", T: 9 /*ScalarType.STRING*/ }
+        super("symbol.bench.ResolveHostsRequest.SpaceKey", [
+            { no: 1, name: "id", kind: "scalar", oneof: "space", T: 9 /*ScalarType.STRING*/ },
+            { no: 2, name: "slug", kind: "scalar", oneof: "space", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
-    create(value?: PartialMessage<ResolveHostsRequest_BenchKey>): ResolveHostsRequest_BenchKey {
+    create(value?: PartialMessage<ResolveHostsRequest_SpaceKey>): ResolveHostsRequest_SpaceKey {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.bench = { oneofKind: undefined };
+        message.space = { oneofKind: undefined };
         if (value !== undefined)
-            reflectionMergePartial<ResolveHostsRequest_BenchKey>(this, message, value);
+            reflectionMergePartial<ResolveHostsRequest_SpaceKey>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ResolveHostsRequest_BenchKey): ResolveHostsRequest_BenchKey {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ResolveHostsRequest_SpaceKey): ResolveHostsRequest_SpaceKey {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
                 case /* string id */ 1:
-                    message.bench = {
+                    message.space = {
                         oneofKind: "id",
                         id: reader.string()
                     };
                     break;
                 case /* string slug */ 2:
-                    message.bench = {
+                    message.space = {
                         oneofKind: "slug",
                         slug: reader.string()
                     };
@@ -947,13 +947,13 @@ class ResolveHostsRequest_BenchKey$Type extends MessageType<ResolveHostsRequest_
         }
         return message;
     }
-    internalBinaryWrite(message: ResolveHostsRequest_BenchKey, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: ResolveHostsRequest_SpaceKey, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* string id = 1; */
-        if (message.bench.oneofKind === "id")
-            writer.tag(1, WireType.LengthDelimited).string(message.bench.id);
+        if (message.space.oneofKind === "id")
+            writer.tag(1, WireType.LengthDelimited).string(message.space.id);
         /* string slug = 2; */
-        if (message.bench.oneofKind === "slug")
-            writer.tag(2, WireType.LengthDelimited).string(message.bench.slug);
+        if (message.space.oneofKind === "slug")
+            writer.tag(2, WireType.LengthDelimited).string(message.space.slug);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -961,9 +961,9 @@ class ResolveHostsRequest_BenchKey$Type extends MessageType<ResolveHostsRequest_
     }
 }
 /**
- * @generated MessageType for protobuf message symbol.bench.ResolveHostsRequest.BenchKey
+ * @generated MessageType for protobuf message symbol.bench.ResolveHostsRequest.SpaceKey
  */
-export const ResolveHostsRequest_BenchKey = new ResolveHostsRequest_BenchKey$Type();
+export const ResolveHostsRequest_SpaceKey = new ResolveHostsRequest_SpaceKey$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ResolveHostsResponse$Type extends MessageType<ResolveHostsResponse> {
     constructor() {
@@ -1019,7 +1019,7 @@ class ResolveHostsResponse_HostInfo$Type extends MessageType<ResolveHostsRespons
             { no: 2, name: "grpc_port", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "grpc_web_port", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "ssl", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 5, name: "bench", kind: "message", T: () => NodeReferenceData }
+            { no: 5, name: "space", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<ResolveHostsResponse_HostInfo>): ResolveHostsResponse_HostInfo {
@@ -1049,8 +1049,8 @@ class ResolveHostsResponse_HostInfo$Type extends MessageType<ResolveHostsRespons
                 case /* bool ssl */ 4:
                     message.ssl = reader.bool();
                     break;
-                case /* symbol.bench.NodeReferenceData bench */ 5:
-                    message.bench = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.bench);
+                case /* symbol.bench.NodeReferenceData space */ 5:
+                    message.space = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.space);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -1076,9 +1076,9 @@ class ResolveHostsResponse_HostInfo$Type extends MessageType<ResolveHostsRespons
         /* bool ssl = 4; */
         if (message.ssl !== false)
             writer.tag(4, WireType.Varint).bool(message.ssl);
-        /* symbol.bench.NodeReferenceData bench = 5; */
-        if (message.bench)
-            NodeReferenceData.internalBinaryWrite(message.bench, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.NodeReferenceData space = 5; */
+        if (message.space)
+            NodeReferenceData.internalBinaryWrite(message.space, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

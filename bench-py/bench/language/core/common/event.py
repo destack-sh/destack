@@ -5,8 +5,11 @@ from fastuuid import UUID
 from ..builtin import (
     UNSET,
     HasEnvironment,
+    HasName,
+    HasSlug,
     IsEvent,
     IsInPackage,
+    IsSourceable,
     Node,
     NodeType,
     Property,
@@ -25,9 +28,6 @@ if TYPE_CHECKING:
     )
 
 # pyright: reportIncompatibleVariableOverride=false
-
-# nocheckin: Event vs Signal?
-#  events for hardcoded builtin events, signals for builtin and custom signals?
 
 
 @node_(NodeType.EDIT_EVENT)
@@ -65,3 +65,25 @@ class QueryEvent(HasEnvironment, IsEvent, IsInPackage, Node):
     """A Event of a Query."""
 
     pass
+
+
+@node_(NodeType.CUSTOM_EVENT_DEFINITION)
+class CustomEventDefinition(
+    HasName,
+    HasSlug,
+    IsSourceable,
+    IsInPackage,
+    Node,
+):
+    """A CustomEventDefinition defines a kind of CustomEvent."""
+
+    pass
+
+
+@node_(NodeType.CUSTOM_EVENT)
+class CustomEvent(IsInPackage, Node):
+    """An instance of a CustomEventDefinition."""
+
+    definition: CustomEventDefinition = property_(
+        40, description="The CustomEventDefinition this CustomEvent is an instance of."
+    )

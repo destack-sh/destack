@@ -86,10 +86,10 @@ class HostService(ServiceBase, HostBase):
         self.space_id = space_id
         self.space_ptr = NodeReference(node_type=NodeType.SPACE, id=space_id, space_id=space_id)
         self.scope = Scope(space_id=space_id)
-        self.global_database_store = PostgresStore(
+        self.global_postgres_store = PostgresStore(
             database=global_database, area=Area.GLOBAL_DATABASE
         )
-        self.main_database_store: PostgresStore | None = None
+        self.main_postgres_store: PostgresStore | None = None
         self.store: LiveStore = ...  # type: ignore nocheckin
         self.cell_provider = cell_provider
         self.database_provider = database_provider
@@ -107,13 +107,13 @@ class HostService(ServiceBase, HostBase):
         return super().is_idle
 
     async def start(self) -> None:
-        async with Session(store=self.global_database_store):
+        async with Session(store=self.global_postgres_store):
             space = await Space.get(
                 where=Space.property("id").eq(self.space_id),
                 Databases=Database.search(),
             ).execute_one()
             if (database := space.database) is not None:
-                self.main_database_store = PostgresStore(
+                self.main_postgres_store = PostgresStore(
                     database=database.to_info(), area=Area.MAIN_DATABASE
                 )
 

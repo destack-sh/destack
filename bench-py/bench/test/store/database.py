@@ -11,29 +11,32 @@ from bench.language import (
     ClientType,
     CustomNodeDefinition,
     DatabaseInfo,
+    FrameView,
     JoinType,
+    LabelView,
     NodeReference,
     NodeType,
     Page,
+    Scene,
     Session,
+    TextView,
     TraitType,
     User,
     UserStatus,
     join,
     text_line,
 )
-from bench.language.scene.scene import Scene
 from bench.store import PostgresStore
 
 
 @pytest.fixture
-def database_store(omni_database: DatabaseInfo) -> PostgresStore:
+def postgres_store(omni_database: DatabaseInfo) -> PostgresStore:
     return PostgresStore(database=omni_database, area=None)
 
 
 @pytest.fixture  # :PytestAsyncContext
-async def session_async(database_store: PostgresStore) -> AsyncGenerator[Session, None]:
-    session = Session(store=database_store)
+async def session_async(postgres_store: PostgresStore) -> AsyncGenerator[Session, None]:
+    session = Session(store=postgres_store)
     await session.open()
     yield session
     await session.close()
@@ -168,8 +171,21 @@ async def test_create_scene_with_heterogeneous_views(session: Session):
     session.create(scene)
     await session.commit()
 
-
-# nocheckin: Viewport/IsView/... recursive trait relation queries
+    # nocheckin: Viewport/IsView/... recursive trait relation queries
+    root_view = FrameView(name="Container")
+    scene.add_child(root_view)
+    await session.commit()
+    # create views
+    for i in range(4):
+        view = FrameView(name=f"View {i}")
+        root_view.add_child(view)
+        for j in range(4):
+            label_view = LabelView(name=f"Label {i}/{j}")
+            view.add_child(label_view)
+            for k in range(4):
+                text_view = TextView(name=f"Text {i}/{j}/{k}")
+                label_view.add_child(text_view)
+        await session.commit()
 
 
 async def test_create_custom_node(session: Session):

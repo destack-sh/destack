@@ -950,7 +950,122 @@ export interface CursorData {
     url?: string;
 }
 /**
- * A definition for a custom Node type (instantiated in CustomNodeInstances).
+ * An instance of a CustomEventDefinition.
+ *
+ * @generated from protobuf message symbol.bench.CustomEventData
+ */
+export interface CustomEventData {
+    /**
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
+     */
+    metatype: NodeType;
+    /**
+     * @generated from protobuf field: string id = 2;
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData parent_ptr = 4;
+     */
+    parentPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData space_ptr = 6;
+     */
+    spacePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData package_ptr = 7;
+     */
+    packagePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbol.bench.NodeReferenceData definition_ptr = 40;
+     */
+    definitionPtr?: NodeReferenceData;
+}
+/**
+ * A CustomEventDefinition defines a kind of CustomEvent.
+ *
+ * @generated from protobuf message symbol.bench.CustomEventDefinitionData
+ */
+export interface CustomEventDefinitionData {
+    /**
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
+     */
+    metatype: NodeType;
+    /**
+     * @generated from protobuf field: string id = 2;
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData parent_ptr = 4;
+     */
+    parentPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData space_ptr = 6;
+     */
+    spacePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData package_ptr = 7;
+     */
+    packagePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: string name = 31;
+     */
+    name: string;
+    /**
+     * @generated from protobuf field: optional string slug = 33;
+     */
+    slug?: string;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData source_ptr = 210;
+     */
+    sourcePtr?: NodeReferenceData;
+}
+/**
+ * An instance of a CustomNodeDefinition.
+ *
+ * @generated from protobuf message symbol.bench.CustomNodeData
+ */
+export interface CustomNodeData {
+    /**
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
+     */
+    metatype: NodeType;
+    /**
+     * @generated from protobuf field: string id = 2;
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData parent_ptr = 4;
+     */
+    parentPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData space_ptr = 6;
+     */
+    spacePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData package_ptr = 7;
+     */
+    packagePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 15;
+     */
+    deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
+     */
+    environmentType: EnvironmentType;
+    /**
+     * @generated from protobuf field: map<string, symbol.bench.ValueData> value = 24;
+     */
+    value: {
+        [key: string]: ValueData;
+    };
+    /**
+     * @generated from protobuf field: symbol.bench.NodeReferenceData definition_ptr = 40;
+     */
+    definitionPtr?: NodeReferenceData;
+}
+/**
+ * A definition for a custom Node type (instantiated in CustomNodes).
  *
  * @generated from protobuf message symbol.bench.CustomNodeDefinitionData
  */
@@ -1013,52 +1128,7 @@ export interface CustomNodeDefinitionData {
     sourcePtr?: NodeReferenceData;
 }
 /**
- * An instance of a CustomNodeDefinition.
- *
- * @generated from protobuf message symbol.bench.CustomNodeInstanceData
- */
-export interface CustomNodeInstanceData {
-    /**
-     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
-     */
-    metatype: NodeType;
-    /**
-     * @generated from protobuf field: string id = 2;
-     */
-    id: string;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData parent_ptr = 4;
-     */
-    parentPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData space_ptr = 6;
-     */
-    spacePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData package_ptr = 7;
-     */
-    packagePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 15;
-     */
-    deletedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 17;
-     */
-    environmentType: EnvironmentType;
-    /**
-     * @generated from protobuf field: map<string, symbol.bench.ValueData> value = 24;
-     */
-    value: {
-        [key: string]: ValueData;
-    };
-    /**
-     * @generated from protobuf field: symbol.bench.NodeReferenceData definition_ptr = 40;
-     */
-    definitionPtr?: NodeReferenceData;
-}
-/**
- * A relational Database.
+ * A primary storage Database of some flavor.
  *
  * @generated from protobuf message symbol.bench.DatabaseData
  */
@@ -1132,9 +1202,9 @@ export interface DatabaseData {
      */
     tenancy: Tenancy;
     /**
-     * @generated from protobuf field: optional string sql_url = 58;
+     * @generated from protobuf field: optional string connection_url = 58;
      */
-    sqlUrl?: string;
+    connectionUrl?: string;
 }
 /**
  * @generated from protobuf message symbol.bench.DatabaseInfoData
@@ -1169,9 +1239,9 @@ export interface DatabaseInfoData {
      */
     tenancy: Tenancy;
     /**
-     * @generated from protobuf field: optional string sql_url = 58;
+     * @generated from protobuf field: optional string connection_url = 58;
      */
-    sqlUrl?: string;
+    connectionUrl?: string;
 }
 /**
  * @generated from protobuf message symbol.bench.DimensionData
@@ -5500,74 +5570,6 @@ export interface ShadowStyleData {
     diffusion?: number;
 }
 /**
- * A SignalDefinition is a definition of a Signal.
- *
- * @generated from protobuf message symbol.bench.SignalDefinitionData
- */
-export interface SignalDefinitionData {
-    /**
-     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
-     */
-    metatype: NodeType;
-    /**
-     * @generated from protobuf field: string id = 2;
-     */
-    id: string;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData parent_ptr = 4;
-     */
-    parentPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData space_ptr = 6;
-     */
-    spacePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData package_ptr = 7;
-     */
-    packagePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: string name = 31;
-     */
-    name: string;
-    /**
-     * @generated from protobuf field: optional string slug = 33;
-     */
-    slug?: string;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData source_ptr = 210;
-     */
-    sourcePtr?: NodeReferenceData;
-}
-/**
- * @generated from protobuf message symbol.bench.SignalInstanceData
- */
-export interface SignalInstanceData {
-    /**
-     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
-     */
-    metatype: NodeType;
-    /**
-     * @generated from protobuf field: string id = 2;
-     */
-    id: string;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData parent_ptr = 4;
-     */
-    parentPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData space_ptr = 6;
-     */
-    spacePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData package_ptr = 7;
-     */
-    packagePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: symbol.bench.NodeReferenceData definition_ptr = 40;
-     */
-    definitionPtr?: NodeReferenceData;
-}
-/**
  * A slider input View.
  *
  * @generated from protobuf message symbol.bench.SliderInputViewData
@@ -7785,17 +7787,17 @@ export interface SomeNodeData {
          */
         log: LogData;
     } | {
-        oneofKind: "signalDefinition";
+        oneofKind: "customEventDefinition";
         /**
-         * @generated from protobuf field: symbol.bench.SignalDefinitionData signal_definition = 1700;
+         * @generated from protobuf field: symbol.bench.CustomEventDefinitionData custom_event_definition = 1700;
          */
-        signalDefinition: SignalDefinitionData;
+        customEventDefinition: CustomEventDefinitionData;
     } | {
-        oneofKind: "signalInstance";
+        oneofKind: "customEvent";
         /**
-         * @generated from protobuf field: symbol.bench.SignalInstanceData signal_instance = 1701;
+         * @generated from protobuf field: symbol.bench.CustomEventData custom_event = 1701;
          */
-        signalInstance: SignalInstanceData;
+        customEvent: CustomEventData;
     } | {
         oneofKind: "editEvent";
         /**
@@ -7845,11 +7847,11 @@ export interface SomeNodeData {
          */
         customNodeDefinition: CustomNodeDefinitionData;
     } | {
-        oneofKind: "customNodeInstance";
+        oneofKind: "customNode";
         /**
-         * @generated from protobuf field: symbol.bench.CustomNodeInstanceData custom_node_instance = 2201;
+         * @generated from protobuf field: symbol.bench.CustomNodeData custom_node = 2201;
          */
-        customNodeInstance: CustomNodeInstanceData;
+        customNode: CustomNodeData;
     } | {
         oneofKind: "thread";
         /**
@@ -10726,13 +10728,13 @@ export enum NodeType {
      */
     LOG = 1640,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SIGNAL_DEFINITION = 1700;
+     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_EVENT_DEFINITION = 1700;
      */
-    SIGNAL_DEFINITION = 1700,
+    CUSTOM_EVENT_DEFINITION = 1700,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SIGNAL_INSTANCE = 1701;
+     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_EVENT = 1701;
      */
-    SIGNAL_INSTANCE = 1701,
+    CUSTOM_EVENT = 1701,
     /**
      * @generated from protobuf enum value: NODE_TYPE_EDIT_EVENT = 1710;
      */
@@ -10766,9 +10768,9 @@ export enum NodeType {
      */
     CUSTOM_NODE_DEFINITION = 2200,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_NODE_INSTANCE = 2201;
+     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_NODE = 2201;
      */
-    CUSTOM_NODE_INSTANCE = 2201,
+    CUSTOM_NODE = 2201,
     /**
      * @generated from protobuf enum value: NODE_TYPE_THREAD = 2400;
      */
@@ -14812,6 +14814,313 @@ class CursorData$Type extends MessageType$<CursorData> {
  */
 export const CursorData = new CursorData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class CustomEventData$Type extends MessageType$<CustomEventData> {
+    constructor() {
+        super("symbol.bench.CustomEventData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 6, name: "space_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "definition_ptr", kind: "message", T: () => NodeReferenceData }
+        ]);
+    }
+    create(value?: PartialMessage<CustomEventData>): CustomEventData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        if (value !== undefined)
+            reflectionMergePartial<CustomEventData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CustomEventData): CustomEventData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.NodeType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* optional symbol.bench.NodeReferenceData parent_ptr */ 4:
+                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData space_ptr */ 6:
+                    message.spacePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData package_ptr */ 7:
+                    message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* symbol.bench.NodeReferenceData definition_ptr */ 40:
+                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: CustomEventData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.NodeType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbol.bench.NodeReferenceData parent_ptr = 4; */
+        if (message.parentPtr)
+            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData space_ptr = 6; */
+        if (message.spacePtr)
+            NodeReferenceData.internalBinaryWrite(message.spacePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData package_ptr = 7; */
+        if (message.packagePtr)
+            NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.NodeReferenceData definition_ptr = 40; */
+        if (message.definitionPtr)
+            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.CustomEventData
+ */
+export const CustomEventData = new CustomEventData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class CustomEventDefinitionData$Type extends MessageType$<CustomEventDefinitionData> {
+    constructor() {
+        super("symbol.bench.CustomEventDefinitionData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 6, name: "space_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 210, name: "source_ptr", kind: "message", T: () => NodeReferenceData }
+        ]);
+    }
+    create(value?: PartialMessage<CustomEventDefinitionData>): CustomEventDefinitionData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.name = "";
+        if (value !== undefined)
+            reflectionMergePartial<CustomEventDefinitionData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CustomEventDefinitionData): CustomEventDefinitionData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.NodeType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* optional symbol.bench.NodeReferenceData parent_ptr */ 4:
+                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData space_ptr */ 6:
+                    message.spacePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData package_ptr */ 7:
+                    message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* string name */ 31:
+                    message.name = reader.string();
+                    break;
+                case /* optional string slug */ 33:
+                    message.slug = reader.string();
+                    break;
+                case /* optional symbol.bench.NodeReferenceData source_ptr */ 210:
+                    message.sourcePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.sourcePtr);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: CustomEventDefinitionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.NodeType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbol.bench.NodeReferenceData parent_ptr = 4; */
+        if (message.parentPtr)
+            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData space_ptr = 6; */
+        if (message.spacePtr)
+            NodeReferenceData.internalBinaryWrite(message.spacePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData package_ptr = 7; */
+        if (message.packagePtr)
+            NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
+        /* string name = 31; */
+        if (message.name !== "")
+            writer.tag(31, WireType.LengthDelimited).string(message.name);
+        /* optional string slug = 33; */
+        if (message.slug !== undefined)
+            writer.tag(33, WireType.LengthDelimited).string(message.slug);
+        /* optional symbol.bench.NodeReferenceData source_ptr = 210; */
+        if (message.sourcePtr)
+            NodeReferenceData.internalBinaryWrite(message.sourcePtr, writer.tag(210, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.CustomEventDefinitionData
+ */
+export const CustomEventDefinitionData = new CustomEventDefinitionData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class CustomNodeData$Type extends MessageType$<CustomNodeData> {
+    constructor() {
+        super("symbol.bench.CustomNodeData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 6, name: "space_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
+            { no: 24, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueData } },
+            { no: 40, name: "definition_ptr", kind: "message", T: () => NodeReferenceData }
+        ]);
+    }
+    create(value?: PartialMessage<CustomNodeData>): CustomNodeData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.environmentType = 0;
+        message.value = {};
+        if (value !== undefined)
+            reflectionMergePartial<CustomNodeData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CustomNodeData): CustomNodeData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.NodeType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* optional symbol.bench.NodeReferenceData parent_ptr */ 4:
+                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData space_ptr */ 6:
+                    message.spacePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData package_ptr */ 7:
+                    message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 15:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* symbol.bench.EnvironmentType environment_type */ 17:
+                    message.environmentType = reader.int32();
+                    break;
+                case /* map<string, symbol.bench.ValueData> value */ 24:
+                    this.binaryReadMap24(message.value, reader, options);
+                    break;
+                case /* symbol.bench.NodeReferenceData definition_ptr */ 40:
+                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    private binaryReadMap24(map: CustomNodeData["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
+        let len = reader.uint32(), end = reader.pos + len, key: keyof CustomNodeData["value"] | undefined, val: CustomNodeData["value"][any] | undefined;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case 1:
+                    key = reader.string();
+                    break;
+                case 2:
+                    val = ValueData.internalBinaryRead(reader, reader.uint32(), options);
+                    break;
+                default: throw new globalThis.Error("unknown map entry field for field symbol.bench.CustomNodeData.value");
+            }
+        }
+        map[key ?? ""] = val ?? ValueData.create();
+    }
+    internalBinaryWrite(message: CustomNodeData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.NodeType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbol.bench.NodeReferenceData parent_ptr = 4; */
+        if (message.parentPtr)
+            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData space_ptr = 6; */
+        if (message.spacePtr)
+            NodeReferenceData.internalBinaryWrite(message.spacePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData package_ptr = 7; */
+        if (message.packagePtr)
+            NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 15; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.EnvironmentType environment_type = 17; */
+        if (message.environmentType !== 0)
+            writer.tag(17, WireType.Varint).int32(message.environmentType);
+        /* map<string, symbol.bench.ValueData> value = 24; */
+        for (let k of globalThis.Object.keys(message.value)) {
+            writer.tag(24, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
+            writer.tag(2, WireType.LengthDelimited).fork();
+            ValueData.internalBinaryWrite(message.value[k], writer, options);
+            writer.join().join();
+        }
+        /* symbol.bench.NodeReferenceData definition_ptr = 40; */
+        if (message.definitionPtr)
+            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.CustomNodeData
+ */
+export const CustomNodeData = new CustomNodeData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class CustomNodeDefinitionData$Type extends MessageType$<CustomNodeDefinitionData> {
     constructor() {
         super("symbol.bench.CustomNodeDefinitionData", [
@@ -14962,132 +15271,6 @@ class CustomNodeDefinitionData$Type extends MessageType$<CustomNodeDefinitionDat
  */
 export const CustomNodeDefinitionData = new CustomNodeDefinitionData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class CustomNodeInstanceData$Type extends MessageType$<CustomNodeInstanceData> {
-    constructor() {
-        super("symbol.bench.CustomNodeInstanceData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 6, name: "space_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 7, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 17, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
-            { no: 24, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueData } },
-            { no: 40, name: "definition_ptr", kind: "message", T: () => NodeReferenceData }
-        ]);
-    }
-    create(value?: PartialMessage<CustomNodeInstanceData>): CustomNodeInstanceData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = "";
-        message.environmentType = 0;
-        message.value = {};
-        if (value !== undefined)
-            reflectionMergePartial<CustomNodeInstanceData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CustomNodeInstanceData): CustomNodeInstanceData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.bench.NodeType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* string id */ 2:
-                    message.id = reader.string();
-                    break;
-                case /* optional symbol.bench.NodeReferenceData parent_ptr */ 4:
-                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData space_ptr */ 6:
-                    message.spacePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData package_ptr */ 7:
-                    message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
-                    break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 15:
-                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
-                    break;
-                case /* symbol.bench.EnvironmentType environment_type */ 17:
-                    message.environmentType = reader.int32();
-                    break;
-                case /* map<string, symbol.bench.ValueData> value */ 24:
-                    this.binaryReadMap24(message.value, reader, options);
-                    break;
-                case /* symbol.bench.NodeReferenceData definition_ptr */ 40:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    private binaryReadMap24(map: CustomNodeInstanceData["value"], reader: IBinaryReader, options: BinaryReadOptions): void {
-        let len = reader.uint32(), end = reader.pos + len, key: keyof CustomNodeInstanceData["value"] | undefined, val: CustomNodeInstanceData["value"][any] | undefined;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case 1:
-                    key = reader.string();
-                    break;
-                case 2:
-                    val = ValueData.internalBinaryRead(reader, reader.uint32(), options);
-                    break;
-                default: throw new globalThis.Error("unknown map entry field for field symbol.bench.CustomNodeInstanceData.value");
-            }
-        }
-        map[key ?? ""] = val ?? ValueData.create();
-    }
-    internalBinaryWrite(message: CustomNodeInstanceData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.NodeType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* string id = 2; */
-        if (message.id !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* optional symbol.bench.NodeReferenceData parent_ptr = 4; */
-        if (message.parentPtr)
-            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData space_ptr = 6; */
-        if (message.spacePtr)
-            NodeReferenceData.internalBinaryWrite(message.spacePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData package_ptr = 7; */
-        if (message.packagePtr)
-            NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 15; */
-        if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EnvironmentType environment_type = 17; */
-        if (message.environmentType !== 0)
-            writer.tag(17, WireType.Varint).int32(message.environmentType);
-        /* map<string, symbol.bench.ValueData> value = 24; */
-        for (let k of globalThis.Object.keys(message.value)) {
-            writer.tag(24, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
-            writer.tag(2, WireType.LengthDelimited).fork();
-            ValueData.internalBinaryWrite(message.value[k], writer, options);
-            writer.join().join();
-        }
-        /* symbol.bench.NodeReferenceData definition_ptr = 40; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.bench.CustomNodeInstanceData
- */
-export const CustomNodeInstanceData = new CustomNodeInstanceData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class DatabaseData$Type extends MessageType$<DatabaseData> {
     constructor() {
         super("symbol.bench.DatabaseData", [
@@ -15108,7 +15291,7 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
             { no: 52, name: "external_name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 53, name: "custom_schema_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 55, name: "tenancy", kind: "enum", T: () => ["symbol.bench.Tenancy", Tenancy, "TENANCY_"] },
-            { no: 58, name: "sql_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 58, name: "connection_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<DatabaseData>): DatabaseData {
@@ -15181,8 +15364,8 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
                 case /* symbol.bench.Tenancy tenancy */ 55:
                     message.tenancy = reader.int32();
                     break;
-                case /* optional string sql_url */ 58:
-                    message.sqlUrl = reader.string();
+                case /* optional string connection_url */ 58:
+                    message.connectionUrl = reader.string();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -15247,9 +15430,9 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
         /* symbol.bench.Tenancy tenancy = 55; */
         if (message.tenancy !== 0)
             writer.tag(55, WireType.Varint).int32(message.tenancy);
-        /* optional string sql_url = 58; */
-        if (message.sqlUrl !== undefined)
-            writer.tag(58, WireType.LengthDelimited).string(message.sqlUrl);
+        /* optional string connection_url = 58; */
+        if (message.connectionUrl !== undefined)
+            writer.tag(58, WireType.LengthDelimited).string(message.connectionUrl);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -15271,7 +15454,7 @@ class DatabaseInfoData$Type extends MessageType$<DatabaseInfoData> {
             { no: 52, name: "external_name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 53, name: "custom_schema_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 55, name: "tenancy", kind: "enum", T: () => ["symbol.bench.Tenancy", Tenancy, "TENANCY_"] },
-            { no: 58, name: "sql_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 58, name: "connection_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<DatabaseInfoData>): DatabaseInfoData {
@@ -15311,8 +15494,8 @@ class DatabaseInfoData$Type extends MessageType$<DatabaseInfoData> {
                 case /* symbol.bench.Tenancy tenancy */ 55:
                     message.tenancy = reader.int32();
                     break;
-                case /* optional string sql_url */ 58:
-                    message.sqlUrl = reader.string();
+                case /* optional string connection_url */ 58:
+                    message.connectionUrl = reader.string();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -15347,9 +15530,9 @@ class DatabaseInfoData$Type extends MessageType$<DatabaseInfoData> {
         /* symbol.bench.Tenancy tenancy = 55; */
         if (message.tenancy !== 0)
             writer.tag(55, WireType.Varint).int32(message.tenancy);
-        /* optional string sql_url = 58; */
-        if (message.sqlUrl !== undefined)
-            writer.tag(58, WireType.LengthDelimited).string(message.sqlUrl);
+        /* optional string connection_url = 58; */
+        if (message.connectionUrl !== undefined)
+            writer.tag(58, WireType.LengthDelimited).string(message.connectionUrl);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -25040,187 +25223,6 @@ class ShadowStyleData$Type extends MessageType$<ShadowStyleData> {
  */
 export const ShadowStyleData = new ShadowStyleData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class SignalDefinitionData$Type extends MessageType$<SignalDefinitionData> {
-    constructor() {
-        super("symbol.bench.SignalDefinitionData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 6, name: "space_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 7, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 210, name: "source_ptr", kind: "message", T: () => NodeReferenceData }
-        ]);
-    }
-    create(value?: PartialMessage<SignalDefinitionData>): SignalDefinitionData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = "";
-        message.name = "";
-        if (value !== undefined)
-            reflectionMergePartial<SignalDefinitionData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SignalDefinitionData): SignalDefinitionData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.bench.NodeType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* string id */ 2:
-                    message.id = reader.string();
-                    break;
-                case /* optional symbol.bench.NodeReferenceData parent_ptr */ 4:
-                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData space_ptr */ 6:
-                    message.spacePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData package_ptr */ 7:
-                    message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
-                    break;
-                case /* string name */ 31:
-                    message.name = reader.string();
-                    break;
-                case /* optional string slug */ 33:
-                    message.slug = reader.string();
-                    break;
-                case /* optional symbol.bench.NodeReferenceData source_ptr */ 210:
-                    message.sourcePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.sourcePtr);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: SignalDefinitionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.NodeType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* string id = 2; */
-        if (message.id !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* optional symbol.bench.NodeReferenceData parent_ptr = 4; */
-        if (message.parentPtr)
-            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData space_ptr = 6; */
-        if (message.spacePtr)
-            NodeReferenceData.internalBinaryWrite(message.spacePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData package_ptr = 7; */
-        if (message.packagePtr)
-            NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
-        /* string name = 31; */
-        if (message.name !== "")
-            writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional string slug = 33; */
-        if (message.slug !== undefined)
-            writer.tag(33, WireType.LengthDelimited).string(message.slug);
-        /* optional symbol.bench.NodeReferenceData source_ptr = 210; */
-        if (message.sourcePtr)
-            NodeReferenceData.internalBinaryWrite(message.sourcePtr, writer.tag(210, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.bench.SignalDefinitionData
- */
-export const SignalDefinitionData = new SignalDefinitionData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class SignalInstanceData$Type extends MessageType$<SignalInstanceData> {
-    constructor() {
-        super("symbol.bench.SignalInstanceData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 6, name: "space_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 7, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 40, name: "definition_ptr", kind: "message", T: () => NodeReferenceData }
-        ]);
-    }
-    create(value?: PartialMessage<SignalInstanceData>): SignalInstanceData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = "";
-        if (value !== undefined)
-            reflectionMergePartial<SignalInstanceData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SignalInstanceData): SignalInstanceData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.bench.NodeType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* string id */ 2:
-                    message.id = reader.string();
-                    break;
-                case /* optional symbol.bench.NodeReferenceData parent_ptr */ 4:
-                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData space_ptr */ 6:
-                    message.spacePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
-                    break;
-                case /* optional symbol.bench.NodeReferenceData package_ptr */ 7:
-                    message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
-                    break;
-                case /* symbol.bench.NodeReferenceData definition_ptr */ 40:
-                    message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: SignalInstanceData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.bench.NodeType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* string id = 2; */
-        if (message.id !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* optional symbol.bench.NodeReferenceData parent_ptr = 4; */
-        if (message.parentPtr)
-            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData space_ptr = 6; */
-        if (message.spacePtr)
-            NodeReferenceData.internalBinaryWrite(message.spacePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData package_ptr = 7; */
-        if (message.packagePtr)
-            NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.NodeReferenceData definition_ptr = 40; */
-        if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.bench.SignalInstanceData
- */
-export const SignalInstanceData = new SignalInstanceData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class SliderInputViewData$Type extends MessageType$<SliderInputViewData> {
     constructor() {
         super("symbol.bench.SliderInputViewData", [
@@ -29568,8 +29570,8 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
             { no: 1620, name: "span", kind: "message", oneof: "node", T: () => SpanData },
             { no: 1630, name: "interruption", kind: "message", oneof: "node", T: () => InterruptionData },
             { no: 1640, name: "log", kind: "message", oneof: "node", T: () => LogData },
-            { no: 1700, name: "signal_definition", kind: "message", oneof: "node", T: () => SignalDefinitionData },
-            { no: 1701, name: "signal_instance", kind: "message", oneof: "node", T: () => SignalInstanceData },
+            { no: 1700, name: "custom_event_definition", kind: "message", oneof: "node", T: () => CustomEventDefinitionData },
+            { no: 1701, name: "custom_event", kind: "message", oneof: "node", T: () => CustomEventData },
             { no: 1710, name: "edit_event", kind: "message", oneof: "node", T: () => EditEventData },
             { no: 1711, name: "change_event", kind: "message", oneof: "node", T: () => ChangeEventData },
             { no: 1712, name: "query_event", kind: "message", oneof: "node", T: () => QueryEventData },
@@ -29578,7 +29580,7 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
             { no: 2020, name: "file", kind: "message", oneof: "node", T: () => FileData },
             { no: 2050, name: "link", kind: "message", oneof: "node", T: () => LinkData },
             { no: 2200, name: "custom_node_definition", kind: "message", oneof: "node", T: () => CustomNodeDefinitionData },
-            { no: 2201, name: "custom_node_instance", kind: "message", oneof: "node", T: () => CustomNodeInstanceData },
+            { no: 2201, name: "custom_node", kind: "message", oneof: "node", T: () => CustomNodeData },
             { no: 2400, name: "thread", kind: "message", oneof: "node", T: () => ThreadData },
             { no: 2420, name: "message", kind: "message", oneof: "node", T: () => MessageData },
             { no: 8100, name: "frame_view", kind: "message", oneof: "node", T: () => FrameViewData },
@@ -29797,16 +29799,16 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
                         log: LogData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).log)
                     };
                     break;
-                case /* symbol.bench.SignalDefinitionData signal_definition */ 1700:
+                case /* symbol.bench.CustomEventDefinitionData custom_event_definition */ 1700:
                     message.node = {
-                        oneofKind: "signalDefinition",
-                        signalDefinition: SignalDefinitionData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).signalDefinition)
+                        oneofKind: "customEventDefinition",
+                        customEventDefinition: CustomEventDefinitionData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customEventDefinition)
                     };
                     break;
-                case /* symbol.bench.SignalInstanceData signal_instance */ 1701:
+                case /* symbol.bench.CustomEventData custom_event */ 1701:
                     message.node = {
-                        oneofKind: "signalInstance",
-                        signalInstance: SignalInstanceData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).signalInstance)
+                        oneofKind: "customEvent",
+                        customEvent: CustomEventData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customEvent)
                     };
                     break;
                 case /* symbol.bench.EditEventData edit_event */ 1710:
@@ -29857,10 +29859,10 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
                         customNodeDefinition: CustomNodeDefinitionData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customNodeDefinition)
                     };
                     break;
-                case /* symbol.bench.CustomNodeInstanceData custom_node_instance */ 2201:
+                case /* symbol.bench.CustomNodeData custom_node */ 2201:
                     message.node = {
-                        oneofKind: "customNodeInstance",
-                        customNodeInstance: CustomNodeInstanceData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customNodeInstance)
+                        oneofKind: "customNode",
+                        customNode: CustomNodeData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customNode)
                     };
                     break;
                 case /* symbol.bench.ThreadData thread */ 2400:
@@ -30076,12 +30078,12 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
         /* symbol.bench.LogData log = 1640; */
         if (message.node.oneofKind === "log")
             LogData.internalBinaryWrite(message.node.log, writer.tag(1640, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.SignalDefinitionData signal_definition = 1700; */
-        if (message.node.oneofKind === "signalDefinition")
-            SignalDefinitionData.internalBinaryWrite(message.node.signalDefinition, writer.tag(1700, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.SignalInstanceData signal_instance = 1701; */
-        if (message.node.oneofKind === "signalInstance")
-            SignalInstanceData.internalBinaryWrite(message.node.signalInstance, writer.tag(1701, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.CustomEventDefinitionData custom_event_definition = 1700; */
+        if (message.node.oneofKind === "customEventDefinition")
+            CustomEventDefinitionData.internalBinaryWrite(message.node.customEventDefinition, writer.tag(1700, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.CustomEventData custom_event = 1701; */
+        if (message.node.oneofKind === "customEvent")
+            CustomEventData.internalBinaryWrite(message.node.customEvent, writer.tag(1701, WireType.LengthDelimited).fork(), options).join();
         /* symbol.bench.EditEventData edit_event = 1710; */
         if (message.node.oneofKind === "editEvent")
             EditEventData.internalBinaryWrite(message.node.editEvent, writer.tag(1710, WireType.LengthDelimited).fork(), options).join();
@@ -30106,9 +30108,9 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
         /* symbol.bench.CustomNodeDefinitionData custom_node_definition = 2200; */
         if (message.node.oneofKind === "customNodeDefinition")
             CustomNodeDefinitionData.internalBinaryWrite(message.node.customNodeDefinition, writer.tag(2200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.CustomNodeInstanceData custom_node_instance = 2201; */
-        if (message.node.oneofKind === "customNodeInstance")
-            CustomNodeInstanceData.internalBinaryWrite(message.node.customNodeInstance, writer.tag(2201, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.CustomNodeData custom_node = 2201; */
+        if (message.node.oneofKind === "customNode")
+            CustomNodeData.internalBinaryWrite(message.node.customNode, writer.tag(2201, WireType.LengthDelimited).fork(), options).join();
         /* symbol.bench.ThreadData thread = 2400; */
         if (message.node.oneofKind === "thread")
             ThreadData.internalBinaryWrite(message.node.thread, writer.tag(2400, WireType.LengthDelimited).fork(), options).join();
@@ -30181,7 +30183,7 @@ export const SomeNodeData = new SomeNodeData$Type();
 //
 
 // Any...
-export type AnyNodeData = CustomNodeDefinitionData | CustomNodeInstanceData | FieldData | SchemaData | SignalDefinitionData | SignalInstanceData | ClientData | FriendshipData | FriendshipInviteData | OrganizationData | OrganizationInviteData | OrganizationMembershipData | UserData | FileData | LinkData | DatabaseData | MachineData | ActionData | AgentData | CursorData | ScriptData | ServiceData | TaskData | SpaceData | SpaceInviteData | SpaceMembershipData | HandleData | PackageData | PackageMembershipData | PackageInviteData | EditEventData | ChangeEventData | QueryEventData | InterruptionData | LogData | RunData | SpanData | BlockData | PageData | RouteData | SceneData | ViewportData | MessageData | ThreadData | ColorStyleData | BorderStyleData | TransitionStyleData | EffectStyleData | GradientStyleData | FontStyleData | ShadowStyleData | ThemeData | FrameViewData | LabelViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | WizardViewData | ThreadViewData
+export type AnyNodeData = CustomNodeDefinitionData | CustomNodeData | EditEventData | ChangeEventData | QueryEventData | CustomEventDefinitionData | CustomEventData | FieldData | SchemaData | ClientData | FriendshipData | FriendshipInviteData | OrganizationData | OrganizationInviteData | OrganizationMembershipData | UserData | FileData | LinkData | DatabaseData | MachineData | ActionData | AgentData | CursorData | ScriptData | ServiceData | TaskData | InterruptionData | LogData | RunData | SpanData | BlockData | PageData | RouteData | SceneData | ViewportData | MessageData | ThreadData | HandleData | PackageData | PackageMembershipData | PackageInviteData | SpaceData | SpaceInviteData | SpaceMembershipData | ColorStyleData | BorderStyleData | TransitionStyleData | EffectStyleData | GradientStyleData | FontStyleData | ShadowStyleData | ThemeData | FrameViewData | LabelViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | WizardViewData | ThreadViewData
 export type AnyStructData = ScopeData | RelationReferenceData | AttributeReferenceData | PropertyReferenceData | NodeReferenceData | EditData | ChangeData | ChangeResultData | StringConstraintData | NumberConstraintData | CollectionConstraintData | NodeConstraintData | TypeData | ValueData | FunctionData | ConditionData | AggregationData | ExpressionData | SortData | SelectData | JoinData | QueryData | HistogramData | QueryResultData | QueryResultGroupData | QueryUpdateData | SelectionData | IconData | PropertyInfoData | TraitInfoData | NodeInfoData | StructInfoData | EnumInfoData | EnumOptionInfoData | TextSpanData | TextLineData | TextData | VariableData | OriginData | CellInfoData | DatabaseInfoData | ScheduleData | ErrorData | ColorData | LengthData | PositionData | DimensionData | InsetsData | CornersData | Axis2Data | Axis3Data | Vector2Data | Vector3Data | Vector4Data | GridData | GridSpanData | BorderData | TransitionData | EffectData | GradientStopData | GradientData | FillData | FontData | ShadowData
 
     

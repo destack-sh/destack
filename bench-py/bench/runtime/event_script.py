@@ -3,14 +3,14 @@
 from contextlib import contextmanager
 from typing import Any
 
-from bench import Client, CustomNodeInstance, EdgeType, IsSubject, Node, Session, User
+from bench import Client, CustomNode, EdgeType, IsSubject, Node, Session, User
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
 
 # ===============================================
 # MOCK STUFF FOR PROTOTYPING
-# nocheckin: Scripts, custom Signals/Schemas/fields, ..
+# nocheckin: Scripts, custom Events/Schemas/fields, ..
 # ===============================================
 
 
@@ -19,7 +19,7 @@ session: Any = ...
 script: Any = ...
 
 
-Signal: Any = ...
+Event: Any = ...
 Schema: Any = ...
 field: Any = ...
 log: Any = ...
@@ -42,7 +42,7 @@ def schema(cls, *args, **kwargs):
     return cls
 
 
-def signal(cls, *args, **kwargs):
+def event(cls, *args, **kwargs):
     return cls
 
 
@@ -56,22 +56,22 @@ SECRET = script.member("secret_key", 1, str)
 
 
 @node
-class Event(Node):
+class Meetup(Node):
     name: str | None = field(1)
     capacity: int = field(2)
 
-    @signal
-    class EventAlmostFull(Signal):
+    @event
+    class MeetupAlmostFull(Event):
         pass
 
-    @signal
-    class EventFull(Signal):
+    @event
+    class MeetupFull(Event):
         pass
 
 
 @node
-class EventResponse(Node):
-    parent: Event = field(2, edge_type=EdgeType.PARENT)
+class MeetupResponse(Node):
+    parent: Meetup = field(2, edge_type=EdgeType.PARENT)
     user: User = field(3)
 
 
@@ -85,23 +85,23 @@ async def do_something(
     session: Session,
     subject: IsSubject,
     client: Client,
-    event: CustomNodeInstance,
+    event: CustomNode,
 ):
     secret_value = await SECRET.read()
     log("something_happened", secret_value)
 
 
 @action
-def do_something_else(event: Event):
+def do_something_else(event: Meetup):
     pass
 
 
 @action
-def on_new_response(event: Event):
+def on_new_response(event: Meetup):
     pass
 
 
-@on(Event.EventFull)
+@on(Meetup.MeetupFull)
 @action
-def on_event_full(event: Event):
+def on_event_full(event: Meetup):
     pass
