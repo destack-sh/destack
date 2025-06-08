@@ -12,7 +12,7 @@ from typing import (
     assert_never,
 )
 
-from bench.language.registry import NODE_CLASS_BY_TYPE
+from bench.language.registry import NODE_CLASS_BY_TYPE, NODE_TYPES_BY_TRAIT
 from bench.utils.func import hash_stable
 from bench.utils.string import Casing, to_casing
 
@@ -464,30 +464,28 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
                 id=self.id,
                 name=self.name + "_ptr",
                 component=self.component,
-                primitive_type=PrimitiveType.JSON,
-                scalar_type=ScalarType.STRUCT,
-                struct_type=StructType.PROPERTY_REFERENCE,
                 cardinality=self.cardinality,
-                is_wired=True,
-                is_stored=True,
+                scalar_type=ScalarType.STRUCT,
+                primitive_type=PrimitiveType.JSON,
+                struct_type=StructType.PROPERTY_REFERENCE,
                 is_required=self.is_required,
                 is_variable=self.is_variable,
-                is_eq=self.is_eq,
                 default=None,
                 runtime_prop=self,
+                is_wired=True,
+                is_stored=True,
+                is_eq=self.is_eq,
             )
             return ptr_prop
 
         # node reference
-        elif self.edge_type:
+        elif self.scalar_type == ScalarType.NODE_REFERENCE:
+            assert self.edge_type is not None, f"no edge type for {self!r}"
             if self.edge_type == EdgeType.PARENT:
                 is_computed = False
             elif self.edge_type == EdgeType.ANCESTOR:
                 is_computed = True
-            elif self.edge_type in (
-                EdgeType.REGULAR,
-                EdgeType.TEMPLATE,
-            ):
+            elif self.edge_type in (EdgeType.REGULAR, EdgeType.TEMPLATE):
                 is_computed = False
             else:
                 raise ValueError(f"unexpected reference kind {self.edge_type!r} for {self!r}")
@@ -495,21 +493,24 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
                 id=self.id,
                 name=self.name + "_ptr",
                 component=self.component,
-                edge_type=self.edge_type,
-                node_types=self.node_types,
-                runtime_prop=self,
-                scalar_type=ScalarType.NODE_REFERENCE,
-                struct_type=StructType.NODE_REFERENCE,
-                primitive_type=PrimitiveType.JSON,
-                is_wired=True,
-                is_stored=True,
-                is_eq=self.is_eq,
                 cardinality=self.cardinality,
-                is_computed=is_computed,
+                scalar_type=ScalarType.NODE_REFERENCE,
+                primitive_type=PrimitiveType.JSON,
+                struct_type=StructType.NODE_REFERENCE,
+                node_types=self.node_types,
                 is_required=self.is_required,
                 is_variable=self.is_variable,
                 default=None,
                 constraint=self.constraint,
+                runtime_prop=self,
+                node_space_from=self.node_space_from,
+                node_is_customizable=self.node_is_customizable,
+                edge_type=self.edge_type,
+                is_wired=True,
+                is_stored=True,
+                is_eq=self.is_eq,
+                is_hash=self.is_hash,
+                is_computed=is_computed,
             )
             if self.edge_type == EdgeType.ANCESTOR:
                 # wired ancestors are not required (even though stored ancestors are)
@@ -517,7 +518,7 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
 
             return ptr_prop
 
-    def determine(self, object_type: NodeType | StructType | None) -> None:
+    def determine(self, object_type: NodeType | StructType | None, is_root_node: bool) -> None:
         """Determine type information from annotation, add _ptr property if needed."""
         if not self.is_wired:
             return  # runtime only, nothing to do
@@ -545,6 +546,9 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
         # parent must be optional
         if self.name == "parent" and self.is_required:
             raise ValueError(f"parent must be optional: {self!r}")
+        # root nodes don't have a parent
+        if self.name == "parent" and is_root_node:
+            self.node_types = ()
         # 'type' must be 30
         if (self.name == "type") != (self.id == 30):
             raise ValueError(f"'type' must be 30: {self!r}")
@@ -560,12 +564,14 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
         # default to regular node references
         if self.scalar_type == ScalarType.NODE_REFERENCE and self.edge_type is None:
             self.edge_type = EdgeType.REGULAR
-
         # node templates always point to their own type
         if self.edge_type == EdgeType.TEMPLATE and object_type is not None:
             self.node_types = (NodeType(object_type),)
         # references get a _ptr property (which is wired/stored)
-        if self.edge_type is not None or self.struct_type == StructType.PROPERTY_REFERENCE:
+        if (
+            self.scalar_type == ScalarType.NODE_REFERENCE
+            or self.struct_type == StructType.PROPERTY_REFERENCE
+        ):
             # (don't want lists of Node references or Property references in Nodes, it's a mess)
             assert self.cardinality == TypeCardinality.SCALAR or not self.component.__is_node__, (
                 f"invalid list: {self!r}"
@@ -597,12 +603,22 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
 
             node_types = expand_node_types(self.node_types or ())
             self.node_has_type = len(node_types) > 1
-            self.node_has_definition = (
-                self.node_is_customizable and NodeType.CUSTOM_ENTITY in node_types
+            self.node_has_definition = self.node_is_customizable and any(
+                node_type in NODE_TYPES_BY_TRAIT[TraitType.CUSTOM_NODE] for node_type in node_types
             )
             self.node_has_space = self.node_space_from is None and any(
                 issubclass(NODE_CLASS_BY_TYPE[node_type], IsInSpace) for node_type in node_types
             )
+            if self.runtime_prop is not None:
+                assert self.runtime_prop.node_has_type == self.node_has_type, (
+                    f"bad {self!r}.node_has_type ({self.runtime_prop.node_has_type} != {self.node_has_type})"
+                )
+                assert self.runtime_prop.node_has_space == self.node_has_space, (
+                    f"bad {self!r}.node_has_space ({self.runtime_prop.node_has_space} != {self.node_has_space})"
+                )
+                assert self.runtime_prop.node_has_definition == self.node_has_definition, (
+                    f"bad {self!r}.node_has_definition ({self.runtime_prop.node_has_definition} != {self.node_has_definition})"
+                )
 
 
 def property_(

@@ -256,7 +256,7 @@ class PostgresColumn(PostgresTableObject):
         return f"{table_name or '<detached>'}.{self.name} ({self.type.camel_name}{args_str})"
 
     def __repr__(self):
-        return f"<Column {self}>"
+        return f"<{self.__class__.__name__} {self}>"
 
     def type_sql(self) -> str:
         if self.type == PrimitiveType.STRING and self.length is not None:
@@ -328,7 +328,7 @@ class PostgresConstraint(PostgresTableObject):
         return f"{table_name or '<detached>'}.{self.name} ({self.type}) [{self.columns}, condition={self.condition}])"
 
     def __repr__(self):
-        return f"<Constraint {self}>"
+        return f"<{self.__class__.__name__} {self}>"
 
     @property
     def name(self):  # type: ignore
@@ -395,7 +395,7 @@ class PostgresIndex(PostgresTableObject):
         return f"{table_name or '<detached>'}.{self.name} ({self.type}) [{self.columns}, condition={self.condition}])"
 
     def __repr__(self):
-        return f"<Index {self}>"
+        return f"<{self.__class__.__name__} {self}>"
 
     @property
     def name(self):  # type: ignore
@@ -462,7 +462,7 @@ class PostgresTable(PostgresTableObject):
         return f"{self.name} (columns={len(self.columns)}, constraints={len(self.constraints)}, indexes={len(self.indexes)})"
 
     def __repr__(self):
-        return f"<Table {self}>"
+        return f"<{self.__class__.__name__} {self}>"
 
     def __hash__(self):
         return hash_stable(self.kind, self.name, self.columns, self.indexes, self.constraints)

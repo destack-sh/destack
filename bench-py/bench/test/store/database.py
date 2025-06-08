@@ -172,7 +172,6 @@ async def test_create_scene_with_heterogeneous_views(session: Session):
     # nocheckin: IsView/... recursive trait relation queries
     root_view = FrameView(name="Container")
     scene.add_child(root_view)
-    await session.commit()
     # create views
     for i in range(4):
         view = FrameView(name=f"View {i}")
@@ -183,4 +182,4 @@ async def test_create_scene_with_heterogeneous_views(session: Session):
             for k in range(4):
                 text_view = TextView(name=f"Text {i}/{j}/{k}")
                 label_view.add_child(text_view)
-        await session.commit()
+    await session.commit()
