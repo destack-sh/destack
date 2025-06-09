@@ -805,7 +805,7 @@ class NodeType(BuiltinEnum):
     # VARIANT :RichGraph
 
     # canvas/drawing?
-    # CANVAS, BRUSH, SHAPE, ...
+    # CANVAS, LAYER, BITMAP, BRUSH, SHAPE, ...
 
     # audio/media?
     # SOUND, ...?
@@ -814,8 +814,7 @@ class NodeType(BuiltinEnum):
 @enum_(EnumType.TRAIT_TYPE)
 class TraitType(BuiltinEnum):
     # bench [1-200]
-    # kind/area/...
-    # nocheckin: GLOBAL, ENTITY, VIEW, EVENT, ... traits?
+    # nocheckin: traits for kind/area: GLOBAL, ENTITY, VIEW, EVENT, ... traits?
     GLOBAL = 1, "Global", "Is global", "fas fa-globe"
     # behavior
     FROZEN = 4, "Frozen", "Is frozen", "fas fa-snowflake"

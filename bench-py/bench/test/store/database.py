@@ -10,8 +10,10 @@ from bench.language import (
     BlockType,
     Client,
     ClientType,
+    CustomView,
     DatabaseInfo,
     FrameView,
+    IsView,
     JoinType,
     LabelView,
     Node,
@@ -184,17 +186,30 @@ async def test_create_scene_with_heterogeneous_views(session: Session):
     session.create(scene)
     await session.commit()
 
-    # nocheckin: IsView/... recursive trait relation queries
     root_view = FrameView(name="Container")
     scene.add_child(root_view)
     # create views
     for i in range(4):
-        view = FrameView(name=f"View {i}")
-        root_view.add_child(view)
+        frame_view = FrameView(name=f"View {i}")
+        root_view.add_child(frame_view)
         for j in range(4):
             label_view = LabelView(name=f"Label {i}/{j}")
-            view.add_child(label_view)
+            frame_view.add_child(label_view)
             for k in range(4):
                 text_view = TextView(name=f"Text {i}/{j}/{k}")
                 label_view.add_child(text_view)
+        custom_view = CustomView(
+            name=f"Custom {i}",
+            definition_ptr=NodeReference(node_type=NodeType.CUSTOM_VIEW_DEFINITION, id=uuid4()),
+        )
+        root_view.add_child(custom_view)
     await session.commit()
+
+    # query trait (non-recursive)
+    scene_tree = await FrameView.get(
+        where=FrameView.property("id").eq(root_view.id),
+        Views=IsView.search(join=join(JoinType.CHILD)),
+    ).execute()
+    scene_unpacked = scene_tree.to_one()
+    view_tree_unpacked = scene_unpacked.get_descendants(IsView)
+    assert len(view_tree_unpacked) == 8
