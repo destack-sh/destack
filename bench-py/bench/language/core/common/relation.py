@@ -75,6 +75,10 @@ class RelationReference(StructFrozen):
         return self.type in (RelationType.BUILTIN_NODE, RelationType.CUSTOM_NODE)
 
     @property
+    def is_multi(self) -> bool:
+        return self.type == RelationType.TRAIT
+
+    @property
     def object_cls(self) -> type_[BuiltinObjectBase] | None:
         if self.type == RelationType.BUILTIN_NODE:
             assert self.node_type is not None, f"no node_type for {self!r}"

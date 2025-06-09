@@ -337,7 +337,7 @@ FROM    tree;
 
     # side walk
     elif direction == EdgeDirection.SIDE:
-        raise NotImplementedError(direction)
+        raise NotImplementedError(f"cannot walk {table!r} in direction: {direction!r}")
 
     else:
         assert_never(direction)
@@ -355,36 +355,59 @@ async def _query_node(
     offset: int | None,
 ) -> tuple[list[Value], list[NodeReference]]:
     """Execute a node Query."""
-    # build statement
-    table = context.get_relation(relation)
-    arguments: list[Any] = []
-    stmt_parts: list[str] = ["SELECT"]
-    if select:
-        stmt_parts.append(_compile_select(context, arguments, select))
+    if relation.is_multi:
+        # fan out multi relations
+        if limit is not None or offset is not None:
+            raise NotImplementedError(f"cannot limit/offset for multi relation: {relation!r}")
+        subrelations = context.resolve_relation(relation)
+        nodes_value: list[Value] = []
+        nodes_ptr: list[NodeReference] = []
+        for subrelation in subrelations:
+            subnodes_value, subnodes_ptr = await _query_node(
+                conn=conn,
+                context=context,
+                relation=subrelation,
+                select=select,
+                where=where,
+                sort=sort,
+                limit=limit,
+                offset=offset,
+            )
+            nodes_value.extend(subnodes_value)
+            nodes_ptr.extend(subnodes_ptr)
+        return nodes_value, nodes_ptr
+
     else:
-        stmt_parts.append(", ".join(f'"{col.name}"' for col in table.columns))
-    stmt_parts.append(f"FROM {table.name}")
-    if where is not None:
-        stmt_parts.append(f"WHERE {_compile_condition(context, arguments, where)}")
-    if sort:
-        stmt_parts.append(f"ORDER BY {_compile_sort(context, arguments, sort)}")
-    if limit is not None:
-        stmt_parts.append(f"LIMIT {limit}")
-    if offset is not None:
-        stmt_parts.append(f"OFFSET {offset}")
-    stmt = "\n".join(stmt_parts)
+        # build statement
+        table = context.get_relation(relation)
+        arguments: list[Any] = []
+        stmt_parts: list[str] = ["SELECT"]
+        if select:
+            stmt_parts.append(_compile_select(context, arguments, select))
+        else:
+            stmt_parts.append(", ".join(f'"{col.name}"' for col in table.columns))
+        stmt_parts.append(f"FROM {table.name}")
+        if where is not None:
+            stmt_parts.append(f"WHERE {_compile_condition(context, arguments, where)}")
+        if sort:
+            stmt_parts.append(f"ORDER BY {_compile_sort(context, arguments, sort)}")
+        if limit is not None:
+            stmt_parts.append(f"LIMIT {limit}")
+        if offset is not None:
+            stmt_parts.append(f"OFFSET {offset}")
+        stmt = "\n".join(stmt_parts)
 
-    # execute
-    node_rows: list[asyncpg.Record] = await conn.fetch(stmt, *arguments)
-    node_values: list[Value] = []
-    nodes_ptr: list[NodeReference] = []
-    for row in node_rows:
-        value, ptr = unpack_node_row(table, row)
-        node_values.append(value)
-        nodes_ptr.append(ptr)
-    logger.debug("database.select", stmt=stmt, nodes=len(node_values), span="current")
+        # execute
+        nodes_row: list[asyncpg.Record] = await conn.fetch(stmt, *arguments)
+        nodes_value: list[Value] = []
+        nodes_ptr: list[NodeReference] = []
+        for row in nodes_row:
+            value, ptr = unpack_node_row(table, row)
+            nodes_value.append(value)
+            nodes_ptr.append(ptr)
+        logger.debug("database.query_node", stmt=stmt, nodes=len(nodes_value), span="current")
 
-    return node_values, nodes_ptr
+        return nodes_value, nodes_ptr
 
 
 @tracer.start_as_current_span("database.query_scalar")
@@ -396,6 +419,9 @@ async def _query_scalar(
     where: Condition | None,
 ) -> Value:
     """Execute a scalar Query."""
+    if relation.is_multi:
+        raise NotImplementedError(f"cannot query scalar on multi relation: {relation!r}")
+
     # build statement
     table = context.get_relation(relation)
     arguments: list[Any] = []
@@ -412,7 +438,7 @@ async def _query_scalar(
 
     # execute
     scalar_row: asyncpg.Record | None = await conn.fetchrow(stmt, *arguments)
-    logger.debug("database.scalar", stmt=stmt, scalar_row=scalar_row, span="current")
+    logger.debug("database.query_scalar", stmt=stmt, scalar_row=scalar_row, span="current")
     if aggregation.type == AggregationType.EXISTS:
         return to_value(scalar_row is not None)
     elif scalar_row is None:
