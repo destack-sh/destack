@@ -173,8 +173,6 @@ SET {", ".join(f'"{col.name}" = EXCLUDED."{col.name}"' for col in override_colum
             assert edit.value is not None, f"no value for {edit!r}"
             row_values_packed = pack_node_row(table, edit.value)
             values_packed.append(row_values_packed)
-        print(stmt)
-        print(values_packed)
         await conn.executemany(stmt, values_packed)
         logger.debug(
             f"database.{edit_type.name.lower()}",

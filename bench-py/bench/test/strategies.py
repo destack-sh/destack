@@ -1,5 +1,5 @@
 from itertools import chain
-from string import ascii_lowercase
+from string import ascii_letters, ascii_lowercase
 from typing import Any, assert_never, cast
 
 import fastuuid
@@ -142,7 +142,7 @@ def get_primitive_strategy(primitive_type: PrimitiveType) -> st.SearchStrategy[A
             allow_infinity=False,
         )
     elif primitive_type == PrimitiveType.STRING:
-        return st.text(min_size=1)
+        return st.text(min_size=1, alphabet=ascii_letters)
     else:
         return STRATEGY_BY_PRIMITIVE_TYPE[primitive_type]
 
