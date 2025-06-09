@@ -12,7 +12,7 @@ from typing import (
     assert_never,
 )
 
-from bench.language.registry import NODE_CLASS_BY_TYPE, NODE_TYPES_BY_TRAIT
+from bench.language.registry import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE, NODE_TYPES_BY_TRAIT
 from bench.utils.func import hash_stable
 from bench.utils.string import Casing, to_casing
 
@@ -584,13 +584,14 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
             if self.cardinality == TypeCardinality.MAP:
                 self.primitive_type = PrimitiveType.JSON
             elif self.scalar_type == ScalarType.ENUM:
-                assert self.enum_type is not None
-                if self.enum_type.get_max_ord() < 2**16:
+                assert self.enum_type is not None, f"no enum type for {self!r}"
+                enum_cls = ENUM_CLASS_BY_TYPE.get(self.enum_type)
+                if enum_cls is None or max(enum_cls) < 2**15:
                     self.primitive_type = PrimitiveType.INT16
                 else:
                     self.primitive_type = PrimitiveType.INT32
             elif self.scalar_type == ScalarType.STRUCT:
-                assert self.struct_type is not None
+                assert self.struct_type is not None, f"no struct type for {self!r}"
                 self.primitive_type = PrimitiveType.JSON
         assert self.primitive_type is not None, (
             f"undetermined type {self.py_type!r} for {self!r} ({annotation!r})"
