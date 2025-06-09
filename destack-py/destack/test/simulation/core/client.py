@@ -1,0 +1,91 @@
+from typing import TYPE_CHECKING, final
+
+from destack.proto import (
+    ClientData,
+    LoginUserRequest,
+    OriginData,
+    RpcMetadata,
+    SupervisorClient,
+    pack_rpc_headers,
+)
+
+from .spec import ClientSpec
+
+if TYPE_CHECKING:
+    from .machine import MachineHandle
+    from .simulation import Simulation
+    from .user import UserHandle
+
+
+@final
+class ClientHandle:
+    """A Client to a Destack"""
+
+    def __init__(
+        self,
+        id: str,
+        spec: ClientSpec,
+        parent: "UserHandle | MachineHandle",
+        simulation: "Simulation",
+    ):
+        self.id = id
+        self.spec = spec
+        self.parent = parent
+        self.simulation = simulation
+        self._client_data: ClientData | None = None
+        self._access_token: str | None = None
+        self._rpc_metadata: RpcMetadata | None = None
+        self._rpc_headers: dict[str, str] | None = None
+
+    def __str__(self):
+        return self.spec.name
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {self.spec.name}>"
+
+    @property
+    def client_data(self) -> ClientData:
+        assert self._client_data is not None, f"{self!r} not ready"
+        return self._client_data
+
+    def to_origin(self, *, nonce: str | None) -> OriginData:
+        raise NotImplementedError
+
+    @property
+    def rpc_metadata(self) -> RpcMetadata:
+        assert self._rpc_metadata is not None, f"{self!r} not ready"
+        return self._rpc_metadata
+
+    @property
+    def rpc_headers(self):
+        assert self._rpc_headers is not None, f"{self!r} not ready"
+        return self._rpc_headers
+
+    async def prepare(self, supervisor_client: SupervisorClient):
+        from .machine import MachineHandle
+        from .user import UserHandle
+
+        if isinstance(self.parent, UserHandle):
+            client_in = ClientDataIn(
+                type=self.spec.type,
+                name=self.spec.name,
+                device_name=self.spec.name,
+            )
+            login_req = LoginUserRequest(
+                slug=self.spec.parent[1], password=self.spec.parent[1], client=client_in
+            )
+            login_rep = await supervisor_client.login_user(login_req)
+            self._client_data = login_rep.client
+            self._access_token = login_rep.access_token
+        elif isinstance(self.parent, MachineHandle):
+            self._client_data = self.parent.client_data
+            self._access_token = self.parent.access_token
+        else:
+            raise ValueError(f"invalid client parent: {self.parent!r} in {self!r}")
+        self._rpc_metadata = RpcMetadata(
+            client_type=self._client_data.type,
+            client_id=self._client_data.id,
+            client_nonce=self._client_data.id,
+            client_access_token=self._access_token,
+        )
+        self._rpc_headers = pack_rpc_headers(self._rpc_metadata)

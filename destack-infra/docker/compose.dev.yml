@@ -1,0 +1,138 @@
+services:
+  postgres:
+    image: postgres:16
+    restart: on-failure
+    environment:
+      POSTGRES_USER: destack
+      POSTGRES_PASSWORD: destack
+    volumes:
+      - ../dev/postgres.conf:/etc/postgresql/postgresql.conf
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U destack"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    entrypoint: |
+      bash -c '
+        docker-entrypoint.sh postgres &
+        until pg_isready -U destack; do sleep 1; done
+        psql -U destack -c "CREATE DATABASE \"destack-global\";"
+        psql -U destack -c "CREATE DATABASE \"destack-db-0\";"
+        wait
+      '
+
+  redpanda:
+    image: redpandadata/redpanda:v24.3.14
+    restart: on-failure
+    ports:
+      - '9092:9092'   # Kafka API
+      - '9644:9644'   # Admin HTTP
+    environment:
+      - REDPANDA_AUTO_CREATE_TOPICS=true
+    command: >
+      redpanda start
+        --smp 1
+        --memory 1G
+        --overprovisioned
+        --node-id 0
+        --check=false
+    volumes:
+      - redpanda_data:/var/lib/redpanda/data
+
+  scylladb:
+    image: scylladb/scylla:6.2.3
+    restart: on-failure
+    ports:
+      - '9042:9042'   # CQL
+      - '9180:9180'   # Prometheus
+    command: --smp 1 --overprovisioned 1
+    volumes:
+      - scylla_data:/var/lib/scylla
+    environment:
+      SCYlla_SYNC_COMMANDS: 1
+
+  elasticsearch:
+    image: elastic/elasticsearch:8.18.2
+    restart: on-failure
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - '9200:9200'   # REST
+      - '9300:9300'   # transport
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+
+  minio:
+    image: minio/minio:latest
+    restart: on-failure
+    ports:
+      - '19000:19000'
+      - '19001:19001'
+    environment:
+      MINIO_ROOT_USER: 'AKIAIOSFODNN7EXAMPLE'
+      MINIO_ROOT_PASSWORD: 'UKht5CaJPQ5ZCaAsfFY52URhg7RWv8V2489e9qSpoAhJRw97gttSBkEWU65wtGz'
+    volumes:
+      - minio_data:/data
+    entrypoint: sh
+    # we manually create the required buckets here (outside of dev they're defined in terraform)
+    command: -c 'mkdir -p /data/destack-test-private-eu-zurich-files && mkdir -p /data/destack-dev-private-eu-zurich-files && mkdir -p /data/destack-test-private-eu-frankfurt-files && mkdir -p /data/destack-dev-private-eu-frankfurt-files && minio server --address ":19000" --console-address ":19001" /data'
+
+  redis:
+    image: redis:7-alpine
+    restart: on-failure
+    volumes:
+      - redis_data:/data
+    ports:
+      - '6379:6379'
+    command: redis-server --appendonly yes --requirepass destack
+
+  vault:
+    image: hashicorp/vault:latest
+    restart: on-failure
+    ports:
+      - '8200:8200'
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: 'destack-dev-token'
+      VAULT_DEV_LISTEN_ADDRESS: '0.0.0.0:8200'
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - vault_data:/vault/data
+    command: server -dev
+
+  envoy:
+    image: envoyproxy/envoy:v1.28-latest
+    restart: on-failure
+    volumes:
+      - ../dev/envoy.yaml:/etc/envoy/envoy.yaml
+      # certificates are generated with openssl for development:
+      #  openssl req -x509 -newkey rsa:4096 -keyout cert.key -out cert.pem -days 10000 -nodes -subj "/CN=localhost" -addext "subjectAltName = DNS:localhost,IP:127.0.0.1"
+      # and to make MacOS happy:
+      #  security import cert.pem -k ~/Library/Keychains/login.keychain-db
+      #  (and then manually configure this 'localhost' cert as 'Always Trust' in Keychain Access)
+      - ../dev/cert.key:/etc/envoy/ssl/cert.key
+      - ../dev/cert.pem:/etc/envoy/ssl/cert.pem
+    network_mode: host
+    # ports: 8080 & 9901 are not needed in host network mode
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - 16686:16686 # Jaeger UI
+      - 4317:4317 # OTLP gRPC receiver
+      - 4318:4318 # OTLP http receiver
+
+volumes:
+  postgres_data:
+  minio_data:
+  redis_data:
+  vault_data:
+  redpanda_data:
+  scylla_data:
+  elasticsearch_data:

@@ -1,0 +1,19 @@
+# run ./scripts/update-requirements.sh
+bitarray==2.9.2
+cachetools==5.3.3
+fastuuid==0.12.0
+grpclib[protobuf]==0.4.8
+more-itertools==10.2.0
+opentelemetry-api==1.28.1
+opentelemetry-exporter-otlp-proto-grpc==1.28.1
+opentelemetry-sdk==1.28.1
+orjson==3.10.18
+pillow==11.0.0
+protobuf==5.28.3
+python-dateutil==2.9.0.post0
+python-dotenv>=1.0.1
+pytz==2024.1
+regex==2024.11.6
+rich==13.9.4
+structlog==24.2.0
+typer==0.15.1

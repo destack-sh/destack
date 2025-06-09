@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"name": "destack",
+			"path": ".."
+		}
+	],
+	"settings": {
+		"workbench.editor.enablePreview": false
+	}
+}

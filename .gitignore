@@ -300,7 +300,7 @@ dist
 # VSCode configuration
 *.gpg
 
-bench-infra/.*
+destack-infra/.*
 *.tfstate
 *.tfstate.*
 *.tfvars

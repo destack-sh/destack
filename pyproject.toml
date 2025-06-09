@@ -1,7 +1,7 @@
 [project]
-name = "bench-py"
-version = "2025.06.09.0"
-description = "Bench SDK for Python"
+name = "destack-py"
+version = "2025.06.09.1"
+description = "Destack SDK for Python"
 authors = [{ name = "Symbol Industries", email = "hello@symbol.industries" }]
 
 [tool.ruff]
@@ -57,14 +57,14 @@ ignore = [
 	"N806",
 ]
 [tool.ruff.lint.isort]
-known-first-party = ["bench", "bench-py"]
+known-first-party = ["destack", "destack-py"]
 
 [tool.pyright]
-include = ["bench-py/bench"]
-exclude = ["^bench-py/bench/migrations", "^bench-py/venv*"]
-ignore = ["^bench-py/bench/migrations", "^bench-py/venv*"]
-venv = "bench-py/venv"
-extraPaths = ["bench-py"]
+include = ["destack-py/destack"]
+exclude = ["^destack-py/destack/migrations", "^destack-py/venv*"]
+ignore = ["^destack-py/destack/migrations", "^destack-py/venv*"]
+venv = "destack-py/venv"
+extraPaths = ["destack-py"]
 strictDictionaryInference = true
 strictListInference = true
 strictTupleInference = true
@@ -88,7 +88,7 @@ reportUnnecessaryCast = false
 reportConstantRedefinition = false
 
 [tool.coverage.run]
-omit = ["bench-py/bench/migrations/*", "bench-py/bench/test/*"]
+omit = ["destack-py/destack/migrations/*", "destack-py/destack/test/*"]
 
 [tool.pytest_env]
 ENVIRONMENT = "test"

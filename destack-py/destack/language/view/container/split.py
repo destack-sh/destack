@@ -1,0 +1,14 @@
+from destack.language.core import Node, NodeType, node_
+from destack.pb2 import SplitViewData
+
+from .container import IsContainerView
+
+# pyright: reportIncompatibleVariableOverride=false
+
+
+@node_(NodeType.SPLIT_VIEW)
+class SplitView(
+    IsContainerView,
+    Node[SplitViewData],
+):
+    """A split container View."""

@@ -21,7 +21,7 @@
       "name": "test.collect",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/bench-py/venv/bin/pytest",
+      "program": "${workspaceFolder}/destack-py/venv/bin/pytest",
       "args": ["--collect-only"],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
@@ -31,82 +31,82 @@
     },
     // general configs
     {
-      "name": "bench.user.setpassword",
+      "name": "destack.user.setpassword",
       "type": "debugpy",
       "request": "launch",
       "cwd": "${workspaceFolder}",
-      "program": "${workspaceFolder}/bench-py/main.py",
+      "program": "${workspaceFolder}/destack-py/main.py",
       "args": ["user", "setpassword", "florian", "florian"],
       "justMyCode": true
     },
     {
-      "name": "bench.gen",
+      "name": "destack.gen",
       "type": "debugpy",
       "request": "launch",
       "cwd": "${workspaceFolder}",
-      "program": "${workspaceFolder}/bench-py/main.py",
+      "program": "${workspaceFolder}/destack-py/main.py",
       "args": ["gen"],
       "justMyCode": true
     },
     {
-      "name": "bench.migrate.make",
+      "name": "destack.migrate.make",
       "type": "debugpy",
       "request": "launch",
       "cwd": "${workspaceFolder}",
-      "program": "${workspaceFolder}/bench-py/main.py",
+      "program": "${workspaceFolder}/destack-py/main.py",
       "args": ["migrate", "make", "--no-downgrade"],
       "justMyCode": true
     },
     {
-      "name": "bench.schema",
+      "name": "destack.schema",
       "type": "debugpy",
       "request": "launch",
       "cwd": "${workspaceFolder}",
-      "program": "${workspaceFolder}/bench-py/main.py",
+      "program": "${workspaceFolder}/destack-py/main.py",
       "args": ["instruct", "schema"],
       "justMyCode": true
     },
     {
-      "name": "bench.bootstrap",
+      "name": "destack.bootstrap",
       "type": "debugpy",
       "request": "launch",
       "cwd": "${workspaceFolder}y",
-      "program": "${workspaceFolder}/bench-py/main.py",
+      "program": "${workspaceFolder}/destack-py/main.py",
       "args": ["system", "bootstrap", "--region", "eu-zurich", "--upsert"],
       "env": {
         "ENVIRONMENT": "dev",
         "PYTHONUNBUFFERED": "1",
-        "SERVICE_NAME": "bench-system",
+        "SERVICE_NAME": "destack-system",
       },
       "console": "integratedTerminal",
       "justMyCode": true
     }, 
      {
-      "name": "bench.system",
+      "name": "destack.system",
       "type": "debugpy",
       "request": "launch",
       "cwd": "${workspaceFolder}",
-      "program": "${workspaceFolder}/bench-py/main.py",
+      "program": "${workspaceFolder}/destack-py/main.py",
       "args": ["serve", "system", "--watch", "0.0.0.0", "60061"],
       "env": {
         "ENVIRONMENT": "dev",
         "PYTHONUNBUFFERED": "1",
-        "SERVICE_NAME": "bench-system",
+        "SERVICE_NAME": "destack-system",
       },
       "console": "integratedTerminal",
       "justMyCode": true
     },
     {
-      "name": "bench.runtime",
+      "name": "destack.runtime",
       "type": "debugpy",
       "request": "launch",
       "cwd": "${workspaceFolder}",
-      "program": "${workspaceFolder}/bench-py/main.py",
+      "program": "${workspaceFolder}/destack-py/main.py",
       "args": ["serve", "runtime", "--watch", "0.0.0.0", "60062"],
       "env": {
         "ENVIRONMENT": "dev",
         "PYTHONUNBUFFERED": "1",
-        "SERVICE_NAME": "bench-machine-runtime",
+        "SERVICE_NAME": "destack-machine-runtime",
         "SUPERVISOR_URL": "http://localhost:60061",
       },
       "console": "integratedTerminal",
@@ -114,16 +114,16 @@
       "python": "${workspaceFolder}/venv-runtime/bin/python"
     },
     {
-      "name": "bench.machine",
+      "name": "destack.machine",
       "type": "debugpy",
       "request": "launch",
       "cwd": "${workspaceFolder}",
-      "program": "${workspaceFolder}/bench-py/main.py",
+      "program": "${workspaceFolder}/destack-py/main.py",
       "args": ["serve", "machine", "--watch", "0.0.0.0", "60063"],
       "env": {
         "ENVIRONMENT": "dev",
         "PYTHONUNBUFFERED": "1",
-        "SERVICE_NAME": "bench-machine-desktop",
+        "SERVICE_NAME": "destack-machine-desktop",
         "SUPERVISOR_URL": "http://localhost:60061",
       },
       "console": "integratedTerminal",
@@ -133,8 +133,8 @@
   ],
   "compounds": [
     {
-      "name": "bench.all",
-      "configurations": ["bench.system", "bench.runtime"]
+      "name": "destack.all",
+      "configurations": ["destack.system", "destack.runtime"]
     }
   ]
 }
