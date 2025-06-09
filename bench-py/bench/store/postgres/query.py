@@ -362,7 +362,7 @@ async def _query_node(
     if select:
         stmt_parts.append(_compile_select(context, arguments, select))
     else:
-        stmt_parts.append(", ".join(col.name for col in table.columns))
+        stmt_parts.append(", ".join(f'"{col.name}"' for col in table.columns))
     stmt_parts.append(f"FROM {table.name}")
     if where is not None:
         stmt_parts.append(f"WHERE {_compile_condition(context, arguments, where)}")

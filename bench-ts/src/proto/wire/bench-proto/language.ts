@@ -11979,9 +11979,21 @@ export enum TraitType {
      */
     EXTENSIBLE = 14,
     /**
+     * @generated from protobuf enum value: TRAIT_TYPE_ORDERED = 25;
+     */
+    ORDERED = 25,
+    /**
      * @generated from protobuf enum value: TRAIT_TYPE_CUSTOM_NODE_DEFINITION = 15;
      */
     CUSTOM_NODE_DEFINITION = 15,
+    /**
+     * @generated from protobuf enum value: TRAIT_TYPE_RESOURCE = 51;
+     */
+    RESOURCE = 51,
+    /**
+     * @generated from protobuf enum value: TRAIT_TYPE_PROVISIONABLE = 52;
+     */
+    PROVISIONABLE = 52,
     /**
      * @generated from protobuf enum value: TRAIT_TYPE_CUSTOM_NODE = 16;
      */
@@ -12007,10 +12019,6 @@ export enum TraitType {
      */
     HAS_ICON = 24,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_ORDERED = 25;
-     */
-    ORDERED = 25,
-    /**
      * @generated from protobuf enum value: TRAIT_TYPE_IN_SPACE = 40;
      */
     IN_SPACE = 40,
@@ -12018,14 +12026,6 @@ export enum TraitType {
      * @generated from protobuf enum value: TRAIT_TYPE_IN_PACKAGE = 41;
      */
     IN_PACKAGE = 41,
-    /**
-     * @generated from protobuf enum value: TRAIT_TYPE_RESOURCE = 51;
-     */
-    RESOURCE = 51,
-    /**
-     * @generated from protobuf enum value: TRAIT_TYPE_PROVISIONABLE = 52;
-     */
-    PROVISIONABLE = 52,
     /**
      * @generated from protobuf enum value: TRAIT_TYPE_OWNABLE = 200;
      */

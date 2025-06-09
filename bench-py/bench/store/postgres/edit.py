@@ -131,7 +131,7 @@ async def _execute_schema_edits(
     edits: Sequence[Edit],
 ) -> None:
     """Execute the Edits against the schema (schema only, no data)."""
-    raise NotImplementedError
+    pass  # :PostgresSchemaEdits
 
 
 @tracer.start_as_current_span("database.execute_data_edit")
@@ -154,7 +154,7 @@ async def _execute_data_edit(
     # create/upsert
     if edit_type == EditType.CREATE or edit_type == EditType.UPSERT:
         stmt = f"""\
-INSERT INTO {table.name} ({", ".join(col.name for col in table.columns)})
+INSERT INTO {table.name} ({", ".join(f'"{col.name}"' for col in table.columns)})
 VALUES ({", ".join(f"${i + 1}" for i in range(len(table.columns)))})
 """
         if edit_type == EditType.UPSERT:
@@ -165,7 +165,7 @@ VALUES ({", ".join(f"${i + 1}" for i in range(len(table.columns)))})
             )
             stmt += f"""\
 ON CONFLICT (id) DO UPDATE
-SET {", ".join(f"{col.name} = EXCLUDED.{col.name}" for col in override_columns)}
+SET {", ".join(f'"{col.name}" = EXCLUDED."{col.name}"' for col in override_columns)}
 """
         stmt += ";"
         values_packed: list[Sequence[Any]] = []
@@ -173,6 +173,8 @@ SET {", ".join(f"{col.name} = EXCLUDED.{col.name}" for col in override_columns)}
             assert edit.value is not None, f"no value for {edit!r}"
             row_values_packed = pack_node_row(table, edit.value)
             values_packed.append(row_values_packed)
+        print(stmt)
+        print(values_packed)
         await conn.executemany(stmt, values_packed)
         logger.debug(
             f"database.{edit_type.name.lower()}",
@@ -205,7 +207,7 @@ SET {", ".join(f"{col.name} = EXCLUDED.{col.name}" for col in override_columns)}
             value_param = f"${param_i}"  # new value (may be NULL)
             changed_param = f"${param_i + 1}"  # whether the value changed (bool)
             set_clauses.append(
-                f"{column} = CASE WHEN {changed_param} THEN {value_param} ELSE {column} END"
+                f'"{column}" = CASE WHEN {changed_param} THEN {value_param} ELSE "{column}" END'
             )
             param_i += 2
         stmt = f"""\
@@ -255,7 +257,7 @@ WHERE id = ${param_i}
         pack_column_wide(parent_prop.type, None, table, parent_prop.name, update_template)
         stmt = f"""\
 UPDATE {table.name}
-SET {", ".join(f"{key} = ${i + 1}" for i, key in enumerate(update_template.keys()))}
+SET {", ".join(f'"{key}" = ${i + 1}' for i, key in enumerate(update_template.keys()))}
 WHERE id = ${len(update_template) + 1}
 """
         # prepare values

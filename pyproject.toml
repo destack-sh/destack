@@ -1,6 +1,6 @@
 [project]
 name = "bench-py"
-version = "2025.06.08.1"
+version = "2025.06.09.0"
 description = "Bench SDK for Python"
 authors = [{ name = "Symbol Industries", email = "hello@symbol.industries" }]
 
