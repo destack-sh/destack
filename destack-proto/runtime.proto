@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package symbol.destack;
+
+import "destack-proto/common.proto";
+import "destack-proto/language.proto";
+
+message WakeRequest {
+	ScopeData scope = 1;
+	NodeReferenceData machine_ptr = 2;
+	repeated NodeReferenceData thread_ptrs = 3; // :RuntimeRouting
+}
+message WakeResponse {
+}
+
+message RunRequest {
+	ScopeData scope = 1;
+	NodeReferenceData machine_ptr = 2;
+	NodeReferenceData thread_ptr = 3; // :RuntimeRouting
+	repeated NodeReferenceData run_ptrs = 10;
+}
+message RunResponse {
+}
+  
+// A Runtime for running a Destack somewhere (like on a Machine or a Client).
+// The Runtime may run multiple processes/threads to process its Runs in Sessions in parallel.
+service Runtime {
+	option (kind) = INTERNAL; // :ServiceKind
+  
+	// Process Runs. Returns immediately after queuing.
+	rpc Run(RunRequest) returns (RunResponse);
+	// Wake up a Thread/Agent. Returns immediately.
+	rpc Wake(WakeRequest) returns (WakeResponse);
+}
+   

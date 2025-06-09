@@ -1,0 +1,70 @@
+FROM python:3.13-slim
+
+LABEL org.opencontainers.image.source=https://github.com/symbolx/destack
+LABEL org.opencontainers.image.description="Destack"
+
+#
+# OS
+#
+
+# install libs
+RUN apt-get update && apt-get install -y \
+    libpq-dev \
+    libzbar-dev \
+    postgresql-client \
+    ffmpeg \
+    gcc \
+    gfortran \
+    g++ \
+    pkg-config \
+    cmake \
+    libopenblas-dev \
+    liblapack-dev \
+    libxml2-dev \
+    libxslt-dev \
+    git \
+    curl \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# create destack-system user
+RUN useradd -ms /bin/bash destack-system \
+    && echo "destack-system ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+# uv
+ADD https://astral.sh/uv/install.sh /uv-installer.sh
+RUN sh /uv-installer.sh && mv /root/.local/bin/uv /usr/local/bin/ && rm /uv-installer.sh
+ENV PATH="/usr/local/bin:$PATH"
+
+ENV PYTHONUNBUFFERED=1
+
+# install requirements
+COPY destack-py/destack/requirements/system.txt /home/destack-system/requirements.txt
+WORKDIR /home/destack-system
+RUN uv pip install --system --no-cache -r requirements.txt
+
+# copy relevant files
+COPY --chown=destack-system:destack-system destack-py/destack/ /home/destack-system/destack/
+COPY --chown=destack-system:destack-system destack-py/destack/destack.py /home/destack-system/
+COPY --chown=destack-system:destack-system destack-py/pyproject.toml /home/destack-system/
+COPY --chown=destack-system:destack-system destack-py/version /home/destack-system/
+# prune unnecessary files
+RUN rm -rf /home/destack-system/destack/test
+# prune tests
+RUN find /home/destack-system/destack/ -type f -name 'test_*.py' -delete
+
+# startup script
+RUN cat <<'EOF' > /start.sh
+#!/bin/sh
+su destack-system -s /bin/bash -m -c "python3 /home/destack-system/destack.py serve supervisor 0.0.0.0 5432"
+EOF
+RUN chmod +x /start.sh
+
+ARG GIT_COMMIT
+ARG VERSION
+ENV GIT_COMMIT=$GIT_COMMIT
+ENV VERSION=$VERSION
+
+EXPOSE 5432
+EXPOSE 80
+
+CMD ["/start.sh"] 

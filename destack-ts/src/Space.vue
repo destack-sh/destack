@@ -1,0 +1,123 @@
+<script lang="ts" setup>
+import { supergraph } from "@/globals";
+import { NodeType, Orientation, ViewType } from "@/proto/wire";
+import { toNodeRef } from "@/proto/wiring";
+import { spacePtr } from "@/system/client";
+import { destack, containerPtr, inspectionPtr, pagePtr, spaceConnection, spaceGraph } from "@/system/space";
+import { IS_IN_ALT_MODE } from "@/ui/command";
+import { getNodeTitle } from "@/ui/icon";
+import { keytrap } from "@/ui/keymap";
+import { IS_DRAGGING, IS_DRAGGING_OR_SELECTING } from "@/ui/layout";
+import { hasActivePopover, pushDefaultContextMenu } from "@/ui/popover";
+import Inaccessible from "@/views/internal/Inaccessible.vue";
+import Omnibar from "@/views/internal/Omnibar.vue";
+import Split from "@/views/containers/Split.vue";
+import Wizard from "@/views/helpers/Wizard.vue";
+import DragOverlay from "@/views/overlays/DragOverlay.vue";
+import LightboxOverlay from "@/views/overlays/LightboxOverlay.vue";
+import PopoverOverlay from "@/views/overlays/PopoverOverlay.vue";
+import ToastOverlay from "@/views/overlays/ToastOverlay.vue";
+import TooltipOverlay from "@/views/overlays/TooltipOverlay.vue";
+import { useTitle, useWindowSize } from "@vueuse/core";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
+
+const spaceRef = ref<HTMLElement | null>(null);
+const { width: spaceWidth, height: spaceHeight } = useWindowSize(); // Space must be root element
+const mainBox = computed(() => ({ left: 0, top: 0, width: spaceWidth.value, height: spaceHeight.value }));
+const windows = spaceGraph.getChildrenRef(spacePtr, NodeType.VIEW);
+const window = computed(() => windows.value[0]); // assumes :OneRootWindow for now
+const omnibarRef = ref<InstanceType<typeof Omnibar> | null>(null);
+
+// suppress save everywhere
+const unbind = keytrap.bind(["ctrl+s", "mod+s"], () => true, { replace: true });
+onBeforeUnmount(() => unbind()); // for hot reload
+
+// sync browser title
+const { node: inspection, graph: inspectionGraph } = supergraph.getLinkRef(inspectionPtr);
+const { node: container, graph: containerGraph } = supergraph.getLinkRef(containerPtr);
+const { node: page, graph: pageGraph } = supergraph.getLinkRef(pagePtr);
+
+const browserTitle = useTitle();
+watch(
+  [destack, inspection],
+  () => {
+    const destackPostfix = destack.value == null ? "Destack" : destack.value?.name;
+    const titleParts = [];
+    if (inspection.value != null) {
+      titleParts.push(getNodeTitle(inspection.value));
+    }
+    if (container.value != null && container.value?.id != inspection.value?.id) {
+      titleParts.push(getNodeTitle(container.value));
+    }
+    if (
+      page.value != null &&
+      page.value?.id != container.value?.id &&
+      container.value != null &&
+      containerGraph.value?.getAncestors(container.value).some((n) => n.id == page.value?.id)
+    ) {
+      titleParts.push(getNodeTitle(page.value));
+    }
+    titleParts.push(destackPostfix);
+    browserTitle.value = titleParts.filter((t) => (t ?? "").length > 0).join(" · ");
+  },
+  { immediate: true },
+);
+
+// sync browser slug
+watch(
+  destack,
+  () => {
+    if (destack.value != null) {
+      globalThis.history.replaceState({}, "", `/@${destack.value.slug}`);
+    } else {
+      globalThis.history.replaceState({}, "", "/");
+    }
+  },
+  { immediate: true },
+);
+</script>
+<template>
+  <!-- Space -->
+  <div
+    ref="spaceRef"
+    class="overflow-hidden bg-white text-sm select-none"
+    :class="[
+      IS_DRAGGING_OR_SELECTING || hasActivePopover ? 'select-none' : '',
+      IS_DRAGGING ? 'pointer-events-none' : '',
+      IS_IN_ALT_MODE ? 'altmode' : '',
+    ]"
+    :style="{ width: spaceWidth + 'px', height: spaceHeight + 'px' }"
+    @contextmenu.stop.prevent="(e) => pushDefaultContextMenu(e)"
+  >
+    <!-- Space root (:OneRootWindow) -->
+    <Split
+      v-if="window"
+      id="window"
+      class=""
+      :type="ViewType.WINDOW"
+      :self="toNodeRef(window)"
+      :focus-ptr="window.focusPtr"
+      :name="window.name"
+      :size="mainBox"
+      :orientation="Orientation.HORIZONTAL"
+      is-root
+    />
+    <!-- Loading... -->
+    <Inaccessible
+      v-else-if="!spaceConnection.isConnected.value"
+      class="h-full w-full"
+      :node="spacePtr"
+      :connection="spaceConnection"
+    />
+    <!-- Show setup wizard / home page -->
+    <Wizard v-else id="wizard" class="" />
+
+    <!-- Overlays -->
+    <DragOverlay />
+    <ToastOverlay anchor="bottom-right" :box="mainBox" />
+    <Omnibar ref="omnibarRef" :box="mainBox" />
+    <LightboxOverlay :box="mainBox" />
+    <PopoverOverlay />
+    <TooltipOverlay />
+  </div>
+</template>

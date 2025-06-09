@@ -12,17 +12,17 @@ GIT_COMMIT=$(git rev-parse --short HEAD)
 # get version from 'version' file
 VERSION=$(cat version)
 
-# build bench-ts with :BenchWebEnv placeholders (to be substituted in deploy)
+# build destack-ts with :DestackWebEnv placeholders (to be substituted in deploy)
 # (we need to 'set' them explicitly or they will be removed by vite during the build)
 VITE_COMMIT="VITE_COMMIT" \
   VITE_ENVIRONMENT="VITE_ENVIRONMENT" \
   VITE_SUPERVISOR_URL="VITE_SUPERVISOR_URL" \
   VITE_IP_API_KEY="VITE_IP_API_KEY" \
-  bun run --cwd bench-ts build
+  bun run --cwd destack-ts build
 # posthog sourcemaps
-posthog-cli --host https://eu.posthog.com sourcemap inject --directory bench-ts/dist/assets
-posthog-cli --host https://eu.posthog.com sourcemap upload --directory bench-ts/dist/assets
-rm bench-ts/dist/assets/*.map
+posthog-cli --host https://eu.posthog.com sourcemap inject --directory destack-ts/dist/assets
+posthog-cli --host https://eu.posthog.com sourcemap upload --directory destack-ts/dist/assets
+rm destack-ts/dist/assets/*.map
 
 # push Docker image with retries
 push_with_retry() {
@@ -46,8 +46,8 @@ push_with_retry() {
 
 # build all images
 # image names and their corresponding Dockerfiles
-IMAGES=("bench-system" "bench-machine-runtime")
-DOCKERFILES=("bench-infra/docker/Dockerfile.system" "bench-infra/docker/Dockerfile.machine-runtime")
+IMAGES=("destack-system" "destack-machine-runtime")
+DOCKERFILES=("destack-infra/docker/Dockerfile.system" "destack-infra/docker/Dockerfile.machine-runtime")
 
 for i in "${!IMAGES[@]}"; do
   IMAGE="${IMAGES[$i]}"

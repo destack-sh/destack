@@ -1,0 +1,105 @@
+from typing import TYPE_CHECKING, Optional
+
+from destack.language.core import (
+    BuiltinEnum,
+    EnumType,
+    HasIcon,
+    HasName,
+    HasSlug,
+    IndexIn,
+    IsArchivable,
+    IsDeletable,
+    IsEnvironmental,
+    IsGlobal,
+    IsInPackage,
+    IsInvite,
+    IsJoinable,
+    IsMembership,
+    IsOwnable,
+    IsTemplatable,
+    IsTracked,
+    Node,
+    NodeType,
+    enum_,
+    node_,
+    property_,
+    property_parent_,
+)
+from destack.pb2 import PackageData, PackageInviteData, PackageMembershipData
+
+if TYPE_CHECKING:
+    from destack.language import Page, Scene, Space
+
+# pyright: reportIncompatibleVariableOverride=false
+
+
+@enum_(EnumType.PACKAGE_TYPE)
+class PackageType(BuiltinEnum):
+    HOME = 10
+    APPLICATION = 20
+    # TEMPLATE, LIBRARY, ...
+
+
+@node_(
+    NodeType.PACKAGE,
+    index=(IndexIn(columns=("space_id", "slug"), is_unique=True),),
+)
+class Package(
+    HasIcon,
+    HasSlug,
+    IsEnvironmental,
+    HasName,
+    IsGlobal,
+    IsOwnable,
+    IsJoinable,
+    IsTemplatable,
+    IsInPackage,
+    IsDeletable,
+    IsArchivable,
+    IsTracked,
+    Node[PackageData],
+):
+    """A Package is a semi-isolated area of a Destack."""
+
+    parent: Optional["Space"] = property_parent_(node_is_customizable=False)
+    type: PackageType = property_(30, is_repr=True)
+
+    main_page: Optional["Page"] = property_(40)
+    main_scene: Optional["Scene"] = property_(41)
+
+
+@enum_(EnumType.PACKAGE_ROLE_TYPE)
+class PackageRoleType(BuiltinEnum):
+    ADMIN = 10
+    DEVELOPER = 30
+    MEMBER = 50
+
+
+@node_(NodeType.PACKAGE_MEMBERSHIP)
+class PackageMembership(
+    IsGlobal,
+    IsMembership,
+    IsDeletable,
+    IsInPackage,
+    Node[PackageMembershipData],
+):
+    """A PackageMembership is a membership to a Package."""
+
+    parent: Optional["Package"] = property_parent_(node_is_customizable=False)
+
+    role_type: PackageRoleType = property_(45)
+
+
+@node_(NodeType.PACKAGE_INVITE)
+class PackageInvite(
+    IsGlobal,
+    IsInvite,
+    IsDeletable,
+    IsInPackage,
+    Node[PackageInviteData],
+):
+    """A PackageInvite is an invite to a Package."""
+
+    parent: Optional["Package"] = property_parent_(node_is_customizable=False)
+
+    role_type: PackageRoleType = property_(45)
