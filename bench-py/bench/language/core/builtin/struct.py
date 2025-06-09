@@ -58,6 +58,8 @@ class StructBase[StructDataT: AnyStructData](BuiltinObjectBase[StructDataT], abc
 
     __is_struct__: ClassVar[bool] = True
 
+    __slots__ = ()
+
     # _value?
 
     def __eq__(self, other: Any):
