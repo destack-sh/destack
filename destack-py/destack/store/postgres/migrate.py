@@ -22,7 +22,7 @@ import structlog
 from more_itertools import first
 from opentelemetry import trace
 
-from destack.language import Area
+from destack.language import AreaType
 from destack.utils.code import format_code
 from destack.utils.env import REPOSITORY_PATH
 from destack.utils.func import partition, re_search_or_error
@@ -72,9 +72,9 @@ class Migration:
     def __repr__(self) -> str:
         return f"<Migration {self}>"
 
-    def has_area(self, area: Area) -> bool:
-        return (area == Area.GLOBAL_DATABASE and self.has_global) or (
-            area == Area.MAIN_DATABASE and self.has_main
+    def has_area(self, area: AreaType) -> bool:
+        return (area == AreaType.GLOBAL_DATABASE and self.has_global) or (
+            area == AreaType.MAIN_DATABASE and self.has_main
         )
 
 
@@ -157,7 +157,7 @@ async def sql_migrate(
     target: str | int | None,
     oracle: Oracle,
     *,
-    area: Area,
+    area: AreaType,
     database: "Database | None" = None,
 ) -> list[Migration]:
     """
@@ -233,7 +233,7 @@ async def _do_migrate(
     oracle: Oracle,
     *,
     is_upgrade: bool,
-    area: Area,
+    area: AreaType,
     database: Optional["Database"] = None,
 ):
     """Applies the given migrations in the given order."""

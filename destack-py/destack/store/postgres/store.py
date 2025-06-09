@@ -7,7 +7,7 @@ from fastuuid import UUID
 from opentelemetry import trace
 
 from destack.language import (
-    Area,
+    AreaType,
     Change,
     ChangeResult,
     ChangeStatus,
@@ -66,7 +66,7 @@ class PostgresStore(Store):
 
     __slots__ = ("context", "database")
 
-    def __init__(self, database: DatabaseInfo, area: Area | None):
+    def __init__(self, database: DatabaseInfo, area: AreaType | None):
         if database.type != DatabaseType.POSTGRES:
             raise ValueError(f"unexpected {database!r}")
         self.database = database

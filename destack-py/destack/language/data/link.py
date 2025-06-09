@@ -2,7 +2,6 @@ from datetime import datetime
 from typing import (
     TYPE_CHECKING,
     Optional,
-    Union,
 )
 
 import structlog
@@ -12,20 +11,19 @@ from destack.language.core import (
     BuiltinEnum,
     EnumType,
     HasTitle,
-    IsInPackage,
-    IsResource,
+    IsAsset,
+    IsInFolder,
     IsTracked,
     Node,
     NodeType,
     enum_,
     node_,
     property_,
-    property_parent_,
 )
 from destack.pb2 import LinkData
 
 if TYPE_CHECKING:
-    from destack.language import CustomEntityDefinition, Message, Package, Page, Run, Thread
+    pass
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -41,8 +39,8 @@ class LinkType(BuiltinEnum):
 @node_(NodeType.LINK)
 class Link(
     HasTitle,
-    IsResource,
-    IsInPackage,
+    IsAsset,
+    IsInFolder,
     IsTracked,
     Node[LinkData],
 ):
@@ -51,16 +49,6 @@ class Link(
     """
 
     # meta
-    parent: Union[
-        "Package",
-        "Page",
-        "CustomEntityDefinition",
-        "Link",
-        "Thread",
-        "Message",
-        "Run",
-        None,
-    ] = property_parent_(node_is_customizable=True)
     type: LinkType = property_(30, is_repr=True)
 
     # content

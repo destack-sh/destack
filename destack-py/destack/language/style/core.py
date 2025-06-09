@@ -166,10 +166,6 @@ class Vector2(StructFrozen):
     y: float = property_(51, is_repr=True)
 
 
-def vector2(x: float, y: float) -> "Vector2":
-    return Vector2(x=float(x), y=float(y))
-
-
 @struct_(StructType.VECTOR3, frozen=True)
 class Vector3(StructFrozen):
     """A 3D vector."""
@@ -177,10 +173,6 @@ class Vector3(StructFrozen):
     x: float = property_(50, is_repr=True)
     y: float = property_(51, is_repr=True)
     z: float = property_(52, is_repr=True)
-
-
-def vector3(x: float, y: float, z: float) -> "Vector3":
-    return Vector3(x=float(x), y=float(y), z=float(z))
 
 
 @struct_(StructType.VECTOR4, frozen=True)
@@ -193,8 +185,55 @@ class Vector4(StructFrozen):
     w: float = property_(53, is_repr=True)
 
 
+@struct_(StructType.VECTOR2I, frozen=True)
+class Vector2I(StructFrozen):
+    """A 2D integer vector."""
+
+    x: int = property_(50, is_repr=True)
+    y: int = property_(51, is_repr=True)
+
+
+@struct_(StructType.VECTOR3I, frozen=True)
+class Vector3I(StructFrozen):
+    """A 3D integer vector."""
+
+    x: int = property_(50, is_repr=True)
+    y: int = property_(51, is_repr=True)
+    z: int = property_(52, is_repr=True)
+
+
+@struct_(StructType.VECTOR4I, frozen=True)
+class Vector4I(StructFrozen):
+    """A 4D integer vector."""
+
+    x: int = property_(50, is_repr=True)
+    y: int = property_(51, is_repr=True)
+    z: int = property_(52, is_repr=True)
+    w: int = property_(53, is_repr=True)
+
+
+def vector2(x: float, y: float) -> "Vector2":
+    return Vector2(x=float(x), y=float(y))
+
+
+def vector3(x: float, y: float, z: float) -> "Vector3":
+    return Vector3(x=float(x), y=float(y), z=float(z))
+
+
 def vector4(x: float, y: float, z: float, w: float) -> "Vector4":
     return Vector4(x=float(x), y=float(y), z=float(z), w=float(w))
+
+
+def vector2i(x: int, y: int) -> "Vector2I":
+    return Vector2I(x=int(x), y=int(y))
+
+
+def vector3i(x: int, y: int, z: int) -> "Vector3I":
+    return Vector3I(x=int(x), y=int(y), z=int(z))
+
+
+def vector4i(x: int, y: int, z: int, w: int) -> "Vector4I":
+    return Vector4I(x=int(x), y=int(y), z=int(z), w=int(w))
 
 
 @struct_(StructType.GRID, frozen=True)

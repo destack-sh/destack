@@ -12,7 +12,7 @@ import typer
 from opentelemetry import trace
 
 if TYPE_CHECKING:
-    from destack.language import Area, Region
+    from destack.language import AreaType, Region
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -83,24 +83,24 @@ def parse_region(region: "str | Region") -> "Region":
         ) from e
 
 
-def parse_node_area(area: "str | Area") -> "Area":
+def parse_node_area(area: "str | AreaType") -> "AreaType":
     """Parse a NodeArea from a string."""
-    from destack.language.core import Area
+    from destack.language.core import AreaType
 
-    if isinstance(area, Area):
+    if isinstance(area, AreaType):
         return area
 
     area = area.upper()
     try:
-        if area in Area.__members__:
+        if area in AreaType.__members__:
             # try by name
-            return Area[area]
+            return AreaType[area]
         else:
             # try by value
-            return Area(int(area))
+            return AreaType(int(area))
     except (TypeError, ValueError) as e:
         raise typer.BadParameter(
-            f"invalid area: '{area}' (expected: {'|'.join(a.name.lower() for a in Area)})"
+            f"invalid area: '{area}' (expected: {'|'.join(a.name.lower() for a in AreaType)})"
         ) from e
 
 

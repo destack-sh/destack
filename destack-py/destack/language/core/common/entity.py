@@ -7,13 +7,12 @@ from destack.pb2 import CustomEntityData, CustomEntityDefinitionData
 
 from ..builtin import (
     HasName,
-    IsBlockable,
     IsCustomNode,
     IsCustomNodeDefinition,
     IsDeletable,
     IsEnvironmental,
     IsExtensible,
-    IsInPackage,
+    IsInFolder,
     IsOwnable,
     IsScriptable,
     Node,
@@ -39,10 +38,9 @@ class CustomEntityDefinition(
     HasName,
     IsCustomNodeDefinition,
     IsOwnable,
-    IsBlockable,
     IsDeletable,
     IsScriptable,
-    IsInPackage,
+    IsInFolder,
     Node[CustomEntityDefinitionData],
 ):
     """
@@ -58,7 +56,7 @@ class CustomEntityDefinition(
 class CustomEntity(
     IsEnvironmental,
     IsExtensible,
-    IsInPackage,
+    IsInFolder,
     IsDeletable,
     IsCustomNode,
     Node[CustomEntityData],

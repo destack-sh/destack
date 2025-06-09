@@ -7,7 +7,6 @@ from typing import (
     ClassVar,
     Optional,
     Self,
-    Union,
     assert_never,
     cast,
     dataclass_transform,
@@ -45,16 +44,14 @@ from .property import (
 if TYPE_CHECKING:
     from destack.language import (
         AggregationType,
-        Block,
         Condition,
         Expression,
         ExpressionIn,
+        Folder,
         Icon,
         Node,
         NodeInfo,
         NodeReference,
-        Package,
-        Page,
         Query,
         Script,
         Sort,
@@ -591,34 +588,13 @@ class IsInSpace(Trait):
 
 
 @trait_(TraitType.IN_PACKAGE)
-class IsInPackage(IsInSpace):
+class IsInFolder(IsInSpace):
     """A Node in a Package."""
 
-    package: "Package | None" = property_ancestor_(7, is_required=False)
+    package: "Folder | None" = property_ancestor_(7, is_required=False)
     if TYPE_CHECKING:
         package_ptr: Optional[NodeReference] = None
     _package_ptr: Optional["NodeReference"] = property_runtime_(default=None)  # :CachedAncestors
-
-
-@trait_(TraitType.BLOCKABLE)
-class IsBlockable(IsOrdered, IsInPackage):
-    """A Node that can (but may not be) be inline on a Page as a Block."""
-
-    parent: Union["Page", None] = property_parent_(node_is_customizable=True)
-    block: "Block | None" = property_(
-        35,
-        node_space_from="self",
-        description="The Block where this Node is 'defined'.",
-    )
-    if TYPE_CHECKING:
-        block_id: Optional[UUID] = None
-        block_ptr: Optional[NodeReference] = None
-
-    def wrap_in_block(self) -> "Block":
-        """Wrap this Node in a *new* Block."""
-        from destack.language import Block
-
-        return Block.wrap(self)
 
 
 @trait_(TraitType.SOURCEABLE)
@@ -710,19 +686,19 @@ class IsRole(Trait):
     pass
 
 
-@trait_(TraitType.RESOURCE)
-class IsResource(IsEnvironmental, IsOwnable, HasName):
+@trait_(TraitType.ASSET)
+class IsAsset(IsEnvironmental, IsOwnable, HasName):
     """
-    A Resource in a Destack, typically representing some external object.
+    An Asset is any external object.
     """
 
     pass
 
 
-@trait_(TraitType.PROVISIONABLE)
-class IsProvisionable(IsResource):
+@trait_(TraitType.RESOURCE)
+class IsResource(IsAsset):
     """
-    A Resource that can be provisioned.
+    A Resource with its own lifecycle (usually managed by some provisioner).
     """
 
     # status
@@ -730,6 +706,3 @@ class IsProvisionable(IsResource):
     target_status: Optional[datetime] = property_(41)
     failed_at: Optional[datetime] = property_(47, can_write="system")
     failed_attempts: int = property_(48, default=0, can_write="system")
-    if TYPE_CHECKING:
-        scaler_ptr: Optional[NodeReference] = None
-        scaler_id: Optional[UUID] = None

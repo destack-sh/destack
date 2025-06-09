@@ -11,7 +11,7 @@ from destack.language.core import (
     HasTitle,
     IsDeletable,
     IsEnvironmental,
-    IsInPackage,
+    IsInFolder,
     IsOwnable,
     Node,
     NodeType,
@@ -52,7 +52,7 @@ class Message(
     IsDeletable,
     HasTitle,
     IsEnvironmental,
-    IsInPackage,
+    IsInFolder,
     Node[MessageData],
 ):
     """

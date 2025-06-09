@@ -26,7 +26,7 @@ from destack.language.core import (
 from destack.pb2 import SpaceData, SpaceInviteData, SpaceMembershipData
 
 if TYPE_CHECKING:
-    from destack.language import Database, Handle, NodeReference, Package
+    from destack.language import Database, Folder, Handle, NodeReference
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -53,20 +53,25 @@ class Space(
     Node[SpaceData],
 ):
     """
-    A Space is the OS for personal software.
+    A Space is the home of your personal software studio.
     """
 
     # meta
     status: SpaceStatus = property_(40, is_repr=True, can_write="system")
     handle: Optional["Handle"] = property_(41, node_space_from="self", can_write="system")
-    main_package: Optional["Package"] = property_(
-        42, node_space_from="self", can_write="system", description="The Main Package."
+    root_folder: Optional["Folder"] = property_(
+        42, node_space_from="self", can_write="system", description="The root Folder."
+    )
+    home_folder: Optional["Folder"] = property_(
+        43, node_space_from="self", can_write="system", description="The home Folder."
     )
     if TYPE_CHECKING:
         handle_ptr: Optional[NodeReference] = None
         handle_id: Optional[UUID] = None
-        main_package_ptr: Optional[NodeReference] = None
-        main_package_id: Optional[UUID] = None
+        root_folder_ptr: Optional[NodeReference] = None
+        root_folder_id: Optional[UUID] = None
+        home_folder_ptr: Optional[NodeReference] = None
+        home_folder_id: Optional[UUID] = None
 
     # infra
     region: Region = property_(50, can_write="system")
@@ -82,9 +87,10 @@ class Space(
 class SpaceRoleType(BuiltinEnum):
     """The role of a Space"""
 
-    ADMIN = 10
-    DEVELOPER = 30
-    MEMBER = 50
+    ADMIN = 1
+    DEVELOPER = 3
+    USER = 5
+    SPECTATOR = 10
 
 
 @node_(NodeType.SPACE_INVITE)

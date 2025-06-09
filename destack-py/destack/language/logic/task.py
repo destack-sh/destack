@@ -6,10 +6,9 @@ from fastuuid import UUID
 from destack.language.core import (
     HasTitle,
     IsArchivable,
-    IsBlockable,
     IsDeletable,
     IsEnvironmental,
-    IsInPackage,
+    IsInFolder,
     IsOwnable,
     IsSubject,
     IsTemplatable,
@@ -23,7 +22,7 @@ from destack.language.core import (
 from destack.pb2 import TaskData
 
 if TYPE_CHECKING:
-    from destack.language import NodeReference, Page
+    from destack.language import NodeReference
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -34,17 +33,16 @@ class Task(
     HasTitle,
     IsOwnable,
     IsTemplatable,
-    IsBlockable,
     IsDeletable,
     IsArchivable,
-    IsInPackage,
+    IsInFolder,
     IsTracked,
     Node[TaskData],
 ):
     """A Task is like a to do item."""
 
     # meta
-    parent: Union["Page", "Task", None] = property_parent_(node_is_customizable=True)
+    parent: Union["Task", None] = property_parent_(node_is_customizable=True)
     # type?
     # priority?
 

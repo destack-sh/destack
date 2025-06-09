@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 from destack.language.core.builtin.trait import HasIcon
 from destack.pb2 import SchemaData
@@ -6,21 +6,19 @@ from destack.pb2 import SchemaData
 from ..builtin import (
     HasName,
     IsArchivable,
-    IsBlockable,
     IsDeletable,
     IsEnvironmental,
-    IsInPackage,
+    IsInFolder,
     IsSourceable,
     IsTemplatable,
     IsTracked,
     Node,
     NodeType,
     node_,
-    property_parent_,
 )
 
 if TYPE_CHECKING:
-    from destack.language import Page
+    pass
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -32,13 +30,12 @@ class Schema(
     HasIcon,
     IsTracked,
     IsTemplatable,
-    IsBlockable,
     IsDeletable,
     IsArchivable,
-    IsInPackage,
+    IsInFolder,
     IsSourceable,
     Node[SchemaData],
 ):
     """A Schema for a specific Type."""
 
-    parent: Union["Page", None] = property_parent_(node_is_customizable=True)
+    pass

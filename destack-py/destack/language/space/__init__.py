@@ -1,14 +1,14 @@
 from .handle import Handle
-from .package import Package, PackageInvite, PackageMembership, PackageRoleType, PackageType
+from .package import Folder, FolderInvite, FolderMembership, FolderRoleType, FolderType
 from .space import Space, SpaceInvite, SpaceMembership, SpaceRoleType, SpaceStatus
 
 __all__ = [
+    "Folder",
+    "FolderInvite",
+    "FolderMembership",
+    "FolderRoleType",
+    "FolderType",
     "Handle",
-    "Package",
-    "PackageInvite",
-    "PackageMembership",
-    "PackageRoleType",
-    "PackageType",
     "Space",
     "SpaceInvite",
     "SpaceMembership",

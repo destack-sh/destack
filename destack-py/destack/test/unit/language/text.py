@@ -2,7 +2,7 @@ import pytest
 
 from destack.language import (
     Aliasing,
-    Page,
+    Folder,
     Session,
     TextLine,
     TextLineType,
@@ -11,25 +11,24 @@ from destack.language import (
     markdown_to_text,
     text,
     text_to_markdown,
-    title,
 )
 
 
 def test_text_mentions(session: Session):
-    Page1 = Page(title=title("Page1"))
-    Page2 = Page(title=title("Page2"))
-    aliasing = Aliasing.new(session.supergraph, {"Page1": Page1, "Page2": Page2})
+    Folder1 = Folder(name="Folder1")
+    Folder2 = Folder(name="Folder2")
+    aliasing = Aliasing.new(session.supergraph, {"Folder1": Folder1, "Folder2": Folder2})
     my_text = text(
-        "Hello it's a [@Page1] and [@Page2]",
+        "Hello it's a [@Folder1] and [@Folder2]",
         aliasing,
     )
     assert my_text.lines[0].spans[0] == TextSpan(type=TextSpanType.TEXT, content="Hello it's a ")
     assert my_text.lines[0].spans[1] == TextSpan(
-        type=TextSpanType.MENTION, content="Page1", node=Page1
+        type=TextSpanType.MENTION, content="Folder1", node=Folder1
     )
     assert my_text.lines[0].spans[2] == TextSpan(type=TextSpanType.TEXT, content=" and ")
     assert my_text.lines[0].spans[3] == TextSpan(
-        type=TextSpanType.MENTION, content="Page2", node=Page2
+        type=TextSpanType.MENTION, content="Folder2", node=Folder2
     )
     assert text_to_markdown(my_text, aliasing) == "Hello it's a [@Page1] and [@Page2]"
 

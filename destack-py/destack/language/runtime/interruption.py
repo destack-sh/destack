@@ -8,7 +8,7 @@ from destack.language.core import (
     EnumType,
     IsEnvironmental,
     IsExtensible,
-    IsInPackage,
+    IsInFolder,
     IsRunnable,
     IsTracked,
     Node,
@@ -76,7 +76,7 @@ class InterruptionResponse(BuiltinEnum):
 class Interruption(
     IsEnvironmental,
     IsExtensible,
-    IsInPackage,
+    IsInFolder,
     IsTracked,
     Node[InterruptionData],
 ):
