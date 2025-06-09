@@ -156,7 +156,7 @@ async def test_create_page_blocks_recursive(session: Session):
         ).execute_count()
         assert root_block_count == 4
 
-        # query block tree down
+        # query block down (parent, recursive)
         connection = await Page.get(
             where=Page.property("id").eq(page.id),
             Blocks=Block.search(join=join(JoinType.CHILD, recursive=True)),
@@ -165,7 +165,7 @@ async def test_create_page_blocks_recursive(session: Session):
         block_tree_unpacked = page_unpacked.get_descendants(Block)
         assert len(block_tree_unpacked) == target_block_count
 
-        # query block tree up
+        # query block up (parent, recursive)
         page_block_leaves = page._graph.get_leaves(Block, of=page)
         connection = await Block.get(
             where=Block.property("id").eq(page_block_leaves[0].id),
@@ -205,7 +205,7 @@ async def test_create_scene_with_heterogeneous_views(session: Session):
         root_view.add_child(custom_view)
     await session.commit()
 
-    # query trait (child, non-recursive)
+    # query view (child, non-recursive)
     scene_tree = await FrameView.get(
         where=FrameView.property("id").eq(root_view.id),
         Views=IsView.search(join=join(JoinType.CHILD)),
@@ -214,7 +214,7 @@ async def test_create_scene_with_heterogeneous_views(session: Session):
     view_tree_unpacked = scene_unpacked.get_descendants(IsView)
     assert len(view_tree_unpacked) == 8
 
-    # query trait (child, recursive)
+    # query view (child, recursive)
     scene_tree = await FrameView.get(
         where=FrameView.property("id").eq(root_view.id),
         Views=IsView.search(join=join(JoinType.CHILD, recursive=True)),
@@ -222,3 +222,13 @@ async def test_create_scene_with_heterogeneous_views(session: Session):
     scene_unpacked = scene_tree.to_one()
     view_tree_unpacked = scene_unpacked.get_descendants(IsView)
     assert len(view_tree_unpacked) == 4 + 4 * (1 + 4 * (1 + 4))
+
+    # query view (parent, recursive)
+    view_leaves = scene._graph.get_leaves(TextView, of=scene)
+    scene_tree = await TextView.get(
+        where=TextView.property("id").eq(view_leaves[0].id),
+        Parents=IsView.search(join=join(JoinType.PARENT, recursive=True)),
+    ).execute()
+    scene_unpacked = scene_tree.graph.get_roots(IsView)
+    assert len(scene_unpacked) == 1
+    assert scene_unpacked[0].equals(root_view)

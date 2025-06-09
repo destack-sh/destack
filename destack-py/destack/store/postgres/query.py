@@ -276,12 +276,61 @@ async def _walk_node(
     # parent walk
     if direction == EdgeDirection.PARENT:
         if relation.is_multi:
-            raise NotImplementedError(
-                f"cannot walk multi-relation {relation!r} in direction: {direction!r}"
-            )
+            # fan out relation
+            tables = [context.get_relation(r) for r in context.resolve_relation(relation)]
 
-        table = context.get_relation(relation)
-        stmt = f"""
+            # build a single UNION of all node tables
+            union_parts = [
+                f"SELECT id, parent_id, {tbl.node_type.value}::int AS node_type FROM {tbl.name}"
+                for tbl in tables
+            ]
+            union_subquery = " UNION ALL ".join(union_parts)
+            # anchor term
+            base_sql = f"""
+SELECT id,
+    parent_id,
+    1 AS depth,
+    node_type
+FROM (
+    {union_subquery}
+) roots
+WHERE (id = ANY($1) OR parent_id = ANY($2))
+AND {where_sql}
+            """
+            # recursive term
+            recursive_sql = f"""
+SELECT p.id,
+    p.parent_id,
+    t.depth + 1 AS depth,
+    p.node_type
+FROM (
+    {union_subquery}
+) p
+JOIN tree t ON p.id = t.parent_id
+WHERE t.depth < $3
+AND {where_sql}
+            """
+            # final statement
+            stmt = f"""
+WITH RECURSIVE tree AS (
+    {base_sql}
+    UNION ALL
+    {recursive_sql}
+)
+SELECT id, parent_id, depth, node_type
+FROM tree;
+            """
+
+            result_rows = await conn.fetch(stmt, *arguments)
+            result_nodes_ptr: list[NodeReference] = []
+            for row in result_rows:
+                node_type = NodeType(int(row["node_type"]))
+                node_ptr = NodeReference(node_type=node_type, id=fastuuid.UUID(str(row["id"])))
+                result_nodes_ptr.append(node_ptr)
+            return result_nodes_ptr
+        else:
+            table = context.get_relation(relation)
+            stmt = f"""
 WITH RECURSIVE tree AS (
     SELECT  id,
             parent_id,
@@ -303,12 +352,14 @@ SELECT  id,
         depth
 FROM    tree;
 """
-        result_rows = await conn.fetch(stmt, *arguments)
-        result_nodes_ptr: list[NodeReference] = []
-        for row in result_rows:
-            node_ptr = NodeReference(node_type=table.node_type, id=fastuuid.UUID(str(row["id"])))
-            result_nodes_ptr.append(node_ptr)
-        return result_nodes_ptr
+            result_rows = await conn.fetch(stmt, *arguments)
+            result_nodes_ptr: list[NodeReference] = []
+            for row in result_rows:
+                node_ptr = NodeReference(
+                    node_type=table.node_type, id=fastuuid.UUID(str(row["id"]))
+                )
+                result_nodes_ptr.append(node_ptr)
+            return result_nodes_ptr
 
     # child walk
     elif direction == EdgeDirection.CHILD:
