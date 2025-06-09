@@ -70,8 +70,9 @@ class Package(
 
 @enum_(EnumType.PACKAGE_ROLE_TYPE)
 class PackageRoleType(BuiltinEnum):
-    MEMBER = 10
-    ADMIN = 50
+    ADMIN = 10
+    DEVELOPER = 30
+    MEMBER = 50
 
 
 @node_(NodeType.PACKAGE_MEMBERSHIP)

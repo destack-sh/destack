@@ -40,7 +40,7 @@ from .core import (
     vector4,
 )
 from .effect import Effect, EffectBase, EffectStyle, EffectType
-from .fill import Fill, FillPosition, FillSize, FillType
+from .fill import Fill, FillPosition, FillSize, FillStyle, FillType
 from .font import (
     Font,
     FontBase,
@@ -82,6 +82,7 @@ __all__ = [
     "Fill",
     "FillPosition",
     "FillSize",
+    "FillStyle",
     "FillType",
     "Font",
     "FontBase",

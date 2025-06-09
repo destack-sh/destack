@@ -609,6 +609,7 @@ enum FillSize {
 
 enum FillType {
   FILL_TYPE_UNSPECIFIED = 0;
+  FILL_TYPE_STYLE = 2;
   FILL_TYPE_SOLID = 10;
   FILL_TYPE_GRADIENT = 11;
   FILL_TYPE_IMAGE = 12;
@@ -838,12 +839,13 @@ enum NodeType {
   NODE_TYPE_WIZARD_VIEW = 8500;
   NODE_TYPE_THEME = 9000;
   NODE_TYPE_COLOR_STYLE = 9010;
-  NODE_TYPE_FONT_STYLE = 9011;
-  NODE_TYPE_BORDER_STYLE = 9012;
-  NODE_TYPE_SHADOW_STYLE = 9013;
-  NODE_TYPE_GRADIENT_STYLE = 9014;
-  NODE_TYPE_TRANSITION_STYLE = 9015;
-  NODE_TYPE_EFFECT_STYLE = 9016;
+  NODE_TYPE_FILL_STYLE = 9011;
+  NODE_TYPE_FONT_STYLE = 9012;
+  NODE_TYPE_BORDER_STYLE = 9013;
+  NODE_TYPE_SHADOW_STYLE = 9014;
+  NODE_TYPE_GRADIENT_STYLE = 9015;
+  NODE_TYPE_TRANSITION_STYLE = 9016;
+  NODE_TYPE_EFFECT_STYLE = 9017;
 }
 
 // The format of a number.
@@ -883,8 +885,9 @@ enum Overflow {
 
 enum PackageRoleType {
   PACKAGE_ROLE_TYPE_UNSPECIFIED = 0;
-  PACKAGE_ROLE_TYPE_MEMBER = 10;
-  PACKAGE_ROLE_TYPE_ADMIN = 50;
+  PACKAGE_ROLE_TYPE_ADMIN = 10;
+  PACKAGE_ROLE_TYPE_DEVELOPER = 30;
+  PACKAGE_ROLE_TYPE_MEMBER = 50;
 }
 
 enum PackageType {
@@ -1094,6 +1097,7 @@ enum SortType {
 enum SpaceRoleType {
   SPACE_ROLE_TYPE_UNSPECIFIED = 0;
   SPACE_ROLE_TYPE_ADMIN = 10;
+  SPACE_ROLE_TYPE_DEVELOPER = 30;
   SPACE_ROLE_TYPE_MEMBER = 50;
 }
 
@@ -2023,11 +2027,37 @@ message FileData {
 message FillData {
   StructType metatype = 1;
   FillType type = 30;
-  optional ColorData color = 40;
-  optional GradientData gradient = 41;
-  optional NodeReferenceData image_ptr = 50;
-  optional FillPosition position = 60;
-  optional FillSize size = 70;
+  optional NodeReferenceData style_ptr = 42;
+  optional ColorData color = 50;
+  optional GradientData gradient = 51;
+  optional NodeReferenceData image_ptr = 52;
+  optional FillPosition position = 53;
+  optional FillSize size = 54;
+}
+
+// A fill style.
+message FillStyleData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData package_ptr = 7;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  EnvironmentType environment_type = 20;
+  FillType type = 30;
+  string name = 31;
+  optional NodeReferenceData style_ptr = 42;
+  optional ColorData color = 50;
+  optional GradientData gradient = 51;
+  optional NodeReferenceData image_ptr = 52;
+  optional FillPosition position = 53;
+  optional FillSize size = 54;
 }
 
 message FontData {
@@ -3478,12 +3508,13 @@ message SomeNodeData {
     WizardViewData wizard_view = 8500;
     ThemeData theme = 9000;
     ColorStyleData color_style = 9010;
-    FontStyleData font_style = 9011;
-    BorderStyleData border_style = 9012;
-    ShadowStyleData shadow_style = 9013;
-    GradientStyleData gradient_style = 9014;
-    TransitionStyleData transition_style = 9015;
-    EffectStyleData effect_style = 9016;
+    FillStyleData fill_style = 9011;
+    FontStyleData font_style = 9012;
+    BorderStyleData border_style = 9013;
+    ShadowStyleData shadow_style = 9014;
+    GradientStyleData gradient_style = 9015;
+    TransitionStyleData transition_style = 9016;
+    EffectStyleData effect_style = 9017;
   };
 }
 

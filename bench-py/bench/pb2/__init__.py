@@ -72,6 +72,7 @@ AnyNodeData = Union[
     TransitionStyleData,
     EffectStyleData,
     GradientStyleData,
+    FillStyleData,
     FontStyleData,
     ShadowStyleData,
     ThemeData,

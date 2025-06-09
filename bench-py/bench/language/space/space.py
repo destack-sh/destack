@@ -83,6 +83,7 @@ class SpaceRoleType(BuiltinEnum):
     """The role of a Space"""
 
     ADMIN = 10
+    DEVELOPER = 30
     MEMBER = 50
 
 

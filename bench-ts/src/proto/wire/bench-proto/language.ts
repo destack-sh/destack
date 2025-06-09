@@ -2340,23 +2340,118 @@ export interface FillData {
      */
     type: FillType;
     /**
-     * @generated from protobuf field: optional symbol.bench.ColorData color = 40;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 42;
+     */
+    stylePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.ColorData color = 50;
      */
     color?: ColorData;
     /**
-     * @generated from protobuf field: optional symbol.bench.GradientData gradient = 41;
+     * @generated from protobuf field: optional symbol.bench.GradientData gradient = 51;
      */
     gradient?: GradientData;
     /**
-     * @generated from protobuf field: optional symbol.bench.NodeReferenceData image_ptr = 50;
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData image_ptr = 52;
      */
     imagePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbol.bench.FillPosition position = 60;
+     * @generated from protobuf field: optional symbol.bench.FillPosition position = 53;
      */
     position?: FillPosition;
     /**
-     * @generated from protobuf field: optional symbol.bench.FillSize size = 70;
+     * @generated from protobuf field: optional symbol.bench.FillSize size = 54;
+     */
+    size?: FillSize;
+}
+/**
+ * A fill style.
+ *
+ * @generated from protobuf message symbol.bench.FillStyleData
+ */
+export interface FillStyleData {
+    /**
+     * @generated from protobuf field: symbol.bench.NodeType metatype = 1;
+     */
+    metatype: NodeType;
+    /**
+     * @generated from protobuf field: string id = 2;
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData parent_ptr = 4;
+     */
+    parentPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData space_ptr = 6;
+     */
+    spacePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData package_ptr = 7;
+     */
+    packagePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 10;
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData created_by_ptr = 11;
+     */
+    createdByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp updated_at = 12;
+     */
+    updatedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData updated_by_ptr = 13;
+     */
+    updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp archived_at = 14;
+     */
+    archivedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 15;
+     */
+    deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData template_ptr = 16;
+     */
+    templatePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbol.bench.EnvironmentType environment_type = 20;
+     */
+    environmentType: EnvironmentType;
+    /**
+     * @generated from protobuf field: symbol.bench.FillType type = 30;
+     */
+    type: FillType;
+    /**
+     * @generated from protobuf field: string name = 31;
+     */
+    name: string;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData style_ptr = 42;
+     */
+    stylePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.ColorData color = 50;
+     */
+    color?: ColorData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.GradientData gradient = 51;
+     */
+    gradient?: GradientData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.NodeReferenceData image_ptr = 52;
+     */
+    imagePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.bench.FillPosition position = 53;
+     */
+    position?: FillPosition;
+    /**
+     * @generated from protobuf field: optional symbol.bench.FillSize size = 54;
      */
     size?: FillSize;
 }
@@ -7580,39 +7675,45 @@ export interface SomeNodeData {
          */
         colorStyle: ColorStyleData;
     } | {
+        oneofKind: "fillStyle";
+        /**
+         * @generated from protobuf field: symbol.bench.FillStyleData fill_style = 9011;
+         */
+        fillStyle: FillStyleData;
+    } | {
         oneofKind: "fontStyle";
         /**
-         * @generated from protobuf field: symbol.bench.FontStyleData font_style = 9011;
+         * @generated from protobuf field: symbol.bench.FontStyleData font_style = 9012;
          */
         fontStyle: FontStyleData;
     } | {
         oneofKind: "borderStyle";
         /**
-         * @generated from protobuf field: symbol.bench.BorderStyleData border_style = 9012;
+         * @generated from protobuf field: symbol.bench.BorderStyleData border_style = 9013;
          */
         borderStyle: BorderStyleData;
     } | {
         oneofKind: "shadowStyle";
         /**
-         * @generated from protobuf field: symbol.bench.ShadowStyleData shadow_style = 9013;
+         * @generated from protobuf field: symbol.bench.ShadowStyleData shadow_style = 9014;
          */
         shadowStyle: ShadowStyleData;
     } | {
         oneofKind: "gradientStyle";
         /**
-         * @generated from protobuf field: symbol.bench.GradientStyleData gradient_style = 9014;
+         * @generated from protobuf field: symbol.bench.GradientStyleData gradient_style = 9015;
          */
         gradientStyle: GradientStyleData;
     } | {
         oneofKind: "transitionStyle";
         /**
-         * @generated from protobuf field: symbol.bench.TransitionStyleData transition_style = 9015;
+         * @generated from protobuf field: symbol.bench.TransitionStyleData transition_style = 9016;
          */
         transitionStyle: TransitionStyleData;
     } | {
         oneofKind: "effectStyle";
         /**
-         * @generated from protobuf field: symbol.bench.EffectStyleData effect_style = 9016;
+         * @generated from protobuf field: symbol.bench.EffectStyleData effect_style = 9017;
          */
         effectStyle: EffectStyleData;
     } | {
@@ -9708,6 +9809,10 @@ export enum FillType {
      */
     UNSPECIFIED = 0,
     /**
+     * @generated from protobuf enum value: FILL_TYPE_STYLE = 2;
+     */
+    STYLE = 2,
+    /**
      * @generated from protobuf enum value: FILL_TYPE_SOLID = 10;
      */
     SOLID = 10,
@@ -10483,29 +10588,33 @@ export enum NodeType {
      */
     COLOR_STYLE = 9010,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FONT_STYLE = 9011;
+     * @generated from protobuf enum value: NODE_TYPE_FILL_STYLE = 9011;
      */
-    FONT_STYLE = 9011,
+    FILL_STYLE = 9011,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_BORDER_STYLE = 9012;
+     * @generated from protobuf enum value: NODE_TYPE_FONT_STYLE = 9012;
      */
-    BORDER_STYLE = 9012,
+    FONT_STYLE = 9012,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SHADOW_STYLE = 9013;
+     * @generated from protobuf enum value: NODE_TYPE_BORDER_STYLE = 9013;
      */
-    SHADOW_STYLE = 9013,
+    BORDER_STYLE = 9013,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_GRADIENT_STYLE = 9014;
+     * @generated from protobuf enum value: NODE_TYPE_SHADOW_STYLE = 9014;
      */
-    GRADIENT_STYLE = 9014,
+    SHADOW_STYLE = 9014,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TRANSITION_STYLE = 9015;
+     * @generated from protobuf enum value: NODE_TYPE_GRADIENT_STYLE = 9015;
      */
-    TRANSITION_STYLE = 9015,
+    GRADIENT_STYLE = 9015,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_EFFECT_STYLE = 9016;
+     * @generated from protobuf enum value: NODE_TYPE_TRANSITION_STYLE = 9016;
      */
-    EFFECT_STYLE = 9016
+    TRANSITION_STYLE = 9016,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_EFFECT_STYLE = 9017;
+     */
+    EFFECT_STYLE = 9017
 }
 /**
  * The format of a number.
@@ -10615,13 +10724,17 @@ export enum PackageRoleType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: PACKAGE_ROLE_TYPE_MEMBER = 10;
+     * @generated from protobuf enum value: PACKAGE_ROLE_TYPE_ADMIN = 10;
      */
-    MEMBER = 10,
+    ADMIN = 10,
     /**
-     * @generated from protobuf enum value: PACKAGE_ROLE_TYPE_ADMIN = 50;
+     * @generated from protobuf enum value: PACKAGE_ROLE_TYPE_DEVELOPER = 30;
      */
-    ADMIN = 50
+    DEVELOPER = 30,
+    /**
+     * @generated from protobuf enum value: PACKAGE_ROLE_TYPE_MEMBER = 50;
+     */
+    MEMBER = 50
 }
 /**
  * @generated from protobuf enum symbol.bench.PackageType
@@ -11291,6 +11404,10 @@ export enum SpaceRoleType {
      * @generated from protobuf enum value: SPACE_ROLE_TYPE_ADMIN = 10;
      */
     ADMIN = 10,
+    /**
+     * @generated from protobuf enum value: SPACE_ROLE_TYPE_DEVELOPER = 30;
+     */
+    DEVELOPER = 30,
     /**
      * @generated from protobuf enum value: SPACE_ROLE_TYPE_MEMBER = 50;
      */
@@ -17576,11 +17693,12 @@ class FillData$Type extends MessageType$<FillData> {
         super("symbol.bench.FillData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.FillType", FillType, "FILL_TYPE_"] },
-            { no: 40, name: "color", kind: "message", T: () => ColorData },
-            { no: 41, name: "gradient", kind: "message", T: () => GradientData },
-            { no: 50, name: "image_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 60, name: "position", kind: "enum", opt: true, T: () => ["symbol.bench.FillPosition", FillPosition, "FILL_POSITION_"] },
-            { no: 70, name: "size", kind: "enum", opt: true, T: () => ["symbol.bench.FillSize", FillSize, "FILL_SIZE_"] }
+            { no: 42, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "color", kind: "message", T: () => ColorData },
+            { no: 51, name: "gradient", kind: "message", T: () => GradientData },
+            { no: 52, name: "image_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 53, name: "position", kind: "enum", opt: true, T: () => ["symbol.bench.FillPosition", FillPosition, "FILL_POSITION_"] },
+            { no: 54, name: "size", kind: "enum", opt: true, T: () => ["symbol.bench.FillSize", FillSize, "FILL_SIZE_"] }
         ]);
     }
     create(value?: PartialMessage<FillData>): FillData {
@@ -17602,19 +17720,22 @@ class FillData$Type extends MessageType$<FillData> {
                 case /* symbol.bench.FillType type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* optional symbol.bench.ColorData color */ 40:
+                case /* optional symbol.bench.NodeReferenceData style_ptr */ 42:
+                    message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
+                    break;
+                case /* optional symbol.bench.ColorData color */ 50:
                     message.color = ColorData.internalBinaryRead(reader, reader.uint32(), options, message.color);
                     break;
-                case /* optional symbol.bench.GradientData gradient */ 41:
+                case /* optional symbol.bench.GradientData gradient */ 51:
                     message.gradient = GradientData.internalBinaryRead(reader, reader.uint32(), options, message.gradient);
                     break;
-                case /* optional symbol.bench.NodeReferenceData image_ptr */ 50:
+                case /* optional symbol.bench.NodeReferenceData image_ptr */ 52:
                     message.imagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.imagePtr);
                     break;
-                case /* optional symbol.bench.FillPosition position */ 60:
+                case /* optional symbol.bench.FillPosition position */ 53:
                     message.position = reader.int32();
                     break;
-                case /* optional symbol.bench.FillSize size */ 70:
+                case /* optional symbol.bench.FillSize size */ 54:
                     message.size = reader.int32();
                     break;
                 default:
@@ -17635,21 +17756,24 @@ class FillData$Type extends MessageType$<FillData> {
         /* symbol.bench.FillType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* optional symbol.bench.ColorData color = 40; */
+        /* optional symbol.bench.NodeReferenceData style_ptr = 42; */
+        if (message.stylePtr)
+            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.ColorData color = 50; */
         if (message.color)
-            ColorData.internalBinaryWrite(message.color, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.GradientData gradient = 41; */
+            ColorData.internalBinaryWrite(message.color, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.GradientData gradient = 51; */
         if (message.gradient)
-            GradientData.internalBinaryWrite(message.gradient, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.NodeReferenceData image_ptr = 50; */
+            GradientData.internalBinaryWrite(message.gradient, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData image_ptr = 52; */
         if (message.imagePtr)
-            NodeReferenceData.internalBinaryWrite(message.imagePtr, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.bench.FillPosition position = 60; */
+            NodeReferenceData.internalBinaryWrite(message.imagePtr, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.FillPosition position = 53; */
         if (message.position !== undefined)
-            writer.tag(60, WireType.Varint).int32(message.position);
-        /* optional symbol.bench.FillSize size = 70; */
+            writer.tag(53, WireType.Varint).int32(message.position);
+        /* optional symbol.bench.FillSize size = 54; */
         if (message.size !== undefined)
-            writer.tag(70, WireType.Varint).int32(message.size);
+            writer.tag(54, WireType.Varint).int32(message.size);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -17660,6 +17784,197 @@ class FillData$Type extends MessageType$<FillData> {
  * @generated MessageType for protobuf message symbol.bench.FillData
  */
 export const FillData = new FillData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class FillStyleData$Type extends MessageType$<FillStyleData> {
+    constructor() {
+        super("symbol.bench.FillStyleData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 6, name: "space_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
+            { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 14, name: "archived_at", kind: "message", T: () => Timestamp },
+            { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.bench.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbol.bench.FillType", FillType, "FILL_TYPE_"] },
+            { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 42, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "color", kind: "message", T: () => ColorData },
+            { no: 51, name: "gradient", kind: "message", T: () => GradientData },
+            { no: 52, name: "image_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 53, name: "position", kind: "enum", opt: true, T: () => ["symbol.bench.FillPosition", FillPosition, "FILL_POSITION_"] },
+            { no: 54, name: "size", kind: "enum", opt: true, T: () => ["symbol.bench.FillSize", FillSize, "FILL_SIZE_"] }
+        ]);
+    }
+    create(value?: PartialMessage<FillStyleData>): FillStyleData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.environmentType = 0;
+        message.type = 0;
+        message.name = "";
+        if (value !== undefined)
+            reflectionMergePartial<FillStyleData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: FillStyleData): FillStyleData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.bench.NodeType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* optional symbol.bench.NodeReferenceData parent_ptr */ 4:
+                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData space_ptr */ 6:
+                    message.spacePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData package_ptr */ 7:
+                    message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 10:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData created_by_ptr */ 11:
+                    message.createdByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* google.protobuf.Timestamp updated_at */ 12:
+                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData updated_by_ptr */ 13:
+                    message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* optional google.protobuf.Timestamp archived_at */ 14:
+                    message.archivedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.archivedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 15:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData template_ptr */ 16:
+                    message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* symbol.bench.EnvironmentType environment_type */ 20:
+                    message.environmentType = reader.int32();
+                    break;
+                case /* symbol.bench.FillType type */ 30:
+                    message.type = reader.int32();
+                    break;
+                case /* string name */ 31:
+                    message.name = reader.string();
+                    break;
+                case /* optional symbol.bench.NodeReferenceData style_ptr */ 42:
+                    message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
+                    break;
+                case /* optional symbol.bench.ColorData color */ 50:
+                    message.color = ColorData.internalBinaryRead(reader, reader.uint32(), options, message.color);
+                    break;
+                case /* optional symbol.bench.GradientData gradient */ 51:
+                    message.gradient = GradientData.internalBinaryRead(reader, reader.uint32(), options, message.gradient);
+                    break;
+                case /* optional symbol.bench.NodeReferenceData image_ptr */ 52:
+                    message.imagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.imagePtr);
+                    break;
+                case /* optional symbol.bench.FillPosition position */ 53:
+                    message.position = reader.int32();
+                    break;
+                case /* optional symbol.bench.FillSize size */ 54:
+                    message.size = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: FillStyleData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.bench.NodeType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbol.bench.NodeReferenceData parent_ptr = 4; */
+        if (message.parentPtr)
+            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData space_ptr = 6; */
+        if (message.spacePtr)
+            NodeReferenceData.internalBinaryWrite(message.spacePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData package_ptr = 7; */
+        if (message.packagePtr)
+            NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp created_at = 10; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData created_by_ptr = 11; */
+        if (message.createdByPtr)
+            NodeReferenceData.internalBinaryWrite(message.createdByPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp updated_at = 12; */
+        if (message.updatedAt)
+            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData updated_by_ptr = 13; */
+        if (message.updatedByPtr)
+            NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp archived_at = 14; */
+        if (message.archivedAt)
+            Timestamp.internalBinaryWrite(message.archivedAt, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 15; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData template_ptr = 16; */
+        if (message.templatePtr)
+            NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.EnvironmentType environment_type = 20; */
+        if (message.environmentType !== 0)
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
+        /* symbol.bench.FillType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
+        /* string name = 31; */
+        if (message.name !== "")
+            writer.tag(31, WireType.LengthDelimited).string(message.name);
+        /* optional symbol.bench.NodeReferenceData style_ptr = 42; */
+        if (message.stylePtr)
+            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.ColorData color = 50; */
+        if (message.color)
+            ColorData.internalBinaryWrite(message.color, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.GradientData gradient = 51; */
+        if (message.gradient)
+            GradientData.internalBinaryWrite(message.gradient, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.NodeReferenceData image_ptr = 52; */
+        if (message.imagePtr)
+            NodeReferenceData.internalBinaryWrite(message.imagePtr, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.bench.FillPosition position = 53; */
+        if (message.position !== undefined)
+            writer.tag(53, WireType.Varint).int32(message.position);
+        /* optional symbol.bench.FillSize size = 54; */
+        if (message.size !== undefined)
+            writer.tag(54, WireType.Varint).int32(message.size);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.bench.FillStyleData
+ */
+export const FillStyleData = new FillStyleData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class FontData$Type extends MessageType$<FontData> {
     constructor() {
@@ -29278,12 +29593,13 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
             { no: 8500, name: "wizard_view", kind: "message", oneof: "node", T: () => WizardViewData },
             { no: 9000, name: "theme", kind: "message", oneof: "node", T: () => ThemeData },
             { no: 9010, name: "color_style", kind: "message", oneof: "node", T: () => ColorStyleData },
-            { no: 9011, name: "font_style", kind: "message", oneof: "node", T: () => FontStyleData },
-            { no: 9012, name: "border_style", kind: "message", oneof: "node", T: () => BorderStyleData },
-            { no: 9013, name: "shadow_style", kind: "message", oneof: "node", T: () => ShadowStyleData },
-            { no: 9014, name: "gradient_style", kind: "message", oneof: "node", T: () => GradientStyleData },
-            { no: 9015, name: "transition_style", kind: "message", oneof: "node", T: () => TransitionStyleData },
-            { no: 9016, name: "effect_style", kind: "message", oneof: "node", T: () => EffectStyleData }
+            { no: 9011, name: "fill_style", kind: "message", oneof: "node", T: () => FillStyleData },
+            { no: 9012, name: "font_style", kind: "message", oneof: "node", T: () => FontStyleData },
+            { no: 9013, name: "border_style", kind: "message", oneof: "node", T: () => BorderStyleData },
+            { no: 9014, name: "shadow_style", kind: "message", oneof: "node", T: () => ShadowStyleData },
+            { no: 9015, name: "gradient_style", kind: "message", oneof: "node", T: () => GradientStyleData },
+            { no: 9016, name: "transition_style", kind: "message", oneof: "node", T: () => TransitionStyleData },
+            { no: 9017, name: "effect_style", kind: "message", oneof: "node", T: () => EffectStyleData }
         ]);
     }
     create(value?: PartialMessage<SomeNodeData>): SomeNodeData {
@@ -29634,37 +29950,43 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
                         colorStyle: ColorStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).colorStyle)
                     };
                     break;
-                case /* symbol.bench.FontStyleData font_style */ 9011:
+                case /* symbol.bench.FillStyleData fill_style */ 9011:
+                    message.node = {
+                        oneofKind: "fillStyle",
+                        fillStyle: FillStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).fillStyle)
+                    };
+                    break;
+                case /* symbol.bench.FontStyleData font_style */ 9012:
                     message.node = {
                         oneofKind: "fontStyle",
                         fontStyle: FontStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).fontStyle)
                     };
                     break;
-                case /* symbol.bench.BorderStyleData border_style */ 9012:
+                case /* symbol.bench.BorderStyleData border_style */ 9013:
                     message.node = {
                         oneofKind: "borderStyle",
                         borderStyle: BorderStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).borderStyle)
                     };
                     break;
-                case /* symbol.bench.ShadowStyleData shadow_style */ 9013:
+                case /* symbol.bench.ShadowStyleData shadow_style */ 9014:
                     message.node = {
                         oneofKind: "shadowStyle",
                         shadowStyle: ShadowStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).shadowStyle)
                     };
                     break;
-                case /* symbol.bench.GradientStyleData gradient_style */ 9014:
+                case /* symbol.bench.GradientStyleData gradient_style */ 9015:
                     message.node = {
                         oneofKind: "gradientStyle",
                         gradientStyle: GradientStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).gradientStyle)
                     };
                     break;
-                case /* symbol.bench.TransitionStyleData transition_style */ 9015:
+                case /* symbol.bench.TransitionStyleData transition_style */ 9016:
                     message.node = {
                         oneofKind: "transitionStyle",
                         transitionStyle: TransitionStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).transitionStyle)
                     };
                     break;
-                case /* symbol.bench.EffectStyleData effect_style */ 9016:
+                case /* symbol.bench.EffectStyleData effect_style */ 9017:
                     message.node = {
                         oneofKind: "effectStyle",
                         effectStyle: EffectStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).effectStyle)
@@ -29850,24 +30172,27 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
         /* symbol.bench.ColorStyleData color_style = 9010; */
         if (message.node.oneofKind === "colorStyle")
             ColorStyleData.internalBinaryWrite(message.node.colorStyle, writer.tag(9010, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.FontStyleData font_style = 9011; */
+        /* symbol.bench.FillStyleData fill_style = 9011; */
+        if (message.node.oneofKind === "fillStyle")
+            FillStyleData.internalBinaryWrite(message.node.fillStyle, writer.tag(9011, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.FontStyleData font_style = 9012; */
         if (message.node.oneofKind === "fontStyle")
-            FontStyleData.internalBinaryWrite(message.node.fontStyle, writer.tag(9011, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.BorderStyleData border_style = 9012; */
+            FontStyleData.internalBinaryWrite(message.node.fontStyle, writer.tag(9012, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.BorderStyleData border_style = 9013; */
         if (message.node.oneofKind === "borderStyle")
-            BorderStyleData.internalBinaryWrite(message.node.borderStyle, writer.tag(9012, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.ShadowStyleData shadow_style = 9013; */
+            BorderStyleData.internalBinaryWrite(message.node.borderStyle, writer.tag(9013, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.ShadowStyleData shadow_style = 9014; */
         if (message.node.oneofKind === "shadowStyle")
-            ShadowStyleData.internalBinaryWrite(message.node.shadowStyle, writer.tag(9013, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.GradientStyleData gradient_style = 9014; */
+            ShadowStyleData.internalBinaryWrite(message.node.shadowStyle, writer.tag(9014, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.GradientStyleData gradient_style = 9015; */
         if (message.node.oneofKind === "gradientStyle")
-            GradientStyleData.internalBinaryWrite(message.node.gradientStyle, writer.tag(9014, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.TransitionStyleData transition_style = 9015; */
+            GradientStyleData.internalBinaryWrite(message.node.gradientStyle, writer.tag(9015, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.TransitionStyleData transition_style = 9016; */
         if (message.node.oneofKind === "transitionStyle")
-            TransitionStyleData.internalBinaryWrite(message.node.transitionStyle, writer.tag(9015, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.bench.EffectStyleData effect_style = 9016; */
+            TransitionStyleData.internalBinaryWrite(message.node.transitionStyle, writer.tag(9016, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.bench.EffectStyleData effect_style = 9017; */
         if (message.node.oneofKind === "effectStyle")
-            EffectStyleData.internalBinaryWrite(message.node.effectStyle, writer.tag(9016, WireType.LengthDelimited).fork(), options).join();
+            EffectStyleData.internalBinaryWrite(message.node.effectStyle, writer.tag(9017, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -29886,7 +30211,7 @@ export const SomeNodeData = new SomeNodeData$Type();
 //
 
 // Any...
-export type AnyNodeData = CustomEntityDefinitionData | CustomEntityData | EditEventData | ChangeEventData | QueryEventData | CustomEventDefinitionData | CustomEventData | FieldData | SchemaData | ClientData | FriendshipData | FriendshipInviteData | OrganizationData | OrganizationInviteData | OrganizationMembershipData | UserData | FileData | LinkData | DatabaseData | MachineData | ActionData | AgentData | CursorData | ScriptData | ServiceData | TaskData | InterruptionData | LogData | RunData | SpanData | BlockData | PageData | RouteData | SceneData | WindowData | MessageData | ThreadData | HandleData | PackageData | PackageMembershipData | PackageInviteData | SpaceData | SpaceInviteData | SpaceMembershipData | ColorStyleData | BorderStyleData | TransitionStyleData | EffectStyleData | GradientStyleData | FontStyleData | ShadowStyleData | ThemeData | CustomViewDefinitionData | CustomViewData | FrameViewData | LabelViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | WizardViewData | ThreadViewData
+export type AnyNodeData = CustomEntityDefinitionData | CustomEntityData | EditEventData | ChangeEventData | QueryEventData | CustomEventDefinitionData | CustomEventData | FieldData | SchemaData | ClientData | FriendshipData | FriendshipInviteData | OrganizationData | OrganizationInviteData | OrganizationMembershipData | UserData | FileData | LinkData | DatabaseData | MachineData | ActionData | AgentData | CursorData | ScriptData | ServiceData | TaskData | InterruptionData | LogData | RunData | SpanData | BlockData | PageData | RouteData | SceneData | WindowData | MessageData | ThreadData | HandleData | PackageData | PackageMembershipData | PackageInviteData | SpaceData | SpaceInviteData | SpaceMembershipData | ColorStyleData | BorderStyleData | TransitionStyleData | EffectStyleData | GradientStyleData | FillStyleData | FontStyleData | ShadowStyleData | ThemeData | CustomViewDefinitionData | CustomViewData | FrameViewData | LabelViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | WizardViewData | ThreadViewData
 export type AnyStructData = ScopeData | RelationReferenceData | AttributeReferenceData | PropertyReferenceData | NodeReferenceData | EditData | ChangeData | ChangeResultData | StringConstraintData | NumberConstraintData | CollectionConstraintData | NodeConstraintData | TypeData | ValueData | FunctionData | ConditionData | AggregationData | ExpressionData | SortData | SelectData | JoinData | QueryData | HistogramData | QueryResultData | QueryResultGroupData | QueryUpdateData | SelectionData | IconData | PropertyInfoData | TraitInfoData | NodeInfoData | StructInfoData | EnumInfoData | EnumOptionInfoData | TextSpanData | TextLineData | TextData | VariableData | OriginData | CellInfoData | DatabaseInfoData | ScheduleData | ErrorData | ColorData | LengthData | PositionData | DimensionData | InsetsData | CornersData | Axis2Data | Axis3Data | Vector2Data | Vector3Data | Vector4Data | GridData | GridSpanData | BorderData | TransitionData | EffectData | GradientStopData | GradientData | FillData | FontData | ShadowData
 
     

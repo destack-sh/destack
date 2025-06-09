@@ -796,12 +796,13 @@ class NodeType(BuiltinEnum):
     # style [9000-9100]
     THEME = 9000, "Theme", "Theme", "fas fa-palette"
     COLOR_STYLE = 9010, "Color Style", "Color Style", "fas fa-palette"
-    FONT_STYLE = 9011, "Font Style", "Font Style", "fas fa-text"
-    BORDER_STYLE = 9012, "Border Style", "Border Style", "fas fa-border-outer"
-    SHADOW_STYLE = 9013, "Shadow Style", "Shadow Style", "fas fa-eclipse"
-    GRADIENT_STYLE = 9014, "Gradient Style", "Gradient Style", "fas fa-gradient"
-    TRANSITION_STYLE = 9015, "Transition Style", "Transition Style", "fas fa-bezier-curve"
-    EFFECT_STYLE = 9016, "Effect Style", "Effect Style", "fas fa-sparkle"
+    FILL_STYLE = 9011, "Fill Style", "Fill Style", "fas fa-fill"
+    FONT_STYLE = 9012, "Font Style", "Font Style", "fas fa-text"
+    BORDER_STYLE = 9013, "Border Style", "Border Style", "fas fa-border-outer"
+    SHADOW_STYLE = 9014, "Shadow Style", "Shadow Style", "fas fa-eclipse"
+    GRADIENT_STYLE = 9015, "Gradient Style", "Gradient Style", "fas fa-gradient"
+    TRANSITION_STYLE = 9016, "Transition Style", "Transition Style", "fas fa-bezier-curve"
+    EFFECT_STYLE = 9017, "Effect Style", "Effect Style", "fas fa-sparkle"
     # VARIANT :RichGraph
 
     # canvas/drawing?
