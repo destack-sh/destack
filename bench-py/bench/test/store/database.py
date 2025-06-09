@@ -54,7 +54,7 @@ def session(session_async: Session):
 @given(node=nodes)
 @examples([{"node": node} for node in NODES])
 @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-async def test_roundtrip_builtin_object(node: Node, session: Session):
+async def test_roundtrip_create_node(node: Node, session: Session):
     session.create(node)
     await session.commit()
 

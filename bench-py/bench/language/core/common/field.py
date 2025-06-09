@@ -64,9 +64,9 @@ class FieldType(BuiltinEnum):
 
 @node_(NodeType.FIELD)
 class Field(
-    IsEnvironmental,
     HasName,
     HasIcon,
+    IsEnvironmental,
     IsTracked,
     IsTemplatable,
     IsOrdered,

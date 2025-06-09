@@ -461,6 +461,8 @@ class QueryUpdate(StructFrozen):
 
 
 class IntoQuery:
+    __slots__ = ()
+
     def is_equal(self: Any, value: Any) -> "Condition":
         if value is None:
             return self.not_exists()
