@@ -108,12 +108,12 @@ def _generate_unpack_scalar_value(prop: "Property", value_expr: str) -> str:
             return f"base64.b64encode({value_expr}).decode()"
         elif prop.primitive_type == PrimitiveType.UUID:
             return f"str({value_expr})"
-        elif prop.primitive_type in (
-            PrimitiveType.DATETIME,
-            PrimitiveType.DATE,
-            PrimitiveType.TIME,
-        ):
+        elif prop.primitive_type == PrimitiveType.DATETIME:
+            return f"{value_expr}.replace(tzinfo=pytz.utc).isoformat()"
+        elif prop.primitive_type == PrimitiveType.DATE:
             return f"{value_expr}.isoformat()"
+        elif prop.primitive_type == PrimitiveType.TIME:
+            return f"{value_expr}.replace(tzinfo=pytz.utc).isoformat()"
         elif prop.primitive_type == PrimitiveType.DURATION:
             return f"timedelta_to_isoformat({value_expr})"
         else:
@@ -183,13 +183,10 @@ else:
     row_values.append(None)"""
         elif prop.cardinality == TypeCardinality.LIST:
             pack_expr = _generate_pack_scalar_value(prop, "v")
-            return f"""_value = node_value.get('{prop.id}')
-if _value is not None:
-    row_values.append([{pack_expr} for v in _value])
-else:
-    row_values.append(None)"""
+            return f"""\
+_value = node_value.get('{prop.id}')
+row_values.append([{pack_expr} for v in _value] if _value else [])"""
         elif prop.cardinality == TypeCardinality.MAP:
-            # Maps are stored as JSON
             return f"""_value = node_value.get('{prop.id}')
 row_values.append(orjson.dumps(_value or EMPTY_DICT).decode())"""
         else:
@@ -238,6 +235,8 @@ def _generate_column_unpack(prop: "Property") -> str:
         return "\n".join(unpack_lines)
     else:
         # regular properties
+        if prop.ptr_prop is not None:
+            prop = prop.ptr_prop
         if prop.cardinality == TypeCardinality.SCALAR:
             unpack_expr = _generate_unpack_scalar_value(prop, f"row['{prop.name}']")
             if prop.is_required:
@@ -269,7 +268,6 @@ def _generate_node_row_pack(node_cls: type[Node]) -> str:
             prop.edge_type == EdgeType.PARENT and node_cls.__root_type__ is None
         ):
             continue
-
         pack_code = _generate_column_pack(prop)
         lines.append(pack_code)
 
@@ -418,12 +416,12 @@ def unpack_column_scalar(type: "Type | Field", value: Any) -> Json:
             return base64.b64encode(value).decode()
         elif type.primitive_type == PrimitiveType.UUID:
             return str(value)
-        elif (
-            type.primitive_type == PrimitiveType.DATETIME
-            or type.primitive_type == PrimitiveType.DATE
-            or type.primitive_type == PrimitiveType.TIME
-        ):
+        elif type.primitive_type == PrimitiveType.DATETIME:
+            return value.replace(tzinfo=pytz.utc).isoformat()
+        elif type.primitive_type == PrimitiveType.DATE:
             return value.isoformat()
+        elif type.primitive_type == PrimitiveType.TIME:
+            return value.replace(tzinfo=pytz.utc).isoformat()
         elif type.primitive_type == PrimitiveType.DURATION:
             return timedelta_to_isoformat(value)
         else:

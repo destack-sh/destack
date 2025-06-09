@@ -457,7 +457,7 @@ else:
     return f"<{cls.__name__}>"
 """
 
-    if cls.__is_frozen__:
+    if cls.__is_frozen__ and not cls.__is_node__:
         # cache _repr in __repr__ (frozen Struct)
         inner_repr_impl = inner_repr_impl.replace("return ", "self._repr = ")
         inner_repr_impl = textwrap.indent(inner_repr_impl, "    ")

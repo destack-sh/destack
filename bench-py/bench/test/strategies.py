@@ -195,8 +195,9 @@ def get_naive_object_strategy(object_cls: type[BuiltinObjectBase]):
             or prop.default_factory is not None
             or prop.is_managed
             or prop.is_computed
+            or prop.name == "email"  # is unique (causes meaningless test errors)
         ):
-            continue  # ignore internal properties
+            continue  # ignore
         if prop.name in STRATEGY_BY_PROPERTY:
             object_kwargs[prop.name] = STRATEGY_BY_PROPERTY[prop.name]
         else:

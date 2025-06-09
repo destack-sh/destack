@@ -37,7 +37,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.06.08.1"
+VERSION = "2025.06.09.0"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -814,31 +814,33 @@ class NodeType(BuiltinEnum):
 @enum_(EnumType.TRAIT_TYPE)
 class TraitType(BuiltinEnum):
     # bench [1-200]
+    # kind/area/...
+    # nocheckin: GLOBAL, ENTITY, VIEW, EVENT, ... traits?
     GLOBAL = 1, "Global", "Is global", "fas fa-globe"
-    # nocheckin: GLOBAL, ENTITY, ... traits?
+    # behavior
     FROZEN = 4, "Frozen", "Is frozen", "fas fa-snowflake"
     TRACKED = 10, "Tracked", "Is tracked", "fas fa-clock"
     ARCHIVABLE = 11, "Archivable", "Can be archived", "fas fa-box-archive"
     DELETABLE = 12, "Deletable", "Can be deleted", "fas fa-trash"
     TEMPLATABLE = 13, "Templatable", "Is templatable", "fas fa-puzzle-piece"
     EXTENSIBLE = 14, "Extensible", "Is extensible", "fas fa-expand"
+    ORDERED = 25, "Ordered", "Is ordered", "fas fa-sort"
     CUSTOM_NODE_DEFINITION = (
         15,
         "Custom Node Definition",
         "Is a Custom Node Definition",
         "fas fa-table",
     )
+    RESOURCE = 51, "Resource", "Is a Resource", "fas fa-server"
+    PROVISIONABLE = 52, "Provisionable", "Is provisionable", "fas fa-server"
     CUSTOM_NODE = 16, "Custom Node", "Is a Custom Node", "fas fa-database"
     ENVIRONMENTAL = 20, "Environment", "Has an environment", "fas fa-window-maximize"
     HAS_NAME = 21, "Name", "Has a name", "fas fa-font-case"
     HAS_TITLE = 22, "Title", "Has a title", "fas fa-font-case"
     HAS_SLUG = 23, "Slug", "Has a slug", "fas fa-hashtag"
     HAS_ICON = 24, "Icon", "Has an icon", "fas fa-icons"
-    ORDERED = 25, "Ordered", "Is ordered", "fas fa-sort"
     IN_SPACE = 40, "Space", "Is in a Space", "fas fa-bench"
     IN_PACKAGE = 41, "Package", "Is in a Package", "fas fa-box"
-    RESOURCE = 51, "Resource", "Is a Resource", "fas fa-server"
-    PROVISIONABLE = 52, "Provisionable", "Is provisionable", "fas fa-server"
     # TAG, TAGGABLE, ...
 
     # auth [200-600]

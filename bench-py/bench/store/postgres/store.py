@@ -161,7 +161,7 @@ class PostgresStoreContext(PostgresContext):
         return f"<{self.__class__.__name__} {self!s}>"
 
     def copy(self) -> Self:
-        raise NotImplementedError
+        return self  # nocheckin: PostgresStoreContext :PostgresSchemaEdits
 
     @override
     def apply(self, edits: Sequence[Edit]) -> Sequence[Edit]:
@@ -169,7 +169,7 @@ class PostgresStoreContext(PostgresContext):
         for edit in edits:
             if edit.node_type in (NodeType.CUSTOM_ENTITY_DEFINITION, NodeType.FIELD):
                 applied_edits.append(edit)
-                raise NotImplementedError(f"apply database context edit: {edit!r}")
+                # :PostgresSchemaEdits
         return applied_edits
 
     @override
