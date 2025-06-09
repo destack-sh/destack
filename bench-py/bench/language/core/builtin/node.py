@@ -107,7 +107,6 @@ class Node[NodeDataT: AnyNodeData](NodeBase[NodeDataT]):
     if TYPE_CHECKING:
         parent_type: NodeType | None = None
         parent_id: Optional[UUID] = None
-        parent_ck: Optional[UUID] = None
         parent_ptr: Optional[NodeReference] = None
     # Node.area?
     # IsInSpace.space: 6

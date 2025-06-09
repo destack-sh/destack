@@ -379,6 +379,16 @@ class Trait(Node if TYPE_CHECKING else NodeBase):
     metatype: ClassVar[TraitType]
     info: ClassVar["TraitInfo"]
 
+    # 1-9: node identity
+    #  (repeat common Node properties here so trait RelationReferences can reference them,
+    #   since Trait doesn't inherit from Node directly for circularity reasons)
+    id: UUID = property_(2, is_managed=True, is_eq=False, can_write="system")
+    parent: Optional["Node"] = property_parent_(node_is_customizable=True)
+    if TYPE_CHECKING:
+        parent_type: NodeType | None = None
+        parent_id: Optional[UUID] = None
+        parent_ptr: Optional[NodeReference] = None
+
     __is_node__: ClassVar[bool] = True
     __is_trait__: ClassVar[bool] = True
     __traits__: ClassVar[tuple[TraitType, ...]] = ()

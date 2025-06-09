@@ -46,7 +46,7 @@ class CustomEntityDefinition(
     Node[CustomEntityDefinitionData],
 ):
     """
-    A definition for a generic Entity type (instantiated in CustomEntities).
+    A definition for a custom Entity type (instantiated in CustomEntities).
     Custom Entities may be materialized as physical or logical tables in primary storage.
     """
 
@@ -64,7 +64,7 @@ class CustomEntity(
     Node[CustomEntityData],
 ):
     """
-    An Entity is an instance of a CustomEntityDefinition.
+    A CustomEntity is an instance of a CustomEntityDefinition.
     """
 
     parent: Union["CustomEntityDefinition", "CustomEntity", None] = property_parent_(

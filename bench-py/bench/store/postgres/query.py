@@ -33,6 +33,7 @@ from bench.language import (
     Value,
     to_value,
 )
+from bench.language.core.builtin.const import NodeType
 
 from .core import PostgresContext
 from .map import BENCH_CUSTOM_FIELD_PREFIX
@@ -267,7 +268,6 @@ async def _walk_node(
 ) -> list[NodeReference]:
     """Get the cascaded Nodes for a query."""
 
-    table = context.get_relation(relation)
     roots_ids: list[UUID] = [n.id for n in roots_ptr]
     roots_parents_ids: list[UUID] = [n.id for n in roots_parents_ptr]
     arguments: list[Any] = [roots_ids, roots_parents_ids, depth]
@@ -275,6 +275,12 @@ async def _walk_node(
 
     # parent walk
     if direction == EdgeDirection.PARENT:
+        if relation.is_multi:
+            raise NotImplementedError(
+                f"cannot walk multi-relation {relation!r} in direction: {direction!r}"
+            )
+
+        table = context.get_relation(relation)
         stmt = f"""
 WITH RECURSIVE tree AS (
     SELECT  id,
@@ -306,38 +312,62 @@ FROM    tree;
 
     # child walk
     elif direction == EdgeDirection.CHILD:
+        # fan out relation
+        tables = [context.get_relation(r) for r in context.resolve_relation(relation)]
+
+        # build a single UNION of all node tables
+        union_parts = [
+            f"SELECT id, parent_id, {tbl.node_type.value}::int AS node_type FROM {tbl.name}"
+            for tbl in tables
+        ]
+        union_subquery = " UNION ALL ".join(union_parts)
+        # anchor term
+        base_sql = f"""
+SELECT id,
+    parent_id,
+    1 AS depth,
+    node_type
+FROM (
+    {union_subquery}
+) roots
+WHERE (id = ANY($1) OR parent_id = ANY($2))
+AND {where_sql}
+        """
+        # recursive term
+        recursive_sql = f"""
+SELECT c.id,
+    c.parent_id,
+    t.depth + 1 AS depth,
+    c.node_type
+FROM (
+    {union_subquery}
+) c
+JOIN tree t ON c.parent_id = t.id
+WHERE t.depth < $3
+AND {where_sql}
+        """
+        # final statement
         stmt = f"""
 WITH RECURSIVE tree AS (
-    SELECT  id,
-            parent_id,
-            1 AS depth
-    FROM    {table.name}
-    WHERE   (id = ANY($1) OR parent_id = ANY($2)) AND {where_sql}
-
+    {base_sql}
     UNION ALL
-
-    SELECT  c.id,
-            c.parent_id,
-            t.depth + 1
-    FROM    {table.name}  AS c
-    JOIN    tree      AS t ON c.parent_id = t.id
-    WHERE   t.depth < $3 AND {where_sql}
+    {recursive_sql}
 )
-SELECT  id,
-        parent_id,
-        depth
-FROM    tree;
-"""
+SELECT id, parent_id, depth, node_type
+FROM tree;
+        """
+
         result_rows = await conn.fetch(stmt, *arguments)
         result_nodes_ptr: list[NodeReference] = []
         for row in result_rows:
-            node_ptr = NodeReference(node_type=table.node_type, id=fastuuid.UUID(str(row["id"])))
+            node_type = NodeType(int(row["node_type"]))
+            node_ptr = NodeReference(node_type=node_type, id=fastuuid.UUID(str(row["id"])))
             result_nodes_ptr.append(node_ptr)
         return result_nodes_ptr
 
     # side walk
     elif direction == EdgeDirection.SIDE:
-        raise NotImplementedError(f"cannot walk {table!r} in direction: {direction!r}")
+        raise NotImplementedError(f"cannot walk {relation!r} in direction: {direction!r}")
 
     else:
         assert_never(direction)

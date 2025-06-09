@@ -205,7 +205,7 @@ async def test_create_scene_with_heterogeneous_views(session: Session):
         root_view.add_child(custom_view)
     await session.commit()
 
-    # query trait (non-recursive)
+    # query trait (child, non-recursive)
     scene_tree = await FrameView.get(
         where=FrameView.property("id").eq(root_view.id),
         Views=IsView.search(join=join(JoinType.CHILD)),
@@ -213,3 +213,12 @@ async def test_create_scene_with_heterogeneous_views(session: Session):
     scene_unpacked = scene_tree.to_one()
     view_tree_unpacked = scene_unpacked.get_descendants(IsView)
     assert len(view_tree_unpacked) == 8
+
+    # query trait (child, recursive)
+    scene_tree = await FrameView.get(
+        where=FrameView.property("id").eq(root_view.id),
+        Views=IsView.search(join=join(JoinType.CHILD, recursive=True)),
+    ).execute()
+    scene_unpacked = scene_tree.to_one()
+    view_tree_unpacked = scene_unpacked.get_descendants(IsView)
+    assert len(view_tree_unpacked) == 4 + 4 * (1 + 4 * (1 + 4))
