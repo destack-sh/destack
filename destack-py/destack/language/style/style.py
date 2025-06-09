@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Union
 from destack.language.core import (
     HasName,
     IsEnvironmental,
-    IsInPackage,
+    IsInFolder,
     IsTemplatable,
     IsTracked,
     TraitType,
@@ -22,7 +22,7 @@ class IsStyle(
     IsTemplatable,
     IsEnvironmental,
     HasName,
-    IsInPackage,
+    IsInFolder,
     IsTracked,
 ):
     """A Style is a graphical interface."""

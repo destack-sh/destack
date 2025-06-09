@@ -8,7 +8,7 @@ from ..builtin import (
     HasSlug,
     IsEnvironmental,
     IsEvent,
-    IsInPackage,
+    IsInFolder,
     IsSourceable,
     Node,
     NodeType,
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.EDIT_EVENT, pretend_frozen=True)
-class EditEvent(IsEnvironmental, IsEvent, IsInPackage, Node):
+class EditEvent(IsEnvironmental, IsEvent, IsInFolder, Node):
     """A Event of an Edit."""
 
     # key
@@ -54,14 +54,14 @@ class EditEvent(IsEnvironmental, IsEvent, IsInPackage, Node):
 
 
 @node_(NodeType.CHANGE_EVENT, pretend_frozen=True)
-class ChangeEvent(IsEnvironmental, IsEvent, IsInPackage, Node):
+class ChangeEvent(IsEnvironmental, IsEvent, IsInFolder, Node):
     """A Event of a Change."""
 
     pass
 
 
 @node_(NodeType.QUERY_EVENT, pretend_frozen=True)
-class QueryEvent(IsEnvironmental, IsEvent, IsInPackage, Node):
+class QueryEvent(IsEnvironmental, IsEvent, IsInFolder, Node):
     """A Event of a Query."""
 
     pass
@@ -72,7 +72,7 @@ class CustomEventDefinition(
     HasName,
     HasSlug,
     IsSourceable,
-    IsInPackage,
+    IsInFolder,
     Node,
 ):
     """A CustomEventDefinition defines a kind of CustomEvent."""
@@ -81,7 +81,7 @@ class CustomEventDefinition(
 
 
 @node_(NodeType.CUSTOM_EVENT, pretend_frozen=True)
-class CustomEvent(IsInPackage, IsEvent, Node):
+class CustomEvent(IsInFolder, IsEvent, Node):
     """An instance of a CustomEventDefinition."""
 
     definition: CustomEventDefinition = property_(

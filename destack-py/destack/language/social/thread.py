@@ -20,7 +20,7 @@ from destack.language.core import (
 from destack.pb2 import ThreadData
 
 if TYPE_CHECKING:
-    from destack.language import Cursor, CursorType, Package, Page
+    from destack.language import Cursor, CursorType, Folder
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -49,7 +49,7 @@ class Thread(
     """
 
     # meta
-    parent: Union["Package", "Page", "Thread", None] = property_parent_(node_is_customizable=True)
+    parent: Union["Folder", "Thread", None] = property_parent_(node_is_customizable=True)
 
     def get_cursor(self, *, type: "CursorType", owned_by: "IsSubject | None") -> "Cursor | None":
         """Get a Cursor of the given type."""

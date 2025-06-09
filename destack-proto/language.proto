@@ -32,32 +32,16 @@ enum Align {
   ALIGN_END = 3;
 }
 
-enum Area {
-  AREA_UNSPECIFIED = 0;
-  AREA_GLOBAL_DATABASE = 1;
-  AREA_MAIN_DATABASE = 100;
+enum AreaType {
+  AREA_TYPE_UNSPECIFIED = 0;
+  AREA_TYPE_GLOBAL_DATABASE = 1;
+  AREA_TYPE_MAIN_DATABASE = 100;
 }
 
 enum AttributeType {
   ATTRIBUTE_TYPE_UNSPECIFIED = 0;
   ATTRIBUTE_TYPE_PROPERTY = 1;
   ATTRIBUTE_TYPE_FIELD = 2;
-}
-
-enum BlockType {
-  BLOCK_TYPE_UNSPECIFIED = 0;
-  BLOCK_TYPE_PARAGRAPH = 1;
-  BLOCK_TYPE_HEADING_1 = 10;
-  BLOCK_TYPE_HEADING_2 = 11;
-  BLOCK_TYPE_HEADING_3 = 12;
-  BLOCK_TYPE_HEADING_4 = 13;
-  BLOCK_TYPE_CALLOUT = 20;
-  BLOCK_TYPE_QUOTE = 21;
-  BLOCK_TYPE_LIST_UNORDERED = 30;
-  BLOCK_TYPE_LIST_ORDERED = 31;
-  BLOCK_TYPE_DIVIDER = 40;
-  BLOCK_TYPE_CODE = 50;
-  BLOCK_TYPE_NODE = 1000;
 }
 
 // Built-in border types.
@@ -321,13 +305,14 @@ enum EnumType {
   ENUM_TYPE_STRUCT_TYPE = 3;
   ENUM_TYPE_TRAIT_TYPE = 5;
   ENUM_TYPE_ENVIRONMENT_TYPE = 6;
-  ENUM_TYPE_AREA = 7;
+  ENUM_TYPE_AREA_TYPE = 7;
   ENUM_TYPE_RUNTIME_TYPE = 8;
-  ENUM_TYPE_PROPERTY_REFERENCE_TYPE = 9;
+  ENUM_TYPE_RUNTIME_LANGUAGE = 9;
+  ENUM_TYPE_PROPERTY_REFERENCE_TYPE = 10;
   ENUM_TYPE_USER_STATUS = 11;
   ENUM_TYPE_ORGANIZATION_STATUS = 12;
   ENUM_TYPE_SPACE_STATUS = 57;
-  ENUM_TYPE_PACKAGE_TYPE = 51;
+  ENUM_TYPE_FOLDER_TYPE = 51;
   ENUM_TYPE_ERROR_TYPE = 62;
   ENUM_TYPE_VARIABLE_TYPE = 64;
   ENUM_TYPE_EDIT_TYPE = 71;
@@ -346,10 +331,9 @@ enum EnumType {
   ENUM_TYPE_QUERY_UPDATE_TYPE = 813;
   ENUM_TYPE_SPACE_ROLE_TYPE = 201;
   ENUM_TYPE_ORGANIZATION_ROLE_TYPE = 211;
-  ENUM_TYPE_PACKAGE_ROLE_TYPE = 221;
+  ENUM_TYPE_FOLDER_ROLE_TYPE = 221;
   ENUM_TYPE_CLIENT_TYPE = 231;
   ENUM_TYPE_WINDOW_TYPE = 601;
-  ENUM_TYPE_BLOCK_TYPE = 611;
   ENUM_TYPE_CLOUD = 1000;
   ENUM_TYPE_REGION = 1001;
   ENUM_TYPE_REGION_AREA = 1002;
@@ -615,6 +599,19 @@ enum FillType {
   FILL_TYPE_IMAGE = 12;
 }
 
+enum FolderRoleType {
+  FOLDER_ROLE_TYPE_UNSPECIFIED = 0;
+  FOLDER_ROLE_TYPE_ADMIN = 10;
+  FOLDER_ROLE_TYPE_DEVELOPER = 30;
+  FOLDER_ROLE_TYPE_MEMBER = 50;
+}
+
+enum FolderType {
+  FOLDER_TYPE_UNSPECIFIED = 0;
+  FOLDER_TYPE_HOME = 10;
+  FOLDER_TYPE_APP = 20;
+}
+
 enum FontSize {
   FONT_SIZE_UNSPECIFIED = 0;
   FONT_SIZE_XS = 12;
@@ -786,9 +783,9 @@ enum NodeType {
   NODE_TYPE_SPACE = 1;
   NODE_TYPE_SPACE_MEMBERSHIP = 2;
   NODE_TYPE_SPACE_INVITE = 3;
-  NODE_TYPE_PACKAGE = 50;
-  NODE_TYPE_PACKAGE_MEMBERSHIP = 51;
-  NODE_TYPE_PACKAGE_INVITE = 52;
+  NODE_TYPE_FOLDER = 50;
+  NODE_TYPE_FOLDER_MEMBERSHIP = 51;
+  NODE_TYPE_FOLDER_INVITE = 52;
   NODE_TYPE_HANDLE = 100;
   NODE_TYPE_USER = 200;
   NODE_TYPE_FRIENDSHIP = 210;
@@ -800,8 +797,6 @@ enum NodeType {
   NODE_TYPE_WINDOW = 600;
   NODE_TYPE_SCENE = 610;
   NODE_TYPE_ROUTE = 620;
-  NODE_TYPE_PAGE = 700;
-  NODE_TYPE_BLOCK = 701;
   NODE_TYPE_DATABASE = 1000;
   NODE_TYPE_MACHINE = 1150;
   NODE_TYPE_SCRIPT = 1200;
@@ -881,19 +876,6 @@ enum Overflow {
   OVERFLOW_HIDDEN = 2;
   OVERFLOW_VISIBLE = 3;
   OVERFLOW_SCROLL = 4;
-}
-
-enum PackageRoleType {
-  PACKAGE_ROLE_TYPE_UNSPECIFIED = 0;
-  PACKAGE_ROLE_TYPE_ADMIN = 10;
-  PACKAGE_ROLE_TYPE_DEVELOPER = 30;
-  PACKAGE_ROLE_TYPE_MEMBER = 50;
-}
-
-enum PackageType {
-  PACKAGE_TYPE_UNSPECIFIED = 0;
-  PACKAGE_TYPE_HOME = 10;
-  PACKAGE_TYPE_APPLICATION = 20;
 }
 
 // The position type of a View.
@@ -1036,10 +1018,16 @@ enum RunType {
   RUN_TYPE_AGENT = 15;
 }
 
+enum RuntimeLanguage {
+  RUNTIME_LANGUAGE_UNSPECIFIED = 0;
+  RUNTIME_LANGUAGE_PYTHON = 1;
+  RUNTIME_LANGUAGE_JAVASCRIPT = 2;
+}
+
 enum RuntimeType {
   RUNTIME_TYPE_UNSPECIFIED = 0;
-  RUNTIME_TYPE_PYTHON = 1;
-  RUNTIME_TYPE_JAVASCRIPT = 2;
+  RUNTIME_TYPE_SERVER = 1;
+  RUNTIME_TYPE_WEB = 2;
 }
 
 // The type of a scalar.
@@ -1175,9 +1163,12 @@ enum StructType {
   STRUCT_TYPE_ICON = 2131;
   STRUCT_TYPE_SELECTION = 2071;
   STRUCT_TYPE_VALUE = 2201;
-  STRUCT_TYPE_VECTOR2 = 9001;
-  STRUCT_TYPE_VECTOR3 = 9003;
-  STRUCT_TYPE_VECTOR4 = 9005;
+  STRUCT_TYPE_VECTOR2 = 9000;
+  STRUCT_TYPE_VECTOR3 = 9001;
+  STRUCT_TYPE_VECTOR4 = 9002;
+  STRUCT_TYPE_VECTOR2I = 9003;
+  STRUCT_TYPE_VECTOR3I = 9004;
+  STRUCT_TYPE_VECTOR4I = 9005;
   STRUCT_TYPE_AXIS2 = 9007;
   STRUCT_TYPE_AXIS3 = 9009;
   STRUCT_TYPE_COLOR = 9011;
@@ -1300,9 +1291,9 @@ enum TraitType {
   TRAIT_TYPE_EXTENSIBLE = 14;
   TRAIT_TYPE_ORDERED = 25;
   TRAIT_TYPE_CUSTOM_NODE_DEFINITION = 15;
-  TRAIT_TYPE_RESOURCE = 51;
-  TRAIT_TYPE_PROVISIONABLE = 52;
   TRAIT_TYPE_CUSTOM_NODE = 16;
+  TRAIT_TYPE_ASSET = 51;
+  TRAIT_TYPE_RESOURCE = 52;
   TRAIT_TYPE_ENVIRONMENTAL = 20;
   TRAIT_TYPE_HAS_NAME = 21;
   TRAIT_TYPE_HAS_TITLE = 22;
@@ -1316,7 +1307,6 @@ enum TraitType {
   TRAIT_TYPE_MEMBERSHIP = 210;
   TRAIT_TYPE_INVITE = 211;
   TRAIT_TYPE_ROLE = 212;
-  TRAIT_TYPE_BLOCKABLE = 630;
   TRAIT_TYPE_RUNNABLE = 1200;
   TRAIT_TYPE_SCRIPTABLE = 1201;
   TRAIT_TYPE_SOURCEABLE = 1202;
@@ -1380,7 +1370,6 @@ message ActionData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   optional string order_key = 19;
@@ -1396,21 +1385,16 @@ message AgentData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
-  optional NodeReferenceData package_ptr = 7;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
-  optional string order_key = 19;
   EnvironmentType environment_type = 20;
   optional NodeReferenceData owned_by_ptr = 22;
   string name = 31;
   optional IconData icon = 34;
-  optional NodeReferenceData block_ptr = 35;
-  optional NodeReferenceData page_ptr = 54;
   optional NodeReferenceData cursor_ptr = 55;
 }
 
@@ -1440,28 +1424,6 @@ message Axis3Data {
   optional double x = 51;
   optional double y = 52;
   optional double z = 53;
-}
-
-// A Block on a Page.
-message BlockData {
-  NodeType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
-  optional NodeReferenceData package_ptr = 7;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData template_ptr = 16;
-  optional string order_key = 19;
-  EnvironmentType environment_type = 20;
-  BlockType type = 30;
-  optional TextLineData line = 40;
-  optional NodeReferenceData node_ptr = 41;
-  optional NodeReferenceData view_ptr = 42;
 }
 
 message BorderData {
@@ -1664,11 +1626,9 @@ message CustomEntityDefinitionData {
   optional NodeReferenceData space_ptr = 6;
   optional NodeReferenceData package_ptr = 7;
   optional google.protobuf.Timestamp deleted_at = 15;
-  optional string order_key = 19;
   EnvironmentType environment_type = 20;
   optional NodeReferenceData owned_by_ptr = 22;
   string name = 31;
-  optional NodeReferenceData block_ptr = 35;
   repeated TraitType traits = 40;
   optional NodeReferenceData script_ptr = 200;
   optional NodeReferenceData source_ptr = 210;
@@ -2058,6 +2018,53 @@ message FillStyleData {
   optional NodeReferenceData image_ptr = 52;
   optional FillPosition position = 53;
   optional FillSize size = 54;
+}
+
+// A Folder is a sub-space of a Space.
+message FolderData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData package_ptr = 7;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  EnvironmentType environment_type = 20;
+  optional NodeReferenceData owned_by_ptr = 22;
+  FolderType type = 30;
+  string name = 31;
+  optional string slug = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData main_scene_ptr = 41;
+}
+
+// A FolderInvite is an invite to a Folder.
+message FolderInviteData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData package_ptr = 7;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  NodeReferenceData member_ptr = 40;
+  FolderRoleType role_type = 45;
+}
+
+// A FolderMembership is a membership to a Folder.
+message FolderMembershipData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData package_ptr = 7;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  NodeReferenceData member_ptr = 40;
+  FolderRoleType role_type = 45;
 }
 
 message FontData {
@@ -2555,77 +2562,6 @@ message OriginData {
   optional string nonce = 33;
 }
 
-// A Package is a semi-isolated area of a Destack.
-message PackageData {
-  NodeType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
-  optional NodeReferenceData package_ptr = 7;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData template_ptr = 16;
-  EnvironmentType environment_type = 20;
-  optional NodeReferenceData owned_by_ptr = 22;
-  PackageType type = 30;
-  string name = 31;
-  optional string slug = 33;
-  optional IconData icon = 34;
-  optional NodeReferenceData main_page_ptr = 40;
-  optional NodeReferenceData main_scene_ptr = 41;
-}
-
-// A PackageInvite is an invite to a Package.
-message PackageInviteData {
-  NodeType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
-  optional NodeReferenceData package_ptr = 7;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  NodeReferenceData member_ptr = 40;
-  PackageRoleType role_type = 45;
-}
-
-// A PackageMembership is a membership to a Package.
-message PackageMembershipData {
-  NodeType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
-  optional NodeReferenceData package_ptr = 7;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  NodeReferenceData member_ptr = 40;
-  PackageRoleType role_type = 45;
-}
-
-// A Page of Blocks laying out rich Text, data, logic, resources -- anything software needs.
-message PageData {
-  NodeType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
-  optional NodeReferenceData package_ptr = 7;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData template_ptr = 16;
-  optional string order_key = 19;
-  EnvironmentType environment_type = 20;
-  optional NodeReferenceData owned_by_ptr = 22;
-  optional TextLineData title = 32;
-  optional string slug = 33;
-  optional IconData icon = 34;
-  optional NodeReferenceData block_ptr = 35;
-}
-
 message PositionData {
   StructType metatype = 1;
   PositionType type = 30;
@@ -2754,13 +2690,11 @@ message RouteData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
-  optional string order_key = 19;
   EnvironmentType environment_type = 20;
   optional NodeReferenceData owned_by_ptr = 22;
   string name = 31;
   optional string slug = 33;
   optional IconData icon = 34;
-  optional NodeReferenceData block_ptr = 35;
   optional NodeReferenceData scene_ptr = 40;
 }
 
@@ -2808,13 +2742,11 @@ message SceneData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  optional string order_key = 19;
   EnvironmentType environment_type = 20;
   optional NodeReferenceData owned_by_ptr = 22;
   string name = 31;
   optional string slug = 33;
   optional IconData icon = 34;
-  optional NodeReferenceData block_ptr = 35;
   optional NodeReferenceData root_view_ptr = 40;
   optional NodeReferenceData script_ptr = 200;
   optional NodeReferenceData source_ptr = 210;
@@ -2854,11 +2786,9 @@ message SchemaData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  optional string order_key = 19;
   EnvironmentType environment_type = 20;
   string name = 31;
   optional IconData icon = 34;
-  optional NodeReferenceData block_ptr = 35;
   optional NodeReferenceData source_ptr = 210;
 }
 
@@ -2899,8 +2829,6 @@ message ServiceData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
-  optional NodeReferenceData package_ptr = 7;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -2908,11 +2836,9 @@ message ServiceData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  optional string order_key = 19;
   EnvironmentType environment_type = 20;
   optional NodeReferenceData owned_by_ptr = 22;
   string name = 31;
-  optional NodeReferenceData block_ptr = 35;
   optional NodeReferenceData script_ptr = 200;
   optional NodeReferenceData source_ptr = 210;
 }
@@ -3010,7 +2936,7 @@ message SpaceData {
   optional IconData icon = 34;
   SpaceStatus status = 40;
   optional NodeReferenceData handle_ptr = 41;
-  optional NodeReferenceData main_package_ptr = 42;
+  optional NodeReferenceData root_folder_ptr = 42;
   Region region = 50;
   optional string cell_name = 51;
   optional NodeReferenceData database_ptr = 55;
@@ -3126,11 +3052,9 @@ message TaskData {
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  optional string order_key = 19;
   EnvironmentType environment_type = 20;
   optional NodeReferenceData owned_by_ptr = 22;
   optional TextLineData title = 32;
-  optional NodeReferenceData block_ptr = 35;
   optional google.protobuf.Timestamp due_at = 50;
   optional NodeReferenceData assigned_to_ptr = 51;
 }
@@ -3211,19 +3135,15 @@ message ThemeData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
-  optional NodeReferenceData package_ptr = 7;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
-  optional string order_key = 19;
   EnvironmentType environment_type = 20;
   string name = 31;
   optional IconData icon = 34;
-  optional NodeReferenceData block_ptr = 35;
   map<int32, ColorData> colors = 50;
 }
 
@@ -3384,11 +3304,24 @@ message Vector2Data {
   double y = 51;
 }
 
+message Vector2IData {
+  StructType metatype = 1;
+  int64 x = 50;
+  int64 y = 51;
+}
+
 message Vector3Data {
   StructType metatype = 1;
   double x = 50;
   double y = 51;
   double z = 52;
+}
+
+message Vector3IData {
+  StructType metatype = 1;
+  int64 x = 50;
+  int64 y = 51;
+  int64 z = 52;
 }
 
 message Vector4Data {
@@ -3397,6 +3330,14 @@ message Vector4Data {
   double y = 51;
   double z = 52;
   double w = 53;
+}
+
+message Vector4IData {
+  StructType metatype = 1;
+  int64 x = 50;
+  int64 y = 51;
+  int64 z = 52;
+  int64 w = 53;
 }
 
 // A Window for a User to interact with a Space.
@@ -3421,7 +3362,6 @@ message WindowData {
   optional NodeReferenceData focus_ptr = 71;
   optional NodeReferenceData inspection_ptr = 72;
   optional NodeReferenceData container_ptr = 73;
-  optional NodeReferenceData page_ptr = 74;
   optional NodeReferenceData thread_ptr = 75;
 }
 
@@ -3455,9 +3395,9 @@ message SomeNodeData {
     SpaceData space = 1;
     SpaceMembershipData space_membership = 2;
     SpaceInviteData space_invite = 3;
-    PackageData package = 50;
-    PackageMembershipData package_membership = 51;
-    PackageInviteData package_invite = 52;
+    FolderData folder = 50;
+    FolderMembershipData folder_membership = 51;
+    FolderInviteData folder_invite = 52;
     HandleData handle = 100;
     UserData user = 200;
     FriendshipData friendship = 210;
@@ -3469,8 +3409,6 @@ message SomeNodeData {
     WindowData window = 600;
     SceneData scene = 610;
     RouteData route = 620;
-    PageData page = 700;
-    BlockData block = 701;
     DatabaseData database = 1000;
     MachineData machine = 1150;
     ScriptData script = 1200;

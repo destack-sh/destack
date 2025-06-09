@@ -284,13 +284,14 @@ class EnumType(BuiltinEnum):
     STRUCT_TYPE = 3
     TRAIT_TYPE = 5
     ENVIRONMENT_TYPE = 6
-    AREA = 7
+    AREA_TYPE = 7
     RUNTIME_TYPE = 8
-    PROPERTY_REFERENCE_TYPE = 9
+    RUNTIME_LANGUAGE = 9
+    PROPERTY_REFERENCE_TYPE = 10
     USER_STATUS = 11
     ORGANIZATION_STATUS = 12
     SPACE_STATUS = 57
-    PACKAGE_TYPE = 51
+    FOLDER_TYPE = 51
     ERROR_TYPE = 62
     VARIABLE_TYPE = 64
     EDIT_TYPE = 71
@@ -311,13 +312,12 @@ class EnumType(BuiltinEnum):
     # auth [200-600]
     SPACE_ROLE_TYPE = 201
     ORGANIZATION_ROLE_TYPE = 211
-    PACKAGE_ROLE_TYPE = 221
+    FOLDER_ROLE_TYPE = 221
     CLIENT_TYPE = 231
     # ...
 
     # space [600-800]
     WINDOW_TYPE = 601
-    BLOCK_TYPE = 611
     # ...
 
     # history [800-1000]
@@ -574,9 +574,12 @@ class StructType(BuiltinEnum):
     # ...
 
     # style [9000-9100]
-    VECTOR2 = 9001, None, None, "fas fa-vector-square"
-    VECTOR3 = 9003, None, None, "fas fa-vector-square"
-    VECTOR4 = 9005, None, None, "fas fa-vector-square"
+    VECTOR2 = 9000, None, None, "fas fa-vector-square"
+    VECTOR3 = 9001, None, None, "fas fa-vector-square"
+    VECTOR4 = 9002, None, None, "fas fa-vector-square"
+    VECTOR2I = 9003, None, None, "fas fa-vector-square"
+    VECTOR3I = 9004, None, None, "fas fa-vector-square"
+    VECTOR4I = 9005, None, None, "fas fa-vector-square"
     AXIS2 = 9007, None, None, "fas fa-vector-square"
     AXIS3 = 9009, None, None, "fas fa-vector-square"
     COLOR = 9011, None, None, "fas fa-palette"
@@ -610,9 +613,9 @@ class NodeType(BuiltinEnum):
     SPACE_MEMBERSHIP = 2, "Space Membership", "Membership in a Space", "fas fa-user-group"
     SPACE_INVITE = 3, "Space Invite", "Invite to a Space", "fas fa-user-plus"
     # DESTACK_MIGRATION?
-    PACKAGE = 50, "Package", "Isolated sub-Destack", "fas fa-box-open"
-    PACKAGE_MEMBERSHIP = 51, "Package Membership", "Membership in a Package", "fas fa-user-group"
-    PACKAGE_INVITE = 52, "Package Invite", "Invite to a Package", "fas fa-user-plus"
+    FOLDER = 50, "Folder", "Sub-space of a Space", "fas fa-folder-open"
+    FOLDER_MEMBERSHIP = 51, "Folder Membership", "Membership in a Folder", "fas fa-user-group"
+    FOLDER_INVITE = 52, "Folder Invite", "Invite to a Folder", "fas fa-user-plus"
     HANDLE = 100, "Handle", "Unique @handle", "fas fa-at"
     # DEPENDENCY, PLUGIN, ...
 
@@ -649,8 +652,6 @@ class NodeType(BuiltinEnum):
     SCENE = 610, "Scene", "Scene of an Application", "fas fa-masks-theater"
     ROUTE = 620, "Route", "Route to a Scene", "fas fa-route"
     # COMMAND, OVERLAY, WIDGET, ...
-    PAGE = 700, "Page", "Page of Blocks", "far fa-file"
-    BLOCK = 701, "Block", "Rich Block on a Page", "fas fa-cube"
 
     # history [800-1000]
     # CHANGE, HISTORY, SNAPSHOT, OVERLAY, BRANCH, ...
@@ -803,7 +804,7 @@ class NodeType(BuiltinEnum):
     GRADIENT_STYLE = 9015, "Gradient Style", "Gradient Style", "fas fa-gradient"
     TRANSITION_STYLE = 9016, "Transition Style", "Transition Style", "fas fa-bezier-curve"
     EFFECT_STYLE = 9017, "Effect Style", "Effect Style", "fas fa-sparkle"
-    # VARIANT :RichGraph
+    # SHADER, MATERIAL, ANIMATION, ...
 
     # canvas/drawing?
     # CANVAS, LAYER, BITMAP, BRUSH, SHAPE, ...
@@ -815,7 +816,7 @@ class NodeType(BuiltinEnum):
 @enum_(EnumType.TRAIT_TYPE)
 class TraitType(BuiltinEnum):
     # destack [1-200]
-    # nocheckin: traits for kind/area: GLOBAL, ENTITY, VIEW, EVENT, ... traits?
+    # nocheckin: traits for kind/area: GLOBAL/... & ENTITY/RESOURCE/ASSET/VIEW/EVENT?
     GLOBAL = 1, "Global", "Is global", "fas fa-globe"
     # behavior
     FROZEN = 4, "Frozen", "Is frozen", "fas fa-snowflake"
@@ -831,9 +832,9 @@ class TraitType(BuiltinEnum):
         "Is a Custom Node Definition",
         "fas fa-table",
     )
-    RESOURCE = 51, "Resource", "Is a Resource", "fas fa-server"
-    PROVISIONABLE = 52, "Provisionable", "Is provisionable", "fas fa-server"
     CUSTOM_NODE = 16, "Custom Node", "Is a Custom Node", "fas fa-database"
+    ASSET = 51, "Resource", "Is a Resource", "fas fa-server"
+    RESOURCE = 52, "Provisionable", "Is provisionable", "fas fa-server"
     ENVIRONMENTAL = 20, "Environment", "Has an environment", "fas fa-window-maximize"
     HAS_NAME = 21, "Name", "Has a name", "fas fa-font-case"
     HAS_TITLE = 22, "Title", "Has a title", "fas fa-font-case"
@@ -852,7 +853,7 @@ class TraitType(BuiltinEnum):
     ROLE = 212, "Role", "Is a Role", "fas fa-user-tag"
 
     # space [600-800]
-    BLOCKABLE = 630, "Block", "Can be a Block on a Page", "fas fa-cube"
+    # ...
 
     # history [800-1000]
     # ...
@@ -907,18 +908,27 @@ class TraitType(BuiltinEnum):
     STYLE = 9000, "Style", "Is a Style", "fas fa-palette"
 
 
-@enum_(EnumType.AREA)
-class Area(BuiltinEnum):
+@enum_(EnumType.AREA_TYPE)
+class AreaType(BuiltinEnum):
     GLOBAL_DATABASE = 1
     # GLOBAL_SEARCH?
     MAIN_DATABASE = 100
     # MAIN_SEARCH, MAIN_WAREHOUSE, ...
 
 
-@enum_(EnumType.RUNTIME_TYPE)
-class RuntimeType(BuiltinEnum):
+@enum_(EnumType.RUNTIME_LANGUAGE)
+class RuntimeLanguage(BuiltinEnum):
     PYTHON = 1
     JAVASCRIPT = 2
+    # RUST, ...
+
+
+@enum_(EnumType.RUNTIME_TYPE)
+class RuntimeType(BuiltinEnum):
+    SERVER = 1
+    WEB = 2
+    # MOBILE = 3
+    # DESKTOP = 4
 
 
 @enum_(EnumType.ENVIRONMENT_TYPE)

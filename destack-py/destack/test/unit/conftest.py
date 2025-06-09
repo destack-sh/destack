@@ -1,10 +1,7 @@
 # ruff: noqa: E402
 
-import functools
-import inspect
 import warnings
-from collections.abc import Awaitable, Mapping
-from typing import Callable, Literal
+from collections.abc import Mapping
 
 import pytest
 import structlog
@@ -23,45 +20,19 @@ from destack.language import (
     BuiltinObjectBase,
     Database,
     EnvironmentType,
+    Folder,
+    FolderType,
     NodeType,
-    Package,
-    PackageType,
     Session,
     Space,
     SpaceStatus,
     StructType,
 )
 from destack.test.conftest import _setup_test_env
-from destack.test.simulation.core import (
-    ClientSpec,
-    DestackSpec,
-    HostSpec,
-    MachineSpec,
-    NetworkSpec,
-    RuntimeSpec,
-    SimulatedEventLoopPolicy,
-    Simulation,
-    SimulationSpec,
-    SupervisorSpec,
-    UserSpec,
-    run_simulation,
-)
-from destack.test.simulation.workload import (
-    RuntimeLambdaWorkload,
-    RuntimeLambdaWorkloadSpec,
-    WorkloadSpec,
-    WorkloadType,
-)
 from destack.utils.oracle import REAL_ORACLE
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
-
-
-# NOTE: simulation tests must be run with one event loop per function to isolate
-@pytest.fixture
-def event_loop_policy():
-    return SimulatedEventLoopPolicy()
 
 
 def make_session(name: str):
@@ -84,7 +55,7 @@ async def session_async(request):
 
 def make_package(session: Session):
     space = Space(name="test", slug="test", status=SpaceStatus.RUNNING)
-    package = Package(type=PackageType.HOME, name="Home", slug="home")
+    package = Folder(type=FolderType.HOME, name="Home", slug="home")
     space.add_child(package)
     database = Database(name="Database")
     package.add_child(database)
@@ -126,92 +97,3 @@ NODES = [BUILTIN_OBJECTS_BY_TYPE[t] for t in NODE_TYPES if t in BUILTIN_OBJECTS_
 
 
 # TODO :Test! :Performance: re-use Simulations somehow (databases?)
-
-
-def make_simulation_spec(
-    func: Callable,
-    network: NetworkSpec | None = None,
-    users: tuple[UserSpec, ...] = (),
-    machines: tuple[MachineSpec, ...] = (),
-    clients: tuple[ClientSpec, ...] = (),
-    supervisor: SupervisorSpec | None = None,
-    destackes: tuple[DestackSpec, ...] = (),
-    hosts: tuple[HostSpec, ...] = (),
-    runtimes: tuple[RuntimeSpec, ...] = (),
-    workloads: tuple[WorkloadSpec, ...] = (),
-    system: bool = False,
-) -> SimulationSpec:
-    users = users or (UserSpec(name="alice"),)
-    machines = machines or (MachineSpec(name="alice-machine", destack="alice"),)
-    clients = clients or (
-        ClientSpec(name="alice-client", parent=("user", "alice")),
-        ClientSpec(name="alice-machine-client", parent=("machine", "alice-machine")),
-    )
-    destackes = destackes or (DestackSpec(name="alice", owner="alice"),)
-    hosts = hosts or (HostSpec(destack="alice"),)
-    spec = SimulationSpec(
-        name=func.__name__,
-        description=func.__doc__ or "",
-        network=network or NetworkSpec(),
-        users=users,
-        machines=machines,
-        clients=clients,
-        supervisor=supervisor or SupervisorSpec(),
-        destackes=destackes,
-        hosts=hosts,
-        runtimes=runtimes,
-        workloads=workloads,
-        system=system,
-    )
-    return spec
-
-
-def simulated_runtime(
-    *,
-    network: NetworkSpec | None = None,
-    users: tuple[UserSpec, ...] = (),
-    machines: tuple[MachineSpec, ...] = (),
-    clients: tuple[ClientSpec, ...] = (),
-    supervisor: SupervisorSpec | None = None,
-    destackes: tuple[DestackSpec, ...] = (),
-    hosts: tuple[HostSpec, ...] = (),
-    system: bool = False,
-    runtimes: tuple[RuntimeSpec, ...] | Literal[True] = (),
-):
-    """Run a 'lambda workload' test as a Machine's Runtime inside a Simulation."""
-    if runtimes is True:
-        runtimes = (RuntimeSpec(name="alice-runtime", machine="alice-machine"),)
-
-    def decorator(test_func: Callable[[Simulation, RuntimeLambdaWorkload], Awaitable[None]]):
-        lambda_workload = RuntimeLambdaWorkloadSpec(
-            client="alice-machine-client",
-            destack="alice",
-            name=test_func.__name__,
-            type=WorkloadType.RUNTIME_LAMBDA,
-            func=test_func,
-            system=system,
-        )
-        spec = make_simulation_spec(
-            func=test_func,
-            network=network,
-            users=users,
-            machines=machines,
-            clients=clients,
-            supervisor=supervisor,
-            destackes=destackes,
-            hosts=hosts,
-            runtimes=runtimes,
-            workloads=(lambda_workload,),
-            system=system,
-        )
-
-        @functools.wraps(test_func)
-        async def test_func_in_simulation():
-            await run_simulation(spec)
-
-        # zero out signature so pytest doesn't try to get any fixture arguments
-        test_func_in_simulation.__signature__ = inspect.Signature()  # type: ignore
-
-        return test_func_in_simulation
-
-    return decorator

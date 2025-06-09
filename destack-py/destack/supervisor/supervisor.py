@@ -7,15 +7,15 @@ from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
 from destack.language import (
-    Area,
+    AreaType,
     Client,
     Database,
     DatabaseInfo,
+    Folder,
+    FolderType,
     Handle,
     IsSubject,
     JoinType,
-    Package,
-    PackageType,
     Region,
     Session,
     Space,
@@ -95,7 +95,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
 
     @override
     async def make_session(self, metadata: RpcMetadata) -> "Session":
-        postgres_store = PostgresStore(database=self.global_database, area=Area.GLOBAL_DATABASE)
+        postgres_store = PostgresStore(database=self.global_database, area=AreaType.GLOBAL_DATABASE)
         return Session(store=postgres_store)
 
     @override
@@ -176,18 +176,20 @@ class SupervisorService(ServiceBase, SupervisorBase):
         space.database = database
         session.store = SplitStore(
             store_by_area={
-                Area.GLOBAL_DATABASE: PostgresStore(
-                    database=self.global_database, area=Area.GLOBAL_DATABASE
+                AreaType.GLOBAL_DATABASE: PostgresStore(
+                    database=self.global_database, area=AreaType.GLOBAL_DATABASE
                 ),
-                Area.MAIN_DATABASE: PostgresStore(database=main_database, area=Area.MAIN_DATABASE),
+                AreaType.MAIN_DATABASE: PostgresStore(
+                    database=main_database, area=AreaType.MAIN_DATABASE
+                ),
             },
         )
         await session.stage()
 
         # create main Package
-        main_package = Package(parent=space, type=PackageType.HOME, name="Home", slug="home")
-        space.add_child(main_package)
-        space.main_package = main_package
+        root_folder = Folder(parent=space, type=FolderType.HOME, name="Home", slug="home")
+        space.add_child(root_folder)
+        space.root_folder = root_folder
         await session.stage()
 
         # done

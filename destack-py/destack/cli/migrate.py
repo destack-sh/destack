@@ -8,13 +8,13 @@ from more_itertools import first
 from rich import print
 from rich.console import Console
 
-from destack.language import REGION, VERSION, Area, Region
+from destack.language import REGION, VERSION, AreaType, Region
 from destack.utils.oracle import REAL_ORACLE
 
 from .utils import async_to_sync, parse_node_area, parse_region
 
 if TYPE_CHECKING:
-    from destack.language import Area, Region
+    from destack.language import AreaType, Region
 
 logger = structlog.get_logger(__name__)
 app = typer.Typer(short_help="migration management")
@@ -24,7 +24,7 @@ console = Console()
 @app.command(help="generate SQL migrations")
 @async_to_sync
 async def make(
-    area: Annotated[Area | None, typer.Option(parser=parse_node_area)] = None,
+    area: Annotated[AreaType | None, typer.Option(parser=parse_node_area)] = None,
     region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,
     space: str = typer.Option(default="space", help="the space to use as local reference"),
     no_downgrade: bool = typer.Option(default=False, help="exclude downgrade operations"),
@@ -74,7 +74,7 @@ async def make(
         )
 
     # diff main
-    if area in (None, Area.MAIN_DATABASE):
+    if area in (None, AreaType.MAIN_DATABASE):
         main_database = await DATABASE_PROVIDER.resolve_or_error(
             region or REGION, cell_name, external_name
         )
@@ -91,7 +91,7 @@ async def make(
         main_migration_ops = []
 
     # diff global
-    if area in (None, Area.GLOBAL_DATABASE):
+    if area in (None, AreaType.GLOBAL_DATABASE):
         async with pg_connection(global_database) as conn:
             old_global_schema = await introspect_schema(
                 conn,
@@ -134,7 +134,7 @@ async def make(
 @app.command(help="apply SQL migrations")
 @async_to_sync
 async def apply(
-    area: "Area" = typer.Option(  # noqa: B008
+    area: "AreaType" = typer.Option(  # noqa: B008
         parser=parse_node_area, help="the area to migrate"
     ),
     target: Optional[str] = typer.Option(
@@ -151,17 +151,17 @@ async def apply(
     ),
     dry_run: bool = typer.Option(default=False, help="only try, don't commit"),
 ):
-    from destack.language import REGION, Area
+    from destack.language import REGION, AreaType
     from destack.sharding import DATABASE_PROVIDER, get_global_database_from_env
     from destack.store.postgres import pg_transaction, sql_migrate
 
     start = time.time()
 
     # resolve databases to migrate
-    if area == Area.GLOBAL_DATABASE:
+    if area == AreaType.GLOBAL_DATABASE:
         global_database = get_global_database_from_env()
         databases = [global_database]
-    elif area == Area.MAIN_DATABASE:
+    elif area == AreaType.MAIN_DATABASE:
         assert cell_name, "cell_name is required for main area"
         assert external_name, "external_name is required for main area"
         main_database = await DATABASE_PROVIDER.resolve_or_error(

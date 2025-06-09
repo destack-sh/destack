@@ -6,7 +6,7 @@ from fastuuid import UUID
 from destack.language.core import (
     IsEnvironmental,
     IsExtensible,
-    IsInPackage,
+    IsInFolder,
     IsRunnable,
     IsTracked,
     Node,
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 class Run(
     IsEnvironmental,
     IsExtensible,
-    IsInPackage,
+    IsInFolder,
     IsTracked,
     Node[RunData],
 ):

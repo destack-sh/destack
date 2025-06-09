@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 from destack.language.core import (
     IsEnvironmental,
     IsFrozen,
-    IsInPackage,
+    IsInFolder,
     Json,
     Node,
     NodeType,
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 class Log(
     IsEnvironmental,
     IsFrozen,
-    IsInPackage,
+    IsInFolder,
     Node,
 ):
     """A Log message."""

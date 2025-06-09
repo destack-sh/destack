@@ -6,12 +6,12 @@ from hypothesis import HealthCheck, given, settings
 
 from destack.language import (
     ACTIVE_SESSION,
-    Block,
-    BlockType,
     Client,
     ClientType,
     CustomView,
     DatabaseInfo,
+    Folder,
+    FolderType,
     FrameView,
     IsView,
     JoinType,
@@ -19,14 +19,12 @@ from destack.language import (
     Node,
     NodeReference,
     NodeType,
-    Page,
     Scene,
     Session,
     TextView,
     User,
     UserStatus,
     join,
-    text_line,
 )
 from destack.store import PostgresStore
 from destack.test.strategies import examples, nodes
@@ -116,67 +114,57 @@ async def test_create_user_with_clients(session: Session):
     assert clients_unpacked == [client_a, client_b]
 
 
-async def test_create_page_blocks_recursive(session: Session):
-    """Create a Page with recursive sub-Pages and Blocks, mutate it, querying along the way."""
+async def test_create_folders_recursive(session: Session):
+    """Create a Folder with recursive sub-Folders, mutate it, querying along the way."""
     # create
-    root_page = Page(title=text_line("Page"))
-    session.create(root_page)
-    target_page_count = 4
-    target_block_count = 4 * (1 + 4 * (1 + 4))
+    root_folder = Folder(name="Folder", type=FolderType.ROOT)
+    session.create(root_folder)
+    target_folder_count = 4 * (1 + 4 * (1 + 4))
     for a in ("a", "b", "c", "d"):
-        # create page
-        page = Page(title=text_line(f"Page {a}"))
-        root_page.add_child(page)
-        # create block tree
+        # create folder
+        folder = Folder(name=f"Folder {a}")
+        root_folder.add_child(folder)
+        # create folder tree
         for i in range(4):
-            root_block = Block(type=BlockType.PARAGRAPH, line=text_line(f"Block {a}/{i}"))
-            page.add_child(root_block)
+            sub_folder = Folder(name=f"Folder {a}/{i}")
+            folder.add_child(sub_folder)
             for j in range(4):
-                inner_block = Block(type=BlockType.PARAGRAPH, line=text_line(f"Block {a}/{i}/{j}"))
-                root_block.add_child(inner_block)
+                inner_folder = Folder(name=f"Folder {a}/{i}/{j}")
+                sub_folder.add_child(inner_folder)
                 for k in range(4):
-                    inner_inner_block = Block(
-                        type=BlockType.PARAGRAPH,
-                        line=text_line(f"Block {a}/{i}/{j}/{k}"),
-                    )
-                    inner_block.add_child(inner_inner_block)
-                    # mutate block after creating to test edit optimization
-                    inner_inner_block.node = page
+                    inner_inner_folder = Folder(name=f"Folder {a}/{i}/{j}/{k}")
+                    inner_folder.add_child(inner_inner_folder)
         await session.commit()
-    assert (
-        await Page.count(where=Page.property("parent").eq(root_page)).execute_count()
-        == target_page_count
-    )
+    assert await Folder.count(where=Folder.property("parent").eq(root_folder)).execute_count() == 4
 
     # query
-    for page in root_page.get_children(Page):
-        # query block root count
-        root_block_count = await Block.count(
-            where=Block.property("parent").eq(page)
+    for folder in root_folder.get_children(Folder):
+        # query folder root count
+        root_folder_count = await Folder.count(
+            where=Folder.property("parent").eq(folder)
         ).execute_count()
-        assert root_block_count == 4
+        assert root_folder_count == 4
 
-        # query block down (parent, recursive)
-        connection = await Page.get(
-            where=Page.property("id").eq(page.id),
-            Blocks=Block.search(join=join(JoinType.CHILD, recursive=True)),
+        # query folder down (parent, recursive)
+        connection = await Folder.get(
+            where=Folder.property("id").eq(folder.id),
+            Folders=Folder.search(join=join(JoinType.CHILD, recursive=True)),
         ).execute()
-        page_unpacked = connection.to_one()
-        block_tree_unpacked = page_unpacked.get_descendants(Block)
-        assert len(block_tree_unpacked) == target_block_count
+        folder_unpacked = connection.to_one()
+        folder_tree_unpacked = folder_unpacked.get_descendants(Folder)
+        assert len(folder_tree_unpacked) == target_folder_count
 
-        # query block up (parent, recursive)
-        page_block_leaves = page._graph.get_leaves(Block, of=page)
-        connection = await Block.get(
-            where=Block.property("id").eq(page_block_leaves[0].id),
-            Blocks=Block.search(
+        # query folder up (parent, recursive)
+        folder_leaves = folder._graph.get_leaves(Folder, of=folder)
+        connection = await Folder.get(
+            where=Folder.property("id").eq(folder_leaves[0].id),
+            Folders=Folder.search(
                 join=join(JoinType.PARENT, recursive=True),
-                Page=Page.get(join=JoinType.PARENT),
             ),
         ).execute()
-        pages_unpacked = connection.graph.get_roots(Page)
-        assert len(pages_unpacked) == 1
-        assert pages_unpacked[0].equals(page)
+        folders_unpacked = connection.graph.get_roots(Folder)
+        assert len(folders_unpacked) == 1
+        assert folders_unpacked[0].equals(root_folder)
 
 
 async def test_create_scene_with_heterogeneous_views(session: Session):

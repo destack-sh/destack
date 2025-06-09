@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING
 from destack.language.core import (
     HasName,
     IsArchivable,
-    IsBlockable,
     IsDeletable,
     IsEnvironmental,
     IsOwnable,
@@ -33,7 +32,6 @@ class Service(
     IsDeletable,
     IsArchivable,
     IsRunnable,
-    IsBlockable,
     IsScriptable,
     IsTracked,
     Node[ServiceData],

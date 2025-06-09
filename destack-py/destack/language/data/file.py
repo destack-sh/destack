@@ -20,8 +20,8 @@ from PIL import Image
 from destack.language.core import (
     BuiltinEnum,
     EnumType,
-    IsInPackage,
-    IsResource,
+    IsAsset,
+    IsInFolder,
     IsTracked,
     Node,
     NodeType,
@@ -30,7 +30,6 @@ from destack.language.core import (
     enum_,
     node_,
     property_,
-    property_parent_,
     property_runtime_,
 )
 from destack.pb2 import FileData
@@ -41,9 +40,7 @@ if TYPE_CHECKING:
     from destack.language import (
         CustomEntityDefinition,
         File,
-        Message,
-        Package,
-        Page,
+        Folder,
         Run,
         Session,
         Thread,
@@ -461,24 +458,13 @@ MIME_TYPE_BY_FORMAT: dict[FileFormat, str] = {v: k for k, v in FILE_FORMAT_BY_MI
 @node_(NodeType.FILE)
 class File(
     IsTracked,
-    IsResource,
-    IsInPackage,
+    IsAsset,
+    IsInFolder,
     Node[FileData],
 ):
     """
     A File stored somewhere.
     """
-
-    # meta
-    parent: Union[
-        "Package",
-        "Page",
-        "CustomEntityDefinition",
-        "Thread",
-        "Message",
-        "Run",
-        None,
-    ] = property_parent_(node_is_customizable=True)
 
     type: FileType = property_(30, is_repr=True)
 
@@ -846,7 +832,7 @@ async def upload_file(
     mime_type: str | None = None,
     type: FileType | None = None,
     format: FileFormat | str | None = None,
-    parent: Union["Package", "Page", "CustomEntityDefinition", "Thread", "Run", None] = None,
+    parent: Union["Folder", "CustomEntityDefinition", "Thread", "Run", None] = None,
     session: "Session | None" = None,
 ) -> "File":
     """Uploads the given file to the given (or current) session."""
@@ -864,7 +850,7 @@ async def upload_file(
         if session.runtime is not None and (runner := session.runtime.active_runner) is not None:
             parent = runner.thread.thread
         else:
-            package = space.main_package if space is not None else None
+            package = space.root_folder if space is not None else None
             if package is None:
                 raise ValueError(f"no Package to upload file {name!r} to in {session!r}")
             parent = package

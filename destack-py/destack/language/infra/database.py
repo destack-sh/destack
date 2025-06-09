@@ -4,8 +4,8 @@ from destack.language.core import (
     BuiltinEnum,
     BuiltinObjectMutable,
     EnumType,
+    IsAsset,
     IsInSpace,
-    IsResource,
     IsTracked,
     Node,
     NodeType,
@@ -66,7 +66,7 @@ class DatabaseInfo(DatabaseBase, StructMutable):
 
 @node_(NodeType.DATABASE)
 class Database(
-    IsResource,
+    IsAsset,
     IsInSpace,
     IsTracked,
     DatabaseBase,

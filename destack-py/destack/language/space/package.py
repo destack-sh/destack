@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
 
 from destack.language.core import (
     BuiltinEnum,
@@ -11,7 +11,7 @@ from destack.language.core import (
     IsDeletable,
     IsEnvironmental,
     IsGlobal,
-    IsInPackage,
+    IsInFolder,
     IsInvite,
     IsJoinable,
     IsMembership,
@@ -25,81 +25,83 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.pb2 import PackageData, PackageInviteData, PackageMembershipData
+from destack.pb2 import FolderData, FolderInviteData, FolderMembershipData
 
 if TYPE_CHECKING:
-    from destack.language import Page, Scene, Space
+    from destack.language import Scene, Space
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.PACKAGE_TYPE)
-class PackageType(BuiltinEnum):
-    HOME = 10
-    APPLICATION = 20
-    # TEMPLATE, LIBRARY, ...
+@enum_(EnumType.FOLDER_TYPE)
+class FolderType(BuiltinEnum):
+    ROOT = 1, "Root", "The root folder of a Space", "fas fa-home"
+    HOME = 2, "Home", "The home folder of a Space", "fas fa-home"
+    GENERIC = 3, "Generic", "A generic folder", "fas fa-folder-open"
+    APP = 4, "App", "An app folder", "fas fa-folder"
+    MODULE = 5, "Module", "A module", "fas fa-box-open"
+    # SERVICE, PLUGIN, WIDGET, TEMPLATE, LIBRARY, ...
 
 
 @node_(
-    NodeType.PACKAGE,
+    NodeType.FOLDER,
     index=(IndexIn(columns=("space_id", "slug"), is_unique=True),),
 )
-class Package(
+class Folder(
     HasIcon,
     HasSlug,
-    IsEnvironmental,
     HasName,
-    IsGlobal,
+    IsEnvironmental,
     IsOwnable,
     IsJoinable,
     IsTemplatable,
-    IsInPackage,
+    IsInFolder,
     IsDeletable,
     IsArchivable,
     IsTracked,
-    Node[PackageData],
+    Node[FolderData],
 ):
-    """A Package is a semi-isolated area of a Destack."""
+    """A Folder is a sub-space of a Space."""
 
-    parent: Optional["Space"] = property_parent_(node_is_customizable=False)
-    type: PackageType = property_(30, is_repr=True)
+    parent: Union["Space", "Folder", None] = property_parent_(node_is_customizable=False)
+    type: FolderType = property_(30, is_repr=True, default=FolderType.GENERIC)
 
-    main_page: Optional["Page"] = property_(40)
     main_scene: Optional["Scene"] = property_(41)
 
 
-@enum_(EnumType.PACKAGE_ROLE_TYPE)
-class PackageRoleType(BuiltinEnum):
-    ADMIN = 10
-    DEVELOPER = 30
-    MEMBER = 50
+@enum_(EnumType.FOLDER_ROLE_TYPE)
+class FolderRoleType(BuiltinEnum):
+    ADMIN = 1
+    DEVELOPER = 3
+    USER = 5
+    SPECTATOR = 10
 
 
-@node_(NodeType.PACKAGE_MEMBERSHIP)
-class PackageMembership(
+@node_(NodeType.FOLDER_MEMBERSHIP)
+class FolderMembership(
     IsGlobal,
     IsMembership,
     IsDeletable,
-    IsInPackage,
-    Node[PackageMembershipData],
+    IsInFolder,
+    Node[FolderMembershipData],
 ):
-    """A PackageMembership is a membership to a Package."""
+    """A FolderMembership is a membership to a Folder."""
 
-    parent: Optional["Package"] = property_parent_(node_is_customizable=False)
+    parent: Optional["Folder"] = property_parent_(node_is_customizable=False)
 
-    role_type: PackageRoleType = property_(45)
+    role_type: FolderRoleType = property_(45)
 
 
-@node_(NodeType.PACKAGE_INVITE)
-class PackageInvite(
+@node_(NodeType.FOLDER_INVITE)
+class FolderInvite(
     IsGlobal,
     IsInvite,
     IsDeletable,
-    IsInPackage,
-    Node[PackageInviteData],
+    IsInFolder,
+    Node[FolderInviteData],
 ):
-    """A PackageInvite is an invite to a Package."""
+    """A FolderInvite is an invite to a Folder."""
 
-    parent: Optional["Package"] = property_parent_(node_is_customizable=False)
+    parent: Optional["Folder"] = property_parent_(node_is_customizable=False)
 
-    role_type: PackageRoleType = property_(45)
+    role_type: FolderRoleType = property_(45)

@@ -24,7 +24,7 @@ from destack.test.unit.conftest import BUILTIN_OBJECTS
 def test_roundtrip_node_reference():
     """Pack and unpack a NodeReference as proto and value."""
     node_ref = NodeReference(
-        node_type=NodeType.PAGE, id=uuid4(), space_id=uuid4(), definition_id=uuid4()
+        node_type=NodeType.FOLDER, id=uuid4(), space_id=uuid4(), definition_id=uuid4()
     )
 
     # proto

@@ -4,7 +4,7 @@ from destack.language.core import (
     BuiltinEnum,
     EnumType,
     IsDeletable,
-    IsInPackage,
+    IsInFolder,
     IsOrdered,
     IsOwnable,
     IsTemplatable,
@@ -21,7 +21,7 @@ from destack.language.core import (
 from destack.pb2 import WindowData
 
 if TYPE_CHECKING:
-    from destack.language import Package, Page, Thread
+    from destack.language import Folder, Thread
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -38,7 +38,7 @@ class Window(
     IsOwnable,
     IsTemplatable,
     IsOrdered,
-    IsInPackage,
+    IsInFolder,
     IsDeletable,
     IsTracked,
     Node[WindowData],
@@ -48,7 +48,7 @@ class Window(
     Windows to all Spaces are stored in the owning User's Space.
     """
 
-    parent: Optional["Package"] = property_parent_(node_is_customizable=False)
+    parent: Optional["Folder"] = property_parent_(node_is_customizable=False)
 
     type: WindowType = property_(30)
     name: str | None = property_(31, format=StringFormat.NAME)
@@ -65,5 +65,4 @@ class Window(
     container: Optional[Node] = property_(
         73, default=None, description="The current 'root' container Node."
     )
-    page: Optional["Page"] = property_(74, default=None, description="The current Page.")
     thread: Optional["Thread"] = property_(75, default=None, description="The current Thread.")

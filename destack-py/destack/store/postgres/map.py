@@ -2,7 +2,7 @@ from collections.abc import Mapping
 
 from destack.language import (
     NODE_TYPES,
-    Area,
+    AreaType,
     CustomEntityDefinition,
     EdgeType,
     Node,
@@ -157,9 +157,9 @@ BUILTIN_MAIN_TABLES: tuple[PostgresTable, ...] = tuple(
     for node in NODE_CLASS_BY_TYPE.values()
     if TraitType.GLOBAL not in node.__traits__ and node.metatype != NodeType.CUSTOM_ENTITY
 )
-BUILTIN_TABLE_BY_AREA: Mapping[Area, tuple[PostgresTable, ...]] = {
-    Area.GLOBAL_DATABASE: BUILTIN_GLOBAL_TABLES,
-    Area.MAIN_DATABASE: BUILTIN_MAIN_TABLES,
+BUILTIN_TABLE_BY_AREA: Mapping[AreaType, tuple[PostgresTable, ...]] = {
+    AreaType.GLOBAL_DATABASE: BUILTIN_GLOBAL_TABLES,
+    AreaType.MAIN_DATABASE: BUILTIN_MAIN_TABLES,
 }
 BUILTIN_GLOBAL_SCHEMA = PostgresSchema(EXTENSIONS, BUILTIN_GLOBAL_TABLES)
 BUILTIN_MAIN_SCHEMA = PostgresSchema(EXTENSIONS, BUILTIN_MAIN_TABLES)

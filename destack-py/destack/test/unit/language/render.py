@@ -6,22 +6,17 @@ from collections.abc import Mapping
 from itertools import chain
 from typing import Any, Callable, assert_never
 
-import pytest
 from fastuuid import UUID
 
 from destack.language import (
     Aliasing,
     BuiltinObjectBase,
-    Message,
+    Folder,
     Node,
-    Package,
-    Page,
     Property,
     Renderer,
     RenderOptions,
-    Run,
     Session,
-    text,
 )
 from destack.language.registry import (
     ENUM_CLASS_BY_TYPE,
@@ -37,7 +32,7 @@ def _render_test(func: Callable[[Any, Any], Mapping[str, Any]]):
     def _render_and_check(
         func: Callable[[Any, Any], Mapping[str, BuiltinObjectBase | Property]],
         session: Session,
-        package: Package,
+        package: Folder,
     ) -> None:
         """Common logic for rendering and checking rendered code matches original."""
 
@@ -127,43 +122,8 @@ def _render_test(func: Callable[[Any, Any], Mapping[str, Any]]):
         assert rendered == rendered_again
 
     @functools.wraps(func)
-    def _inner(session: Session, package: Package):
+    def _inner(session: Session, package: Folder):
         _render_and_check(func, session, package)
         return func(session, package)
 
     return _inner
-
-
-# NOTE :Broken: the multi-line string tests don't work well because of :BadCodeFormatting
-#  (we should be using ruff to format the code but it doesn't have a Python API yet :c)
-
-
-@pytest.mark.skip(reason=":BadCodeFormatting")
-@_render_test
-def test_render_text(session: Session, package: Package):
-    """Text should be rendered inline :BadCodeFormatting."""
-    Text1 = text("Hello, world!")
-    Text2 = text("Hey, we can do `code` and **bold**!")
-    Text3 = text("""\
-This is a multi-line text.
-We can also include **Markdown** inside multiline text.
-""")
-    Message1 = Message(
-        text=text("""\
-Yeah, this is a long answer.
-                                     
-# Heading 1
-## Heading 2
-...
-""")
-    )
-    return {"Text1": Text1, "Text2": Text2, "Text3": Text3, "Message1": Message1}
-
-
-@_render_test
-def test_render_property(session: Session, package: Package):
-    """Property references should be rendered with `get_property`."""
-    prop_1 = Node.property("id")
-    prop_2 = Page.property("title")
-    prop_3 = Run.property("outputs")
-    return {"prop_1": prop_1, "prop_2": prop_2, "prop_3": prop_3}

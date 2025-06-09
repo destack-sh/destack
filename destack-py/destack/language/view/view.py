@@ -4,7 +4,7 @@ from destack.language.core import (
     HasName,
     IsDeletable,
     IsEnvironmental,
-    IsInPackage,
+    IsInFolder,
     IsScriptable,
     IsTemplatable,
     IsTracked,
@@ -15,7 +15,7 @@ from destack.language.core import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import Dimension, Page, Position, Window
+    from destack.language import Dimension, Position, Window
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -26,13 +26,13 @@ class IsView(
     HasName,
     IsScriptable,
     IsTemplatable,
-    IsInPackage,
+    IsInFolder,
     IsTracked,
     IsDeletable,
 ):
     """A View is a graphical interface."""
 
-    parent: Union["Window", "IsView", "Page", None] = property_parent_(node_is_customizable=True)
+    parent: Union["Window", "IsView", None] = property_parent_(node_is_customizable=True)
     # variant_of, ...
 
     # sizing

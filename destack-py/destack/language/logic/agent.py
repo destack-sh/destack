@@ -6,11 +6,9 @@ from destack.language.core import (
     HasIcon,
     HasName,
     IsArchivable,
-    IsBlockable,
     IsDeletable,
     IsEnvironmental,
     IsOwnable,
-    IsRunnable,
     IsSubject,
     IsTracked,
     Node,
@@ -22,7 +20,7 @@ from destack.language.core import (
 from destack.pb2 import AgentData
 
 if TYPE_CHECKING:
-    from destack.language import Cursor, Page
+    from destack.language import Cursor
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -33,11 +31,9 @@ class Agent(
     HasName,
     HasIcon,
     IsOwnable,
-    IsRunnable,
     IsSubject,
     IsDeletable,
     IsArchivable,
-    IsBlockable,
     IsTracked,
     Node[AgentData],
 ):
@@ -46,11 +42,6 @@ class Agent(
     """
 
     # content
-    page: Optional["Page"] = property_(
-        54,
-        node_space_from="self",
-        description="The main Page used by this Agent.",
-    )
     cursor: Optional["Cursor"] = property_(
         55,
         node_space_from="self",
