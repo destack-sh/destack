@@ -7,10 +7,14 @@ from destack.language.core import (
     BuiltinEnum,
     Day,
     EnumType,
+    IsEntity,
     Month,
+    Node,
+    NodeType,
     StructMutable,
     StructType,
     enum_,
+    node_,
     property_,
     struct_,
 )
@@ -19,6 +23,20 @@ if TYPE_CHECKING:
     pass
 
 # pyright: reportIncompatibleVariableOverride=false
+
+
+@enum_(EnumType.TIMER_TYPE)
+class TimerType(BuiltinEnum):
+    ONCE = 1
+    RECURRING = 2
+
+
+@node_(NodeType.TIMER)
+class Timer(IsEntity, Node):
+    """A Timer."""
+
+    type: TimerType = property_(30)
+    schedule: "Schedule | None" = property_(40)
 
 
 @enum_(EnumType.SCHEDULE_FREQUENCY)

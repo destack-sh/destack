@@ -334,12 +334,14 @@ class EnumType(BuiltinEnum):
     ACTION_CARDINALITY = 1221
     CURSOR_TYPE = 1321
     CURSOR_STATUS = 1322
+    SCHEDULE_FREQUENCY = 1330
+    TIMER_TYPE = 1331
+    TRIGGER_TYPE = 1332
     # ...
 
     # runtime [1600-2000]
     RUN_STATUS = 1611
     RUN_TYPE = 1612
-    SCHEDULE_FREQUENCY = 1631
     INTERRUPTION_TYPE = 1632
     INTERRUPTION_STATUS = 1633
     INTERRUPTION_RESPONSE = 1634
@@ -604,41 +606,41 @@ class StructType(BuiltinEnum):
 
 @enum_(EnumType.NODE_TYPE)
 class NodeType(BuiltinEnum):
-    # space [1-200]
+    # space [1-400]
     SPACE = 1, "Space", "Universal Space", "https://heydestack.com/favicon.ico"
     SPACE_MEMBERSHIP = 2, "Space Membership", "Membership in a Space", "fas fa-user-group"
     SPACE_INVITE = 3, "Space Invite", "Invite to a Space", "fas fa-user-plus"
-    # DESTACK_MIGRATION?
-    HANDLE = 100, "Handle", "Unique @handle", "fas fa-at"
-
-    # auth [200-600]
-    USER = 200, "User", "User", "fas fa-user"
-    FRIENDSHIP = 210, "Friendship", "Friendship between two Users", "fas fa-user-friends"
+    HANDLE = 10, "Handle", "Unique @handle", "fas fa-at"
+    USER = 20, "User", "User", "fas fa-user"
+    FRIENDSHIP = 30, "Friendship", "Friendship between two Users", "fas fa-user-friends"
     FRIENDSHIP_INVITE = (
-        211,
+        31,
         "Friendship Invite",
         "Invite to be friends with another User",
         "fas fa-user-plus",
     )
-    ORGANIZATION = 250, "Organization", "Organization", "fas fa-building"
+    ORGANIZATION = 40, "Organization", "Organization", "fas fa-building"
     ORGANIZATION_MEMBERSHIP = (
-        251,
+        41,
         "Organization Membership",
         "Membership in an Organization",
         "fas fa-user-group",
     )
     ORGANIZATION_INVITE = (
-        252,
+        42,
         "Organization Invite",
         "Invite to an Organization",
         "fas fa-user-plus",
     )
-    CLIENT = 300, "Client", "Client to a Destack", "fas fa-desktop"
+    CLIENT = 50, "Client", "Client to a Destack", "fas fa-desktop"
     # TEAM, TEAM_MEMBERSHIP, TEAM_INVITE, ...
     # CREDENTIAL, ACCOUNT, PROFILE, ...
+
+    # access [400-600]
     # PERMISSION, PERMISSION_GROUP, ...
-    # CHALLENGE, FRIENDSHIP, ENTITLEMENT, POLICY, RULE, KICK/BAN, ...
-    AGENT = 1300, "Agent", "Identity for an AI", "fas fa-robot"
+    # POLICY, RULE, ...
+    # CHALLENGE, ENTITLEMENT,
+    # KICK/BAN, ...
 
     # folder [600-800]
     FOLDER = 600, "Folder", "Sub-space of a Space", "fas fa-folder-open"
@@ -653,9 +655,54 @@ class NodeType(BuiltinEnum):
     # infra [1000-1200]
     DATABASE = 1000, "Database", "Database for Postgres data", "fas fa-database"
     # SEARCH/INDEX, VAULT, CACHE, S3, ...
-    # CELL = 1100, "Cell", "Cell of Destack services", "fas fa-cell"
-    MACHINE = 1150, "Machine", "Machine for ephemeral computing", "fas fa-machine-classic"
+    # CELL = 1100, "Cell", "Cell", "fas fa-cell"
+    MACHINE = 1110, "Machine", "Machine for ephemeral computing", "fas fa-machine-classic"
     # HOST, ENDPOINT, DEPLOYMENT, NETWORK, AUTOSCALER, ...
+
+    # logic [1200-1400]
+    SCRIPT = 1200, "Script", "Script", "fas fa-code"
+    # SCRIPT_FILE, ...
+    SERVICE = 1210, "Service", "Service", "fas fa-screwdriver-wrench"
+    ACTION = 1220, "Action", "Action", "fas fa-step-forward"
+    ROUTE = 1230, "Route", "Route", "fas fa-route"
+    TRIGGER = 1240, "Trigger", "Trigger", "fas fa-bolt"
+    TIMER = 1241, "Timer", "Timer", "fas fa-clock"
+    # BREAKPOINT, ...
+    CURSOR = 1300, "Cursor", "Position in something", "fas fa-mouse"
+    # ROOM, CHANNEL, LOCK, ...
+
+    # test [1400-1500]
+    # TEST, TEST_SUITE, TEST_CASE, TEST_RESULT, ...
+
+    # run [1600-1700]
+    RUN = 1600, "Run", "Run", "fas fa-play"
+    RUN_QUEUE = 1601, "Run Queue", "Run Queue", "fas fa-list-check"
+    SPAN = 1610, "Span", "Span", "fas fa-ruler-horizontal"
+    INTERRUPTION = 1620, "Interruption", "Interruption", "fas fa-hand"
+    LOG = 1630, "Log", "Log", "fas fa-file-lines"
+    TASK = 1640, "Task", "To-do item", "far fa-square-check"
+    TASK_QUEUE = 1641, "Task Queue", "Task Queue", "fas fa-list-check"
+    # JOB, QUEUE, ...
+
+    # event [1700-1800]
+    CUSTOM_EVENT_DEFINITION = (
+        1700,
+        "Custom Event Definition",
+        "Custom Event Definition",
+        "fas fa-signal",
+    )
+    CUSTOM_EVENT = 1701, "Custom Event", "Custom Event", "fas fa-signal"
+    EDIT_EVENT = 1710, "Edit Event", "Edit Event", "fas fa-file-lines"
+    CHANGE_EVENT = 1711, "Change Event", "Change Event", "fas fa-file-lines"
+    QUERY_EVENT = 1712, "Query Event", "Query Event", "fas fa-file-lines"
+    # ERROR_EVENT, ...
+
+    # data [2000-2400]
+    SCHEMA = 2000, "Schema", "Schema", "fas fa-shapes"
+    FIELD = 2010, "Field", "Field", "fas fa-triangle"
+    FILE = 2020, "File", "File", "fas fa-file"
+    LINK = 2050, "Link", "Link to something", "fas fa-link"
+    # STREAM, SECRET, ...
 
     # entity
     CUSTOM_ENTITY_DEFINITION = (
@@ -666,93 +713,62 @@ class NodeType(BuiltinEnum):
     )
     CUSTOM_ENTITY = 2201, "Custom Node Instance", "Custom Node Instance", "fas fa-database"
     # INDEX, CONSTRAINT, MIGRATION, ...
-    # TRAIT/INTERFACE, ...
-
-    # logic [1200-1400]
-    SCRIPT = 1200, "Script", "Script", "fas fa-code"
-    # SCRIPT_FILE, ...
-    SERVICE = 1210, "Service", "Service", "fas fa-screwdriver-wrench"
-    ACTION = 1220, "Action", "Action", "fas fa-step-forward"
-    ROUTE = 700, "Route", "Route to a Scene", "fas fa-route"
-    # TIMER, BREAKPOINT, ...
-
-    # test [1400-1500]
-    # TEST, TEST_SUITE, TEST_CASE, TEST_RESULT, ...
-
-    # sync [1500-1600]
-    CURSOR = 1500, "Cursor", "Position in something", "fas fa-mouse"
-    TASK = 1510, "Task", "To-do item", "far fa-square-check"
-    # ROOM, JOB, LOCK, ...
-
-    # run [1600-1700]
-    RUN = 1600, "Run", "Run", "fas fa-play"
-    SPAN = 1610, "Span", "Span", "fas fa-ruler-horizontal"
-    INTERRUPTION = 1620, "Interruption", "Interruption", "fas fa-hand"
-    LOG = 1630, "Log", "Log", "fas fa-file-lines"
-    # INSTRUMENT, MEASUREMENT,
-
-    # event [1700-1800]
-    CUSTOM_EVENT_DEFINITION = 1700, "Signal Definition", "Signal Definition", "fas fa-signal"
-    CUSTOM_EVENT = 1701, "Signal Instance", "Signal Instance", "fas fa-signal"
-    EDIT_EVENT = 1710, "Edit Event", "Edit Event", "fas fa-file-lines"
-    CHANGE_EVENT = 1711, "Change Event", "Change Event", "fas fa-file-lines"
-    QUERY_EVENT = 1712, "Query Event", "Query Event", "fas fa-file-lines"
-
-    # data [2000-2400]
-    SCHEMA = 2000, "Schema", "Schema", "fas fa-shapes"
-    FIELD = 2010, "Field", "Field", "fas fa-triangle"
-    FILE = 2020, "File", "File", "fas fa-file"
-    LINK = 2050, "Link", "Link to something", "fas fa-link"
-    # STREAM, SECRET, ...
+    # SYNC, ...
+    # TRAIT/INTERFACE/CUSTOM_TRAIT, ...
 
     # social [2400-2800]
     THREAD = 2400, "Thread", "Thread", "fas fa-reel"
     # THREAD_MEMBERSHIP, ...
-    MESSAGE = 2420, "Message", "Message", "fas fa-message"
+    MESSAGE = 2410, "Message", "Message", "fas fa-message"
     REACTION = 2500, "Reaction", "Reaction", "fas fa-heart"
     STAR = 2501, "Star", "Star", "fas fa-star"
     FOLLOW = 2510, "Follow", "Follow", "fas fa-user-plus"
     # POLL, VOTE, REVIEW, RATING, RANK, ...
-    # FEED, FEED_ITEM, ...
-    # CHANNEL, NOTIFICATION, ...
     # ACHIEVEMENT, BADGE, WISHLIST/WATCHLIST, ...
+    # FEED, FEED_ITEM, ...
+    NOTIFICATION = 2600, "Notification", "Notification", "fas fa-bell"
 
-    # product [2800-3200]
+    # deploy [2800-3000]
+    # DEPLOYMENT, ...
     # PREVIEW, RELEASE, ROLLOUT, ...
+    # INCIDENT, ...
+
+    # product [3000-3200]
     # RECORDING/REPLAY, SURVEY, ...
     # TOUR, FUNNEL, COHORT, JOURNEY, ..
-    # SEGMENT, EXPERIMENT, FEATURE, FEATURE_FLAG, FEATURE_GATE, ...
+    # SEGMENT, EXPERIMENT, ...
+    # FEATURE, FEATURE_FLAG, FEATURE_GATE, ...
 
-    # finance [3200-3600]
+    # finance [3200-3400]
     # WALLET, BALANCE, BUDGET, TRANSFER, CREDIT, ...
     # TIER, SUBSCRIPTION, PRODUCT, PRICE, ORDER, INVOICE, DISCOUNT, DISPUTE, REFUND, ...
 
-    # locale [3600-4000]
+    # locale [3400-3600]
     # LOCALE, STRING, TRANSLATION, ...
 
-    # web [4000-4200]
+    # web [3600-3800]
     # DOMAIN, ...
     # EMAIL, EMAIL_ATTEMPT, ...
 
-    # world [4200-4400]
+    # world [3800-4000]
     # PHONE, ADDRESS, ...
 
     # scene [8000-8100]
     WINDOW = 8000, "Window", "Window", "fas fa-galaxy"
     SCENE = 8010, "Scene", "Scene of an Application", "fas fa-masks-theater"
-    # COMMAND, OVERLAY, WIDGET, ...
+    # CAMERA, COMMAND, GESTURE, OVERLAY, WIDGET, ...
 
     # container views [8200-8300]
-    FRAME_VIEW = 8200, "Frame View", "Fixed Container", "fas fa-frame"
-    LABEL_VIEW = 8201, "Label View", "Label Container", "fas fa-font-case"
-    # FORM_VIEW, MENU_VIEW, ...
     CUSTOM_VIEW_DEFINITION = (
-        8210,
+        8200,
         "Custom View Definition",
         "Custom View Definition",
         "fas fa-table",
     )
-    CUSTOM_VIEW = 8211, "Custom View", "Custom View", "fas fa-table"
+    CUSTOM_VIEW = 8201, "Custom View", "Custom View", "fas fa-table"
+    FRAME_VIEW = 8210, "Frame View", "Fixed Container", "fas fa-frame"
+    LABEL_VIEW = 8211, "Label View", "Label Container", "fas fa-font-case"
+    # FORM_VIEW, MENU_VIEW, ...
     SPLIT_VIEW = 8220, "Split View", "Split Container", "fas fa-columns"
     # TAB_VIEW = 8221, "Tab Container View", "Tab Container", "fas fa-tabs"
     # DRAWER_VIEW, SPLIT_DRAWER_VIEW, GRID/GRID_ELEMENT_VIEW, ...
@@ -807,25 +823,35 @@ class NodeType(BuiltinEnum):
     GRADIENT_STYLE = 9015, "Gradient Style", "Gradient Style", "fas fa-gradient"
     TRANSITION_STYLE = 9016, "Transition Style", "Transition Style", "fas fa-bezier-curve"
     EFFECT_STYLE = 9017, "Effect Style", "Effect Style", "fas fa-sparkle"
-    # SHADER, MATERIAL, ANIMATION, ...
+    # BRUSH_STYLE, ...
+    # SHADER, MATERIAL, ...
 
-    # canvas/drawing?
-    # CANVAS, LAYER, BITMAP, BRUSH, SHAPE, ...
+    # media [9100-9200]
+    # STAGE, ...
+    # ANIMATION, TRACK, KEYFRAME, FRAME, ...
+    # SOUND, ...
+    # CAMERA, MICROPHONE, ...
 
-    # audio/media?
-    # SOUND, ...?
+    # canvas [9200-9300]
+    # CANVAS, SKETCH, LAYER, ...
+    # BITMAP, ...
+    # SHAPE, ...
+    # ANNOTATION, ...
 
 
 @enum_(EnumType.TRAIT_TYPE)
 class TraitType(BuiltinEnum):
     # destack [1-200]
+    # where
     GLOBAL = 1, "Global", "Is global", "fas fa-globe"
     IN_SPACE = 2, "Space", "Is in a Space", "fas fa-destack"
     IN_FOLDER = 3, "Folder", "Is in a Folder", "fas fa-folder-open"
+    # what
     ENTITY = 10, "Entity", "Is an Entity", "fas fa-hexagon"
     PARTICLE = 11, "Particle", "Is a Particle", "fas fa-atom"
-    RESOURCE = 12, "Resource", "Is a Resource", "fas fa-server"
-    EVENT = 13, "Event", "Is an Event", "fas fa-bolt"
+    ASSET = 12, "Asset", "Is an Asset", "fas fa-file"
+    RESOURCE = 13, "Resource", "Is a Resource", "fas fa-server"
+    EVENT = 14, "Event", "Is an Event", "fas fa-bolt"
     CUSTOM_NODE_DEFINITION = (
         18,
         "Custom Node Definition",
@@ -833,19 +859,21 @@ class TraitType(BuiltinEnum):
         "fas fa-table",
     )
     CUSTOM_NODE = 19, "Custom Node", "Is a Custom Node", "fas fa-database"
+
     # behavior
-    FROZEN = 4, "Frozen", "Is frozen", "fas fa-snowflake"
-    TRACKED = 10, "Tracked", "Is tracked", "fas fa-clock"
-    ARCHIVABLE = 11, "Archivable", "Can be archived", "fas fa-box-archive"
-    DELETABLE = 12, "Deletable", "Can be deleted", "fas fa-trash"
-    TEMPLATABLE = 13, "Templatable", "Is templatable", "fas fa-puzzle-piece"
-    EXTENSIBLE = 14, "Extensible", "Is extensible", "fas fa-expand"
-    ORDERED = 25, "Ordered", "Is ordered", "fas fa-sort"
-    ENVIRONMENTAL = 20, "Environment", "Has an environment", "fas fa-window-maximize"
+    FROZEN = 20, "Frozen", "Is frozen", "fas fa-snowflake"
+    TRACKED = 21, "Tracked", "Is tracked", "fas fa-clock"
+    ARCHIVABLE = 22, "Archivable", "Can be archived", "fas fa-box-archive"
+    DELETABLE = 23, "Deletable", "Can be deleted", "fas fa-trash"
+    TEMPLATABLE = 24, "Templatable", "Is templatable", "fas fa-puzzle-piece"
+    EXTENSIBLE = 25, "Extensible", "Is extensible", "fas fa-expand"
+    ORDERED = 26, "Ordered", "Is ordered", "fas fa-sort"
+    ENVIRONMENTAL = 27, "Environment", "Has an environment", "fas fa-window-maximize"
+
     # attribute
-    HAS_NAME = 21, "Name", "Has a name", "fas fa-font-case"
-    HAS_SLUG = 23, "Slug", "Has a slug", "fas fa-hashtag"
-    HAS_ICON = 24, "Icon", "Has an icon", "fas fa-icons"
+    HAS_NAME = 30, "Name", "Has a name", "fas fa-font-case"
+    HAS_SLUG = 31, "Slug", "Has a slug", "fas fa-hashtag"
+    HAS_ICON = 32, "Icon", "Has an icon", "fas fa-icons"
 
     # auth [200-600]
     OWNABLE = 200, "Ownable", "Is ownable", "fas fa-user"
@@ -876,9 +904,6 @@ class TraitType(BuiltinEnum):
 
     # data [2000-2200]
     # ...
-
-    # custom [2200-2400]
-    # METRIC, ...
 
     # social [2400-2800]
     # MESSAGE, THREAD, ...

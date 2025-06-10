@@ -21,8 +21,8 @@ from destack.language.core import (
     BuiltinEnum,
     EnumType,
     HasName,
+    IsAsset,
     IsInFolder,
-    IsResource,
     Node,
     NodeType,
     PrimitiveType,
@@ -458,7 +458,7 @@ MIME_TYPE_BY_FORMAT: dict[FileFormat, str] = {v: k for k, v in FILE_FORMAT_BY_MI
 @node_(NodeType.FILE)
 class File(
     HasName,
-    IsResource,
+    IsAsset,
     IsInFolder,
     Node[FileData],
 ):

@@ -475,8 +475,15 @@ class IsParticle(IsTracked):
     pass
 
 
+@trait_(TraitType.ASSET)
+class IsAsset(IsTracked):
+    """A Node that represents an external asset."""
+
+    pass
+
+
 @trait_(TraitType.RESOURCE)
-class IsResource(IsEntity):
+class IsResource(IsTracked):
     """
     A Resource with its own lifecycle (usually managed by some provisioner).
     """

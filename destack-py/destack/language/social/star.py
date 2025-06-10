@@ -10,6 +10,6 @@ if TYPE_CHECKING:
 
 @node_(NodeType.STAR)
 class Star(IsOwnable, Node["StarData"]):
-    """A Star is a relationship between a Subject and a Starred Node."""
+    """A Star is a relationship between someone and a Starred Node."""
 
     parent: Union["IsStarable", None] = property_parent_(node_is_customizable=True)

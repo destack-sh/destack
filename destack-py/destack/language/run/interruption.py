@@ -50,7 +50,7 @@ INTERRUPTION_TYPE_BY_RUN_STATUS: dict[RunStatus, InterruptionType] = {
 
 
 @enum_(EnumType.INTERRUPTION_STATUS)
-class InterruptionStatus(BuiltinEnum):  # NOTE: see RunStatus
+class InterruptionStatus(BuiltinEnum):
     OPEN = 10
     CANCELLED = 30
     COMPLETED = 33
@@ -79,7 +79,7 @@ class Interruption(
     IsTracked,
     Node[InterruptionData],
 ):
-    """An Interruption in the processing or execution of something."""
+    """An Interruption in run of something."""
 
     # meta
     parent: Optional["Run"] = property_parent_(node_is_customizable=False)
