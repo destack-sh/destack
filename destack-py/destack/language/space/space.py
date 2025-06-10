@@ -47,8 +47,8 @@ class Space(
     HasName,
     HasSlug,
     HasIcon,
-    IsEntity,
     IsGlobal,
+    IsEntity,
     IsOwnable,
     IsStarable,
     IsInSpace,
@@ -100,8 +100,10 @@ class SpaceRoleType(BuiltinEnum):
 @node_(NodeType.SPACE_INVITE)
 class SpaceInvite(
     IsGlobal,
+    IsEntity,
     IsInvite,
     IsDeletable,
+    IsOwnable,
     IsInSpace,
     Node[SpaceInviteData],
 ):
@@ -117,6 +119,7 @@ class SpaceInvite(
 @node_(NodeType.SPACE_MEMBERSHIP)
 class SpaceMembership(
     IsGlobal,
+    IsEntity,
     IsMembership,
     IsDeletable,
     IsInSpace,

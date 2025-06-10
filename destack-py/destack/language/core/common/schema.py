@@ -6,11 +6,11 @@ from destack.pb2 import SchemaData
 from ..builtin import (
     HasName,
     IsDeletable,
+    IsEntity,
     IsEnvironmental,
     IsInFolder,
     IsSourceable,
     IsTemplatable,
-    IsTracked,
     Node,
     NodeType,
     node_,
@@ -26,8 +26,8 @@ if TYPE_CHECKING:
 class Schema(
     HasName,
     HasIcon,
+    IsEntity,
     IsEnvironmental,
-    IsTracked,
     IsTemplatable,
     IsDeletable,
     IsInFolder,

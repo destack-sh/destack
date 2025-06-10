@@ -9,6 +9,7 @@ from destack.language.core import (
     HasName,
     HasSlug,
     IsDeletable,
+    IsEntity,
     IsGlobal,
     IsInvite,
     IsMembership,
@@ -38,6 +39,7 @@ class OrganizationStatus(BuiltinEnum):
 @node_(NodeType.ORGANIZATION, root_type=None)
 class Organization(
     IsGlobal,
+    IsEntity,
     IsSubject,
     HasSlug,
     HasIcon,
@@ -70,7 +72,13 @@ class OrganizationRoleType(BuiltinEnum):
 
 
 @node_(NodeType.ORGANIZATION_INVITE)
-class OrganizationInvite(IsInvite, IsDeletable, Node[OrganizationInviteData]):
+class OrganizationInvite(
+    IsGlobal,
+    IsEntity,
+    IsInvite,
+    IsDeletable,
+    Node[OrganizationInviteData],
+):
     """
     An OrganizationInvite is an invite to an Organization.
     """
@@ -81,7 +89,13 @@ class OrganizationInvite(IsInvite, IsDeletable, Node[OrganizationInviteData]):
 
 
 @node_(NodeType.ORGANIZATION_MEMBERSHIP)
-class OrganizationMembership(IsMembership, IsDeletable, Node[OrganizationMembershipData]):
+class OrganizationMembership(
+    IsGlobal,
+    IsEntity,
+    IsMembership,
+    IsDeletable,
+    Node[OrganizationMembershipData],
+):
     """
     An OrganizationMembership is a membership to an Organization.
     """

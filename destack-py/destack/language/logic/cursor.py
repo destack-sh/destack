@@ -61,6 +61,9 @@ class CursorStatus(BuiltinEnum):
     COMPLETED = 53, "Completed", "Completed", "fas fa-check"
 
 
+# nocheckin: split into multiple Cursors (mouse cursor, entity cursor, ...)
+
+
 @node_(NodeType.CURSOR)
 class Cursor(
     IsEnvironmental,

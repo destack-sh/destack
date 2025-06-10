@@ -25,7 +25,11 @@ class CustomViewDefinition(
 
 
 @node_(NodeType.CUSTOM_VIEW)
-class CustomView(IsCustomNode, IsContainerView, Node[CustomViewData]):
+class CustomView(
+    IsCustomNode,
+    IsContainerView,
+    Node[CustomViewData],
+):
     definition: "CustomViewDefinition" = property_(
         17,
         description="The CustomViewDefinition this CustomView is an instance of.",

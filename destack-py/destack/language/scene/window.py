@@ -4,11 +4,11 @@ from destack.language.core import (
     BuiltinEnum,
     EnumType,
     IsDeletable,
+    IsEntity,
     IsInFolder,
     IsOrdered,
     IsOwnable,
     IsTemplatable,
-    IsTracked,
     Node,
     NodeType,
     Selection,
@@ -35,12 +35,12 @@ class WindowType(BuiltinEnum):
 
 @node_(NodeType.WINDOW)
 class Window(
+    IsEntity,
     IsOwnable,
     IsTemplatable,
     IsOrdered,
     IsInFolder,
     IsDeletable,
-    IsTracked,
     Node[WindowData],
 ):
     """

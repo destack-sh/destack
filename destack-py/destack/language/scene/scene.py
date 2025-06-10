@@ -4,6 +4,7 @@ from destack.language.core import (
     HasIcon,
     HasName,
     IsDeletable,
+    IsEntity,
     IsEnvironmental,
     IsInFolder,
     IsOwnable,
@@ -28,6 +29,7 @@ if TYPE_CHECKING:
 class Scene(
     HasName,
     HasIcon,
+    IsEntity,
     IsEnvironmental,
     IsScriptable,
     IsOwnable,

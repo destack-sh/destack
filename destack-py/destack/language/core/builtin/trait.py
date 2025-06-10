@@ -620,6 +620,7 @@ class IsStarable(Trait):
 class IsInSpace(Trait):
     """A Node inside a Space."""
 
+    parent: Optional["Space"] = property_parent_(node_is_customizable=False)
     space: "Space | None" = property_ancestor_(6, is_required=True)
     if TYPE_CHECKING:
         space_ptr: Optional[NodeReference] = None
@@ -629,6 +630,7 @@ class IsInSpace(Trait):
 class IsInFolder(IsInSpace):
     """A Node in a Folder."""
 
+    parent: Optional["Folder"] = property_parent_(node_is_customizable=False)
     folder: "Folder | None" = property_ancestor_(7, is_required=False)
     if TYPE_CHECKING:
         folder_ptr: Optional[NodeReference] = None

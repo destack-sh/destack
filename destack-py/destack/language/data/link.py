@@ -36,8 +36,8 @@ class LinkType(BuiltinEnum):
 
 @node_(NodeType.LINK)
 class Link(
-    IsInFolder,
     IsAsset,
+    IsInFolder,
     Node[LinkData],
 ):
     """
