@@ -1,17 +1,26 @@
-from destack import Client, CustomEntity, EdgeType, IsSubject, Session, User
+from datetime import datetime, timedelta
+
+from destack import Client, CustomEntity, EdgeType, EditType, IsSubject, Session, User
 
 from .scaffold import *  # noqa: F403
 
 # ruff: noqa: F405
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
-
 # ===============================================
+# ZurichAI/Common: Service
+# ===============================================
+
+
+@schema
+class TestSchema(Schema):
+    pass
+
 
 SECRET = script.member("secret_key", 1, str)
 
 # ===============================================
-# MeetupSeries
+# ZurichAI/MeetupSeries: Entity
 # ===============================================
 
 
@@ -19,14 +28,15 @@ SECRET = script.member("secret_key", 1, str)
 class MeetupSeries(IsStarable, IsFollowable, Entity):
     name: str | None = field(1)
 
-    @event
-    class NewMeetup(Event):
-        series: "MeetupSeries" = field(1)
-        meetup: "Meetup" = field(2)
+
+@event
+class NewMeetup(Event):
+    series: "MeetupSeries" = field(1)
+    meetup: "Meetup" = field(2)
 
 
 # ===============================================
-# Meetup
+# ZurichAI/Meetup: Entity
 # ===============================================
 
 
@@ -35,14 +45,48 @@ class Meetup(IsStarable, Entity):
     name: str | None = field(1)
     capacity: int = field(2)
     series: MeetupSeries | None = field(3)
+    at: datetime = field(4)
 
-    @event
-    class MeetupAlmostFull(Event):
-        meetup: "Meetup" = field(1)
 
-    @event
-    class MeetupFull(Event):
-        meetup: "Meetup" = field(1)
+@event
+class MeetupAlmostFull(Event):
+    meetup: "Meetup" = field(1)
+
+
+@event
+class MeetupFull(Event):
+    meetup: "Meetup" = field(1)
+
+
+@event
+class MeetupCancelled(Event):
+    meetup: "Meetup" = field(1)
+
+
+@event
+class MeetupStarted(Event):
+    meetup: "Meetup" = field(1)
+
+
+@event
+class MeetupEnded(Event):
+    meetup: "Meetup" = field(1)
+
+
+@on(Meetup.event(EditType.CREATE))
+@action
+def on_meetup_created(meetup: Meetup):
+    reminder_timer = Timer(name="ReminderTimer", at=meetup.at - timedelta(days=7))
+    reminder_timer.on(
+        Timer.TimerExpired,
+        send_meetup_email(meetup=meetup),
+    )
+    meetup.add_child(reminder_timer)
+
+
+@action
+async def send_meetup_email(meetup: Meetup):
+    pass
 
 
 # ===============================================
@@ -56,9 +100,10 @@ class MeetupResponse(Entity):
     user: User = field(3)
 
 
-@schema
-class TestSchema(Schema):
-    pass
+@event
+class MeetupRespondedYes(Event):
+    meetup: "Meetup" = field(1)
+    response: "MeetupResponse" = field(2)
 
 
 @action

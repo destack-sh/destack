@@ -2,9 +2,10 @@
 
 from destack.utils.oracle import REAL_ORACLE as REAL_ORACLE
 
-from .auth import *  # noqa: F403
+from .access import *  # noqa: F403
 from .core import *  # noqa: F403
 from .data import *  # noqa: F403
+from .entity import *  # noqa: F403
 from .finance import *  # noqa: F403
 from .folder import *  # noqa: F403
 from .infra import *  # noqa: F403
@@ -19,7 +20,7 @@ from .registry import (
     STRUCT_INFO_BY_TYPE,  # noqa: F401
     _complete_destack_setup,
 )
-from .runtime import *  # noqa: F403
+from .run import *  # noqa: F403
 from .scene import *  # noqa: F403
 from .social import *  # noqa: F403
 from .space import *  # noqa: F403

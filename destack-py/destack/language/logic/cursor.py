@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
     BuiltinEnum,
@@ -16,12 +16,11 @@ from destack.language.core import (
     enum_,
     node_,
     property_,
-    property_parent_,
 )
 from destack.pb2 import CursorData
 
 if TYPE_CHECKING:
-    from destack.language import Agent, Run, Thread
+    pass
 
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -77,7 +76,6 @@ class Cursor(
     """
 
     # meta
-    parent: Union["Agent", "Thread", "Run", None] = property_parent_(node_is_customizable=True)
     type: CursorType = property_(30, is_repr=True)
 
     # status?

@@ -58,6 +58,15 @@ class EditOperation(BuiltinEnum):
     SET = 1
     CLEAR = 2
 
+    # set
+    # SET_ADD, SET_REMOVE, ...
+
+    # list
+    # LIST_APPEND, LIST_APPEND_IF_MISSING, LIST_REMOVE, ...
+
+    # map
+    # MAP_SET, MAP_REMOVE, ...
+
     # number
     # NUMBER_INCREMENT, NUMBER_DECREMENT, ...
 
@@ -67,14 +76,8 @@ class EditOperation(BuiltinEnum):
     # text
     # TEXT_INSERT, TEXT_DELETE, TEXT_REPLACE, TEXT_FORMAT, ...
 
-    # set
-    # SET_ADD, SET_REMOVE, ...
-
-    # list
-    # LIST_APPEND, LIST_APPEND_IF_MISSING, LIST_REMOVE, ...
-
-    # map
-    # MAP_SET, MAP_REMOVE, ...
+    # bitmap
+    # BITMAP_INSERT, BITMAP_DELETE, ...
 
 
 @struct_(StructType.EDIT, frozen=True)

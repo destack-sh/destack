@@ -974,6 +974,8 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
             if existing is not None:
                 if existing.name in ("id", "metatype", "parent", "definition", "_supergraph"):
                     continue  # may be narrowed/duplicated
+                elif component.__is_trait__ and existing.id == prop.id:
+                    continue  # may be overridden by the trait
                 raise RuntimeError(
                     f"property '{name}' from '{component.__name__}' conflicts with '{cls.__name__}': {prop!r}, {existing!r}"
                 )

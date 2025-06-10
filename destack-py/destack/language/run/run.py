@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional
 
 from fastuuid import UUID
 
@@ -9,19 +9,17 @@ from destack.language.core import (
     IsInFolder,
     IsParticle,
     IsRunnable,
-    IsTracked,
     Node,
     NodeType,
     RunStatus,
     RunType,
     node_,
     property_,
-    property_parent_,
 )
 from destack.pb2 import RunData
 
 if TYPE_CHECKING:
-    from destack.language import Agent, Error, Interruption, NodeReference, Thread
+    from destack.language import Error, Interruption, NodeReference, Thread
 
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -32,7 +30,6 @@ class Run(
     IsEnvironmental,
     IsExtensible,
     IsInFolder,
-    IsTracked,
     IsParticle,
     Node[RunData],
 ):
@@ -41,7 +38,6 @@ class Run(
     """
 
     # meta
-    parent: Union["Thread", "Agent", "Run", None] = property_parent_(node_is_customizable=False)
     type: RunType = property_(30, can_write="system", is_repr=True)
     thread: Optional["Thread"] = property_(
         38,

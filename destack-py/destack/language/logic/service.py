@@ -2,14 +2,13 @@ from typing import TYPE_CHECKING
 
 from destack.language.core import (
     HasName,
-    IsArchivable,
     IsDeletable,
+    IsEntity,
     IsEnvironmental,
     IsOwnable,
     IsRunnable,
     IsScriptable,
     IsTemplatable,
-    IsTracked,
     Node,
     NodeType,
     node_,
@@ -25,15 +24,14 @@ if TYPE_CHECKING:
 
 @node_(NodeType.SERVICE)
 class Service(
-    IsEnvironmental,
     HasName,
+    IsEnvironmental,
     IsTemplatable,
     IsOwnable,
     IsDeletable,
-    IsArchivable,
     IsRunnable,
     IsScriptable,
-    IsTracked,
+    IsEntity,
     Node[ServiceData],
 ):
     """

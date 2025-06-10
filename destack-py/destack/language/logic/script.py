@@ -2,8 +2,9 @@ from destack.language.core import (
     HasName,
     IsArchivable,
     IsDeletable,
+    IsEntity,
+    IsRunnable,
     IsScriptable,
-    IsTracked,
     Node,
     NodeType,
     node_,
@@ -20,7 +21,8 @@ class Script(
     HasName,
     IsDeletable,
     IsArchivable,
-    IsTracked,
+    IsRunnable,
+    IsEntity,
     Node[ScriptData],
 ):
     """A Script."""
