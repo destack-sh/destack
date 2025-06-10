@@ -41,14 +41,14 @@ def get_database(name: str) -> DatabaseInfo:
     """Creates a global database for testing.."""
     pg = get_from_env("GLOBAL_DATABASE_URL", description="Global Postgres connection string")
     pg_url_parsed = urlparse(pg)
-    sql_url = pg_url_parsed._replace(path=f"/{name}").geturl()
+    connection_url = pg_url_parsed._replace(path=f"/{name}").geturl()
     database = DatabaseInfo(
         type=DatabaseType.POSTGRES,
         region=REGION,
         cell_name="test-0",
         external_name=name,
         tenancy=Tenancy.DEDICATED,
-        connection_url=sql_url,
+        connection_url=connection_url,
     )
     return database
 

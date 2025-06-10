@@ -22,7 +22,6 @@ from ..builtin import (
     NODE_TYPES,
     BuiltinObjectBase,
     EdgeType,
-    IsInFolder,
     Node,
     NodeType,
     Property,
@@ -359,19 +358,7 @@ class NodeRenderer[T: Node](BuiltinObjectRenderer[T]):
         return self._render_constructor(renderer, obj, kwargs, rendered_kwargs)
 
 
-class IsInPackageRenderer[T: IsInFolder](NodeRenderer[T]):
-    """The base renderer for a IsInPackage."""
-
-    @override
-    def render(self, renderer: Renderer, obj: T, options: RenderOptions) -> str:
-        kwargs = _deconstruct_builtin_object(obj, options=options)
-        rendered_kwargs = _render_builtin_object_kwargs(renderer, obj, kwargs)
-        return self._render_constructor(renderer, obj, kwargs, rendered_kwargs)
-
-
 NODE_RENDERER = NodeRenderer[Node]()
-PACKAGE_NODE_RENDERER = IsInPackageRenderer[IsInFolder]()
-BUILTIN_OBJECT_RENDERER = BuiltinObjectRenderer[BuiltinObjectBase]()
 
 
 #

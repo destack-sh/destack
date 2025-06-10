@@ -46,10 +46,6 @@ BEGINNING_OF_TIME = datetime.fromisoformat("1970-01-01T00:00:00+00:00")
 # builtin destackes :Builtins
 DESTACK_SLUG = "destack"
 DESTACK_ID = UUID("11111111-1111-1111-1111-000000000000")
-DESTACK_DESTACK_PACKAGE_ID = UUID("11111111-1111-1111-1111-000000000001")
-SYSTEM_SLUG = "system"
-SYSTEM_ID = UUID("22222222-2222-2222-2222-000000000000")
-SYSTEM_SYSTEM_PACKAGE_ID = UUID("22222222-2222-2222-2222-000000000001")
 
 # runtime constants
 NONCE = uuid4()
@@ -818,6 +814,9 @@ class TraitType(BuiltinEnum):
     # destack [1-200]
     # nocheckin: traits for kind/area: GLOBAL/... & ENTITY/RESOURCE/ASSET/VIEW/EVENT?
     GLOBAL = 1, "Global", "Is global", "fas fa-globe"
+    ASSET = 51, "Asset", "Is an Asset", "fas fa-server"
+    RESOURCE = 52, "Resource", "Is a Resource", "fas fa-server"
+    ENTITY = 53, "Entity", "Is an Entity", "fas fa-hexagon"
     # behavior
     FROZEN = 4, "Frozen", "Is frozen", "fas fa-snowflake"
     TRACKED = 10, "Tracked", "Is tracked", "fas fa-clock"
@@ -833,15 +832,13 @@ class TraitType(BuiltinEnum):
         "fas fa-table",
     )
     CUSTOM_NODE = 16, "Custom Node", "Is a Custom Node", "fas fa-database"
-    ASSET = 51, "Resource", "Is a Resource", "fas fa-server"
-    RESOURCE = 52, "Provisionable", "Is provisionable", "fas fa-server"
     ENVIRONMENTAL = 20, "Environment", "Has an environment", "fas fa-window-maximize"
     HAS_NAME = 21, "Name", "Has a name", "fas fa-font-case"
     HAS_TITLE = 22, "Title", "Has a title", "fas fa-font-case"
     HAS_SLUG = 23, "Slug", "Has a slug", "fas fa-hashtag"
     HAS_ICON = 24, "Icon", "Has an icon", "fas fa-icons"
     IN_SPACE = 40, "Space", "Is in a Space", "fas fa-destack"
-    IN_PACKAGE = 41, "Package", "Is in a Package", "fas fa-box"
+    IN_FOLDER = 41, "Package", "Is in a Package", "fas fa-box"
     # TAG, TAGGABLE, ...
 
     # auth [200-600]

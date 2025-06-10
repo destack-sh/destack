@@ -110,7 +110,7 @@ class Node[NodeDataT: AnyNodeData](NodeBase[NodeDataT]):
         parent_ptr: Optional[NodeReference] = None
     # Node.area?
     # IsInSpace.space: 6
-    # IsInPackage.package: 7
+    # IsInFolder.folder: 7
 
     _session: "Session" = property_runtime_()
     _supergraph: "Supergraph" = property_runtime_()
