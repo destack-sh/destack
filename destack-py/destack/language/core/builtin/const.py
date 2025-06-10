@@ -305,121 +305,129 @@ class EnumType(BuiltinEnum):
     ATTRIBUTE_TYPE = 111
     QUERY_TYPE = 812
     QUERY_UPDATE_TYPE = 813
-    # auth [200-600]
-    SPACE_ROLE_TYPE = 201
-    ORGANIZATION_ROLE_TYPE = 211
-    FOLDER_ROLE_TYPE = 221
-    CLIENT_TYPE = 231
+
+    # access [400-600]
+    SPACE_ROLE_TYPE = 401
+    ORGANIZATION_ROLE_TYPE = 411
+    FOLDER_ROLE_TYPE = 421
+    CLIENT_TYPE = 431
     # ...
 
-    # space [600-800]
+    # folder [600-800]
     WINDOW_TYPE = 601
     # ...
 
     # history [800-1000]
     # ...
 
-    # infra [1000-1200]
-    CLOUD = 1000
-    REGION = 1001
-    REGION_AREA = 1002
-    REGION_CONTINENT = 1003
-    TENANCY = 1004
-    DATABASE_TYPE = 1010
-    MACHINE_TYPE = 1011
+    # entity [1000-1400]
+    # ...
+
+    # data [1400-1800]
+    TEXT_LINE_TYPE = 1401
+    TEXT_SPAN_TYPE = 1402
+    FILE_RETENTION_MODE = 1421
+    FILE_SOURCE = 1422
+    FILE_TYPE = 1423
+    FILE_FORMAT = 1424
+    ICON_TYPE = 1431
+    LINK_TYPE = 1451
+    PRIMITIVE_TYPE = 1501
+    TYPE_CARDINALITY = 1502
+    SCALAR_TYPE = 1503
+    DEFAULT_FACTORY = 1504
+    STRING_FORMAT = 1511
+    NUMBER_FORMAT = 1512
+    FIELD_TYPE = 1521
+    EDGE_TYPE = 1522
+    EDGE_DIRECTION = 1523
+    CASCADE_ACTION = 1524
+    DAY = 1531
+    MONTH = 1532
+    TIME_INTERVAL = 1533
+    RESOURCE_STATUS = 1701
+    # ...
+
+    # logic [1800-2000]
+    ACTION_CARDINALITY = 1821
+    CURSOR_TYPE = 1921
+    CURSOR_STATUS = 1922
+    SCHEDULE_FREQUENCY = 1930
+    TIMER_TYPE = 1931
+    TRIGGER_TYPE = 1932
+    # ...
+
+    # test [2000-2400]
+    # ...
+
+    # runtime [2400-2800]
+    RUN_STATUS = 2411
+    RUN_TYPE = 2412
+    INTERRUPTION_TYPE = 2432
+    INTERRUPTION_STATUS = 2433
+    INTERRUPTION_RESPONSE = 2434
+    # ...
+
+    # deployment [2800-3000]
+    # ...
+
+    # product [3000-3400]
+    # ...
+
+    # finance [3400-3800]
+    # ...
+
+    # social [3800-4200]
+    THREAD_STATUS = 3802
+    MESSAGE_TYPE = 3821
+    # ...
+
+    # locale [4200-4600]
+    # ...
+
+    # internet [4600-5000]
+    # ...
+
+    # infra [5000-5400]
+    CLOUD = 5000
+    REGION = 5001
+    REGION_AREA = 5002
+    REGION_CONTINENT = 5003
+    TENANCY = 5004
+    DATABASE_TYPE = 5010
+    MACHINE_TYPE = 5020
     # SEARCH_TYPE, WAREHOUSE_TYPE, ...
     # ...
 
-    # logic [1200-1600]
-    ACTION_CARDINALITY = 1221
-    CURSOR_TYPE = 1321
-    CURSOR_STATUS = 1322
-    SCHEDULE_FREQUENCY = 1330
-    TIMER_TYPE = 1331
-    TRIGGER_TYPE = 1332
+    # world [5400-5800]
     # ...
 
-    # runtime [1600-2000]
-    RUN_STATUS = 1611
-    RUN_TYPE = 1612
-    INTERRUPTION_TYPE = 1632
-    INTERRUPTION_STATUS = 1633
-    INTERRUPTION_RESPONSE = 1634
+    # model [5800-6000]
+    MODEL_DEVELOPER = 5801
+    MODEL_PROVIDER = 5802
+
+    # scene [8000-8100]
     # ...
 
-    # data [2000-2200]
-    TEXT_LINE_TYPE = 2001
-    TEXT_SPAN_TYPE = 2002
-    FILE_RETENTION_MODE = 2021
-    FILE_SOURCE = 2022
-    FILE_TYPE = 2023
-    FILE_FORMAT = 2024
-    ICON_TYPE = 2031
-    LINK_TYPE = 2051
-    PRIMITIVE_TYPE = 2101
-    TYPE_CARDINALITY = 2102
-    SCALAR_TYPE = 2103
-    DEFAULT_FACTORY = 2104
-    STRING_FORMAT = 2111
-    NUMBER_FORMAT = 2112
-    FIELD_TYPE = 2121
-    EDGE_TYPE = 2122
-    EDGE_DIRECTION = 2123
-    CASCADE_ACTION = 2124
-    DAY = 2131
-    MONTH = 2132
-    TIME_INTERVAL = 2133
-    RESOURCE_STATUS = 2201
+    # media [8100-8200]
     # ...
 
-    # custom [2200-2400]
+    # container views [8200-8300]
     # ...
 
-    # social [2400-2800]
-    THREAD_STATUS = 2402
-    MESSAGE_TYPE = 2421
+    # content views [8300-8400]
     # ...
 
-    # product [2800-3200]
+    # input views [8400-8500]
     # ...
 
-    # finance [3200-3600]
+    # node views [8500-8600]
     # ...
 
-    # locale [3600-4000]
+    # internal views [8600-8700]
     # ...
 
-    # web [4000-4200]
-    # ...
-
-    # world [4200-4400]
-    # ...
-
-    # model [4400-4600]
-    MODEL_DEVELOPER = 4401
-    MODEL_PROVIDER = 4402
-
-    # ui [8000-10000]
-
-    # space [8000-8100]
-    # ...
-
-    # container views [8100-8200]
-    # ...
-
-    # content views [8200-8300]
-    # ...
-
-    # input views [8300-8400]
-    # ...
-
-    # node views [8400-8500]
-    # ...
-
-    # internal views [8500-8600]
-    # ...
-
-    # style [9000-9100]
+    # style [9000-9200]
     POSITION_TYPE = 9001
     COLOR_TYPE = 9011
     COLOR_SHADE = 9012
@@ -452,10 +460,10 @@ class EnumType(BuiltinEnum):
     TEXT_SPLIT_TYPE = 9084
     OFFSCREEN_BEHAVIOR = 9085
 
-    # drawing
+    # canvas [9200-9400]
     # ...
 
-    # audio/media?
+    # animation [9400-9600]
     # ...
 
 
@@ -495,91 +503,100 @@ class StructType(BuiltinEnum):
     HISTOGRAM = 114
     VARIABLE = 121
 
-    # auth [200-600]
+    # access [400-600]
     # PROFILE? (for User, or maybe global?)
 
-    # space [600-800]
+    # folder [600-800]
     # ...
 
     # history [800-1000]
     # ...
 
-    # infra [1000-1200]
-    DATABASE_INFO = 1001
-    CELL_INFO = 1101
-
-    # logic [1200-1600]
-    SCHEDULE = 1201
+    # entity [1000-1400]
     # ...
 
-    # runtime [1600-2000]
-    ERROR = 1601
-    # ...
-
-    # data [2000-2200]
-    TYPE = 2001
-    NUMBER_CONSTRAINT = 2002
-    STRING_CONSTRAINT = 2003
-    COLLECTION_CONSTRAINT = 2004
-    NODE_CONSTRAINT = 2005
-    TEXT = 2101, None, None, "fas fa-text"
-    TEXT_LINE = 2102, None, None, "fas fa-text"
-    TEXT_SPAN = 2103, None, None, "fas fa-text"
-    ICON = 2131
-    SELECTION = 2071
+    # data [1400-1800]
+    VALUE = 1400
+    TYPE = 1401
+    NUMBER_CONSTRAINT = 1402
+    STRING_CONSTRAINT = 1403
+    COLLECTION_CONSTRAINT = 1404
+    NODE_CONSTRAINT = 1405
+    TEXT = 1421, None, None, "fas fa-text"
+    TEXT_LINE = 1422, None, None, "fas fa-text"
+    TEXT_SPAN = 1423, None, None, "fas fa-text"
+    ICON = 1431
+    SELECTION = 1471
     # SCHEMA, UNION, TAG, ...
 
-    # custom [2200-2400]
-    VALUE = 2201
+    # logic [1800-2000]
+    SCHEDULE = 1801
     # ...
 
-    # social [2400-2800]
+    # test [2000-2400]
     # ...
 
-    # product [2800-3200]
+    # runtime [2400-2800]
+    ERROR = 2401
     # ...
 
-    # finance [3200-3600]
+    # deployment [2800-3000]
     # ...
 
-    # locale [3600-4000]
+    # product [3000-3400]
     # ...
 
-    # web [4000-4200]
+    # finance [3400-3800]
     # ...
 
-    # world [4200-4400]
+    # social [3800-4200]
     # ...
 
-    # ui [8000-10000]
-
-    # space [8000-8100]
+    # locale [4200-4600]
     # ...
 
-    # container views [8100-8200]
+    # internet [4600-5000]
     # ...
 
-    # content views [8200-8300]
+    # infra [5000-5400]
+    DATABASE_INFO = 5001
+    CELL_INFO = 5101
+
+    # world [5400-5800]
     # ...
 
-    # input views [8300-8400]
+    # visual [8000-10000]
+    VECTOR2 = 8000, None, None, "fas fa-vector-square"
+    VECTOR3 = 8001, None, None, "fas fa-vector-square"
+    VECTOR4 = 8002, None, None, "fas fa-vector-square"
+    VECTOR2I = 8003, None, None, "fas fa-vector-square"
+    VECTOR3I = 8004, None, None, "fas fa-vector-square"
+    VECTOR4I = 8005, None, None, "fas fa-vector-square"
+    AXIS2 = 8007, None, None, "fas fa-vector-square"
+    AXIS3 = 8009, None, None, "fas fa-vector-square"
+
+    # scene [8000-8100]
     # ...
 
-    # node views [8400-8500]
+    # media [8100-8200]
     # ...
 
-    # internal views [8500-8600]
+    # container views [8200-8300]
     # ...
 
-    # style [9000-9100]
-    VECTOR2 = 9000, None, None, "fas fa-vector-square"
-    VECTOR3 = 9001, None, None, "fas fa-vector-square"
-    VECTOR4 = 9002, None, None, "fas fa-vector-square"
-    VECTOR2I = 9003, None, None, "fas fa-vector-square"
-    VECTOR3I = 9004, None, None, "fas fa-vector-square"
-    VECTOR4I = 9005, None, None, "fas fa-vector-square"
-    AXIS2 = 9007, None, None, "fas fa-vector-square"
-    AXIS3 = 9009, None, None, "fas fa-vector-square"
+    # content views [8300-8400]
+    # ...
+
+    # input views [8400-8500]
+    # ...
+
+    # node views [8500-8600]
+    # ...
+
+    # internal views [8600-8700]
+    # ...
+
+    # style [9000-9200]
     COLOR = 9011, None, None, "fas fa-palette"
     SHADOW = 9012, None, None, "fas fa-eclipse"
     BORDER = 9013, None, None, "fas fa-border-outer"
@@ -597,10 +614,10 @@ class StructType(BuiltinEnum):
     INSETS = 9030, None, None, "fas fa-corner"
     CORNERS = 9032, None, None, "fas fa-corner"
 
-    # canvas/drawing?
+    # canvas [9200-9400]
     # CANVAS, BRUSH, SHAPE, ...
 
-    # audio/media?
+    # animation [9400-9600]
     # SOUND, ...?
 
 
@@ -652,7 +669,7 @@ class NodeType(BuiltinEnum):
     # history [800-1000]
     # HISTORY, SNAPSHOT, OVERLAY, BRANCH, ...
 
-    # entity [1000-1200]
+    # entity [1000-1400]
     CUSTOM_ENTITY_DEFINITION = (
         1000,
         "Custom Node Definition",
@@ -664,89 +681,88 @@ class NodeType(BuiltinEnum):
     # SYNC, ...
     # TRAIT/INTERFACE/CUSTOM_TRAIT, ...
 
-    # data [1200-1400]
-    SCHEMA = 1200, "Schema", "Schema", "fas fa-shapes"
-    FIELD = 1210, "Field", "Field", "fas fa-triangle"
-    FILE = 1220, "File", "File", "fas fa-file"
-    LINK = 1250, "Link", "Link to something", "fas fa-link"
+    # data [1400-1800]
+    SCHEMA = 1400, "Schema", "Schema", "fas fa-shapes"
+    FIELD = 1410, "Field", "Field", "fas fa-triangle"
+    FILE = 1420, "File", "File", "fas fa-file"
+    LINK = 1430, "Link", "Link to something", "fas fa-link"
     # STREAM, SECRET, ...
 
-    # logic [1400-1600]
-    SCRIPT = 1400, "Script", "Script", "fas fa-code"
-    SERVICE = 1410, "Service", "Service", "fas fa-screwdriver-wrench"
-    ACTION = 1420, "Action", "Action", "fas fa-step-forward"
-    ROUTE = 1430, "Route", "Route", "fas fa-route"
-    TRIGGER = 1440, "Trigger", "Trigger", "fas fa-bolt"
-    TIMER = 1450, "Timer", "Timer", "fas fa-clock"
+    # logic [1800-2000]
+    SCRIPT = 1800, "Script", "Script", "fas fa-code"
+    SERVICE = 1810, "Service", "Service", "fas fa-screwdriver-wrench"
+    ACTION = 1820, "Action", "Action", "fas fa-step-forward"
+    ROUTE = 1830, "Route", "Route", "fas fa-route"
+    TRIGGER = 1840, "Trigger", "Trigger", "fas fa-bolt"
+    TIMER = 1841, "Timer", "Timer", "fas fa-clock"
     # BREAKPOINT, ...
-    CURSOR = 1460, "Cursor", "Position in something", "fas fa-mouse"
+    CURSOR = 1900, "Cursor", "Position in something", "fas fa-mouse"
     # ROOM, CHANNEL, LOCK, ...
     # TASK, ...
 
-    # test [1600-1800]
+    # test [2000-2400]
     # TEST, TEST_SUITE, TEST_CASE, TEST_RESULT, ...
 
-    # runtime [1800-2000]
-    RUN = 1800, "Run", "Run", "fas fa-play"
-    # RUN_QUEUE = 1801, "Run Queue", "Run Queue", "fas fa-list-check"
-    SPAN = 1810, "Span", "Span", "fas fa-ruler-horizontal"
-    INTERRUPTION = 1820, "Interruption", "Interruption", "fas fa-hand"
-    LOG = 1830, "Log", "Log", "fas fa-file-lines"
+    # runtime [2400-2800]
+    RUN = 2400, "Run", "Run", "fas fa-play"
+    # RUN_QUEUE = 2401, "Run Queue", "Run Queue", "fas fa-list-check"
+    SPAN = 2410, "Span", "Span", "fas fa-ruler-horizontal"
+    INTERRUPTION = 2420, "Interruption", "Interruption", "fas fa-hand"
+    LOG = 2430, "Log", "Log", "fas fa-file-lines"
     # JOB, ...
     CUSTOM_EVENT_DEFINITION = (
-        1840,
+        2500,
         "Custom Event Definition",
         "Custom Event Definition",
         "fas fa-signal",
     )
-    CUSTOM_EVENT = 1850, "Custom Event", "Custom Event", "fas fa-signal"
-    EDIT_EVENT = 1860, "Edit Event", "Edit Event", "fas fa-file-lines"
-    CHANGE_EVENT = 1870, "Change Event", "Change Event", "fas fa-file-lines"
-    QUERY_EVENT = 1880, "Query Event", "Query Event", "fas fa-file-lines"
+    CUSTOM_EVENT = 2501, "Custom Event", "Custom Event", "fas fa-signal"
+    EDIT_EVENT = 2502, "Edit Event", "Edit Event", "fas fa-file-lines"
+    CHANGE_EVENT = 2503, "Change Event", "Change Event", "fas fa-file-lines"
+    QUERY_EVENT = 2504, "Query Event", "Query Event", "fas fa-file-lines"
     # ERROR_EVENT, TRIGGER_EVENT, RUN_EVENT, ...
-    GAUGE_METRIC = 1890, "Gauge Metric", "Gauge Metric", "fas fa-gauge"
-    GAUGE_MEASUREMENT = 1900, "Gauge Measurement", "Gauge Measurement", "fas fa-gauge"
-    COUNTER_METRIC = 1910, "Counter Metric", "Counter Metric", "fas fa-gauge"
-    COUNTER_MEASUREMENT = 1920, "Counter Measurement", "Counter Measurement", "fas fa-gauge"
-    HISTOGRAM_METRIC = 1930, "Histogram Metric", "Histogram Metric", "fas fa-gauge"
-    HISTOGRAM_MEASUREMENT = 1940, "Histogram Measurement", "Histogram Measurement", "fas fa-gauge"
+    GAUGE_METRIC = 2600, "Gauge Metric", "Gauge Metric", "fas fa-gauge"
+    GAUGE_MEASUREMENT = 2601, "Gauge Measurement", "Gauge Measurement", "fas fa-gauge"
+    COUNTER_METRIC = 2602, "Counter Metric", "Counter Metric", "fas fa-gauge"
+    COUNTER_MEASUREMENT = 2603, "Counter Measurement", "Counter Measurement", "fas fa-gauge"
+    HISTOGRAM_METRIC = 2604, "Histogram Metric", "Histogram Metric", "fas fa-gauge"
+    HISTOGRAM_MEASUREMENT = 2605, "Histogram Measurement", "Histogram Measurement", "fas fa-gauge"
 
-    # deployment [2000-2200]
+    # deployment [2600-3000]
     # DEPLOYMENT, ...
     # PREVIEW, RELEASE, ROLLOUT, ...
     # INCIDENT, ESCALATION, ...
 
-    # product [2200-2400]
+    # product [3000-3400]
     # RECORDING/REPLAY, SURVEY, ...
-    # TOUR, FUNNEL, COHORT, JOURNEY, ..
-    # SEGMENT, EXPERIMENT, ...
+    # ONBOARDING, TOUR, FUNNEL, COHORT, JOURNEY, ..
     # FEATURE, FEATURE_FLAG, FEATURE_GATE, ...
+    # SEGMENT, EXPERIMENT, ...
 
-    # finance [2400-2600]
+    # finance [3400-3800]
     # WALLET, BALANCE, BUDGET, TRANSFER, CREDIT, ...
-    # TIER, SUBSCRIPTION, PRODUCT, PRICE, ORDER, INVOICE, DISCOUNT, DISPUTE, REFUND, ...
+    # TIER, SUBSCRIPTION, PRODUCT, PRICE, ...
+    # ORDER, INVOICE, DISCOUNT, DISPUTE, REFUND, ...
 
-    # social [2600-3000]
+    # social [3800-4200]
     # nocheckin: figure out how to have global *and* in-space Stars/Follows/... (Traits?)
-    THREAD = 2600, "Thread", "Thread", "fas fa-reel"
+    #  (same goes for Files... and maybe Threads)
+    THREAD = 3800, "Thread", "Thread", "fas fa-reel"
     # THREAD_MEMBERSHIP, ...
-    MESSAGE = 2610, "Message", "Message", "fas fa-message"
-    REACTION = 2620, "Reaction", "Reaction", "fas fa-heart"
-    STAR = 2630, "Star", "Star", "fas fa-star"
-    # FOLLOW = 2510, "Follow", "Follow", "fas fa-user-plus"
+    MESSAGE = 3810, "Message", "Message", "fas fa-message"
+    REACTION = 3820, "Reaction", "Reaction", "fas fa-heart"
+    STAR = 3830, "Star", "Star", "fas fa-star"
+    # FOLLOW, FEED, FEED_ITEM, ...
     # POLL, VOTE, REVIEW, RATING, RANK, ...
     # ACHIEVEMENT, BADGE, WISHLIST/WATCHLIST, ...
-    # FEED, FEED_ITEM, ...
-    NOTIFICATION = 2600, "Notification", "Notification", "fas fa-bell"
+    NOTIFICATION = 3900, "Notification", "Notification", "fas fa-bell"
 
-    # locale [3400-3600]
+    # locale [4200-4600]
     # LOCALE, STRING, TRANSLATION, ...
-    # internet [3600-3800]
+
+    # internet [4600-5000]
     # DOMAIN, ...
     # EMAIL, EMAIL_ATTEMPT, ...
-
-    # world [3800-4000]
-    # PHONE, ADDRESS, ...
 
     # infra [5000-5400]
     DATABASE = 5000, "Database", "Database for Postgres data", "fas fa-database"
@@ -755,10 +771,16 @@ class NodeType(BuiltinEnum):
     MACHINE = 5020, "Machine", "Machine for ephemeral computing", "fas fa-machine-classic"
     # HOST, ENDPOINT, DEPLOYMENT, NETWORK, AUTOSCALER, ...
 
+    # world [5000-5400]
+    # PHONE_NUMBER, ADDRESS, ...
+
     # scene [8000-8100]
     WINDOW = 8000, "Window", "Window", "fas fa-galaxy"
     SCENE = 8010, "Scene", "Scene of an Application", "fas fa-masks-theater"
-    # COMMAND, MENU, GESTURE, OVERLAY, WIDGET, ...
+    # COMMAND, MENU, OVERLAY, WIDGET, ...
+
+    # media [8100-8200]
+    # CAMERA, GESTURE, MICROPHONE, ...
 
     # container views [8200-8300]
     CUSTOM_VIEW_DEFINITION = (
@@ -768,10 +790,10 @@ class NodeType(BuiltinEnum):
         "fas fa-table",
     )
     CUSTOM_VIEW = 8201, "Custom View", "Custom View", "fas fa-table"
-    FRAME_VIEW = 8210, "Frame View", "Fixed Container", "fas fa-frame"
-    LABEL_VIEW = 8211, "Label View", "Label Container", "fas fa-font-case"
+    FRAME_VIEW = 8202, "Frame View", "Fixed Container", "fas fa-frame"
+    LABEL_VIEW = 8203, "Label View", "Label Container", "fas fa-font-case"
     # FORM_VIEW, MENU_VIEW, ...
-    SPLIT_VIEW = 8220, "Split View", "Split Container", "fas fa-columns"
+    SPLIT_VIEW = 8210, "Split View", "Split Container", "fas fa-columns"
     # SLOT_DEFINITION_VIEW = 8230, "Slot Definition View", "Slot Definition View", "fas fa-columns"
     # SLOT_VIEW = 8231, "Slot View", "Slot View", "fas fa-columns"
     # TAB_VIEW = 8221, "Tab Container View", "Tab Container", "fas fa-tabs"
@@ -779,38 +801,21 @@ class NodeType(BuiltinEnum):
 
     # content views [8300-8400]
     TEXT_VIEW = 8300, "Text View", "Text", "fas fa-text"
-    # CODE_VIEW = 8301, "Code View", "Code", "fas fa-code"
-    # ICON_VIEW = 8302, "Icon View", "Icon", "fas fa-icons"
-    # BUTTON_VIEW = 8310, "Button View", "Button", "fas fa-hand-pointer"
-    # LINK_VIEW = 8311, "Link View", "Link", "fas fa-link"
-    # IMAGE_VIEW = 8320, "Image View", "Image", "fas fa-image"
-    # AUDIO_VIEW = 8321, "Audio View", "Audio", "fas fa-volume"
-    # VIDEO_VIEW = 8322, "Video View", "Video", "fas fa-video"
-    # DOCUMENT_VIEW = 8323, "Document View", "Document", "fas fa-file-alt"
+    # CODE_VIEW, ICON_VIEW, IMAGE_VIEW, AUDIO_VIEW, VIDEO_VIEW, DOCUMENT_VIEW, ...
 
     # input views [8400-8500]
     NUMBER_INPUT_VIEW = 8400, "Number Input View", "Number Input", "fas fa-hashtag"
     SLIDER_INPUT_VIEW = 8401, "Slider Input View", "Slider Input", "fas fa-slider"
-    # STRING_INPUT_VIEW = 8402, "String Input View", "String", "fas fa-font-case"
-    # TOGGLE_INPUT_VIEW = 8403, "Toggle Input View", "Toggle", "fas fa-square-check"
-    # PICKER_INPUT_VIEW = 8410, "Picker Input View", "Picker", "fas fa-caret-circle-down"
-    # COLOR_INPUT_VIEW = 8411, "Color Input View", "Color", "fas fa-palette"
-    # ICON_INPUT_VIEW = 8412, "Icon Input View", "Icon", "fas fa-icons"
-    # FILE_INPUT_VIEW = 8413, "File Input View", "File", "fas fa-file"
-    # DATETIME_INPUT_VIEW = 8420, "Datetime Input View", "Datetime", "fas fa-calendar-days"
-    # DURATION_INPUT_VIEW = 8421, "Duration Input View", "Duration", "fas fa-stopwatch"
+    # STRING_INPUT_VIEW, TOGGLE_INPUT_VIEW, PICKER_INPUT_VIEW, COLOR_INPUT_VIEW, ...
+    # ICON_INPUT_VIEW, FILE_INPUT_VIEW, DATETIME_INPUT_VIEW, DURATION_INPUT_VIEW, ...
 
     # NOTE :Architecture: node and internal views should probably be defined in user space?
     # node views [8500-8600]
     THREAD_VIEW = 8530, "Thread View", "Thread", "fas fa-reel"
-    # THREAD_PREVIEW_VIEW, ...
-    # FILE_VIEW, FILE_CHIP_VIEW, FILE_PREVIEW_VIEW, ...
     # internal views [8600-8700]
     WIZARD_VIEW = 8600, "Wizard View", "Wizard", "fas fa-wand-sparkles"
-    # SIDEBAR_VIEW = 8601, "Sidebar View", "Sidebar", "fas fa-bars"
-    # CONTEXT_VIEW = 8602, "Context View", "Context", "fas fa-sitemap"
 
-    # style [9000-9100]
+    # style [9000-9200]
     THEME = 9000, "Theme", "Theme", "fas fa-palette"
     COLOR_STYLE = 9010, "Color Style", "Color Style", "fas fa-palette"
     FILL_STYLE = 9011, "Fill Style", "Fill Style", "fas fa-fill"
@@ -823,17 +828,16 @@ class NodeType(BuiltinEnum):
     # BRUSH_STYLE, ...
     # SHADER, MATERIAL, ...
 
-    # media [9100-9200]
-    # STAGE, ...
-    # ANIMATION, TRACK, KEYFRAME, FRAME, ...
-    # SOUND, ...
-    # CAMERA, MICROPHONE, ...
-
-    # canvas [9200-9300]
+    # canvas [9200-9400]
     # CANVAS, SKETCH, LAYER, ...
     # BITMAP, ...
     # SHAPE, ...
     # ANNOTATION, ...
+
+    # animation [9400-9600]
+    # STAGE, ...
+    # ANIMATION, TRACK, KEYFRAME, FRAME, ...
+    # SOUND, ...
 
 
 @enum_(EnumType.TRAIT_TYPE)
@@ -872,15 +876,15 @@ class TraitType(BuiltinEnum):
     HAS_SLUG = 31, "Slug", "Has a slug", "fas fa-hashtag"
     HAS_ICON = 32, "Icon", "Has an icon", "fas fa-icons"
 
-    # auth [200-600]
-    OWNABLE = 200, "Ownable", "Is ownable", "fas fa-user"
-    JOINABLE = 202, "Joinable", "Is joinable", "fas fa-users"
-    SUBJECT = 205, "Subject", "Is a Subject", "fas fa-user"
-    MEMBERSHIP = 210, "Membership", "Is a Membership", "fas fa-users"
-    INVITE = 211, "Invite", "Is an Invite", "fas fa-envelope"
-    ROLE = 212, "Role", "Is a Role", "fas fa-user-tag"
+    # access [400-600]
+    OWNABLE = 400, "Ownable", "Is ownable", "fas fa-user"
+    JOINABLE = 402, "Joinable", "Is joinable", "fas fa-users"
+    SUBJECT = 405, "Subject", "Is a Subject", "fas fa-user"
+    MEMBERSHIP = 410, "Membership", "Is a Membership", "fas fa-users"
+    INVITE = 411, "Invite", "Is an Invite", "fas fa-envelope"
+    ROLE = 412, "Role", "Is a Role", "fas fa-user-tag"
 
-    # space [600-800]
+    # folder [600-800]
     # ...
 
     # history [800-1000]
@@ -889,50 +893,79 @@ class TraitType(BuiltinEnum):
     # infra [1000-1200]
     # ...
 
-    # logic [1200-1600]
-    RUNNABLE = 1200, "Runnable", "Can be run", "fas fa-play"
-    SCRIPTABLE = 1201, "Scriptable", "Can be scripted", "fas fa-code"
-    SOURCEABLE = 1202, "Sourcable", "Can be defined in a Script", "fas fa-code"
-    METRIC = 1210, "Instrument", "Is an Instrument", "fas fa-microscope"
-    MEASUREMENT = 1211, "Measurement", "Is a Measurement", "fas fa-microscope"
-    CURSOR = 1212, "Cursor", "Is a Cursor", "fas fa-mouse-pointer"
+    # logic [1800-2200]
+    RUNNABLE = 1800, "Runnable", "Can be run", "fas fa-play"
+    SCRIPTABLE = 1801, "Scriptable", "Can be scripted", "fas fa-code"
+    SOURCEABLE = 1802, "Sourcable", "Can be defined in a Script", "fas fa-code"
+    METRIC = 1810, "Instrument", "Is an Instrument", "fas fa-microscope"
+    MEASUREMENT = 1811, "Measurement", "Is a Measurement", "fas fa-microscope"
+    CURSOR = 1812, "Cursor", "Is a Cursor", "fas fa-mouse-pointer"
 
-    # runtime [1600-2000]
+    # test [2000-2400]
     # ...
 
-    # data [2000-2200]
+    # runtime [2400-2800]
     # ...
 
-    # social [2400-2800]
+    # deployment [2800-3000]
+    # ...
+
+    # product [3000-3400]
+    # ...
+
+    # finance [3400-3800]
+    # ...
+
+    # social [3800-4200]
     # MESSAGE, THREAD, ...
-    STARABLE = 2500, "Starable", "Can be starred", "fas fa-star"
-    REACTABLE = 2501, "Reactable", "Can be reacted to", "fas fa-heart"
+    STARABLE = 3830, "Starable", "Can be starred", "fas fa-star"
+    REACTABLE = 3831, "Reactable", "Can be reacted to", "fas fa-heart"
     # RATEABLE, VOTABLE, ...
     # ASSIGNABLE, MESSAGEABLE, CLOSABLE, LOCKABLE, ...
 
-    # product [2800-3200]
+    # locale [4200-4600]
     # ...
 
-    # finance [3200-3600]
+    # internet [4600-5000]
     # ...
 
-    # locale [3600-4000]
+    # infra [5000-5400]
     # ...
 
-    # web [4000-4200]
+    # world [5400-5800]
     # ...
 
-    # world [4200-4400]
-    # ...
+    # visual [8000-10000]
 
-    # ui [8000-10000]
+    # scene [8000-8100]
     VIEW = 8001, "View", "Is a View", "fas fa-eye"
-    CONTAINER_VIEW = 8100, "Container View", "Is a Container View", "fas fa-container"
-    CONTENT_VIEW = 8200, "Content View", "Is a Content View", "fas fa-content"
-    INPUT_VIEW = 8300, "Input View", "Is an Input View", "fas fa-input"
-    NODE_VIEW = 8400, "Node View", "Is a Node View", "fas fa-node"
-    INTERNAL_VIEW = 8500, "Internal View", "Is an Internal View", "fas fa-internal"
+
+    # media [8100-8200]
+    # ...
+
+    # container views [8200-8300]
+    CONTAINER_VIEW = 8200, "Container View", "Is a Container View", "fas fa-container"
+
+    # content views [8300-8400]
+    CONTENT_VIEW = 8300, "Content View", "Is a Content View", "fas fa-content"
+
+    # input views [8400-8500]
+    INPUT_VIEW = 8400, "Input View", "Is an Input View", "fas fa-input"
+
+    # node views [8500-8600]
+    NODE_VIEW = 8500, "Node View", "Is a Node View", "fas fa-node"
+
+    # internal views [8600-8700]
+    INTERNAL_VIEW = 8600, "Internal View", "Is an Internal View", "fas fa-internal"
+
+    # style [9000-9200]
     STYLE = 9000, "Style", "Is a Style", "fas fa-palette"
+
+    # canvas [9200-9400]
+    # ...
+
+    # animation [9400-9600]
+    # ...
 
 
 @enum_(EnumType.AREA_TYPE)

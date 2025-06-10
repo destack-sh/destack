@@ -10,6 +10,7 @@ from ..builtin import (
     IsCustomNode,
     IsCustomNodeDefinition,
     IsDeletable,
+    IsEntity,
     IsEnvironmental,
     IsExtensible,
     IsInFolder,
@@ -34,8 +35,9 @@ logger = structlog.get_logger(__name__)
 
 @node_(NodeType.CUSTOM_ENTITY_DEFINITION)
 class CustomEntityDefinition(
-    IsEnvironmental,
     HasName,
+    IsEntity,
+    IsEnvironmental,
     IsCustomNodeDefinition,
     IsOwnable,
     IsDeletable,

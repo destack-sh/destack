@@ -6,6 +6,8 @@ from fastuuid import UUID
 from destack.language.core import (
     ClientType,
     HasName,
+    IndexIn,
+    IsEntity,
     IsGlobal,
     IsInSpace,
     IsSubject,
@@ -19,7 +21,6 @@ from destack.language.core import (
     property_parent_,
     struct_,
 )
-from destack.language.core.builtin.trait import IndexIn
 from destack.pb2 import ClientData, OriginData
 
 if TYPE_CHECKING:
@@ -32,7 +33,13 @@ if TYPE_CHECKING:
     NodeType.CLIENT,
     index=(IndexIn(columns=("access_token",), is_unique=True),),
 )
-class Client(HasName, IsInSpace, IsGlobal, Node[ClientData]):
+class Client(
+    HasName,
+    IsGlobal,
+    IsEntity,
+    IsInSpace,
+    Node[ClientData],
+):
     """A Client to connect with the system."""
 
     # meta

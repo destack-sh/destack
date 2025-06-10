@@ -7,6 +7,7 @@ from destack.language.core import (
     HasName,
     IsArchivable,
     IsDeletable,
+    IsEntity,
     IsEnvironmental,
     IsTracked,
     Node,
@@ -38,9 +39,10 @@ class ThemeColor(BuiltinEnum):
 
 @node_(NodeType.THEME)
 class Theme(
-    IsEnvironmental,
     HasName,
     HasIcon,
+    IsEntity,
+    IsEnvironmental,
     IsDeletable,
     IsArchivable,
     IsTracked,

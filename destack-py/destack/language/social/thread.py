@@ -6,11 +6,12 @@ from destack.language.core import (
     HasName,
     IsArchivable,
     IsDeletable,
+    IsEntity,
     IsEnvironmental,
+    IsInSpace,
     IsJoinable,
     IsOwnable,
     IsSubject,
-    IsTracked,
     Node,
     NodeType,
     enum_,
@@ -35,12 +36,13 @@ class ThreadStatus(BuiltinEnum):
 @node_(NodeType.THREAD)
 class Thread(
     HasName,
+    IsEntity,
     IsEnvironmental,
     IsArchivable,
     IsDeletable,
     IsJoinable,
     IsOwnable,
-    IsTracked,
+    IsInSpace,
     Node[ThreadData],
 ):
     """

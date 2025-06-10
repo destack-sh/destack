@@ -9,6 +9,7 @@ from destack.language.core import (
     BuiltinEnum,
     EnumType,
     IsDeletable,
+    IsEntity,
     IsEnvironmental,
     IsInFolder,
     IsOwnable,
@@ -48,6 +49,7 @@ class MessageType(BuiltinEnum):
 
 @node_(NodeType.MESSAGE)
 class Message(
+    IsEntity,
     IsOwnable,
     IsDeletable,
     IsEnvironmental,

@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
     HasSlug,
+    IsEntity,
     IsGlobal,
     IsInSpace,
     IsTracked,
@@ -23,6 +24,7 @@ if TYPE_CHECKING:
 class Handle(
     HasSlug,
     IsGlobal,
+    IsEntity,
     IsInSpace,
     IsTracked,
     Node[HandleData],

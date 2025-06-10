@@ -8,7 +8,6 @@ from destack.language.core import (
     EnumType,
     IsInSpace,
     IsResource,
-    IsSubject,
     IsTracked,
     Node,
     NodeReference,
@@ -36,7 +35,6 @@ class MachineType(BuiltinEnum):
 
 @node_(NodeType.MACHINE)
 class Machine(
-    IsSubject,
     IsResource,
     IsInSpace,
     IsTracked,

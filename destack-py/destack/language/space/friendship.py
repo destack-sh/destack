@@ -2,8 +2,10 @@ from typing import TYPE_CHECKING
 
 from destack.language.core import (
     IsDeletable,
+    IsEntity,
     IsGlobal,
     IsInvite,
+    IsOwnable,
     Node,
     NodeType,
     node_,
@@ -18,7 +20,11 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.FRIENDSHIP, root_type=None)
-class Friendship(IsGlobal, Node[FriendshipData]):
+class Friendship(
+    IsGlobal,
+    IsEntity,
+    Node[FriendshipData],
+):
     """A Friendship between two Users."""
 
     user_a: "User" = property_(40, can_write="system")
@@ -28,6 +34,8 @@ class Friendship(IsGlobal, Node[FriendshipData]):
 @node_(NodeType.FRIENDSHIP_INVITE, root_type=None)
 class FriendshipInvite(
     IsGlobal,
+    IsEntity,
+    IsOwnable,
     IsInvite,
     IsDeletable,
     Node[FriendshipInviteData],

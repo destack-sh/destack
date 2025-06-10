@@ -2,10 +2,10 @@ from typing import TYPE_CHECKING, Union
 
 from destack.language.core import (
     HasName,
+    IsEntity,
     IsEnvironmental,
     IsInFolder,
     IsTemplatable,
-    IsTracked,
     TraitType,
     property_parent_,
     trait_,
@@ -19,11 +19,11 @@ if TYPE_CHECKING:
 
 @trait_(TraitType.STYLE)
 class IsStyle(
+    HasName,
     IsTemplatable,
     IsEnvironmental,
-    HasName,
     IsInFolder,
-    IsTracked,
+    IsEntity,
 ):
     """A Style is a graphical interface."""
 

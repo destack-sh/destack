@@ -8,7 +8,7 @@ from .scaffold import *  # noqa: F403
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
 # ===============================================
-# ZurichAI/Common: Script
+# ZurichAI/Common [Script]
 # ===============================================
 
 
@@ -20,7 +20,7 @@ class TestSchema(Schema):
 SECRET = script.field("secret_key", 1, str)
 
 # ===============================================
-# ZurichAI/MeetupSeries: Entity
+# ZurichAI/MeetupSeries [Entity]
 # ===============================================
 
 
@@ -48,7 +48,7 @@ class MeetupCreated(Event):
 
 
 # ===============================================
-# ZurichAI/Meetup: Entity
+# ZurichAI/Meetup [Entity]
 # ===============================================
 
 
@@ -111,7 +111,7 @@ async def send_meetup_email(meetup: Meetup):
 
 
 # ===============================================
-# MeetupResponse
+# ZurichAI/MeetupResponse [Entity]
 # ===============================================
 
 

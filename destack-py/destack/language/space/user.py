@@ -10,6 +10,7 @@ from destack.language.core import (
     HasName,
     HasSlug,
     IndexIn,
+    IsEntity,
     IsGlobal,
     IsSubject,
     Node,
@@ -39,11 +40,12 @@ class UserStatus(BuiltinEnum):
     index=(IndexIn(columns=("email",), is_unique=True),),
 )
 class User(
-    IsGlobal,
-    IsSubject,
     HasName,
     HasIcon,
     HasSlug,
+    IsGlobal,
+    IsEntity,
+    IsSubject,
     Node[UserData],
 ):
     """A User is a human using Destack."""
