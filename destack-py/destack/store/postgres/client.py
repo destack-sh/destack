@@ -16,7 +16,7 @@ async def pg_connection(database: DatabaseBase) -> AsyncGenerator[asyncpg.Connec
     Context manager for an asyncpg.Connection.
     """
 
-    assert database.connection_url, f"no sql_url for {database!r}"
+    assert database.connection_url, f"no connection_url for {database!r}"
 
     pool = _pool_by_url.get(database.connection_url)
     if pool is None:

@@ -38,7 +38,6 @@ from .property import (
     property_,
     property_ancestor_,
     property_parent_,
-    property_runtime_,
 )
 
 if TYPE_CHECKING:
@@ -584,17 +583,15 @@ class IsInSpace(Trait):
     space: "Space | None" = property_ancestor_(6, is_required=True)
     if TYPE_CHECKING:
         space_ptr: Optional[NodeReference] = None
-    _space_ptr: Optional["NodeReference"] = property_runtime_(default=None)  # :CachedAncestors
 
 
-@trait_(TraitType.IN_PACKAGE)
+@trait_(TraitType.IN_FOLDER)
 class IsInFolder(IsInSpace):
-    """A Node in a Package."""
+    """A Node in a Folder."""
 
-    package: "Folder | None" = property_ancestor_(7, is_required=False)
+    folder: "Folder | None" = property_ancestor_(7, is_required=False)
     if TYPE_CHECKING:
-        package_ptr: Optional[NodeReference] = None
-    _package_ptr: Optional["NodeReference"] = property_runtime_(default=None)  # :CachedAncestors
+        folder_ptr: Optional[NodeReference] = None
 
 
 @trait_(TraitType.SOURCEABLE)

@@ -10,7 +10,6 @@ from destack.language.core import (
     IsArchivable,
     IsDeletable,
     IsEnvironmental,
-    IsGlobal,
     IsInFolder,
     IsInvite,
     IsJoinable,
@@ -79,7 +78,6 @@ class FolderRoleType(BuiltinEnum):
 
 @node_(NodeType.FOLDER_MEMBERSHIP)
 class FolderMembership(
-    IsGlobal,
     IsMembership,
     IsDeletable,
     IsInFolder,
@@ -94,7 +92,6 @@ class FolderMembership(
 
 @node_(NodeType.FOLDER_INVITE)
 class FolderInvite(
-    IsGlobal,
     IsInvite,
     IsDeletable,
     IsInFolder,

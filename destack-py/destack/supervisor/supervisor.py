@@ -186,7 +186,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
         )
         await session.stage()
 
-        # create main Package
+        # create main Folders
         root_folder = Folder(parent=space, type=FolderType.HOME, name="Home", slug="home")
         space.add_child(root_folder)
         space.root_folder = root_folder

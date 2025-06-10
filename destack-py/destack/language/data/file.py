@@ -850,10 +850,10 @@ async def upload_file(
         if session.runtime is not None and (runner := session.runtime.active_runner) is not None:
             parent = runner.thread.thread
         else:
-            package = space.root_folder if space is not None else None
-            if package is None:
-                raise ValueError(f"no Package to upload file {name!r} to in {session!r}")
-            parent = package
+            folder = space.root_folder if space is not None else None
+            if folder is None:
+                raise ValueError(f"no Folder to upload file {name!r} to in {session!r}")
+            parent = folder
 
     file.parent = parent
 

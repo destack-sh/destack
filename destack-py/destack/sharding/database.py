@@ -61,15 +61,16 @@ class StaticDatabaseProvider(DatabaseProvider):
         destack_schema_name = f"destack_{str(space.id).replace('-', '_')}"
         async with pg_connection(base_database) as conn:
             await conn.execute(f"CREATE SCHEMA IF NOT EXISTS {destack_schema_name}")
-        main_database = DatabaseInfo(
+        database = DatabaseInfo(
             type=base_database.type,
             tenancy=Tenancy.SHARED,
             region=base_database.region,
             cell_name=base_database.cell_name,
             external_name=base_database.external_name,
             custom_schema_name=destack_schema_name,
+            connection_url=base_database.connection_url,
         )
-        return main_database
+        return database
 
     @override
     async def resolve(
