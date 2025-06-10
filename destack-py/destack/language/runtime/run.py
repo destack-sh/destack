@@ -6,7 +6,7 @@ from fastuuid import UUID
 from destack.language.core import (
     IsEnvironmental,
     IsExtensible,
-    IsInFolder,
+    IsInSpace,
     IsParticle,
     IsRunnable,
     Node,
@@ -19,7 +19,7 @@ from destack.language.core import (
 from destack.pb2 import RunData
 
 if TYPE_CHECKING:
-    from destack.language import Error, Interruption, NodeReference, Thread
+    from destack.language import Error, Interruption, NodeReference
 
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 class Run(
     IsEnvironmental,
     IsExtensible,
-    IsInFolder,
+    IsInSpace,
     IsParticle,
     Node[RunData],
 ):
@@ -39,20 +39,12 @@ class Run(
 
     # meta
     type: RunType = property_(30, can_write="system", is_repr=True)
-    thread: Optional["Thread"] = property_(
-        38,
-        node_space_from="self",
-        description="The Thread to communicate with the Run. May be shared with other Runs.",
-    )
-    if TYPE_CHECKING:
-        thread_ptr: Optional[NodeReference] = None
-        thread_id: Optional[UUID] = None
 
     # content
-    runnable: Optional[IsRunnable] = property_(67)
+    target: Optional[IsRunnable] = property_(40)
     if TYPE_CHECKING:
-        runnable_ptr: Optional[NodeReference] = None
-        runnable_id: Optional[UUID] = None
+        target_ptr: Optional[NodeReference] = None
+        target_id: Optional[UUID] = None
 
     status: RunStatus = property_(80, default=RunStatus.CREATED, is_repr=True)
     duration: Optional[timedelta] = property_(
@@ -65,28 +57,28 @@ class Run(
     interruption: Optional["Interruption"] = property_(
         83,
         node_space_from="self",
-        description="The latest Interruption concerning the Node.",
+        description="The latest Interruption.",
         is_repr=True,
     )
     scheduled_at: Optional[datetime] = property_(
-        85, description="When the Node is scheduled to start."
+        85, description="When the Run is scheduled to start."
     )
     started_at: Optional[datetime] = property_(
-        86, description="When the Node first started.", is_repr=True
+        86, description="When the Run first started.", is_repr=True
     )
-    active_at: Optional[datetime] = property_(87, description="When the Node was last active.")
-    interrupted_at: Optional[datetime] = property_(88, description="When the Node was interrupted.")
+    active_at: Optional[datetime] = property_(87, description="When the Run was last active.")
+    interrupted_at: Optional[datetime] = property_(88, description="When the Run was interrupted.")
     terminated_at: Optional[datetime] = property_(
-        89, description="When the Node was last terminated."
+        89, description="When the Run was last terminated."
     )
     requested_stop_at: Optional[datetime] = property_(
-        90, description="When the Node was requested to stop."
+        90, description="When the Run was requested to stop."
     )
     requested_pause_at: Optional[datetime] = property_(
-        91, description="When the Node was requested to pause."
+        91, description="When the Run was requested to pause."
     )
     requested_resume_at: Optional[datetime] = property_(
-        92, description="When the Node was requested to resume."
+        92, description="When the Run was requested to resume."
     )
     if TYPE_CHECKING:
         interruption_ptr: Optional[NodeReference] = None

@@ -1,4 +1,4 @@
-from .error import Error, ErrorType
+from ..core.common.error import Error, ErrorType
 from .interruption import (
     INTERRUPTION_TYPE_BY_RUN_STATUS,
     RUN_STATUS_BY_INTERRUPTION_TYPE,

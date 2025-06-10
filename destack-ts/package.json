@@ -1,6 +1,6 @@
 {
   "name": "destack-ts",
-  "version": "2025.06.09.1",
+  "version": "2025.06.10.0",
   "private": true,
   "type": "module",
   "scripts": {

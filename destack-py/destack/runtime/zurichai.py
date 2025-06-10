@@ -8,7 +8,7 @@ from .scaffold import *  # noqa: F403
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
 # ===============================================
-# ZurichAI/Common: Service
+# ZurichAI/Common: Script
 # ===============================================
 
 
@@ -17,7 +17,7 @@ class TestSchema(Schema):
     pass
 
 
-SECRET = script.member("secret_key", 1, str)
+SECRET = script.field("secret_key", 1, str)
 
 # ===============================================
 # ZurichAI/MeetupSeries: Entity
@@ -28,9 +28,21 @@ SECRET = script.member("secret_key", 1, str)
 class MeetupSeries(IsStarable, IsFollowable, Entity):
     name: str | None = field(1)
 
+    @action
+    def create_meetup(
+        self: "MeetupSeries",
+        session: Session,
+        name: str,
+        capacity: int,
+        at: datetime,
+    ):
+        meetup = Meetup(name=name, capacity=capacity, at=at, series=self)
+        session.create(meetup)
+        return meetup
+
 
 @event
-class NewMeetup(Event):
+class MeetupCreated(Event):
     series: "MeetupSeries" = field(1)
     meetup: "Meetup" = field(2)
 
@@ -45,7 +57,16 @@ class Meetup(IsStarable, Entity):
     name: str | None = field(1)
     capacity: int = field(2)
     series: MeetupSeries | None = field(3)
-    at: datetime = field(4)
+    planned_at: datetime = field(4)
+
+    @action
+    def cancel(self: "Meetup"): ...
+
+    @action
+    def start(self: "Meetup"): ...
+
+    @action
+    def end(self: "Meetup"): ...
 
 
 @event
@@ -76,7 +97,7 @@ class MeetupEnded(Event):
 @on(Meetup.event(EditType.CREATE))
 @action
 def on_meetup_created(meetup: Meetup):
-    reminder_timer = Timer(name="ReminderTimer", at=meetup.at - timedelta(days=7))
+    reminder_timer = Timer(name="ReminderTimer", at=meetup.planned_at - timedelta(days=7))
     reminder_timer.on(
         Timer.TimerExpired,
         send_meetup_email(meetup=meetup),

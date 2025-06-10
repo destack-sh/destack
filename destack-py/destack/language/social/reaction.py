@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Union
 
 from destack.language.core import IsOwnable, Node, NodeType, node_, property_, property_parent_
+from destack.pb2 import ReactionData
 
 if TYPE_CHECKING:
     from destack.language import IsReactable
@@ -9,7 +10,7 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.REACTION)
-class Reaction(IsOwnable, Node["ReactionData"]):
+class Reaction(IsOwnable, Node[ReactionData]):
     """A Reaction is a relationship between a Subject and a Reaction Node."""
 
     parent: Union["IsReactable", None] = property_parent_(node_is_customizable=True)

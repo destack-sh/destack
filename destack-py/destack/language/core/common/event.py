@@ -2,6 +2,14 @@ from typing import TYPE_CHECKING
 
 from fastuuid import UUID
 
+from destack.pb2 import (
+    ChangeEventData,
+    CustomEventData,
+    CustomEventDefinitionData,
+    EditEventData,
+    QueryEventData,
+)
+
 from ..builtin import (
     UNSET,
     HasName,
@@ -30,7 +38,12 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.EDIT_EVENT, pretend_frozen=True)
-class EditEvent(IsEnvironmental, IsEvent, IsInFolder, Node):
+class EditEvent(
+    IsEnvironmental,
+    IsEvent,
+    IsInFolder,
+    Node[EditEventData],
+):
     """A Event of an Edit."""
 
     # key
@@ -53,14 +66,24 @@ class EditEvent(IsEnvironmental, IsEvent, IsInFolder, Node):
 
 
 @node_(NodeType.CHANGE_EVENT, pretend_frozen=True)
-class ChangeEvent(IsEnvironmental, IsEvent, IsInFolder, Node):
+class ChangeEvent(
+    IsEnvironmental,
+    IsEvent,
+    IsInFolder,
+    Node[ChangeEventData],
+):
     """A Event of a Change."""
 
     pass
 
 
 @node_(NodeType.QUERY_EVENT, pretend_frozen=True)
-class QueryEvent(IsEnvironmental, IsEvent, IsInFolder, Node):
+class QueryEvent(
+    IsEnvironmental,
+    IsEvent,
+    IsInFolder,
+    Node[QueryEventData],
+):
     """A Event of a Query."""
 
     pass
@@ -71,7 +94,7 @@ class CustomEventDefinition(
     HasName,
     IsSourceable,
     IsInFolder,
-    Node,
+    Node[CustomEventDefinitionData],
 ):
     """A CustomEventDefinition defines a kind of CustomEvent."""
 
@@ -79,7 +102,7 @@ class CustomEventDefinition(
 
 
 @node_(NodeType.CUSTOM_EVENT, pretend_frozen=True)
-class CustomEvent(IsInFolder, IsEvent, Node):
+class CustomEvent(IsInFolder, IsEvent, Node[CustomEventData]):
     """An instance of a CustomEventDefinition."""
 
     definition: CustomEventDefinition = property_(

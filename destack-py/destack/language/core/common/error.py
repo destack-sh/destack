@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from destack.language.core import (
+from ..builtin import (
     BuiltinEnum,
     DestackError,
     EnumType,
