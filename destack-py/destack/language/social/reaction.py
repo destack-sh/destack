@@ -1,0 +1,17 @@
+from typing import TYPE_CHECKING, Union
+
+from destack.language.core import IsOwnable, Node, NodeType, node_, property_, property_parent_
+
+if TYPE_CHECKING:
+    from destack.language import IsReactable
+
+# pyright: reportIncompatibleVariableOverride=false
+
+
+@node_(NodeType.REACTION)
+class Reaction(IsOwnable, Node["ReactionData"]):
+    """A Reaction is a relationship between a Subject and a Reaction Node."""
+
+    parent: Union["IsReactable", None] = property_parent_(node_is_customizable=True)
+
+    content: str = property_(40)

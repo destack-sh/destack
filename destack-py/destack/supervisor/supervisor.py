@@ -179,8 +179,8 @@ class SupervisorService(ServiceBase, SupervisorBase):
                 AreaType.GLOBAL_DATABASE: PostgresStore(
                     database=self.global_database, area=AreaType.GLOBAL_DATABASE
                 ),
-                AreaType.MAIN_DATABASE: PostgresStore(
-                    database=main_database, area=AreaType.MAIN_DATABASE
+                AreaType.SPACE_DATABASE: PostgresStore(
+                    database=main_database, area=AreaType.SPACE_DATABASE
                 ),
             },
         )

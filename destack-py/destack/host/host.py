@@ -114,7 +114,7 @@ class HostService(ServiceBase, HostBase):
             ).execute_one()
             if (database := space.database) is not None:
                 self.main_postgres_store = PostgresStore(
-                    database=database.to_info(), area=AreaType.MAIN_DATABASE
+                    database=database.to_info(), area=AreaType.SPACE_DATABASE
                 )
 
     def stop(self) -> None:

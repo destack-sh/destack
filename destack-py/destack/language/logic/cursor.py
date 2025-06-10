@@ -5,7 +5,6 @@ from destack.language.core import (
     BuiltinEnum,
     EnumType,
     Expression,
-    HasTitle,
     IsDeletable,
     IsEnvironmental,
     IsInFolder,
@@ -66,7 +65,6 @@ class CursorStatus(BuiltinEnum):
 @node_(NodeType.CURSOR)
 class Cursor(
     IsEnvironmental,
-    HasTitle,
     IsOwnable,
     IsInFolder,
     IsDeletable,

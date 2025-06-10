@@ -48,7 +48,8 @@ class Organization(
     An Organization with Users and Teams.
     """
 
-    # parent: Organization for nesting?
+    # meta
+    slug: str = property_(33, is_repr=True)
     status: OrganizationStatus = property_(
         38, can_write="system", is_repr=True, default=OrganizationStatus.CREATING
     )

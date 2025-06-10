@@ -74,7 +74,7 @@ async def make(
         )
 
     # diff main
-    if area in (None, AreaType.MAIN_DATABASE):
+    if area in (None, AreaType.SPACE_DATABASE):
         main_database = await DATABASE_PROVIDER.resolve_or_error(
             region or REGION, cell_name, external_name
         )
@@ -161,7 +161,7 @@ async def apply(
     if area == AreaType.GLOBAL_DATABASE:
         global_database = get_global_database_from_env()
         databases = [global_database]
-    elif area == AreaType.MAIN_DATABASE:
+    elif area == AreaType.SPACE_DATABASE:
         assert cell_name, "cell_name is required for main area"
         assert external_name, "external_name is required for main area"
         main_database = await DATABASE_PROVIDER.resolve_or_error(

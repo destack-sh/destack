@@ -27,7 +27,6 @@ if TYPE_CHECKING:
         Message,
         Run,
         Span,
-        Task,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -103,11 +102,6 @@ class Interruption(
     message: Optional["Message"] = property_(
         55,
         description="The Message that was created for this Interruption.",
-        node_space_from="self",
-    )
-    task: Optional["Task"] = property_(
-        56,
-        description="The Task that was created for this Interruption.",
         node_space_from="self",
     )
 

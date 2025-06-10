@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Union
 from destack.language.core import (
     BuiltinEnum,
     EnumType,
-    HasTitle,
+    HasName,
     IsArchivable,
     IsDeletable,
     IsEnvironmental,
@@ -15,6 +15,7 @@ from destack.language.core import (
     NodeType,
     enum_,
     node_,
+    property_,
     property_parent_,
 )
 from destack.pb2 import ThreadData
@@ -33,8 +34,8 @@ class ThreadStatus(BuiltinEnum):
 
 @node_(NodeType.THREAD)
 class Thread(
+    HasName,
     IsEnvironmental,
-    HasTitle,
     IsArchivable,
     IsDeletable,
     IsJoinable,
@@ -50,6 +51,7 @@ class Thread(
 
     # meta
     parent: Union["Folder", "Thread", None] = property_parent_(node_is_customizable=True)
+    name: str = property_(31, is_repr=True)
 
     def get_cursor(self, *, type: "CursorType", owned_by: "IsSubject | None") -> "Cursor | None":
         """Get a Cursor of the given type."""

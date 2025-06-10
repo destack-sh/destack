@@ -5,7 +5,6 @@ from fastuuid import UUID
 from ..builtin import (
     UNSET,
     HasName,
-    HasSlug,
     IsEnvironmental,
     IsEvent,
     IsInFolder,
@@ -70,7 +69,6 @@ class QueryEvent(IsEnvironmental, IsEvent, IsInFolder, Node):
 @node_(NodeType.CUSTOM_EVENT_DEFINITION)
 class CustomEventDefinition(
     HasName,
-    HasSlug,
     IsSourceable,
     IsInFolder,
     Node,

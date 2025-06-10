@@ -8,6 +8,7 @@ from destack.language.core import (
     Node,
     NodeType,
     node_,
+    property_,
     property_parent_,
 )
 from destack.pb2 import HandleData
@@ -29,3 +30,5 @@ class Handle(
     """A Destack @handle."""
 
     parent: Optional["Space"] = property_parent_(node_is_customizable=False)
+
+    slug: str = property_(33, is_repr=True)

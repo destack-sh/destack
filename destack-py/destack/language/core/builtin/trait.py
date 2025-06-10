@@ -55,7 +55,6 @@ if TYPE_CHECKING:
         Script,
         Sort,
         Space,
-        TextLine,
         TraitInfo,
         Value,
     )
@@ -395,14 +394,7 @@ class Trait(Node if TYPE_CHECKING else NodeBase):
 class HasName(Trait):
     """A Node with a plain name."""
 
-    name: str = property_(31)
-
-
-@trait_(TraitType.HAS_TITLE)
-class HasTitle(Trait):
-    """A Node with a rich title."""
-
-    title: Optional["TextLine"] = property_(32)
+    name: str = property_(31, is_repr=True)
 
 
 @trait_(TraitType.HAS_SLUG)
@@ -467,6 +459,33 @@ class IsTracked(Trait):
         updated_by_id: Optional[UUID] = None
         updated_by_type: NodeType | None = None
         updated_by_ptr: Optional[NodeReference] = None
+
+
+@trait_(TraitType.ENTITY)
+class IsEntity(IsTracked):
+    """A Node that is an Entity."""
+
+    pass
+
+
+@trait_(TraitType.PARTICLE)
+class IsParticle(IsTracked):
+    """A Node that is a Particle."""
+
+    pass
+
+
+@trait_(TraitType.RESOURCE)
+class IsResource(IsEntity):
+    """
+    A Resource with its own lifecycle (usually managed by some provisioner).
+    """
+
+    # status
+    status: ResourceStatus = property_(40, default=ResourceStatus.PENDING)
+    target_status: Optional[datetime] = property_(41)
+    failed_at: Optional[datetime] = property_(47, can_write="system")
+    failed_attempts: int = property_(48, default=0, can_write="system")
 
 
 @trait_(TraitType.FROZEN, pretend_frozen=True)
@@ -576,6 +595,20 @@ class IsOrdered(Trait):
     order_key: str | None = property_(19, is_eq=False, default=INTEGER_ZERO)
 
 
+@trait_(TraitType.REACTABLE)
+class IsReactable(Trait):
+    """A Node that can be reacted to."""
+
+    pass
+
+
+@trait_(TraitType.STARABLE)
+class IsStarable(Trait):
+    """A Node that can be starred."""
+
+    pass
+
+
 @trait_(TraitType.IN_SPACE)
 class IsInSpace(Trait):
     """A Node inside a Space."""
@@ -603,7 +636,7 @@ class IsSourceable(Trait):
 
 
 @trait_(TraitType.SCRIPTABLE)
-class IsScriptable(IsSourceable):
+class IsScriptable(Trait):
     """A Node that can be scripted."""
 
     script: Optional["Script"] = property_(200)
@@ -631,7 +664,7 @@ class IsMeasurement(IsCustomNode):
 
 
 @trait_(TraitType.EVENT, pretend_frozen=True)
-class IsEvent(IsFrozen):
+class IsEvent(IsParticle, IsFrozen):
     """A Node that represents an Event."""
 
     pass
@@ -681,25 +714,3 @@ class IsRole(Trait):
     """A Node that represents a Role."""
 
     pass
-
-
-@trait_(TraitType.ASSET)
-class IsAsset(IsEnvironmental, IsOwnable, HasName):
-    """
-    An Asset is any external object.
-    """
-
-    pass
-
-
-@trait_(TraitType.RESOURCE)
-class IsResource(IsAsset):
-    """
-    A Resource with its own lifecycle (usually managed by some provisioner).
-    """
-
-    # status
-    status: ResourceStatus = property_(40, default=ResourceStatus.PENDING)
-    target_status: Optional[datetime] = property_(41)
-    failed_at: Optional[datetime] = property_(47, can_write="system")
-    failed_attempts: int = property_(48, default=0, can_write="system")
