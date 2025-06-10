@@ -40,13 +40,9 @@ from .type import (
 
 if TYPE_CHECKING:
     from destack.language import (
-        Action,
-        Agent,
         CustomEntityDefinition,
-        IsView,
+        IsExtensible,
         NodeReference,
-        Scene,
-        Schema,
         Type,
         Value,
     )
@@ -81,9 +77,7 @@ class Field(
     A Field is a user-defined attribute.
     """
 
-    parent: Union[
-        "Agent", "Action", "Schema", "CustomEntityDefinition", "Scene", "IsView", None
-    ] = property_parent_(node_is_customizable=True)
+    parent: Union["IsExtensible", None] = property_parent_(node_is_customizable=True)
     type: FieldType = property_(30, default=FieldType.MEMBER)
 
     # scalar

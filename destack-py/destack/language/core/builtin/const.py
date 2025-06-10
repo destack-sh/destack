@@ -323,7 +323,7 @@ class EnumType(BuiltinEnum):
     CLOUD = 1000
     REGION = 1001
     REGION_AREA = 1002
-    CONTINENT = 1003
+    REGION_CONTINENT = 1003
     TENANCY = 1004
     DATABASE_TYPE = 1010
     MACHINE_TYPE = 1011
@@ -609,11 +609,7 @@ class NodeType(BuiltinEnum):
     SPACE_MEMBERSHIP = 2, "Space Membership", "Membership in a Space", "fas fa-user-group"
     SPACE_INVITE = 3, "Space Invite", "Invite to a Space", "fas fa-user-plus"
     # DESTACK_MIGRATION?
-    FOLDER = 50, "Folder", "Sub-space of a Space", "fas fa-folder-open"
-    FOLDER_MEMBERSHIP = 51, "Folder Membership", "Membership in a Folder", "fas fa-user-group"
-    FOLDER_INVITE = 52, "Folder Invite", "Invite to a Folder", "fas fa-user-plus"
     HANDLE = 100, "Handle", "Unique @handle", "fas fa-at"
-    # DEPENDENCY, PLUGIN, ...
 
     # auth [200-600]
     USER = 200, "User", "User", "fas fa-user"
@@ -638,19 +634,21 @@ class NodeType(BuiltinEnum):
         "fas fa-user-plus",
     )
     CLIENT = 300, "Client", "Client to a Destack", "fas fa-desktop"
-    # TEAM, ...
+    # TEAM, TEAM_MEMBERSHIP, TEAM_INVITE, ...
     # CREDENTIAL, ACCOUNT, PROFILE, ...
     # PERMISSION, PERMISSION_GROUP, ...
     # CHALLENGE, FRIENDSHIP, ENTITLEMENT, POLICY, RULE, KICK/BAN, ...
+    AGENT = 1300, "Agent", "Identity for an AI", "fas fa-robot"
 
-    # scene [600-800]
-    WINDOW = 600, "Window", "Window", "fas fa-galaxy"
-    SCENE = 610, "Scene", "Scene of an Application", "fas fa-masks-theater"
-    ROUTE = 620, "Route", "Route to a Scene", "fas fa-route"
-    # COMMAND, OVERLAY, WIDGET, ...
+    # folder [600-800]
+    FOLDER = 600, "Folder", "Sub-space of a Space", "fas fa-folder-open"
+    FOLDER_MEMBERSHIP = 601, "Folder Membership", "Membership in a Folder", "fas fa-user-group"
+    FOLDER_INVITE = 602, "Folder Invite", "Invite to a Folder", "fas fa-user-plus"
+    # DEPENDENCY, ...
+    # TAG/TAGGING, ...
 
     # history [800-1000]
-    # CHANGE, HISTORY, SNAPSHOT, OVERLAY, BRANCH, ...
+    # HISTORY, SNAPSHOT, OVERLAY, BRANCH, ...
 
     # infra [1000-1200]
     DATABASE = 1000, "Database", "Database for Postgres data", "fas fa-database"
@@ -659,27 +657,41 @@ class NodeType(BuiltinEnum):
     MACHINE = 1150, "Machine", "Machine for ephemeral computing", "fas fa-machine-classic"
     # HOST, ENDPOINT, DEPLOYMENT, NETWORK, AUTOSCALER, ...
 
-    # logic [1200-1600]
+    # entity
+    CUSTOM_ENTITY_DEFINITION = (
+        2200,
+        "Custom Node Definition",
+        "Custom Node Definition",
+        "fas fa-table",
+    )
+    CUSTOM_ENTITY = 2201, "Custom Node Instance", "Custom Node Instance", "fas fa-database"
+    # INDEX, CONSTRAINT, MIGRATION, ...
+    # TRAIT/INTERFACE, ...
+
+    # logic [1200-1400]
     SCRIPT = 1200, "Script", "Script", "fas fa-code"
     # SCRIPT_FILE, ...
     SERVICE = 1210, "Service", "Service", "fas fa-screwdriver-wrench"
     ACTION = 1220, "Action", "Action", "fas fa-step-forward"
-    AGENT = 1300, "Agent", "Identity for an AI", "fas fa-robot"
-    TASK = 1310, "Task", "To-do item", "far fa-square-check"
-    CURSOR = 1320, "Cursor", "Position in something", "fas fa-mouse"
-    # TRIGGER, ...
-    # TRAIT/INTERFACE, ...
+    ROUTE = 700, "Route", "Route to a Scene", "fas fa-route"
+    # TIMER, BREAKPOINT, ...
+
+    # test [1400-1500]
     # TEST, TEST_SUITE, TEST_CASE, TEST_RESULT, ...
 
-    # runtime [1600-2000]
-    RUN = 1610, "Run", "Run", "fas fa-play"
-    SPAN = 1620, "Span", "Span", "fas fa-ruler-horizontal"
-    INTERRUPTION = 1630, "Interruption", "Interruption", "fas fa-hand"
-    LOG = 1640, "Log", "Log", "fas fa-file-lines"
-    # ROOM, JOB, PLAN, LOCK, ...
-    # EVENT, SIGNAL, ...
-    # TIMER, BREAKPOINT, ...
+    # sync [1500-1600]
+    CURSOR = 1500, "Cursor", "Position in something", "fas fa-mouse"
+    TASK = 1510, "Task", "To-do item", "far fa-square-check"
+    # ROOM, JOB, LOCK, ...
+
+    # run [1600-1700]
+    RUN = 1600, "Run", "Run", "fas fa-play"
+    SPAN = 1610, "Span", "Span", "fas fa-ruler-horizontal"
+    INTERRUPTION = 1620, "Interruption", "Interruption", "fas fa-hand"
+    LOG = 1630, "Log", "Log", "fas fa-file-lines"
     # INSTRUMENT, MEASUREMENT,
+
+    # event [1700-1800]
     CUSTOM_EVENT_DEFINITION = 1700, "Signal Definition", "Signal Definition", "fas fa-signal"
     CUSTOM_EVENT = 1701, "Signal Instance", "Signal Instance", "fas fa-signal"
     EDIT_EVENT = 1710, "Edit Event", "Edit Event", "fas fa-file-lines"
@@ -692,26 +704,22 @@ class NodeType(BuiltinEnum):
     FILE = 2020, "File", "File", "fas fa-file"
     LINK = 2050, "Link", "Link to something", "fas fa-link"
     # STREAM, SECRET, ...
-    CUSTOM_ENTITY_DEFINITION = (
-        2200,
-        "Custom Node Definition",
-        "Custom Node Definition",
-        "fas fa-table",
-    )
-    CUSTOM_ENTITY = 2201, "Custom Node Instance", "Custom Node Instance", "fas fa-database"
-    # INDEX, CONSTRAINT, MIGRATION, ...
 
     # social [2400-2800]
     THREAD = 2400, "Thread", "Thread", "fas fa-reel"
+    # THREAD_MEMBERSHIP, ...
     MESSAGE = 2420, "Message", "Message", "fas fa-message"
-    # POLL, STAR, VOTE, REVIEW, RATING, RANK, REACTION, ...
-    # FOLLOW, FEED, FEED_ITEM, ...
+    REACTION = 2500, "Reaction", "Reaction", "fas fa-heart"
+    STAR = 2501, "Star", "Star", "fas fa-star"
+    FOLLOW = 2510, "Follow", "Follow", "fas fa-user-plus"
+    # POLL, VOTE, REVIEW, RATING, RANK, ...
+    # FEED, FEED_ITEM, ...
     # CHANNEL, NOTIFICATION, ...
     # ACHIEVEMENT, BADGE, WISHLIST/WATCHLIST, ...
 
     # product [2800-3200]
     # PREVIEW, RELEASE, ROLLOUT, ...
-    # METER/METRIC, RECORDING/REPLAY, SURVEY, ...
+    # RECORDING/REPLAY, SURVEY, ...
     # TOUR, FUNNEL, COHORT, JOURNEY, ..
     # SEGMENT, EXPERIMENT, FEATURE, FEATURE_FLAG, FEATURE_GATE, ...
 
@@ -729,66 +737,65 @@ class NodeType(BuiltinEnum):
     # world [4200-4400]
     # PHONE, ADDRESS, ...
 
-    # ui [8000-10000]
+    # scene [8000-8100]
+    WINDOW = 8000, "Window", "Window", "fas fa-galaxy"
+    SCENE = 8010, "Scene", "Scene of an Application", "fas fa-masks-theater"
+    # COMMAND, OVERLAY, WIDGET, ...
 
-    # space [8000-8100]
-
-    # container views [8100-8200]
-    FRAME_VIEW = 8100, "Frame View", "Fixed Container", "fas fa-frame"
-    LABEL_VIEW = 8101, "Label View", "Label Container", "fas fa-font-case"
-    # FORM_VIEW, MENU_VIEW, EMAIL_VIEW, ...
+    # container views [8200-8300]
+    FRAME_VIEW = 8200, "Frame View", "Fixed Container", "fas fa-frame"
+    LABEL_VIEW = 8201, "Label View", "Label Container", "fas fa-font-case"
+    # FORM_VIEW, MENU_VIEW, ...
     CUSTOM_VIEW_DEFINITION = (
-        8110,
+        8210,
         "Custom View Definition",
         "Custom View Definition",
         "fas fa-table",
     )
-    CUSTOM_VIEW = 8111, "Custom View", "Custom View", "fas fa-table"
-    SPLIT_VIEW = 8120, "Split View", "Split Container", "fas fa-columns"
-    # TAB_VIEW = 8120, "Tab Container View", "Tab Container", "fas fa-tabs"
+    CUSTOM_VIEW = 8211, "Custom View", "Custom View", "fas fa-table"
+    SPLIT_VIEW = 8220, "Split View", "Split Container", "fas fa-columns"
+    # TAB_VIEW = 8221, "Tab Container View", "Tab Container", "fas fa-tabs"
     # DRAWER_VIEW, SPLIT_DRAWER_VIEW, GRID/GRID_ELEMENT_VIEW, ...
 
-    # content views [8200-8300]
-    TEXT_VIEW = 8200, "Text View", "Text", "fas fa-text"
-    # CODE_VIEW = 8201, "Code View", "Code", "fas fa-code"
-    # ICON_VIEW = 8202, "Icon View", "Icon", "fas fa-icons"
-    # BUTTON_VIEW = 8210, "Button View", "Button", "fas fa-hand-pointer"
-    # LINK_VIEW = 8211, "Link View", "Link", "fas fa-link"
-    # IMAGE_VIEW = 8220, "Image View", "Image", "fas fa-image"
-    # AUDIO_VIEW = 8221, "Audio View", "Audio", "fas fa-volume"
-    # VIDEO_VIEW = 8222, "Video View", "Video", "fas fa-video"
-    # DOCUMENT_VIEW = 8223, "Document View", "Document", "fas fa-file-alt"
+    # content views [8300-8400]
+    TEXT_VIEW = 8300, "Text View", "Text", "fas fa-text"
+    # CODE_VIEW = 8301, "Code View", "Code", "fas fa-code"
+    # ICON_VIEW = 8302, "Icon View", "Icon", "fas fa-icons"
+    # BUTTON_VIEW = 8310, "Button View", "Button", "fas fa-hand-pointer"
+    # LINK_VIEW = 8311, "Link View", "Link", "fas fa-link"
+    # IMAGE_VIEW = 8320, "Image View", "Image", "fas fa-image"
+    # AUDIO_VIEW = 8321, "Audio View", "Audio", "fas fa-volume"
+    # VIDEO_VIEW = 8322, "Video View", "Video", "fas fa-video"
+    # DOCUMENT_VIEW = 8323, "Document View", "Document", "fas fa-file-alt"
 
-    # input views [8300-8400]
-    NUMBER_INPUT_VIEW = 8300, "Number Input View", "Number Input", "fas fa-hashtag"
-    SLIDER_INPUT_VIEW = 8301, "Slider Input View", "Slider Input", "fas fa-slider"
-    # STRING_INPUT_VIEW = 8302, "String Input View", "String", "fas fa-font-case"
-    # TOGGLE_INPUT_VIEW = 8303, "Toggle Input View", "Toggle", "fas fa-square-check"
-    # PICKER_INPUT_VIEW = 8310, "Picker Input View", "Picker", "fas fa-caret-circle-down"
-    # COLOR_INPUT_VIEW = 8311, "Color Input View", "Color", "fas fa-palette"
-    # ICON_INPUT_VIEW = 8312, "Icon Input View", "Icon", "fas fa-icons"
-    # FILE_INPUT_VIEW = 8313, "File Input View", "File", "fas fa-file"
-    # DATETIME_INPUT_VIEW = 8320, "Datetime Input View", "Datetime", "fas fa-calendar-days"
-    # DURATION_INPUT_VIEW = 8321, "Duration Input View", "Duration", "fas fa-stopwatch"
+    # input views [8400-8500]
+    NUMBER_INPUT_VIEW = 8400, "Number Input View", "Number Input", "fas fa-hashtag"
+    SLIDER_INPUT_VIEW = 8401, "Slider Input View", "Slider Input", "fas fa-slider"
+    # STRING_INPUT_VIEW = 8402, "String Input View", "String", "fas fa-font-case"
+    # TOGGLE_INPUT_VIEW = 8403, "Toggle Input View", "Toggle", "fas fa-square-check"
+    # PICKER_INPUT_VIEW = 8410, "Picker Input View", "Picker", "fas fa-caret-circle-down"
+    # COLOR_INPUT_VIEW = 8411, "Color Input View", "Color", "fas fa-palette"
+    # ICON_INPUT_VIEW = 8412, "Icon Input View", "Icon", "fas fa-icons"
+    # FILE_INPUT_VIEW = 8413, "File Input View", "File", "fas fa-file"
+    # DATETIME_INPUT_VIEW = 8420, "Datetime Input View", "Datetime", "fas fa-calendar-days"
+    # DURATION_INPUT_VIEW = 8421, "Duration Input View", "Duration", "fas fa-stopwatch"
 
     # NOTE :Architecture: node and internal views should probably be defined in user space?
-
-    # node views [8400-8500]
-    # NODE_VIEW = 8400, "Node View", "Node", "fas fa-hexagon"
-    # NODE_CHIP_VIEW = 8401, "Node Chip View", "Node Chip", "fas fa-hexagon"
-    # NODE_PATH = 8405, "Node Path", "Node Path", "fas fa-sitemap"
-    # PAGE_VIEW = 8410, "Page View", "Page", "far fa-file"
+    # node views [8500-8600]
+    # NODE_VIEW = 8500, "Node View", "Node", "fas fa-hexagon"
+    # NODE_CHIP_VIEW = 8501, "Node Chip View", "Node Chip", "fas fa-hexagon"
+    # NODE_PATH = 8505, "Node Path", "Node Path", "fas fa-sitemap"
+    # PAGE_VIEW = 8510, "Page View", "Page", "far fa-file"
     # PAGE_PREVIEW_VIEW, ...
-    # TABLE_VIEW = 8420, "Table View", "Table", "fas fa-table"
+    # TABLE_VIEW = 8520, "Table View", "Table", "fas fa-table"
     # TABLE_PREVIEW_VIEW, ...
-    THREAD_VIEW = 8430, "Thread View", "Thread", "fas fa-reel"
+    THREAD_VIEW = 8530, "Thread View", "Thread", "fas fa-reel"
     # THREAD_PREVIEW_VIEW, ...
     # FILE_VIEW, FILE_CHIP_VIEW, FILE_PREVIEW_VIEW, ...
-
-    # internal views [8500-8600]
-    WIZARD_VIEW = 8500, "Wizard View", "Wizard", "fas fa-wand-sparkles"
-    # SIDEBAR_VIEW = 8501, "Sidebar View", "Sidebar", "fas fa-bars"
-    # CONTEXT_VIEW = 8502, "Context View", "Context", "fas fa-sitemap"
+    # internal views [8600-8700]
+    WIZARD_VIEW = 8600, "Wizard View", "Wizard", "fas fa-wand-sparkles"
+    # SIDEBAR_VIEW = 8601, "Sidebar View", "Sidebar", "fas fa-bars"
+    # CONTEXT_VIEW = 8602, "Context View", "Context", "fas fa-sitemap"
 
     # style [9000-9100]
     THEME = 9000, "Theme", "Theme", "fas fa-palette"
@@ -812,11 +819,20 @@ class NodeType(BuiltinEnum):
 @enum_(EnumType.TRAIT_TYPE)
 class TraitType(BuiltinEnum):
     # destack [1-200]
-    # nocheckin: traits for kind/area: GLOBAL/... & ENTITY/RESOURCE/ASSET/VIEW/EVENT?
     GLOBAL = 1, "Global", "Is global", "fas fa-globe"
-    ASSET = 51, "Asset", "Is an Asset", "fas fa-server"
-    RESOURCE = 52, "Resource", "Is a Resource", "fas fa-server"
-    ENTITY = 53, "Entity", "Is an Entity", "fas fa-hexagon"
+    IN_SPACE = 2, "Space", "Is in a Space", "fas fa-destack"
+    IN_FOLDER = 3, "Folder", "Is in a Folder", "fas fa-folder-open"
+    ENTITY = 10, "Entity", "Is an Entity", "fas fa-hexagon"
+    PARTICLE = 11, "Particle", "Is a Particle", "fas fa-atom"
+    RESOURCE = 12, "Resource", "Is a Resource", "fas fa-server"
+    EVENT = 13, "Event", "Is an Event", "fas fa-bolt"
+    CUSTOM_NODE_DEFINITION = (
+        18,
+        "Custom Node Definition",
+        "Is a Custom Node Definition",
+        "fas fa-table",
+    )
+    CUSTOM_NODE = 19, "Custom Node", "Is a Custom Node", "fas fa-database"
     # behavior
     FROZEN = 4, "Frozen", "Is frozen", "fas fa-snowflake"
     TRACKED = 10, "Tracked", "Is tracked", "fas fa-clock"
@@ -825,21 +841,11 @@ class TraitType(BuiltinEnum):
     TEMPLATABLE = 13, "Templatable", "Is templatable", "fas fa-puzzle-piece"
     EXTENSIBLE = 14, "Extensible", "Is extensible", "fas fa-expand"
     ORDERED = 25, "Ordered", "Is ordered", "fas fa-sort"
-    CUSTOM_NODE_DEFINITION = (
-        15,
-        "Custom Node Definition",
-        "Is a Custom Node Definition",
-        "fas fa-table",
-    )
-    CUSTOM_NODE = 16, "Custom Node", "Is a Custom Node", "fas fa-database"
     ENVIRONMENTAL = 20, "Environment", "Has an environment", "fas fa-window-maximize"
+    # attribute
     HAS_NAME = 21, "Name", "Has a name", "fas fa-font-case"
-    HAS_TITLE = 22, "Title", "Has a title", "fas fa-font-case"
     HAS_SLUG = 23, "Slug", "Has a slug", "fas fa-hashtag"
     HAS_ICON = 24, "Icon", "Has an icon", "fas fa-icons"
-    IN_SPACE = 40, "Space", "Is in a Space", "fas fa-destack"
-    IN_FOLDER = 41, "Package", "Is in a Package", "fas fa-box"
-    # TAG, TAGGABLE, ...
 
     # auth [200-600]
     OWNABLE = 200, "Ownable", "Is ownable", "fas fa-user"
@@ -864,10 +870,9 @@ class TraitType(BuiltinEnum):
     SOURCEABLE = 1202, "Script Sourceable", "Can be sourced from a Script", "fas fa-code"
     INSTRUMENT = 1210, "Instrument", "Is an instrument", "fas fa-microscope"
     MEASUREMENT = 1211, "Measurement", "Is a measurement", "fas fa-microscope"
-    EVENT = 1212, "Log", "Is a log", "fas fa-file-lines"
 
     # runtime [1600-2000]
-    # LOG, ...
+    # ...
 
     # data [2000-2200]
     # ...
@@ -877,7 +882,9 @@ class TraitType(BuiltinEnum):
 
     # social [2400-2800]
     # MESSAGE, THREAD, ...
-    # STARRABLE, RATEABLE, REACTABLE, VOTABLE, ..
+    STARABLE = 2500, "Starable", "Can be starred", "fas fa-star"
+    REACTABLE = 2501, "Reactable", "Can be reacted to", "fas fa-heart"
+    # RATEABLE, VOTABLE, ...
     # ASSIGNABLE, MESSAGEABLE, CLOSABLE, LOCKABLE, ...
 
     # product [2800-3200]
@@ -909,8 +916,8 @@ class TraitType(BuiltinEnum):
 class AreaType(BuiltinEnum):
     GLOBAL_DATABASE = 1
     # GLOBAL_SEARCH?
-    MAIN_DATABASE = 100
-    # MAIN_SEARCH, MAIN_WAREHOUSE, ...
+    SPACE_DATABASE = 100
+    # SPACE_SEARCH, SPACE_WAREHOUSE, ...
 
 
 @enum_(EnumType.RUNTIME_LANGUAGE)
@@ -948,20 +955,20 @@ class Cloud(BuiltinEnum):
 
     # own
     ...
+    PRIVATE = 1
     # big general
     AWS = 10
-    AZURE = 20
-    GCP = 30
-    HETZNER = 40
-    PRIVATE = 900
+    AZURE = 11
+    GCP = 12
+    HETZNER = 20
 
     @property
     def slug(self) -> str:
         return self.name.lower().replace("_", "-")
 
 
-@enum_(EnumType.CONTINENT)
-class Continent(BuiltinEnum):
+@enum_(EnumType.REGION_CONTINENT)
+class RegionContinent(BuiltinEnum):
     """
     'Continents' of Regions.
     """
@@ -980,18 +987,18 @@ class Continent(BuiltinEnum):
         return REGION_CONTINENT_SLUGS[self]
 
     @staticmethod
-    def get_by_slug(slug: str) -> "Continent":
+    def get_by_slug(slug: str) -> "RegionContinent":
         return REGION_CONTINENT_BY_SLUG[slug]
 
 
-REGION_CONTINENT_SLUGS: dict[Continent, str] = {
-    Continent.EUROPE: "eu",
-    Continent.NORTH_AMERICA: "na",
-    Continent.SOUTH_AMERICA: "sa",
-    Continent.MIDDLE_EAST: "me",
-    Continent.AFRICA: "af",
-    Continent.ASIA: "as",
-    Continent.AUSTRALIA: "au",
+REGION_CONTINENT_SLUGS: dict[RegionContinent, str] = {
+    RegionContinent.EUROPE: "eu",
+    RegionContinent.NORTH_AMERICA: "na",
+    RegionContinent.SOUTH_AMERICA: "sa",
+    RegionContinent.MIDDLE_EAST: "me",
+    RegionContinent.AFRICA: "af",
+    RegionContinent.ASIA: "as",
+    RegionContinent.AUSTRALIA: "au",
 }
 REGION_CONTINENT_BY_SLUG = {v: k for k, v in REGION_CONTINENT_SLUGS.items()}
 
@@ -1015,8 +1022,8 @@ class RegionArea(BuiltinEnum):
     AUSTRALIA_SOUTH = 7000, None, None, "🇦🇺"
 
     @property
-    def continent(self) -> Continent:
-        return Continent((self.id // 1000) * 1000)
+    def continent(self) -> RegionContinent:
+        return RegionContinent((self.id // 1000) * 1000)
 
     @property
     def slug(self) -> str:
@@ -1079,8 +1086,8 @@ class Region(BuiltinEnum):
     SYDNEY = 7000, None, None, "🇦🇺"
 
     @property
-    def continent(self) -> Continent:
-        return Continent((self.id // 1000) * 1000)
+    def continent(self) -> RegionContinent:
+        return RegionContinent((self.id // 1000) * 1000)
 
     @property
     def area(self) -> RegionArea:
@@ -1133,7 +1140,7 @@ class EdgeDirection(BuiltinEnum):
 @enum_(EnumType.PRIMITIVE_TYPE)
 class PrimitiveType(BuiltinEnum):
     """
-    Fundamental column / storage types we support (subset of SQL types, used directly in sql/core).
+    A fundamental scalar data type.
     """
 
     BOOLEAN = 1, "Boolean", "Yes or no", "fas fa-toggle-large-on"
@@ -1155,7 +1162,7 @@ class PrimitiveType(BuiltinEnum):
     UUID = 21, "UUID", "UUID", "fas fa-fingerprint"
     JSON = 22, "JSON", "JSON", "fas fa-brackets-curly"
     BYTES = 25, "Bytes", "Binary data", "fas fa-file-lines"
-    VECTOR = 26, "Vector", "Vector", "fas fa-vector-square"
+    # VECTOR?
     # time
     DATETIME = 30, "Date & Time", "Date & time", "fas fa-calendar-days"
     DATE = 31, "Date", "Date", "fas fa-calendar-days"
@@ -1174,8 +1181,6 @@ class PrimitiveType(BuiltinEnum):
     def is_float(self) -> bool:
         return self.id >= 15 and self.id < 20
 
-
-PrimitiveValue = bool | int | float | str | bytes | UUID | datetime | date | time | timedelta
 
 PY_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, type] = {
     PrimitiveType.BOOLEAN: bool,

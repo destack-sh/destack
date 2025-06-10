@@ -1,76 +1,56 @@
-# DESTACK: script for 0000-0000-0000-0000 (Event)
-
-from contextlib import contextmanager
-from typing import Any
-
 from destack import Client, CustomEntity, EdgeType, IsSubject, Session, User
 
+from .scaffold import *  # noqa: F403
+
+# ruff: noqa: F405
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
-
-
-# ===============================================
-# MOCK STUFF FOR PROTOTYPING
-# nocheckin: Scripts, custom Entities/Events/Schemas/fields, ..
-# ===============================================
-
-
-# script
-session: Any = ...
-script: Any = ...
-
-
-Entity: Any = ...
-Event: Any = ...
-Schema: Any = ...
-field: Any = ...
-log: Any = ...
-
-
-@contextmanager
-def span(func):
-    return func
-
-
-def action(func, *args, **kwargs):
-    return func
-
-
-def node(cls, *args, **kwargs):
-    return cls
-
-
-def schema(cls, *args, **kwargs):
-    return cls
-
-
-def event(cls, *args, **kwargs):
-    return cls
-
-
-def on(func, *args, **kwargs):
-    return func
 
 
 # ===============================================
 
 SECRET = script.member("secret_key", 1, str)
 
+# ===============================================
+# MeetupSeries
+# ===============================================
 
-@node
-class Meetup(Entity):
+
+@entity
+class MeetupSeries(IsStarable, IsFollowable, Entity):
+    name: str | None = field(1)
+
+    @event
+    class NewMeetup(Event):
+        series: "MeetupSeries" = field(1)
+        meetup: "Meetup" = field(2)
+
+
+# ===============================================
+# Meetup
+# ===============================================
+
+
+@entity
+class Meetup(IsStarable, Entity):
     name: str | None = field(1)
     capacity: int = field(2)
+    series: MeetupSeries | None = field(3)
 
     @event
     class MeetupAlmostFull(Event):
-        pass
+        meetup: "Meetup" = field(1)
 
     @event
     class MeetupFull(Event):
-        pass
+        meetup: "Meetup" = field(1)
 
 
-@node
+# ===============================================
+# MeetupResponse
+# ===============================================
+
+
+@entity
 class MeetupResponse(Entity):
     parent: Meetup = field(2, edge_type=EdgeType.PARENT)
     user: User = field(3)

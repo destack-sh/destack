@@ -6,6 +6,7 @@ from .auth import *  # noqa: F403
 from .core import *  # noqa: F403
 from .data import *  # noqa: F403
 from .finance import *  # noqa: F403
+from .folder import *  # noqa: F403
 from .infra import *  # noqa: F403
 from .logic import *  # noqa: F403
 from .registry import (
@@ -30,12 +31,4 @@ _complete_destack_setup()
 
 # builtin destackes (pointers) :Builtins
 DESTACK_PTR = NodeReference(node_type=NodeType.SPACE, id=DESTACK_ID, space_id=DESTACK_ID)
-DESTACK_DESTACK_PACKAGE_PTR = NodeReference(
-    node_type=NodeType.FOLDER, id=DESTACK_DESTACK_PACKAGE_ID, space_id=DESTACK_ID
-)
-SYSTEM_DESTACK_PTR = NodeReference(node_type=NodeType.SPACE, id=SYSTEM_ID, space_id=SYSTEM_ID)
-SYSTEM_ROOT_FOLDER_PTR = NodeReference(
-    node_type=NodeType.FOLDER, id=SYSTEM_SYSTEM_PACKAGE_ID, space_id=SYSTEM_ID
-)
-
-DESTACK_ICON = icon("https://heydestack.com/favicon.ico")
+DESTACK_ICON = icon("https://destack.com/favicon.ico")

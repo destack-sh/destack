@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Optional, Union
 from fastuuid import UUID
 
 from destack.language.core import (
-    HasTitle,
+    HasName,
     IsArchivable,
     IsDeletable,
     IsEnvironmental,
@@ -29,8 +29,8 @@ if TYPE_CHECKING:
 
 @node_(NodeType.TASK)
 class Task(
+    HasName,
     IsEnvironmental,
-    HasTitle,
     IsOwnable,
     IsTemplatable,
     IsDeletable,
@@ -44,6 +44,7 @@ class Task(
     # meta
     parent: Union["Task", None] = property_parent_(node_is_customizable=True)
     # type?
+    name: str = property_(31, is_repr=True)
     # priority?
 
     # routing

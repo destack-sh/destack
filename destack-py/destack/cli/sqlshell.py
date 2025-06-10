@@ -33,7 +33,7 @@ async def sqlshell(
 
     if area == AreaType.GLOBAL_DATABASE:
         database = get_global_database_from_env()
-    elif area == AreaType.MAIN_DATABASE:
+    elif area == AreaType.SPACE_DATABASE:
         assert cell_name is not None, "cell_name is required for main area"
         assert external_id is not None, "external_id is required for main area"
         database = await DATABASE_PROVIDER.resolve_or_error(region, cell_name, external_id)

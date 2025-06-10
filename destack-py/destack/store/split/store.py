@@ -10,12 +10,14 @@ from destack.language import (
     Change,
     ChangeResult,
     CustomEntity,
+    Edit,
     IsGlobal,
     Query,
     QueryResult,
     RelationType,
     Store,
 )
+from destack.language.core.common.edit import ChangeStatus
 from destack.language.registry import NODE_CLASS_BY_TYPE
 
 
@@ -48,16 +50,48 @@ class SplitStore(Store):
 
     @override
     async def commit(self, changes: Sequence[Change]) -> Sequence[ChangeResult]:
-        changes_by_area: dict[AreaType, list[Change]] = defaultdict(list)
+        results: list[ChangeResult] = []
         for change in changes:
-            area = _get_change_node_area(change)
-            if area is None:
-                raise ValueError(f"no area for {change!r}")
-            changes_by_area[area].append(change)
-        commit = await asyncio.gather(
-            *[self.store_by_area[area].commit(changes) for area, changes in changes_by_area.items()]
-        )
-        return tuple(flatten(commit))
+            # split Changes for each area
+            edits_by_area: dict[AreaType, list[Edit]] = defaultdict(list)
+            for edit in change.edits:
+                area = _get_edit_node_area(edit)
+                if area is None:
+                    raise ValueError(f"no area for {edit!r}")
+                edits_by_area[area].append(edit)
+            changes_by_area: dict[AreaType, Change] = {}
+            for area, edits in edits_by_area.items():
+                changes_by_area[area] = Change(
+                    id=change.id,
+                    created_at=change.created_at,
+                    edits=edits,
+                )
+
+            # apply changes to relevant stores in parallel (not atomic!)
+            area_results = await asyncio.gather(
+                *[
+                    self.store_by_area[area].commit([change])
+                    for area, change in changes_by_area.items()
+                ]
+            )
+            area_edits: list[Edit] = []
+            area_cascaded_edits: list[Edit] = []
+            change_status = ChangeStatus.COMPLETED
+            for area_result in flatten(area_results):
+                if area_result.status != ChangeStatus.COMPLETED:
+                    change_status = ChangeStatus.FAILED
+                area_edits.extend(area_result.edits)
+                area_cascaded_edits.extend(area_result.cascaded_edits)
+            combined_result = ChangeResult(
+                id=change.id,
+                created_at=change.created_at,
+                status=change_status,
+                edits=area_edits,
+                cascaded_edits=area_cascaded_edits,
+            )
+            results.append(combined_result)
+
+        return results
 
 
 def _get_query_node_area(query: Query) -> AreaType | None:
@@ -71,14 +105,14 @@ def _get_query_node_area(query: Query) -> AreaType | None:
     if issubclass(node_cls, IsGlobal):
         return AreaType.GLOBAL_DATABASE
     else:
-        return AreaType.MAIN_DATABASE
+        return AreaType.SPACE_DATABASE
 
 
-def _get_change_node_area(change: Change) -> AreaType | None:
-    if not change.edits:
+def _get_edit_node_area(edit: Edit) -> AreaType | None:
+    if not edit.node_type:
         return None
-    node_cls = NODE_CLASS_BY_TYPE[change.edits[0].node_type]
+    node_cls = NODE_CLASS_BY_TYPE[edit.node_type]
     if issubclass(node_cls, IsGlobal):
         return AreaType.GLOBAL_DATABASE
     else:
-        return AreaType.MAIN_DATABASE
+        return AreaType.SPACE_DATABASE

@@ -177,7 +177,7 @@ def _generate_init_impl[ObjectT: BuiltinObjectBase](
         # node setup
         body_properties.pop("id")
         body_properties.pop("ck", None)
-        if TraitType.TRACKED in traits:
+        if TraitType.ENTITY in traits:
             body_properties.pop("created_at")
             body_properties.pop("updated_at")
         body_properties.pop("_session")
@@ -203,7 +203,7 @@ if _supergraph is None:
 if id is None:
     id = uuid4()
     """)
-        if TraitType.TRACKED in traits:
+        if TraitType.ENTITY in traits:
             method_body_lines.append("""\
     now = self._session.oracle.utc()
     created_at = now
@@ -218,7 +218,7 @@ else:
 {set_template_str.format("id", "id")}
 """)
 
-        if TraitType.TRACKED in traits:
+        if TraitType.ENTITY in traits:
             method_body_lines.append(f"""\
 {set_template_str.format("created_at", "created_at")}
 {set_template_str.format("updated_at", "updated_at")}

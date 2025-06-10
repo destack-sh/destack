@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Optional
 from destack.language.core import (
     HasIcon,
     HasName,
-    HasSlug,
     IsArchivable,
     IsDeletable,
     IsEnvironmental,
@@ -26,7 +25,6 @@ if TYPE_CHECKING:
 @node_(NodeType.ROUTE)
 class Route(
     HasIcon,
-    HasSlug,
     HasName,
     IsEnvironmental,
     IsArchivable,

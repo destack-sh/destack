@@ -7,6 +7,7 @@ from destack.language.core import (
     IsEnvironmental,
     IsExtensible,
     IsInFolder,
+    IsParticle,
     IsRunnable,
     IsTracked,
     Node,
@@ -32,6 +33,7 @@ class Run(
     IsExtensible,
     IsInFolder,
     IsTracked,
+    IsParticle,
     Node[RunData],
 ):
     """

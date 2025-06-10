@@ -48,7 +48,9 @@ class User(
 ):
     """A User is a human using Destack."""
 
-    # status
+    # meta
+    name: str = property_(31, is_repr=True)
+    slug: str = property_(33, is_repr=True)
     status: UserStatus = property_(
         40, can_write="system", is_repr=True, default=UserStatus.CREATING
     )

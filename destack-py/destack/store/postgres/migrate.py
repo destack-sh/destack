@@ -74,7 +74,7 @@ class Migration:
 
     def has_area(self, area: AreaType) -> bool:
         return (area == AreaType.GLOBAL_DATABASE and self.has_global) or (
-            area == AreaType.MAIN_DATABASE and self.has_main
+            area == AreaType.SPACE_DATABASE and self.has_main
         )
 
 

@@ -10,8 +10,6 @@ from opentelemetry import trace
 from destack.language.core import (
     BuiltinEnum,
     EnumType,
-    HasTitle,
-    IsAsset,
     IsInFolder,
     IsTracked,
     Node,
@@ -38,8 +36,6 @@ class LinkType(BuiltinEnum):
 
 @node_(NodeType.LINK)
 class Link(
-    HasTitle,
-    IsAsset,
     IsInFolder,
     IsTracked,
     Node[LinkData],

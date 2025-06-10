@@ -9,12 +9,12 @@ from destack.language.core import (
     HasName,
     HasSlug,
     IsDeletable,
+    IsEntity,
     IsGlobal,
     IsInSpace,
     IsInvite,
     IsMembership,
     IsOwnable,
-    IsTracked,
     Node,
     NodeType,
     Region,
@@ -46,7 +46,7 @@ class Space(
     HasName,
     HasSlug,
     HasIcon,
-    IsTracked,
+    IsEntity,
     IsGlobal,
     IsOwnable,
     IsInSpace,
@@ -57,6 +57,8 @@ class Space(
     """
 
     # meta
+    name: str = property_(31, is_repr=True)
+    slug: str = property_(33, is_repr=True)
     status: SpaceStatus = property_(40, is_repr=True, can_write="system")
     handle: Optional["Handle"] = property_(41, node_space_from="self", can_write="system")
     root_folder: Optional["Folder"] = property_(
