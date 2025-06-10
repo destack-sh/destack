@@ -15,6 +15,7 @@ from destack.language.core import (
     IsInvite,
     IsMembership,
     IsOwnable,
+    IsStarable,
     Node,
     NodeType,
     Region,
@@ -49,6 +50,7 @@ class Space(
     IsEntity,
     IsGlobal,
     IsOwnable,
+    IsStarable,
     IsInSpace,
     Node[SpaceData],
 ):

@@ -212,9 +212,11 @@ def _generate_column_unpack(prop: "Property") -> str:
         if prop.node_has_type:
             unpack_lines.append(f"    _node_ref['31'] = row['{prop.name}_type']")
         else:
-            assert prop.node_types and len(prop.node_types) == 1, f"bad node types for {prop!r}"
-            node_type = prop.node_types[0]
-            assert isinstance(node_type, NodeType), f"unexpected node type: {prop!r}"
+            assert node_types and len(node_types) == 1, (
+                f"bad node types for {prop!r}: {node_types!r}"
+            )
+            node_type = node_types[0]
+            assert isinstance(node_type, NodeType), f"unexpected node type {prop!r}: {node_type!r}"
             unpack_lines.append(f"    _node_ref['31'] = {node_type.value}")
         # space_id
         if prop.node_has_space:

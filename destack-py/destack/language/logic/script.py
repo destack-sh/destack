@@ -1,3 +1,5 @@
+from typing import Union
+
 from destack.language.core import (
     HasName,
     IsArchivable,
@@ -27,7 +29,7 @@ class Script(
 ):
     """A Script."""
 
-    parent: IsScriptable | None = property_parent_(node_is_customizable=True)
+    parent: Union[IsScriptable, "Script", None] = property_parent_(node_is_customizable=True)
     # type, language, code, ...
 
     code: str | None = property_(100)

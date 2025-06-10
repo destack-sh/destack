@@ -1,22 +1,24 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from fastuuid import UUID
 
 from destack.language.core import (
     BuiltinEnum,
     EnumType,
+    HasName,
     IsEntity,
+    IsRunnable,
     Node,
     NodeType,
+    RelationReference,
     Value,
     enum_,
     node_,
     property_,
 )
-from destack.language.core.builtin.trait import IsRunnable
 
 if TYPE_CHECKING:
-    pass
+    from destack.language import Condition
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -27,10 +29,15 @@ class TriggerType(BuiltinEnum):
 
 
 @node_(NodeType.TRIGGER)
-class Trigger(IsEntity, Node):
+class Trigger(HasName, IsEntity, Node):
     """A Trigger is a dynamic event to run something."""
 
     type: TriggerType = property_(30)
 
-    target: IsRunnable = property_(40)
-    arguments: dict[UUID, Value] = property_(41)
+    # when
+    event: Optional[RelationReference] = property_(40)
+    where: Optional["Condition"] = property_(41)
+
+    # what
+    target: IsRunnable = property_(50)
+    arguments: dict[UUID, Value] = property_(51)

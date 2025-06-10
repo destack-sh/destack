@@ -656,18 +656,18 @@ class IsRunnable(Trait):
     pass
 
 
-@trait_(TraitType.INSTRUMENT)
-class IsInstrument(IsSourceable, IsCustomNodeDefinition):
-    """A Node that represents an Instrument."""
+@trait_(TraitType.METRIC)
+class IsMetric(IsSourceable, IsCustomNodeDefinition):
+    """A Node that represents a Metric."""
 
     pass
 
 
 @trait_(TraitType.MEASUREMENT)
-class IsMeasurement(IsCustomNode):
+class IsMeasurement(IsCustomNode, IsParticle):
     """A Node that represents a Measurement."""
 
-    definition: "IsInstrument" = property_(17)
+    definition: "IsMetric" = property_(17)
 
 
 @trait_(TraitType.EVENT, pretend_frozen=True)

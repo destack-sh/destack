@@ -5,7 +5,6 @@ from destack.pb2 import SchemaData
 
 from ..builtin import (
     HasName,
-    IsArchivable,
     IsDeletable,
     IsEnvironmental,
     IsInFolder,
@@ -26,16 +25,15 @@ if TYPE_CHECKING:
 @node_(NodeType.SCHEMA)
 class Schema(
     HasName,
-    IsEnvironmental,
     HasIcon,
+    IsEnvironmental,
     IsTracked,
     IsTemplatable,
     IsDeletable,
-    IsArchivable,
     IsInFolder,
     IsSourceable,
     Node[SchemaData],
 ):
-    """A Schema for a specific Type."""
+    """A Schema describes a Type."""
 
     pass

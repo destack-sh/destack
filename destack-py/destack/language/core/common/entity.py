@@ -49,7 +49,7 @@ class CustomEntityDefinition(
     """
 
     # type?
-    traits: list[TraitType] = property_(40, description="Dynamic traits.")
+    traits: list[TraitType] = property_(40)
 
 
 @node_(NodeType.CUSTOM_ENTITY)

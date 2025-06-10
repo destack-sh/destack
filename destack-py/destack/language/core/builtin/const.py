@@ -37,7 +37,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.06.09.1"
+VERSION = "2025.06.10.0"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"destack")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -652,111 +652,113 @@ class NodeType(BuiltinEnum):
     # history [800-1000]
     # HISTORY, SNAPSHOT, OVERLAY, BRANCH, ...
 
-    # infra [1000-1200]
-    DATABASE = 1000, "Database", "Database for Postgres data", "fas fa-database"
-    # SEARCH/INDEX, VAULT, CACHE, S3, ...
-    # CELL = 1100, "Cell", "Cell", "fas fa-cell"
-    MACHINE = 1110, "Machine", "Machine for ephemeral computing", "fas fa-machine-classic"
-    # HOST, ENDPOINT, DEPLOYMENT, NETWORK, AUTOSCALER, ...
-
-    # logic [1200-1400]
-    SCRIPT = 1200, "Script", "Script", "fas fa-code"
-    # SCRIPT_FILE, ...
-    SERVICE = 1210, "Service", "Service", "fas fa-screwdriver-wrench"
-    ACTION = 1220, "Action", "Action", "fas fa-step-forward"
-    ROUTE = 1230, "Route", "Route", "fas fa-route"
-    TRIGGER = 1240, "Trigger", "Trigger", "fas fa-bolt"
-    TIMER = 1241, "Timer", "Timer", "fas fa-clock"
-    # BREAKPOINT, ...
-    CURSOR = 1300, "Cursor", "Position in something", "fas fa-mouse"
-    # ROOM, CHANNEL, LOCK, ...
-
-    # test [1400-1500]
-    # TEST, TEST_SUITE, TEST_CASE, TEST_RESULT, ...
-
-    # run [1600-1700]
-    RUN = 1600, "Run", "Run", "fas fa-play"
-    RUN_QUEUE = 1601, "Run Queue", "Run Queue", "fas fa-list-check"
-    SPAN = 1610, "Span", "Span", "fas fa-ruler-horizontal"
-    INTERRUPTION = 1620, "Interruption", "Interruption", "fas fa-hand"
-    LOG = 1630, "Log", "Log", "fas fa-file-lines"
-    TASK = 1640, "Task", "To-do item", "far fa-square-check"
-    TASK_QUEUE = 1641, "Task Queue", "Task Queue", "fas fa-list-check"
-    # JOB, QUEUE, ...
-
-    # event [1700-1800]
-    CUSTOM_EVENT_DEFINITION = (
-        1700,
-        "Custom Event Definition",
-        "Custom Event Definition",
-        "fas fa-signal",
-    )
-    CUSTOM_EVENT = 1701, "Custom Event", "Custom Event", "fas fa-signal"
-    EDIT_EVENT = 1710, "Edit Event", "Edit Event", "fas fa-file-lines"
-    CHANGE_EVENT = 1711, "Change Event", "Change Event", "fas fa-file-lines"
-    QUERY_EVENT = 1712, "Query Event", "Query Event", "fas fa-file-lines"
-    # ERROR_EVENT, ...
-
-    # data [2000-2400]
-    SCHEMA = 2000, "Schema", "Schema", "fas fa-shapes"
-    FIELD = 2010, "Field", "Field", "fas fa-triangle"
-    FILE = 2020, "File", "File", "fas fa-file"
-    LINK = 2050, "Link", "Link to something", "fas fa-link"
-    # STREAM, SECRET, ...
-
-    # entity
+    # entity [1000-1200]
     CUSTOM_ENTITY_DEFINITION = (
-        2200,
+        1000,
         "Custom Node Definition",
         "Custom Node Definition",
         "fas fa-table",
     )
-    CUSTOM_ENTITY = 2201, "Custom Node Instance", "Custom Node Instance", "fas fa-database"
+    CUSTOM_ENTITY = 1001, "Custom Node Instance", "Custom Node Instance", "fas fa-database"
     # INDEX, CONSTRAINT, MIGRATION, ...
     # SYNC, ...
     # TRAIT/INTERFACE/CUSTOM_TRAIT, ...
 
-    # social [2400-2800]
-    THREAD = 2400, "Thread", "Thread", "fas fa-reel"
-    # THREAD_MEMBERSHIP, ...
-    MESSAGE = 2410, "Message", "Message", "fas fa-message"
-    REACTION = 2500, "Reaction", "Reaction", "fas fa-heart"
-    STAR = 2501, "Star", "Star", "fas fa-star"
-    FOLLOW = 2510, "Follow", "Follow", "fas fa-user-plus"
-    # POLL, VOTE, REVIEW, RATING, RANK, ...
-    # ACHIEVEMENT, BADGE, WISHLIST/WATCHLIST, ...
-    # FEED, FEED_ITEM, ...
-    NOTIFICATION = 2600, "Notification", "Notification", "fas fa-bell"
+    # data [1200-1400]
+    SCHEMA = 1200, "Schema", "Schema", "fas fa-shapes"
+    FIELD = 1210, "Field", "Field", "fas fa-triangle"
+    FILE = 1220, "File", "File", "fas fa-file"
+    LINK = 1250, "Link", "Link to something", "fas fa-link"
+    # STREAM, SECRET, ...
 
-    # deploy [2800-3000]
+    # logic [1400-1600]
+    SCRIPT = 1400, "Script", "Script", "fas fa-code"
+    SERVICE = 1410, "Service", "Service", "fas fa-screwdriver-wrench"
+    ACTION = 1420, "Action", "Action", "fas fa-step-forward"
+    ROUTE = 1430, "Route", "Route", "fas fa-route"
+    TRIGGER = 1440, "Trigger", "Trigger", "fas fa-bolt"
+    TIMER = 1450, "Timer", "Timer", "fas fa-clock"
+    # BREAKPOINT, ...
+    CURSOR = 1460, "Cursor", "Position in something", "fas fa-mouse"
+    # ROOM, CHANNEL, LOCK, ...
+    # TASK, ...
+
+    # test [1600-1800]
+    # TEST, TEST_SUITE, TEST_CASE, TEST_RESULT, ...
+
+    # runtime [1800-2000]
+    RUN = 1800, "Run", "Run", "fas fa-play"
+    # RUN_QUEUE = 1801, "Run Queue", "Run Queue", "fas fa-list-check"
+    SPAN = 1810, "Span", "Span", "fas fa-ruler-horizontal"
+    INTERRUPTION = 1820, "Interruption", "Interruption", "fas fa-hand"
+    LOG = 1830, "Log", "Log", "fas fa-file-lines"
+    # JOB, ...
+    CUSTOM_EVENT_DEFINITION = (
+        1840,
+        "Custom Event Definition",
+        "Custom Event Definition",
+        "fas fa-signal",
+    )
+    CUSTOM_EVENT = 1850, "Custom Event", "Custom Event", "fas fa-signal"
+    EDIT_EVENT = 1860, "Edit Event", "Edit Event", "fas fa-file-lines"
+    CHANGE_EVENT = 1870, "Change Event", "Change Event", "fas fa-file-lines"
+    QUERY_EVENT = 1880, "Query Event", "Query Event", "fas fa-file-lines"
+    # ERROR_EVENT, TRIGGER_EVENT, RUN_EVENT, ...
+    GAUGE_METRIC = 1890, "Gauge Metric", "Gauge Metric", "fas fa-gauge"
+    GAUGE_MEASUREMENT = 1900, "Gauge Measurement", "Gauge Measurement", "fas fa-gauge"
+    COUNTER_METRIC = 1910, "Counter Metric", "Counter Metric", "fas fa-gauge"
+    COUNTER_MEASUREMENT = 1920, "Counter Measurement", "Counter Measurement", "fas fa-gauge"
+    HISTOGRAM_METRIC = 1930, "Histogram Metric", "Histogram Metric", "fas fa-gauge"
+    HISTOGRAM_MEASUREMENT = 1940, "Histogram Measurement", "Histogram Measurement", "fas fa-gauge"
+
+    # deployment [2000-2200]
     # DEPLOYMENT, ...
     # PREVIEW, RELEASE, ROLLOUT, ...
-    # INCIDENT, ...
+    # INCIDENT, ESCALATION, ...
 
-    # product [3000-3200]
+    # product [2200-2400]
     # RECORDING/REPLAY, SURVEY, ...
     # TOUR, FUNNEL, COHORT, JOURNEY, ..
     # SEGMENT, EXPERIMENT, ...
     # FEATURE, FEATURE_FLAG, FEATURE_GATE, ...
 
-    # finance [3200-3400]
+    # finance [2400-2600]
     # WALLET, BALANCE, BUDGET, TRANSFER, CREDIT, ...
     # TIER, SUBSCRIPTION, PRODUCT, PRICE, ORDER, INVOICE, DISCOUNT, DISPUTE, REFUND, ...
 
+    # social [2600-3000]
+    # nocheckin: figure out how to have global *and* in-space Stars/Follows/... (Traits?)
+    THREAD = 2600, "Thread", "Thread", "fas fa-reel"
+    # THREAD_MEMBERSHIP, ...
+    MESSAGE = 2610, "Message", "Message", "fas fa-message"
+    REACTION = 2620, "Reaction", "Reaction", "fas fa-heart"
+    STAR = 2630, "Star", "Star", "fas fa-star"
+    # FOLLOW = 2510, "Follow", "Follow", "fas fa-user-plus"
+    # POLL, VOTE, REVIEW, RATING, RANK, ...
+    # ACHIEVEMENT, BADGE, WISHLIST/WATCHLIST, ...
+    # FEED, FEED_ITEM, ...
+    NOTIFICATION = 2600, "Notification", "Notification", "fas fa-bell"
+
     # locale [3400-3600]
     # LOCALE, STRING, TRANSLATION, ...
-
-    # web [3600-3800]
+    # internet [3600-3800]
     # DOMAIN, ...
     # EMAIL, EMAIL_ATTEMPT, ...
 
     # world [3800-4000]
     # PHONE, ADDRESS, ...
 
+    # infra [5000-5400]
+    DATABASE = 5000, "Database", "Database for Postgres data", "fas fa-database"
+    # SEARCH/INDEX, VAULT, CACHE, S3, ...
+    # CELL = 5010, "Cell", "Cell", "fas fa-cell"
+    MACHINE = 5020, "Machine", "Machine for ephemeral computing", "fas fa-machine-classic"
+    # HOST, ENDPOINT, DEPLOYMENT, NETWORK, AUTOSCALER, ...
+
     # scene [8000-8100]
     WINDOW = 8000, "Window", "Window", "fas fa-galaxy"
     SCENE = 8010, "Scene", "Scene of an Application", "fas fa-masks-theater"
-    # CAMERA, COMMAND, GESTURE, OVERLAY, WIDGET, ...
+    # COMMAND, MENU, GESTURE, OVERLAY, WIDGET, ...
 
     # container views [8200-8300]
     CUSTOM_VIEW_DEFINITION = (
@@ -770,6 +772,8 @@ class NodeType(BuiltinEnum):
     LABEL_VIEW = 8211, "Label View", "Label Container", "fas fa-font-case"
     # FORM_VIEW, MENU_VIEW, ...
     SPLIT_VIEW = 8220, "Split View", "Split Container", "fas fa-columns"
+    # SLOT_DEFINITION_VIEW = 8230, "Slot Definition View", "Slot Definition View", "fas fa-columns"
+    # SLOT_VIEW = 8231, "Slot View", "Slot View", "fas fa-columns"
     # TAB_VIEW = 8221, "Tab Container View", "Tab Container", "fas fa-tabs"
     # DRAWER_VIEW, SPLIT_DRAWER_VIEW, GRID/GRID_ELEMENT_VIEW, ...
 
@@ -798,13 +802,6 @@ class NodeType(BuiltinEnum):
 
     # NOTE :Architecture: node and internal views should probably be defined in user space?
     # node views [8500-8600]
-    # NODE_VIEW = 8500, "Node View", "Node", "fas fa-hexagon"
-    # NODE_CHIP_VIEW = 8501, "Node Chip View", "Node Chip", "fas fa-hexagon"
-    # NODE_PATH = 8505, "Node Path", "Node Path", "fas fa-sitemap"
-    # PAGE_VIEW = 8510, "Page View", "Page", "far fa-file"
-    # PAGE_PREVIEW_VIEW, ...
-    # TABLE_VIEW = 8520, "Table View", "Table", "fas fa-table"
-    # TABLE_PREVIEW_VIEW, ...
     THREAD_VIEW = 8530, "Thread View", "Thread", "fas fa-reel"
     # THREAD_PREVIEW_VIEW, ...
     # FILE_VIEW, FILE_CHIP_VIEW, FILE_PREVIEW_VIEW, ...
@@ -895,9 +892,10 @@ class TraitType(BuiltinEnum):
     # logic [1200-1600]
     RUNNABLE = 1200, "Runnable", "Can be run", "fas fa-play"
     SCRIPTABLE = 1201, "Scriptable", "Can be scripted", "fas fa-code"
-    SOURCEABLE = 1202, "Script Sourceable", "Can be sourced from a Script", "fas fa-code"
-    INSTRUMENT = 1210, "Instrument", "Is an instrument", "fas fa-microscope"
-    MEASUREMENT = 1211, "Measurement", "Is a measurement", "fas fa-microscope"
+    SOURCEABLE = 1202, "Sourcable", "Can be defined in a Script", "fas fa-code"
+    METRIC = 1210, "Instrument", "Is an Instrument", "fas fa-microscope"
+    MEASUREMENT = 1211, "Measurement", "Is a Measurement", "fas fa-microscope"
+    CURSOR = 1212, "Cursor", "Is a Cursor", "fas fa-mouse-pointer"
 
     # runtime [1600-2000]
     # ...

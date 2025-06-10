@@ -3,13 +3,15 @@ from typing import TYPE_CHECKING
 from destack.language.core import (
     IsEnvironmental,
     IsFrozen,
-    IsInFolder,
+    IsInSpace,
+    IsParticle,
     Json,
     Node,
     NodeType,
     node_,
     property_,
 )
+from destack.pb2 import LogData
 
 if TYPE_CHECKING:
     pass
@@ -21,8 +23,9 @@ if TYPE_CHECKING:
 class Log(
     IsEnvironmental,
     IsFrozen,
-    IsInFolder,
-    Node,
+    IsInSpace,
+    IsParticle,
+    Node[LogData],
 ):
     """A Log message."""
 

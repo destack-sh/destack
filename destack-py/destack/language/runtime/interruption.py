@@ -125,7 +125,7 @@ class Interruption(
         return Interruption(
             type=kind,
             parent=run,
-            runnable=run.runnable,
+            runnable=run.target,
             span=span,
             environment_type=run.environment_type,
         )

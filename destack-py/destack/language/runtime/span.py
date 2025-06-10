@@ -3,7 +3,8 @@ from typing import TYPE_CHECKING, Union
 from destack.language.core import (
     IsEnvironmental,
     IsFrozen,
-    IsInFolder,
+    IsInSpace,
+    IsParticle,
     Node,
     NodeType,
     node_,
@@ -22,7 +23,8 @@ if TYPE_CHECKING:
 class Span(
     IsEnvironmental,
     IsFrozen,
-    IsInFolder,
+    IsParticle,
+    IsInSpace,
     Node[SpanData],
 ):
     """

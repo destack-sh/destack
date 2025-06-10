@@ -9,10 +9,19 @@ from .edit import (
     edit_graph,
 )
 from .entity import CustomEntity, CustomEntityDefinition
+from .error import Error, ErrorType
 from .event import ChangeEvent, CustomEvent, CustomEventDefinition, EditEvent, QueryEvent
 from .field import Field, FieldType
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
 from .meta import EnumInfo, EnumOptionInfo, NodeInfo, PropertyInfo, StructInfo, TraitInfo
+from .metric import (
+    CounterMeasurement,
+    CounterMetric,
+    GaugeMeasurement,
+    GaugeMetric,
+    HistogramMeasurement,
+    HistogramMetric,
+)
 from .query import (
     Aggregation,
     AggregationType,
@@ -106,6 +115,8 @@ __all__ = [
     "Condition",
     "ConditionalType",
     "Constraint",
+    "CounterMeasurement",
+    "CounterMetric",
     "CustomEntity",
     "CustomEntityDefinition",
     "CustomEvent",
@@ -116,6 +127,8 @@ __all__ = [
     "EditType",
     "EnumInfo",
     "EnumOptionInfo",
+    "Error",
+    "ErrorType",
     "Expression",
     "ExpressionIn",
     "ExpressionType",
@@ -124,6 +137,10 @@ __all__ = [
     "Format",
     "Function",
     "FunctionType",
+    "GaugeMeasurement",
+    "GaugeMetric",
+    "HistogramMeasurement",
+    "HistogramMetric",
     "Icon",
     "IconIn",
     "IconType",

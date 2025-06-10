@@ -12,6 +12,7 @@ from destack.language.core import (
     IsEnvironmental,
     IsInFolder,
     IsOwnable,
+    IsReactable,
     Node,
     NodeType,
     Text,
@@ -50,6 +51,7 @@ class Message(
     IsOwnable,
     IsDeletable,
     IsEnvironmental,
+    IsReactable,
     IsInFolder,
     Node[MessageData],
 ):
