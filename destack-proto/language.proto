@@ -5,9 +5,6 @@ package symbol.destack;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/struct.proto";
-import "destack-proto/google/type/datetime.proto";
-import "destack-proto/google/type/date.proto";
-import "destack-proto/google/type/timeofday.proto";
 
 enum ActionCardinality {
   ACTION_CARDINALITY_UNSPECIFIED = 0;

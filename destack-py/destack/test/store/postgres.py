@@ -252,7 +252,7 @@ async def test_create_star(session: Session):
     assert await Star.count(where=Star.property("parent").eq(folder)).execute_count() == 20
 
 
-async def test_create_reaction(session: Session):
+async def test_create_reaction_groups(session: Session):
     """Create Reactions and query them."""
 
     users = [

@@ -150,16 +150,16 @@ BUILTIN_NODE_TABLES: tuple[PostgresTable, ...] = tuple(BUILTIN_TABLE_BY_NODE_TYP
 BUILTIN_GLOBAL_TABLES: tuple[PostgresTable, ...] = tuple(
     BUILTIN_TABLE_BY_NODE_TYPE[node.metatype]
     for node in NODE_CLASS_BY_TYPE.values()
-    if TraitType.GLOBAL in node.__traits__ and node.metatype != NodeType.CUSTOM_ENTITY
+    if TraitType.GLOBAL in node.__traits__ and TraitType.ENTITY in node.__traits__
 )
-BUILTIN_MAIN_TABLES: tuple[PostgresTable, ...] = tuple(
+BUILTIN_SPATIAL_TABLES: tuple[PostgresTable, ...] = tuple(
     BUILTIN_TABLE_BY_NODE_TYPE[node.metatype]
     for node in NODE_CLASS_BY_TYPE.values()
-    if TraitType.GLOBAL not in node.__traits__ and node.metatype != NodeType.CUSTOM_ENTITY
+    if TraitType.SPATIAL in node.__traits__ and TraitType.ENTITY in node.__traits__
 )
 BUILTIN_TABLE_BY_AREA: Mapping[AreaType, tuple[PostgresTable, ...]] = {
     AreaType.GLOBAL_POSTGRES: BUILTIN_GLOBAL_TABLES,
-    AreaType.SPACE_POSTGRES: BUILTIN_MAIN_TABLES,
+    AreaType.SPATIAL_POSTGRES: BUILTIN_SPATIAL_TABLES,
 }
 BUILTIN_GLOBAL_SCHEMA = PostgresSchema(EXTENSIONS, BUILTIN_GLOBAL_TABLES)
-BUILTIN_MAIN_SCHEMA = PostgresSchema(EXTENSIONS, BUILTIN_MAIN_TABLES)
+BUILTIN_SPATIAL_SCHEMA = PostgresSchema(EXTENSIONS, BUILTIN_SPATIAL_TABLES)

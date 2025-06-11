@@ -4,7 +4,7 @@ import asyncpg
 ID = "<ID>"
 VERSION = "<VERSION>"
 HAS_GLOBAL = "<HAS_GLOBAL>"
-HAS_MAIN = "<HAS_MAIN>"
+HAS_SPATIAL = "<HAS_SPATIAL>"
 
 
 #
