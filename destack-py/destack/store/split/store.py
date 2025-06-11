@@ -10,7 +10,7 @@ from destack.language import (
     Store,
 )
 
-# nocheckin: proper SplitStore
+# nocheckin: proper split committing/querying (store area in NodeReference?)
 
 
 class SplitStore(Store):

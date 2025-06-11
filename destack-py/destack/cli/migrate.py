@@ -1,14 +1,11 @@
 import time
-from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Optional
 
 import structlog
 import typer
-from more_itertools import first
-from rich import print
 from rich.console import Console
 
-from destack.language import REGION, VERSION, AreaType, Region
+from destack.language import REGION, AreaType, Region
 from destack.utils.oracle import REAL_ORACLE
 
 from .utils import async_to_sync, parse_node_area, parse_region
@@ -32,103 +29,7 @@ async def make(
     overwrite: bool = typer.Option(default=False, help="overwrite existing migration for version"),
     from_scratch: bool = typer.Option(default=False, help="generate migration from scratch"),
 ):
-    from destack.sharding import DATABASE_PROVIDER, get_global_database_from_env
-    from destack.store.postgres import (
-        BUILTIN_GLOBAL_SCHEMA,
-        BUILTIN_MAIN_SCHEMA,
-        DESTACK_BUILTIN_TABLE_PREFIX,
-        DESTACK_CUSTOM_TABLE_PREFIX,
-        Migration,
-        add_migration_to_fs,
-        generate_migration_code,
-        generate_migration_ops,
-        introspect_schema,
-        pg_connection,
-        read_migrations_from_fs,
-        read_migrations_from_pg,
-    )
-
-    start = time.time()
-    global_database = get_global_database_from_env()
-
-    # check existing migrations for inconsistencies
-    file_migrations = read_migrations_from_fs()
-    conflicting_migration = first((m for m in file_migrations if m.version == VERSION), None)
-    if conflicting_migration:
-        if overwrite:
-            logger.info("migrate.make.overwrite", migration=conflicting_migration)
-            assert conflicting_migration.path, f"{conflicting_migration!r} has no path"
-            Path(conflicting_migration.path).unlink()
-            file_migrations.remove(conflicting_migration)
-        else:
-            raise RuntimeError(
-                f"existing migration for version {VERSION}: {conflicting_migration!r}"
-            )
-    async with pg_connection(global_database) as conn:
-        databased_migrations = await read_migrations_from_pg(conn)
-    max_file_id = max(m.id for m in file_migrations) if file_migrations else 0
-    max_databased_id = max(m.id for m in databased_migrations) if databased_migrations else 0
-    if max_databased_id > max_file_id:
-        raise RuntimeError(
-            f"databased migrations are ahead of file migrations:\ndatabased={databased_migrations!r}\nfile={file_migrations!r}"
-        )
-
-    # diff main
-    if area in (None, AreaType.SPACE_POSTGRES):
-        main_database = await DATABASE_PROVIDER.resolve_or_error(
-            region or REGION, cell_name, external_name
-        )
-        async with pg_connection(main_database) as conn:
-            old_main_schema = await introspect_schema(
-                conn,
-                include_table_prefixes=(DESTACK_BUILTIN_TABLE_PREFIX,),
-                exclude_table_prefixes=(DESTACK_CUSTOM_TABLE_PREFIX,),
-            )
-        main_migration_ops = generate_migration_ops(
-            old_schema=old_main_schema, new_schema=BUILTIN_MAIN_SCHEMA
-        )
-    else:
-        main_migration_ops = []
-
-    # diff global
-    if area in (None, AreaType.GLOBAL_POSTGRES):
-        async with pg_connection(global_database) as conn:
-            old_global_schema = await introspect_schema(
-                conn,
-                include_table_prefixes=(DESTACK_BUILTIN_TABLE_PREFIX,),
-                exclude_table_prefixes=(DESTACK_CUSTOM_TABLE_PREFIX,),
-            )
-        global_migration_ops = generate_migration_ops(
-            old_schema=old_global_schema, new_schema=BUILTIN_GLOBAL_SCHEMA
-        )
-    else:
-        global_migration_ops = []
-
-    # generate migration
-    if not global_migration_ops and not main_migration_ops:
-        logger.info("migrate.make.noop")
-        return
-    latest_migration = max(file_migrations, key=lambda m: m.id)
-    new_migration = Migration(
-        id=latest_migration.id + 1 if latest_migration is not None else 1,
-        version=VERSION,
-        has_global=bool(global_migration_ops),
-        has_main=bool(main_migration_ops),
-        applied_at=None,
-    )
-    migration_code = generate_migration_code(
-        new_migration,
-        global_ops=global_migration_ops,
-        main_ops=main_migration_ops,
-        exclude_inverse=no_downgrade,
-        oracle=REAL_ORACLE,
-    )
-    if not dry_run:
-        add_migration_to_fs(migration=new_migration, code=migration_code)
-    else:
-        print(migration_code)
-
-    logger.info("migrate.make", duration=time.time() - start)
+    raise NotImplementedError
 
 
 @app.command(help="apply SQL migrations")
@@ -161,13 +62,13 @@ async def apply(
     if area == AreaType.GLOBAL_POSTGRES:
         global_database = get_global_database_from_env()
         databases = [global_database]
-    elif area == AreaType.SPACE_POSTGRES:
-        assert cell_name, "cell_name is required for main area"
-        assert external_name, "external_name is required for main area"
-        main_database = await DATABASE_PROVIDER.resolve_or_error(
+    elif area == AreaType.SPATIAL_POSTGRES:
+        assert cell_name, "cell_name is required for spatial area"
+        assert external_name, "external_name is required for spatial area"
+        spatial_database = await DATABASE_PROVIDER.resolve_or_error(
             region or REGION, cell_name, external_name
         )
-        databases = [main_database]
+        databases = [spatial_database]
     else:
         raise RuntimeError(f"cannot migrate area: {area!r}")
 

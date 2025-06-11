@@ -61,20 +61,20 @@ class Migration:
     id: int
     version: str
     has_global: bool
-    has_main: bool
+    has_spatial: bool
     applied_at: Optional[datetime]
     path: Optional[Path] = None  # not databased
     file: Optional["MigrationFile"] = None  # not databased
 
     def __str__(self) -> str:
-        return f"{self.id} {self.version} (has_global={self.has_global}, has_main={self.has_main})"
+        return f"{self.id} {self.version} (has_global={self.has_global}, has_spatial={self.has_spatial})"
 
     def __repr__(self) -> str:
         return f"<Migration {self}>"
 
     def has_area(self, area: AreaType) -> bool:
         return (area == AreaType.GLOBAL_POSTGRES and self.has_global) or (
-            area == AreaType.SPACE_POSTGRES and self.has_main
+            area == AreaType.SPATIAL_POSTGRES and self.has_spatial
         )
 
 
@@ -106,7 +106,7 @@ def read_migrations_from_fs() -> list[Migration]:
             id=int(migration_metadata["ID"]),
             version=migration_metadata["VERSION"][1:-1],
             has_global=migration_metadata["HAS_GLOBAL"] == "True",
-            has_main=migration_metadata["HAS_MAIN"] == "True",
+            has_spatial=migration_metadata["HAS_SPATIAL"] == "True",
             applied_at=None,
             path=migration_path,
         )
@@ -369,7 +369,7 @@ def generate_migration_code(
         '"<ID>"': str(migration.id),
         '"<VERSION>"': f'"{migration.version}"',
         '"<HAS_GLOBAL>"': "True" if migration.has_global else "False",
-        '"<HAS_MAIN>"': "True" if migration.has_main else "False",
+        '"<HAS_SPATIAL>"': "True" if migration.has_spatial else "False",
     }
     for key, value in metadata_substitutions.items():
         migration_code = migration_code.replace(key, value)
@@ -781,7 +781,7 @@ def pack_migration_row(migration: Migration) -> dict[str, Any]:
         "id": migration.id,
         "version": migration.version,
         "has_global": migration.has_global,
-        "has_main": migration.has_main,
+        "has_spatial": migration.has_spatial,
         "applied_at": migration.applied_at,
     }
 
@@ -791,7 +791,7 @@ def unpack_migration_row(row: Mapping[str, Any]) -> Migration:
         id=row["id"],
         version=row["version"],
         has_global=row["has_global"],
-        has_main=row["has_main"],
+        has_spatial=row["has_spatial"],
         applied_at=row["applied_at"],
     )
 
@@ -800,7 +800,7 @@ async def read_migrations_from_pg(
     conn: asyncpg.Connection, *, applied: bool | None = None
 ) -> list[Migration]:
     """Reads the 'destack_migration' table (if it exists) and returns the corresponding Migration."""
-    query = "SELECT id, version, has_global, has_main, applied_at FROM destack_migration"
+    query = "SELECT id, version, has_global, has_spatial, applied_at FROM destack_migration"
     if applied is not None:
         where_clause = "applied_at IS NOT NULL" if applied else "applied_at IS NULL"
         query += f" WHERE {where_clause}"
@@ -819,18 +819,18 @@ async def upsert_migrations(conn: asyncpg.Connection, migrations: list[Migration
     for migration in migrations:
         await conn.execute(
             """
-            INSERT INTO destack_migration (id, version, has_global, has_main, applied_at)
+            INSERT INTO destack_migration (id, version, has_global, has_spatial, applied_at)
             VALUES ($1, $2, $3, $4, $5)
             ON CONFLICT (id) DO UPDATE SET
                 version = EXCLUDED.version,
                 has_global = EXCLUDED.has_global,
-                has_main = EXCLUDED.has_main,
+                has_spatial = EXCLUDED.has_spatial,
                 applied_at = EXCLUDED.applied_at
             """,
             migration.id,
             migration.version,
             migration.has_global,
-            migration.has_main,
+            migration.has_spatial,
             migration.applied_at,
         )
 
@@ -839,7 +839,7 @@ async def delete_migrations(conn: asyncpg.Connection, from_id: int, to_id: int) 
     """Deletes migrations from the database."""
     # First read the migrations that will be deleted for logging
     rows = await conn.fetch(
-        "SELECT id, version, has_global, has_main, applied_at FROM destack_migration WHERE id >= $1 AND id <= $2",
+        "SELECT id, version, has_global, has_spatial, applied_at FROM destack_migration WHERE id >= $1 AND id <= $2",
         from_id,
         to_id,
     )

@@ -19,7 +19,7 @@ from destack.utils.oracle import REAL_ORACLE
 
 
 @pytest.fixture
-async def supervisor_service(global_database: DatabaseInfo, main_database: DatabaseInfo):
+async def supervisor_service(global_database: DatabaseInfo, spatial_database: DatabaseInfo):
     from destack.supervisor import SupervisorService
 
     supervisor_service = SupervisorService(

@@ -89,8 +89,8 @@ class HostService(ServiceBase, HostBase):
         self.global_postgres_store = PostgresStore(
             database=global_database, area=AreaType.GLOBAL_POSTGRES
         )
-        self.main_postgres_store: PostgresStore | None = None
-        self.store: LiveStore = ...  # type: ignore nocheckin
+        self.spatial_postgres_store: PostgresStore | None = None
+        self.store: LiveStore = ...  # type: ignore nocheckin: LiveStore
         self.cell_provider = cell_provider
         self.database_provider = database_provider
 
@@ -113,8 +113,8 @@ class HostService(ServiceBase, HostBase):
                 Databases=Database.search(),
             ).execute_one()
             if (database := space.database) is not None:
-                self.main_postgres_store = PostgresStore(
-                    database=database.to_info(), area=AreaType.SPACE_POSTGRES
+                self.spatial_postgres_store = PostgresStore(
+                    database=database.to_info(), area=AreaType.SPATIAL_POSTGRES
                 )
 
     def stop(self) -> None:
