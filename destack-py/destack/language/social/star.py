@@ -4,7 +4,9 @@ from destack.language.core import (
     Entity,
     Global,
     IndexIn,
+    IsDeletable,
     IsOwnable,
+    IsTemplatable,
     Node,
     NodeType,
     Spatial,
@@ -26,6 +28,8 @@ if TYPE_CHECKING:
 class Star(
     Global,
     Spatial,
+    IsDeletable,
+    IsTemplatable,
     IsOwnable,
     Entity,
     Node[StarData],

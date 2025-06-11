@@ -13,6 +13,7 @@ from destack.language.core import (
     IsOwnable,
     IsReactable,
     IsTaggable,
+    IsTemplatable,
     Node,
     NodeType,
     Spatial,
@@ -54,6 +55,7 @@ class Message(
     IsDeletable,
     IsTaggable,
     IsReactable,
+    IsTemplatable,
     Spatial,
     Node[MessageData],
 ):

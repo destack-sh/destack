@@ -3,9 +3,11 @@ from typing import TYPE_CHECKING, Optional
 from destack.language.core import (
     Entity,
     Global,
+    IsDeletable,
     IsJoinable,
     IsOwnable,
     IsSubject,
+    IsTemplatable,
     LikeMembership,
     Node,
     NodeType,
@@ -28,7 +30,9 @@ class Membership(
     Spatial,
     Entity,
     LikeMembership,
+    IsTemplatable,
     IsOwnable,
+    IsDeletable,
     Node[MembershipData],
 ):
     """A Membership of a Subject in a Joinable."""

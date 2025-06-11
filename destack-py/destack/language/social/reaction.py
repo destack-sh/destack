@@ -4,7 +4,9 @@ from destack.language.core import (
     Entity,
     Global,
     IndexIn,
+    IsDeletable,
     IsOwnable,
+    IsTemplatable,
     Node,
     NodeType,
     Spatial,
@@ -25,10 +27,12 @@ if TYPE_CHECKING:
     index=(IndexIn(columns=("parent_id", "owned_by_id", "content"), is_unique=True),),
 )
 class Reaction(
-    IsOwnable,
     Entity,
     Global,
     Spatial,
+    IsTemplatable,
+    IsDeletable,
+    IsOwnable,
     Node[ReactionData],
 ):
     """A Reaction is a relationship between a Subject and a Reaction Node."""
