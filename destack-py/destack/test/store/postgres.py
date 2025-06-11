@@ -233,6 +233,8 @@ async def test_create_star(session: Session):
     await session.commit()
 
     star = Star(parent=folder)
+    session.create(star)
+    await session.commit()
 
 
 async def test_create_reaction(session: Session):

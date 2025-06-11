@@ -45,87 +45,31 @@ class Run(
     if TYPE_CHECKING:
         target_ptr: Optional[NodeReference] = None
         target_id: Optional[UUID] = None
-
-    status: RunStatus = property_(80, default=RunStatus.CREATED, is_repr=True)
+    status: RunStatus = property_(41, default=RunStatus.CREATED, is_repr=True)
     duration: Optional[timedelta] = property_(
-        81,
+        42,
         default=None,
         description="Duration from first attempt start to last attempt termination.",
         is_repr=True,
     )
-    error: Optional["Error"] = property_(82, is_repr=True)
+    scheduled_at: Optional[datetime] = property_(
+        45, description="When the Run is scheduled to start."
+    )
+    started_at: Optional[datetime] = property_(
+        46, description="When the Run first started.", is_repr=True
+    )
+    active_at: Optional[datetime] = property_(47, description="When the Run was last active.")
+    interrupted_at: Optional[datetime] = property_(48, description="When the Run was interrupted.")
+    terminated_at: Optional[datetime] = property_(
+        49, description="When the Run was last terminated."
+    )
+    error: Optional["Error"] = property_(50, is_repr=True)
     interruption: Optional["Interruption"] = property_(
-        83,
+        51,
         node_space_from="self",
         description="The latest Interruption.",
         is_repr=True,
     )
-    scheduled_at: Optional[datetime] = property_(
-        85, description="When the Run is scheduled to start."
-    )
-    started_at: Optional[datetime] = property_(
-        86, description="When the Run first started.", is_repr=True
-    )
-    active_at: Optional[datetime] = property_(87, description="When the Run was last active.")
-    interrupted_at: Optional[datetime] = property_(88, description="When the Run was interrupted.")
-    terminated_at: Optional[datetime] = property_(
-        89, description="When the Run was last terminated."
-    )
-    requested_stop_at: Optional[datetime] = property_(
-        90, description="When the Run was requested to stop."
-    )
-    requested_pause_at: Optional[datetime] = property_(
-        91, description="When the Run was requested to pause."
-    )
-    requested_resume_at: Optional[datetime] = property_(
-        92, description="When the Run was requested to resume."
-    )
     if TYPE_CHECKING:
         interruption_ptr: Optional[NodeReference] = None
         interruption_id: Optional[UUID] = None
-
-    def touch(self) -> None:
-        """'Touch' the Node to update the active_at timestamp."""
-        self.active_at = self._session.oracle.utc()
-
-    @property
-    def should_stop(self) -> bool:
-        return not (self.status.is_terminal) and (self.requested_stop_at is not None)
-
-    @property
-    def should_pause(self) -> bool:
-        return not (self.status.is_terminal or self.requested_stop_at is not None) and (
-            self.requested_pause_at is not None
-            and (
-                self.requested_resume_at is None
-                or self.requested_pause_at > self.requested_resume_at
-            )
-        )
-
-    @property
-    def should_resume(self) -> bool:
-        return not (self.status.is_terminal or self.requested_stop_at is not None) and (
-            self.requested_resume_at is not None
-            and (
-                self.requested_pause_at is None
-                or self.requested_pause_at < self.requested_resume_at
-            )
-            and (self.interrupted_at is None or self.interrupted_at < self.requested_resume_at)
-        )
-
-    def pause(self):
-        """Mark this Run as paused."""
-        assert self._session is not None, f"{self!r} has no session"
-        self.requested_pause_at = self._session.oracle.utc()
-
-    def resume(self, _trigger_runtime: bool = True):
-        """Mark this Run as resumed."""
-        assert self._session is not None, f"{self!r} has no session"
-        self.requested_resume_at = self._session.oracle.utc()
-
-    def stop(self, _trigger_runtime: bool = True):
-        """Mark this Run as stopped."""
-        assert self._session is not None, f"{self!r} has no session"
-        self.requested_stop_at = self._session.oracle.utc()
-
-    cancel = abort = stop

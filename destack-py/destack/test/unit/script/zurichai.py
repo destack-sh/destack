@@ -1,8 +1,14 @@
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING
+
+import pytest
 
 from destack import Client, CustomEntity, EdgeType, EditType, IsSubject, Session, User
 
-from .scaffold import *  # noqa: F403
+if not TYPE_CHECKING:
+    pytest.skip(allow_module_level=True)
+
+from .scaffold import *  # noqa: F403  # noqa: F403
 
 # ruff: noqa: F405
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
