@@ -1,18 +1,15 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
-    HasSlug,
-    IsEntity,
-    IsGlobal,
+    HasIcon,
+    HasName,
+    IsDeletable,
     IsSpatial,
-    IsTracked,
     Node,
     NodeType,
     node_,
-    property_,
     property_parent_,
 )
-from destack.pb2 import HandleData
 
 if TYPE_CHECKING:
     from destack.language import Space
@@ -20,17 +17,14 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(NodeType.HANDLE)
-class Handle(
-    HasSlug,
-    IsGlobal,
-    IsEntity,
+@node_(NodeType.ENVIRONMENT)
+class Environment(
+    HasName,
+    HasIcon,
     IsSpatial,
-    IsTracked,
-    Node[HandleData],
+    IsDeletable,
+    Node,
 ):
-    """A Destack @handle."""
+    """An Environment is a deployment of a Space."""
 
     parent: Optional["Space"] = property_parent_(node_is_customizable=False)
-
-    slug: str = property_(33, is_repr=True)

@@ -8,13 +8,8 @@ from destack.language.core import (
     HasIcon,
     HasName,
     HasSlug,
-    IsDeletable,
     IsEntity,
-    IsFollow,
     IsGlobal,
-    IsInvite,
-    IsMembership,
-    IsOwnable,
     IsSubject,
     Node,
     NodeReference,
@@ -22,13 +17,9 @@ from destack.language.core import (
     enum_,
     node_,
     property_,
-    property_parent_,
 )
 from destack.pb2 import (
     OrganizationData,
-    OrganizationFollowData,
-    OrganizationInviteData,
-    OrganizationMembershipData,
 )
 
 if TYPE_CHECKING:
@@ -70,54 +61,3 @@ class Organization(
         space_ptr: NodeReference = property_()
         handle_id: Optional[UUID] = None
         handle_ptr: Optional[NodeReference] = None
-
-
-@enum_(EnumType.ORGANIZATION_ROLE_TYPE)
-class OrganizationRoleType(BuiltinEnum):
-    ADMIN = 10
-    MEMBER = 50
-
-
-@node_(NodeType.ORGANIZATION_INVITE, root_type=NodeType.ORGANIZATION)
-class OrganizationInvite(
-    IsGlobal,
-    IsEntity,
-    IsInvite,
-    IsDeletable,
-    Node[OrganizationInviteData],
-):
-    """
-    An OrganizationInvite is an invite to an Organization.
-    """
-
-    parent: Optional["Organization"] = property_parent_(node_is_customizable=False)
-
-    role_type: OrganizationRoleType = property_(45)
-
-
-@node_(NodeType.ORGANIZATION_MEMBERSHIP, root_type=NodeType.ORGANIZATION)
-class OrganizationMembership(
-    IsGlobal,
-    IsEntity,
-    IsMembership,
-    IsDeletable,
-    Node[OrganizationMembershipData],
-):
-    """
-    An OrganizationMembership is a membership to an Organization.
-    """
-
-    parent: Optional["Organization"] = property_parent_(node_is_customizable=False)
-
-    role_type: OrganizationRoleType = property_(45)
-
-
-@node_(NodeType.ORGANIZATION_FOLLOW, root_type=NodeType.ORGANIZATION)
-class OrganizationFollow(
-    IsGlobal,
-    IsEntity,
-    IsFollow,
-    IsOwnable,
-    Node[OrganizationFollowData],
-):
-    parent: Optional["Organization"] = property_parent_(node_is_customizable=False)

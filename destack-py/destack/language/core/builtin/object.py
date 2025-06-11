@@ -506,7 +506,7 @@ def __to_ref__(self) -> "NodeReference":
         space_id=self.space_id,
     )
 """
-    elif TraitType.IN_SPACE in cls.__traits__:
+    elif TraitType.SPATIAL in cls.__traits__:
         ref_impl = f"""\
 def __to_ref__(self) -> "NodeReference":
     return NodeReference(

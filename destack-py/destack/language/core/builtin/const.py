@@ -279,7 +279,6 @@ class EnumType(BuiltinEnum):
     NODE_TYPE = 2
     STRUCT_TYPE = 3
     TRAIT_TYPE = 5
-    ENVIRONMENT_TYPE = 6
     AREA_TYPE = 7
     RUNTIME_TYPE = 8
     RUNTIME_LANGUAGE = 9
@@ -293,6 +292,7 @@ class EnumType(BuiltinEnum):
     EDIT_TYPE = 71
     EDIT_OPERATION = 72
     CHANGE_STATUS = 76
+    CLIENT_TYPE = 100
     # query
     CONDITIONAL_TYPE = 103
     AGGREGATION_TYPE = 104
@@ -303,14 +303,11 @@ class EnumType(BuiltinEnum):
     EXPRESSION_TYPE = 109
     RELATION_TYPE = 110
     ATTRIBUTE_TYPE = 111
-    QUERY_TYPE = 812
-    QUERY_UPDATE_TYPE = 813
+    QUERY_TYPE = 120
+    QUERY_UPDATE_TYPE = 121
 
     # access [400-600]
-    SPACE_ROLE_TYPE = 401
-    ORGANIZATION_ROLE_TYPE = 411
-    FOLDER_ROLE_TYPE = 421
-    CLIENT_TYPE = 431
+    ROLE_TYPE = 400
     # ...
 
     # folder [600-800]
@@ -368,7 +365,7 @@ class EnumType(BuiltinEnum):
     # ...
 
     # deployment [2800-3000]
-    # ...
+    ENVIRONMENT_TYPE = 2800
 
     # product [3000-3400]
     # ...
@@ -624,12 +621,8 @@ class StructType(BuiltinEnum):
 class NodeType(BuiltinEnum):
     # space [1-400]
     SPACE = 1, "Space", "Universal Space", "https://heydestack.com/favicon.ico"
-    SPACE_MEMBERSHIP = 2, "Space Membership", "Membership in a Space", "fas fa-user-group"
-    SPACE_INVITE = 3, "Space Invite", "Invite to a Space", "fas fa-user-plus"
-    SPACE_FOLLOW = 4, "Space Follow", "Follow a Space", "fas fa-user-plus"
     HANDLE = 10, "Handle", "Unique @handle", "fas fa-at"
     USER = 20, "User", "User", "fas fa-user"
-    USER_FOLLOW = 21, "User Follow", "Follow a User", "fas fa-user-plus"
     FRIENDSHIP = 30, "Friendship", "Friendship between two Users", "fas fa-user-friends"
     FRIENDSHIP_INVITE = (
         31,
@@ -638,24 +631,14 @@ class NodeType(BuiltinEnum):
         "fas fa-user-plus",
     )
     ORGANIZATION = 40, "Organization", "Organization", "fas fa-building"
-    ORGANIZATION_MEMBERSHIP = (
-        41,
-        "Organization Membership",
-        "Membership in an Organization",
-        "fas fa-user-group",
-    )
-    ORGANIZATION_INVITE = (
-        42,
-        "Organization Invite",
-        "Invite to an Organization",
-        "fas fa-user-plus",
-    )
-    ORGANIZATION_FOLLOW = 43, "Organization Follow", "Follow an Organization", "fas fa-user-plus"
     CLIENT = 50, "Client", "Client", "fas fa-desktop"
     # TEAM, TEAM_MEMBERSHIP, TEAM_INVITE, ...
     # CREDENTIAL, ACCOUNT, PROFILE, ...
 
     # access [400-600]
+    MEMBERSHIP = 400, "Membership", "Membership in a Space/Folder", "fas fa-user-group"
+    INVITE = 401, "Invite", "Invite to a Space/Folder", "fas fa-user-plus"
+    ROLE = 410, "Role", "Role in something", "fas fa-user-tag"
     # PERMISSION, PERMISSION_GROUP, ...
     # POLICY, RULE, ...
     # CHALLENGE, ENTITLEMENT,
@@ -663,11 +646,9 @@ class NodeType(BuiltinEnum):
 
     # folder [600-800]
     FOLDER = 600, "Folder", "Sub-space of a Space", "fas fa-folder-open"
-    FOLDER_MEMBERSHIP = 601, "Folder Membership", "Membership in a Folder", "fas fa-user-group"
-    FOLDER_INVITE = 602, "Folder Invite", "Invite to a Folder", "fas fa-user-plus"
-    FOLDER_FOLLOW = 603, "Folder Follow", "Follow a Folder", "fas fa-user-plus"
     # DEPENDENCY, ...
-    # TAG/TAGGING, ...
+    TAG = 610, "Tag", "Tag", "fas fa-tag"
+    TAGGING = 611, "Tagging", "Tagging", "fas fa-tag"
 
     # history [800-1000]
     # HISTORY, SNAPSHOT/SAVEPOINT, OVERLAY, BRANCH, ...
@@ -681,7 +662,7 @@ class NodeType(BuiltinEnum):
     )
     CUSTOM_ENTITY = 1001, "Custom Node Instance", "Custom Node Instance", "fas fa-database"
     # INDEX, CONSTRAINT, MIGRATION, ...
-    # SYNC, ...
+    # MIRROR/SYNC, ...
     # TRAIT/INTERFACE/CUSTOM_TRAIT, ...
 
     # data [1400-1800]
@@ -733,7 +714,8 @@ class NodeType(BuiltinEnum):
     HISTOGRAM_METRIC = 2604, "Histogram Metric", "Histogram Metric", "fas fa-gauge"
     HISTOGRAM_MEASUREMENT = 2605, "Histogram Measurement", "Histogram Measurement", "fas fa-gauge"
 
-    # deployment [2600-3000]
+    # deployment [2800-3000]
+    ENVIRONMENT = 2800, "Environment", "Environment", "fas fa-environment"
     # DEPLOYMENT, ...
     # PREVIEW, RELEASE, ROLLOUT, ...
     # INCIDENT, ESCALATION, ...
@@ -845,12 +827,11 @@ class NodeType(BuiltinEnum):
 
 @enum_(EnumType.TRAIT_TYPE)
 class TraitType(BuiltinEnum):
-    # destack [1-200]
+    # destack [1-400]
     # nocheckin: categorize Nodes (Entities/Particles/Assets/Views/Visuals/...?)
     # where
     GLOBAL = 1, "Global", "Is global", "fas fa-globe"
-    IN_SPACE = 2, "Space", "Is in a Space", "fas fa-space"
-    IN_FOLDER = 3, "Folder", "Is in a Folder", "fas fa-folder-open"
+    SPATIAL = 2, "Spatial", "Is in a Space", "fas fa-solar-system"
     # what
     ENTITY = 10, "Entity", "Is an Entity", "fas fa-hexagon"
     PARTICLE = 11, "Particle", "Is a Particle", "fas fa-atom"
@@ -864,21 +845,18 @@ class TraitType(BuiltinEnum):
         "fas fa-table",
     )
     CUSTOM_NODE = 19, "Custom Node", "Is a Custom Node", "fas fa-database"
-
     # behavior
-    FROZEN = 20, "Frozen", "Is frozen", "fas fa-snowflake"
-    TRACKED = 21, "Tracked", "Is tracked", "fas fa-clock"
-    ARCHIVABLE = 22, "Archivable", "Can be archived", "fas fa-box-archive"
-    DELETABLE = 23, "Deletable", "Can be deleted", "fas fa-trash"
-    TEMPLATABLE = 24, "Templatable", "Is templatable", "fas fa-puzzle-piece"
-    EXTENSIBLE = 25, "Extensible", "Is extensible", "fas fa-expand"
-    ORDERED = 26, "Ordered", "Is ordered", "fas fa-sort"
-    ENVIRONMENTAL = 27, "Environment", "Has an environment", "fas fa-window-maximize"
-
+    FROZEN = 30, "Frozen", "Is frozen", "fas fa-snowflake"
+    TRACKED = 31, "Tracked", "Is tracked", "fas fa-clock"
+    ARCHIVABLE = 32, "Archivable", "Can be archived", "fas fa-box-archive"
+    DELETABLE = 33, "Deletable", "Can be deleted", "fas fa-trash"
+    TEMPLATABLE = 34, "Templatable", "Is templatable", "fas fa-puzzle-piece"
+    EXTENSIBLE = 35, "Extensible", "Is extensible", "fas fa-expand"
+    ORDERED = 36, "Ordered", "Is ordered", "fas fa-sort"
     # attribute
-    HAS_NAME = 30, "Name", "Has a name", "fas fa-font-case"
-    HAS_SLUG = 31, "Slug", "Has a slug", "fas fa-hashtag"
-    HAS_ICON = 32, "Icon", "Has an icon", "fas fa-icons"
+    HAS_NAME = 50, "Name", "Has a name", "fas fa-font-case"
+    HAS_SLUG = 51, "Slug", "Has a slug", "fas fa-hashtag"
+    HAS_ICON = 52, "Icon", "Has an icon", "fas fa-icons"
 
     # access [400-600]
     OWNABLE = 400, "Ownable", "Is ownable", "fas fa-user"
@@ -886,10 +864,10 @@ class TraitType(BuiltinEnum):
     SUBJECT = 405, "Subject", "Is a Subject", "fas fa-user"
     MEMBERSHIP = 410, "Membership", "Is a Membership", "fas fa-users"
     INVITE = 411, "Invite", "Is an Invite", "fas fa-envelope"
-    ROLE = 412, "Role", "Is a Role", "fas fa-user-tag"
 
     # folder [600-800]
-    # ...
+    TAGGABLE = 600, "Taggable", "Can be tagged", "fas fa-tag"
+    TAG = 601, "Tag", "Is a Tag", "fas fa-tag"
 
     # history [800-1000]
     # ...
@@ -898,9 +876,10 @@ class TraitType(BuiltinEnum):
     # ...
 
     # logic [1800-2200]
-    RUNNABLE = 1800, "Runnable", "Can be run", "fas fa-play"
-    SCRIPTABLE = 1801, "Scriptable", "Can be scripted", "fas fa-code"
-    SOURCEABLE = 1802, "Sourcable", "Can be defined in a Script", "fas fa-code"
+    ACTIONABLE = 1800, "Actionable", "Can define an Action", "fas fa-play"
+    RUNNABLE = 1801, "Runnable", "Can be run", "fas fa-play"
+    SCRIPTABLE = 1802, "Scriptable", "Can be scripted", "fas fa-code"
+    SOURCEABLE = 1803, "Sourcable", "Can be defined in a Script", "fas fa-code"
     CURSOR = 1812, "Cursor", "Is a Cursor", "fas fa-mouse-pointer"
 
     # test [2000-2400]

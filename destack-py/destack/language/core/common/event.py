@@ -13,10 +13,10 @@ from destack.pb2 import (
 from ..builtin import (
     UNSET,
     HasName,
-    IsEnvironmental,
     IsEvent,
-    IsInFolder,
     IsSourceable,
+    IsSpatial,
+    IsTaggable,
     Node,
     NodeType,
     Property,
@@ -39,9 +39,9 @@ if TYPE_CHECKING:
 
 @node_(NodeType.EDIT_EVENT, pretend_frozen=True)
 class EditEvent(
-    IsEnvironmental,
+    IsTaggable,
     IsEvent,
-    IsInFolder,
+    IsSpatial,
     Node[EditEventData],
 ):
     """A Event of an Edit."""
@@ -67,9 +67,9 @@ class EditEvent(
 
 @node_(NodeType.CHANGE_EVENT, pretend_frozen=True)
 class ChangeEvent(
-    IsEnvironmental,
+    IsTaggable,
     IsEvent,
-    IsInFolder,
+    IsSpatial,
     Node[ChangeEventData],
 ):
     """A Event of a Change."""
@@ -79,9 +79,9 @@ class ChangeEvent(
 
 @node_(NodeType.QUERY_EVENT, pretend_frozen=True)
 class QueryEvent(
-    IsEnvironmental,
+    IsTaggable,
     IsEvent,
-    IsInFolder,
+    IsSpatial,
     Node[QueryEventData],
 ):
     """A Event of a Query."""
@@ -93,7 +93,7 @@ class QueryEvent(
 class CustomEventDefinition(
     HasName,
     IsSourceable,
-    IsInFolder,
+    IsSpatial,
     Node[CustomEventDefinitionData],
 ):
     """A CustomEventDefinition defines a kind of CustomEvent."""
@@ -102,7 +102,7 @@ class CustomEventDefinition(
 
 
 @node_(NodeType.CUSTOM_EVENT, pretend_frozen=True)
-class CustomEvent(IsInFolder, IsEvent, Node[CustomEventData]):
+class CustomEvent(IsSpatial, IsEvent, Node[CustomEventData]):
     """An instance of a CustomEventDefinition."""
 
     definition: CustomEventDefinition = property_(

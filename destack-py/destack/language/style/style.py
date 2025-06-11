@@ -3,8 +3,8 @@ from typing import TYPE_CHECKING, Union
 from destack.language.core import (
     HasName,
     IsEntity,
-    IsEnvironmental,
-    IsInFolder,
+    IsSpatial,
+    IsTaggable,
     IsTemplatable,
     IsVisual,
     TraitType,
@@ -23,8 +23,8 @@ class IsStyle(
     HasName,
     IsVisual,
     IsTemplatable,
-    IsEnvironmental,
-    IsInFolder,
+    IsTaggable,
+    IsSpatial,
     IsEntity,
 ):
     """A Style is a graphical interface."""

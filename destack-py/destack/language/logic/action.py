@@ -4,12 +4,13 @@ from destack.language.core import (
     BuiltinEnum,
     EnumType,
     HasName,
+    IsActionable,
     IsDeletable,
-    IsEnvironmental,
-    IsInFolder,
     IsOrdered,
     IsRunnable,
     IsSourceable,
+    IsSpatial,
+    IsTaggable,
     IsTemplatable,
     IsTracked,
     Node,
@@ -23,7 +24,7 @@ from destack.language.core import (
 from destack.pb2 import ActionData
 
 if TYPE_CHECKING:
-    from destack.language import Service, Text
+    from destack.language import Text
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -41,13 +42,13 @@ class ActionCardinality(BuiltinEnum):
 @node_(NodeType.ACTION)
 class Action(
     HasName,
-    IsEnvironmental,
+    IsTaggable,
     IsTemplatable,
     IsSourceable,
     IsOrdered,
     IsDeletable,
     IsRunnable,
-    IsInFolder,
+    IsSpatial,
     IsTracked,
     Node[ActionData],
 ):
@@ -56,7 +57,7 @@ class Action(
     May defer to a builtin or some other service in a separate system.
     """
 
-    parent: Union["Service", None] = property_parent_(node_is_customizable=True)
+    parent: Union["IsActionable", None] = property_parent_(node_is_customizable=True)
 
     cardinality: ActionCardinality = property_(40, default=ActionCardinality.UNARY)
     text: Optional["Text"] = property_(41)

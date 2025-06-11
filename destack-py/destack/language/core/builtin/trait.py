@@ -26,7 +26,6 @@ from destack.utils.fractional import INTEGER_ZERO
 from .const import (
     UNSET,
     EdgeType,
-    EnvironmentType,
     NodeType,
     ResourceStatus,
     TraitType,
@@ -46,7 +45,6 @@ if TYPE_CHECKING:
         Condition,
         Expression,
         ExpressionIn,
-        Folder,
         Icon,
         Node,
         NodeInfo,
@@ -144,7 +142,7 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
     # IsCustomNode.definition: 17
     # IsExtensible.value: 18
     # IsOrdered.order_key: 19
-    # IsEnvironmental.: 20/21
+    # IsTaggable.: 20/21
     # IsOwnable.owned_by: 22
     # ...managed_by/controlled_by?
 
@@ -411,16 +409,6 @@ class HasIcon(Trait):
     icon: Optional["Icon"] = property_(34)
 
 
-@trait_(TraitType.ENVIRONMENTAL)
-class IsEnvironmental(Trait):
-    """A Node that may be in different environments."""
-
-    environment_type: EnvironmentType = property_(
-        20, is_eq=False, default=EnvironmentType.PRODUCTION
-    )
-    # environment: "Environment | None", ... (21)
-
-
 @trait_(TraitType.GLOBAL)
 class IsGlobal(Trait):
     """A Node that is global."""
@@ -428,9 +416,19 @@ class IsGlobal(Trait):
     pass
 
 
+@trait_(TraitType.SPATIAL)
+class IsSpatial(Trait):
+    """A Node in a Space."""
+
+    parent: Optional["Space"] = property_parent_(node_is_customizable=False)
+    space: "Space | None" = property_ancestor_(6, is_required=True)
+    if TYPE_CHECKING:
+        space_ptr: Optional[NodeReference] = None
+
+
 @trait_(TraitType.TRACKED)
 class IsTracked(Trait):
-    """A Node that is "tracked"."""
+    """A Node that is "tracked" on create/update."""
 
     created_at: datetime = property_(10, is_managed=True, is_eq=False, can_write="system")
     created_by: Optional["IsSubject"] = property_(
@@ -637,26 +635,6 @@ class IsFollow(Trait):
     pass
 
 
-@trait_(TraitType.IN_SPACE)
-class IsInSpace(Trait):
-    """A Node in a Space."""
-
-    parent: Optional["Space"] = property_parent_(node_is_customizable=False)
-    space: "Space | None" = property_ancestor_(6, is_required=True)
-    if TYPE_CHECKING:
-        space_ptr: Optional[NodeReference] = None
-
-
-@trait_(TraitType.IN_FOLDER)
-class IsInFolder(IsInSpace):
-    """A Node in a Folder."""
-
-    parent: Optional["Folder"] = property_parent_(node_is_customizable=False)
-    folder: "Folder | None" = property_ancestor_(7, is_required=False)
-    if TYPE_CHECKING:
-        folder_ptr: Optional[NodeReference] = None
-
-
 @trait_(TraitType.SOURCEABLE)
 class IsSourceable(Trait):
     """A Node that can be sourced from / defined by a Script."""
@@ -675,6 +653,13 @@ class IsScriptable(Trait):
 @trait_(TraitType.RUNNABLE)
 class IsRunnable(Trait):
     """A Node that can be run (at runtime, in a Run)."""
+
+    pass
+
+
+@trait_(TraitType.ACTIONABLE)
+class IsActionable(Trait):
+    """A Node that can define an Action."""
 
     pass
 
@@ -739,8 +724,15 @@ class IsInvite(Trait):
     member: "IsSubject" = property_(40)
 
 
-@trait_(TraitType.ROLE)
-class IsRole(Trait):
-    """A Node that represents a Role."""
+@trait_(TraitType.TAGGABLE)
+class IsTaggable(Trait):
+    """A Node that can be tagged."""
+
+    pass
+
+
+@trait_(TraitType.TAG)
+class IsTag(Trait):
+    """A Node that can be tagged."""
 
     pass

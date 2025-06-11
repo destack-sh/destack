@@ -11,7 +11,7 @@ from destack.language.core import (
     BuiltinEnum,
     EnumType,
     IsAsset,
-    IsInFolder,
+    IsSpatial,
     Node,
     NodeType,
     enum_,
@@ -37,7 +37,7 @@ class LinkType(BuiltinEnum):
 @node_(NodeType.LINK)
 class Link(
     IsAsset,
-    IsInFolder,
+    IsSpatial,
     Node[LinkData],
 ):
     """

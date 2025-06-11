@@ -7,19 +7,14 @@ from destack.language.core import (
     HasName,
     HasSlug,
     IndexIn,
-    IsArchivable,
     IsDeletable,
     IsEntity,
-    IsEnvironmental,
-    IsFollow,
     IsFollowable,
-    IsGlobal,
-    IsInFolder,
-    IsInvite,
     IsJoinable,
-    IsMembership,
     IsOwnable,
+    IsSpatial,
     IsStarable,
+    IsTaggable,
     IsTemplatable,
     Node,
     NodeType,
@@ -28,7 +23,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.pb2 import FolderData, FolderInviteData, FolderMembershipData
+from destack.pb2 import FolderData
 
 if TYPE_CHECKING:
     from destack.language import Scene, Space
@@ -41,8 +36,8 @@ class FolderType(BuiltinEnum):
     ROOT = 1, "Root", "The root folder of a Space", "fas fa-home"
     HOME = 2, "Home", "The home folder of a Space", "fas fa-home"
     GENERIC = 3, "Generic", "A generic folder", "fas fa-folder-open"
-    APP = 4, "App", "An app folder", "fas fa-folder"
-    MODULE = 5, "Module", "A module", "fas fa-box-open"
+    MODULE = 4, "Module", "A module", "fas fa-box-open"
+    APP = 5, "App", "An app folder", "fas fa-folder"
     # SERVICE, PLUGIN, WIDGET, TEMPLATE, LIBRARY, ...
 
 
@@ -55,13 +50,12 @@ class Folder(
     HasSlug,
     HasName,
     IsEntity,
-    IsEnvironmental,
+    IsSpatial,
+    IsTaggable,
     IsOwnable,
     IsJoinable,
     IsTemplatable,
-    IsInFolder,
     IsDeletable,
-    IsArchivable,
     IsStarable,
     IsFollowable,
     Node[FolderData],
@@ -72,53 +66,3 @@ class Folder(
     type: FolderType = property_(30, is_repr=True, default=FolderType.GENERIC)
 
     main_scene: Optional["Scene"] = property_(41)
-
-
-@enum_(EnumType.FOLDER_ROLE_TYPE)
-class FolderRoleType(BuiltinEnum):
-    ADMIN = 1
-    DEVELOPER = 3
-    USER = 5
-    SPECTATOR = 10
-
-
-@node_(NodeType.FOLDER_MEMBERSHIP)
-class FolderMembership(
-    IsEntity,
-    IsMembership,
-    IsDeletable,
-    IsInFolder,
-    Node[FolderMembershipData],
-):
-    """A FolderMembership is a membership to a Folder."""
-
-    parent: Optional["Folder"] = property_parent_(node_is_customizable=False)
-
-    role_type: FolderRoleType = property_(45)
-
-
-@node_(NodeType.FOLDER_INVITE)
-class FolderInvite(
-    IsEntity,
-    IsInvite,
-    IsDeletable,
-    IsInFolder,
-    Node[FolderInviteData],
-):
-    """A FolderInvite is an invite to a Folder."""
-
-    parent: Optional["Folder"] = property_parent_(node_is_customizable=False)
-
-    role_type: FolderRoleType = property_(45)
-
-
-@node_(NodeType.FOLDER_FOLLOW)
-class FolderFollow(
-    IsGlobal,
-    IsEntity,
-    IsFollow,
-    IsOwnable,
-    IsInFolder,
-    Node["FolderFollowData"],
-):
-    pass

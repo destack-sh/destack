@@ -3,7 +3,9 @@ from typing import TYPE_CHECKING, Union
 from destack.language.core import (
     IndexIn,
     IsEntity,
+    IsGlobal,
     IsOwnable,
+    IsSpatial,
     Node,
     NodeType,
     node_,
@@ -25,6 +27,8 @@ if TYPE_CHECKING:
 class Reaction(
     IsOwnable,
     IsEntity,
+    IsGlobal,
+    IsSpatial,
     Node[ReactionData],
 ):
     """A Reaction is a relationship between a Subject and a Reaction Node."""

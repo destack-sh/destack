@@ -3,9 +3,9 @@ from typing import TYPE_CHECKING, Optional, Union
 from destack.language.core import (
     HasName,
     IsDeletable,
-    IsEnvironmental,
-    IsInFolder,
     IsScriptable,
+    IsSpatial,
+    IsTaggable,
     IsTemplatable,
     IsTracked,
     IsVisual,
@@ -25,10 +25,10 @@ if TYPE_CHECKING:
 class IsView(
     HasName,
     IsVisual,
-    IsEnvironmental,
+    IsTaggable,
     IsScriptable,
     IsTemplatable,
-    IsInFolder,
+    IsSpatial,
     IsTracked,
     IsDeletable,
 ):

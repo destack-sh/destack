@@ -6,10 +6,9 @@ from fastuuid import UUID
 from destack.language.core import (
     BuiltinEnum,
     EnumType,
-    IsEnvironmental,
     IsExtensible,
-    IsInFolder,
     IsRunnable,
+    IsSpatial,
     IsTracked,
     Node,
     NodeReference,
@@ -73,9 +72,8 @@ class InterruptionResponse(BuiltinEnum):
 
 @node_(NodeType.INTERRUPTION)
 class Interruption(
-    IsEnvironmental,
     IsExtensible,
-    IsInFolder,
+    IsSpatial,
     IsTracked,
     Node[InterruptionData],
 ):
@@ -115,17 +113,3 @@ class Interruption(
     @property
     def is_closed(self) -> bool:
         return self.status == InterruptionStatus.COMPLETED
-
-    @staticmethod
-    def from_run(
-        kind: InterruptionType,
-        run: "Run",
-        span: Optional["Span"] = None,
-    ) -> "Interruption":
-        return Interruption(
-            type=kind,
-            parent=run,
-            runnable=run.target,
-            span=span,
-            environment_type=run.environment_type,
-        )
