@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Union
 from destack.language.core import (
     Analytic,
     IsFrozen,
-    IsTaggable,
     Node,
     NodeType,
     Spatial,
@@ -23,7 +22,6 @@ if TYPE_CHECKING:
 class Span(
     Spatial,
     Analytic,
-    IsTaggable,
     IsFrozen,
     Node[SpanData],
 ):
