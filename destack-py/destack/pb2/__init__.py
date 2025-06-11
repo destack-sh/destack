@@ -64,6 +64,7 @@ AnyNodeData = Union[
     RouteData,
     SceneData,
     WindowData,
+    FollowData,
     MessageData,
     NotificationData,
     ReactionData,

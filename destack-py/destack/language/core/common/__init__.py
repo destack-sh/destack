@@ -56,6 +56,7 @@ from .query import (
 )
 from .relation import (
     AttributeReference,
+    AttributeReferenceIn,
     AttributeType,
     NodeReference,
     PropertyReference,
@@ -138,6 +139,7 @@ __all__ = [
     "AggregationType",
     "Align",
     "AttributeReference",
+    "AttributeReferenceIn",
     "AttributeType",
     "Axis2",
     "Axis3",
