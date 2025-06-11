@@ -1,12 +1,12 @@
 from typing import TYPE_CHECKING, Union
 
 from destack.language.core import (
+    Analytic,
     IsFrozen,
-    IsParticle,
-    IsSpatial,
     IsTaggable,
     Node,
     NodeType,
+    Spatial,
     node_,
     property_parent_,
 )
@@ -21,10 +21,10 @@ if TYPE_CHECKING:
 
 @node_(NodeType.SPAN)
 class Span(
+    Spatial,
+    Analytic,
     IsTaggable,
     IsFrozen,
-    IsParticle,
-    IsSpatial,
     Node[SpanData],
 ):
     """

@@ -6,7 +6,7 @@ from destack.language.core import (
     trait_,
 )
 
-from ..view import IsView
+from ..view import View
 
 if TYPE_CHECKING:
     from destack.language import Align
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 
 @trait_(TraitType.CONTENT_VIEW)
-class IsContentView(IsView):
+class ContentView(View):
     """A content View."""
 
     # layout

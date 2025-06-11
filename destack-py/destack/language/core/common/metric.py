@@ -9,12 +9,12 @@ from destack.pb2 import (
 
 from ..builtin import (
     HasName,
-    IsMeasurement,
-    IsMetric,
     IsSourceable,
-    IsSpatial,
+    Measurement,
+    Metric,
     Node,
     NodeType,
+    Spatial,
     node_,
     property_,
 )
@@ -24,10 +24,10 @@ from ..builtin import (
 
 @node_(NodeType.GAUGE_METRIC)
 class GaugeMetric(
+    Spatial,
+    Metric,
     HasName,
-    IsMetric,
     IsSourceable,
-    IsSpatial,
     Node[GaugeMetricData],
 ):
     """A Gauge Metric."""
@@ -37,7 +37,8 @@ class GaugeMetric(
 
 @node_(NodeType.GAUGE_MEASUREMENT)
 class GaugeMeasurement(
-    IsMeasurement,
+    Spatial,
+    Measurement,
     Node[GaugeMeasurementData],
 ):
     """A Gauge Measurement."""
@@ -47,10 +48,10 @@ class GaugeMeasurement(
 
 @node_(NodeType.COUNTER_METRIC)
 class CounterMetric(
+    Spatial,
+    Metric,
     HasName,
-    IsMetric,
     IsSourceable,
-    IsSpatial,
     Node[CounterMetricData],
 ):
     """A Counter Metric."""
@@ -60,7 +61,8 @@ class CounterMetric(
 
 @node_(NodeType.COUNTER_MEASUREMENT)
 class CounterMeasurement(
-    IsMeasurement,
+    Spatial,
+    Measurement,
     Node[CounterMeasurementData],
 ):
     """A Counter Measurement."""
@@ -70,10 +72,10 @@ class CounterMeasurement(
 
 @node_(NodeType.HISTOGRAM_METRIC)
 class HistogramMetric(
+    Spatial,
+    Metric,
     HasName,
-    IsMetric,
     IsSourceable,
-    IsSpatial,
     Node[HistogramMetricData],
 ):
     """A Histogram Metric."""
@@ -83,7 +85,8 @@ class HistogramMetric(
 
 @node_(NodeType.HISTOGRAM_MEASUREMENT)
 class HistogramMeasurement(
-    IsMeasurement,
+    Spatial,
+    Measurement,
     Node[HistogramMeasurementData],
 ):
     """A Histogram Measurement."""

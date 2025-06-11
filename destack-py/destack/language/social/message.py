@@ -7,15 +7,15 @@ from fastuuid import UUID
 from destack.language.core import (
     UNSET,
     BuiltinEnum,
+    Entity,
     EnumType,
     IsDeletable,
-    IsEntity,
     IsOwnable,
     IsReactable,
-    IsSpatial,
     IsTaggable,
     Node,
     NodeType,
+    Spatial,
     Text,
     TextIn,
     enum_,
@@ -49,12 +49,12 @@ class MessageType(BuiltinEnum):
 
 @node_(NodeType.MESSAGE)
 class Message(
-    IsEntity,
+    Entity,
     IsOwnable,
     IsDeletable,
     IsTaggable,
     IsReactable,
-    IsSpatial,
+    Spatial,
     Node[MessageData],
 ):
     """

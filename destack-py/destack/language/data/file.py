@@ -18,15 +18,15 @@ from opentelemetry import trace
 from PIL import Image
 
 from destack.language.core import (
+    Asset,
     BuiltinEnum,
     EnumType,
+    Global,
     HasName,
-    IsAsset,
-    IsGlobal,
-    IsSpatial,
     Node,
     NodeType,
     PrimitiveType,
+    Spatial,
     enum_,
     node_,
     property_,
@@ -457,10 +457,10 @@ MIME_TYPE_BY_FORMAT: dict[FileFormat, str] = {v: k for k, v in FILE_FORMAT_BY_MI
 
 @node_(NodeType.FILE)
 class File(
+    Spatial,
+    Global,
+    Asset,
     HasName,
-    IsSpatial,
-    IsGlobal,
-    IsAsset,
     Node[FileData],
 ):
     """

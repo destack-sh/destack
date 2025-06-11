@@ -8,7 +8,7 @@ from destack.language.core import (
 )
 from destack.pb2 import TextViewData
 
-from .content import IsContentView
+from .content import ContentView
 
 if TYPE_CHECKING:
     from destack.language import Fill, Font
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.TEXT_VIEW)
-class TextView(IsContentView, Node[TextViewData]):
+class TextView(ContentView, Node[TextViewData]):
     """A (rich) text view."""
 
     # appearance

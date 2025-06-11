@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 
 from destack.language.core import (
     BuiltinEnum,
+    Entity,
     EnumType,
     HasIcon,
     HasName,
@@ -12,6 +13,7 @@ from destack.language.core import (
     IsVisual,
     Node,
     NodeType,
+    Spatial,
     enum_,
     node_,
     property_,
@@ -39,6 +41,8 @@ class ThemeColor(BuiltinEnum):
 
 @node_(NodeType.THEME)
 class Theme(
+    Spatial,
+    Entity,
     HasName,
     HasIcon,
     IsVisual,

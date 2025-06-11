@@ -4,7 +4,6 @@ from destack.language.core import (
     BuiltinEnum,
     BuiltinObjectMutable,
     EnumType,
-    IsArchivable,
     IsDeletable,
     IsTracked,
     Node,
@@ -19,7 +18,7 @@ from destack.language.core import (
 )
 from destack.pb2 import TransitionStyleData
 
-from .style import IsStyle
+from .style import Style
 
 if TYPE_CHECKING:
     pass
@@ -69,10 +68,9 @@ class Transition(TransitionBase, StructMutable):
 
 @node_(NodeType.TRANSITION_STYLE)
 class TransitionStyle(
+    Style,
     TransitionBase,
-    IsStyle,
     IsDeletable,
-    IsArchivable,
     IsTracked,
     Node[TransitionStyleData],
 ):

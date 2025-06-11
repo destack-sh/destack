@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Optional
 from destack.language.core import Node, NodeType, Text, node_, property_
 from destack.pb2 import ThreadData
 
-from .node import IsNodeView
+from .node import NodeView
 
 if TYPE_CHECKING:
     from destack.language import Message
@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.THREAD_VIEW)
-class ThreadView(IsNodeView, Node[ThreadData]):
+class ThreadView(NodeView, Node[ThreadData]):
     """A Thread view."""
 
     draft_text: Optional[Text] = property_(100)

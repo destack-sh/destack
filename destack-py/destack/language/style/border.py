@@ -21,7 +21,7 @@ from destack.language.core import (
 from destack.pb2 import BorderStyleData
 
 from .color import Color
-from .style import IsStyle
+from .style import Style
 
 if TYPE_CHECKING:
     pass
@@ -62,8 +62,8 @@ class Border(BorderBase, StructMutable):
 
 @node_(NodeType.BORDER_STYLE)
 class BorderStyle(
+    Style,
     BorderBase,
-    IsStyle,
     IsDeletable,
     IsArchivable,
     IsTracked,

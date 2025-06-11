@@ -1,14 +1,14 @@
 from destack.language.core import IsArchivable, IsDeletable, Node, NodeType, node_
 from destack.pb2 import FrameViewData
 
-from .container import IsContainerView
+from .container import ContainerView
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
 @node_(NodeType.FRAME_VIEW)
 class FrameView(
-    IsContainerView,
+    ContainerView,
     IsDeletable,
     IsArchivable,
     Node[FrameViewData],

@@ -21,7 +21,7 @@ from destack.language.core import (
 from destack.pb2 import FontStyleData
 
 from .fill import Fill
-from .style import IsStyle
+from .style import Style
 
 if TYPE_CHECKING:
     pass
@@ -114,8 +114,8 @@ class Font(FontBase, StructMutable):
 
 @node_(NodeType.FONT_STYLE)
 class FontStyle(
+    Style,
     FontBase,
-    IsStyle,
     IsDeletable,
     IsArchivable,
     IsTracked,

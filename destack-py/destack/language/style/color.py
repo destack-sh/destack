@@ -19,7 +19,7 @@ from destack.language.core import (
 )
 from destack.pb2 import ColorStyleData
 
-from .style import IsStyle
+from .style import Style
 
 if TYPE_CHECKING:
     pass
@@ -113,8 +113,8 @@ class Color(ColorBase, StructMutable):
 
 @node_(NodeType.COLOR_STYLE)
 class ColorStyle(
+    Style,
     ColorBase,
-    IsStyle,
     IsDeletable,
     IsArchivable,
     IsTracked,

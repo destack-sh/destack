@@ -4,12 +4,12 @@ from fastuuid import UUID
 
 from destack.language.core import (
     BuiltinEnum,
+    Entity,
     EnumType,
+    Global,
     HasIcon,
     HasName,
     HasSlug,
-    IsEntity,
-    IsGlobal,
     IsSubject,
     Node,
     NodeReference,
@@ -36,8 +36,8 @@ class OrganizationStatus(BuiltinEnum):
 
 @node_(NodeType.ORGANIZATION, root_type=None)
 class Organization(
-    IsGlobal,
-    IsEntity,
+    Global,
+    Entity,
     IsSubject,
     HasSlug,
     HasIcon,

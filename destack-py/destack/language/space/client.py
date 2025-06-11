@@ -5,10 +5,10 @@ from fastuuid import UUID
 
 from destack.language.core import (
     ClientType,
+    Entity,
+    Global,
     HasName,
     IndexIn,
-    IsEntity,
-    IsGlobal,
     IsSubject,
     Node,
     NodeReference,
@@ -34,8 +34,8 @@ if TYPE_CHECKING:
 )
 class Client(
     HasName,
-    IsGlobal,
-    IsEntity,
+    Global,
+    Entity,
     Node[ClientData],
 ):
     """A Client to connect with the system."""

@@ -27,7 +27,7 @@ from .font import (
 )
 from .gradient import Gradient, GradientStop, GradientStyle, GradientType
 from .shadow import Shadow, ShadowBase, ShadowStyle, ShadowType
-from .style import IsStyle
+from .style import Style
 from .theme import Theme, ThemeColor
 from .transition import Transition, TransitionBase, TransitionStyle, TransitionType
 
@@ -60,11 +60,11 @@ __all__ = [
     "GradientStop",
     "GradientStyle",
     "GradientType",
-    "IsStyle",
     "Shadow",
     "ShadowBase",
     "ShadowStyle",
     "ShadowType",
+    "Style",
     "TextDecoration",
     "TextTransform",
     "Theme",

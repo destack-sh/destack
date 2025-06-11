@@ -2,12 +2,12 @@ from typing import Optional
 
 from destack.language.core import (
     BuiltinEnum,
+    Entity,
     EnumType,
+    Global,
     HasIcon,
     HasName,
     HasSlug,
-    IsEntity,
-    IsGlobal,
     IsJoinable,
     IsOrdered,
     Node,
@@ -36,8 +36,8 @@ class Role(
     HasSlug,
     HasIcon,
     HasName,
-    IsGlobal,
-    IsEntity,
+    Global,
+    Entity,
     IsOrdered,
     Node[RoleData],
 ):

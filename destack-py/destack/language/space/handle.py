@@ -1,13 +1,13 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
+    Entity,
+    Global,
     HasSlug,
-    IsEntity,
-    IsGlobal,
-    IsSpatial,
     IsTracked,
     Node,
     NodeType,
+    Spatial,
     node_,
     property_,
     property_parent_,
@@ -23,9 +23,9 @@ if TYPE_CHECKING:
 @node_(NodeType.HANDLE)
 class Handle(
     HasSlug,
-    IsGlobal,
-    IsEntity,
-    IsSpatial,
+    Global,
+    Entity,
+    Spatial,
     IsTracked,
     Node[HandleData],
 ):

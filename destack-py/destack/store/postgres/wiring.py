@@ -15,7 +15,6 @@ from destack.language import (
     EMPTY_LIST,
     EdgeType,
     Field,
-    IsSpatial,
     Json,
     Node,
     NodeReference,
@@ -23,6 +22,7 @@ from destack.language import (
     PrimitiveType,
     Property,
     ScalarType,
+    Spatial,
     StructType,
     Type,
     TypeCardinality,
@@ -223,7 +223,7 @@ def _generate_column_unpack(prop: "Property") -> str:
             unpack_lines.append(
                 f"    _node_ref['34'] = str(row['{prop.name}_space_id']) if row.get('{prop.name}_space_id') else None"
             )
-        elif any(issubclass(NODE_CLASS_BY_TYPE[node_type], IsSpatial) for node_type in node_types):
+        elif any(issubclass(NODE_CLASS_BY_TYPE[node_type], Spatial) for node_type in node_types):
             unpack_lines.append(
                 "    _node_ref['34'] = str(row['space_id']) if row.get('space_id') else None"
             )

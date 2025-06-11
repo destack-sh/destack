@@ -74,6 +74,8 @@ def _resolve_trait_type(name: str) -> TraitType | None:
         name = name[2:]
     elif name.startswith("Has"):
         name = name[3:]
+    elif name.startswith("Like"):
+        name = name[4:]
     name = to_casing(name, Casing.ALL_CAPS)
     trait = TraitType.__members__.get(name)
     return trait
@@ -600,7 +602,7 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
     def finalize(self, object_type: NodeType | StructType | None) -> None:
         """Finalize the Property after all BuiltinObjects are defined."""
         if self.scalar_type == ScalarType.NODE_REFERENCE:
-            from .trait import IsSpatial, expand_node_types
+            from .trait import Spatial, expand_node_types
 
             node_types = expand_node_types(self.node_types or ())
             self.node_has_type = len(node_types) > 1
@@ -608,7 +610,7 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
                 node_type in NODE_TYPES_BY_TRAIT[TraitType.CUSTOM_NODE] for node_type in node_types
             )
             self.node_has_space = self.node_space_from is None and any(
-                issubclass(NODE_CLASS_BY_TYPE[node_type], IsSpatial) for node_type in node_types
+                issubclass(NODE_CLASS_BY_TYPE[node_type], Spatial) for node_type in node_types
             )
             if self.runtime_prop is not None:
                 assert self.runtime_prop.node_has_type == self.node_has_type, (

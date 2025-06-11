@@ -395,12 +395,13 @@ class EnumType(BuiltinEnum):
     # SEARCH_TYPE, WAREHOUSE_TYPE, ...
     # ...
 
-    # world [5400-5800]
+    # intelligence [5400-5800]
+    MODEL_DEVELOPER = 5401
+    MODEL_PROVIDER = 5402
     # ...
 
-    # model [5800-6000]
-    MODEL_DEVELOPER = 5801
-    MODEL_PROVIDER = 5802
+    # world [5800-6200]
+    # ...
 
     # scene [8000-8100]
     # ...
@@ -558,7 +559,10 @@ class StructType(BuiltinEnum):
     DATABASE_INFO = 5001
     CELL_INFO = 5101
 
-    # world [5400-5800]
+    # intelligence [5400-5800]
+    # ...
+
+    # world [5800-6200]
     # ...
 
     # visual [8000-10000]
@@ -680,8 +684,9 @@ class NodeType(BuiltinEnum):
     TRIGGER = 1840, "Trigger", "Trigger", "fas fa-bolt"
     TIMER = 1841, "Timer", "Timer", "fas fa-clock"
     # BREAKPOINT, ...
-    SCREEN_CURSOR = 1900, "Mouse Cursor", "Mouse Cursor", "fas fa-mouse"
-    THREAD_CURSOR = 1901, "Query Cursor", "Query Cursor", "fas fa-magnifying-glass"
+    EVENT_CURSOR = 1900, "Event Cursor", "Event Cursor", "fas fa-signal"
+    SCREEN_CURSOR = 1901, "Mouse Cursor", "Mouse Cursor", "fas fa-mouse"
+    THREAD_CURSOR = 1902, "Query Cursor", "Query Cursor", "fas fa-magnifying-glass"
     # QUERY_CURSOR, WEB_CURSOR, ...
     # ROOM, CHANNEL, LOCK, ...
     # TASK, ...
@@ -757,7 +762,10 @@ class NodeType(BuiltinEnum):
     MACHINE = 5020, "Machine", "Machine for ephemeral computing", "fas fa-machine-classic"
     # HOST, ENDPOINT, DEPLOYMENT, NETWORK, AUTOSCALER, ...
 
-    # world [5000-5400]
+    # intelligence [5400-5800]
+    # MODEL, ...
+
+    # world [5800-6200]
     # PHONE_NUMBER, ADDRESS, ...
 
     # scene [8000-8100]
@@ -832,31 +840,33 @@ class TraitType(BuiltinEnum):
     # where
     GLOBAL = 1, "Global", "Is global", "fas fa-globe"
     SPATIAL = 2, "Spatial", "Is in a Space", "fas fa-solar-system"
-    # what
+    # kind
     ENTITY = 10, "Entity", "Is an Entity", "fas fa-hexagon"
     PARTICLE = 11, "Particle", "Is a Particle", "fas fa-atom"
-    ASSET = 12, "Asset", "Is an Asset", "fas fa-file"
-    RESOURCE = 13, "Resource", "Is a Resource", "fas fa-server"
-    EVENT = 14, "Event", "Is an Event", "fas fa-bolt"
+    ANALYTIC = 12, "Analytic", "Is an Analytic", "fas fa-chart-line"
+    # type
+    ASSET = 20, "Asset", "Is an Asset", "fas fa-file"
+    RESOURCE = 21, "Resource", "Is a Resource", "fas fa-server"
+    EVENT = 22, "Event", "Is an Event", "fas fa-bolt"
     CUSTOM_NODE_DEFINITION = (
-        18,
+        23,
         "Custom Node Definition",
         "Is a Custom Node Definition",
         "fas fa-table",
     )
-    CUSTOM_NODE = 19, "Custom Node", "Is a Custom Node", "fas fa-database"
+    CUSTOM_NODE = 24, "Custom Node", "Is a Custom Node", "fas fa-database"
     # behavior
-    FROZEN = 30, "Frozen", "Is frozen", "fas fa-snowflake"
-    TRACKED = 31, "Tracked", "Is tracked", "fas fa-clock"
-    ARCHIVABLE = 32, "Archivable", "Can be archived", "fas fa-box-archive"
-    DELETABLE = 33, "Deletable", "Can be deleted", "fas fa-trash"
-    TEMPLATABLE = 34, "Templatable", "Is templatable", "fas fa-puzzle-piece"
-    EXTENSIBLE = 35, "Extensible", "Is extensible", "fas fa-expand"
-    ORDERED = 36, "Ordered", "Is ordered", "fas fa-sort"
+    FROZEN = 50, "Frozen", "Is frozen", "fas fa-snowflake"
+    TRACKED = 51, "Tracked", "Is tracked", "fas fa-clock"
+    ARCHIVABLE = 52, "Archivable", "Can be archived", "fas fa-box-archive"
+    DELETABLE = 53, "Deletable", "Can be deleted", "fas fa-trash"
+    TEMPLATABLE = 54, "Templatable", "Is templatable", "fas fa-puzzle-piece"
+    EXTENSIBLE = 55, "Extensible", "Is extensible", "fas fa-expand"
+    ORDERED = 56, "Ordered", "Is ordered", "fas fa-sort"
     # attribute
-    HAS_NAME = 50, "Name", "Has a name", "fas fa-font-case"
-    HAS_SLUG = 51, "Slug", "Has a slug", "fas fa-hashtag"
-    HAS_ICON = 52, "Icon", "Has an icon", "fas fa-icons"
+    HAS_NAME = 100, "Name", "Has a name", "fas fa-font-case"
+    HAS_SLUG = 101, "Slug", "Has a slug", "fas fa-hashtag"
+    HAS_ICON = 102, "Icon", "Has an icon", "fas fa-icons"
 
     # access [400-600]
     OWNABLE = 400, "Ownable", "Is ownable", "fas fa-user"

@@ -3,11 +3,13 @@ from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
     BuiltinEnum,
+    Entity,
     EnumType,
     IsOwnable,
     IsTracked,
     Node,
     NodeType,
+    Spatial,
     Trait,
     TraitType,
     Vector2i,
@@ -16,7 +18,7 @@ from destack.language.core import (
     property_,
     trait_,
 )
-from destack.pb2 import ScreenCursorData, ThreadCursorData
+from destack.pb2 import EventCursorData, ScreenCursorData, ThreadCursorData
 
 if TYPE_CHECKING:
     pass
@@ -54,8 +56,27 @@ class IsCursor(Trait):
     active_at: Optional[datetime] = property_(41)
 
 
+@node_(NodeType.EVENT_CURSOR)
+class EventCursor(
+    Spatial,
+    Entity,
+    IsCursor,
+    IsOwnable,
+    IsTracked,
+    Node[EventCursorData],
+):
+    """
+    A EventCursor is a cursor for iterating over Events.
+    """
+
+    # content
+    pass
+
+
 @node_(NodeType.SCREEN_CURSOR)
 class ScreenCursor(
+    Spatial,
+    Entity,
     IsCursor,
     IsOwnable,
     IsTracked,
@@ -71,6 +92,8 @@ class ScreenCursor(
 
 @node_(NodeType.THREAD_CURSOR)
 class ThreadCursor(
+    Spatial,
+    Entity,
     IsCursor,
     IsOwnable,
     IsTracked,

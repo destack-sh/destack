@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 from destack.language.core import TraitType, trait_
 
-from ..view import IsView
+from ..view import View
 
 if TYPE_CHECKING:
     pass
@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 
 @trait_(TraitType.INTERNAL_VIEW)
-class IsInternalView(IsView):
+class InternalView(View):
     """A content View."""
 
     pass

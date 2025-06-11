@@ -1,13 +1,14 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
-    IsGlobal,
+    Entity,
+    Global,
     IsJoinable,
     IsOwnable,
-    IsSpatial,
     IsSubject,
     Node,
     NodeType,
+    Spatial,
     node_,
     property_,
     property_parent_,
@@ -22,8 +23,9 @@ if TYPE_CHECKING:
 
 @node_(NodeType.INVITE)
 class Invite(
-    IsGlobal,
-    IsSpatial,
+    Global,
+    Spatial,
+    Entity,
     IsOwnable,
     Node[InviteData],
 ):

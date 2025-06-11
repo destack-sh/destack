@@ -22,7 +22,7 @@ from destack.language.core import (
 )
 from destack.pb2 import EffectStyleData
 
-from .style import IsStyle
+from .style import Style
 from .transition import Transition
 
 if TYPE_CHECKING:
@@ -105,8 +105,8 @@ class Effect(EffectBase, StructMutable):
 
 @node_(NodeType.EFFECT_STYLE)
 class EffectStyle(
+    Style,
     EffectBase,
-    IsStyle,
     IsDeletable,
     IsArchivable,
     IsTracked,

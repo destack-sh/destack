@@ -8,15 +8,15 @@ from destack.language.core import (
 )
 from destack.pb2 import CustomViewData, CustomViewDefinitionData
 
-from .container import IsContainerView
+from .container import ContainerView
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
 @node_(NodeType.CUSTOM_VIEW_DEFINITION)
 class CustomViewDefinition(
+    ContainerView,
     IsCustomNodeDefinition,
-    IsContainerView,
     Node[CustomViewDefinitionData],
 ):
     """A definition for a custom View type."""
@@ -26,8 +26,8 @@ class CustomViewDefinition(
 
 @node_(NodeType.CUSTOM_VIEW)
 class CustomView(
+    ContainerView,
     IsCustomNode,
-    IsContainerView,
     Node[CustomViewData],
 ):
     definition: "CustomViewDefinition" = property_(
