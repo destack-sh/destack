@@ -667,7 +667,7 @@ class NodeType(BuiltinEnum):
     # TAG/TAGGING, ...
 
     # history [800-1000]
-    # HISTORY, SNAPSHOT, OVERLAY, BRANCH, ...
+    # HISTORY, SNAPSHOT/SAVEPOINT, OVERLAY, BRANCH, ...
 
     # entity [1000-1400]
     CUSTOM_ENTITY_DEFINITION = (
@@ -683,9 +683,9 @@ class NodeType(BuiltinEnum):
 
     # data [1400-1800]
     SCHEMA = 1400, "Schema", "Schema", "fas fa-shapes"
-    FIELD = 1410, "Field", "Field", "fas fa-triangle"
-    FILE = 1420, "File", "File", "fas fa-file"
-    LINK = 1430, "Link", "Link to something", "fas fa-link"
+    FIELD = 1401, "Field", "Field", "fas fa-triangle"
+    FILE = 1410, "File", "File", "fas fa-file"
+    LINK = 1411, "Link", "Link to something", "fas fa-link"
     # STREAM, SECRET, ...
 
     # logic [1800-2000]
@@ -843,6 +843,7 @@ class NodeType(BuiltinEnum):
 @enum_(EnumType.TRAIT_TYPE)
 class TraitType(BuiltinEnum):
     # destack [1-200]
+    # nocheckin: categorize Nodes (Entities/Particles/Assets/Views/Visuals/...?)
     # where
     GLOBAL = 1, "Global", "Is global", "fas fa-globe"
     IN_SPACE = 2, "Space", "Is in a Space", "fas fa-destack"
@@ -938,6 +939,7 @@ class TraitType(BuiltinEnum):
     # visual [8000-10000]
 
     # scene [8000-8100]
+    VISUAL = 8000, "Visual", "Is a Visual", "fas fa-eye"
     VIEW = 8001, "View", "Is a View", "fas fa-eye"
 
     # media [8100-8200]

@@ -7745,19 +7745,19 @@ export interface SomeNodeData {
     } | {
         oneofKind: "field";
         /**
-         * @generated from protobuf field: symbol.destack.FieldData field = 1410;
+         * @generated from protobuf field: symbol.destack.FieldData field = 1401;
          */
         field: FieldData;
     } | {
         oneofKind: "file";
         /**
-         * @generated from protobuf field: symbol.destack.FileData file = 1420;
+         * @generated from protobuf field: symbol.destack.FileData file = 1410;
          */
         file: FileData;
     } | {
         oneofKind: "link";
         /**
-         * @generated from protobuf field: symbol.destack.LinkData link = 1430;
+         * @generated from protobuf field: symbol.destack.LinkData link = 1411;
          */
         link: LinkData;
     } | {
@@ -10738,17 +10738,17 @@ export enum NodeType {
      */
     SCHEMA = 1400,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FIELD = 1410;
+     * @generated from protobuf enum value: NODE_TYPE_FIELD = 1401;
      */
-    FIELD = 1410,
+    FIELD = 1401,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FILE = 1420;
+     * @generated from protobuf enum value: NODE_TYPE_FILE = 1410;
      */
-    FILE = 1420,
+    FILE = 1410,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_LINK = 1430;
+     * @generated from protobuf enum value: NODE_TYPE_LINK = 1411;
      */
-    LINK = 1430,
+    LINK = 1411,
     /**
      * @generated from protobuf enum value: NODE_TYPE_SCRIPT = 1800;
      */
@@ -12039,37 +12039,37 @@ export enum StructType {
      */
     CELL_INFO = 5101,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR2 = 9000;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR2 = 8000;
      */
-    VECTOR2 = 9000,
+    VECTOR2 = 8000,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR3 = 9001;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR3 = 8001;
      */
-    VECTOR3 = 9001,
+    VECTOR3 = 8001,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR4 = 9002;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR4 = 8002;
      */
-    VECTOR4 = 9002,
+    VECTOR4 = 8002,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR2I = 9003;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR2I = 8003;
      */
-    VECTOR2I = 9003,
+    VECTOR2I = 8003,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR3I = 9004;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR3I = 8004;
      */
-    VECTOR3I = 9004,
+    VECTOR3I = 8004,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR4I = 9005;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR4I = 8005;
      */
-    VECTOR4I = 9005,
+    VECTOR4I = 8005,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_AXIS2 = 9007;
+     * @generated from protobuf enum value: STRUCT_TYPE_AXIS2 = 8007;
      */
-    AXIS2 = 9007,
+    AXIS2 = 8007,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_AXIS3 = 9009;
+     * @generated from protobuf enum value: STRUCT_TYPE_AXIS3 = 8009;
      */
-    AXIS3 = 9009,
+    AXIS3 = 8009,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_COLOR = 9011;
      */
@@ -12592,6 +12592,10 @@ export enum TraitType {
      * @generated from protobuf enum value: TRAIT_TYPE_REACTABLE = 3831;
      */
     REACTABLE = 3831,
+    /**
+     * @generated from protobuf enum value: TRAIT_TYPE_VISUAL = 8000;
+     */
+    VISUAL = 8000,
     /**
      * @generated from protobuf enum value: TRAIT_TYPE_VIEW = 8001;
      */
@@ -30817,9 +30821,9 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
             { no: 1000, name: "custom_entity_definition", kind: "message", oneof: "node", T: () => CustomEntityDefinitionData },
             { no: 1001, name: "custom_entity", kind: "message", oneof: "node", T: () => CustomEntityData },
             { no: 1400, name: "schema", kind: "message", oneof: "node", T: () => SchemaData },
-            { no: 1410, name: "field", kind: "message", oneof: "node", T: () => FieldData },
-            { no: 1420, name: "file", kind: "message", oneof: "node", T: () => FileData },
-            { no: 1430, name: "link", kind: "message", oneof: "node", T: () => LinkData },
+            { no: 1401, name: "field", kind: "message", oneof: "node", T: () => FieldData },
+            { no: 1410, name: "file", kind: "message", oneof: "node", T: () => FileData },
+            { no: 1411, name: "link", kind: "message", oneof: "node", T: () => LinkData },
             { no: 1800, name: "script", kind: "message", oneof: "node", T: () => ScriptData },
             { no: 1810, name: "service", kind: "message", oneof: "node", T: () => ServiceData },
             { no: 1820, name: "action", kind: "message", oneof: "node", T: () => ActionData },
@@ -30986,19 +30990,19 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
                         schema: SchemaData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).schema)
                     };
                     break;
-                case /* symbol.destack.FieldData field */ 1410:
+                case /* symbol.destack.FieldData field */ 1401:
                     message.node = {
                         oneofKind: "field",
                         field: FieldData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).field)
                     };
                     break;
-                case /* symbol.destack.FileData file */ 1420:
+                case /* symbol.destack.FileData file */ 1410:
                     message.node = {
                         oneofKind: "file",
                         file: FileData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).file)
                     };
                     break;
-                case /* symbol.destack.LinkData link */ 1430:
+                case /* symbol.destack.LinkData link */ 1411:
                     message.node = {
                         oneofKind: "link",
                         link: LinkData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).link)
@@ -31367,15 +31371,15 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
         /* symbol.destack.SchemaData schema = 1400; */
         if (message.node.oneofKind === "schema")
             SchemaData.internalBinaryWrite(message.node.schema, writer.tag(1400, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FieldData field = 1410; */
+        /* symbol.destack.FieldData field = 1401; */
         if (message.node.oneofKind === "field")
-            FieldData.internalBinaryWrite(message.node.field, writer.tag(1410, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FileData file = 1420; */
+            FieldData.internalBinaryWrite(message.node.field, writer.tag(1401, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FileData file = 1410; */
         if (message.node.oneofKind === "file")
-            FileData.internalBinaryWrite(message.node.file, writer.tag(1420, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.LinkData link = 1430; */
+            FileData.internalBinaryWrite(message.node.file, writer.tag(1410, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.LinkData link = 1411; */
         if (message.node.oneofKind === "link")
-            LinkData.internalBinaryWrite(message.node.link, writer.tag(1430, WireType.LengthDelimited).fork(), options).join();
+            LinkData.internalBinaryWrite(message.node.link, writer.tag(1411, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.ScriptData script = 1800; */
         if (message.node.oneofKind === "script")
             ScriptData.internalBinaryWrite(message.node.script, writer.tag(1800, WireType.LengthDelimited).fork(), options).join();

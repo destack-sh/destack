@@ -6,6 +6,7 @@ from destack.language.core import (
     IsEnvironmental,
     IsInFolder,
     IsTemplatable,
+    IsVisual,
     TraitType,
     property_parent_,
     trait_,
@@ -20,6 +21,7 @@ if TYPE_CHECKING:
 @trait_(TraitType.STYLE)
 class IsStyle(
     HasName,
+    IsVisual,
     IsTemplatable,
     IsEnvironmental,
     IsInFolder,
