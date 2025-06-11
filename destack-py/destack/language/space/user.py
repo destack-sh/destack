@@ -23,7 +23,7 @@ from destack.language.core import (
 from destack.pb2 import UserData
 
 if TYPE_CHECKING:
-    from destack.language import Cursor, Handle, NodeReference, Space, User
+    from destack.language import Handle, IsCursor, NodeReference, Space, User
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -62,7 +62,7 @@ class User(
 
     space: "Space" = property_(50, can_write="system", node_space_from="self")
     handle: Optional["Handle"] = property_(51, can_write="system", node_space_from="self")
-    cursor: Optional["Cursor"] = property_(52, can_write="system", node_space_from="self")
+    cursor: Optional["IsCursor"] = property_(52, can_write="system", node_space_from="self")
     if TYPE_CHECKING:
         space_id: UUID = property_()
         space_ptr: NodeReference = property_()

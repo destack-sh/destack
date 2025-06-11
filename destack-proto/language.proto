@@ -174,17 +174,6 @@ enum CursorStatus {
   CURSOR_STATUS_COMPLETED = 53;
 }
 
-// The type of Cursor.
-enum CursorType {
-  CURSOR_TYPE_UNSPECIFIED = 0;
-  CURSOR_TYPE_THREAD = 5510;
-  CURSOR_TYPE_PAGE = 5020;
-  CURSOR_TYPE_TABLE = 5090;
-  CURSOR_TYPE_ACTION = 5051;
-  CURSOR_TYPE_WEB = 10000;
-  CURSOR_TYPE_CUSTOM = 9000;
-}
-
 enum DatabaseType {
   DATABASE_TYPE_UNSPECIFIED = 0;
   DATABASE_TYPE_POSTGRES = 1;
@@ -344,7 +333,6 @@ enum EnumType {
   ENUM_TYPE_TIME_INTERVAL = 1533;
   ENUM_TYPE_RESOURCE_STATUS = 1701;
   ENUM_TYPE_ACTION_CARDINALITY = 1821;
-  ENUM_TYPE_CURSOR_TYPE = 1921;
   ENUM_TYPE_CURSOR_STATUS = 1922;
   ENUM_TYPE_SCHEDULE_FREQUENCY = 1930;
   ENUM_TYPE_TIMER_TYPE = 1931;
@@ -799,7 +787,8 @@ enum NodeType {
   NODE_TYPE_ROUTE = 1830;
   NODE_TYPE_TRIGGER = 1840;
   NODE_TYPE_TIMER = 1841;
-  NODE_TYPE_CURSOR = 1900;
+  NODE_TYPE_SCREEN_CURSOR = 1900;
+  NODE_TYPE_QUERY_CURSOR = 1901;
   NODE_TYPE_RUN = 2400;
   NODE_TYPE_SPAN = 2410;
   NODE_TYPE_INTERRUPTION = 2420;
@@ -1616,35 +1605,6 @@ message CounterMetricData {
   optional NodeReferenceData folder_ptr = 7;
   string name = 31;
   optional NodeReferenceData source_ptr = 210;
-}
-
-// A Cursor is the current logical or physical 'position' or 'focus' of its owner.
-// (e.g., editing Blocks on a Page or processing a specific Record in a Database.)
-message CursorData {
-  NodeType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
-  optional NodeReferenceData folder_ptr = 7;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  EnvironmentType environment_type = 20;
-  optional NodeReferenceData owned_by_ptr = 22;
-  CursorType type = 30;
-  CursorStatus status = 40;
-  optional google.protobuf.Timestamp started_at = 41;
-  optional google.protobuf.Timestamp active_at = 42;
-  optional google.protobuf.Timestamp seen_at = 43;
-  optional google.protobuf.Timestamp terminated_at = 45;
-  optional NodeReferenceData target_ptr = 50;
-  optional SelectionData selection = 51;
-  optional SelectionData focus = 52;
-  optional ExpressionData filter = 53;
-  repeated ExpressionData sort = 54;
-  optional string url = 55;
 }
 
 // A CustomEntity is an instance of a CustomEntityDefinition.
@@ -2766,6 +2726,21 @@ message QueryData {
   optional int64 offset = 51;
 }
 
+// A QueryCursor is a cursor corresponding to a Query.
+message QueryCursorData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  EnvironmentType environment_type = 20;
+  optional NodeReferenceData owned_by_ptr = 22;
+  CursorStatus status = 40;
+  optional google.protobuf.Timestamp active_at = 41;
+}
+
 // A Event of a Query.
 message QueryEventData {
   NodeType metatype = 1;
@@ -2941,6 +2916,21 @@ message ScopeData {
   StructType metatype = 1;
   optional Region region = 31;
   optional string space_id = 32;
+}
+
+// A PointerCursor is a visual cursor corresponding to a pointing device.
+message ScreenCursorData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  EnvironmentType environment_type = 20;
+  optional NodeReferenceData owned_by_ptr = 22;
+  CursorStatus status = 40;
+  optional google.protobuf.Timestamp active_at = 41;
 }
 
 // A Script.
@@ -3595,7 +3585,8 @@ message SomeNodeData {
     RouteData route = 1830;
     TriggerData trigger = 1840;
     TimerData timer = 1841;
-    CursorData cursor = 1900;
+    ScreenCursorData screen_cursor = 1900;
+    QueryCursorData query_cursor = 1901;
     RunData run = 2400;
     SpanData span = 2410;
     InterruptionData interruption = 2420;

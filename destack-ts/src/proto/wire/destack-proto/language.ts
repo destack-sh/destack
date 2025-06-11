@@ -782,110 +782,6 @@ export interface CounterMetricData {
     sourcePtr?: NodeReferenceData;
 }
 /**
- * A Cursor is the current logical or physical 'position' or 'focus' of its owner.
- * (e.g., editing Blocks on a Page or processing a specific Record in a Database.)
- *
- * @generated from protobuf message symbol.destack.CursorData
- */
-export interface CursorData {
-    /**
-     * @generated from protobuf field: symbol.destack.NodeType metatype = 1;
-     */
-    metatype: NodeType;
-    /**
-     * @generated from protobuf field: string id = 2;
-     */
-    id: string;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceData parent_ptr = 4;
-     */
-    parentPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceData space_ptr = 6;
-     */
-    spacePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceData folder_ptr = 7;
-     */
-    folderPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: google.protobuf.Timestamp created_at = 10;
-     */
-    createdAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceData created_by_ptr = 11;
-     */
-    createdByPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: google.protobuf.Timestamp updated_at = 12;
-     */
-    updatedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceData updated_by_ptr = 13;
-     */
-    updatedByPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 15;
-     */
-    deletedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: symbol.destack.EnvironmentType environment_type = 20;
-     */
-    environmentType: EnvironmentType;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceData owned_by_ptr = 22;
-     */
-    ownedByPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: symbol.destack.CursorType type = 30;
-     */
-    type: CursorType;
-    /**
-     * @generated from protobuf field: symbol.destack.CursorStatus status = 40;
-     */
-    status: CursorStatus;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp started_at = 41;
-     */
-    startedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp active_at = 42;
-     */
-    activeAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp seen_at = 43;
-     */
-    seenAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp terminated_at = 45;
-     */
-    terminatedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceData target_ptr = 50;
-     */
-    targetPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.destack.SelectionData selection = 51;
-     */
-    selection?: SelectionData;
-    /**
-     * @generated from protobuf field: optional symbol.destack.SelectionData focus = 52;
-     */
-    focus?: SelectionData;
-    /**
-     * @generated from protobuf field: optional symbol.destack.ExpressionData filter = 53;
-     */
-    filter?: ExpressionData;
-    /**
-     * @generated from protobuf field: repeated symbol.destack.ExpressionData sort = 54;
-     */
-    sort: ExpressionData[];
-    /**
-     * @generated from protobuf field: optional string url = 55;
-     */
-    url?: string;
-}
-/**
  * A CustomEntity is an instance of a CustomEntityDefinition.
  *
  * @generated from protobuf message symbol.destack.CustomEntityData
@@ -4845,6 +4741,57 @@ export interface QueryData {
     offset?: bigint;
 }
 /**
+ * A QueryCursor is a cursor corresponding to a Query.
+ *
+ * @generated from protobuf message symbol.destack.QueryCursorData
+ */
+export interface QueryCursorData {
+    /**
+     * @generated from protobuf field: symbol.destack.NodeType metatype = 1;
+     */
+    metatype: NodeType;
+    /**
+     * @generated from protobuf field: string id = 2;
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceData parent_ptr = 4;
+     */
+    parentPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 10;
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceData created_by_ptr = 11;
+     */
+    createdByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp updated_at = 12;
+     */
+    updatedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceData updated_by_ptr = 13;
+     */
+    updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbol.destack.EnvironmentType environment_type = 20;
+     */
+    environmentType: EnvironmentType;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceData owned_by_ptr = 22;
+     */
+    ownedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbol.destack.CursorStatus status = 40;
+     */
+    status: CursorStatus;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp active_at = 41;
+     */
+    activeAt?: Timestamp;
+}
+/**
  * A Event of a Query.
  *
  * @generated from protobuf message symbol.destack.QueryEventData
@@ -5457,6 +5404,57 @@ export interface ScopeData {
      * @generated from protobuf field: optional string space_id = 32;
      */
     spaceId?: string;
+}
+/**
+ * A PointerCursor is a visual cursor corresponding to a pointing device.
+ *
+ * @generated from protobuf message symbol.destack.ScreenCursorData
+ */
+export interface ScreenCursorData {
+    /**
+     * @generated from protobuf field: symbol.destack.NodeType metatype = 1;
+     */
+    metatype: NodeType;
+    /**
+     * @generated from protobuf field: string id = 2;
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceData parent_ptr = 4;
+     */
+    parentPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 10;
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceData created_by_ptr = 11;
+     */
+    createdByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp updated_at = 12;
+     */
+    updatedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceData updated_by_ptr = 13;
+     */
+    updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbol.destack.EnvironmentType environment_type = 20;
+     */
+    environmentType: EnvironmentType;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceData owned_by_ptr = 22;
+     */
+    ownedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbol.destack.CursorStatus status = 40;
+     */
+    status: CursorStatus;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp active_at = 41;
+     */
+    activeAt?: Timestamp;
 }
 /**
  * A Script.
@@ -7797,11 +7795,17 @@ export interface SomeNodeData {
          */
         timer: TimerData;
     } | {
-        oneofKind: "cursor";
+        oneofKind: "screenCursor";
         /**
-         * @generated from protobuf field: symbol.destack.CursorData cursor = 1900;
+         * @generated from protobuf field: symbol.destack.ScreenCursorData screen_cursor = 1900;
          */
-        cursor: CursorData;
+        screenCursor: ScreenCursorData;
+    } | {
+        oneofKind: "queryCursor";
+        /**
+         * @generated from protobuf field: symbol.destack.QueryCursorData query_cursor = 1901;
+         */
+        queryCursor: QueryCursorData;
     } | {
         oneofKind: "run";
         /**
@@ -8604,41 +8608,6 @@ export enum CursorStatus {
     COMPLETED = 53
 }
 /**
- * The type of Cursor.
- *
- * @generated from protobuf enum symbol.destack.CursorType
- */
-export enum CursorType {
-    /**
-     * @generated from protobuf enum value: CURSOR_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: CURSOR_TYPE_THREAD = 5510;
-     */
-    THREAD = 5510,
-    /**
-     * @generated from protobuf enum value: CURSOR_TYPE_PAGE = 5020;
-     */
-    PAGE = 5020,
-    /**
-     * @generated from protobuf enum value: CURSOR_TYPE_TABLE = 5090;
-     */
-    TABLE = 5090,
-    /**
-     * @generated from protobuf enum value: CURSOR_TYPE_ACTION = 5051;
-     */
-    ACTION = 5051,
-    /**
-     * @generated from protobuf enum value: CURSOR_TYPE_WEB = 10000;
-     */
-    WEB = 10000,
-    /**
-     * @generated from protobuf enum value: CURSOR_TYPE_CUSTOM = 9000;
-     */
-    CUSTOM = 9000
-}
-/**
  * @generated from protobuf enum symbol.destack.DatabaseType
  */
 export enum DatabaseType {
@@ -9187,10 +9156,6 @@ export enum EnumType {
      * @generated from protobuf enum value: ENUM_TYPE_ACTION_CARDINALITY = 1821;
      */
     ACTION_CARDINALITY = 1821,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_CURSOR_TYPE = 1921;
-     */
-    CURSOR_TYPE = 1921,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_CURSOR_STATUS = 1922;
      */
@@ -10774,9 +10739,13 @@ export enum NodeType {
      */
     TIMER = 1841,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_CURSOR = 1900;
+     * @generated from protobuf enum value: NODE_TYPE_SCREEN_CURSOR = 1900;
      */
-    CURSOR = 1900,
+    SCREEN_CURSOR = 1900,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_QUERY_CURSOR = 1901;
+     */
+    QUERY_CURSOR = 1901,
     /**
      * @generated from protobuf enum value: NODE_TYPE_RUN = 2400;
      */
@@ -14683,219 +14652,6 @@ class CounterMetricData$Type extends MessageType$<CounterMetricData> {
  * @generated MessageType for protobuf message symbol.destack.CounterMetricData
  */
 export const CounterMetricData = new CounterMetricData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class CursorData$Type extends MessageType$<CursorData> {
-    constructor() {
-        super("symbol.destack.CursorData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 6, name: "space_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 7, name: "folder_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
-            { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
-            { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.destack.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
-            { no: 22, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 30, name: "type", kind: "enum", T: () => ["symbol.destack.CursorType", CursorType, "CURSOR_TYPE_"] },
-            { no: 40, name: "status", kind: "enum", T: () => ["symbol.destack.CursorStatus", CursorStatus, "CURSOR_STATUS_"] },
-            { no: 41, name: "started_at", kind: "message", T: () => Timestamp },
-            { no: 42, name: "active_at", kind: "message", T: () => Timestamp },
-            { no: 43, name: "seen_at", kind: "message", T: () => Timestamp },
-            { no: 45, name: "terminated_at", kind: "message", T: () => Timestamp },
-            { no: 50, name: "target_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 51, name: "selection", kind: "message", T: () => SelectionData },
-            { no: 52, name: "focus", kind: "message", T: () => SelectionData },
-            { no: 53, name: "filter", kind: "message", T: () => ExpressionData },
-            { no: 54, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
-            { no: 55, name: "url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
-        ]);
-    }
-    create(value?: PartialMessage<CursorData>): CursorData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = "";
-        message.environmentType = 0;
-        message.type = 0;
-        message.status = 0;
-        message.sort = [];
-        if (value !== undefined)
-            reflectionMergePartial<CursorData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CursorData): CursorData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.destack.NodeType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* string id */ 2:
-                    message.id = reader.string();
-                    break;
-                case /* optional symbol.destack.NodeReferenceData parent_ptr */ 4:
-                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
-                    break;
-                case /* optional symbol.destack.NodeReferenceData space_ptr */ 6:
-                    message.spacePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
-                    break;
-                case /* optional symbol.destack.NodeReferenceData folder_ptr */ 7:
-                    message.folderPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.folderPtr);
-                    break;
-                case /* google.protobuf.Timestamp created_at */ 10:
-                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
-                    break;
-                case /* optional symbol.destack.NodeReferenceData created_by_ptr */ 11:
-                    message.createdByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
-                    break;
-                case /* google.protobuf.Timestamp updated_at */ 12:
-                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
-                    break;
-                case /* optional symbol.destack.NodeReferenceData updated_by_ptr */ 13:
-                    message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
-                    break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 15:
-                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
-                    break;
-                case /* symbol.destack.EnvironmentType environment_type */ 20:
-                    message.environmentType = reader.int32();
-                    break;
-                case /* optional symbol.destack.NodeReferenceData owned_by_ptr */ 22:
-                    message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
-                    break;
-                case /* symbol.destack.CursorType type */ 30:
-                    message.type = reader.int32();
-                    break;
-                case /* symbol.destack.CursorStatus status */ 40:
-                    message.status = reader.int32();
-                    break;
-                case /* optional google.protobuf.Timestamp started_at */ 41:
-                    message.startedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.startedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp active_at */ 42:
-                    message.activeAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.activeAt);
-                    break;
-                case /* optional google.protobuf.Timestamp seen_at */ 43:
-                    message.seenAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.seenAt);
-                    break;
-                case /* optional google.protobuf.Timestamp terminated_at */ 45:
-                    message.terminatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.terminatedAt);
-                    break;
-                case /* optional symbol.destack.NodeReferenceData target_ptr */ 50:
-                    message.targetPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.targetPtr);
-                    break;
-                case /* optional symbol.destack.SelectionData selection */ 51:
-                    message.selection = SelectionData.internalBinaryRead(reader, reader.uint32(), options, message.selection);
-                    break;
-                case /* optional symbol.destack.SelectionData focus */ 52:
-                    message.focus = SelectionData.internalBinaryRead(reader, reader.uint32(), options, message.focus);
-                    break;
-                case /* optional symbol.destack.ExpressionData filter */ 53:
-                    message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
-                    break;
-                case /* repeated symbol.destack.ExpressionData sort */ 54:
-                    message.sort.push(ExpressionData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* optional string url */ 55:
-                    message.url = reader.string();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: CursorData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.destack.NodeType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* string id = 2; */
-        if (message.id !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* optional symbol.destack.NodeReferenceData parent_ptr = 4; */
-        if (message.parentPtr)
-            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceData space_ptr = 6; */
-        if (message.spacePtr)
-            NodeReferenceData.internalBinaryWrite(message.spacePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceData folder_ptr = 7; */
-        if (message.folderPtr)
-            NodeReferenceData.internalBinaryWrite(message.folderPtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Timestamp created_at = 10; */
-        if (message.createdAt)
-            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceData created_by_ptr = 11; */
-        if (message.createdByPtr)
-            NodeReferenceData.internalBinaryWrite(message.createdByPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Timestamp updated_at = 12; */
-        if (message.updatedAt)
-            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceData updated_by_ptr = 13; */
-        if (message.updatedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 15; */
-        if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EnvironmentType environment_type = 20; */
-        if (message.environmentType !== 0)
-            writer.tag(20, WireType.Varint).int32(message.environmentType);
-        /* optional symbol.destack.NodeReferenceData owned_by_ptr = 22; */
-        if (message.ownedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.CursorType type = 30; */
-        if (message.type !== 0)
-            writer.tag(30, WireType.Varint).int32(message.type);
-        /* symbol.destack.CursorStatus status = 40; */
-        if (message.status !== 0)
-            writer.tag(40, WireType.Varint).int32(message.status);
-        /* optional google.protobuf.Timestamp started_at = 41; */
-        if (message.startedAt)
-            Timestamp.internalBinaryWrite(message.startedAt, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp active_at = 42; */
-        if (message.activeAt)
-            Timestamp.internalBinaryWrite(message.activeAt, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp seen_at = 43; */
-        if (message.seenAt)
-            Timestamp.internalBinaryWrite(message.seenAt, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp terminated_at = 45; */
-        if (message.terminatedAt)
-            Timestamp.internalBinaryWrite(message.terminatedAt, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceData target_ptr = 50; */
-        if (message.targetPtr)
-            NodeReferenceData.internalBinaryWrite(message.targetPtr, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.SelectionData selection = 51; */
-        if (message.selection)
-            SelectionData.internalBinaryWrite(message.selection, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.SelectionData focus = 52; */
-        if (message.focus)
-            SelectionData.internalBinaryWrite(message.focus, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.ExpressionData filter = 53; */
-        if (message.filter)
-            ExpressionData.internalBinaryWrite(message.filter, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbol.destack.ExpressionData sort = 54; */
-        for (let i = 0; i < message.sort.length; i++)
-            ExpressionData.internalBinaryWrite(message.sort[i], writer.tag(54, WireType.LengthDelimited).fork(), options).join();
-        /* optional string url = 55; */
-        if (message.url !== undefined)
-            writer.tag(55, WireType.LengthDelimited).string(message.url);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.destack.CursorData
- */
-export const CursorData = new CursorData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CustomEntityData$Type extends MessageType$<CustomEntityData> {
     constructor() {
@@ -24075,6 +23831,126 @@ class QueryData$Type extends MessageType$<QueryData> {
  */
 export const QueryData = new QueryData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class QueryCursorData$Type extends MessageType$<QueryCursorData> {
+    constructor() {
+        super("symbol.destack.QueryCursorData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
+            { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.destack.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
+            { no: 22, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "status", kind: "enum", T: () => ["symbol.destack.CursorStatus", CursorStatus, "CURSOR_STATUS_"] },
+            { no: 41, name: "active_at", kind: "message", T: () => Timestamp }
+        ]);
+    }
+    create(value?: PartialMessage<QueryCursorData>): QueryCursorData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.environmentType = 0;
+        message.status = 0;
+        if (value !== undefined)
+            reflectionMergePartial<QueryCursorData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: QueryCursorData): QueryCursorData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.NodeType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceData parent_ptr */ 4:
+                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 10:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* optional symbol.destack.NodeReferenceData created_by_ptr */ 11:
+                    message.createdByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* google.protobuf.Timestamp updated_at */ 12:
+                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
+                    break;
+                case /* optional symbol.destack.NodeReferenceData updated_by_ptr */ 13:
+                    message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* symbol.destack.EnvironmentType environment_type */ 20:
+                    message.environmentType = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceData owned_by_ptr */ 22:
+                    message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
+                    break;
+                case /* symbol.destack.CursorStatus status */ 40:
+                    message.status = reader.int32();
+                    break;
+                case /* optional google.protobuf.Timestamp active_at */ 41:
+                    message.activeAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.activeAt);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: QueryCursorData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.NodeType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbol.destack.NodeReferenceData parent_ptr = 4; */
+        if (message.parentPtr)
+            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp created_at = 10; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceData created_by_ptr = 11; */
+        if (message.createdByPtr)
+            NodeReferenceData.internalBinaryWrite(message.createdByPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp updated_at = 12; */
+        if (message.updatedAt)
+            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceData updated_by_ptr = 13; */
+        if (message.updatedByPtr)
+            NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EnvironmentType environment_type = 20; */
+        if (message.environmentType !== 0)
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
+        /* optional symbol.destack.NodeReferenceData owned_by_ptr = 22; */
+        if (message.ownedByPtr)
+            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.CursorStatus status = 40; */
+        if (message.status !== 0)
+            writer.tag(40, WireType.Varint).int32(message.status);
+        /* optional google.protobuf.Timestamp active_at = 41; */
+        if (message.activeAt)
+            Timestamp.internalBinaryWrite(message.activeAt, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.QueryCursorData
+ */
+export const QueryCursorData = new QueryCursorData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class QueryEventData$Type extends MessageType$<QueryEventData> {
     constructor() {
         super("symbol.destack.QueryEventData", [
@@ -25638,6 +25514,126 @@ class ScopeData$Type extends MessageType$<ScopeData> {
  * @generated MessageType for protobuf message symbol.destack.ScopeData
  */
 export const ScopeData = new ScopeData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ScreenCursorData$Type extends MessageType$<ScreenCursorData> {
+    constructor() {
+        super("symbol.destack.ScreenCursorData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
+            { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 20, name: "environment_type", kind: "enum", T: () => ["symbol.destack.EnvironmentType", EnvironmentType, "ENVIRONMENT_TYPE_"] },
+            { no: 22, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "status", kind: "enum", T: () => ["symbol.destack.CursorStatus", CursorStatus, "CURSOR_STATUS_"] },
+            { no: 41, name: "active_at", kind: "message", T: () => Timestamp }
+        ]);
+    }
+    create(value?: PartialMessage<ScreenCursorData>): ScreenCursorData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.environmentType = 0;
+        message.status = 0;
+        if (value !== undefined)
+            reflectionMergePartial<ScreenCursorData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ScreenCursorData): ScreenCursorData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.NodeType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceData parent_ptr */ 4:
+                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 10:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* optional symbol.destack.NodeReferenceData created_by_ptr */ 11:
+                    message.createdByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* google.protobuf.Timestamp updated_at */ 12:
+                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
+                    break;
+                case /* optional symbol.destack.NodeReferenceData updated_by_ptr */ 13:
+                    message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* symbol.destack.EnvironmentType environment_type */ 20:
+                    message.environmentType = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceData owned_by_ptr */ 22:
+                    message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
+                    break;
+                case /* symbol.destack.CursorStatus status */ 40:
+                    message.status = reader.int32();
+                    break;
+                case /* optional google.protobuf.Timestamp active_at */ 41:
+                    message.activeAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.activeAt);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ScreenCursorData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.NodeType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbol.destack.NodeReferenceData parent_ptr = 4; */
+        if (message.parentPtr)
+            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp created_at = 10; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceData created_by_ptr = 11; */
+        if (message.createdByPtr)
+            NodeReferenceData.internalBinaryWrite(message.createdByPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp updated_at = 12; */
+        if (message.updatedAt)
+            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceData updated_by_ptr = 13; */
+        if (message.updatedByPtr)
+            NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EnvironmentType environment_type = 20; */
+        if (message.environmentType !== 0)
+            writer.tag(20, WireType.Varint).int32(message.environmentType);
+        /* optional symbol.destack.NodeReferenceData owned_by_ptr = 22; */
+        if (message.ownedByPtr)
+            NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.CursorStatus status = 40; */
+        if (message.status !== 0)
+            writer.tag(40, WireType.Varint).int32(message.status);
+        /* optional google.protobuf.Timestamp active_at = 41; */
+        if (message.activeAt)
+            Timestamp.internalBinaryWrite(message.activeAt, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.ScreenCursorData
+ */
+export const ScreenCursorData = new ScreenCursorData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ScriptData$Type extends MessageType$<ScriptData> {
     constructor() {
@@ -30830,7 +30826,8 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
             { no: 1830, name: "route", kind: "message", oneof: "node", T: () => RouteData },
             { no: 1840, name: "trigger", kind: "message", oneof: "node", T: () => TriggerData },
             { no: 1841, name: "timer", kind: "message", oneof: "node", T: () => TimerData },
-            { no: 1900, name: "cursor", kind: "message", oneof: "node", T: () => CursorData },
+            { no: 1900, name: "screen_cursor", kind: "message", oneof: "node", T: () => ScreenCursorData },
+            { no: 1901, name: "query_cursor", kind: "message", oneof: "node", T: () => QueryCursorData },
             { no: 2400, name: "run", kind: "message", oneof: "node", T: () => RunData },
             { no: 2410, name: "span", kind: "message", oneof: "node", T: () => SpanData },
             { no: 2420, name: "interruption", kind: "message", oneof: "node", T: () => InterruptionData },
@@ -31044,10 +31041,16 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
                         timer: TimerData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timer)
                     };
                     break;
-                case /* symbol.destack.CursorData cursor */ 1900:
+                case /* symbol.destack.ScreenCursorData screen_cursor */ 1900:
                     message.node = {
-                        oneofKind: "cursor",
-                        cursor: CursorData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).cursor)
+                        oneofKind: "screenCursor",
+                        screenCursor: ScreenCursorData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).screenCursor)
+                    };
+                    break;
+                case /* symbol.destack.QueryCursorData query_cursor */ 1901:
+                    message.node = {
+                        oneofKind: "queryCursor",
+                        queryCursor: QueryCursorData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).queryCursor)
                     };
                     break;
                 case /* symbol.destack.RunData run */ 2400:
@@ -31398,9 +31401,12 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
         /* symbol.destack.TimerData timer = 1841; */
         if (message.node.oneofKind === "timer")
             TimerData.internalBinaryWrite(message.node.timer, writer.tag(1841, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.CursorData cursor = 1900; */
-        if (message.node.oneofKind === "cursor")
-            CursorData.internalBinaryWrite(message.node.cursor, writer.tag(1900, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ScreenCursorData screen_cursor = 1900; */
+        if (message.node.oneofKind === "screenCursor")
+            ScreenCursorData.internalBinaryWrite(message.node.screenCursor, writer.tag(1900, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.QueryCursorData query_cursor = 1901; */
+        if (message.node.oneofKind === "queryCursor")
+            QueryCursorData.internalBinaryWrite(message.node.queryCursor, writer.tag(1901, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.RunData run = 2400; */
         if (message.node.oneofKind === "run")
             RunData.internalBinaryWrite(message.node.run, writer.tag(2400, WireType.LengthDelimited).fork(), options).join();
@@ -31548,7 +31554,7 @@ export const SomeNodeData = new SomeNodeData$Type();
 //
 
 // Any...
-export type AnyNodeData = CustomEntityDefinitionData | CustomEntityData | EditEventData | ChangeEventData | QueryEventData | CustomEventDefinitionData | CustomEventData | FieldData | GaugeMetricData | GaugeMeasurementData | CounterMetricData | CounterMeasurementData | HistogramMetricData | HistogramMeasurementData | SchemaData | FileData | LinkData | FolderData | FolderMembershipData | FolderInviteData | DatabaseData | MachineData | ActionData | CursorData | ScriptData | ServiceData | TimerData | TriggerData | InterruptionData | LogData | RunData | SpanData | RouteData | SceneData | WindowData | MessageData | NotificationData | ReactionData | StarData | ThreadData | ClientData | FriendshipData | FriendshipInviteData | HandleData | OrganizationData | OrganizationInviteData | OrganizationMembershipData | SpaceData | SpaceInviteData | SpaceMembershipData | UserData | ColorStyleData | BorderStyleData | TransitionStyleData | EffectStyleData | GradientStyleData | FillStyleData | FontStyleData | ShadowStyleData | ThemeData | CustomViewDefinitionData | CustomViewData | FrameViewData | LabelViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | WizardViewData | ThreadViewData
+export type AnyNodeData = CustomEntityDefinitionData | CustomEntityData | EditEventData | ChangeEventData | QueryEventData | CustomEventDefinitionData | CustomEventData | FieldData | GaugeMetricData | GaugeMeasurementData | CounterMetricData | CounterMeasurementData | HistogramMetricData | HistogramMeasurementData | SchemaData | FileData | LinkData | FolderData | FolderMembershipData | FolderInviteData | DatabaseData | MachineData | ActionData | ScreenCursorData | QueryCursorData | ScriptData | ServiceData | TimerData | TriggerData | InterruptionData | LogData | RunData | SpanData | RouteData | SceneData | WindowData | MessageData | NotificationData | ReactionData | StarData | ThreadData | ClientData | FriendshipData | FriendshipInviteData | HandleData | OrganizationData | OrganizationInviteData | OrganizationMembershipData | SpaceData | SpaceInviteData | SpaceMembershipData | UserData | ColorStyleData | BorderStyleData | TransitionStyleData | EffectStyleData | GradientStyleData | FillStyleData | FontStyleData | ShadowStyleData | ThemeData | CustomViewDefinitionData | CustomViewData | FrameViewData | LabelViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | WizardViewData | ThreadViewData
 export type AnyStructData = ScopeData | RelationReferenceData | AttributeReferenceData | PropertyReferenceData | NodeReferenceData | EditData | ChangeData | ChangeResultData | ErrorData | StringConstraintData | NumberConstraintData | CollectionConstraintData | NodeConstraintData | TypeData | ValueData | FunctionData | ConditionData | AggregationData | ExpressionData | SortData | SelectData | JoinData | QueryData | HistogramData | QueryResultData | QueryResultGroupData | QueryUpdateData | SelectionData | IconData | PropertyInfoData | TraitInfoData | NodeInfoData | StructInfoData | EnumInfoData | EnumOptionInfoData | TextSpanData | TextLineData | TextData | VariableData | CellInfoData | DatabaseInfoData | ScheduleData | OriginData | ColorData | LengthData | PositionData | DimensionData | InsetsData | CornersData | Axis2Data | Axis3Data | Vector2Data | Vector3Data | Vector4Data | Vector2IData | Vector3IData | Vector4IData | GridData | GridSpanData | BorderData | TransitionData | EffectData | GradientStopData | GradientData | FillData | FontData | ShadowData
 
     

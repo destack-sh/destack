@@ -24,7 +24,7 @@ from destack.language.core import (
 from destack.pb2 import ClientData, OriginData
 
 if TYPE_CHECKING:
-    from destack.language import Cursor, Machine, User
+    from destack.language import IsCursor, Machine, User
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -57,7 +57,7 @@ class Client(
     access_token: Optional[str] = property_(50, can_read="system", can_write="system")
     seen_at: Optional[datetime] = property_(51, can_write="system")
     logged_in_at: Optional[datetime] = property_(52, can_write="system")
-    cursor: Optional["Cursor"] = property_(55)
+    cursor: Optional["IsCursor"] = property_(55)
 
     # details
     device_type: Optional[str] = property_(40)
