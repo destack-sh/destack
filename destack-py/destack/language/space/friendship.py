@@ -35,8 +35,8 @@ class Friendship(
 class FriendshipInvite(
     Global,
     Entity,
-    IsOwnable,
     LikeInvite,
+    IsOwnable,
     IsDeletable,
     Node[FriendshipInviteData],
 ):

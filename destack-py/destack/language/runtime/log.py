@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
     Analytic,
@@ -9,11 +9,12 @@ from destack.language.core import (
     Spatial,
     node_,
     property_,
+    property_parent_,
 )
 from destack.pb2 import LogData
 
 if TYPE_CHECKING:
-    pass
+    from destack.language import Space
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -27,5 +28,6 @@ class Log(
 ):
     """A Log message."""
 
+    parent: Optional["Space"] = property_parent_(node_is_customizable=False)
     content: str = property_(40)
     attributes: dict[str, Json] = property_(41)
