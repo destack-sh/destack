@@ -5,13 +5,13 @@ from hypothesis import HealthCheck, given, settings
 
 from destack.language import (
     BuiltinObjectBase,
-    Cursor,
     JoinType,
     NodeReference,
     NodeType,
     Query,
     Session,
     Thread,
+    ThreadCursor,
     User,
     UserStatus,
     join,
@@ -52,8 +52,8 @@ def test_roundtrip_query_proto(session: Session):
     query = Thread.search(
         sort=[Thread.property("created_at").asc()],
         limit=25,
-        Cursor=Cursor.get(
-            join=join(JoinType.LEFT, on=Cursor.property("owned_by").eq(5)),
+        Cursor=ThreadCursor.get(
+            join=join(JoinType.LEFT, on=ThreadCursor.property("owned_by").eq(5)),
             # UnreadCount=Message.scalar(
             #     type=AggregationType.COUNT,
             #     where=Message.property("read_at").greater_than(

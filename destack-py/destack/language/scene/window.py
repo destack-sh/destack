@@ -4,7 +4,7 @@ from destack.language.core import (
     BuiltinEnum,
     EnumType,
     IsDeletable,
-    IsInFolder,
+    IsInSpace,
     IsOrdered,
     IsOwnable,
     IsTemplatable,
@@ -16,12 +16,11 @@ from destack.language.core import (
     enum_,
     node_,
     property_,
-    property_parent_,
 )
 from destack.pb2 import WindowData
 
 if TYPE_CHECKING:
-    from destack.language import Folder, Thread
+    from destack.language import Thread
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -39,16 +38,13 @@ class Window(
     IsOwnable,
     IsTemplatable,
     IsOrdered,
-    IsInFolder,
+    IsInSpace,
     IsDeletable,
     Node[WindowData],
 ):
     """
-    A Window for a User to interact with a Space.
-    Windows to all Spaces are stored in the owning User's Space.
+    A Window for someone to interact with a Space.
     """
-
-    parent: Optional["Folder"] = property_parent_(node_is_customizable=False)
 
     type: WindowType = property_(30)
     name: str | None = property_(31, format=StringFormat.NAME)

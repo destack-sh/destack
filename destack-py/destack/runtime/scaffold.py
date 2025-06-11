@@ -1,6 +1,6 @@
 # ===============================================
 # MOCK STUFF FOR PROTOTYPING
-# nocheckin: Scripts, custom Entities/Events/Schemas/fields, ..
+# nocheckin: Scripts, custom Entities/Events/Schemas/fields, .. (:PostgresSchemaEdits)
 # ===============================================
 
 

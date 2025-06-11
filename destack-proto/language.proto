@@ -34,8 +34,8 @@ enum Align {
 
 enum AreaType {
   AREA_TYPE_UNSPECIFIED = 0;
-  AREA_TYPE_GLOBAL_DATABASE = 1;
-  AREA_TYPE_SPACE_DATABASE = 100;
+  AREA_TYPE_GLOBAL_POSTGRES = 1;
+  AREA_TYPE_SPACE_POSTGRES = 20;
 }
 
 enum AttributeType {
@@ -342,8 +342,8 @@ enum EnumType {
   ENUM_TYPE_INTERRUPTION_TYPE = 2432;
   ENUM_TYPE_INTERRUPTION_STATUS = 2433;
   ENUM_TYPE_INTERRUPTION_RESPONSE = 2434;
-  ENUM_TYPE_THREAD_STATUS = 3802;
-  ENUM_TYPE_MESSAGE_TYPE = 3821;
+  ENUM_TYPE_THREAD_STATUS = 3402;
+  ENUM_TYPE_MESSAGE_TYPE = 3421;
   ENUM_TYPE_CLOUD = 5000;
   ENUM_TYPE_REGION = 5001;
   ENUM_TYPE_REGION_AREA = 5002;
@@ -764,17 +764,21 @@ enum NodeType {
   NODE_TYPE_SPACE = 1;
   NODE_TYPE_SPACE_MEMBERSHIP = 2;
   NODE_TYPE_SPACE_INVITE = 3;
+  NODE_TYPE_SPACE_FOLLOW = 4;
   NODE_TYPE_HANDLE = 10;
   NODE_TYPE_USER = 20;
+  NODE_TYPE_USER_FOLLOW = 21;
   NODE_TYPE_FRIENDSHIP = 30;
   NODE_TYPE_FRIENDSHIP_INVITE = 31;
   NODE_TYPE_ORGANIZATION = 40;
   NODE_TYPE_ORGANIZATION_MEMBERSHIP = 41;
   NODE_TYPE_ORGANIZATION_INVITE = 42;
+  NODE_TYPE_ORGANIZATION_FOLLOW = 43;
   NODE_TYPE_CLIENT = 50;
   NODE_TYPE_FOLDER = 600;
   NODE_TYPE_FOLDER_MEMBERSHIP = 601;
   NODE_TYPE_FOLDER_INVITE = 602;
+  NODE_TYPE_FOLDER_FOLLOW = 603;
   NODE_TYPE_CUSTOM_ENTITY_DEFINITION = 1000;
   NODE_TYPE_CUSTOM_ENTITY = 1001;
   NODE_TYPE_SCHEMA = 1400;
@@ -788,7 +792,7 @@ enum NodeType {
   NODE_TYPE_TRIGGER = 1840;
   NODE_TYPE_TIMER = 1841;
   NODE_TYPE_SCREEN_CURSOR = 1900;
-  NODE_TYPE_QUERY_CURSOR = 1901;
+  NODE_TYPE_THREAD_CURSOR = 1901;
   NODE_TYPE_RUN = 2400;
   NODE_TYPE_SPAN = 2410;
   NODE_TYPE_INTERRUPTION = 2420;
@@ -804,11 +808,11 @@ enum NodeType {
   NODE_TYPE_COUNTER_MEASUREMENT = 2603;
   NODE_TYPE_HISTOGRAM_METRIC = 2604;
   NODE_TYPE_HISTOGRAM_MEASUREMENT = 2605;
-  NODE_TYPE_THREAD = 3800;
-  NODE_TYPE_MESSAGE = 3810;
-  NODE_TYPE_REACTION = 3820;
-  NODE_TYPE_STAR = 3830;
-  NODE_TYPE_NOTIFICATION = 3900;
+  NODE_TYPE_THREAD = 3400;
+  NODE_TYPE_MESSAGE = 3410;
+  NODE_TYPE_REACTION = 3420;
+  NODE_TYPE_STAR = 3430;
+  NODE_TYPE_NOTIFICATION = 3500;
   NODE_TYPE_DATABASE = 5000;
   NODE_TYPE_MACHINE = 5020;
   NODE_TYPE_WINDOW = 8000;
@@ -1322,11 +1326,13 @@ enum TraitType {
   TRAIT_TYPE_RUNNABLE = 1800;
   TRAIT_TYPE_SCRIPTABLE = 1801;
   TRAIT_TYPE_SOURCEABLE = 1802;
+  TRAIT_TYPE_CURSOR = 1812;
   TRAIT_TYPE_METRIC = 1810;
   TRAIT_TYPE_MEASUREMENT = 1811;
-  TRAIT_TYPE_CURSOR = 1812;
   TRAIT_TYPE_STARABLE = 3830;
-  TRAIT_TYPE_REACTABLE = 3831;
+  TRAIT_TYPE_REACTABLE = 3832;
+  TRAIT_TYPE_FOLLOWABLE = 3834;
+  TRAIT_TYPE_FOLLOW = 3835;
   TRAIT_TYPE_VISUAL = 8000;
   TRAIT_TYPE_VIEW = 8001;
   TRAIT_TYPE_CONTAINER_VIEW = 8200;
@@ -2054,6 +2060,19 @@ message FolderData {
   optional NodeReferenceData main_scene_ptr = 41;
 }
 
+message FolderFollowData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData folder_ptr = 7;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional NodeReferenceData owned_by_ptr = 22;
+}
+
 // A FolderInvite is an invite to a Folder.
 message FolderInviteData {
   NodeType metatype = 1;
@@ -2621,6 +2640,17 @@ message OrganizationData {
   optional NodeReferenceData handle_ptr = 41;
 }
 
+message OrganizationFollowData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional NodeReferenceData owned_by_ptr = 22;
+}
+
 // An OrganizationInvite is an invite to an Organization.
 message OrganizationInviteData {
   NodeType metatype = 1;
@@ -2724,21 +2754,6 @@ message QueryData {
   repeated SortData sort = 44;
   optional int64 limit = 50;
   optional int64 offset = 51;
-}
-
-// A QueryCursor is a cursor corresponding to a Query.
-message QueryCursorData {
-  NodeType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  EnvironmentType environment_type = 20;
-  optional NodeReferenceData owned_by_ptr = 22;
-  CursorStatus status = 40;
-  optional google.protobuf.Timestamp active_at = 41;
 }
 
 // A Event of a Query.
@@ -2927,10 +2942,10 @@ message ScreenCursorData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  EnvironmentType environment_type = 20;
   optional NodeReferenceData owned_by_ptr = 22;
   CursorStatus status = 40;
   optional google.protobuf.Timestamp active_at = 41;
+  optional Vector2iData position = 50;
 }
 
 // A Script.
@@ -3075,6 +3090,18 @@ message SpaceData {
   optional NodeReferenceData database_ptr = 55;
 }
 
+message SpaceFollowData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 6;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional NodeReferenceData owned_by_ptr = 22;
+}
+
 // A SpaceInvite is an invite to a Space.
 message SpaceInviteData {
   NodeType metatype = 1;
@@ -3085,7 +3112,6 @@ message SpaceInviteData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData owned_by_ptr = 22;
   NodeReferenceData member_ptr = 40;
   SpaceRoleType role_type = 45;
@@ -3101,7 +3127,6 @@ message SpaceMembershipData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 15;
   NodeReferenceData member_ptr = 40;
   SpaceRoleType role_type = 45;
 }
@@ -3164,7 +3189,7 @@ message SplitViewData {
   optional NodeReferenceData script_ptr = 200;
 }
 
-// A Star is a relationship between someone and a Starred Node.
+// A Star is a relationship between a Subject and a Starred Node.
 message StarData {
   NodeType metatype = 1;
   string id = 2;
@@ -3298,6 +3323,20 @@ message ThreadData {
   EnvironmentType environment_type = 20;
   optional NodeReferenceData owned_by_ptr = 22;
   string name = 31;
+}
+
+// A ThreadCursor is a cursor corresponding to a Thread.
+message ThreadCursorData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional NodeReferenceData owned_by_ptr = 22;
+  CursorStatus status = 40;
+  optional google.protobuf.Timestamp active_at = 41;
 }
 
 // A Thread view.
@@ -3454,6 +3493,17 @@ message UserData {
   optional bytes password_hash = 62;
 }
 
+message UserFollowData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional NodeReferenceData owned_by_ptr = 22;
+}
+
 message ValueData {
   StructType metatype = 1;
   TypeData type = 30;
@@ -3472,7 +3522,7 @@ message Vector2Data {
   double y = 51;
 }
 
-message Vector2IData {
+message Vector2iData {
   StructType metatype = 1;
   int64 x = 50;
   int64 y = 51;
@@ -3485,7 +3535,7 @@ message Vector3Data {
   double z = 52;
 }
 
-message Vector3IData {
+message Vector3iData {
   StructType metatype = 1;
   int64 x = 50;
   int64 y = 51;
@@ -3500,7 +3550,7 @@ message Vector4Data {
   double w = 53;
 }
 
-message Vector4IData {
+message Vector4iData {
   StructType metatype = 1;
   int64 x = 50;
   int64 y = 51;
@@ -3508,14 +3558,12 @@ message Vector4IData {
   int64 w = 53;
 }
 
-// A Window for a User to interact with a Space.
-// Windows to all Spaces are stored in the owning User's Space.
+// A Window for someone to interact with a Space.
 message WindowData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData space_ptr = 6;
-  optional NodeReferenceData folder_ptr = 7;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -3562,17 +3610,21 @@ message SomeNodeData {
     SpaceData space = 1;
     SpaceMembershipData space_membership = 2;
     SpaceInviteData space_invite = 3;
+    SpaceFollowData space_follow = 4;
     HandleData handle = 10;
     UserData user = 20;
+    UserFollowData user_follow = 21;
     FriendshipData friendship = 30;
     FriendshipInviteData friendship_invite = 31;
     OrganizationData organization = 40;
     OrganizationMembershipData organization_membership = 41;
     OrganizationInviteData organization_invite = 42;
+    OrganizationFollowData organization_follow = 43;
     ClientData client = 50;
     FolderData folder = 600;
     FolderMembershipData folder_membership = 601;
     FolderInviteData folder_invite = 602;
+    FolderFollowData folder_follow = 603;
     CustomEntityDefinitionData custom_entity_definition = 1000;
     CustomEntityData custom_entity = 1001;
     SchemaData schema = 1400;
@@ -3586,7 +3638,7 @@ message SomeNodeData {
     TriggerData trigger = 1840;
     TimerData timer = 1841;
     ScreenCursorData screen_cursor = 1900;
-    QueryCursorData query_cursor = 1901;
+    ThreadCursorData thread_cursor = 1901;
     RunData run = 2400;
     SpanData span = 2410;
     InterruptionData interruption = 2420;
@@ -3602,11 +3654,11 @@ message SomeNodeData {
     CounterMeasurementData counter_measurement = 2603;
     HistogramMetricData histogram_metric = 2604;
     HistogramMeasurementData histogram_measurement = 2605;
-    ThreadData thread = 3800;
-    MessageData message = 3810;
-    ReactionData reaction = 3820;
-    StarData star = 3830;
-    NotificationData notification = 3900;
+    ThreadData thread = 3400;
+    MessageData message = 3410;
+    ReactionData reaction = 3420;
+    StarData star = 3430;
+    NotificationData notification = 3500;
     DatabaseData database = 5000;
     MachineData machine = 5020;
     WindowData window = 8000;

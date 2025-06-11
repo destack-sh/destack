@@ -105,9 +105,9 @@ def _get_query_node_area(query: Query) -> AreaType | None:
     else:
         return None
     if issubclass(node_cls, IsGlobal):
-        return AreaType.GLOBAL_DATABASE
+        return AreaType.GLOBAL_POSTGRES
     else:
-        return AreaType.SPACE_DATABASE
+        return AreaType.SPACE_POSTGRES
 
 
 def _get_edit_node_area(edit: Edit) -> AreaType | None:
@@ -115,6 +115,6 @@ def _get_edit_node_area(edit: Edit) -> AreaType | None:
         return None
     node_cls = NODE_CLASS_BY_TYPE[edit.node_type]
     if issubclass(node_cls, IsGlobal):
-        return AreaType.GLOBAL_DATABASE
+        return AreaType.GLOBAL_POSTGRES
     else:
-        return AreaType.SPACE_DATABASE
+        return AreaType.SPACE_POSTGRES

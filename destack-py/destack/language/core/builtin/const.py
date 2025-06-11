@@ -373,12 +373,12 @@ class EnumType(BuiltinEnum):
     # product [3000-3400]
     # ...
 
-    # finance [3400-3800]
+    # social [3400-3800]
+    THREAD_STATUS = 3402
+    MESSAGE_TYPE = 3421
     # ...
 
-    # social [3800-4200]
-    THREAD_STATUS = 3802
-    MESSAGE_TYPE = 3821
+    # finance [3800-4200]
     # ...
 
     # locale [4200-4600]
@@ -545,10 +545,10 @@ class StructType(BuiltinEnum):
     # product [3000-3400]
     # ...
 
-    # finance [3400-3800]
+    # social [3400-3800]
     # ...
 
-    # social [3800-4200]
+    # finance [3800-4200]
     # ...
 
     # locale [4200-4600]
@@ -626,8 +626,10 @@ class NodeType(BuiltinEnum):
     SPACE = 1, "Space", "Universal Space", "https://heydestack.com/favicon.ico"
     SPACE_MEMBERSHIP = 2, "Space Membership", "Membership in a Space", "fas fa-user-group"
     SPACE_INVITE = 3, "Space Invite", "Invite to a Space", "fas fa-user-plus"
+    SPACE_FOLLOW = 4, "Space Follow", "Follow a Space", "fas fa-user-plus"
     HANDLE = 10, "Handle", "Unique @handle", "fas fa-at"
     USER = 20, "User", "User", "fas fa-user"
+    USER_FOLLOW = 21, "User Follow", "Follow a User", "fas fa-user-plus"
     FRIENDSHIP = 30, "Friendship", "Friendship between two Users", "fas fa-user-friends"
     FRIENDSHIP_INVITE = (
         31,
@@ -648,7 +650,8 @@ class NodeType(BuiltinEnum):
         "Invite to an Organization",
         "fas fa-user-plus",
     )
-    CLIENT = 50, "Client", "Client to a Destack", "fas fa-desktop"
+    ORGANIZATION_FOLLOW = 43, "Organization Follow", "Follow an Organization", "fas fa-user-plus"
+    CLIENT = 50, "Client", "Client", "fas fa-desktop"
     # TEAM, TEAM_MEMBERSHIP, TEAM_INVITE, ...
     # CREDENTIAL, ACCOUNT, PROFILE, ...
 
@@ -662,6 +665,7 @@ class NodeType(BuiltinEnum):
     FOLDER = 600, "Folder", "Sub-space of a Space", "fas fa-folder-open"
     FOLDER_MEMBERSHIP = 601, "Folder Membership", "Membership in a Folder", "fas fa-user-group"
     FOLDER_INVITE = 602, "Folder Invite", "Invite to a Folder", "fas fa-user-plus"
+    FOLDER_FOLLOW = 603, "Folder Follow", "Follow a Folder", "fas fa-user-plus"
     # DEPENDENCY, ...
     # TAG/TAGGING, ...
 
@@ -696,8 +700,8 @@ class NodeType(BuiltinEnum):
     TIMER = 1841, "Timer", "Timer", "fas fa-clock"
     # BREAKPOINT, ...
     SCREEN_CURSOR = 1900, "Mouse Cursor", "Mouse Cursor", "fas fa-mouse"
-    QUERY_CURSOR = 1901, "Query Cursor", "Query Cursor", "fas fa-magnifying-glass"
-    # WEB_CURSOR, ...
+    THREAD_CURSOR = 1901, "Query Cursor", "Query Cursor", "fas fa-magnifying-glass"
+    # QUERY_CURSOR, WEB_CURSOR, ...
     # ROOM, CHANNEL, LOCK, ...
     # TASK, ...
 
@@ -740,23 +744,22 @@ class NodeType(BuiltinEnum):
     # FEATURE, FEATURE_FLAG, FEATURE_GATE, ...
     # SEGMENT, EXPERIMENT, ...
 
-    # finance [3400-3800]
+    # social [3400-3800]
+    #  (same goes for Files... maybe Threads)
+    THREAD = 3400, "Thread", "Thread", "fas fa-reel"
+    # THREAD_MEMBERSHIP, ...
+    MESSAGE = 3410, "Message", "Message", "fas fa-message"
+    REACTION = 3420, "Reaction", "Reaction", "fas fa-heart"
+    STAR = 3430, "Star", "Star", "fas fa-star"
+    # USER_FOLLOW, SPACE_FOLLOW, FEED, FEED_ITEM, ...
+    # POLL, VOTE, REVIEW, RATING, RANK, ...
+    # ACHIEVEMENT, BADGE, WISHLIST/WATCHLIST, ...
+    NOTIFICATION = 3500, "Notification", "Notification", "fas fa-bell"
+
+    # finance [3800-4200]
     # WALLET, BALANCE, BUDGET, TRANSFER, CREDIT, ...
     # TIER, SUBSCRIPTION, PRODUCT, PRICE, ...
     # ORDER, INVOICE, DISCOUNT, DISPUTE, REFUND, ...
-
-    # social [3800-4200]
-    # nocheckin: figure out how to have global *and* in-space Stars/Follows/... (Traits?)
-    #  (same goes for Files... and maybe Threads)
-    THREAD = 3800, "Thread", "Thread", "fas fa-reel"
-    # THREAD_MEMBERSHIP, ...
-    MESSAGE = 3810, "Message", "Message", "fas fa-message"
-    REACTION = 3820, "Reaction", "Reaction", "fas fa-heart"
-    STAR = 3830, "Star", "Star", "fas fa-star"
-    # FOLLOW, FEED, FEED_ITEM, ...
-    # POLL, VOTE, REVIEW, RATING, RANK, ...
-    # ACHIEVEMENT, BADGE, WISHLIST/WATCHLIST, ...
-    NOTIFICATION = 3900, "Notification", "Notification", "fas fa-bell"
 
     # locale [4200-4600]
     # LOCALE, STRING, TRANSLATION, ...
@@ -836,7 +839,6 @@ class NodeType(BuiltinEnum):
     # ANNOTATION, ...
 
     # animation [9400-9600]
-    # STAGE, ...
     # ANIMATION, TRACK, KEYFRAME, FRAME, ...
     # SOUND, ...
 
@@ -847,7 +849,7 @@ class TraitType(BuiltinEnum):
     # nocheckin: categorize Nodes (Entities/Particles/Assets/Views/Visuals/...?)
     # where
     GLOBAL = 1, "Global", "Is global", "fas fa-globe"
-    IN_SPACE = 2, "Space", "Is in a Space", "fas fa-destack"
+    IN_SPACE = 2, "Space", "Is in a Space", "fas fa-space"
     IN_FOLDER = 3, "Folder", "Is in a Folder", "fas fa-folder-open"
     # what
     ENTITY = 10, "Entity", "Is an Entity", "fas fa-hexagon"
@@ -899,14 +901,14 @@ class TraitType(BuiltinEnum):
     RUNNABLE = 1800, "Runnable", "Can be run", "fas fa-play"
     SCRIPTABLE = 1801, "Scriptable", "Can be scripted", "fas fa-code"
     SOURCEABLE = 1802, "Sourcable", "Can be defined in a Script", "fas fa-code"
-    METRIC = 1810, "Instrument", "Is an Instrument", "fas fa-microscope"
-    MEASUREMENT = 1811, "Measurement", "Is a Measurement", "fas fa-microscope"
     CURSOR = 1812, "Cursor", "Is a Cursor", "fas fa-mouse-pointer"
 
     # test [2000-2400]
     # ...
 
     # runtime [2400-2800]
+    METRIC = 1810, "Instrument", "Is an Instrument", "fas fa-microscope"
+    MEASUREMENT = 1811, "Measurement", "Is a Measurement", "fas fa-microscope"
     # ...
 
     # deployment [2800-3000]
@@ -921,7 +923,9 @@ class TraitType(BuiltinEnum):
     # social [3800-4200]
     # MESSAGE, THREAD, ...
     STARABLE = 3830, "Starable", "Can be starred", "fas fa-star"
-    REACTABLE = 3831, "Reactable", "Can be reacted to", "fas fa-heart"
+    REACTABLE = 3832, "Reactable", "Can be reacted to", "fas fa-heart"
+    FOLLOWABLE = 3834, "Followable", "Can be followed", "fas fa-plus"
+    FOLLOW = 3835, "Follow", "Follow", "fas fa-plus"
     # RATEABLE, VOTABLE, ...
     # ASSIGNABLE, MESSAGEABLE, CLOSABLE, LOCKABLE, ...
 
@@ -973,10 +977,10 @@ class TraitType(BuiltinEnum):
 
 @enum_(EnumType.AREA_TYPE)
 class AreaType(BuiltinEnum):
-    GLOBAL_DATABASE = 1
-    # GLOBAL_SEARCH?
-    SPACE_DATABASE = 100
-    # SPACE_SEARCH, SPACE_WAREHOUSE, ...
+    GLOBAL_POSTGRES = 1
+    # GLOBAL_ELASTICSEARCH?
+    SPACE_POSTGRES = 20
+    # SPACE_CASSANDRA, SPACE_ELASTICSEARCH, SPACE_CLICKHOUSE, ...
 
 
 @enum_(EnumType.RUNTIME_LANGUAGE)
@@ -996,7 +1000,7 @@ class RuntimeType(BuiltinEnum):
 
 @enum_(EnumType.ENVIRONMENT_TYPE)
 class EnvironmentType(BuiltinEnum):
-    SYSTEM = 1, "System", "Managed by Destack", "fas fa-cog"
+    SYSTEM = 1, "System", "Managed by the system", "fas fa-cog"
     DEVELOPMENT = 3, "Development", "Active in development", "fas fa-flask"
     TEST = 5, "Test", "Active in test", "fas fa-flask"
     STAGING = 7, "Staging", "Active in staging", "fas fa-globe"

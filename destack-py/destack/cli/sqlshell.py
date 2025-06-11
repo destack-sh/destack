@@ -31,9 +31,9 @@ async def sqlshell(
     from destack.language import AreaType
     from destack.sharding import DATABASE_PROVIDER, get_global_database_from_env
 
-    if area == AreaType.GLOBAL_DATABASE:
+    if area == AreaType.GLOBAL_POSTGRES:
         database = get_global_database_from_env()
-    elif area == AreaType.SPACE_DATABASE:
+    elif area == AreaType.SPACE_POSTGRES:
         assert cell_name is not None, "cell_name is required for main area"
         assert external_id is not None, "external_id is required for main area"
         database = await DATABASE_PROVIDER.resolve_or_error(region, cell_name, external_id)

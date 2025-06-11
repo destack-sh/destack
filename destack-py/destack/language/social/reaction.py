@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Union
 
 from destack.language.core import (
+    IndexIn,
     IsEntity,
     IsOwnable,
     Node,
@@ -17,7 +18,10 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(NodeType.REACTION)
+@node_(
+    NodeType.REACTION,
+    index=(IndexIn(columns=("parent_id", "owned_by_id", "content"), is_unique=True),),
+)
 class Reaction(
     IsOwnable,
     IsEntity,
