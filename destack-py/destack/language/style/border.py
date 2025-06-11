@@ -4,6 +4,7 @@ from destack.language.core import (
     BuiltinEnum,
     BuiltinObjectMutable,
     EnumType,
+    Insets,
     IsArchivable,
     IsDeletable,
     IsTracked,
@@ -20,7 +21,6 @@ from destack.language.core import (
 from destack.pb2 import BorderStyleData
 
 from .color import Color
-from .core import Insets
 from .style import IsStyle
 
 if TYPE_CHECKING:

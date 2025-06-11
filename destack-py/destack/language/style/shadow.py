@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
+    Axis2,
     BuiltinEnum,
     BuiltinObjectMutable,
     EnumType,
@@ -20,7 +21,6 @@ from destack.language.core import (
 from destack.pb2 import ShadowStyleData
 
 from .color import Color
-from .core import Axis2
 from .style import IsStyle
 
 if TYPE_CHECKING:

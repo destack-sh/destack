@@ -7,6 +7,7 @@ from destack.language.core import (
     IsArchivable,
     IsDeletable,
     IsTracked,
+    Length,
     Node,
     NodeType,
     StructMutable,
@@ -19,7 +20,6 @@ from destack.language.core import (
 )
 from destack.pb2 import FontStyleData
 
-from .core import Length
 from .fill import Fill
 from .style import IsStyle
 
