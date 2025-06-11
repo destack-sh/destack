@@ -1316,6 +1316,7 @@ class TraitType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TRAIT_TYPE_CURSOR: _ClassVar[TraitType]
     TRAIT_TYPE_STARABLE: _ClassVar[TraitType]
     TRAIT_TYPE_REACTABLE: _ClassVar[TraitType]
+    TRAIT_TYPE_VISUAL: _ClassVar[TraitType]
     TRAIT_TYPE_VIEW: _ClassVar[TraitType]
     TRAIT_TYPE_CONTAINER_VIEW: _ClassVar[TraitType]
     TRAIT_TYPE_CONTENT_VIEW: _ClassVar[TraitType]
@@ -2346,6 +2347,7 @@ TRAIT_TYPE_MEASUREMENT: TraitType
 TRAIT_TYPE_CURSOR: TraitType
 TRAIT_TYPE_STARABLE: TraitType
 TRAIT_TYPE_REACTABLE: TraitType
+TRAIT_TYPE_VISUAL: TraitType
 TRAIT_TYPE_VIEW: TraitType
 TRAIT_TYPE_CONTAINER_VIEW: TraitType
 TRAIT_TYPE_CONTENT_VIEW: TraitType

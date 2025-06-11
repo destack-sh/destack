@@ -8,6 +8,7 @@ from destack.language.core import (
     IsScriptable,
     IsTemplatable,
     IsTracked,
+    IsVisual,
     TraitType,
     property_,
     property_parent_,
@@ -22,8 +23,9 @@ if TYPE_CHECKING:
 
 @trait_(TraitType.VIEW)
 class IsView(
-    IsEnvironmental,
     HasName,
+    IsVisual,
+    IsEnvironmental,
     IsScriptable,
     IsTemplatable,
     IsInFolder,

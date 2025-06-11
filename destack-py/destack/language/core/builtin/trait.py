@@ -475,6 +475,13 @@ class IsParticle(IsTracked):
     pass
 
 
+@trait_(TraitType.VISUAL)
+class IsVisual(IsTracked):
+    """A Node that is a visual in some sense (views, styles, drawings, ...)."""
+
+    pass
+
+
 @trait_(TraitType.ASSET)
 class IsAsset(IsTracked):
     """A Node that represents an external asset."""
