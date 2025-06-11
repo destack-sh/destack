@@ -9,7 +9,6 @@ from destack.language.core import (
     IsScriptable,
     IsTaggable,
     IsTemplatable,
-    IsTracked,
     IsVisual,
     Node,
     NodeType,
@@ -38,7 +37,6 @@ class Scene(
     IsOwnable,
     IsTemplatable,
     IsDeletable,
-    IsTracked,
     Node[SceneData],
 ):
     """A Scene is a container for a specific interaction point."""

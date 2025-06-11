@@ -4,8 +4,6 @@ from destack.language.core import (
     BuiltinEnum,
     BuiltinObjectMutable,
     EnumType,
-    IsDeletable,
-    IsTracked,
     Node,
     NodeType,
     StructMutable,
@@ -70,8 +68,6 @@ class Transition(TransitionBase, StructMutable):
 class TransitionStyle(
     Style,
     TransitionBase,
-    IsDeletable,
-    IsTracked,
     Node[TransitionStyleData],
 ):
     """A transition style."""

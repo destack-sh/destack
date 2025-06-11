@@ -37,9 +37,10 @@ ENUM_TYPE_BY_CLASS = _ENUM_TYPE_BY_CLASS  # re-exported to avoid circular import
 
 NODE_CLASS_BY_TYPE: dict[NodeType, type["Node"]] = {}
 NODE_TYPE_BY_CLASS: dict[type["Node"], NodeType] = {}
-NODE_CLASS_BY_TRAIT: dict[TraitType, type["BuiltinObjectBase"]] = {}
-NODE_TRAIT_BY_CLASS: dict[type["Trait"], TraitType] = {}
-NODE_TYPES_BY_TRAIT: dict[TraitType, tuple[NodeType, ...]] = {}
+
+TRAIT_CLASS_BY_TRAIT: dict[TraitType, type["BuiltinObjectBase"]] = {}
+TRAIT_TYPE_BY_CLASS: dict[type["Trait"], TraitType] = {}
+NODE_TYPES_BY_TRAIT_TYPE: dict[TraitType, tuple[NodeType, ...]] = {}
 
 STRUCT_CLASS_BY_TYPE: dict[StructType, type["StructBase"]] = {}
 STRUCT_TYPE_BY_CLASS: dict[type["StructBase"], StructType] = {}
@@ -103,7 +104,7 @@ def _complete_destack_setup():
         for trait in node_cls.__traits__:
             node_types_by_trait[trait].append(node_cls.metatype)
     for trait, node_types in node_types_by_trait.items():
-        NODE_TYPES_BY_TRAIT[trait] = tuple(node_types)
+        NODE_TYPES_BY_TRAIT_TYPE[trait] = tuple(node_types)
 
     # index parent types
     for node_cls in NODE_CLASS_BY_TYPE.values():
@@ -184,7 +185,7 @@ def _complete_destack_setup():
 
     for cls in NODE_CLASS_BY_TYPE.values():
         RELATION_REF_BY_CLASS[cls] = relation_ref(cls)
-    for cls in NODE_TRAIT_BY_CLASS:
+    for cls in TRAIT_TYPE_BY_CLASS:
         RELATION_REF_BY_CLASS[cls] = relation_ref(cls)
 
     # generate meta info

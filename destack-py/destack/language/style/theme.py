@@ -6,10 +6,8 @@ from destack.language.core import (
     EnumType,
     HasIcon,
     HasName,
-    IsArchivable,
     IsDeletable,
     IsTaggable,
-    IsTracked,
     IsVisual,
     Node,
     NodeType,
@@ -48,8 +46,6 @@ class Theme(
     IsVisual,
     IsTaggable,
     IsDeletable,
-    IsArchivable,
-    IsTracked,
     Node[ThemeData],
 ):
     """A Theme with common styles."""

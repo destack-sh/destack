@@ -6,9 +6,6 @@ from destack.language.core import (
     BuiltinEnum,
     BuiltinObjectMutable,
     EnumType,
-    IsArchivable,
-    IsDeletable,
-    IsTracked,
     Node,
     NodeType,
     StructMutable,
@@ -107,9 +104,6 @@ class Effect(EffectBase, StructMutable):
 class EffectStyle(
     Style,
     EffectBase,
-    IsDeletable,
-    IsArchivable,
-    IsTracked,
     Node[EffectStyleData],
 ):
     """An effect style."""

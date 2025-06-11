@@ -12,11 +12,11 @@ from fastuuid import UUID
 from opentelemetry import trace
 
 from destack.language.registry import (
-    NODE_CLASS_BY_TRAIT,
     NODE_CLASS_BY_TYPE,
-    NODE_TRAIT_BY_CLASS,
     NODE_TYPE_BY_CLASS,
-    NODE_TYPES_BY_TRAIT,
+    NODE_TYPES_BY_TRAIT_TYPE,
+    TRAIT_CLASS_BY_TRAIT,
+    TRAIT_TYPE_BY_CLASS,
 )
 from destack.utils.fractional import INTEGER_MAX
 
@@ -358,14 +358,14 @@ class PolyGraph(Graph):
                     node_types = (node_t,)
                 else:
                     node_cls = node_type
-                    node_types = NODE_TYPES_BY_TRAIT[NODE_TRAIT_BY_CLASS[node_type]]  # type: ignore
+                    node_types = NODE_TYPES_BY_TRAIT_TYPE[TRAIT_TYPE_BY_CLASS[node_type]]  # type: ignore
             else:
                 if isinstance(node_type, NodeType):
                     node_cls = NODE_CLASS_BY_TYPE[node_type]
                     node_types = (node_type,)
                 else:
-                    node_cls = NODE_CLASS_BY_TRAIT[node_type]  # type: ignore
-                    node_types = NODE_TYPES_BY_TRAIT[node_type]
+                    node_cls = TRAIT_CLASS_BY_TRAIT[node_type]  # type: ignore
+                    node_types = NODE_TYPES_BY_TRAIT_TYPE[node_type]
 
             # collect
             if len(node_types) == 1:
@@ -494,10 +494,10 @@ def _resolve_node_types(
             if node_t := NODE_TYPE_BY_CLASS.get(node_type):
                 node_types = (node_t,)
             else:
-                node_types = NODE_TYPES_BY_TRAIT[NODE_TRAIT_BY_CLASS[node_type]]  # type: ignore
+                node_types = NODE_TYPES_BY_TRAIT_TYPE[TRAIT_TYPE_BY_CLASS[node_type]]  # type: ignore
         else:
             if isinstance(node_type, NodeType):
                 node_types = (node_type,)
             else:
-                node_types = NODE_TYPES_BY_TRAIT[node_type]
+                node_types = NODE_TYPES_BY_TRAIT_TYPE[node_type]
     return node_types

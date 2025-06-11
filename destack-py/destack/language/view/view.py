@@ -7,7 +7,6 @@ from destack.language.core import (
     IsScriptable,
     IsTaggable,
     IsTemplatable,
-    IsTracked,
     IsVisual,
     Spatial,
     TraitType,
@@ -31,7 +30,6 @@ class View(
     IsTaggable,
     IsScriptable,
     IsTemplatable,
-    IsTracked,
     IsDeletable,
 ):
     """A View is a graphical interface."""

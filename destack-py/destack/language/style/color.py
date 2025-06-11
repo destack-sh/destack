@@ -4,9 +4,6 @@ from destack.language.core import (
     BuiltinEnum,
     BuiltinObjectMutable,
     EnumType,
-    IsArchivable,
-    IsDeletable,
-    IsTracked,
     Node,
     NodeType,
     StructMutable,
@@ -115,9 +112,6 @@ class Color(ColorBase, StructMutable):
 class ColorStyle(
     Style,
     ColorBase,
-    IsDeletable,
-    IsArchivable,
-    IsTracked,
     Node[ColorStyleData],
 ):
     """A color style, with an optional dark variant."""

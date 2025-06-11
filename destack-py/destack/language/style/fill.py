@@ -4,9 +4,6 @@ from destack.language.core import (
     BuiltinEnum,
     BuiltinObjectMutable,
     EnumType,
-    IsArchivable,
-    IsDeletable,
-    IsTracked,
     Node,
     NodeType,
     StructMutable,
@@ -89,9 +86,6 @@ class Fill(FillBase, StructMutable):
 class FillStyle(
     Style,
     FillBase,
-    IsDeletable,
-    IsArchivable,
-    IsTracked,
     Node[FillStyleData],
 ):
     """A fill style."""

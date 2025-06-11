@@ -1,4 +1,3 @@
-import abc
 import base64
 import contextvars
 import inspect
@@ -25,7 +24,7 @@ from opentelemetry import trace
 
 from destack.pb2 import AnyObjectData
 from destack.utils.code import exec_, format_code
-from destack.utils.env import IS_DEV
+from destack.utils.env import IS_DEV, IS_TEST
 from destack.utils.frozen import frozendict, frozenlist
 from destack.utils.func import dualmethod, get_superclasses
 
@@ -939,6 +938,19 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
         component=cls,
     )
 
+    # check for redundant components
+    if IS_DEV or IS_TEST:
+        for component in cls.__bases__:
+            if component.__name__ in ("ABC", "object", "Generic"):
+                continue
+            for other_component in cls.__bases__:
+                if component.__name__ != other_component.__name__ and component in get_superclasses(
+                    other_component
+                ):
+                    raise AssertionError(
+                        f"'{cls.__name__}' has redundant component '{component.__name__}' (already inherits from '{other_component.__name__}')"
+                    )
+
     # collect all components from class hierarchy (including self)
     components: list[type[BuiltinObjectBase]] = []
     for base_cls in get_superclasses(cls):
@@ -1183,7 +1195,7 @@ def object_[ObjectT: BuiltinObjectBase](
 _HANDLING_ATTRIBUTE_ERROR = contextvars.ContextVar("handling_attribute_error", default=False)
 
 
-class BuiltinObjectBase[ObjectDataT: AnyObjectData](abc.ABC):
+class BuiltinObjectBase[ObjectDataT: AnyObjectData]:
     """The base for all intrinsic objects like Structs and Nodes and all their derivatives."""
 
     __is_frozen__: ClassVar[bool] = False

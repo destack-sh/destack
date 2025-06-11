@@ -5,8 +5,6 @@ from destack.language.core import (
     BuiltinEnum,
     BuiltinObjectMutable,
     EnumType,
-    IsDeletable,
-    IsTracked,
     Node,
     NodeType,
     StructMutable,
@@ -69,8 +67,6 @@ class Shadow(ShadowBase, StructMutable):
 class ShadowStyle(
     Style,
     ShadowBase,
-    IsDeletable,
-    IsTracked,
     Node[ShadowStyleData],
 ):
     """A shadow style."""

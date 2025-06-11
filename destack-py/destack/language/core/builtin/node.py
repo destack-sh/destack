@@ -93,6 +93,7 @@ def node_(
                         raise AssertionError(
                             f"{cls.__name__} must have exactly one of {[t.name for t in traits]} traits (has {[t.name for t in cls.__traits__]})"
                         )
+
         # parent/root
         parent_property = cls.__properties__.get("parent", None)
         assert parent_property is not None, f"missing parent property for {node_type}"
