@@ -4,9 +4,6 @@ from destack.language.core import (
     BuiltinEnum,
     BuiltinObjectMutable,
     EnumType,
-    IsArchivable,
-    IsDeletable,
-    IsTracked,
     Length,
     Node,
     NodeType,
@@ -116,9 +113,6 @@ class Font(FontBase, StructMutable):
 class FontStyle(
     Style,
     FontBase,
-    IsDeletable,
-    IsArchivable,
-    IsTracked,
     Node[FontStyleData],
 ):
     """A font style."""

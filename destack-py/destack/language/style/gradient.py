@@ -5,9 +5,6 @@ from destack.language.core import (
     BuiltinEnum,
     BuiltinObjectMutable,
     EnumType,
-    IsArchivable,
-    IsDeletable,
-    IsTracked,
     Node,
     NodeType,
     NumberFormat,
@@ -66,9 +63,6 @@ class Gradient(GradientBase, StructMutable):
 class GradientStyle(
     Style,
     GradientBase,
-    IsDeletable,
-    IsArchivable,
-    IsTracked,
     Node[GradientStyleData],
 ):
     """A gradient style."""

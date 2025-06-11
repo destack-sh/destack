@@ -6,7 +6,6 @@ from destack.language.core import (
     VERSION,
     BuiltinEnum,
     EnumType,
-    IsTracked,
     Node,
     NodeReference,
     NodeType,
@@ -37,7 +36,6 @@ class MachineType(BuiltinEnum):
 class Machine(
     Spatial,
     Resource,
-    IsTracked,
     Node[MachineData],
 ):
     """

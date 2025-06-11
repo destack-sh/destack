@@ -15,10 +15,10 @@ from typing import (
 from fastuuid import UUID
 
 from destack.language.registry import (
-    NODE_CLASS_BY_TRAIT,
-    NODE_TRAIT_BY_CLASS,
-    NODE_TYPES_BY_TRAIT,
+    NODE_TYPES_BY_TRAIT_TYPE,
     RELATION_REF_BY_CLASS,
+    TRAIT_CLASS_BY_TRAIT,
+    TRAIT_TYPE_BY_CLASS,
 )
 from destack.pb2 import AnyObjectData
 from destack.utils.fractional import INTEGER_ZERO
@@ -62,7 +62,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 #
-# NOTE: Traits observe the following naming scheme:
+# NOTE: Traits follow the following naming scheme:
 #  - Bare (e.g., Spatial, Global, Entity): the main type & location
 #  - Like (e.g., LikeTag, LikeMembership): the trait mimics a specific builtin node type
 #  - Has (e.g., HasName, HasSlug): the trait has specific properties
@@ -91,7 +91,7 @@ def expand_node_types(types: Collection[NodeType | TraitType]) -> tuple[NodeType
         if isinstance(typ, NodeType):
             node_types.add(typ)
         elif isinstance(typ, TraitType):
-            node_types.update(NODE_TYPES_BY_TRAIT.get(typ, ()))
+            node_types.update(NODE_TYPES_BY_TRAIT_TYPE.get(typ, ()))
         else:
             assert_never(typ)
     return tuple(node_types)
@@ -99,7 +99,7 @@ def expand_node_types(types: Collection[NodeType | TraitType]) -> tuple[NodeType
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def trait_(
-    node_trait: TraitType | None,
+    trait_type: TraitType | None,
     pretend_frozen: bool = False,  # :PretendFrozen
 ):
     """Register a class as a node trait."""
@@ -112,17 +112,19 @@ def trait_(
             is_node=True,
             is_frozen=pretend_frozen,
         )
-        if node_trait is not None:
-            cls.metatype = node_trait
-        if node_trait is not None:
-            NODE_CLASS_BY_TRAIT[node_trait] = cls
-            NODE_TRAIT_BY_CLASS[cast(type["Trait"], cls)] = node_trait
+
+        # register
+        if trait_type is not None:
+            cls.metatype = trait_type
+            TRAIT_CLASS_BY_TRAIT[trait_type] = cls
+            TRAIT_TYPE_BY_CLASS[cast(type["Trait"], cls)] = trait_type
+
         return cls
 
     return decorate
 
 
-@trait_(node_trait=None)  # type: ignore
+@trait_(trait_type=None)  # type: ignore
 class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
     """A Node with Properties and a persistent identity."""
 

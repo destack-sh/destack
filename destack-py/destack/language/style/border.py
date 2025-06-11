@@ -5,9 +5,6 @@ from destack.language.core import (
     BuiltinObjectMutable,
     EnumType,
     Insets,
-    IsArchivable,
-    IsDeletable,
-    IsTracked,
     Node,
     NodeType,
     StructMutable,
@@ -64,9 +61,6 @@ class Border(BorderBase, StructMutable):
 class BorderStyle(
     Style,
     BorderBase,
-    IsDeletable,
-    IsArchivable,
-    IsTracked,
     Node[BorderStyleData],
 ):
     """A border style."""

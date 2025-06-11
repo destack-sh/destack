@@ -9,7 +9,6 @@ from destack.pb2 import (
 
 from ..builtin import (
     HasName,
-    IsSourceable,
     Measurement,
     Metric,
     Node,
@@ -27,7 +26,6 @@ class GaugeMetric(
     Spatial,
     Metric,
     HasName,
-    IsSourceable,
     Node[GaugeMetricData],
 ):
     """A Gauge Metric."""
@@ -51,7 +49,6 @@ class CounterMetric(
     Spatial,
     Metric,
     HasName,
-    IsSourceable,
     Node[CounterMetricData],
 ):
     """A Counter Metric."""
@@ -75,7 +72,6 @@ class HistogramMetric(
     Spatial,
     Metric,
     HasName,
-    IsSourceable,
     Node[HistogramMetricData],
 ):
     """A Histogram Metric."""

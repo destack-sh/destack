@@ -9,9 +9,9 @@ from fastuuid import UUID
 from opentelemetry import trace
 
 from destack.language.registry import (
-    NODE_CLASS_BY_TRAIT,
     NODE_CLASS_BY_TYPE,
     STRUCT_CLASS_BY_TYPE,
+    TRAIT_CLASS_BY_TRAIT,
 )
 from destack.pb2 import NodeReferenceData, PropertyReferenceData, ScopeData
 
@@ -88,7 +88,7 @@ class RelationReference(StructFrozen):
             return NODE_CLASS_BY_TYPE.get(NodeType.CUSTOM_ENTITY)
         elif self.type == RelationType.TRAIT:
             assert self.trait_type is not None, f"no trait_type for {self!r}"
-            return NODE_CLASS_BY_TRAIT.get(self.trait_type)
+            return TRAIT_CLASS_BY_TRAIT.get(self.trait_type)
         else:
             assert_never(self.type)
 
@@ -184,7 +184,7 @@ class PropertyReference(StructFrozen[PropertyReferenceData]):
             return NODE_CLASS_BY_TYPE.get(self.node_type)
         elif self.type == PropertyReferenceType.TRAIT:
             assert self.trait_type is not None, f"no trait_type for {self!r}"
-            return NODE_CLASS_BY_TRAIT.get(self.trait_type)
+            return TRAIT_CLASS_BY_TRAIT.get(self.trait_type)
         elif self.struct_type is not None:
             assert self.struct_type is not None, f"no struct_type for {self!r}"
             return STRUCT_CLASS_BY_TYPE.get(self.struct_type)

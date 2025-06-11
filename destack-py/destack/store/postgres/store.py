@@ -25,7 +25,11 @@ from destack.language import (
     RelationType,
     Store,
 )
-from destack.language.registry import NODE_CLASS_BY_TYPE, NODE_TYPES_BY_TRAIT, RELATION_REF_BY_CLASS
+from destack.language.registry import (
+    NODE_CLASS_BY_TYPE,
+    NODE_TYPES_BY_TRAIT_TYPE,
+    RELATION_REF_BY_CLASS,
+)
 
 from .client import pg_connection
 from .core import PostgresContext, PostgresTable
@@ -178,7 +182,7 @@ class PostgresStoreContext(PostgresContext):
             return (relation,)
         elif relation.type == RelationType.TRAIT:
             assert relation.trait_type is not None, f"no trait_type for {relation!r}"
-            node_types = NODE_TYPES_BY_TRAIT.get(relation.trait_type, ())
+            node_types = NODE_TYPES_BY_TRAIT_TYPE.get(relation.trait_type, ())
             return tuple(
                 RELATION_REF_BY_CLASS[NODE_CLASS_BY_TYPE[node_type]] for node_type in node_types
             )

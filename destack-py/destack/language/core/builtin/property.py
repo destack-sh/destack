@@ -12,7 +12,11 @@ from typing import (
     assert_never,
 )
 
-from destack.language.registry import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE, NODE_TYPES_BY_TRAIT
+from destack.language.registry import (
+    ENUM_CLASS_BY_TYPE,
+    NODE_CLASS_BY_TYPE,
+    NODE_TYPES_BY_TRAIT_TYPE,
+)
 from destack.utils.func import hash_stable
 from destack.utils.string import Casing, to_casing
 
@@ -607,7 +611,8 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
             node_types = expand_node_types(self.node_types or ())
             self.node_has_type = len(node_types) > 1
             self.node_has_definition = self.node_is_customizable and any(
-                node_type in NODE_TYPES_BY_TRAIT[TraitType.CUSTOM_NODE] for node_type in node_types
+                node_type in NODE_TYPES_BY_TRAIT_TYPE[TraitType.CUSTOM_NODE]
+                for node_type in node_types
             )
             self.node_has_space = self.node_space_from is None and any(
                 issubclass(NODE_CLASS_BY_TYPE[node_type], Spatial) for node_type in node_types

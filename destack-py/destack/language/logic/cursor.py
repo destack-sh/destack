@@ -6,11 +6,9 @@ from destack.language.core import (
     Entity,
     EnumType,
     IsOwnable,
-    IsTracked,
     Node,
     NodeType,
     Spatial,
-    Trait,
     TraitType,
     Vector2i,
     enum_,
@@ -49,7 +47,7 @@ class CursorStatus(BuiltinEnum):
 
 
 @trait_(TraitType.CURSOR)
-class IsCursor(Trait):
+class Cursor(Spatial, Entity):
     """A Node that is a Cursor."""
 
     status: CursorStatus = property_(40, default=CursorStatus.CREATED, is_repr=True)
@@ -58,11 +56,8 @@ class IsCursor(Trait):
 
 @node_(NodeType.EVENT_CURSOR)
 class EventCursor(
-    Spatial,
-    Entity,
-    IsCursor,
+    Cursor,
     IsOwnable,
-    IsTracked,
     Node[EventCursorData],
 ):
     """
@@ -75,11 +70,8 @@ class EventCursor(
 
 @node_(NodeType.SCREEN_CURSOR)
 class ScreenCursor(
-    Spatial,
-    Entity,
-    IsCursor,
+    Cursor,
     IsOwnable,
-    IsTracked,
     Node[ScreenCursorData],
 ):
     """
@@ -92,11 +84,8 @@ class ScreenCursor(
 
 @node_(NodeType.THREAD_CURSOR)
 class ThreadCursor(
-    Spatial,
-    Entity,
-    IsCursor,
+    Cursor,
     IsOwnable,
-    IsTracked,
     Node[ThreadCursorData],
 ):
     """

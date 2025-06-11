@@ -12,7 +12,6 @@ from destack.language.core import (
     IsSourceable,
     IsTaggable,
     IsTemplatable,
-    IsTracked,
     Node,
     NodeType,
     RunType,
@@ -51,7 +50,6 @@ class Action(
     IsOrdered,
     IsDeletable,
     IsRunnable,
-    IsTracked,
     Node[ActionData],
 ):
     """

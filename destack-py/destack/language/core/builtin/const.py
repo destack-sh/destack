@@ -836,10 +836,10 @@ class NodeType(BuiltinEnum):
 @enum_(EnumType.TRAIT_TYPE)
 class TraitType(BuiltinEnum):
     # destack [1-400]
-    # nocheckin: categorize Nodes (Entities/Particles/Assets/Views/Visuals/...?)
     # where
     GLOBAL = 1, "Global", "Is global", "fas fa-globe"
     SPATIAL = 2, "Spatial", "Is in a Space", "fas fa-solar-system"
+    # LOCAL?
     # kind
     ENTITY = 10, "Entity", "Is an Entity", "fas fa-hexagon"
     PARTICLE = 11, "Particle", "Is a Particle", "fas fa-atom"
