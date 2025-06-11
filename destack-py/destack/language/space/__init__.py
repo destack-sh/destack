@@ -4,13 +4,14 @@ from .handle import Handle
 from .organization import (
     Organization,
     OrganizationData,
+	OrganizationFollow,
     OrganizationInvite,
     OrganizationMembership,
     OrganizationRoleType,
     OrganizationStatus,
 )
-from .space import Space, SpaceInvite, SpaceMembership, SpaceRoleType, SpaceStatus
-from .user import User, UserStatus
+from .space import Space, SpaceFollow, SpaceInvite, SpaceMembership, SpaceRoleType, SpaceStatus
+from .user import User, UserFollow, UserStatus
 
 __all__ = [
     "Client",
@@ -19,16 +20,19 @@ __all__ = [
     "Handle",
     "Organization",
     "OrganizationData",
+    "OrganizationFollow",
     "OrganizationInvite",
     "OrganizationMembership",
     "OrganizationRoleType",
     "OrganizationStatus",
     "Origin",
     "Space",
+    "SpaceFollow",
     "SpaceInvite",
     "SpaceMembership",
     "SpaceRoleType",
     "SpaceStatus",
     "User",
+    "UserFollow",
     "UserStatus",
 ]

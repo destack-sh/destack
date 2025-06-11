@@ -1,5 +1,5 @@
 from .action import Action, ActionCardinality
-from .cursor import CursorStatus, IsCursor, QueryCursor, ScreenCursor
+from .cursor import CursorStatus, IsCursor, ScreenCursor, ThreadCursor
 from .script import Script
 from .service import Service
 from .timer import Schedule, ScheduleFrequency, Timer, TimerType
@@ -10,12 +10,12 @@ __all__ = [
     "ActionCardinality",
     "CursorStatus",
     "IsCursor",
-    "QueryCursor",
     "Schedule",
     "ScheduleFrequency",
     "ScreenCursor",
     "Script",
     "Service",
+    "ThreadCursor",
     "Timer",
     "TimerType",
     "Trigger",

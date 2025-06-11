@@ -87,7 +87,7 @@ class HostService(ServiceBase, HostBase):
         self.space_ptr = NodeReference(node_type=NodeType.SPACE, id=space_id, space_id=space_id)
         self.scope = Scope(space_id=space_id)
         self.global_postgres_store = PostgresStore(
-            database=global_database, area=AreaType.GLOBAL_DATABASE
+            database=global_database, area=AreaType.GLOBAL_POSTGRES
         )
         self.main_postgres_store: PostgresStore | None = None
         self.store: LiveStore = ...  # type: ignore nocheckin
@@ -114,7 +114,7 @@ class HostService(ServiceBase, HostBase):
             ).execute_one()
             if (database := space.database) is not None:
                 self.main_postgres_store = PostgresStore(
-                    database=database.to_info(), area=AreaType.SPACE_DATABASE
+                    database=database.to_info(), area=AreaType.SPACE_POSTGRES
                 )
 
     def stop(self) -> None:

@@ -11,13 +11,16 @@ from destack.language.core import (
     IsDeletable,
     IsEntity,
     IsEnvironmental,
+    IsFollow,
+    IsFollowable,
+    IsGlobal,
     IsInFolder,
     IsInvite,
     IsJoinable,
     IsMembership,
     IsOwnable,
+    IsStarable,
     IsTemplatable,
-    IsTracked,
     Node,
     NodeType,
     enum_,
@@ -59,7 +62,8 @@ class Folder(
     IsInFolder,
     IsDeletable,
     IsArchivable,
-    IsTracked,
+    IsStarable,
+    IsFollowable,
     Node[FolderData],
 ):
     """A Folder is a sub-space of a Space."""
@@ -106,3 +110,15 @@ class FolderInvite(
     parent: Optional["Folder"] = property_parent_(node_is_customizable=False)
 
     role_type: FolderRoleType = property_(45)
+
+
+@node_(NodeType.FOLDER_FOLLOW)
+class FolderFollow(
+    IsGlobal,
+    IsEntity,
+    IsFollow,
+    IsOwnable,
+    IsInFolder,
+    Node["FolderFollowData"],
+):
+    pass

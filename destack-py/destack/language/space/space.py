@@ -8,8 +8,9 @@ from destack.language.core import (
     HasIcon,
     HasName,
     HasSlug,
-    IsDeletable,
     IsEntity,
+    IsFollow,
+    IsFollowable,
     IsGlobal,
     IsInSpace,
     IsInvite,
@@ -24,7 +25,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.pb2 import SpaceData, SpaceInviteData, SpaceMembershipData
+from destack.pb2 import SpaceData, SpaceFollowData, SpaceInviteData, SpaceMembershipData
 
 if TYPE_CHECKING:
     from destack.language import Database, Folder, Handle, NodeReference
@@ -47,6 +48,7 @@ class Space(
     HasName,
     HasSlug,
     HasIcon,
+    IsFollowable,
     IsGlobal,
     IsEntity,
     IsOwnable,
@@ -97,12 +99,11 @@ class SpaceRoleType(BuiltinEnum):
     SPECTATOR = 10
 
 
-@node_(NodeType.SPACE_INVITE)
+@node_(NodeType.SPACE_INVITE, root_type=NodeType.SPACE)
 class SpaceInvite(
     IsGlobal,
     IsEntity,
     IsInvite,
-    IsDeletable,
     IsOwnable,
     IsInSpace,
     Node[SpaceInviteData],
@@ -116,12 +117,11 @@ class SpaceInvite(
     role_type: SpaceRoleType = property_(45, is_repr=True)
 
 
-@node_(NodeType.SPACE_MEMBERSHIP)
+@node_(NodeType.SPACE_MEMBERSHIP, root_type=NodeType.SPACE)
 class SpaceMembership(
     IsGlobal,
     IsEntity,
     IsMembership,
-    IsDeletable,
     IsInSpace,
     Node[SpaceMembershipData],
 ):
@@ -132,3 +132,15 @@ class SpaceMembership(
     parent: Optional["Space"] = property_parent_(node_is_customizable=False)
 
     role_type: SpaceRoleType = property_(45, is_repr=True)
+
+
+@node_(NodeType.SPACE_FOLLOW, root_type=NodeType.SPACE)
+class SpaceFollow(
+    IsGlobal,
+    IsEntity,
+    IsFollow,
+    IsOwnable,
+    IsInSpace,
+    Node[SpaceFollowData],
+):
+    parent: Optional["Space"] = property_parent_(node_is_customizable=False)

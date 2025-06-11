@@ -95,7 +95,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
 
     @override
     async def make_session(self, metadata: RpcMetadata) -> "Session":
-        postgres_store = PostgresStore(database=self.global_database, area=AreaType.GLOBAL_DATABASE)
+        postgres_store = PostgresStore(database=self.global_database, area=AreaType.GLOBAL_POSTGRES)
         return Session(store=postgres_store)
 
     @override
@@ -176,11 +176,11 @@ class SupervisorService(ServiceBase, SupervisorBase):
         space.database = database
         session.store = SplitStore(
             store_by_area={
-                AreaType.GLOBAL_DATABASE: PostgresStore(
-                    database=self.global_database, area=AreaType.GLOBAL_DATABASE
+                AreaType.GLOBAL_POSTGRES: PostgresStore(
+                    database=self.global_database, area=AreaType.GLOBAL_POSTGRES
                 ),
-                AreaType.SPACE_DATABASE: PostgresStore(
-                    database=main_database, area=AreaType.SPACE_DATABASE
+                AreaType.SPACE_POSTGRES: PostgresStore(
+                    database=main_database, area=AreaType.SPACE_POSTGRES
                 ),
             },
         )

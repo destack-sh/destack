@@ -492,7 +492,7 @@ class IsAsset(IsTracked):
 @trait_(TraitType.RESOURCE)
 class IsResource(IsTracked):
     """
-    A Resource with its own lifecycle (usually managed by some provisioner).
+    A Resource represents an external asset, and may be managed by some provisioner.
     """
 
     # status
@@ -623,9 +623,23 @@ class IsStarable(Trait):
     pass
 
 
+@trait_(TraitType.FOLLOWABLE)
+class IsFollowable(Trait):
+    """A Node that can be followed."""
+
+    pass
+
+
+@trait_(TraitType.FOLLOW)
+class IsFollow(Trait):
+    """A Node that represents a Follow."""
+
+    pass
+
+
 @trait_(TraitType.IN_SPACE)
 class IsInSpace(Trait):
-    """A Node inside a Space."""
+    """A Node in a Space."""
 
     parent: Optional["Space"] = property_parent_(node_is_customizable=False)
     space: "Space | None" = property_ancestor_(6, is_required=True)

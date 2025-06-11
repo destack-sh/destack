@@ -74,7 +74,7 @@ async def make(
         )
 
     # diff main
-    if area in (None, AreaType.SPACE_DATABASE):
+    if area in (None, AreaType.SPACE_POSTGRES):
         main_database = await DATABASE_PROVIDER.resolve_or_error(
             region or REGION, cell_name, external_name
         )
@@ -91,7 +91,7 @@ async def make(
         main_migration_ops = []
 
     # diff global
-    if area in (None, AreaType.GLOBAL_DATABASE):
+    if area in (None, AreaType.GLOBAL_POSTGRES):
         async with pg_connection(global_database) as conn:
             old_global_schema = await introspect_schema(
                 conn,
@@ -158,10 +158,10 @@ async def apply(
     start = time.time()
 
     # resolve databases to migrate
-    if area == AreaType.GLOBAL_DATABASE:
+    if area == AreaType.GLOBAL_POSTGRES:
         global_database = get_global_database_from_env()
         databases = [global_database]
-    elif area == AreaType.SPACE_DATABASE:
+    elif area == AreaType.SPACE_POSTGRES:
         assert cell_name, "cell_name is required for main area"
         assert external_name, "external_name is required for main area"
         main_database = await DATABASE_PROVIDER.resolve_or_error(

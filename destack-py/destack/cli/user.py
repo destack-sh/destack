@@ -19,7 +19,7 @@ async def set_password(user_slug: str, new_password: str):
     from destack.supervisor import SALT_LENGTH, hash_password
 
     global_database = get_global_database_from_env()
-    store = PostgresStore(database=global_database, area=AreaType.GLOBAL_DATABASE)
+    store = PostgresStore(database=global_database, area=AreaType.GLOBAL_POSTGRES)
     async with Session(store=store) as session:
         user = await User.get(where=User.property("slug").eq(user_slug)).execute_one()
         user.password_salt = generate_salt(SALT_LENGTH)

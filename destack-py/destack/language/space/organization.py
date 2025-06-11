@@ -10,9 +10,11 @@ from destack.language.core import (
     HasSlug,
     IsDeletable,
     IsEntity,
+    IsFollow,
     IsGlobal,
     IsInvite,
     IsMembership,
+    IsOwnable,
     IsSubject,
     Node,
     NodeReference,
@@ -22,7 +24,12 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.pb2 import OrganizationData, OrganizationInviteData, OrganizationMembershipData
+from destack.pb2 import (
+    OrganizationData,
+    OrganizationFollowData,
+    OrganizationInviteData,
+    OrganizationMembershipData,
+)
 
 if TYPE_CHECKING:
     from destack.language import Handle, Space
@@ -71,7 +78,7 @@ class OrganizationRoleType(BuiltinEnum):
     MEMBER = 50
 
 
-@node_(NodeType.ORGANIZATION_INVITE)
+@node_(NodeType.ORGANIZATION_INVITE, root_type=NodeType.ORGANIZATION)
 class OrganizationInvite(
     IsGlobal,
     IsEntity,
@@ -88,7 +95,7 @@ class OrganizationInvite(
     role_type: OrganizationRoleType = property_(45)
 
 
-@node_(NodeType.ORGANIZATION_MEMBERSHIP)
+@node_(NodeType.ORGANIZATION_MEMBERSHIP, root_type=NodeType.ORGANIZATION)
 class OrganizationMembership(
     IsGlobal,
     IsEntity,
@@ -103,3 +110,14 @@ class OrganizationMembership(
     parent: Optional["Organization"] = property_parent_(node_is_customizable=False)
 
     role_type: OrganizationRoleType = property_(45)
+
+
+@node_(NodeType.ORGANIZATION_FOLLOW, root_type=NodeType.ORGANIZATION)
+class OrganizationFollow(
+    IsGlobal,
+    IsEntity,
+    IsFollow,
+    IsOwnable,
+    Node[OrganizationFollowData],
+):
+    parent: Optional["Organization"] = property_parent_(node_is_customizable=False)

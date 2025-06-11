@@ -161,7 +161,7 @@ class PostgresStoreContext(PostgresContext):
         return f"<{self.__class__.__name__} {self!s}>"
 
     def copy(self) -> Self:
-        return self  # nocheckin: PostgresStoreContext :PostgresSchemaEdits
+        return self  # :PostgresSchemaEdits
 
     @override
     def apply(self, edits: Sequence[Edit]) -> Sequence[Edit]:

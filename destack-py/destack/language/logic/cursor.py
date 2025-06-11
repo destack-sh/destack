@@ -8,7 +8,6 @@ from destack.language.core import (
     IsTracked,
     Node,
     NodeType,
-    Query,
     Trait,
     TraitType,
     Vector2i,
@@ -17,7 +16,7 @@ from destack.language.core import (
     property_,
     trait_,
 )
-from destack.pb2 import QueryCursorData, ScreenCursorData
+from destack.pb2 import ScreenCursorData, ThreadCursorData
 
 if TYPE_CHECKING:
     pass
@@ -67,19 +66,19 @@ class ScreenCursor(
     """
 
     # content
-    position: Optional[Vector2i] = property_(40)
+    position: Optional[Vector2i] = property_(50)
 
 
-@node_(NodeType.QUERY_CURSOR)
-class QueryCursor(
+@node_(NodeType.THREAD_CURSOR)
+class ThreadCursor(
     IsCursor,
     IsOwnable,
     IsTracked,
-    Node[QueryCursorData],
+    Node[ThreadCursorData],
 ):
     """
-    A QueryCursor is a cursor corresponding to a Query.
+    A ThreadCursor is a cursor corresponding to a Thread.
     """
 
     # content
-    query: Optional["Query"] = property_(40)
+    pass
