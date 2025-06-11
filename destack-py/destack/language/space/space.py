@@ -9,13 +9,10 @@ from destack.language.core import (
     HasName,
     HasSlug,
     IsEntity,
-    IsFollow,
     IsFollowable,
     IsGlobal,
-    IsInSpace,
-    IsInvite,
-    IsMembership,
     IsOwnable,
+    IsSpatial,
     IsStarable,
     Node,
     NodeType,
@@ -23,9 +20,8 @@ from destack.language.core import (
     enum_,
     node_,
     property_,
-    property_parent_,
 )
-from destack.pb2 import SpaceData, SpaceFollowData, SpaceInviteData, SpaceMembershipData
+from destack.pb2 import SpaceData
 
 if TYPE_CHECKING:
     from destack.language import Database, Folder, Handle, NodeReference
@@ -53,7 +49,7 @@ class Space(
     IsEntity,
     IsOwnable,
     IsStarable,
-    IsInSpace,
+    IsSpatial,
     Node[SpaceData],
 ):
     """
@@ -87,60 +83,3 @@ class Space(
     if TYPE_CHECKING:
         database_ptr: Optional[NodeReference] = None
         database_id: Optional[UUID] = None
-
-
-@enum_(EnumType.SPACE_ROLE_TYPE)
-class SpaceRoleType(BuiltinEnum):
-    """The role of a Space"""
-
-    ADMIN = 1
-    DEVELOPER = 3
-    USER = 5
-    SPECTATOR = 10
-
-
-@node_(NodeType.SPACE_INVITE, root_type=NodeType.SPACE)
-class SpaceInvite(
-    IsGlobal,
-    IsEntity,
-    IsInvite,
-    IsOwnable,
-    IsInSpace,
-    Node[SpaceInviteData],
-):
-    """
-    A SpaceInvite is an invite to a Space.
-    """
-
-    parent: Optional["Space"] = property_parent_(node_is_customizable=False)
-
-    role_type: SpaceRoleType = property_(45, is_repr=True)
-
-
-@node_(NodeType.SPACE_MEMBERSHIP, root_type=NodeType.SPACE)
-class SpaceMembership(
-    IsGlobal,
-    IsEntity,
-    IsMembership,
-    IsInSpace,
-    Node[SpaceMembershipData],
-):
-    """
-    A SpaceMembership is a membership to a Space.
-    """
-
-    parent: Optional["Space"] = property_parent_(node_is_customizable=False)
-
-    role_type: SpaceRoleType = property_(45, is_repr=True)
-
-
-@node_(NodeType.SPACE_FOLLOW, root_type=NodeType.SPACE)
-class SpaceFollow(
-    IsGlobal,
-    IsEntity,
-    IsFollow,
-    IsOwnable,
-    IsInSpace,
-    Node[SpaceFollowData],
-):
-    parent: Optional["Space"] = property_parent_(node_is_customizable=False)

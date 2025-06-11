@@ -5,6 +5,7 @@ from destack.utils.oracle import REAL_ORACLE as REAL_ORACLE
 from .access import *  # noqa: F403
 from .core import *  # noqa: F403
 from .data import *  # noqa: F403
+from .deployment import *  # noqa: F403
 from .entity import *  # noqa: F403
 from .finance import *  # noqa: F403
 from .folder import *  # noqa: F403

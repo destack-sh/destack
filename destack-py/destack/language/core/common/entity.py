@@ -7,15 +7,15 @@ from destack.pb2 import CustomEntityData, CustomEntityDefinitionData
 
 from ..builtin import (
     HasName,
+    IsActionable,
     IsCustomNode,
     IsCustomNodeDefinition,
     IsDeletable,
     IsEntity,
-    IsEnvironmental,
     IsExtensible,
-    IsInFolder,
     IsOwnable,
     IsScriptable,
+    IsTaggable,
     Node,
     NodeType,
     TraitType,
@@ -26,7 +26,7 @@ from ..builtin import (
 from .relation import NodeReference
 
 if TYPE_CHECKING:
-    pass
+    from destack.language import Folder
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -37,12 +37,12 @@ logger = structlog.get_logger(__name__)
 class CustomEntityDefinition(
     HasName,
     IsEntity,
-    IsEnvironmental,
+    IsTaggable,
     IsCustomNodeDefinition,
     IsOwnable,
     IsDeletable,
     IsScriptable,
-    IsInFolder,
+    IsActionable,
     Node[CustomEntityDefinitionData],
 ):
     """
@@ -51,14 +51,14 @@ class CustomEntityDefinition(
     """
 
     # type?
+    parent: Optional["Folder"] = property_parent_(node_is_customizable=False)
     traits: list[TraitType] = property_(40)
 
 
 @node_(NodeType.CUSTOM_ENTITY)
 class CustomEntity(
-    IsEnvironmental,
+    IsTaggable,
     IsExtensible,
-    IsInFolder,
     IsDeletable,
     IsCustomNode,
     Node[CustomEntityData],

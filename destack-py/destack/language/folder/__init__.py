@@ -1,9 +1,9 @@
-from .folder import Folder, FolderInvite, FolderMembership, FolderRoleType, FolderType
+from .folder import Folder, FolderType
+from .tag import Tag, Tagging
 
 __all__ = [
     "Folder",
-    "FolderInvite",
-    "FolderMembership",
-    "FolderRoleType",
     "FolderType",
+    "Tag",
+    "Tagging",
 ]

@@ -9,7 +9,6 @@ from destack.language.core import (
     IndexIn,
     IsEntity,
     IsGlobal,
-    IsInSpace,
     IsSubject,
     Node,
     NodeReference,
@@ -37,7 +36,6 @@ class Client(
     HasName,
     IsGlobal,
     IsEntity,
-    IsInSpace,
     Node[ClientData],
 ):
     """A Client to connect with the system."""

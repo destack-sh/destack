@@ -9,10 +9,10 @@ from destack.pb2 import (
 
 from ..builtin import (
     HasName,
-    IsInFolder,
     IsMeasurement,
     IsMetric,
     IsSourceable,
+    IsSpatial,
     Node,
     NodeType,
     node_,
@@ -27,7 +27,7 @@ class GaugeMetric(
     HasName,
     IsMetric,
     IsSourceable,
-    IsInFolder,
+    IsSpatial,
     Node[GaugeMetricData],
 ):
     """A Gauge Metric."""
@@ -50,7 +50,7 @@ class CounterMetric(
     HasName,
     IsMetric,
     IsSourceable,
-    IsInFolder,
+    IsSpatial,
     Node[CounterMetricData],
 ):
     """A Counter Metric."""
@@ -73,7 +73,7 @@ class HistogramMetric(
     HasName,
     IsMetric,
     IsSourceable,
-    IsInFolder,
+    IsSpatial,
     Node[HistogramMetricData],
 ):
     """A Histogram Metric."""

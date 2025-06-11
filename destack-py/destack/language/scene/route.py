@@ -5,19 +5,20 @@ from destack.language.core import (
     HasName,
     IsArchivable,
     IsDeletable,
-    IsEnvironmental,
-    IsInFolder,
     IsOwnable,
+    IsSpatial,
+    IsTaggable,
     IsTracked,
     Node,
     NodeType,
     node_,
     property_,
+    property_parent_,
 )
 from destack.pb2 import RouteData
 
 if TYPE_CHECKING:
-    from destack.language import Scene
+    from destack.language import Folder, Scene
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -26,16 +27,17 @@ if TYPE_CHECKING:
 class Route(
     HasIcon,
     HasName,
-    IsEnvironmental,
+    IsTaggable,
     IsArchivable,
     IsDeletable,
     IsOwnable,
-    IsInFolder,
+    IsSpatial,
     IsTracked,
     Node[RouteData],
 ):
     """A Route is a path to a Scene."""
 
+    parent: Optional["Folder"] = property_parent_(node_is_customizable=False)
     scene: Optional["Scene"] = property_(
         40,
         description="The Scene to route to.",

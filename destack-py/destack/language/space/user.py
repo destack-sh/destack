@@ -11,10 +11,8 @@ from destack.language.core import (
     HasSlug,
     IndexIn,
     IsEntity,
-    IsFollow,
     IsFollowable,
     IsGlobal,
-    IsOwnable,
     IsSubject,
     Node,
     NodeType,
@@ -22,9 +20,8 @@ from destack.language.core import (
     enum_,
     node_,
     property_,
-    property_parent_,
 )
-from destack.pb2 import UserData, UserFollowData
+from destack.pb2 import UserData
 
 if TYPE_CHECKING:
     from destack.language import Handle, IsCursor, NodeReference, Space, User
@@ -85,14 +82,3 @@ class User(
     password_hash: Optional[bytes] = property_(62, can_read="system", can_write="system")
     # challenges?
     # password_reset_token, email_confirmation_token, ...
-
-
-@node_(NodeType.USER_FOLLOW, root_type=NodeType.USER)
-class UserFollow(
-    IsGlobal,
-    IsEntity,
-    IsFollow,
-    IsOwnable,
-    Node[UserFollowData],
-):
-    parent: Optional["User"] = property_parent_(node_is_customizable=False)

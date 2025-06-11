@@ -4,11 +4,10 @@ from typing import TYPE_CHECKING, Optional
 from fastuuid import UUID
 
 from destack.language.core import (
-    IsEnvironmental,
     IsExtensible,
-    IsInSpace,
     IsParticle,
     IsRunnable,
+    IsSpatial,
     Node,
     NodeType,
     RunStatus,
@@ -27,9 +26,8 @@ if TYPE_CHECKING:
 
 @node_(NodeType.RUN)
 class Run(
-    IsEnvironmental,
     IsExtensible,
-    IsInSpace,
+    IsSpatial,
     IsParticle,
     Node[RunData],
 ):

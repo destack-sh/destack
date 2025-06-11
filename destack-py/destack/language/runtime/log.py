@@ -1,10 +1,9 @@
 from typing import TYPE_CHECKING
 
 from destack.language.core import (
-    IsEnvironmental,
     IsFrozen,
-    IsInSpace,
     IsParticle,
+    IsSpatial,
     Json,
     Node,
     NodeType,
@@ -21,9 +20,8 @@ if TYPE_CHECKING:
 
 @node_(NodeType.LOG, pretend_frozen=True)
 class Log(
-    IsEnvironmental,
     IsFrozen,
-    IsInSpace,
+    IsSpatial,
     IsParticle,
     Node[LogData],
 ):

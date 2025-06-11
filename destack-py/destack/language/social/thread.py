@@ -7,10 +7,10 @@ from destack.language.core import (
     IsArchivable,
     IsDeletable,
     IsEntity,
-    IsEnvironmental,
-    IsInSpace,
     IsJoinable,
     IsOwnable,
+    IsSpatial,
+    IsTaggable,
     Node,
     NodeType,
     enum_,
@@ -36,12 +36,12 @@ class ThreadStatus(BuiltinEnum):
 class Thread(
     HasName,
     IsEntity,
-    IsEnvironmental,
+    IsTaggable,
     IsArchivable,
     IsDeletable,
     IsJoinable,
     IsOwnable,
-    IsInSpace,
+    IsSpatial,
     Node[ThreadData],
 ):
     """

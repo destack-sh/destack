@@ -2,6 +2,7 @@ from typing import Union
 
 from destack.language.core import (
     HasName,
+    IsActionable,
     IsArchivable,
     IsDeletable,
     IsEntity,
@@ -24,6 +25,7 @@ class Script(
     IsDeletable,
     IsArchivable,
     IsRunnable,
+    IsActionable,
     IsEntity,
     Node[ScriptData],
 ):
