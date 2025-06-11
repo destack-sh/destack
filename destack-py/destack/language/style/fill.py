@@ -21,7 +21,7 @@ from destack.pb2 import FillStyleData
 
 from .color import Color
 from .gradient import Gradient
-from .style import IsStyle
+from .style import Style
 
 if TYPE_CHECKING:
     from destack.language import File
@@ -87,8 +87,8 @@ class Fill(FillBase, StructMutable):
 
 @node_(NodeType.FILL_STYLE)
 class FillStyle(
+    Style,
     FillBase,
-    IsStyle,
     IsDeletable,
     IsArchivable,
     IsTracked,

@@ -1,16 +1,16 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
-    HasIcon,
+    Entity,
     HasName,
     IsArchivable,
     IsDeletable,
     IsOwnable,
-    IsSpatial,
     IsTaggable,
     IsTracked,
     Node,
     NodeType,
+    Spatial,
     node_,
     property_,
     property_parent_,
@@ -25,14 +25,14 @@ if TYPE_CHECKING:
 
 @node_(NodeType.ROUTE)
 class Route(
-    HasIcon,
+    Spatial,
+    Entity,
     HasName,
     IsTaggable,
     IsArchivable,
+    IsTracked,
     IsDeletable,
     IsOwnable,
-    IsSpatial,
-    IsTracked,
     Node[RouteData],
 ):
     """A Route is a path to a Scene."""

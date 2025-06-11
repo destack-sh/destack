@@ -6,11 +6,12 @@ from dateutil.rrule import rrule
 from destack.language.core import (
     BuiltinEnum,
     Day,
+    Entity,
     EnumType,
-    IsEntity,
     Month,
     Node,
     NodeType,
+    Spatial,
     StructMutable,
     StructType,
     enum_,
@@ -18,6 +19,7 @@ from destack.language.core import (
     property_,
     struct_,
 )
+from destack.pb2 import TimerData
 
 if TYPE_CHECKING:
     pass
@@ -32,7 +34,11 @@ class TimerType(BuiltinEnum):
 
 
 @node_(NodeType.TIMER)
-class Timer(IsEntity, Node):
+class Timer(
+    Spatial,
+    Entity,
+    Node[TimerData],
+):
     """A Timer."""
 
     type: TimerType = property_(30)

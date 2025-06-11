@@ -1,12 +1,12 @@
 from typing import TYPE_CHECKING
 
 from destack.language.core import (
+    Analytic,
     IsFrozen,
-    IsParticle,
-    IsSpatial,
     Json,
     Node,
     NodeType,
+    Spatial,
     node_,
     property_,
 )
@@ -20,9 +20,9 @@ if TYPE_CHECKING:
 
 @node_(NodeType.LOG, pretend_frozen=True)
 class Log(
+    Spatial,
+    Analytic,
     IsFrozen,
-    IsSpatial,
-    IsParticle,
     Node[LogData],
 ):
     """A Log message."""

@@ -5,7 +5,6 @@ from destack.language.core import (
     BuiltinEnum,
     BuiltinObjectMutable,
     EnumType,
-    IsArchivable,
     IsDeletable,
     IsTracked,
     Node,
@@ -21,7 +20,7 @@ from destack.language.core import (
 from destack.pb2 import ShadowStyleData
 
 from .color import Color
-from .style import IsStyle
+from .style import Style
 
 if TYPE_CHECKING:
     pass
@@ -68,10 +67,9 @@ class Shadow(ShadowBase, StructMutable):
 
 @node_(NodeType.SHADOW_STYLE)
 class ShadowStyle(
+    Style,
     ShadowBase,
-    IsStyle,
     IsDeletable,
-    IsArchivable,
     IsTracked,
     Node[ShadowStyleData],
 ):

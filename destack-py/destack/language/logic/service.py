@@ -1,10 +1,10 @@
 from typing import TYPE_CHECKING
 
 from destack.language.core import (
+    Entity,
     HasName,
     IsActionable,
     IsDeletable,
-    IsEntity,
     IsOwnable,
     IsRunnable,
     IsScriptable,
@@ -12,6 +12,7 @@ from destack.language.core import (
     IsTemplatable,
     Node,
     NodeType,
+    Spatial,
     node_,
 )
 from destack.pb2 import ServiceData
@@ -25,6 +26,8 @@ if TYPE_CHECKING:
 
 @node_(NodeType.SERVICE)
 class Service(
+    Spatial,
+    Entity,
     HasName,
     IsTaggable,
     IsTemplatable,
@@ -33,7 +36,6 @@ class Service(
     IsDeletable,
     IsRunnable,
     IsScriptable,
-    IsEntity,
     Node[ServiceData],
 ):
     """

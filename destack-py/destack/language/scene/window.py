@@ -2,16 +2,17 @@ from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
     BuiltinEnum,
+    Entity,
     EnumType,
     IsDeletable,
     IsOrdered,
     IsOwnable,
-    IsSpatial,
     IsTemplatable,
     IsVisual,
     Node,
     NodeType,
     Selection,
+    Spatial,
     StringFormat,
     enum_,
     node_,
@@ -34,11 +35,12 @@ class WindowType(BuiltinEnum):
 
 @node_(NodeType.WINDOW)
 class Window(
+    Spatial,
+    Entity,
     IsVisual,
     IsOwnable,
     IsTemplatable,
     IsOrdered,
-    IsSpatial,
     IsDeletable,
     Node[WindowData],
 ):

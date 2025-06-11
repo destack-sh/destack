@@ -62,8 +62,15 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 #
-# Trait/Node base
+# NOTE: Traits observe the following naming scheme:
+#  - Bare (e.g., Spatial, Global, Entity): the main type & location
+#  - Like (e.g., LikeTag, LikeMembership): the trait mimics a specific builtin node type
+#  - Has (e.g., HasName, HasSlug): the trait has specific properties
+#  - Is (e.g., IsTaggable, IsOwnable): the trait ascribes some behavior
 #
+
+AT_LEAST_ONE_TRAITS = ((TraitType.GLOBAL, TraitType.SPATIAL),)
+EXACT_ONE_TRAITS = ((TraitType.ENTITY, TraitType.PARTICLE, TraitType.ANALYTIC),)
 
 
 @dataclass(slots=True, frozen=True)
@@ -388,6 +395,11 @@ class Trait(Node if TYPE_CHECKING else NodeBase):
     __indexes__: ClassVar[tuple[IndexIn, ...]] = ()
 
 
+#
+# Has* Traits (has specific properties)
+#
+
+
 @trait_(TraitType.HAS_NAME)
 class HasName(Trait):
     """A Node with a plain name."""
@@ -409,21 +421,9 @@ class HasIcon(Trait):
     icon: Optional["Icon"] = property_(34)
 
 
-@trait_(TraitType.GLOBAL)
-class IsGlobal(Trait):
-    """A Node that is global."""
-
-    pass
-
-
-@trait_(TraitType.SPATIAL)
-class IsSpatial(Trait):
-    """A Node in a Space."""
-
-    parent: Optional["Space"] = property_parent_(node_is_customizable=False)
-    space: "Space | None" = property_ancestor_(6, is_required=True)
-    if TYPE_CHECKING:
-        space_ptr: Optional[NodeReference] = None
+#
+# Is* Traits (ascribes some behavior)
+#
 
 
 @trait_(TraitType.TRACKED)
@@ -459,45 +459,11 @@ class IsTracked(Trait):
         updated_by_ptr: Optional[NodeReference] = None
 
 
-@trait_(TraitType.ENTITY)
-class IsEntity(IsTracked):
-    """A Node that is an Entity."""
-
-    pass
-
-
-@trait_(TraitType.PARTICLE)
-class IsParticle(IsTracked):
-    """A Node that is a Particle."""
-
-    pass
-
-
 @trait_(TraitType.VISUAL)
 class IsVisual(IsTracked):
     """A Node that is a visual in some sense (views, styles, drawings, ...)."""
 
     pass
-
-
-@trait_(TraitType.ASSET)
-class IsAsset(IsTracked):
-    """A Node that represents an external asset."""
-
-    pass
-
-
-@trait_(TraitType.RESOURCE)
-class IsResource(IsTracked):
-    """
-    A Resource represents an external asset, and may be managed by some provisioner.
-    """
-
-    # status
-    status: ResourceStatus = property_(40, default=ResourceStatus.PENDING)
-    target_status: Optional[datetime] = property_(41)
-    failed_at: Optional[datetime] = property_(47, can_write="system")
-    failed_attempts: int = property_(48, default=0, can_write="system")
 
 
 @trait_(TraitType.FROZEN, pretend_frozen=True)
@@ -664,27 +630,6 @@ class IsActionable(Trait):
     pass
 
 
-@trait_(TraitType.METRIC)
-class IsMetric(IsSourceable, IsCustomNodeDefinition):
-    """A Node that represents a Metric."""
-
-    pass
-
-
-@trait_(TraitType.MEASUREMENT)
-class IsMeasurement(IsCustomNode, IsParticle):
-    """A Node that represents a Measurement."""
-
-    definition: "IsMetric" = property_(17)
-
-
-@trait_(TraitType.EVENT, pretend_frozen=True)
-class IsEvent(IsParticle, IsFrozen):
-    """A Node that represents an Event."""
-
-    pass
-
-
 @trait_(TraitType.OWNABLE)
 class IsOwnable(Trait):
     """A Node that can be owned by another Node."""
@@ -710,20 +655,6 @@ class IsSubject(Trait):
     pass
 
 
-@trait_(TraitType.MEMBERSHIP)
-class IsMembership(Trait):
-    """A Node that represents a Membership."""
-
-    member: "IsSubject" = property_(40)
-
-
-@trait_(TraitType.INVITE)
-class IsInvite(Trait):
-    """A Node that represents an Invite."""
-
-    member: "IsSubject" = property_(40)
-
-
 @trait_(TraitType.TAGGABLE)
 class IsTaggable(Trait):
     """A Node that can be tagged."""
@@ -731,8 +662,111 @@ class IsTaggable(Trait):
     pass
 
 
+#
+# Like* Traits (mimic for a specific builtin node type)
+#
+
+
+@trait_(TraitType.MEMBERSHIP)
+class LikeMembership(Trait):
+    """A Node that represents a Membership."""
+
+    member: "IsSubject" = property_(40)
+
+
+@trait_(TraitType.INVITE)
+class LikeInvite(Trait):
+    """A Node that represents an Invite."""
+
+    member: "IsSubject" = property_(40)
+
+
 @trait_(TraitType.TAG)
-class IsTag(Trait):
+class LikeTag(Trait):
     """A Node that can be tagged."""
+
+    pass
+
+
+#
+# Bare Traits (main type/location)
+#
+
+
+@trait_(TraitType.GLOBAL)
+class Global(Trait):
+    """A Node that is global."""
+
+    pass
+
+
+@trait_(TraitType.SPATIAL)
+class Spatial(Trait):
+    """A Node in a Space."""
+
+    parent: Optional["Space"] = property_parent_(node_is_customizable=False)
+    space: "Space | None" = property_ancestor_(6, is_required=True)
+    if TYPE_CHECKING:
+        space_ptr: Optional[NodeReference] = None
+
+
+@trait_(TraitType.ENTITY)
+class Entity(IsTracked):
+    """A Node that is an Entity in primary storage."""
+
+    pass
+
+
+@trait_(TraitType.PARTICLE)
+class Particle(IsTracked):
+    """A Node that is a Particle."""
+
+    pass
+
+
+@trait_(TraitType.ANALYTIC)
+class Analytic(IsTracked):
+    """A Node that is an Analytic."""
+
+    pass
+
+
+@trait_(TraitType.ASSET)
+class Asset(Entity):
+    """A Node that represents an external asset."""
+
+    pass
+
+
+@trait_(TraitType.RESOURCE)
+class Resource(Asset):
+    """
+    A Resource represents an external asset, and may be managed by some provisioner.
+    """
+
+    # status
+    status: ResourceStatus = property_(40, default=ResourceStatus.PENDING)
+    target_status: Optional[datetime] = property_(41)
+    failed_at: Optional[datetime] = property_(47, can_write="system")
+    failed_attempts: int = property_(48, default=0, can_write="system")
+
+
+@trait_(TraitType.METRIC)
+class Metric(Entity, IsSourceable, IsCustomNodeDefinition):
+    """A Node that represents a Metric."""
+
+    pass
+
+
+@trait_(TraitType.MEASUREMENT)
+class Measurement(IsCustomNode, Analytic):
+    """A Node that represents a Measurement."""
+
+    definition: "Metric" = property_(17)
+
+
+@trait_(TraitType.EVENT, pretend_frozen=True)
+class Event(Particle, IsFrozen):
+    """A Node that represents an Event."""
 
     pass

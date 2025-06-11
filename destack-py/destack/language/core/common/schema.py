@@ -4,15 +4,15 @@ from destack.language.core.builtin.trait import HasIcon
 from destack.pb2 import SchemaData
 
 from ..builtin import (
+    Entity,
     HasName,
     IsDeletable,
-    IsEntity,
     IsSourceable,
-    IsSpatial,
     IsTaggable,
     IsTemplatable,
     Node,
     NodeType,
+    Spatial,
     node_,
 )
 
@@ -26,11 +26,11 @@ if TYPE_CHECKING:
 class Schema(
     HasName,
     HasIcon,
-    IsEntity,
+    Entity,
     IsTaggable,
     IsTemplatable,
     IsDeletable,
-    IsSpatial,
+    Spatial,
     IsSourceable,
     Node[SchemaData],
 ):

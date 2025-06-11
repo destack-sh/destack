@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import TraitType, property_, trait_
 
-from ..view import IsView
+from ..view import View
 
 if TYPE_CHECKING:
     pass
@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 
 @trait_(TraitType.INPUT_VIEW)
-class IsInputView(IsView):
+class InputView(View):
     """An input View."""
 
     # appearance

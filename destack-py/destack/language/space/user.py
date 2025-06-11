@@ -5,14 +5,14 @@ from fastuuid import UUID
 
 from destack.language.core import (
     BuiltinEnum,
+    Entity,
     EnumType,
+    Global,
     HasIcon,
     HasName,
     HasSlug,
     IndexIn,
-    IsEntity,
     IsFollowable,
-    IsGlobal,
     IsSubject,
     Node,
     NodeType,
@@ -44,9 +44,9 @@ class User(
     HasName,
     HasIcon,
     HasSlug,
-    IsGlobal,
+    Global,
     IsFollowable,
-    IsEntity,
+    Entity,
     IsSubject,
     Node[UserData],
 ):

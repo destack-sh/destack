@@ -23,7 +23,7 @@ from destack.language.core import (
 from destack.pb2 import GradientStyleData
 
 from .color import Color
-from .style import IsStyle
+from .style import Style
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -64,8 +64,8 @@ class Gradient(GradientBase, StructMutable):
 
 @node_(NodeType.GRADIENT_STYLE)
 class GradientStyle(
+    Style,
     GradientBase,
-    IsStyle,
     IsDeletable,
     IsArchivable,
     IsTracked,

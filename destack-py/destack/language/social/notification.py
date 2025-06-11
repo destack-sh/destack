@@ -1,6 +1,14 @@
 from typing import TYPE_CHECKING
 
-from destack.language.core import IsEntity, IsOwnable, IsParticle, Node, NodeType, node_, property_
+from destack.language.core import (
+    Entity,
+    IsOwnable,
+    Node,
+    NodeType,
+    Spatial,
+    node_,
+    property_,
+)
 from destack.pb2 import NotificationData
 
 if TYPE_CHECKING:
@@ -11,9 +19,9 @@ if TYPE_CHECKING:
 
 @node_(NodeType.NOTIFICATION)
 class Notification(
+    Spatial,
     IsOwnable,
-    IsParticle,
-    IsEntity,
+    Entity,
     Node[NotificationData],
 ):
     """A Notification is a message about something."""

@@ -5,13 +5,13 @@ from fastuuid import UUID
 
 from destack.language.core import (
     IsExtensible,
-    IsParticle,
     IsRunnable,
-    IsSpatial,
     Node,
     NodeType,
+    Particle,
     RunStatus,
     RunType,
+    Spatial,
     node_,
     property_,
 )
@@ -27,8 +27,8 @@ if TYPE_CHECKING:
 @node_(NodeType.RUN)
 class Run(
     IsExtensible,
-    IsSpatial,
-    IsParticle,
+    Spatial,
+    Particle,
     Node[RunData],
 ):
     """

@@ -3,14 +3,14 @@ from typing import Optional
 from destack.language.core import Node, NodeType, node_, property_
 from destack.pb2 import SliderInputViewData
 
-from .input import IsInputView
+from .input import InputView
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
 @node_(NodeType.SLIDER_INPUT_VIEW)
 class SliderInputView(
-    IsInputView,
+    InputView,
     Node[SliderInputViewData],
 ):
     """A slider input View."""

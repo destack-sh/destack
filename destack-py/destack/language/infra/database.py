@@ -5,12 +5,11 @@ from destack.language.core import (
     BuiltinObjectMutable,
     EnumType,
     HasName,
-    IsResource,
-    IsSpatial,
-    IsTracked,
     Node,
     NodeType,
     Region,
+    Resource,
+    Spatial,
     StructMutable,
     StructType,
     Tenancy,
@@ -67,10 +66,9 @@ class DatabaseInfo(DatabaseBase, StructMutable):
 
 @node_(NodeType.DATABASE)
 class Database(
+    Spatial,
+    Resource,
     HasName,
-    IsResource,
-    IsSpatial,
-    IsTracked,
     DatabaseBase,
     Node[DatabaseData],
 ):

@@ -1,14 +1,15 @@
 from typing import TYPE_CHECKING, Optional, Union
 
 from destack.language.core import (
+    Entity,
     HasName,
     IsDeletable,
     IsScriptable,
-    IsSpatial,
     IsTaggable,
     IsTemplatable,
     IsTracked,
     IsVisual,
+    Spatial,
     TraitType,
     property_,
     property_parent_,
@@ -22,19 +23,20 @@ if TYPE_CHECKING:
 
 
 @trait_(TraitType.VIEW)
-class IsView(
+class View(
+    Spatial,
+    Entity,
     HasName,
     IsVisual,
     IsTaggable,
     IsScriptable,
     IsTemplatable,
-    IsSpatial,
     IsTracked,
     IsDeletable,
 ):
     """A View is a graphical interface."""
 
-    parent: Union["Window", "IsView", None] = property_parent_(node_is_customizable=True)
+    parent: Union["Window", "View", None] = property_parent_(node_is_customizable=True)
 
     # sizing
     position: Optional["Position"] = property_(40)

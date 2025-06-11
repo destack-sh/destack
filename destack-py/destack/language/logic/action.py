@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Optional, Union
 
 from destack.language.core import (
     BuiltinEnum,
+    Entity,
     EnumType,
     HasName,
     IsActionable,
@@ -9,13 +10,13 @@ from destack.language.core import (
     IsOrdered,
     IsRunnable,
     IsSourceable,
-    IsSpatial,
     IsTaggable,
     IsTemplatable,
     IsTracked,
     Node,
     NodeType,
     RunType,
+    Spatial,
     enum_,
     node_,
     property_,
@@ -41,6 +42,8 @@ class ActionCardinality(BuiltinEnum):
 
 @node_(NodeType.ACTION)
 class Action(
+    Spatial,
+    Entity,
     HasName,
     IsTaggable,
     IsTemplatable,
@@ -48,7 +51,6 @@ class Action(
     IsOrdered,
     IsDeletable,
     IsRunnable,
-    IsSpatial,
     IsTracked,
     Node[ActionData],
 ):

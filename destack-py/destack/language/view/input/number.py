@@ -3,14 +3,14 @@ from typing import Optional
 from destack.language.core import Node, NodeType, node_, property_
 from destack.pb2 import NumberInputViewData
 
-from .input import IsInputView
+from .input import InputView
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
 @node_(NodeType.NUMBER_INPUT_VIEW)
 class NumberInputView(
-    IsInputView,
+    InputView,
     Node[NumberInputViewData],
 ):
     """A general number input View."""

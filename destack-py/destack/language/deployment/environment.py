@@ -1,15 +1,17 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
+    Entity,
     HasIcon,
     HasName,
     IsDeletable,
-    IsSpatial,
     Node,
     NodeType,
+    Spatial,
     node_,
     property_parent_,
 )
+from destack.pb2 import EnvironmentData
 
 if TYPE_CHECKING:
     from destack.language import Space
@@ -19,11 +21,12 @@ if TYPE_CHECKING:
 
 @node_(NodeType.ENVIRONMENT)
 class Environment(
+    Spatial,
+    Entity,
     HasName,
     HasIcon,
-    IsSpatial,
     IsDeletable,
-    Node,
+    Node[EnvironmentData],
 ):
     """An Environment is a deployment of a Space."""
 

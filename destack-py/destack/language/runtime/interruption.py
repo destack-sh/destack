@@ -8,12 +8,12 @@ from destack.language.core import (
     EnumType,
     IsExtensible,
     IsRunnable,
-    IsSpatial,
-    IsTracked,
     Node,
     NodeReference,
     NodeType,
+    Particle,
     RunStatus,
+    Spatial,
     enum_,
     node_,
     property_,
@@ -22,11 +22,7 @@ from destack.language.core import (
 from destack.pb2 import InterruptionData
 
 if TYPE_CHECKING:
-    from destack.language import (
-        Message,
-        Run,
-        Span,
-    )
+    from destack.language import Message, Run, Span
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -72,9 +68,9 @@ class InterruptionResponse(BuiltinEnum):
 
 @node_(NodeType.INTERRUPTION)
 class Interruption(
+    Spatial,
+    Particle,
     IsExtensible,
-    IsSpatial,
-    IsTracked,
     Node[InterruptionData],
 ):
     """An Interruption in run of something."""

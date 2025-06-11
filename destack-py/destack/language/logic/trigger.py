@@ -4,18 +4,20 @@ from fastuuid import UUID
 
 from destack.language.core import (
     BuiltinEnum,
+    Entity,
     EnumType,
     HasName,
-    IsEntity,
     IsRunnable,
     Node,
     NodeType,
     RelationReference,
+    Spatial,
     Value,
     enum_,
     node_,
     property_,
 )
+from destack.pb2 import TriggerData
 
 if TYPE_CHECKING:
     from destack.language import Condition
@@ -29,7 +31,12 @@ class TriggerType(BuiltinEnum):
 
 
 @node_(NodeType.TRIGGER)
-class Trigger(HasName, IsEntity, Node):
+class Trigger(
+    Spatial,
+    Entity,
+    HasName,
+    Node[TriggerData],
+):
     """A Trigger is a dynamic event to run something."""
 
     type: TriggerType = property_(30)

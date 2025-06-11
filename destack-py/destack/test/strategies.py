@@ -21,11 +21,11 @@ from destack.language import (
     Field,
     FieldType,
     IconType,
-    IsSpatial,
     NodeReference,
     NodeType,
     PrimitiveType,
     ScalarType,
+    Spatial,
     StructType,
     Type,
     TypeCardinality,
@@ -243,7 +243,7 @@ def node_references(draw: st.DrawFn, node_types: st.SearchStrategy[NodeType]):
     node_type = draw(node_types)
     node_id = draw(STRATEGY_BY_PRIMITIVE_TYPE[PrimitiveType.UUID])
     node_cls = NODE_CLASS_BY_TYPE[node_type]
-    if issubclass(node_cls, IsSpatial):
+    if issubclass(node_cls, Spatial):
         space_id = draw(STRATEGY_BY_PRIMITIVE_TYPE[PrimitiveType.UUID])
     else:
         space_id = None

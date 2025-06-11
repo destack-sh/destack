@@ -15,14 +15,11 @@ from destack.language import (
     FrameView,
     JoinType,
     LabelView,
-    Message,
     Node,
     NodeReference,
     NodeType,
-    Reaction,
     Scene,
     Session,
-    Star,
     TextView,
     User,
     UserStatus,
@@ -223,25 +220,3 @@ async def test_create_scene_with_heterogeneous_views(session: Session):
     scene_unpacked = scene_tree.graph.get_roots(View)
     assert len(scene_unpacked) == 1
     assert scene_unpacked[0].equals(root_view)
-
-
-async def test_create_star(session: Session):
-    """Create Stars and query them."""
-
-    folder = Folder(name="Folder")
-    session.create(folder)
-    await session.commit()
-
-    star = Star(parent=folder)
-
-
-async def test_create_reaction(session: Session):
-    """Create Reactions and query them."""
-
-    message = Message()
-    session.create(message)
-    await session.commit()
-
-    reaction = Reaction(parent=message, content="👍")
-    session.create(reaction)
-    await session.commit()

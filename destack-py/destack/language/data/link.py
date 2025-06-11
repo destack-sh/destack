@@ -8,12 +8,12 @@ import structlog
 from opentelemetry import trace
 
 from destack.language.core import (
+    Asset,
     BuiltinEnum,
     EnumType,
-    IsAsset,
-    IsSpatial,
     Node,
     NodeType,
+    Spatial,
     enum_,
     node_,
     property_,
@@ -36,8 +36,8 @@ class LinkType(BuiltinEnum):
 
 @node_(NodeType.LINK)
 class Link(
-    IsAsset,
-    IsSpatial,
+    Spatial,
+    Asset,
     Node[LinkData],
 ):
     """

@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import IsExtensible, TraitType, property_, trait_
 
-from ..view import IsView
+from ..view import View
 
 if TYPE_CHECKING:
     from destack.language import (
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 
 @trait_(TraitType.CONTAINER_VIEW)
-class IsContainerView(IsView, IsExtensible):
+class ContainerView(View, IsExtensible):
     """A container View contains other Views."""
 
     # layout

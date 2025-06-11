@@ -1,15 +1,16 @@
 from typing import Union
 
 from destack.language.core import (
+    Entity,
     HasName,
     IsActionable,
     IsArchivable,
     IsDeletable,
-    IsEntity,
     IsRunnable,
     IsScriptable,
     Node,
     NodeType,
+    Spatial,
     node_,
     property_,
     property_parent_,
@@ -21,12 +22,13 @@ from destack.pb2 import ScriptData
 
 @node_(NodeType.SCRIPT)
 class Script(
+    Spatial,
+    Entity,
     HasName,
     IsDeletable,
     IsArchivable,
     IsRunnable,
     IsActionable,
-    IsEntity,
     Node[ScriptData],
 ):
     """A Script."""
