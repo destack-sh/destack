@@ -6,6 +6,7 @@ from fastuuid import UUID
 
 from destack import pb2
 from destack.utils.code import exec_
+from destack.utils.env import IS_DEV, IS_TEST
 
 from .core.builtin.const import (
     _ENUM_CLASS_BY_TYPE,
@@ -45,11 +46,13 @@ NODE_TYPES_BY_TRAIT_TYPE: dict[TraitType, tuple[NodeType, ...]] = {}
 STRUCT_CLASS_BY_TYPE: dict[StructType, type["StructBase"]] = {}
 STRUCT_TYPE_BY_CLASS: dict[type["StructBase"], StructType] = {}
 
-# meta
 RELATION_REF_BY_CLASS: dict[type["NodeBase"], "RelationReference"] = {}
 STRUCT_INFO_BY_TYPE: dict[StructType, "StructInfo"] = {}
 ENUM_INFO_BY_TYPE: dict[EnumType, "EnumInfo"] = {}
 NODE_INFO_BY_TYPE: dict[NodeType, "NodeInfo"] = {}
+
+DESCENDANT_NODE_TYPES_BY_TYPE: dict[NodeType, tuple[NodeType, ...]] = {}
+ANCESTOR_NODE_TYPES_BY_TYPE: dict[NodeType, tuple[NodeType, ...]] = {}
 
 
 def get_builtin_object_cls(object_type: NodeType | StructType) -> type["BuiltinObjectBase"]:
@@ -125,6 +128,33 @@ def _complete_destack_setup():
             child_types_by_parent[parent_type].append(node_cls.metatype)
     for node_cls in NODE_CLASS_BY_TYPE.values():
         node_cls.__child_types__ = tuple(child_types_by_parent[node_cls.metatype])
+
+    # index ancestor/descendant types (recursive)
+    for node_cls in NODE_CLASS_BY_TYPE.values():
+        # collect all ancestor types recursively
+        ancestors = set()
+        to_visit = list(node_cls.__parent_types__)
+        while to_visit:
+            parent_type = to_visit.pop()
+            if parent_type not in ancestors:
+                ancestors.add(parent_type)
+                parent_cls = NODE_CLASS_BY_TYPE[parent_type]
+                to_visit.extend(parent_cls.__parent_types__)
+
+        # collect all descendant types recursively
+        descendants = set()
+        to_visit = list(node_cls.__child_types__)
+        while to_visit:
+            child_type = to_visit.pop()
+            if child_type not in descendants:
+                descendants.add(child_type)
+                child_cls = NODE_CLASS_BY_TYPE[child_type]
+                to_visit.extend(child_cls.__child_types__)
+
+        node_cls.__ancestor_types__ = tuple(ancestors)
+        node_cls.__descendant_types__ = tuple(descendants)
+        DESCENDANT_NODE_TYPES_BY_TYPE[node_cls.metatype] = node_cls.__descendant_types__
+        ANCESTOR_NODE_TYPES_BY_TYPE[node_cls.metatype] = node_cls.__ancestor_types__
 
     # finalize properties
     for metatype, object_cls in chain(NODE_CLASS_BY_TYPE.items(), STRUCT_CLASS_BY_TYPE.items()):
@@ -202,5 +232,36 @@ def _complete_destack_setup():
     for enum_type in ENUM_TYPES:
         enum_info = EnumInfo.from_enum(enum_type, ENUM_CLASS_BY_TYPE[enum_type])
         ENUM_INFO_BY_TYPE[enum_type] = enum_info
+
+    # sanity check stuff
+    if IS_DEV or IS_TEST:
+        from destack.language.core.builtin.trait import (
+            AT_LEAST_ONE_TRAITS,
+            EXACT_ONE_TRAITS,
+            INFECTIOUS_TRAITS,
+        )
+
+        # check traits
+        for cls in NODE_CLASS_BY_TYPE.values():
+            for traits in AT_LEAST_ONE_TRAITS:
+                if not any(trait in cls.__traits__ for trait in traits):
+                    raise AssertionError(
+                        f"{cls.__name__} must have at least one of {[t.name for t in traits]} traits (has {[t.name for t in cls.__traits__]})"
+                    )
+            for traits in EXACT_ONE_TRAITS:
+                matching_traits = set(traits) & set(cls.__traits__)
+                if len(matching_traits) != 1:
+                    raise AssertionError(
+                        f"{cls.__name__} must have exactly one of {[t.name for t in traits]} traits (has {[t.name for t in cls.__traits__]})"
+                    )
+        for trait_type in INFECTIOUS_TRAITS:
+            for node_type in NODE_TYPES_BY_TRAIT_TYPE[trait_type]:
+                descendant_types = DESCENDANT_NODE_TYPES_BY_TYPE[node_type]
+                for descendant_type in descendant_types:
+                    descendant_cls = NODE_CLASS_BY_TYPE[descendant_type]
+                    if trait_type not in descendant_cls.__traits__:
+                        raise AssertionError(
+                            f"{descendant_type.name} must inherit {trait_type.name} trait from {node_type.name} (has {[t.name for t in descendant_cls.__traits__]}, parents: {[t.name for t in ANCESTOR_NODE_TYPES_BY_TYPE[descendant_type]]})"
+                        )
 
     _set_setup_complete()

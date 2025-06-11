@@ -14,11 +14,12 @@ from destack.language.core import (
     Spatial,
     node_,
     property_,
+    property_parent_,
 )
 from destack.pb2 import RunData
 
 if TYPE_CHECKING:
-    from destack.language import Error, Interruption, NodeReference
+    from destack.language import Error, Interruption, NodeReference, Space
 
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -26,9 +27,9 @@ if TYPE_CHECKING:
 
 @node_(NodeType.RUN)
 class Run(
-    IsExtensible,
     Spatial,
     Particle,
+    IsExtensible,
     Node[RunData],
 ):
     """
@@ -36,6 +37,7 @@ class Run(
     """
 
     # meta
+    parent: Optional["Space"] = property_parent_(node_is_customizable=False)
     type: RunType = property_(30, can_write="system", is_repr=True)
 
     # content

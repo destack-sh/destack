@@ -17,7 +17,6 @@ from opentelemetry import trace
 
 from destack.language.registry import NODE_CLASS_BY_TYPE, NODE_TYPE_BY_CLASS
 from destack.pb2 import AnyNodeData
-from destack.utils.env import IS_DEV, IS_TEST
 from destack.utils.func import get_superclasses
 
 from .const import NodeType, TraitType
@@ -29,7 +28,7 @@ from .property import (
     property_parent_,
     property_runtime_,
 )
-from .trait import AT_LEAST_ONE_TRAITS, EXACT_ONE_TRAITS, IndexIn, NodeBase
+from .trait import IndexIn, NodeBase
 
 if TYPE_CHECKING:
     from destack.language import Graph, NodeReference, QueryConnection, Session, Supergraph
@@ -79,20 +78,6 @@ def node_(
             NODE_CLASS_BY_TYPE[node_type] = cls
             NODE_TYPE_BY_CLASS[cls] = node_type
             NODE_CLASS_BY_TYPE[node_type] = cls
-
-            # check traits
-            if IS_DEV or IS_TEST:
-                for traits in AT_LEAST_ONE_TRAITS:
-                    if not any(trait in cls.__traits__ for trait in traits):
-                        raise AssertionError(
-                            f"{cls.__name__} must have at least one of {[t.name for t in traits]} traits (has {[t.name for t in cls.__traits__]})"
-                        )
-                for traits in EXACT_ONE_TRAITS:
-                    matching_traits = set(traits) & set(cls.__traits__)
-                    if len(matching_traits) != 1:
-                        raise AssertionError(
-                            f"{cls.__name__} must have exactly one of {[t.name for t in traits]} traits (has {[t.name for t in cls.__traits__]})"
-                        )
 
         # parent/root
         parent_property = cls.__properties__.get("parent", None)

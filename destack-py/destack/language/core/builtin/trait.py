@@ -71,6 +71,7 @@ if TYPE_CHECKING:
 
 AT_LEAST_ONE_TRAITS = ((TraitType.GLOBAL, TraitType.SPATIAL),)
 EXACT_ONE_TRAITS = ((TraitType.ENTITY, TraitType.PARTICLE, TraitType.ANALYTIC),)
+INFECTIOUS_TRAITS = (TraitType.DELETABLE, TraitType.ARCHIVABLE, TraitType.TEMPLATABLE)
 
 
 @dataclass(slots=True, frozen=True)
@@ -142,6 +143,8 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
     __parent_property__: ClassVar[Property] = UNSET
     __parent_types__: ClassVar[tuple[NodeType, ...]] = ()
     __child_types__: ClassVar[tuple[NodeType, ...]] = ()
+    __ancestor_types__: ClassVar[tuple[NodeType, ...]] = ()
+    __descendant_types__: ClassVar[tuple[NodeType, ...]] = ()
 
     # 10-29: node tracking
     # IsTracked.created_at/created_by/updated_at/updated_by: 10-13

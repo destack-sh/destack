@@ -979,8 +979,8 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
         properties[name] = prop
     cls.__declared_properties__ = frozendict(properties)
 
-    # collect properties from ancestor components (closest first)
-    for component in reversed(components[1:]):
+    # add properties from ancestor components (closest first)
+    for component in components[1:]:
         for name, prop in component.__declared_properties__.items():
             existing = properties.get(name)
             if existing is not None:
@@ -988,9 +988,12 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
                     continue  # may be narrowed/duplicated
                 elif component.__is_trait__ and existing.id == prop.id:
                     continue  # may be overridden by the trait
-                raise RuntimeError(
-                    f"property '{name}' from '{component.__name__}' conflicts with '{cls.__name__}': {prop!r}, {existing!r}"
-                )
+                else:
+                    # error: property conflicts with ancestor component
+                    raise RuntimeError(
+                        f"property '{name}' from '{component.__name__}' conflicts with '{cls.__name__}': {prop!r}, {existing!r}"
+                    )
+            # add property
             prop = prop.clone()
             prop.component = cls
             properties[name] = prop
