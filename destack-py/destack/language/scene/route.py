@@ -6,6 +6,7 @@ from destack.language.core import (
     IsDeletable,
     IsOwnable,
     IsTaggable,
+    IsTemplatable,
     Node,
     NodeType,
     Spatial,
@@ -29,6 +30,7 @@ class Route(
     IsTaggable,
     IsDeletable,
     IsOwnable,
+    IsTemplatable,
     Node[RouteData],
 ):
     """A Route is a path to a Scene."""

@@ -16,6 +16,7 @@ from ..builtin import (
     IsOwnable,
     IsScriptable,
     IsTaggable,
+    IsTemplatable,
     Node,
     NodeType,
     Spatial,
@@ -41,6 +42,7 @@ class CustomEntityDefinition(
     HasName,
     IsTaggable,
     IsCustomNodeDefinition,
+    IsTemplatable,
     IsOwnable,
     IsDeletable,
     IsScriptable,
@@ -64,6 +66,7 @@ class CustomEntity(
     IsTaggable,
     IsExtensible,
     IsDeletable,
+    IsTemplatable,
     IsCustomNode,
     Node[CustomEntityData],
 ):

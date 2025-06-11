@@ -8,8 +8,10 @@ from destack.language.core import (
     HasIcon,
     HasName,
     HasSlug,
+    IsDeletable,
     IsJoinable,
     IsOrdered,
+    IsTemplatable,
     Node,
     NodeType,
     enum_,
@@ -33,12 +35,14 @@ class RoleType(BuiltinEnum):
 
 @node_(NodeType.ROLE)
 class Role(
+    Global,
+    Entity,
     HasSlug,
     HasIcon,
     HasName,
-    Global,
-    Entity,
+    IsTemplatable,
     IsOrdered,
+    IsDeletable,
     Node[RoleData],
 ):
     parent: Optional["IsJoinable"] = property_parent_(node_is_customizable=False)

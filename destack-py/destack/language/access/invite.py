@@ -3,9 +3,11 @@ from typing import TYPE_CHECKING, Optional
 from destack.language.core import (
     Entity,
     Global,
+    IsDeletable,
     IsJoinable,
     IsOwnable,
     IsSubject,
+    IsTemplatable,
     Node,
     NodeType,
     Spatial,
@@ -26,7 +28,9 @@ class Invite(
     Global,
     Spatial,
     Entity,
+    IsTemplatable,
     IsOwnable,
+    IsDeletable,
     Node[InviteData],
 ):
     """An Invite to a Joinable."""

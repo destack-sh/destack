@@ -4,7 +4,9 @@ from destack.language.core import (
     Entity,
     HasIcon,
     HasName,
+    IsDeletable,
     IsTaggable,
+    IsTemplatable,
     LikeTag,
     Node,
     NodeType,
@@ -28,6 +30,8 @@ class Tag(
     LikeTag,
     HasName,
     HasIcon,
+    IsTemplatable,
+    IsDeletable,
     Node[TagData],
 ):
     """A Tag to tag something."""
@@ -39,6 +43,8 @@ class Tag(
 class Tagging(
     Spatial,
     Entity,
+    IsTemplatable,
+    IsDeletable,
     Node[TaggingData],
 ):
     """A Tagging of a Node by a Tag."""

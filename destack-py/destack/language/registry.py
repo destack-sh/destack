@@ -108,6 +108,9 @@ def _complete_destack_setup():
             node_types_by_trait[trait].append(node_cls.metatype)
     for trait, node_types in node_types_by_trait.items():
         NODE_TYPES_BY_TRAIT_TYPE[trait] = tuple(node_types)
+    for trait_type in TRAIT_TYPE_BY_CLASS.values():
+        if trait_type not in NODE_TYPES_BY_TRAIT_TYPE:
+            NODE_TYPES_BY_TRAIT_TYPE[trait_type] = ()
 
     # index parent types
     for node_cls in NODE_CLASS_BY_TYPE.values():
