@@ -6,6 +6,7 @@ from destack.language.core import (
     IndexIn,
     IsDeletable,
     IsOwnable,
+    IsSubject,
     IsTemplatable,
     Node,
     NodeType,
@@ -38,5 +39,6 @@ class Reaction(
     """A Reaction is a relationship between a Subject and a Reaction Node."""
 
     parent: Union["IsReactable", None] = property_parent_(node_is_customizable=True)
+    owned_by: "IsSubject" = property_(22)
 
     content: str = property_(40)

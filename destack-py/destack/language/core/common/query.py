@@ -175,7 +175,14 @@ class Expression(StructFrozen):
 
 
 ExpressionIn = Union[
-    "Value", "AttributeReference", "Condition", "Function", "Aggregation", "Expression"
+    "Value",
+    "AttributeReference",
+    "Field",
+    "Property",
+    "Condition",
+    "Function",
+    "Aggregation",
+    "Expression",
 ]
 
 
@@ -186,6 +193,8 @@ def expression(
         return Expression(type=ExpressionType.LITERAL, literal=thing)
     elif isinstance(thing, AttributeReference):
         return Expression(type=ExpressionType.ATTRIBUTE, attribute=thing)
+    elif isinstance(thing, (Node, Property)):
+        return Expression(type=ExpressionType.ATTRIBUTE, attribute=attribute_ref(thing))
     elif isinstance(thing, Condition):
         return Expression(type=ExpressionType.CONDITION, condition=thing)
     elif isinstance(thing, Function):
@@ -360,31 +369,37 @@ class Query[RootT: "Trait | Node"](StructFrozen):
 
     async def execute_one_or_none(self) -> Optional[RootT]:
         """Execute the Query and return the root (if any)."""
+        assert self.type in (QueryType.NODE, QueryType.GROUPED_NODE), f"cannot list {self!r}"
         connection = await self.execute()
         return connection.to_one_or_none()
 
     async def execute_one(self) -> RootT:
         """Execute the Query and return the root (error if none)."""
+        assert self.type in (QueryType.NODE, QueryType.GROUPED_NODE), f"cannot list {self!r}"
         connection = await self.execute()
         return connection.to_one()
 
     async def execute_list(self) -> list[RootT]:
         """Execute the Query and return the list of roots."""
+        assert self.type in (QueryType.NODE, QueryType.GROUPED_NODE), f"cannot list {self!r}"
         connection = await self.execute()
         return connection.to_list()
 
     async def execute_exists(self) -> bool:
         """Execute the Query and return whether any results exist."""
+        assert self.type == QueryType.SCALAR, f"cannot count {self!r}"
         connection = await self.execute()
         return connection.to_exists()
 
     async def execute_count(self) -> int:
         """Execute the Query and return the count."""
+        assert self.type in (QueryType.SCALAR, QueryType.GROUPED_SCALAR), f"cannot count {self!r}"
         connection = await self.execute()
         return connection.to_count()
 
     async def execute_scalar(self) -> Value:
         """Execute the Query and return the scalar value."""
+        assert self.type in (QueryType.SCALAR, QueryType.GROUPED_SCALAR), f"cannot scalar {self!r}"
         connection = await self.execute()
         return connection.to_scalar()
 
@@ -437,7 +452,7 @@ class QueryResult(QueryResultBase, StructMutable):
 class QueryResultGroup(QueryResultBase, StructMutable):
     """A group in a QueryResult."""
 
-    discriminator: Optional[Value] = property_(31, is_repr=True)
+    discriminator: Value = property_(31, is_repr=True)
 
 
 @enum_(EnumType.QUERY_UPDATE_TYPE)

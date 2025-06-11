@@ -599,13 +599,6 @@ class IsFollowable(Trait):
     pass
 
 
-@trait_(TraitType.FOLLOW)
-class IsFollow(Trait):
-    """A Node that represents a Follow."""
-
-    pass
-
-
 @trait_(TraitType.SOURCEABLE)
 class IsSourceable(Trait):
     """A Node that can be sourced from / defined by a Script."""
@@ -639,7 +632,7 @@ class IsActionable(Trait):
 class IsOwnable(Trait):
     """A Node that can be owned by another Node."""
 
-    owned_by: Optional["IsSubject"] = property_(22, node_space_from="self")
+    owned_by: Optional["IsSubject"] = property_(22)
     if TYPE_CHECKING:
         owned_by_id: Optional[UUID] = None
         owned_by_type: Optional[NodeType] = None
@@ -689,6 +682,13 @@ class LikeInvite(Trait):
 @trait_(TraitType.TAG)
 class LikeTag(Trait):
     """A Node that can be tagged."""
+
+    pass
+
+
+@trait_(TraitType.FOLLOW)
+class LikeFollow(Trait):
+    """A Node that represents a Follow."""
 
     pass
 

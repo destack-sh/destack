@@ -1,6 +1,7 @@
 from typing import (
     TYPE_CHECKING,
     Optional,
+    Union,
     assert_never,
 )
 
@@ -146,13 +147,18 @@ class AttributeReference(StructFrozen):
         field_ptr: Optional["NodeReference"] = None
 
 
-def attribute_ref(field: "Field | Property") -> AttributeReference:
-    if isinstance(field, Property):
-        return AttributeReference(type=AttributeType.PROPERTY, prop=field)
-    elif isinstance(field, Node):
-        return AttributeReference(type=AttributeType.FIELD, field=field)
+AttributeReferenceIn = Union["Field", "Property", "AttributeReference"]
+
+
+def attribute_ref(attribute: AttributeReferenceIn) -> AttributeReference:
+    if isinstance(attribute, Property):
+        return AttributeReference(type=AttributeType.PROPERTY, prop=attribute)
+    elif isinstance(attribute, Node):
+        return AttributeReference(type=AttributeType.FIELD, field=attribute)
+    elif isinstance(attribute, AttributeReference):
+        return attribute
     else:
-        assert_never(field)
+        assert_never(attribute)
 
 
 @enum_(EnumType.PROPERTY_REFERENCE_TYPE)

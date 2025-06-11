@@ -228,22 +228,58 @@ async def test_create_scene_with_heterogeneous_views(session: Session):
 async def test_create_star(session: Session):
     """Create Stars and query them."""
 
+    users = [
+        User(
+            name=f"User{i}",
+            slug=f"user{i}",
+            space_ptr=NodeReference(node_type=NodeType.SPACE, id=uuid4()),
+        )
+        for i in range(20)
+    ]
+    for user in users:
+        session.create(user)
+    await session.commit()
+
     folder = Folder(name="Folder")
     session.create(folder)
     await session.commit()
 
-    star = Star(parent=folder)
-    session.create(star)
+    for user in users:
+        star = Star(parent=folder, owned_by=user)
+        session.create(star)
     await session.commit()
+
+    assert await Star.count(where=Star.property("parent").eq(folder)).execute_count() == 20
 
 
 async def test_create_reaction(session: Session):
     """Create Reactions and query them."""
 
+    users = [
+        User(
+            name=f"User{i}",
+            slug=f"user{i}",
+            space_ptr=NodeReference(node_type=NodeType.SPACE, id=uuid4()),
+        )
+        for i in range(10)
+    ]
+    for user in users:
+        session.create(user)
+    await session.commit()
+
     message = Message()
     session.create(message)
     await session.commit()
 
-    reaction = Reaction(parent=message, content="👍")
-    session.create(reaction)
+    reactions: tuple[str, ...] = ("👍", "👎", "🤷", "🤔", "🤨")
+    for user in users:
+        for reaction in reactions:
+            reaction = Reaction(parent=message, content=reaction, owned_by=user)
+            session.create(reaction)
     await session.commit()
+
+    message_tree = await Message.get(
+        where=Message.property("id").eq(message.id),
+        Reactions=Reaction.count(group_by=[Reaction.property("content")]),
+    ).execute()
+    assert message_tree.to_scalar() == 10

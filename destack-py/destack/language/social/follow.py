@@ -8,6 +8,7 @@ from destack.language.core import (
     IsOwnable,
     IsSubject,
     IsTemplatable,
+    LikeFollow,
     Node,
     NodeType,
     Spatial,
@@ -15,28 +16,29 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.pb2 import StarData
+from destack.pb2 import FollowData
 
 if TYPE_CHECKING:
-    from destack.language import IsStarable
+    from destack.language import IsFollowable
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
 @node_(
-    NodeType.STAR,
+    NodeType.FOLLOW,
     index=(IndexIn(columns=("parent_id", "owned_by_id"), is_unique=True),),
 )
-class Star(
+class Follow(
     Global,
     Spatial,
+    LikeFollow,
     IsDeletable,
     IsTemplatable,
     IsOwnable,
     Entity,
-    Node[StarData],
+    Node[FollowData],
 ):
-    """A Star is a relationship between a Subject and a Starred Node."""
+    """A Follow is a relationship between a Subject and a Followred Node."""
 
-    parent: Union["IsStarable", None] = property_parent_(node_is_customizable=True)
+    parent: Union["IsFollowable", None] = property_parent_(node_is_customizable=True)
     owned_by: "IsSubject" = property_(22)
