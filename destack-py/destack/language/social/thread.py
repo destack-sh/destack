@@ -11,7 +11,6 @@ from destack.language.core import (
     IsInSpace,
     IsJoinable,
     IsOwnable,
-    IsSubject,
     Node,
     NodeType,
     enum_,
@@ -22,7 +21,7 @@ from destack.language.core import (
 from destack.pb2 import ThreadData
 
 if TYPE_CHECKING:
-    from destack.language import Cursor, CursorType, Folder
+    from destack.language import Folder
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -54,10 +53,3 @@ class Thread(
     # meta
     parent: Union["Folder", "Thread", None] = property_parent_(node_is_customizable=True)
     name: str = property_(31, is_repr=True)
-
-    def get_cursor(self, *, type: "CursorType", owned_by: "IsSubject | None") -> "Cursor | None":
-        """Get a Cursor of the given type."""
-        for cursor in self.get_children(Cursor):
-            if cursor.type == type and (owned_by is None or cursor.owned_by_id == owned_by.id):
-                return cursor
-        return None

@@ -4,18 +4,17 @@ from typing import TYPE_CHECKING, Optional
 from destack.language.core import (
     BuiltinEnum,
     EnumType,
-    Expression,
-    IsDeletable,
     IsEnvironmental,
-    IsInFolder,
     IsOwnable,
     IsTracked,
     Node,
     NodeType,
-    Selection,
+    Trait,
+    TraitType,
     enum_,
     node_,
     property_,
+    trait_,
 )
 from destack.pb2 import CursorData
 
@@ -24,20 +23,6 @@ if TYPE_CHECKING:
 
 
 # pyright: reportIncompatibleVariableOverride=false
-
-
-@enum_(EnumType.CURSOR_TYPE)
-class CursorType(BuiltinEnum):
-    """
-    The type of Cursor.
-    """
-
-    THREAD = 5510, "Thread", None, None
-    PAGE = 5020, "Page", None, None
-    TABLE = 5090, "Table", None, None
-    ACTION = 5051, "Action", None, None
-    WEB = 10000, "Web", None, None
-    CUSTOM = 9000, "Custom", None, None
 
 
 @enum_(EnumType.CURSOR_STATUS)
@@ -64,36 +49,39 @@ class CursorStatus(BuiltinEnum):
 # nocheckin: split into multiple Cursors (mouse cursor, entity cursor, ...)
 
 
-@node_(NodeType.CURSOR)
-class Cursor(
+@trait_(TraitType.CURSOR)
+class IsCursor(Trait):
+    """A Node that is a Cursor."""
+
+    status: CursorStatus = property_(40, default=CursorStatus.CREATED, is_repr=True)
+    active_at: Optional[datetime] = property_(41)
+
+
+@node_(NodeType.SCREEN_CURSOR)
+class ScreenCursor(
+    IsCursor,
     IsEnvironmental,
     IsOwnable,
-    IsInFolder,
-    IsDeletable,
     IsTracked,
     Node[CursorData],
 ):
     """
-    A Cursor is the current logical or physical 'position' or 'focus' of its owner.
-     (e.g., editing Blocks on a Page or processing a specific Record in a Database.)
+    A PointerCursor is a visual cursor corresponding to a pointing device.
     """
 
-    # meta
-    type: CursorType = property_(30, is_repr=True)
+    # content
 
-    # status?
-    status: CursorStatus = property_(40, default=CursorStatus.CREATED, is_repr=True)
-    started_at: Optional[datetime] = property_(41)
-    active_at: Optional[datetime] = property_(42)
-    seen_at: Optional[datetime] = property_(43)
-    terminated_at: Optional[datetime] = property_(45)
+
+@node_(NodeType.QUERY_CURSOR)
+class QueryCursor(
+    IsCursor,
+    IsEnvironmental,
+    IsOwnable,
+    IsTracked,
+    Node[CursorData],
+):
+    """
+    A QueryCursor is a cursor corresponding to a Query.
+    """
 
     # content
-    target: Optional[Node] = property_(
-        50,
-    )
-    selection: Optional[Selection] = property_(51)
-    focus: Optional[Selection] = property_(52)
-    filter: Optional[Expression] = property_(53)
-    sort: list[Expression] = property_(54)
-    url: Optional[str] = property_(55)

@@ -350,7 +350,6 @@ class EnumType(BuiltinEnum):
 
     # logic [1800-2000]
     ACTION_CARDINALITY = 1821
-    CURSOR_TYPE = 1921
     CURSOR_STATUS = 1922
     SCHEDULE_FREQUENCY = 1930
     TIMER_TYPE = 1931
@@ -696,7 +695,9 @@ class NodeType(BuiltinEnum):
     TRIGGER = 1840, "Trigger", "Trigger", "fas fa-bolt"
     TIMER = 1841, "Timer", "Timer", "fas fa-clock"
     # BREAKPOINT, ...
-    CURSOR = 1900, "Cursor", "Position in something", "fas fa-mouse"
+    SCREEN_CURSOR = 1900, "Mouse Cursor", "Mouse Cursor", "fas fa-mouse"
+    QUERY_CURSOR = 1901, "Query Cursor", "Query Cursor", "fas fa-magnifying-glass"
+    # WEB_CURSOR, ...
     # ROOM, CHANNEL, LOCK, ...
     # TASK, ...
 

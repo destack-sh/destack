@@ -26,7 +26,6 @@ from destack.language.core import (
     Node,
     NodeType,
     PrimitiveType,
-    active_session,
     enum_,
     node_,
     property_,
@@ -837,31 +836,7 @@ async def upload_file(
 ) -> "File":
     """Uploads the given file to the given (or current) session."""
 
-    # extract file info
-    file, content = await extract_file_info(
-        file_in, name, mime_type=mime_type, type=type, format=format
-    )
-
-    # destack
-    if session is None:
-        session = active_session()
-    if parent is None:
-        space = session.space
-        if session.runtime is not None and (runner := session.runtime.active_runner) is not None:
-            parent = runner.thread.thread
-        else:
-            folder = space.root_folder if space is not None else None
-            if folder is None:
-                raise ValueError(f"no Folder to upload file {name!r} to in {session!r}")
-            parent = folder
-
-    file.parent = parent
-
-    # upload file, then create in session
-    await upload_file_batch(files=[file], file_contents=[content], session=session)
-    session.create(file)
-
-    return file
+    raise NotImplementedError
 
 
 @tracer.start_as_current_span("file.detect_format")
