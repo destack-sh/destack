@@ -1,6 +1,7 @@
 from typing import Optional
 
 from destack.language.core import (
+    Axis2,
     BuiltinEnum,
     BuiltinObjectMutable,
     EnumType,
@@ -22,7 +23,6 @@ from destack.language.core import (
 from destack.pb2 import GradientStyleData
 
 from .color import Color
-from .core import Axis2
 from .style import IsStyle
 
 # pyright: reportIncompatibleVariableOverride=false

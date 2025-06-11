@@ -2,6 +2,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
+    Axis3,
     BuiltinEnum,
     BuiltinObjectMutable,
     EnumType,
@@ -12,6 +13,7 @@ from destack.language.core import (
     NodeType,
     StructMutable,
     StructType,
+    Vector2,
     enum_,
     node_,
     object_,
@@ -20,7 +22,6 @@ from destack.language.core import (
 )
 from destack.pb2 import EffectStyleData
 
-from .core import Axis3, Vector2
 from .style import IsStyle
 from .transition import Transition
 

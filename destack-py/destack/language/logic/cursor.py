@@ -4,19 +4,20 @@ from typing import TYPE_CHECKING, Optional
 from destack.language.core import (
     BuiltinEnum,
     EnumType,
-    IsEnvironmental,
     IsOwnable,
     IsTracked,
     Node,
     NodeType,
+    Query,
     Trait,
     TraitType,
+    Vector2i,
     enum_,
     node_,
     property_,
     trait_,
 )
-from destack.pb2 import CursorData
+from destack.pb2 import QueryCursorData, ScreenCursorData
 
 if TYPE_CHECKING:
     pass
@@ -46,9 +47,6 @@ class CursorStatus(BuiltinEnum):
     COMPLETED = 53, "Completed", "Completed", "fas fa-check"
 
 
-# nocheckin: split into multiple Cursors (mouse cursor, entity cursor, ...)
-
-
 @trait_(TraitType.CURSOR)
 class IsCursor(Trait):
     """A Node that is a Cursor."""
@@ -60,28 +58,28 @@ class IsCursor(Trait):
 @node_(NodeType.SCREEN_CURSOR)
 class ScreenCursor(
     IsCursor,
-    IsEnvironmental,
     IsOwnable,
     IsTracked,
-    Node[CursorData],
+    Node[ScreenCursorData],
 ):
     """
     A PointerCursor is a visual cursor corresponding to a pointing device.
     """
 
     # content
+    position: Optional[Vector2i] = property_(40)
 
 
 @node_(NodeType.QUERY_CURSOR)
 class QueryCursor(
     IsCursor,
-    IsEnvironmental,
     IsOwnable,
     IsTracked,
-    Node[CursorData],
+    Node[QueryCursorData],
 ):
     """
     A QueryCursor is a cursor corresponding to a Query.
     """
 
     # content
+    query: Optional["Query"] = property_(40)
