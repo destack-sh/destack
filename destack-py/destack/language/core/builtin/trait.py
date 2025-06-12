@@ -68,9 +68,21 @@ if TYPE_CHECKING:
 #  - Is (e.g., IsTaggable, IsOwnable): the trait ascribes some behavior
 #
 
-AT_LEAST_ONE_TRAITS = ((TraitType.GLOBAL, TraitType.SPATIAL),)
-EXACT_ONE_TRAITS = ((TraitType.ENTITY, TraitType.PARTICLE, TraitType.ANALYTIC),)
-INFECTIOUS_TRAITS = (TraitType.DELETABLE, TraitType.ARCHIVABLE, TraitType.TEMPLATABLE)
+AT_LEAST_ONE_TRAITS = (
+    (TraitType.GLOBAL, TraitType.SPATIAL),
+    (TraitType.ENTITY, TraitType.PARTICLE, TraitType.ANALYTIC, TraitType.INDEXED),
+)
+AT_MOST_ONE_TRAITS = (
+    (
+        TraitType.ENTITY,
+        TraitType.PARTICLE,
+    ),
+)
+INFECTIOUS_TRAITS = (
+    TraitType.TEMPLATABLE,
+    TraitType.ARCHIVABLE,
+    TraitType.DELETABLE,
+)
 
 
 @dataclass(slots=True, frozen=True)
@@ -727,21 +739,28 @@ class Spatial(Trait):
 
 @trait_(TraitType.ENTITY)
 class Entity(IsTracked):
-    """A Node that is an Entity in primary storage."""
+    """An Entity is a Node in primary relational storage (OLTP)."""
 
     pass
 
 
 @trait_(TraitType.PARTICLE)
 class Particle(IsTracked):
-    """A Node that is a Particle."""
+    """A Particle is a Node in primary document storage (OLTP, high volume)."""
 
     pass
 
 
 @trait_(TraitType.ANALYTIC)
 class Analytic(IsTracked):
-    """A Node that is an Analytic."""
+    """An Analytic is stored in primary or secondary warehouse storage (OLAP, bulk)."""
+
+    pass
+
+
+@trait_(TraitType.INDEXED)
+class Indexed(IsTracked):
+    """A Node that is indexed in secondary search storage (OLTP)."""
 
     pass
 
@@ -781,7 +800,7 @@ class Measurement(IsCustomNode, Analytic):
 
 
 @trait_(TraitType.EVENT, pretend_frozen=True)
-class Event(Particle, IsFrozen):
+class Event(Particle, Indexed, Analytic, IsFrozen):
     """A Node that represents an Event."""
 
     pass

@@ -847,6 +847,7 @@ class TraitType(BuiltinEnum):
     ENTITY = 10, "Entity", "Is an Entity", "fas fa-hexagon"
     PARTICLE = 11, "Particle", "Is a Particle", "fas fa-atom"
     ANALYTIC = 12, "Analytic", "Is an Analytic", "fas fa-chart-line"
+    INDEXED = 13, "Indexed", "Is indexed", "fas fa-search"
     # type
     ASSET = 20, "Asset", "Is an Asset", "fas fa-file"
     RESOURCE = 21, "Resource", "Is a Resource", "fas fa-server"

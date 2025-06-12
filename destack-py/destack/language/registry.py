@@ -257,7 +257,7 @@ def _complete_destack_setup():
     if IS_DEV or IS_TEST:
         from destack.language.core.builtin.trait import (
             AT_LEAST_ONE_TRAITS,
-            EXACT_ONE_TRAITS,
+            AT_MOST_ONE_TRAITS,
             INFECTIOUS_TRAITS,
         )
 
@@ -268,11 +268,11 @@ def _complete_destack_setup():
                     raise AssertionError(
                         f"{cls.__name__} must have at least one of {[t.name for t in traits]} traits (has {[t.name for t in cls.__traits__]})"
                     )
-            for traits in EXACT_ONE_TRAITS:
-                matching_traits = set(traits) & set(cls.__traits__)
-                if len(matching_traits) != 1:
+            for traits in AT_MOST_ONE_TRAITS:
+                matching_traits = [trait for trait in traits if trait in cls.__traits__]
+                if len(matching_traits) > 1:
                     raise AssertionError(
-                        f"{cls.__name__} must have exactly one of {[t.name for t in traits]} traits (has {[t.name for t in cls.__traits__]})"
+                        f"{cls.__name__} must have at most one of {[t.name for t in traits]} traits (has {[t.name for t in matching_traits]})"
                     )
         for trait_type in INFECTIOUS_TRAITS:
             for node_type in NODE_TYPES_BY_TRAIT_TYPE[trait_type]:
