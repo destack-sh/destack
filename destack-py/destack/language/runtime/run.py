@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING, Optional
 from fastuuid import UUID
 
 from destack.language.core import (
+    Analytic,
+    Indexed,
     IsExtensible,
     IsRunnable,
     Node,
@@ -29,6 +31,8 @@ if TYPE_CHECKING:
 class Run(
     Spatial,
     Particle,
+    Analytic,
+    Indexed,
     IsExtensible,
     Node[RunData],
 ):

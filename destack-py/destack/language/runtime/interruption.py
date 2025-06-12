@@ -4,8 +4,10 @@ from typing import TYPE_CHECKING, Optional
 from fastuuid import UUID
 
 from destack.language.core import (
+    Analytic,
     BuiltinEnum,
     EnumType,
+    Indexed,
     IsExtensible,
     IsRunnable,
     Node,
@@ -70,6 +72,8 @@ class InterruptionResponse(BuiltinEnum):
 class Interruption(
     Spatial,
     Particle,
+    Analytic,
+    Indexed,
     IsExtensible,
     Node[InterruptionData],
 ):
