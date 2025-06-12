@@ -1,12 +1,13 @@
 from typing import TYPE_CHECKING
 
-from destack.language.core.builtin.trait import HasIcon
 from destack.pb2 import SchemaData
 
 from ..builtin import (
     Entity,
+    HasIcon,
     HasName,
     IsDeletable,
+    IsExtensible,
     IsSourceable,
     IsTaggable,
     IsTemplatable,
@@ -32,8 +33,9 @@ class Schema(
     IsTemplatable,
     IsDeletable,
     IsSourceable,
+    IsExtensible,
     Node[SchemaData],
 ):
-    """A Schema describes a Type."""
+    """A Schema describes a custom Type with Fields."""
 
     pass

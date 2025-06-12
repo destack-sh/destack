@@ -8,7 +8,7 @@ from destack.language.core import (
     Day,
     Entity,
     EnumType,
-    IsOrdered,
+    HasName,
     Month,
     Node,
     NodeType,
@@ -38,7 +38,7 @@ class TimerType(BuiltinEnum):
 class Timer(
     Spatial,
     Entity,
-    IsOrdered,
+    HasName,
     Node[TimerData],
 ):
     """A Timer."""

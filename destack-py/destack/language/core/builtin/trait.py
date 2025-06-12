@@ -21,6 +21,7 @@ from destack.language.registry import (
     TRAIT_TYPE_BY_CLASS,
 )
 from destack.pb2 import AnyObjectData
+from destack.utils.fractional import INTEGER_ZERO
 
 from .const import (
     UNSET,
@@ -78,6 +79,7 @@ INFECTIOUS_TRAITS = (
     TraitType.ARCHIVABLE,
     TraitType.DELETABLE,
 )
+INTER_ORDER_TRAITS = (TraitType.VIEW, TraitType.STYLE)
 
 
 @dataclass(slots=True, frozen=True)
@@ -592,7 +594,7 @@ class IsExtensible(Trait):
 class IsOrdered(Trait):
     """A Node that can be ordered."""
 
-    order_key: str | None = property_(19, is_eq=False)
+    order_key: str = property_(19, is_eq=False, default=INTEGER_ZERO)
 
 
 @trait_(TraitType.REACTABLE)
@@ -736,6 +738,10 @@ class Spatial(Trait):
 class Entity(IsTracked):
     """An Entity is a Node in primary relational storage (OLTP)."""
 
+    # nocheckin: support Entity variants/branching (use id+variant as primary key?)
+    #  (or maybe for some subset of Entities?)
+    #  (idea: 'materialized' base frames and Edit streams so we don't need a copy for each edit?)
+    #  (or maybe support it for all Nodes to support staging Changes but only expose it for Entities?)
     pass
 
 

@@ -15,12 +15,21 @@ from destack.test.conftest import _setup_test_env
 _setup_test_env()
 
 
-from destack.language import REGION, DatabaseInfo, DatabaseType, StoreType, Tenancy
+from destack.language import (
+    ACTIVE_SESSION,
+    REGION,
+    DatabaseInfo,
+    DatabaseType,
+    Session,
+    StoreType,
+    Tenancy,
+)
 from destack.sharding import get_global_database_from_env
 from destack.store.postgres import (
     DESTACK_BUILTIN_TABLE_PREFIX,
     DESTACK_CUSTOM_TABLE_PREFIX,
     PostgresSchema,
+    PostgresStore,
     apply_migration_ops,
     generate_migration_ops,
     get_builtin_schema,
@@ -87,7 +96,9 @@ def _clean_name(name: str) -> str:
 
 
 @pytest.fixture
-async def global_database(request: pytest.FixtureRequest) -> AsyncGenerator[DatabaseInfo, None]:
+async def global_postgres_database(
+    request: pytest.FixtureRequest,
+) -> AsyncGenerator[DatabaseInfo, None]:
     """Gets the per test function global Database"""
 
     database = get_database(f"test-{_clean_name(request.node.name)[:32]}-global")
@@ -100,7 +111,9 @@ async def global_database(request: pytest.FixtureRequest) -> AsyncGenerator[Data
 
 
 @pytest.fixture
-async def spatial_database(request: pytest.FixtureRequest) -> AsyncGenerator[DatabaseInfo, None]:
+async def spatial_postgres_database(
+    request: pytest.FixtureRequest,
+) -> AsyncGenerator[DatabaseInfo, None]:
     """Gets the per test function spatial Database"""
 
     database = get_database(f"test-{_clean_name(request.node.name)[:32]}-spatial")
@@ -124,6 +137,30 @@ async def omni_postgres_database(
         yield database
     finally:
         await delete_test_db(database)
+
+
+# NOTE: we manually set session sync context since it's not propagated across pytest tasks (see above)
+# https://github.com/pytest-dev/pytest-asyncio/issues/127#issuecomment-862817549 :PytestAsyncContext
+
+
+@pytest.fixture
+def postgres_store(omni_postgres_database: DatabaseInfo) -> PostgresStore:
+    return PostgresStore(database=omni_postgres_database, types=tuple(StoreType))
+
+
+@pytest.fixture  # :PytestAsyncContext
+async def session_async(postgres_store: PostgresStore) -> AsyncGenerator[Session, None]:
+    session = Session(store=postgres_store)
+    await session.open()
+    yield session
+    await session.close()
+
+
+@pytest.fixture
+def session(session_async: Session):
+    token = ACTIVE_SESSION.set(session_async)
+    yield session_async
+    ACTIVE_SESSION.reset(token)
 
 
 @contextmanager
