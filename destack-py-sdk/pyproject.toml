@@ -7,6 +7,5 @@ name = "destack"
 version = "0.0.0"
 description = "Destack is a personal software platform. Python SDK coming soon."
 readme = "README.md"
-license = {text = "MIT"}
-authors = [{name="Symbol Industries", email="hello@symbol.industries"}]
-requires-python = ">=3.8"
+authors = [{ name = "Symbol Industries", email = "florian@symbol.industries" }]
+requires-python = ">=3.12"

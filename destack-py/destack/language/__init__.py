@@ -12,7 +12,7 @@ from .finance import *  # noqa: F403
 from .folder import *  # noqa: F403
 from .infra import *  # noqa: F403
 from .intelligence import *  # noqa: F403
-from .interactive import *  # noqa: F403
+from .interaction import *  # noqa: F403
 from .logic import *  # noqa: F403
 from .registry import (
     ENUM_CLASS_BY_TYPE,  # noqa: F401
