@@ -337,6 +337,7 @@ class EnumType(BuiltinEnum):
     DEFAULT_FACTORY = 1504
     STRING_FORMAT = 1511
     NUMBER_FORMAT = 1512
+    SCHEMA_TYPE = 1520
     FIELD_TYPE = 1521
     EDGE_TYPE = 1522
     EDGE_DIRECTION = 1523
@@ -671,6 +672,7 @@ class NodeType(BuiltinEnum):
     # data [1400-1800]
     SCHEMA = 1400, "Schema", "Schema", "fas fa-shapes"
     FIELD = 1401, "Field", "Field", "fas fa-triangle"
+    OPTION = 1402, "Option", "Option", "fas fa-circle"
     FILE = 1410, "File", "File", "fas fa-file"
     LINK = 1411, "Link", "Link to something", "fas fa-link"
     # STREAM, SECRET, ...
