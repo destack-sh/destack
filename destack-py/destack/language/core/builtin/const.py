@@ -774,7 +774,7 @@ class NodeType(BuiltinEnum):
     WINDOW = 8000, "Window", "Window", "fas fa-galaxy"
     SCENE = 8010, "Scene", "Scene of an Application", "fas fa-masks-theater"
     LAYER = 8020, "Layer", "Layer of a Scene", "fas fa-layer-group"
-    # OVERLAY, WIDGET, MENU, ...
+    # VIEWPORT, OVERLAY, WIDGET, MENU, ...
 
     # interaction [8100-8200]
     # COMMAND, TOOL, ...
@@ -851,7 +851,6 @@ class TraitType(BuiltinEnum):
     ANALYTIC = 12, "Analytic", "Is an Analytic", "fas fa-chart-line"
     INDEXED = 13, "Indexed", "Is indexed", "fas fa-search"
     # type
-    ASSET = 20, "Asset", "Is an Asset", "fas fa-file"
     RESOURCE = 21, "Resource", "Is a Resource", "fas fa-server"
     EVENT = 22, "Event", "Is an Event", "fas fa-bolt"
     CUSTOM_NODE_DEFINITION = (

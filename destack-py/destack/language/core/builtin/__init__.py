@@ -81,7 +81,6 @@ from .property import (
 from .struct import StructBase, StructFrozen, StructMutable, struct_
 from .trait import (
     Analytic,
-    Asset,
     Entity,
     Event,
     Global,
@@ -152,7 +151,6 @@ __all__ = [
     "UUID_NAMESPACE",
     "VERSION",
     "Analytic",
-    "Asset",
     "BuiltinEnum",
     "BuiltinEnumOrUnion",
     "BuiltinObjectBase",

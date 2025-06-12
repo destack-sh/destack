@@ -729,7 +729,7 @@ class Spatial(Trait):
     """A Node in a Space."""
 
     parent: Optional["Space"] = property_parent_(node_is_customizable=False)
-    space: "Space | None" = property_ancestor_(6, is_required=True)
+    space: "Space | None" = property_ancestor_(5, is_required=True)
     if TYPE_CHECKING:
         space_ptr: Optional[NodeReference] = None
 
@@ -767,15 +767,8 @@ class Indexed(IsTracked):
     pass
 
 
-@trait_(TraitType.ASSET)
-class Asset(Entity, IsOrdered):
-    """A Node that represents an external asset."""
-
-    parent: Optional["Folder"] = property_parent_(node_is_customizable=False)
-
-
 @trait_(TraitType.RESOURCE)
-class Resource(Asset):
+class Resource(Entity):
     """
     A Resource represents an external asset, and may be managed by some provisioner.
     """
