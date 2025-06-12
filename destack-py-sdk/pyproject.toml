@@ -1,0 +1,11 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "destack"
+version = "0.0.0"
+description = "Destack is a personal software platform. Python SDK coming soon."
+readme = "README.md"
+authors = [{ name = "Symbol Industries", email = "florian@symbol.industries" }]
+requires-python = ">=3.12"
