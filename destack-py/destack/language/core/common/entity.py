@@ -15,6 +15,7 @@ from ..builtin import (
     IsExtensible,
     IsOwnable,
     IsScriptable,
+    IsSourceable,
     IsTaggable,
     IsTemplatable,
     Node,
@@ -46,6 +47,7 @@ class CustomEntityDefinition(
     IsOwnable,
     IsDeletable,
     IsScriptable,
+    IsSourceable,
     IsActionable,
     Node[CustomEntityDefinitionData],
 ):
