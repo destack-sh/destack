@@ -5,6 +5,7 @@ from destack.language.core import (
     HasName,
     IsActionable,
     IsDeletable,
+    IsOrdered,
     IsRunnable,
     IsScriptable,
     IsTemplatable,
@@ -25,10 +26,11 @@ class Script(
     Spatial,
     Entity,
     HasName,
-    IsTemplatable,
+    IsOrdered,
+    IsActionable,
     IsDeletable,
     IsRunnable,
-    IsActionable,
+    IsTemplatable,
     Node[ScriptData],
 ):
     """A Script."""

@@ -52,7 +52,7 @@ class PostgresSchema:
         return PostgresSchema(extensions=(), tables=())
 
 
-class DatabaseObjectKind(enum.StrEnum):
+class PostgresObjectKind(enum.StrEnum):
     EXTENSION = "EXTENSION"
     TABLE = "TABLE"
     COLUMN = "COLUMN"
@@ -63,7 +63,7 @@ class DatabaseObjectKind(enum.StrEnum):
 @dataclass(slots=True)
 class PostgresObject:
     FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]]
-    kind: ClassVar[DatabaseObjectKind]
+    kind: ClassVar[PostgresObjectKind]
 
     if TYPE_CHECKING:
 
@@ -117,7 +117,7 @@ class PostgresExtension(PostgresObject):
     """
 
     FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]] = ("name",)
-    kind: ClassVar[DatabaseObjectKind] = DatabaseObjectKind.EXTENSION
+    kind: ClassVar[PostgresObjectKind] = PostgresObjectKind.EXTENSION
 
     name: str  # type: ignore
 
@@ -154,9 +154,9 @@ class PostgresTableObject(PostgresObject):
 
     @property
     def qualified_name(self) -> str:
-        if self.kind == DatabaseObjectKind.TABLE:
+        if self.kind == PostgresObjectKind.TABLE:
             return cast("PostgresTable", self).name
-        elif self.kind == DatabaseObjectKind.INDEX:
+        elif self.kind == PostgresObjectKind.INDEX:
             return cast("PostgresIndex", self).name
         else:
             return f"{self.table_name}.{getattr(self, 'name')}"
@@ -200,7 +200,7 @@ class PostgresColumn(PostgresTableObject):
         "length",
         "default",
     )
-    kind: ClassVar[DatabaseObjectKind] = DatabaseObjectKind.COLUMN
+    kind: ClassVar[PostgresObjectKind] = PostgresObjectKind.COLUMN
 
     name: str  # type: ignore
     type: PrimitiveType
@@ -303,7 +303,7 @@ class PostgresConstraint(PostgresTableObject):
     """
 
     FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]] = ("inner_name", "type", "columns", "condition")
-    kind: ClassVar[DatabaseObjectKind] = DatabaseObjectKind.CONSTRAINT
+    kind: ClassVar[PostgresObjectKind] = PostgresObjectKind.CONSTRAINT
 
     inner_name: str
     type: PostgresConstraintType
@@ -371,7 +371,7 @@ class PostgresIndex(PostgresTableObject):
         "is_unique",
         "condition",
     )
-    kind: ClassVar[DatabaseObjectKind] = DatabaseObjectKind.INDEX
+    kind: ClassVar[PostgresObjectKind] = PostgresObjectKind.INDEX
 
     inner_name: str
     type: PostgresIndexType
@@ -434,7 +434,7 @@ class PostgresTable(PostgresTableObject):
     """
 
     FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]] = ("name",)
-    kind: ClassVar[DatabaseObjectKind] = DatabaseObjectKind.TABLE
+    kind: ClassVar[PostgresObjectKind] = PostgresObjectKind.TABLE
 
     name: str  # type: ignore
     node_type: NodeType

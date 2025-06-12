@@ -4,6 +4,7 @@ from destack.language.core import (
     Entity,
     HasName,
     IsDeletable,
+    IsOrdered,
     IsTaggable,
     IsTemplatable,
     IsVisual,
@@ -25,8 +26,9 @@ class Style(
     Entity,
     HasName,
     IsVisual,
-    IsTemplatable,
+    IsOrdered,
     IsTaggable,
+    IsTemplatable,
     IsDeletable,
 ):
     """A Style is a graphical interface."""
