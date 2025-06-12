@@ -35,6 +35,7 @@ AnyNodeData = Union[
     CounterMeasurementData,
     HistogramMetricData,
     HistogramMeasurementData,
+    OptionData,
     SchemaData,
     InviteData,
     MembershipData,

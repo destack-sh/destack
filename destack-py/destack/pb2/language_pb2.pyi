@@ -331,6 +331,7 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_DEFAULT_FACTORY: _ClassVar[EnumType]
     ENUM_TYPE_STRING_FORMAT: _ClassVar[EnumType]
     ENUM_TYPE_NUMBER_FORMAT: _ClassVar[EnumType]
+    ENUM_TYPE_SCHEMA_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_FIELD_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_EDGE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_EDGE_DIRECTION: _ClassVar[EnumType]
@@ -791,6 +792,7 @@ class NodeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     NODE_TYPE_CUSTOM_ENTITY: _ClassVar[NodeType]
     NODE_TYPE_SCHEMA: _ClassVar[NodeType]
     NODE_TYPE_FIELD: _ClassVar[NodeType]
+    NODE_TYPE_OPTION: _ClassVar[NodeType]
     NODE_TYPE_FILE: _ClassVar[NodeType]
     NODE_TYPE_LINK: _ClassVar[NodeType]
     NODE_TYPE_SCRIPT: _ClassVar[NodeType]
@@ -1070,6 +1072,12 @@ class ScheduleFrequency(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     SCHEDULE_FREQUENCY_DAY: _ClassVar[ScheduleFrequency]
     SCHEDULE_FREQUENCY_HOUR: _ClassVar[ScheduleFrequency]
     SCHEDULE_FREQUENCY_MINUTE: _ClassVar[ScheduleFrequency]
+
+class SchemaType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    SCHEMA_TYPE_UNSPECIFIED: _ClassVar[SchemaType]
+    SCHEMA_TYPE_STRUCT: _ClassVar[SchemaType]
+    SCHEMA_TYPE_ENUM: _ClassVar[SchemaType]
 
 class ShadowPosition(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1627,6 +1635,7 @@ ENUM_TYPE_SCALAR_TYPE: EnumType
 ENUM_TYPE_DEFAULT_FACTORY: EnumType
 ENUM_TYPE_STRING_FORMAT: EnumType
 ENUM_TYPE_NUMBER_FORMAT: EnumType
+ENUM_TYPE_SCHEMA_TYPE: EnumType
 ENUM_TYPE_FIELD_TYPE: EnumType
 ENUM_TYPE_EDGE_TYPE: EnumType
 ENUM_TYPE_EDGE_DIRECTION: EnumType
@@ -1988,6 +1997,7 @@ NODE_TYPE_CUSTOM_ENTITY_DEFINITION: NodeType
 NODE_TYPE_CUSTOM_ENTITY: NodeType
 NODE_TYPE_SCHEMA: NodeType
 NODE_TYPE_FIELD: NodeType
+NODE_TYPE_OPTION: NodeType
 NODE_TYPE_FILE: NodeType
 NODE_TYPE_LINK: NodeType
 NODE_TYPE_SCRIPT: NodeType
@@ -2198,6 +2208,9 @@ SCHEDULE_FREQUENCY_WEEK: ScheduleFrequency
 SCHEDULE_FREQUENCY_DAY: ScheduleFrequency
 SCHEDULE_FREQUENCY_HOUR: ScheduleFrequency
 SCHEDULE_FREQUENCY_MINUTE: ScheduleFrequency
+SCHEMA_TYPE_UNSPECIFIED: SchemaType
+SCHEMA_TYPE_STRUCT: SchemaType
+SCHEMA_TYPE_ENUM: SchemaType
 SHADOW_POSITION_UNSPECIFIED: ShadowPosition
 SHADOW_POSITION_OUTSIDE: ShadowPosition
 SHADOW_POSITION_INSIDE: ShadowPosition
@@ -5163,6 +5176,38 @@ class NumberInputViewData(_message.Message):
     script_ptr: NodeReferenceData
     def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., order_key: _Optional[str] = ..., name: _Optional[str] = ..., position: _Optional[_Union[PositionData, _Mapping]] = ..., width: _Optional[_Union[DimensionData, _Mapping]] = ..., height: _Optional[_Union[DimensionData, _Mapping]] = ..., min_width: _Optional[_Union[DimensionData, _Mapping]] = ..., min_height: _Optional[_Union[DimensionData, _Mapping]] = ..., max_width: _Optional[_Union[DimensionData, _Mapping]] = ..., max_height: _Optional[_Union[DimensionData, _Mapping]] = ..., is_visible: bool = ..., opacity: _Optional[float] = ..., value: _Optional[str] = ..., placeholder: _Optional[str] = ..., script_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
+class OptionData(_message.Message):
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "order_key", "name", "icon", "source_ptr")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
+    SPACE_PTR_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    DELETED_AT_FIELD_NUMBER: _ClassVar[int]
+    TEMPLATE_PTR_FIELD_NUMBER: _ClassVar[int]
+    ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    ICON_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_PTR_FIELD_NUMBER: _ClassVar[int]
+    metatype: NodeType
+    id: str
+    parent_ptr: NodeReferenceData
+    space_ptr: NodeReferenceData
+    created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
+    updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
+    deleted_at: _timestamp_pb2.Timestamp
+    template_ptr: NodeReferenceData
+    order_key: str
+    name: str
+    icon: IconData
+    source_ptr: NodeReferenceData
+    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., order_key: _Optional[str] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., source_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+
 class OrganizationData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "name", "slug", "icon", "status", "space_ptr", "handle_ptr")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -7039,7 +7084,7 @@ class WizardViewData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., order_key: _Optional[str] = ..., name: _Optional[str] = ..., position: _Optional[_Union[PositionData, _Mapping]] = ..., width: _Optional[_Union[DimensionData, _Mapping]] = ..., height: _Optional[_Union[DimensionData, _Mapping]] = ..., min_width: _Optional[_Union[DimensionData, _Mapping]] = ..., min_height: _Optional[_Union[DimensionData, _Mapping]] = ..., max_width: _Optional[_Union[DimensionData, _Mapping]] = ..., max_height: _Optional[_Union[DimensionData, _Mapping]] = ..., script_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class SomeNodeData(_message.Message):
-    __slots__ = ("space", "handle", "user", "friendship", "friendship_invite", "organization", "client", "membership", "invite", "role", "folder", "tag", "tagging", "custom_entity_definition", "custom_entity", "schema", "field", "file", "link", "script", "service", "action", "route", "trigger", "timer", "event_cursor", "screen_cursor", "thread_cursor", "run", "span", "interruption", "log", "custom_event_definition", "custom_event", "edit_event", "gauge_metric", "gauge_measurement", "counter_metric", "counter_measurement", "histogram_metric", "histogram_measurement", "environment", "thread", "message", "reaction", "star", "follow", "notification", "database", "machine", "window", "scene", "layer", "custom_view_definition", "custom_view", "frame_view", "label_view", "split_view", "text_view", "number_input_view", "slider_input_view", "thread_view", "wizard_view", "canvas", "line_shape", "plane_shape", "arrow_shape", "annotation_shape", "theme", "color_style", "fill_style", "font_style", "border_style", "shadow_style", "gradient_style", "transition_style", "effect_style")
+    __slots__ = ("space", "handle", "user", "friendship", "friendship_invite", "organization", "client", "membership", "invite", "role", "folder", "tag", "tagging", "custom_entity_definition", "custom_entity", "schema", "field", "option", "file", "link", "script", "service", "action", "route", "trigger", "timer", "event_cursor", "screen_cursor", "thread_cursor", "run", "span", "interruption", "log", "custom_event_definition", "custom_event", "edit_event", "gauge_metric", "gauge_measurement", "counter_metric", "counter_measurement", "histogram_metric", "histogram_measurement", "environment", "thread", "message", "reaction", "star", "follow", "notification", "database", "machine", "window", "scene", "layer", "custom_view_definition", "custom_view", "frame_view", "label_view", "split_view", "text_view", "number_input_view", "slider_input_view", "thread_view", "wizard_view", "canvas", "line_shape", "plane_shape", "arrow_shape", "annotation_shape", "theme", "color_style", "fill_style", "font_style", "border_style", "shadow_style", "gradient_style", "transition_style", "effect_style")
     SPACE_FIELD_NUMBER: _ClassVar[int]
     HANDLE_FIELD_NUMBER: _ClassVar[int]
     USER_FIELD_NUMBER: _ClassVar[int]
@@ -7057,6 +7102,7 @@ class SomeNodeData(_message.Message):
     CUSTOM_ENTITY_FIELD_NUMBER: _ClassVar[int]
     SCHEMA_FIELD_NUMBER: _ClassVar[int]
     FIELD_FIELD_NUMBER: _ClassVar[int]
+    OPTION_FIELD_NUMBER: _ClassVar[int]
     FILE_FIELD_NUMBER: _ClassVar[int]
     LINK_FIELD_NUMBER: _ClassVar[int]
     SCRIPT_FIELD_NUMBER: _ClassVar[int]
@@ -7134,6 +7180,7 @@ class SomeNodeData(_message.Message):
     custom_entity: CustomEntityData
     schema: SchemaData
     field: FieldData
+    option: OptionData
     file: FileData
     link: LinkData
     script: ScriptData
@@ -7194,4 +7241,4 @@ class SomeNodeData(_message.Message):
     gradient_style: GradientStyleData
     transition_style: TransitionStyleData
     effect_style: EffectStyleData
-    def __init__(self, space: _Optional[_Union[SpaceData, _Mapping]] = ..., handle: _Optional[_Union[HandleData, _Mapping]] = ..., user: _Optional[_Union[UserData, _Mapping]] = ..., friendship: _Optional[_Union[FriendshipData, _Mapping]] = ..., friendship_invite: _Optional[_Union[FriendshipInviteData, _Mapping]] = ..., organization: _Optional[_Union[OrganizationData, _Mapping]] = ..., client: _Optional[_Union[ClientData, _Mapping]] = ..., membership: _Optional[_Union[MembershipData, _Mapping]] = ..., invite: _Optional[_Union[InviteData, _Mapping]] = ..., role: _Optional[_Union[RoleData, _Mapping]] = ..., folder: _Optional[_Union[FolderData, _Mapping]] = ..., tag: _Optional[_Union[TagData, _Mapping]] = ..., tagging: _Optional[_Union[TaggingData, _Mapping]] = ..., custom_entity_definition: _Optional[_Union[CustomEntityDefinitionData, _Mapping]] = ..., custom_entity: _Optional[_Union[CustomEntityData, _Mapping]] = ..., schema: _Optional[_Union[SchemaData, _Mapping]] = ..., field: _Optional[_Union[FieldData, _Mapping]] = ..., file: _Optional[_Union[FileData, _Mapping]] = ..., link: _Optional[_Union[LinkData, _Mapping]] = ..., script: _Optional[_Union[ScriptData, _Mapping]] = ..., service: _Optional[_Union[ServiceData, _Mapping]] = ..., action: _Optional[_Union[ActionData, _Mapping]] = ..., route: _Optional[_Union[RouteData, _Mapping]] = ..., trigger: _Optional[_Union[TriggerData, _Mapping]] = ..., timer: _Optional[_Union[TimerData, _Mapping]] = ..., event_cursor: _Optional[_Union[EventCursorData, _Mapping]] = ..., screen_cursor: _Optional[_Union[ScreenCursorData, _Mapping]] = ..., thread_cursor: _Optional[_Union[ThreadCursorData, _Mapping]] = ..., run: _Optional[_Union[RunData, _Mapping]] = ..., span: _Optional[_Union[SpanData, _Mapping]] = ..., interruption: _Optional[_Union[InterruptionData, _Mapping]] = ..., log: _Optional[_Union[LogData, _Mapping]] = ..., custom_event_definition: _Optional[_Union[CustomEventDefinitionData, _Mapping]] = ..., custom_event: _Optional[_Union[CustomEventData, _Mapping]] = ..., edit_event: _Optional[_Union[EditEventData, _Mapping]] = ..., gauge_metric: _Optional[_Union[GaugeMetricData, _Mapping]] = ..., gauge_measurement: _Optional[_Union[GaugeMeasurementData, _Mapping]] = ..., counter_metric: _Optional[_Union[CounterMetricData, _Mapping]] = ..., counter_measurement: _Optional[_Union[CounterMeasurementData, _Mapping]] = ..., histogram_metric: _Optional[_Union[HistogramMetricData, _Mapping]] = ..., histogram_measurement: _Optional[_Union[HistogramMeasurementData, _Mapping]] = ..., environment: _Optional[_Union[EnvironmentData, _Mapping]] = ..., thread: _Optional[_Union[ThreadData, _Mapping]] = ..., message: _Optional[_Union[MessageData, _Mapping]] = ..., reaction: _Optional[_Union[ReactionData, _Mapping]] = ..., star: _Optional[_Union[StarData, _Mapping]] = ..., follow: _Optional[_Union[FollowData, _Mapping]] = ..., notification: _Optional[_Union[NotificationData, _Mapping]] = ..., database: _Optional[_Union[DatabaseData, _Mapping]] = ..., machine: _Optional[_Union[MachineData, _Mapping]] = ..., window: _Optional[_Union[WindowData, _Mapping]] = ..., scene: _Optional[_Union[SceneData, _Mapping]] = ..., layer: _Optional[_Union[LayerData, _Mapping]] = ..., custom_view_definition: _Optional[_Union[CustomViewDefinitionData, _Mapping]] = ..., custom_view: _Optional[_Union[CustomViewData, _Mapping]] = ..., frame_view: _Optional[_Union[FrameViewData, _Mapping]] = ..., label_view: _Optional[_Union[LabelViewData, _Mapping]] = ..., split_view: _Optional[_Union[SplitViewData, _Mapping]] = ..., text_view: _Optional[_Union[TextViewData, _Mapping]] = ..., number_input_view: _Optional[_Union[NumberInputViewData, _Mapping]] = ..., slider_input_view: _Optional[_Union[SliderInputViewData, _Mapping]] = ..., thread_view: _Optional[_Union[ThreadViewData, _Mapping]] = ..., wizard_view: _Optional[_Union[WizardViewData, _Mapping]] = ..., canvas: _Optional[_Union[CanvasData, _Mapping]] = ..., line_shape: _Optional[_Union[LineShapeData, _Mapping]] = ..., plane_shape: _Optional[_Union[PlaneShapeData, _Mapping]] = ..., arrow_shape: _Optional[_Union[ArrowShapeData, _Mapping]] = ..., annotation_shape: _Optional[_Union[AnnotationShapeData, _Mapping]] = ..., theme: _Optional[_Union[ThemeData, _Mapping]] = ..., color_style: _Optional[_Union[ColorStyleData, _Mapping]] = ..., fill_style: _Optional[_Union[FillStyleData, _Mapping]] = ..., font_style: _Optional[_Union[FontStyleData, _Mapping]] = ..., border_style: _Optional[_Union[BorderStyleData, _Mapping]] = ..., shadow_style: _Optional[_Union[ShadowStyleData, _Mapping]] = ..., gradient_style: _Optional[_Union[GradientStyleData, _Mapping]] = ..., transition_style: _Optional[_Union[TransitionStyleData, _Mapping]] = ..., effect_style: _Optional[_Union[EffectStyleData, _Mapping]] = ...) -> None: ...
+    def __init__(self, space: _Optional[_Union[SpaceData, _Mapping]] = ..., handle: _Optional[_Union[HandleData, _Mapping]] = ..., user: _Optional[_Union[UserData, _Mapping]] = ..., friendship: _Optional[_Union[FriendshipData, _Mapping]] = ..., friendship_invite: _Optional[_Union[FriendshipInviteData, _Mapping]] = ..., organization: _Optional[_Union[OrganizationData, _Mapping]] = ..., client: _Optional[_Union[ClientData, _Mapping]] = ..., membership: _Optional[_Union[MembershipData, _Mapping]] = ..., invite: _Optional[_Union[InviteData, _Mapping]] = ..., role: _Optional[_Union[RoleData, _Mapping]] = ..., folder: _Optional[_Union[FolderData, _Mapping]] = ..., tag: _Optional[_Union[TagData, _Mapping]] = ..., tagging: _Optional[_Union[TaggingData, _Mapping]] = ..., custom_entity_definition: _Optional[_Union[CustomEntityDefinitionData, _Mapping]] = ..., custom_entity: _Optional[_Union[CustomEntityData, _Mapping]] = ..., schema: _Optional[_Union[SchemaData, _Mapping]] = ..., field: _Optional[_Union[FieldData, _Mapping]] = ..., option: _Optional[_Union[OptionData, _Mapping]] = ..., file: _Optional[_Union[FileData, _Mapping]] = ..., link: _Optional[_Union[LinkData, _Mapping]] = ..., script: _Optional[_Union[ScriptData, _Mapping]] = ..., service: _Optional[_Union[ServiceData, _Mapping]] = ..., action: _Optional[_Union[ActionData, _Mapping]] = ..., route: _Optional[_Union[RouteData, _Mapping]] = ..., trigger: _Optional[_Union[TriggerData, _Mapping]] = ..., timer: _Optional[_Union[TimerData, _Mapping]] = ..., event_cursor: _Optional[_Union[EventCursorData, _Mapping]] = ..., screen_cursor: _Optional[_Union[ScreenCursorData, _Mapping]] = ..., thread_cursor: _Optional[_Union[ThreadCursorData, _Mapping]] = ..., run: _Optional[_Union[RunData, _Mapping]] = ..., span: _Optional[_Union[SpanData, _Mapping]] = ..., interruption: _Optional[_Union[InterruptionData, _Mapping]] = ..., log: _Optional[_Union[LogData, _Mapping]] = ..., custom_event_definition: _Optional[_Union[CustomEventDefinitionData, _Mapping]] = ..., custom_event: _Optional[_Union[CustomEventData, _Mapping]] = ..., edit_event: _Optional[_Union[EditEventData, _Mapping]] = ..., gauge_metric: _Optional[_Union[GaugeMetricData, _Mapping]] = ..., gauge_measurement: _Optional[_Union[GaugeMeasurementData, _Mapping]] = ..., counter_metric: _Optional[_Union[CounterMetricData, _Mapping]] = ..., counter_measurement: _Optional[_Union[CounterMeasurementData, _Mapping]] = ..., histogram_metric: _Optional[_Union[HistogramMetricData, _Mapping]] = ..., histogram_measurement: _Optional[_Union[HistogramMeasurementData, _Mapping]] = ..., environment: _Optional[_Union[EnvironmentData, _Mapping]] = ..., thread: _Optional[_Union[ThreadData, _Mapping]] = ..., message: _Optional[_Union[MessageData, _Mapping]] = ..., reaction: _Optional[_Union[ReactionData, _Mapping]] = ..., star: _Optional[_Union[StarData, _Mapping]] = ..., follow: _Optional[_Union[FollowData, _Mapping]] = ..., notification: _Optional[_Union[NotificationData, _Mapping]] = ..., database: _Optional[_Union[DatabaseData, _Mapping]] = ..., machine: _Optional[_Union[MachineData, _Mapping]] = ..., window: _Optional[_Union[WindowData, _Mapping]] = ..., scene: _Optional[_Union[SceneData, _Mapping]] = ..., layer: _Optional[_Union[LayerData, _Mapping]] = ..., custom_view_definition: _Optional[_Union[CustomViewDefinitionData, _Mapping]] = ..., custom_view: _Optional[_Union[CustomViewData, _Mapping]] = ..., frame_view: _Optional[_Union[FrameViewData, _Mapping]] = ..., label_view: _Optional[_Union[LabelViewData, _Mapping]] = ..., split_view: _Optional[_Union[SplitViewData, _Mapping]] = ..., text_view: _Optional[_Union[TextViewData, _Mapping]] = ..., number_input_view: _Optional[_Union[NumberInputViewData, _Mapping]] = ..., slider_input_view: _Optional[_Union[SliderInputViewData, _Mapping]] = ..., thread_view: _Optional[_Union[ThreadViewData, _Mapping]] = ..., wizard_view: _Optional[_Union[WizardViewData, _Mapping]] = ..., canvas: _Optional[_Union[CanvasData, _Mapping]] = ..., line_shape: _Optional[_Union[LineShapeData, _Mapping]] = ..., plane_shape: _Optional[_Union[PlaneShapeData, _Mapping]] = ..., arrow_shape: _Optional[_Union[ArrowShapeData, _Mapping]] = ..., annotation_shape: _Optional[_Union[AnnotationShapeData, _Mapping]] = ..., theme: _Optional[_Union[ThemeData, _Mapping]] = ..., color_style: _Optional[_Union[ColorStyleData, _Mapping]] = ..., fill_style: _Optional[_Union[FillStyleData, _Mapping]] = ..., font_style: _Optional[_Union[FontStyleData, _Mapping]] = ..., border_style: _Optional[_Union[BorderStyleData, _Mapping]] = ..., shadow_style: _Optional[_Union[ShadowStyleData, _Mapping]] = ..., gradient_style: _Optional[_Union[GradientStyleData, _Mapping]] = ..., transition_style: _Optional[_Union[TransitionStyleData, _Mapping]] = ..., effect_style: _Optional[_Union[EffectStyleData, _Mapping]] = ...) -> None: ...

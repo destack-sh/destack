@@ -139,7 +139,7 @@ class DateAvailabilityOverride(Entity):
 
 
 @schema
-class ScheduledEventStatus(Enum):  # nocheckin: Schema/Enums
+class ScheduledEventStatus(Enum):
     SCHEDULED = 1
     CANCELLED = 2
     COMPLETED = 3

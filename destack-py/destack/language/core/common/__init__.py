@@ -21,6 +21,7 @@ from .metric import (
     HistogramMeasurement,
     HistogramMetric,
 )
+from .option import Option
 from .query import (
     Aggregation,
     AggregationType,
@@ -198,6 +199,7 @@ __all__ = [
     "NodeReference",
     "NumberConstraint",
     "NumberFormat",
+    "Option",
     "Overflow",
     "Position",
     "PositionType",

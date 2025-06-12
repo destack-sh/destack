@@ -5168,6 +5168,67 @@ export interface NumberInputViewData {
     scriptPtr?: NodeReferenceData;
 }
 /**
+ * @generated from protobuf message symbol.destack.OptionData
+ */
+export interface OptionData {
+    /**
+     * @generated from protobuf field: symbol.destack.NodeType metatype = 1;
+     */
+    metatype: NodeType;
+    /**
+     * @generated from protobuf field: string id = 2;
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceData parent_ptr = 4;
+     */
+    parentPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceData space_ptr = 6;
+     */
+    spacePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 10;
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceData created_by_ptr = 11;
+     */
+    createdByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp updated_at = 12;
+     */
+    updatedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceData updated_by_ptr = 13;
+     */
+    updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 15;
+     */
+    deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceData template_ptr = 16;
+     */
+    templatePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: string order_key = 19;
+     */
+    orderKey: string;
+    /**
+     * @generated from protobuf field: string name = 31;
+     */
+    name: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.IconData icon = 34;
+     */
+    icon?: IconData;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceData source_ptr = 210;
+     */
+    sourcePtr?: NodeReferenceData;
+}
+/**
  * An Organization with Users and Teams.
  *
  * @generated from protobuf message symbol.destack.OrganizationData
@@ -8792,6 +8853,12 @@ export interface SomeNodeData {
          */
         field: FieldData;
     } | {
+        oneofKind: "option";
+        /**
+         * @generated from protobuf field: symbol.destack.OptionData option = 1402;
+         */
+        option: OptionData;
+    } | {
         oneofKind: "file";
         /**
          * @generated from protobuf field: symbol.destack.FileData file = 1410;
@@ -10222,6 +10289,10 @@ export enum EnumType {
      * @generated from protobuf enum value: ENUM_TYPE_NUMBER_FORMAT = 1512;
      */
     NUMBER_FORMAT = 1512,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_SCHEMA_TYPE = 1520;
+     */
+    SCHEMA_TYPE = 1520,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_FIELD_TYPE = 1521;
      */
@@ -11844,6 +11915,10 @@ export enum NodeType {
      */
     FIELD = 1401,
     /**
+     * @generated from protobuf enum value: NODE_TYPE_OPTION = 1402;
+     */
+    OPTION = 1402,
+    /**
      * @generated from protobuf enum value: NODE_TYPE_FILE = 1410;
      */
     FILE = 1410,
@@ -12822,6 +12897,25 @@ export enum ScheduleFrequency {
      * @generated from protobuf enum value: SCHEDULE_FREQUENCY_MINUTE = 6;
      */
     MINUTE = 6
+}
+/**
+ * Built-in schema types.
+ *
+ * @generated from protobuf enum symbol.destack.SchemaType
+ */
+export enum SchemaType {
+    /**
+     * @generated from protobuf enum value: SCHEMA_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: SCHEMA_TYPE_STRUCT = 1;
+     */
+    STRUCT = 1,
+    /**
+     * @generated from protobuf enum value: SCHEMA_TYPE_ENUM = 2;
+     */
+    ENUM = 2
 }
 /**
  * Built-in shadow positions.
@@ -25854,6 +25948,147 @@ class NumberInputViewData$Type extends MessageType$<NumberInputViewData> {
  */
 export const NumberInputViewData = new NumberInputViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class OptionData$Type extends MessageType$<OptionData> {
+    constructor() {
+        super("symbol.destack.OptionData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 6, name: "space_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
+            { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 16, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 19, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 34, name: "icon", kind: "message", T: () => IconData },
+            { no: 210, name: "source_ptr", kind: "message", T: () => NodeReferenceData }
+        ]);
+    }
+    create(value?: PartialMessage<OptionData>): OptionData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.orderKey = "";
+        message.name = "";
+        if (value !== undefined)
+            reflectionMergePartial<OptionData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: OptionData): OptionData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.NodeType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceData parent_ptr */ 4:
+                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceData space_ptr */ 6:
+                    message.spacePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 10:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* optional symbol.destack.NodeReferenceData created_by_ptr */ 11:
+                    message.createdByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* google.protobuf.Timestamp updated_at */ 12:
+                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
+                    break;
+                case /* optional symbol.destack.NodeReferenceData updated_by_ptr */ 13:
+                    message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 15:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional symbol.destack.NodeReferenceData template_ptr */ 16:
+                    message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* string order_key */ 19:
+                    message.orderKey = reader.string();
+                    break;
+                case /* string name */ 31:
+                    message.name = reader.string();
+                    break;
+                case /* optional symbol.destack.IconData icon */ 34:
+                    message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                    break;
+                case /* optional symbol.destack.NodeReferenceData source_ptr */ 210:
+                    message.sourcePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.sourcePtr);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: OptionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.NodeType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbol.destack.NodeReferenceData parent_ptr = 4; */
+        if (message.parentPtr)
+            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceData space_ptr = 6; */
+        if (message.spacePtr)
+            NodeReferenceData.internalBinaryWrite(message.spacePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp created_at = 10; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceData created_by_ptr = 11; */
+        if (message.createdByPtr)
+            NodeReferenceData.internalBinaryWrite(message.createdByPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp updated_at = 12; */
+        if (message.updatedAt)
+            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceData updated_by_ptr = 13; */
+        if (message.updatedByPtr)
+            NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 15; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceData template_ptr = 16; */
+        if (message.templatePtr)
+            NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* string order_key = 19; */
+        if (message.orderKey !== "")
+            writer.tag(19, WireType.LengthDelimited).string(message.orderKey);
+        /* string name = 31; */
+        if (message.name !== "")
+            writer.tag(31, WireType.LengthDelimited).string(message.name);
+        /* optional symbol.destack.IconData icon = 34; */
+        if (message.icon)
+            IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceData source_ptr = 210; */
+        if (message.sourcePtr)
+            NodeReferenceData.internalBinaryWrite(message.sourcePtr, writer.tag(210, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.OptionData
+ */
+export const OptionData = new OptionData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class OrganizationData$Type extends MessageType$<OrganizationData> {
     constructor() {
         super("symbol.destack.OrganizationData", [
@@ -34270,6 +34505,7 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
             { no: 1001, name: "custom_entity", kind: "message", oneof: "node", T: () => CustomEntityData },
             { no: 1400, name: "schema", kind: "message", oneof: "node", T: () => SchemaData },
             { no: 1401, name: "field", kind: "message", oneof: "node", T: () => FieldData },
+            { no: 1402, name: "option", kind: "message", oneof: "node", T: () => OptionData },
             { no: 1410, name: "file", kind: "message", oneof: "node", T: () => FileData },
             { no: 1411, name: "link", kind: "message", oneof: "node", T: () => LinkData },
             { no: 1800, name: "script", kind: "message", oneof: "node", T: () => ScriptData },
@@ -34444,6 +34680,12 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
                     message.node = {
                         oneofKind: "field",
                         field: FieldData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).field)
+                    };
+                    break;
+                case /* symbol.destack.OptionData option */ 1402:
+                    message.node = {
+                        oneofKind: "option",
+                        option: OptionData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).option)
                     };
                     break;
                 case /* symbol.destack.FileData file */ 1410:
@@ -34869,6 +35111,9 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
         /* symbol.destack.FieldData field = 1401; */
         if (message.node.oneofKind === "field")
             FieldData.internalBinaryWrite(message.node.field, writer.tag(1401, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.OptionData option = 1402; */
+        if (message.node.oneofKind === "option")
+            OptionData.internalBinaryWrite(message.node.option, writer.tag(1402, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.FileData file = 1410; */
         if (message.node.oneofKind === "file")
             FileData.internalBinaryWrite(message.node.file, writer.tag(1410, WireType.LengthDelimited).fork(), options).join();
@@ -35067,7 +35312,7 @@ export const SomeNodeData = new SomeNodeData$Type();
 //
 
 // Any...
-export type AnyNodeData = CustomEntityDefinitionData | CustomEntityData | EditEventData | CustomEventDefinitionData | CustomEventData | FieldData | GaugeMetricData | GaugeMeasurementData | CounterMetricData | CounterMeasurementData | HistogramMetricData | HistogramMeasurementData | SchemaData | InviteData | MembershipData | RoleData | CustomViewDefinitionData | CustomViewData | FrameViewData | LabelViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | WizardViewData | ThreadViewData | AnnotationShapeData | ArrowShapeData | CanvasData | LineShapeData | PlaneShapeData | FileData | LinkData | EnvironmentData | FolderData | TagData | TaggingData | DatabaseData | MachineData | ActionData | EventCursorData | ScreenCursorData | ThreadCursorData | RouteData | ScriptData | ServiceData | TimerData | TriggerData | InterruptionData | LogData | RunData | SpanData | LayerData | SceneData | WindowData | FollowData | MessageData | NotificationData | ReactionData | StarData | ThreadData | ClientData | FriendshipData | FriendshipInviteData | HandleData | OrganizationData | SpaceData | UserData | ColorStyleData | BorderStyleData | TransitionStyleData | EffectStyleData | GradientStyleData | FillStyleData | FontStyleData | ShadowStyleData | ThemeData
+export type AnyNodeData = CustomEntityDefinitionData | CustomEntityData | EditEventData | CustomEventDefinitionData | CustomEventData | FieldData | GaugeMetricData | GaugeMeasurementData | CounterMetricData | CounterMeasurementData | HistogramMetricData | HistogramMeasurementData | OptionData | SchemaData | InviteData | MembershipData | RoleData | CustomViewDefinitionData | CustomViewData | FrameViewData | LabelViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | WizardViewData | ThreadViewData | AnnotationShapeData | ArrowShapeData | CanvasData | LineShapeData | PlaneShapeData | FileData | LinkData | EnvironmentData | FolderData | TagData | TaggingData | DatabaseData | MachineData | ActionData | EventCursorData | ScreenCursorData | ThreadCursorData | RouteData | ScriptData | ServiceData | TimerData | TriggerData | InterruptionData | LogData | RunData | SpanData | LayerData | SceneData | WindowData | FollowData | MessageData | NotificationData | ReactionData | StarData | ThreadData | ClientData | FriendshipData | FriendshipInviteData | HandleData | OrganizationData | SpaceData | UserData | ColorStyleData | BorderStyleData | TransitionStyleData | EffectStyleData | GradientStyleData | FillStyleData | FontStyleData | ShadowStyleData | ThemeData
 export type AnyStructData = ScopeData | RelationReferenceData | AttributeReferenceData | PropertyReferenceData | NodeReferenceData | EditData | ChangeData | ChangeResultData | ErrorData | StringConstraintData | NumberConstraintData | CollectionConstraintData | NodeConstraintData | TypeData | ValueData | FunctionData | ConditionData | AggregationData | ExpressionData | SortData | SelectData | JoinData | QueryData | HistogramData | QueryResultData | QueryResultGroupData | QueryUpdateData | SelectionData | IconData | PropertyInfoData | TraitInfoData | NodeInfoData | StructInfoData | EnumInfoData | EnumOptionInfoData | TextSpanData | TextLineData | TextData | VariableData | LengthData | PositionData | DimensionData | InsetsData | CornersData | Axis2Data | Axis3Data | Vector2Data | Vector3Data | Vector4Data | Vector2iData | Vector3iData | Vector4iData | GridData | GridSpanData | CellInfoData | DatabaseInfoData | ScheduleData | OriginData | ColorData | BorderData | TransitionData | EffectData | GradientStopData | GradientData | FillData | FontData | ShadowData
 
     

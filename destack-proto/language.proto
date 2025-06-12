@@ -330,6 +330,7 @@ enum EnumType {
   ENUM_TYPE_DEFAULT_FACTORY = 1504;
   ENUM_TYPE_STRING_FORMAT = 1511;
   ENUM_TYPE_NUMBER_FORMAT = 1512;
+  ENUM_TYPE_SCHEMA_TYPE = 1520;
   ENUM_TYPE_FIELD_TYPE = 1521;
   ENUM_TYPE_EDGE_TYPE = 1522;
   ENUM_TYPE_EDGE_DIRECTION = 1523;
@@ -796,6 +797,7 @@ enum NodeType {
   NODE_TYPE_CUSTOM_ENTITY = 1001;
   NODE_TYPE_SCHEMA = 1400;
   NODE_TYPE_FIELD = 1401;
+  NODE_TYPE_OPTION = 1402;
   NODE_TYPE_FILE = 1410;
   NODE_TYPE_LINK = 1411;
   NODE_TYPE_SCRIPT = 1800;
@@ -1087,6 +1089,13 @@ enum ScheduleFrequency {
   SCHEDULE_FREQUENCY_DAY = 4;
   SCHEDULE_FREQUENCY_HOUR = 5;
   SCHEDULE_FREQUENCY_MINUTE = 6;
+}
+
+// Built-in schema types.
+enum SchemaType {
+  SCHEMA_TYPE_UNSPECIFIED = 0;
+  SCHEMA_TYPE_STRUCT = 1;
+  SCHEMA_TYPE_ENUM = 2;
 }
 
 // Built-in shadow positions.
@@ -2883,6 +2892,23 @@ message NumberInputViewData {
   optional NodeReferenceData script_ptr = 200;
 }
 
+message OptionData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 6;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  string order_key = 19;
+  string name = 31;
+  optional IconData icon = 34;
+  optional NodeReferenceData source_ptr = 210;
+}
+
 // An Organization with Users and Teams.
 message OrganizationData {
   NodeType metatype = 1;
@@ -3898,6 +3924,7 @@ message SomeNodeData {
     CustomEntityData custom_entity = 1001;
     SchemaData schema = 1400;
     FieldData field = 1401;
+    OptionData option = 1402;
     FileData file = 1410;
     LinkData link = 1411;
     ScriptData script = 1800;
