@@ -6,6 +6,7 @@ from hypothesis import HealthCheck, given, settings
 
 from destack.language import (
     ACTIVE_SESSION,
+    AreaType,
     Client,
     ClientType,
     CustomView,
@@ -36,7 +37,7 @@ from destack.test.unit.conftest import NODES
 
 @pytest.fixture
 def postgres_store(omni_postgres_database: DatabaseInfo) -> PostgresStore:
-    return PostgresStore(database=omni_postgres_database, area=None)
+    return PostgresStore(database=omni_postgres_database, areas=tuple(AreaType))
 
 
 @pytest.fixture  # :PytestAsyncContext

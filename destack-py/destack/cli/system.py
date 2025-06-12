@@ -25,7 +25,7 @@ async def bootstrap(
     from destack.supervisor import create_system_destackes
 
     global_database = get_global_database_from_env()
-    store = PostgresStore(database=global_database, area=AreaType.GLOBAL_POSTGRES)
+    store = PostgresStore(database=global_database, areas=(AreaType.GLOBAL_ENTITY,))
     async with Session(store=store) as session:
         await create_system_destackes(region=region, session=session, upsert=upsert)
         await session.commit()

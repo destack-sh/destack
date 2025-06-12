@@ -34,12 +34,7 @@ from destack.language.registry import (
 from .client import pg_connection
 from .core import PostgresContext, PostgresTable
 from .edit import execute_change
-from .map import (
-    BUILTIN_TABLE_BY_AREA,
-    BUILTIN_TABLE_BY_NAME,
-    DESTACK_BUILTIN_TABLE_PREFIX,
-    DESTACK_CUSTOM_TABLE_PREFIX,
-)
+from .map import DESTACK_BUILTIN_TABLE_PREFIX, DESTACK_CUSTOM_TABLE_PREFIX, get_builtin_schema
 from .query import execute_query
 
 tracer = trace.get_tracer(__name__)
@@ -70,12 +65,12 @@ class PostgresStore(Store):
 
     __slots__ = ("context", "database")
 
-    def __init__(self, database: DatabaseInfo, area: AreaType | None):
+    def __init__(self, database: DatabaseInfo, areas: tuple[AreaType, ...]):
         if database.type != DatabaseType.POSTGRES:
             raise ValueError(f"unexpected {database!r}")
         self.database = database
         self.context: PostgresStoreContext | None = None
-        self.area = area
+        self.areas = areas
 
     def __str__(self) -> str:
         return f"database={self.database!r}"
@@ -151,10 +146,8 @@ class PostgresStoreContext(PostgresContext):
     def __init__(self, store: PostgresStore):
         self.store = store
         self.tables_by_name: dict[str, PostgresTable] = {}
-        if store.area is None:
-            self.tables_by_name.update(BUILTIN_TABLE_BY_NAME)
-        else:
-            for table in BUILTIN_TABLE_BY_AREA[store.area]:
+        for area in store.areas:
+            for table in get_builtin_schema(area).tables:
                 self.tables_by_name[table.name] = table
         self.custom_node_definitions: dict[UUID, CustomEntityDefinition] = {}
 

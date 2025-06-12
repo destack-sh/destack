@@ -59,10 +59,10 @@ async def apply(
     start = time.time()
 
     # resolve databases to migrate
-    if area == AreaType.GLOBAL_POSTGRES:
+    if area == AreaType.GLOBAL_ENTITY:
         global_database = get_global_database_from_env()
         databases = [global_database]
-    elif area == AreaType.SPATIAL_POSTGRES:
+    elif area == AreaType.SPATIAL_ENTITY:
         assert cell_name, "cell_name is required for spatial area"
         assert external_name, "external_name is required for spatial area"
         spatial_database = await DATABASE_PROVIDER.resolve_or_error(
