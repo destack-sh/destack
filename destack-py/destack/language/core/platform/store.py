@@ -6,6 +6,7 @@ if TYPE_CHECKING:
     from destack.language import (
         Change,
         ChangeResult,
+        NodeType,
         Query,
         QueryResult,
         QueryUpdate,
@@ -25,8 +26,17 @@ class Store(abc.ABC):
     implementation: ClassVar[Optional["StoreImplementation"]]
 
     def __init__(self, types: tuple["StoreType", ...]):
+        from destack.language.registry import NODE_TYPES_BY_MAIN_STORE_TYPE
+
         self.types: tuple[StoreType, ...] = types
         self.zones: tuple[StoreZone, ...] = tuple({type.zone for type in types})
+        self.node_types: tuple[NodeType, ...] = tuple(
+            {
+                node_type
+                for store_type in types
+                for node_type in NODE_TYPES_BY_MAIN_STORE_TYPE[store_type]
+            }
+        )
 
     @abc.abstractmethod
     async def query(self, query: "Query") -> "QueryResult":

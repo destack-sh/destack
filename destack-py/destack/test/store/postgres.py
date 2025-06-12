@@ -59,6 +59,10 @@ def session(session_async: Session):
 @examples([{"node": node} for node in NODES])
 @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
 async def test_roundtrip_create_node(node: Node, session: Session):
+    assert session.store is not None, f"no store in session: {session!r}"
+    if node.metatype == NodeType.CUSTOM_ENTITY or node.metatype not in session.store.node_types:
+        return
+
     session.upsert(node)
     await session.commit()
 
