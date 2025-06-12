@@ -139,17 +139,16 @@ class Session:
 
     def move(self, node: Node, parent: Node):
         """Moves a Node to a new parent."""
-        assert self.closed_at is None, f"{self!r} is closed"
-        self._flush_node(node)
-        edit = Edit(type=EditType.MOVE, node=node, value=to_value(parent.to_ref()))
-        self.edits.append(edit)
-        self.dirty[node.id] = node
+        raise NotImplementedError
 
     def archive(self, node: Node):
         """Archives a Node."""
         assert self.closed_at is None, f"{self!r} is closed"
         self._flush_node(node)
-        edit = Edit(type=EditType.ARCHIVE, node=node)
+        undo_edit = Edit(
+            type=EditType.UNARCHIVE, node=node, value=to_value(node, node_as_value=True)
+        )
+        edit = Edit(type=EditType.ARCHIVE, node=node, undo=undo_edit)
         self.edits.append(edit)
         self.dirty[node.id] = node
 
@@ -165,7 +164,8 @@ class Session:
         """Deletes a Node."""
         assert self.closed_at is None, f"{self!r} is closed"
         self._flush_node(node)
-        edit = Edit(type=EditType.DELETE, node=node)
+        undo_edit = Edit(type=EditType.RESTORE, node=node, value=to_value(node, node_as_value=True))
+        edit = Edit(type=EditType.DELETE, node=node, undo=undo_edit)
         self.edits.append(edit)
         self.dirty[node.id] = node
 
@@ -181,7 +181,8 @@ class Session:
         """Erases a Node."""
         assert self.closed_at is None, f"{self!r} is closed"
         self._flush_node(node)
-        edit = Edit(type=EditType.ERASE, node=node)
+        undo_edit = Edit(type=EditType.CREATE, node=node, value=to_value(node, node_as_value=True))
+        edit = Edit(type=EditType.ERASE, node=node, undo=undo_edit)
         self.edits.append(edit)
         self.dirty[node.id] = node
 
@@ -191,23 +192,44 @@ class Session:
             node._is_new = False
         elif node._dirty is not None:
             # turn dirty properties into Edits (basic SET/CLEAR operations)
-            for prop_ord in node._dirty.itersearch(True):
-                prop = node.__properties_in_order__[prop_ord]
-                prop_value = getattr(node, prop.name)
-                if prop_value is None or (
-                    prop.cardinality != TypeCardinality.SCALAR and not prop_value
+            for prop_name, prop_old_value in node._dirty.items():
+                prop = node.__properties__[prop_name]
+
+                if prop_old_value is None or (
+                    prop.cardinality != TypeCardinality.SCALAR and not prop_old_value
+                ):
+                    undo_operation = EditOperation.CLEAR
+                    old_value = None
+                else:
+                    undo_operation = EditOperation.SET
+                    old_value = to_value(prop_old_value, prop.type)
+
+                prop_new_value = getattr(node, prop_name)
+                if prop_new_value is None or (
+                    prop.cardinality != TypeCardinality.SCALAR and not prop_new_value
                 ):
                     operation = EditOperation.CLEAR
-                    value = None
+                    new_value = None
                 else:
                     operation = EditOperation.SET
-                    value = to_value(prop_value, prop.type)
+                    new_value = to_value(prop_new_value, prop.type)
+
+                node_ptr = node.to_ref()
+                prop_ptr = prop.to_ref()
+                undo_edit = Edit(
+                    type=EditType.UPDATE,
+                    node_ptr=node_ptr,
+                    prop_ptr=prop_ptr,
+                    operation=undo_operation,
+                    value=old_value,
+                )
                 edit = Edit(
                     type=EditType.UPDATE,
-                    node=node,
-                    prop=prop,
+                    node_ptr=node_ptr,
+                    prop_ptr=prop_ptr,
                     operation=operation,
-                    value=value,
+                    value=new_value,
+                    undo=undo_edit,
                 )
                 self.edits.append(edit)
 

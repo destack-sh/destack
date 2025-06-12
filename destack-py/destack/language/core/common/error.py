@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 
 # pyright: reportIncompatibleVariableOverride=false
-# nocheckin: proper Errors/stacktraces/...
+# TODO :Incomplete: proper Errors/stacktraces/...
 
 
 @enum_(EnumType.ERROR_TYPE)

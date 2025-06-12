@@ -11,7 +11,6 @@ from typing import (
 )
 
 import structlog
-from bitarray import bitarray
 from fastuuid import UUID
 from opentelemetry import trace
 
@@ -126,7 +125,7 @@ class Node[NodeDataT: AnyNodeData](NodeBase[NodeDataT]):
     _ref: "Optional[NodeReference]" = property_runtime_(default=None)
     _is_new: bool = property_runtime_(default=False)
     _is_attached: bool = property_runtime_(default=False)
-    _dirty: bitarray | None = property_runtime_(default=None)
+    _dirty: dict[str, Any] | None = property_runtime_(default=None)
 
     @override
     def clone(
@@ -156,10 +155,13 @@ class Node[NodeDataT: AnyNodeData](NodeBase[NodeDataT]):
         """Set a property on this Node."""
         prop = self.__tracked_properties__.get(key)
         if prop is not None and not self._is_new:
+            old_value = getattr(self, key)
             if self._dirty is None:
-                self._dirty = bitarray(self.__max_property_ord__ + 1)
-            self._dirty[prop.ord] = 1  # type: ignore
-            self._session.dirty[self.id] = self
+                self._dirty = {}
+            if prop.name not in self._dirty:
+                self._dirty[prop.name] = old_value  # type: ignore
+            if self.id not in self._session.dirty:
+                self._session.dirty[self.id] = self
         _object_set(self, key, value)
 
     if not TYPE_CHECKING:

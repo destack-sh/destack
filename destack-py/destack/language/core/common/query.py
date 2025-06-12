@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Optional, Union, assert_never
+from typing import TYPE_CHECKING, Any, Optional, Union, assert_never, cast
 
 from fastuuid import UUID
 
@@ -371,19 +371,19 @@ class Query[RootT: "Trait | Node"](StructFrozen):
         """Execute the Query and return the root (if any)."""
         assert self.type in (QueryType.NODE, QueryType.GROUPED_NODE), f"cannot list {self!r}"
         connection = await self.execute()
-        return connection.to_one_or_none()
+        return cast(RootT, connection.to_one_or_none())
 
     async def execute_one(self) -> RootT:
         """Execute the Query and return the root (error if none)."""
         assert self.type in (QueryType.NODE, QueryType.GROUPED_NODE), f"cannot list {self!r}"
         connection = await self.execute()
-        return connection.to_one()
+        return cast(RootT, connection.to_one())
 
     async def execute_list(self) -> list[RootT]:
         """Execute the Query and return the list of roots."""
         assert self.type in (QueryType.NODE, QueryType.GROUPED_NODE), f"cannot list {self!r}"
         connection = await self.execute()
-        return connection.to_list()
+        return cast(list[RootT], connection.to_list())
 
     async def execute_exists(self) -> bool:
         """Execute the Query and return whether any results exist."""
