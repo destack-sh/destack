@@ -138,6 +138,14 @@ class DateAvailabilityOverride(Entity):
 # ===============================================
 
 
+@schema
+class ScheduledEventStatus(Enum):  # nocheckin: Schema/Enums
+    SCHEDULED = 1
+    CANCELLED = 2
+    COMPLETED = 3
+    NO_SHOW = 4
+
+
 @entity
 class ScheduledEvent(IsStarable, Entity):
     event_type: CalendlyEventType = field(1)
@@ -146,23 +154,23 @@ class ScheduledEvent(IsStarable, Entity):
     attendee: User | None = field(4)
     attendee_email: str = field(5)
     attendee_name: str = field(6)
-    status: str = field(7)  # "scheduled", "cancelled", "completed", "no_show"
+    status: ScheduledEventStatus = field(7)
     meeting_link: str | None = field(8)
     notes: str | None = field(9)
 
     @action
     def cancel(self: "ScheduledEvent", reason: str | None = None):
-        self.status = "cancelled"
+        self.status = ScheduledEventStatus.CANCELLED
         if reason:
-            self.notes = f"Cancelled: {reason}"
+            self.notes = reason
 
     @action
     def mark_completed(self: "ScheduledEvent"):
-        self.status = "completed"
+        self.status = ScheduledEventStatus.COMPLETED
 
     @action
     def mark_no_show(self: "ScheduledEvent"):
-        self.status = "no_show"
+        self.status = ScheduledEventStatus.NO_SHOW
 
     @action
     def reschedule(self: "ScheduledEvent", new_start_time: datetime):

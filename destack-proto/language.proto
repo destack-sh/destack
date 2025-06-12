@@ -32,6 +32,13 @@ enum Align {
   ALIGN_END = 3;
 }
 
+enum ArrowHeadType {
+  ARROW_HEAD_TYPE_UNSPECIFIED = 0;
+  ARROW_HEAD_TYPE_ARROW = 1;
+  ARROW_HEAD_TYPE_TRIANGLE = 2;
+  ARROW_HEAD_TYPE_DOT = 3;
+}
+
 enum AttributeType {
   ATTRIBUTE_TYPE_UNSPECIFIED = 0;
   ATTRIBUTE_TYPE_PROPERTY = 1;
@@ -48,6 +55,12 @@ enum BorderType {
   BORDER_TYPE_DASHED = 11;
   BORDER_TYPE_DOTTED = 12;
   BORDER_TYPE_DOUBLE = 13;
+}
+
+// Built-in canvas types.
+enum CanvasType {
+  CANVAS_TYPE_UNSPECIFIED = 0;
+  CANVAS_TYPE_SHAPE = 1;
 }
 
 enum CascadeAction {
@@ -347,6 +360,11 @@ enum EnumType {
   ENUM_TYPE_MACHINE_TYPE = 5020;
   ENUM_TYPE_MODEL_DEVELOPER = 5401;
   ENUM_TYPE_MODEL_PROVIDER = 5402;
+  ENUM_TYPE_LAYER_TYPE = 8001;
+  ENUM_TYPE_CANVAS_TYPE = 8600;
+  ENUM_TYPE_PLANE_SHAPE_TYPE = 8601;
+  ENUM_TYPE_ARROW_HEAD_TYPE = 8602;
+  ENUM_TYPE_LINE_TYPE = 8603;
   ENUM_TYPE_POSITION_TYPE = 9001;
   ENUM_TYPE_COLOR_TYPE = 9011;
   ENUM_TYPE_COLOR_SHADE = 9012;
@@ -671,6 +689,13 @@ enum JoinType {
   JOIN_TYPE_CHILD = 11;
 }
 
+// Built-in layer types.
+enum LayerType {
+  LAYER_TYPE_UNSPECIFIED = 0;
+  LAYER_TYPE_GENERAL = 1;
+  LAYER_TYPE_SHAPE = 2;
+}
+
 // The layout of a View.
 enum Layout {
   LAYOUT_UNSPECIFIED = 0;
@@ -685,6 +710,13 @@ enum LengthUnit {
   LENGTH_UNIT_REM = 2;
   LENGTH_UNIT_PERCENT = 3;
   LENGTH_UNIT_FR = 4;
+}
+
+enum LineType {
+  LINE_TYPE_UNSPECIFIED = 0;
+  LINE_TYPE_SOLID = 1;
+  LINE_TYPE_DASHED = 2;
+  LINE_TYPE_DOTTED = 3;
 }
 
 enum LinkType {
@@ -782,8 +814,6 @@ enum NodeType {
   NODE_TYPE_CUSTOM_EVENT_DEFINITION = 2500;
   NODE_TYPE_CUSTOM_EVENT = 2501;
   NODE_TYPE_EDIT_EVENT = 2502;
-  NODE_TYPE_CHANGE_EVENT = 2503;
-  NODE_TYPE_QUERY_EVENT = 2504;
   NODE_TYPE_GAUGE_METRIC = 2600;
   NODE_TYPE_GAUGE_MEASUREMENT = 2601;
   NODE_TYPE_COUNTER_METRIC = 2602;
@@ -801,6 +831,7 @@ enum NodeType {
   NODE_TYPE_MACHINE = 5020;
   NODE_TYPE_WINDOW = 8000;
   NODE_TYPE_SCENE = 8010;
+  NODE_TYPE_LAYER = 8020;
   NODE_TYPE_CUSTOM_VIEW_DEFINITION = 8200;
   NODE_TYPE_CUSTOM_VIEW = 8201;
   NODE_TYPE_FRAME_VIEW = 8202;
@@ -809,8 +840,13 @@ enum NodeType {
   NODE_TYPE_TEXT_VIEW = 8300;
   NODE_TYPE_NUMBER_INPUT_VIEW = 8400;
   NODE_TYPE_SLIDER_INPUT_VIEW = 8401;
-  NODE_TYPE_THREAD_VIEW = 8530;
-  NODE_TYPE_WIZARD_VIEW = 8600;
+  NODE_TYPE_THREAD_VIEW = 8500;
+  NODE_TYPE_WIZARD_VIEW = 8550;
+  NODE_TYPE_CANVAS = 8600;
+  NODE_TYPE_LINE_SHAPE = 8610;
+  NODE_TYPE_PLANE_SHAPE = 8611;
+  NODE_TYPE_ARROW_SHAPE = 8612;
+  NODE_TYPE_ANNOTATION_SHAPE = 8613;
   NODE_TYPE_THEME = 9000;
   NODE_TYPE_COLOR_STYLE = 9010;
   NODE_TYPE_FILL_STYLE = 9011;
@@ -849,6 +885,15 @@ enum Overflow {
   OVERFLOW_HIDDEN = 2;
   OVERFLOW_VISIBLE = 3;
   OVERFLOW_SCROLL = 4;
+}
+
+enum PlaneShapeType {
+  PLANE_SHAPE_TYPE_UNSPECIFIED = 0;
+  PLANE_SHAPE_TYPE_RECTANGLE = 1;
+  PLANE_SHAPE_TYPE_TRIANGLE = 2;
+  PLANE_SHAPE_TYPE_CIRCLE = 3;
+  PLANE_SHAPE_TYPE_ELLIPSE = 4;
+  PLANE_SHAPE_TYPE_POLYGON = 5;
 }
 
 // The position type of a View.
@@ -1299,6 +1344,7 @@ enum TraitType {
   TRAIT_TYPE_ENTITY = 10;
   TRAIT_TYPE_PARTICLE = 11;
   TRAIT_TYPE_ANALYTIC = 12;
+  TRAIT_TYPE_INDEXED = 13;
   TRAIT_TYPE_ASSET = 20;
   TRAIT_TYPE_RESOURCE = 21;
   TRAIT_TYPE_EVENT = 22;
@@ -1340,6 +1386,7 @@ enum TraitType {
   TRAIT_TYPE_NODE_VIEW = 8500;
   TRAIT_TYPE_INTERNAL_VIEW = 8600;
   TRAIT_TYPE_STYLE = 9000;
+  TRAIT_TYPE_SHAPE = 9200;
 }
 
 // Built-in transition types.
@@ -1396,7 +1443,8 @@ message ActionData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  optional string order_key = 19;
+  map<string, ValueData> value = 18;
+  string order_key = 19;
   string name = 31;
   ActionCardinality cardinality = 40;
   optional TextData text = 41;
@@ -1407,6 +1455,82 @@ message AggregationData {
   StructType metatype = 1;
   AggregationType type = 30;
   optional ExpressionData expression = 31;
+}
+
+// An AnnotationShape is a shape that represents an annotation.
+message AnnotationShapeData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 6;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  map<string, ValueData> value = 18;
+  string order_key = 19;
+  string name = 31;
+  optional PositionData position = 40;
+  optional DimensionData width = 41;
+  optional DimensionData height = 42;
+  optional DimensionData min_width = 43;
+  optional DimensionData min_height = 44;
+  optional DimensionData max_width = 45;
+  optional DimensionData max_height = 46;
+  optional Layout layout = 50;
+  optional Direction direction = 51;
+  optional Distribute distribute = 52;
+  optional Align align = 53;
+  optional Axis2Data gap = 54;
+  optional InsetsData padding = 55;
+  optional GridData grid = 56;
+  optional GridSpanData grid_span = 57;
+  optional double aspect_ratio = 58;
+  optional bool is_wrap = 59;
+  optional bool is_visible = 60;
+  optional double opacity = 61;
+  optional FillData fill = 62;
+  optional Axis3Data rotation = 63;
+  optional Vector2Data skew = 64;
+  optional double scale = 65;
+  optional ShadowData shadow = 66;
+  optional BorderData border = 67;
+  optional CornersData radius = 68;
+  optional TextData text = 100;
+  optional NodeReferenceData script_ptr = 200;
+}
+
+// An ArrowShape is a shape that represents an arrow.
+message ArrowShapeData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 6;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  string order_key = 19;
+  string name = 31;
+  optional PositionData position = 40;
+  optional DimensionData width = 41;
+  optional DimensionData height = 42;
+  optional DimensionData min_width = 43;
+  optional DimensionData min_height = 44;
+  optional DimensionData max_width = 45;
+  optional DimensionData max_height = 46;
+  optional Align align = 53;
+  optional bool is_visible = 60;
+  optional double opacity = 61;
+  ArrowHeadType start_type = 100;
+  Vector2Data start = 101;
+  ArrowHeadType end_type = 110;
+  Vector2Data end = 111;
+  optional NodeReferenceData script_ptr = 200;
 }
 
 message AttributeReferenceData {
@@ -1451,11 +1575,57 @@ message BorderStyleData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
+  string order_key = 19;
   BorderType type = 30;
   string name = 31;
   optional NodeReferenceData style_ptr = 41;
   optional ColorData color = 50;
   optional InsetsData width = 51;
+}
+
+// A Canvas is a container for only Shapes (other than that it's just a ContainerView).
+message CanvasData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 6;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  map<string, ValueData> value = 18;
+  string order_key = 19;
+  CanvasType type = 30;
+  string name = 31;
+  optional PositionData position = 40;
+  optional DimensionData width = 41;
+  optional DimensionData height = 42;
+  optional DimensionData min_width = 43;
+  optional DimensionData min_height = 44;
+  optional DimensionData max_width = 45;
+  optional DimensionData max_height = 46;
+  optional Layout layout = 50;
+  optional Direction direction = 51;
+  optional Distribute distribute = 52;
+  optional Align align = 53;
+  optional Axis2Data gap = 54;
+  optional InsetsData padding = 55;
+  optional GridData grid = 56;
+  optional GridSpanData grid_span = 57;
+  optional double aspect_ratio = 58;
+  optional bool is_wrap = 59;
+  optional bool is_visible = 60;
+  optional double opacity = 61;
+  optional FillData fill = 62;
+  optional Axis3Data rotation = 63;
+  optional Vector2Data skew = 64;
+  optional double scale = 65;
+  optional ShadowData shadow = 66;
+  optional BorderData border = 67;
+  optional CornersData radius = 68;
+  optional NodeReferenceData script_ptr = 200;
 }
 
 message CellInfoData {
@@ -1473,18 +1643,6 @@ message ChangeData {
   optional NodeReferenceData created_by_ptr = 33;
   optional OriginData origin = 34;
   repeated EditData edits = 40;
-}
-
-// A Event of a Change.
-message ChangeEventData {
-  NodeType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
 }
 
 message ChangeResultData {
@@ -1550,6 +1708,7 @@ message ColorStyleData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
+  string order_key = 19;
   ColorType type = 30;
   string name = 31;
   optional NodeReferenceData style_ptr = 42;
@@ -1601,6 +1760,7 @@ message CounterMetricData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
+  string order_key = 19;
   string name = 31;
   optional NodeReferenceData source_ptr = 210;
 }
@@ -1634,10 +1794,12 @@ message CustomEntityDefinitionData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
+  string order_key = 19;
   optional NodeReferenceData owned_by_ptr = 22;
   string name = 31;
   repeated TraitType traits = 40;
   optional NodeReferenceData script_ptr = 200;
+  optional NodeReferenceData source_ptr = 210;
 }
 
 // An instance of a CustomEventDefinition.
@@ -1663,6 +1825,7 @@ message CustomEventDefinitionData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
+  string order_key = 19;
   string name = 31;
   optional NodeReferenceData source_ptr = 210;
 }
@@ -1680,6 +1843,7 @@ message CustomViewData {
   optional NodeReferenceData template_ptr = 16;
   NodeReferenceData definition_ptr = 17;
   map<string, ValueData> value = 18;
+  string order_key = 19;
   string name = 31;
   optional PositionData position = 40;
   optional DimensionData width = 41;
@@ -1723,6 +1887,7 @@ message CustomViewDefinitionData {
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   map<string, ValueData> value = 18;
+  string order_key = 19;
   string name = 31;
   optional PositionData position = 40;
   optional DimensionData width = 41;
@@ -1763,6 +1928,7 @@ message DatabaseData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
+  string order_key = 19;
   DatabaseType type = 30;
   string name = 31;
   ResourceStatus status = 40;
@@ -1805,9 +1971,10 @@ message EditData {
   optional NodeReferenceData field_ptr = 34;
   optional ValueData key = 35;
   optional ValueData value = 40;
+  optional EditData undo = 50;
 }
 
-// A Event of an Edit.
+// A Event of an Edit. Only EditEvents of Entities are allowed.
 message EditEventData {
   NodeType metatype = 1;
   string id = 2;
@@ -1858,6 +2025,7 @@ message EffectStyleData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
+  string order_key = 19;
   EffectType type = 30;
   string name = 31;
   optional NodeReferenceData style_ptr = 41;
@@ -1956,7 +2124,7 @@ message FieldData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  optional string order_key = 19;
+  string order_key = 19;
   FieldType type = 30;
   string name = 31;
   optional IconData icon = 34;
@@ -1991,6 +2159,7 @@ message FileData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
+  string order_key = 19;
   FileType type = 30;
   string name = 31;
   FileSource source = 60;
@@ -2037,6 +2206,7 @@ message FillStyleData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
+  string order_key = 19;
   FillType type = 30;
   string name = 31;
   optional NodeReferenceData style_ptr = 42;
@@ -2059,6 +2229,7 @@ message FolderData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
+  string order_key = 19;
   optional NodeReferenceData owned_by_ptr = 22;
   FolderType type = 30;
   string name = 31;
@@ -2108,6 +2279,7 @@ message FontStyleData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
+  string order_key = 19;
   FontType type = 30;
   string name = 31;
   optional NodeReferenceData style_ptr = 41;
@@ -2134,6 +2306,7 @@ message FrameViewData {
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   map<string, ValueData> value = 18;
+  string order_key = 19;
   string name = 31;
   optional PositionData position = 40;
   optional DimensionData width = 41;
@@ -2222,6 +2395,7 @@ message GaugeMetricData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
+  string order_key = 19;
   string name = 31;
   optional NodeReferenceData source_ptr = 210;
 }
@@ -2253,6 +2427,7 @@ message GradientStyleData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
+  string order_key = 19;
   GradientType type = 30;
   string name = 31;
   optional NodeReferenceData style_ptr = 40;
@@ -2318,6 +2493,7 @@ message HistogramMetricData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
+  string order_key = 19;
   string name = 31;
   optional NodeReferenceData source_ptr = 210;
 }
@@ -2403,7 +2579,55 @@ message LabelViewData {
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   map<string, ValueData> value = 18;
+  string order_key = 19;
   string name = 31;
+  optional PositionData position = 40;
+  optional DimensionData width = 41;
+  optional DimensionData height = 42;
+  optional DimensionData min_width = 43;
+  optional DimensionData min_height = 44;
+  optional DimensionData max_width = 45;
+  optional DimensionData max_height = 46;
+  optional Layout layout = 50;
+  optional Direction direction = 51;
+  optional Distribute distribute = 52;
+  optional Align align = 53;
+  optional Axis2Data gap = 54;
+  optional InsetsData padding = 55;
+  optional GridData grid = 56;
+  optional GridSpanData grid_span = 57;
+  optional double aspect_ratio = 58;
+  optional bool is_wrap = 59;
+  optional bool is_visible = 60;
+  optional double opacity = 61;
+  optional FillData fill = 62;
+  optional Axis3Data rotation = 63;
+  optional Vector2Data skew = 64;
+  optional double scale = 65;
+  optional ShadowData shadow = 66;
+  optional BorderData border = 67;
+  optional CornersData radius = 68;
+  optional NodeReferenceData script_ptr = 200;
+}
+
+// A Layer is a named container for Views.
+message LayerData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 6;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  map<string, ValueData> value = 18;
+  string order_key = 19;
+  optional NodeReferenceData owned_by_ptr = 22;
+  LayerType type = 30;
+  string name = 31;
+  optional IconData icon = 34;
   optional PositionData position = 40;
   optional DimensionData width = 41;
   optional DimensionData height = 42;
@@ -2439,6 +2663,36 @@ message LengthData {
   double value = 51;
 }
 
+// A LineShape is a shape that represents a line.
+message LineShapeData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 6;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  string order_key = 19;
+  LineType type = 30;
+  string name = 31;
+  optional PositionData position = 40;
+  optional DimensionData width = 41;
+  optional DimensionData height = 42;
+  optional DimensionData min_width = 43;
+  optional DimensionData min_height = 44;
+  optional DimensionData max_width = 45;
+  optional DimensionData max_height = 46;
+  optional Align align = 53;
+  optional bool is_visible = 60;
+  optional double opacity = 61;
+  repeated Vector2Data points = 100;
+  optional ColorData color = 101;
+  optional NodeReferenceData script_ptr = 200;
+}
+
 // A Link to an external resource (like a web URL, or anything that doesn't fit into other Nodes).
 message LinkData {
   NodeType metatype = 1;
@@ -2449,6 +2703,7 @@ message LinkData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
+  string order_key = 19;
   LinkType type = 30;
   optional string url = 50;
   optional string domain = 51;
@@ -2490,6 +2745,7 @@ message MachineData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
+  string order_key = 19;
   MachineType type = 30;
   ResourceStatus status = 40;
   optional google.protobuf.Timestamp target_status = 41;
@@ -2611,6 +2867,7 @@ message NumberInputViewData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
+  string order_key = 19;
   string name = 31;
   optional PositionData position = 40;
   optional DimensionData width = 41;
@@ -2649,6 +2906,50 @@ message OriginData {
   optional string id = 31;
   optional string ck = 32;
   optional string nonce = 33;
+}
+
+message PlaneShapeData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 6;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  map<string, ValueData> value = 18;
+  string order_key = 19;
+  string name = 31;
+  optional PositionData position = 40;
+  optional DimensionData width = 41;
+  optional DimensionData height = 42;
+  optional DimensionData min_width = 43;
+  optional DimensionData min_height = 44;
+  optional DimensionData max_width = 45;
+  optional DimensionData max_height = 46;
+  optional Layout layout = 50;
+  optional Direction direction = 51;
+  optional Distribute distribute = 52;
+  optional Align align = 53;
+  optional Axis2Data gap = 54;
+  optional InsetsData padding = 55;
+  optional GridData grid = 56;
+  optional GridSpanData grid_span = 57;
+  optional double aspect_ratio = 58;
+  optional bool is_wrap = 59;
+  optional bool is_visible = 60;
+  optional double opacity = 61;
+  optional FillData fill = 62;
+  optional Axis3Data rotation = 63;
+  optional Vector2Data skew = 64;
+  optional double scale = 65;
+  optional ShadowData shadow = 66;
+  optional BorderData border = 67;
+  optional CornersData radius = 68;
+  repeated Vector2Data points = 100;
+  optional NodeReferenceData script_ptr = 200;
 }
 
 message PositionData {
@@ -2720,18 +3021,6 @@ message QueryData {
   optional int64 offset = 51;
 }
 
-// A Event of a Query.
-message QueryEventData {
-  NodeType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-}
-
 message QueryResultData {
   StructType metatype = 1;
   string id = 2;
@@ -2794,7 +3083,7 @@ message RoleData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  optional string order_key = 19;
+  string order_key = 19;
   string name = 31;
   optional string slug = 33;
   optional IconData icon = 34;
@@ -2812,6 +3101,7 @@ message RouteData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
+  string order_key = 19;
   optional NodeReferenceData owned_by_ptr = 22;
   string name = 31;
   optional NodeReferenceData scene_ptr = 40;
@@ -2853,10 +3143,38 @@ message SceneData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
+  map<string, ValueData> value = 18;
+  string order_key = 19;
   optional NodeReferenceData owned_by_ptr = 22;
   string name = 31;
   optional IconData icon = 34;
-  optional NodeReferenceData root_view_ptr = 40;
+  optional PositionData position = 40;
+  optional DimensionData width = 41;
+  optional DimensionData height = 42;
+  optional DimensionData min_width = 43;
+  optional DimensionData min_height = 44;
+  optional DimensionData max_width = 45;
+  optional DimensionData max_height = 46;
+  optional Layout layout = 50;
+  optional Direction direction = 51;
+  optional Distribute distribute = 52;
+  optional Align align = 53;
+  optional Axis2Data gap = 54;
+  optional InsetsData padding = 55;
+  optional GridData grid = 56;
+  optional GridSpanData grid_span = 57;
+  optional double aspect_ratio = 58;
+  optional bool is_wrap = 59;
+  optional bool is_visible = 60;
+  optional double opacity = 61;
+  optional FillData fill = 62;
+  optional Axis3Data rotation = 63;
+  optional Vector2Data skew = 64;
+  optional double scale = 65;
+  optional ShadowData shadow = 66;
+  optional BorderData border = 67;
+  optional CornersData radius = 68;
+  optional NodeReferenceData root_view_ptr = 100;
   optional NodeReferenceData script_ptr = 200;
 }
 
@@ -2880,7 +3198,7 @@ message ScheduleData {
   repeated int64 by_second = 46;
 }
 
-// A Schema describes a Type.
+// A Schema describes a custom Type with Fields.
 message SchemaData {
   NodeType metatype = 1;
   string id = 2;
@@ -2892,6 +3210,8 @@ message SchemaData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
+  map<string, ValueData> value = 18;
+  string order_key = 19;
   string name = 31;
   optional IconData icon = 34;
   optional NodeReferenceData source_ptr = 210;
@@ -2931,6 +3251,8 @@ message ScriptData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
+  map<string, ValueData> value = 18;
+  string order_key = 19;
   string name = 31;
   optional string code = 100;
 }
@@ -2958,9 +3280,12 @@ message ServiceData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
+  map<string, ValueData> value = 18;
+  string order_key = 19;
   optional NodeReferenceData owned_by_ptr = 22;
   string name = 31;
   optional NodeReferenceData script_ptr = 200;
+  optional NodeReferenceData source_ptr = 210;
 }
 
 message ShadowData {
@@ -2987,6 +3312,7 @@ message ShadowStyleData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
+  string order_key = 19;
   ShadowType type = 30;
   string name = 31;
   optional NodeReferenceData style_ptr = 41;
@@ -3010,6 +3336,7 @@ message SliderInputViewData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
+  string order_key = 19;
   string name = 31;
   optional PositionData position = 40;
   optional DimensionData width = 41;
@@ -3082,6 +3409,7 @@ message SplitViewData {
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   map<string, ValueData> value = 18;
+  string order_key = 19;
   string name = 31;
   optional PositionData position = 40;
   optional DimensionData width = 41;
@@ -3157,6 +3485,7 @@ message TagData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
+  string order_key = 19;
   string name = 31;
   optional IconData icon = 34;
 }
@@ -3173,6 +3502,7 @@ message TaggingData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
+  string order_key = 19;
   optional NodeReferenceData tag_ptr = 40;
 }
 
@@ -3226,6 +3556,7 @@ message TextViewData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
+  string order_key = 19;
   string name = 31;
   optional PositionData position = 40;
   optional DimensionData width = 41;
@@ -3255,6 +3586,7 @@ message ThemeData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
+  string order_key = 19;
   string name = 31;
   optional IconData icon = 34;
   map<int32, ColorData> colors = 50;
@@ -3305,6 +3637,7 @@ message ThreadViewData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
+  string order_key = 19;
   string name = 31;
   optional PositionData position = 40;
   optional DimensionData width = 41;
@@ -3329,6 +3662,7 @@ message TimerData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   TimerType type = 30;
+  string name = 31;
   optional ScheduleData schedule = 40;
 }
 
@@ -3369,6 +3703,7 @@ message TransitionStyleData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
+  string order_key = 19;
   TransitionType type = 30;
   string name = 31;
   optional NodeReferenceData style_ptr = 41;
@@ -3510,7 +3845,7 @@ message WindowData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
-  optional string order_key = 19;
+  string order_key = 19;
   optional NodeReferenceData owned_by_ptr = 22;
   WindowType type = 30;
   optional string name = 31;
@@ -3532,6 +3867,7 @@ message WizardViewData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
+  string order_key = 19;
   string name = 31;
   optional PositionData position = 40;
   optional DimensionData width = 41;
@@ -3580,8 +3916,6 @@ message SomeNodeData {
     CustomEventDefinitionData custom_event_definition = 2500;
     CustomEventData custom_event = 2501;
     EditEventData edit_event = 2502;
-    ChangeEventData change_event = 2503;
-    QueryEventData query_event = 2504;
     GaugeMetricData gauge_metric = 2600;
     GaugeMeasurementData gauge_measurement = 2601;
     CounterMetricData counter_metric = 2602;
@@ -3599,6 +3933,7 @@ message SomeNodeData {
     MachineData machine = 5020;
     WindowData window = 8000;
     SceneData scene = 8010;
+    LayerData layer = 8020;
     CustomViewDefinitionData custom_view_definition = 8200;
     CustomViewData custom_view = 8201;
     FrameViewData frame_view = 8202;
@@ -3607,8 +3942,13 @@ message SomeNodeData {
     TextViewData text_view = 8300;
     NumberInputViewData number_input_view = 8400;
     SliderInputViewData slider_input_view = 8401;
-    ThreadViewData thread_view = 8530;
-    WizardViewData wizard_view = 8600;
+    ThreadViewData thread_view = 8500;
+    WizardViewData wizard_view = 8550;
+    CanvasData canvas = 8600;
+    LineShapeData line_shape = 8610;
+    PlaneShapeData plane_shape = 8611;
+    ArrowShapeData arrow_shape = 8612;
+    AnnotationShapeData annotation_shape = 8613;
     ThemeData theme = 9000;
     ColorStyleData color_style = 9010;
     FillStyleData fill_style = 9011;
