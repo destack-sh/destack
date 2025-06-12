@@ -978,10 +978,10 @@ class StoreZone(BuiltinEnum):
 @enum_(EnumType.STORE_TYPE)
 class StoreType(BuiltinEnum):
     GLOBAL_ENTITY = 100
-    # GLOBAL_SEARCH?
+    # GLOBAL_INDEX?
     SPATIAL_ENTITY = 200
     # SPATIAL_PARTICLE, SPATIAL_ANALYTIC, ...
-    # SPATIAL_SEARCH, SPATIAL_CACHE, ...
+    # SPATIAL_INDEX, SPATIAL_CACHE, ...
     LOCAL_MEMORY = 300
 
     @property

@@ -24,13 +24,13 @@ if TYPE_CHECKING:
 
 @node_(NodeType.SCHEMA)
 class Schema(
+    Spatial,
+    Entity,
     HasName,
     HasIcon,
-    Entity,
     IsTaggable,
     IsTemplatable,
     IsDeletable,
-    Spatial,
     IsSourceable,
     Node[SchemaData],
 ):

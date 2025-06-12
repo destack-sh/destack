@@ -21,7 +21,6 @@ from destack.language.registry import (
     TRAIT_TYPE_BY_CLASS,
 )
 from destack.pb2 import AnyObjectData
-from destack.utils.fractional import INTEGER_ZERO
 
 from .const import (
     UNSET,
@@ -44,6 +43,7 @@ if TYPE_CHECKING:
         AggregationType,
         Condition,
         ExpressionIn,
+        Folder,
         Icon,
         Node,
         NodeInfo,
@@ -72,12 +72,7 @@ AT_LEAST_ONE_TRAITS = (
     (TraitType.GLOBAL, TraitType.SPATIAL),
     (TraitType.ENTITY, TraitType.PARTICLE, TraitType.ANALYTIC, TraitType.INDEXED),
 )
-AT_MOST_ONE_TRAITS = (
-    (
-        TraitType.ENTITY,
-        TraitType.PARTICLE,
-    ),
-)
+AT_MOST_ONE_TRAITS = ((TraitType.ENTITY, TraitType.PARTICLE),)
 INFECTIOUS_TRAITS = (
     TraitType.TEMPLATABLE,
     TraitType.ARCHIVABLE,
@@ -597,7 +592,7 @@ class IsExtensible(Trait):
 class IsOrdered(Trait):
     """A Node that can be ordered."""
 
-    order_key: str | None = property_(19, is_eq=False, default=INTEGER_ZERO)
+    order_key: str | None = property_(19, is_eq=False)
 
 
 @trait_(TraitType.REACTABLE)
@@ -622,7 +617,7 @@ class IsFollowable(Trait):
 
 
 @trait_(TraitType.SOURCEABLE)
-class IsSourceable(Trait):
+class IsSourceable(IsOrdered):
     """A Node that can be sourced from / defined by a Script."""
 
     source: Optional["Script"] = property_(210)
@@ -766,10 +761,10 @@ class Indexed(IsTracked):
 
 
 @trait_(TraitType.ASSET)
-class Asset(Entity):
+class Asset(Entity, IsOrdered):
     """A Node that represents an external asset."""
 
-    pass
+    parent: Optional["Folder"] = property_parent_(node_is_customizable=False)
 
 
 @trait_(TraitType.RESOURCE)
@@ -778,7 +773,7 @@ class Resource(Asset):
     A Resource represents an external asset, and may be managed by some provisioner.
     """
 
-    # status
+    parent: Optional["Folder"] = property_parent_(node_is_customizable=False)
     status: ResourceStatus = property_(40, default=ResourceStatus.PENDING)
     target_status: Optional[datetime] = property_(41)
     failed_at: Optional[datetime] = property_(47, can_write="system")

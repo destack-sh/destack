@@ -31,7 +31,6 @@ from destack.utils.oracle import Oracle
 from .core import (
     POSTGRES_TYPE_BY_UDT,
     PRIMITIVE_TYPE_BY_POSTGRES_TYPE,
-    DatabaseObjectKind,
     PostgresCascadeAction,
     PostgresColumn,
     PostgresColumnType,
@@ -41,6 +40,7 @@ from .core import (
     PostgresIndex,
     PostgresIndexType,
     PostgresObject,
+    PostgresObjectKind,
     PostgresSchema,
     PostgresTable,
     PostgresTableObject,
@@ -317,7 +317,7 @@ class PostgresMigrationOp:
         return f"<MigrationOp {self}>"
 
     @property
-    def object_kind(self) -> DatabaseObjectKind:
+    def object_kind(self) -> PostgresObjectKind:
         if self.new_object is not None:
             return self.new_object.kind
         elif self.old_object is not None:
@@ -438,10 +438,10 @@ def generate_migration_ops(
         if new_object is None:
             if _to_id(old_object.table) in deleted_ids:
                 continue  # skip, table deleted
-            if old_object.kind == DatabaseObjectKind.INDEX:
+            if old_object.kind == PostgresObjectKind.INDEX:
                 # skip if owning constraint is also deleted
                 if any(
-                    obj.kind == DatabaseObjectKind.CONSTRAINT
+                    obj.kind == PostgresObjectKind.CONSTRAINT
                     and obj.name == old_object.qualified_name
                     for obj in deleted_table_objects
                 ):
@@ -458,7 +458,7 @@ def generate_migration_ops(
         if old_object is None:
             # create columns only if parent table isn't new
             if (
-                new_object.kind == DatabaseObjectKind.COLUMN
+                new_object.kind == PostgresObjectKind.COLUMN
                 and _to_id(new_object.table) in new_table_objects_by_id
                 and _to_id(new_object.table) not in old_table_objects_by_id
             ):
@@ -486,7 +486,7 @@ def generate_migration_ops(
             patch_table_cru_ops.append(op)
             continue
 
-        if op.object_kind == DatabaseObjectKind.TABLE:
+        if op.object_kind == PostgresObjectKind.TABLE:
             assert isinstance(op.new_object, PostgresTable)
             # only columns are created implicitly in migration ops
             first_columns, deferred_columns = partition(
@@ -502,7 +502,7 @@ def generate_migration_ops(
                 patch_table_cru_ops.append(
                     PostgresMigrationOp(PostgresMigrationOpType.CREATE, col, None)
                 )
-        elif op.object_kind == DatabaseObjectKind.COLUMN:
+        elif op.object_kind == PostgresObjectKind.COLUMN:
             assert isinstance(op.new_object, PostgresColumn)
             if op.new_object.is_foreign_key_to:
                 patch_table_cru_ops.append(op)
@@ -573,7 +573,7 @@ def _render_migration_body(ops: list[PostgresMigrationOp] | None) -> str:
         stmt = _wrap_statement(stmt)
 
         # extensions are not table objects
-        if op.object_kind == DatabaseObjectKind.EXTENSION:
+        if op.object_kind == PostgresObjectKind.EXTENSION:
             lines.append(stmt)
         else:
             if current_table is None or op.table.table_name != current_table.table_name:

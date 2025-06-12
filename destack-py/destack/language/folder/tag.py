@@ -5,6 +5,7 @@ from destack.language.core import (
     HasIcon,
     HasName,
     IsDeletable,
+    IsOrdered,
     IsTaggable,
     IsTemplatable,
     LikeTag,
@@ -30,6 +31,7 @@ class Tag(
     LikeTag,
     HasName,
     HasIcon,
+    IsOrdered,
     IsTemplatable,
     IsDeletable,
     Node[TagData],
@@ -43,6 +45,7 @@ class Tag(
 class Tagging(
     Spatial,
     Entity,
+    IsOrdered,
     IsTemplatable,
     IsDeletable,
     Node[TaggingData],

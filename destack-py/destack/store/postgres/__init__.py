@@ -1,6 +1,5 @@
 from .client import pg_connection, pg_transaction
 from .core import (
-    DatabaseObjectKind,
     PostgresColumn,
     PostgresColumnType,
     PostgresConstraint,
@@ -10,6 +9,7 @@ from .core import (
     PostgresIndex,
     PostgresIndexType,
     PostgresObject,
+    PostgresObjectKind,
     PostgresSchema,
     PostgresTable,
 )
@@ -51,7 +51,6 @@ __all__ = [
     "MIGRATIONS",
     "MIGRATIONS_PATH",
     "MIGRATIONS_TEMPLATE_PATH",
-    "DatabaseObjectKind",
     "Migration",
     "MigrationFile",
     "PostgresColumn",
@@ -65,6 +64,7 @@ __all__ = [
     "PostgresMigrationOp",
     "PostgresMigrationOpType",
     "PostgresObject",
+    "PostgresObjectKind",
     "PostgresSchema",
     "PostgresStore",
     "PostgresTable",
