@@ -4,6 +4,5 @@
   "description": "Destack is a personal software platform. JavaScript SDK coming soon.",
   "main": "index.js",
   "keywords": ["destack", "sdk"],
-  "author": "Symbol Industries <hello@symbol.industries>",
-  "license": "MIT"
+  "author": "Symbol Industries <florian@symbol.industries>"
 }
