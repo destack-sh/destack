@@ -73,7 +73,7 @@ class Field(
     A Field is a user-defined attribute.
     """
 
-    parent: Union["IsExtensible", None] = property_parent_(node_is_customizable=True)
+    parent: Union["IsExtensible", "Field", None] = property_parent_(node_is_customizable=True)
     type: FieldType = property_(30, default=FieldType.MEMBER)
 
     # scalar

@@ -108,14 +108,14 @@ class Node[NodeDataT: AnyNodeData](NodeBase[NodeDataT]):
     # 1-9: node identity
     # Node.metatype: 1
     id: UUID = property_(2, is_managed=True, is_eq=False, can_write="system")
+    # Node.variant_id: 3?
     parent: Optional["Node"] = property_parent_(node_is_customizable=True)
     if TYPE_CHECKING:
         parent_type: NodeType | None = None
         parent_id: Optional[UUID] = None
         parent_ptr: Optional[NodeReference] = None
-    # Node.area?
-    # IsInSpace.space: 6
-    # IsInFolder.folder: 7
+    # Spatial.space: 5
+    # Node.store: 6/7?
 
     _session: "Session" = property_runtime_()
     _supergraph: "Supergraph" = property_runtime_()
