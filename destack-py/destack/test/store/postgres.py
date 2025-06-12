@@ -297,7 +297,7 @@ async def test_create_reaction_groups(session: Session):
     message_tree = await Message.get(
         where=Message.property("id").eq(message.id),
         Reactions=Reaction.search(group_by=[Reaction.property("content")]),
-        # ReactionsTotal=Reaction.count(), # nocheckin: parallel postgres queries
+        ReactionsTotal=Reaction.count(),
     ).execute()
     reactions_by_content = {
         content: [reaction for reaction in reactions if reaction.content == content]

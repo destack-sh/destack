@@ -1,4 +1,3 @@
-import asyncio
 import uuid
 from collections.abc import Sequence
 from typing import Any, assert_never
@@ -890,19 +889,20 @@ async def execute_query(
     # main query clause
     result, nodes_ptr = await _query_clause(conn=conn, context=context, query=query, where=where)
 
-    # subqueries (in parallel)
-    subqueries = tuple(
-        _execute_subquery(
+    # subqueries (sequentially)
+    # TODO :Performance: execute postgres statements in parallel
+    subresults = []
+    for subquery in query.subqueries:
+        subresult = await _execute_subquery(
             conn=conn,
             context=context,
             result=result,
             nodes_ptr=nodes_ptr,
             subquery=subquery,
         )
-        for subquery in query.subqueries
-    )
-    subresults = await asyncio.gather(*subqueries)
-    result.subresults = [subresult for subresult in subresults if subresult is not None]
+        if subresult is not None:
+            subresults.append(subresult)
+    result.subresults = subresults
 
     logger.debug(
         "postgres.query",
