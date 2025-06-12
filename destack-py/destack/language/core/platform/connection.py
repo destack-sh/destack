@@ -12,85 +12,82 @@ if TYPE_CHECKING:
     from destack.language import Store, Value
 
 
-class QueryConnection[RootT: "Trait | Node"]:
-    """
-    A connection to a Query and its result.
-    NOTE: 'root' refers to the root Query, not necessarily the root of the result Graph.
-    """
+class QueryContainer[RootT: "Trait | Node" = Node]:
+    """A container for some QueryResult."""
 
-    __slots__ = (
-        "graph",
-        "id",
-        "lock",
-        "queries_by_id",
-        "query",
-        "result",
-        "results_by_id",
-        "roots",
-        "session",
-        "store",
-    )
+    __slots__ = ("connection", "discriminator", "query", "result", "roots", "subcontainers", "type")
 
-    def __init__(self, query: Query, store: "Store", session: "Session"):
-        from .graph import Graph, PolyGraph
-
-        # meta
-        self.id: UUID = query.id
+    def __init__(
+        self,
+        connection: "QueryConnection",
+        type: QueryType,
+        query: Query,
+        result: QueryResultBase | None,
+        discriminator: "Value | None" = None,
+    ):
+        self.connection: QueryConnection = connection
+        self.type: QueryType = type
         self.query: Query = query
-        self.store: Store = store
-        self.session: Session = session
-        self.lock = asyncio.Lock()
-
-        # result
-        self.result: QueryResult | None = None
-        self.queries_by_id: dict[UUID, Query] = {}
-        self.results_by_id: dict[UUID, QueryResult] = {}
-        self.graph: Graph = PolyGraph(session.supergraph)
+        self.result: QueryResultBase | None = result
         self.roots: list[RootT] = []
+        self.discriminator: Any | None = discriminator
+        self.subcontainers: list[QueryContainer] = []
 
     def __str__(self) -> str:
-        content_parts: list[str] = [
-            f"id={self.id}",
-            f"query={self.query!r}",
-        ]
-        if self.result:
+        content_parts: list[str] = [f"query={self.query!r}"]
+        if self.result is not None:
             content_parts.append(f"result={self.result!r}")
         return ", ".join(content_parts)
 
     def __repr__(self) -> str:
-        return f"<QueryConnection {self!s}>"
+        return f"<QueryContainer {self!s}>"
 
-    async def execute(self) -> None:
-        """Execute the Query."""
-        async with self.lock:
-            self.result = await self.store.query(self.query)
-            self._add_result(self.result, is_root=True)
-
-    def _add_result(self, result: QueryResultBase, is_root: bool) -> None:
+    def _add_result(self, result: QueryResultBase, query: Query, is_root: bool) -> None:
         """Add a QueryResult to the connection (recursively)."""
         from ..common import unpack_value
 
+        session = self.connection.session
+        supergraph = session.supergraph
+        graph = self.connection.graph
+
+        # nodes
         for node_value in result.nodes:
             node = unpack_value(
                 node_value.value,
                 node_value.type,
-                _session=self.session,
-                _supergraph=self.session.supergraph,
-                _graph=self.graph,
-                _connection=self,
+                _session=session,
+                _supergraph=supergraph,
+                _graph=graph,
+                _connection=self.connection,
             )
             assert isinstance(node, Node), f"expected Node, got {node!r} in {self!r}"
             if is_root:
                 self.roots.append(cast(RootT, node))
+
         if isinstance(result, QueryResult):
+            # subgroups
             for group in result.groups:
-                self._add_result(group, is_root=False)
-            for subresult in result.subresults:
-                self._add_result(subresult, is_root=False)
+                if query.type == QueryType.GROUPED_NODE:
+                    subtype = QueryType.NODE
+                elif query.type == QueryType.GROUPED_SCALAR:
+                    subtype = QueryType.SCALAR
+                else:
+                    raise ValueError(f"unexpected query type: {query.type!r}")
+                subcontainer = QueryContainer(
+                    self.connection, subtype, query, group, group.discriminator
+                )
+                self.subcontainers.append(subcontainer)
+                subcontainer._add_result(group, query, is_root=False)
+            # subqueries
+            for i, subresult in enumerate(result.subresults):
+                subquery = query.subqueries[i]
+                subcontainer = QueryContainer(self.connection, subquery.type, subquery, subresult)
+                self.subcontainers.append(subcontainer)
+                subcontainer._add_result(subresult, subquery, is_root=True)
 
     def to_one_or_none(self) -> Optional[RootT]:
         """Get the root Node (if any)."""
-        assert self.query.type == QueryType.NODE, f"not a node Query: {self.query!r}"
+        assert self.type == QueryType.NODE, f"not a node Query: {self.query!r}"
         assert self.result is not None, f"no result for {self!r}"
         assert len(self.roots) <= 1, (
             f"expected 0-1 root, got {len(self.roots)} in {self!r}: {self.roots!r}"
@@ -99,7 +96,7 @@ class QueryConnection[RootT: "Trait | Node"]:
 
     def to_one(self) -> RootT:
         """Get the root Node (error if none)."""
-        assert self.query.type == QueryType.NODE, f"not a node query: {self.query!r}"
+        assert self.type == QueryType.NODE, f"not a node query: {self.query!r}"
         assert self.result is not None, f"no result for {self!r}"
         assert len(self.roots) == 1, (
             f"expected 1 root, got {len(self.roots)} in {self!r}: {self.roots!r}"
@@ -108,35 +105,98 @@ class QueryConnection[RootT: "Trait | Node"]:
 
     def to_list(self) -> list[RootT]:
         """Get the list of roots."""
-        assert self.query.type == QueryType.NODE, f"not a node Query: {self.query!r}"
+        assert self.type == QueryType.NODE, f"not a node Query: {self.query!r}"
         assert self.result is not None, f"no result for {self!r}"
         assert len(self.roots) > 0, f"no roots in {self!r}"
         return self.roots
 
     def to_count(self) -> int:
         """Get the count."""
-        assert self.query.type == QueryType.SCALAR, f"not a scalar Query: {self.query!r}"
+        assert self.type == QueryType.SCALAR, f"not a scalar Query: {self.query!r}"
         assert self.result is not None, f"no result for {self!r}"
         assert self.result.count is not None, f"no count in {self!r}"
         return self.result.count
 
     def to_exists(self) -> bool:
         """Get whether any results exist."""
-        assert self.query.type == QueryType.SCALAR, f"not a scalar Query: {self.query!r}"
+        assert self.type == QueryType.SCALAR, f"not a scalar Query: {self.query!r}"
         assert self.result is not None, f"no result for {self!r}"
         assert self.result.exists is not None, f"no exists in {self!r}"
         return self.result.exists
 
     def to_scalar(self) -> "Value":
         """Get the scalar value."""
-        assert self.query.type == QueryType.SCALAR, f"not a scalar Query: {self.query!r}"
+        assert self.type == QueryType.SCALAR, f"not a scalar Query: {self.query!r}"
         assert self.result is not None, f"no result for {self!r}"
         assert self.result.scalar is not None, f"no scalar in {self!r}"
         return self.result.scalar
 
-    def to_list_by_group(self) -> Mapping[Any, list[RootT]]:
+    def to_scalar_by_group(self) -> Mapping[Any, Any]:
+        """Get the scalar value by group."""
+        assert self.type == QueryType.GROUPED_SCALAR, f"not a grouped scalar Query: {self.query!r}"
+        assert isinstance(self.result, QueryResult), f"no group result for {self!r}"
+        scalar_by_group: dict[Any, Value] = {}
+        for subcontainer in self.subcontainers:
+            if subcontainer.discriminator is None:
+                continue
+            discriminator = subcontainer.discriminator.unpack()
+            scalar_by_group[discriminator] = subcontainer.to_scalar().unpack()
+        return scalar_by_group
+
+    def to_list_by_group(self) -> Mapping[Any, list[Node]]:
         """Get the list of roots by group."""
-        raise NotImplementedError
+        assert self.type == QueryType.GROUPED_NODE, f"not a grouped node Query: {self.query!r}"
+        assert isinstance(self.result, QueryResult), f"no group result for {self!r}"
+        list_by_group: dict[Any, list[Node]] = {}
+        for subcontainer in self.subcontainers:
+            if subcontainer.discriminator is None:
+                continue
+            discriminator = subcontainer.discriminator.unpack()
+            list_by_group[discriminator] = subcontainer.to_list()
+        return list_by_group
+
+    def get(self, key: str | UUID) -> "QueryContainer":
+        """Get a subresult by name or id."""
+        for subcontainer in self.subcontainers:
+            if subcontainer.query.name == key or subcontainer.query.id == key:
+                return subcontainer
+        raise KeyError(f"no subresult for {key!r} in {self!r}")
+
+
+class QueryConnection[RootT: "Trait | Node"](QueryContainer[RootT]):
+    """
+    A connection to a Query and its result.
+    NOTE: 'root' refers to the root Query, not necessarily the root of the result Graph.
+    """
+
+    __slots__ = (
+        "graph",
+        "lock",
+        "query",
+        "result",
+        "roots",
+        "session",
+        "store",
+    )
+
+    def __init__(self, query: Query, store: "Store", session: "Session"):
+        super().__init__(self, query.type, query, None)
+
+        from .graph import Graph, PolyGraph
+
+        self.store: Store = store
+        self.session: Session = session
+        self.lock = asyncio.Lock()
+        self.graph: Graph = PolyGraph(session.supergraph)
+
+    def __repr__(self) -> str:
+        return f"<QueryConnection {self!s}>"
+
+    async def execute(self) -> None:
+        """Execute the Query."""
+        async with self.lock:
+            self.result = await self.store.query(self.query)
+            self._add_result(self.result, self.query, is_root=True)
 
     def close(self) -> None:
         """Close the QueryConnection."""

@@ -8,6 +8,7 @@ from destack.language.core import (
     IsOwnable,
     IsRunnable,
     IsScriptable,
+    IsSourceable,
     IsTaggable,
     IsTemplatable,
     Node,
@@ -36,6 +37,7 @@ class Service(
     IsDeletable,
     IsRunnable,
     IsScriptable,
+    IsSourceable,
     Node[ServiceData],
 ):
     """

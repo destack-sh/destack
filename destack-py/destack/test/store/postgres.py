@@ -283,4 +283,10 @@ async def test_create_reaction_groups(session: Session):
         where=Message.property("id").eq(message.id),
         Reactions=Reaction.count(group_by=[Reaction.property("content")]),
     ).execute()
-    assert message_tree.to_scalar() == 10
+    assert message_tree.get("Reactions").to_scalar_by_group() == {
+        "👍": 10,
+        "👎": 10,
+        "🤷": 10,
+        "🤔": 10,
+        "🤨": 10,
+    }

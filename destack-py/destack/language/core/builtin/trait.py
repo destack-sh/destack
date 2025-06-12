@@ -202,7 +202,7 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         from ..common.query import join as to_join
 
         query = Query(
-            type=QueryType.NODE if group_by is None else QueryType.GROUPED_NODE,
+            type=QueryType.NODE if not group_by else QueryType.GROUPED_NODE,
             relation=RELATION_REF_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
             join=to_join(join) if join is not None else None,
@@ -233,7 +233,7 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         from ..common.query import join as to_join
 
         query = Query(
-            type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
+            type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
             relation=RELATION_REF_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
             join=to_join(join) if join is not None else None,
@@ -282,7 +282,7 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         from ..common.query import join as to_join
 
         query = Query(
-            type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
+            type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
             relation=RELATION_REF_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
             join=to_join(join) if join is not None else None,
@@ -309,7 +309,7 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         from ..common.query import join as to_join
 
         query = Query(
-            type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
+            type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
             relation=RELATION_REF_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
             join=to_join(join) if join is not None else None,
@@ -336,7 +336,7 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         from ..common.query import join as to_join
 
         query = Query(
-            type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
+            type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
             relation=RELATION_REF_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
             join=to_join(join) if join is not None else None,
@@ -363,7 +363,7 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         from ..common.query import join as to_join
 
         query = Query(
-            type=QueryType.SCALAR if group_by is None else QueryType.GROUPED_SCALAR,
+            type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
             relation=RELATION_REF_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
             join=to_join(join) if join is not None else None,
