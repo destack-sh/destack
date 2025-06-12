@@ -84,13 +84,9 @@ class EditOperation(BuiltinEnum):
 class Edit(StructFrozen):
     """
     An Edit to a Node.
-    nocheckin: make Edits/EditEvents reversible (and searchable for replaying/rewinding)
     """
 
-    # meta
     id: UUID = property_(2, is_managed=True, is_repr=True, default_factory=DefaultFactory.UUID)
-
-    # key
     type: EditType = property_(30, is_repr=True)
     operation: EditOperation | None = property_(31, is_repr=True)
     node: Node = property_(32, is_repr=True)
@@ -103,10 +99,13 @@ class Edit(StructFrozen):
         node_type: NodeType = UNSET
         field_id: UUID | None = None
         field_ptr: NodeReference | None = None
-        property_ptr: PropertyReference | None = None
+        prop_ptr: PropertyReference | None = None
 
-    # value
     value: "Value | None" = property_(40)
+    undo: "Edit | None" = property_(
+        50,
+        description="The inverse Edit (if it cannot be derived from the Edit itself).",
+    )
 
 
 @struct_(StructType.CHANGE, frozen=True)
