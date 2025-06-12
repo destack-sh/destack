@@ -82,7 +82,10 @@ class EditOperation(BuiltinEnum):
 
 @struct_(StructType.EDIT, frozen=True)
 class Edit(StructFrozen):
-    """An Edit to a Node."""
+    """
+    An Edit to a Node.
+    nocheckin: make Edits/EditEvents reversible (and searchable for replaying/rewinding)
+    """
 
     # meta
     id: UUID = property_(2, is_managed=True, is_repr=True, default_factory=DefaultFactory.UUID)

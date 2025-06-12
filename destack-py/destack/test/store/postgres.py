@@ -1,16 +1,12 @@
-from collections.abc import AsyncGenerator
-
 import pytest
 from fastuuid import uuid4
 from hypothesis import HealthCheck, given, settings
 from pytest_async_benchmark.plugin import AsyncBenchmarkFixture
 
 from destack.language import (
-    ACTIVE_SESSION,
     Client,
     ClientType,
     CustomView,
-    DatabaseInfo,
     Folder,
     FolderType,
     FrameView,
@@ -24,36 +20,14 @@ from destack.language import (
     Scene,
     Session,
     Star,
-    StoreType,
     TextView,
     User,
     UserStatus,
     View,
     join,
 )
-from destack.store import PostgresStore
 from destack.test.strategies import examples, nodes
 from destack.test.unit.conftest import NODES
-
-
-@pytest.fixture
-def postgres_store(omni_postgres_database: DatabaseInfo) -> PostgresStore:
-    return PostgresStore(database=omni_postgres_database, types=tuple(StoreType))
-
-
-@pytest.fixture  # :PytestAsyncContext
-async def session_async(postgres_store: PostgresStore) -> AsyncGenerator[Session, None]:
-    session = Session(store=postgres_store)
-    await session.open()
-    yield session
-    await session.close()
-
-
-@pytest.fixture
-def session(session_async: Session):
-    token = ACTIVE_SESSION.set(session_async)
-    yield session_async
-    ACTIVE_SESSION.reset(token)
 
 
 @given(node=nodes)

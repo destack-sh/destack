@@ -7,7 +7,6 @@ from destack.language.core import (
     Entity,
     EnumType,
     HasName,
-    IsOrdered,
     IsRunnable,
     Node,
     NodeType,
@@ -36,7 +35,6 @@ class Trigger(
     Spatial,
     Entity,
     HasName,
-    IsOrdered,
     Node[TriggerData],
 ):
     """A Trigger is a dynamic event to run something."""

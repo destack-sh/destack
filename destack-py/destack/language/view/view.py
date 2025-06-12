@@ -17,7 +17,7 @@ from destack.language.core import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import Dimension, Position, Scene, Window
+    from destack.language import ContainerView, Dimension, Position, Scene, Window
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -36,7 +36,9 @@ class View(
 ):
     """A View is a graphical interface."""
 
-    parent: Union["Window", "Scene", "View", None] = property_parent_(node_is_customizable=True)
+    parent: Union["Window", "Scene", "ContainerView", None] = property_parent_(
+        node_is_customizable=True
+    )
 
     # sizing
     position: Optional["Position"] = property_(40)

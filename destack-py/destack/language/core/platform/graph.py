@@ -18,7 +18,7 @@ from destack.language.registry import (
     TRAIT_CLASS_BY_TRAIT,
     TRAIT_TYPE_BY_CLASS,
 )
-from destack.utils.fractional import INTEGER_MAX
+from destack.utils.fractional import INTEGER_MAX, INTEGER_ZERO
 
 from ..builtin import EMPTY_LIST, UNSET, NodeType, TraitType
 
@@ -346,7 +346,7 @@ class PolyGraph(Graph):
                     is_ordered = True
                 children.extend(children_of_type)
             if is_ordered:
-                children.sort(key=lambda n: getattr(n, "order_key", INTEGER_MAX))
+                children.sort(key=lambda n: getattr(n, "order_key", INTEGER_ZERO))
             return children
         else:
             # turn into type
@@ -372,7 +372,7 @@ class PolyGraph(Graph):
                 # collect for single node type
                 children: list = children_by_type.get(node_types[0], EMPTY_LIST)
                 if children and TraitType.ORDERED in node_cls.__traits__:
-                    children.sort(key=lambda n: getattr(n, "order_key", INTEGER_MAX))
+                    children.sort(key=lambda n: getattr(n, "order_key", INTEGER_ZERO))
                 return children
             else:
                 # collect for trait (multiple node types)
