@@ -742,6 +742,7 @@ class Entity(IsTracked):
     #  (or maybe for some subset of Entities?)
     #  (idea: 'materialized' base frames and Edit streams so we don't need a copy for each edit?)
     #  (or maybe support it for all Nodes to support staging Changes but only expose it for Entities?)
+    #  (IsBranch trait and Node.variant_id for Forks/Branches/Variants/Templates/.....?)
     pass
 
 

@@ -1,47 +1,33 @@
 from typing import TYPE_CHECKING, Optional, Union
 
 from destack.language.core import (
-    Entity,
     HasIcon,
-    HasName,
-    IsDeletable,
-    IsOrdered,
     IsOwnable,
-    IsScriptable,
-    IsTaggable,
-    IsTemplatable,
-    IsVisual,
     Node,
     NodeType,
-    Spatial,
     node_,
     property_,
     property_parent_,
 )
 from destack.pb2 import SceneData
 
+from ..view import ContainerView
+
 if TYPE_CHECKING:
-    from destack.language import ContainerView, Folder, Window
+    from destack.language import Folder, Window
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
 @node_(NodeType.SCENE)
 class Scene(
-    Spatial,
-    Entity,
-    HasName,
+    ContainerView,
     HasIcon,
-    IsVisual,
-    IsTaggable,
-    IsScriptable,
-    IsOrdered,
     IsOwnable,
-    IsTemplatable,
-    IsDeletable,
     Node[SceneData],
 ):
     """A Scene is a container for a specific interaction point."""
 
     parent: Union["Folder", "Scene", "Window", None] = property_parent_(node_is_customizable=True)
-    root_view: Optional["ContainerView"] = property_(40, description="The root view of the Scene.")
+
+    root_view: Optional["ContainerView"] = property_(100, description="The root view of the Scene.")

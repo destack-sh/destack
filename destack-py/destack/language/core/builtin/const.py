@@ -37,7 +37,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.06.10.0"
+VERSION = "2025.06.12.0"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"destack")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -406,9 +406,9 @@ class EnumType(BuiltinEnum):
     # ...
 
     # scene [8000-8100]
-    # ...
+    LAYER_TYPE = 8001
 
-    # media [8100-8200]
+    # interaction [8100-8200]
     # ...
 
     # container views [8200-8300]
@@ -420,10 +420,16 @@ class EnumType(BuiltinEnum):
     # input views [8400-8500]
     # ...
 
-    # node views [8500-8600]
+    # node/internal views [8500-8600]
     # ...
 
-    # internal views [8600-8700]
+    # canvas [8600-8800]
+    CANVAS_TYPE = 8600
+    PLANE_SHAPE_TYPE = 8601
+    ARROW_HEAD_TYPE = 8602
+    LINE_TYPE = 8603
+
+    # animation [8800-9000]
     # ...
 
     # style [9000-9200]
@@ -458,12 +464,6 @@ class EnumType(BuiltinEnum):
     REPEAT_TYPE = 9082
     TEXT_SPLIT_TYPE = 9084
     OFFSCREEN_BEHAVIOR = 9085
-
-    # canvas [9200-9400]
-    # ...
-
-    # animation [9400-9600]
-    # ...
 
 
 enum_(EnumType.ENUM_TYPE)(EnumType)
@@ -592,10 +592,13 @@ class StructType(BuiltinEnum):
     # input views [8400-8500]
     # ...
 
-    # node views [8500-8600]
+    # node/internal views [8500-8600]
     # ...
 
-    # internal views [8600-8700]
+    # canvas [8600-8800]
+    # ...
+
+    # animation [8800-9000]
     # ...
 
     # style [9000-9200]
@@ -615,12 +618,6 @@ class StructType(BuiltinEnum):
     GRID_SPAN = 9028, None, None, "fas fa-grid-2"
     INSETS = 9030, None, None, "fas fa-corner"
     CORNERS = 9032, None, None, "fas fa-corner"
-
-    # canvas [9200-9400]
-    # CANVAS, BRUSH, SHAPE, ...
-
-    # animation [9400-9600]
-    # SOUND, ...?
 
 
 @enum_(EnumType.NODE_TYPE)
@@ -711,8 +708,7 @@ class NodeType(BuiltinEnum):
     )
     CUSTOM_EVENT = 2501, "Custom Event", "Custom Event", "fas fa-signal"
     EDIT_EVENT = 2502, "Edit Event", "Edit Event", "fas fa-file-lines"
-    CHANGE_EVENT = 2503, "Change Event", "Change Event", "fas fa-file-lines"
-    QUERY_EVENT = 2504, "Query Event", "Query Event", "fas fa-file-lines"
+    # CHANGE_EVENT, QUERY_EVENT, ...
     # ERROR_EVENT, TRIGGER_EVENT, RUN_EVENT, ...
     GAUGE_METRIC = 2600, "Gauge Metric", "Gauge Metric", "fas fa-gauge"
     GAUGE_MEASUREMENT = 2601, "Gauge Measurement", "Gauge Measurement", "fas fa-gauge"
@@ -775,9 +771,11 @@ class NodeType(BuiltinEnum):
     # scene [8000-8100]
     WINDOW = 8000, "Window", "Window", "fas fa-galaxy"
     SCENE = 8010, "Scene", "Scene of an Application", "fas fa-masks-theater"
-    # COMMAND, TOOL, MENU, OVERLAY, WIDGET, ...
+    LAYER = 8020, "Layer", "Layer of a Scene", "fas fa-layer-group"
+    # OVERLAY, WIDGET, MENU, ...
 
-    # media [8100-8200]
+    # interaction [8100-8200]
+    # COMMAND, TOOL, ...
     # CAMERA, GESTURE, MICROPHONE, ...
 
     # container views [8200-8300]
@@ -808,10 +806,21 @@ class NodeType(BuiltinEnum):
     # ICON_INPUT_VIEW, FILE_INPUT_VIEW, DATETIME_INPUT_VIEW, DURATION_INPUT_VIEW, ...
 
     # NOTE :Architecture: node and internal views should probably be defined in user space?
-    # node views [8500-8600]
-    THREAD_VIEW = 8530, "Thread View", "Thread", "fas fa-reel"
-    # internal views [8600-8700]
-    WIZARD_VIEW = 8600, "Wizard View", "Wizard", "fas fa-wand-sparkles"
+    # node/internal views [8500-8600]
+    THREAD_VIEW = 8500, "Thread View", "Thread", "fas fa-reel"
+    WIZARD_VIEW = 8550, "Wizard View", "Wizard", "fas fa-wand-sparkles"
+
+    # canvas [8600-8800]
+    CANVAS = 8600, "Canvas", "Canvas", "fas fa-canvas"
+    LINE_SHAPE = 8610, "Line Shape", "Line Shape", "fas fa-line"
+    PLANE_SHAPE = 8611, "Plane Shape", "Plane Shape", "fas fa-shapes"
+    ARROW_SHAPE = 8612, "Arrow Shape", "Arrow Shape", "fas fa-arrow-right"
+    ANNOTATION_SHAPE = 8613, "Annotation Shape", "Annotation Shape", "fas fa-comment"
+    # BITMAP, ...
+
+    # animation [8800-9000]
+    # ANIMATION, TRACK, KEYFRAME, FRAME, ...
+    # SOUND, ...
 
     # style [9000-9200]
     THEME = 9000, "Theme", "Theme", "fas fa-palette"
@@ -825,16 +834,6 @@ class NodeType(BuiltinEnum):
     EFFECT_STYLE = 9017, "Effect Style", "Effect Style", "fas fa-sparkle"
     # BRUSH_STYLE, ...
     # SHADER, MATERIAL, ...
-
-    # canvas [9200-9400]
-    # CANVAS, SKETCH/DRAFT, LAYER, ...
-    # BITMAP, ...
-    # SHAPE, ...
-    # ANNOTATION, ...
-
-    # animation [9400-9600]
-    # ANIMATION, TRACK, KEYFRAME, FRAME, ...
-    # SOUND, ...
 
 
 @enum_(EnumType.TRAIT_TYPE)
@@ -963,7 +962,7 @@ class TraitType(BuiltinEnum):
     STYLE = 9000, "Style", "Is a Style", "fas fa-palette"
 
     # canvas [9200-9400]
-    # ...
+    SHAPE = 9200, "Shape", "Is a Shape", "fas fa-shapes"
 
     # animation [9400-9600]
     # ...

@@ -3,11 +3,9 @@ from typing import TYPE_CHECKING
 from fastuuid import UUID
 
 from destack.pb2 import (
-    ChangeEventData,
     CustomEventData,
     CustomEventDefinitionData,
     EditEventData,
-    QueryEventData,
 )
 
 from ..builtin import (
@@ -45,7 +43,7 @@ class EditEvent(
     IsTaggable,
     Node[EditEventData],
 ):
-    """A Event of an Edit."""
+    """A Event of an Edit. Only EditEvents of Entities are allowed."""
 
     # key
     type: "EditType" = property_(30, is_repr=True)
@@ -64,30 +62,6 @@ class EditEvent(
 
     # value
     value: "Value | None" = property_(40)
-
-
-@node_(NodeType.CHANGE_EVENT, pretend_frozen=True)
-class ChangeEvent(
-    Spatial,
-    Event,
-    IsTaggable,
-    Node[ChangeEventData],
-):
-    """A Event of a Change."""
-
-    pass
-
-
-@node_(NodeType.QUERY_EVENT, pretend_frozen=True)
-class QueryEvent(
-    Spatial,
-    Event,
-    IsTaggable,
-    Node[QueryEventData],
-):
-    """A Event of a Query."""
-
-    pass
 
 
 @node_(NodeType.CUSTOM_EVENT_DEFINITION)

@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2025.06.10.0"
+VERSION = "2025.06.12.0"
 
 # import from all generated files
 from .runtime_pb2 import *
@@ -26,8 +26,6 @@ AnyNodeData = Union[
     CustomEntityDefinitionData,
     CustomEntityData,
     EditEventData,
-    ChangeEventData,
-    QueryEventData,
     CustomEventDefinitionData,
     CustomEventData,
     FieldData,
@@ -41,6 +39,21 @@ AnyNodeData = Union[
     InviteData,
     MembershipData,
     RoleData,
+    CustomViewDefinitionData,
+    CustomViewData,
+    FrameViewData,
+    LabelViewData,
+    SplitViewData,
+    TextViewData,
+    NumberInputViewData,
+    SliderInputViewData,
+    WizardViewData,
+    ThreadViewData,
+    AnnotationShapeData,
+    ArrowShapeData,
+    CanvasData,
+    LineShapeData,
+    PlaneShapeData,
     FileData,
     LinkData,
     EnvironmentData,
@@ -53,6 +66,7 @@ AnyNodeData = Union[
     EventCursorData,
     ScreenCursorData,
     ThreadCursorData,
+    RouteData,
     ScriptData,
     ServiceData,
     TimerData,
@@ -61,7 +75,7 @@ AnyNodeData = Union[
     LogData,
     RunData,
     SpanData,
-    RouteData,
+    LayerData,
     SceneData,
     WindowData,
     FollowData,
@@ -86,16 +100,6 @@ AnyNodeData = Union[
     FontStyleData,
     ShadowStyleData,
     ThemeData,
-    CustomViewDefinitionData,
-    CustomViewData,
-    FrameViewData,
-    LabelViewData,
-    SplitViewData,
-    TextViewData,
-    NumberInputViewData,
-    SliderInputViewData,
-    WizardViewData,
-    ThreadViewData,
 ]
 AnyStructData = Union[
     ScopeData,
