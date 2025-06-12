@@ -3,6 +3,7 @@ from collections.abc import AsyncGenerator
 import pytest
 from fastuuid import uuid4
 from hypothesis import HealthCheck, given, settings
+from pytest_async_benchmark.plugin import AsyncBenchmarkFixture
 
 from destack.language import (
     ACTIVE_SESSION,
@@ -312,3 +313,28 @@ async def test_create_reaction_groups(session: Session):
         reactions = reactions_by_content[reaction_content]
         reactions_unpacked = reactions_by_content_unpacked[reaction_content]
         assert {str(r.id) for r in reactions} == {str(r.id) for r in reactions_unpacked}
+
+
+@pytest.mark.benchmark
+async def test_benchmark_create_reactions(session: Session, async_benchmark: AsyncBenchmarkFixture):
+    """Benchmark creating reactions without parent."""
+
+    user = User(
+        name="User", slug="user", space_ptr=NodeReference(node_type=NodeType.SPACE, id=uuid4())
+    )
+    session.create(user)
+    await session.commit()
+
+    NUM_REACTIONS = 100
+
+    async def _create_reactions():
+        reactions = []
+        for _ in range(NUM_REACTIONS):
+            reaction = Reaction(content="👍", owned_by=user)
+            reactions.append(reaction)
+            session.create(reaction)
+        await session.commit()
+        return reactions
+
+    result = await async_benchmark(_create_reactions, rounds=100, iterations=1)
+    assert result["mean"] < 0.005  # <5ms

@@ -117,7 +117,7 @@ async def omni_postgres_database(
     request: pytest.FixtureRequest,
 ) -> AsyncGenerator[DatabaseInfo, None]:
     """Gets the per test function omni Database"""
-    omni_schema = get_builtin_schema(StoreType.GLOBAL_ENTITY, StoreType.SPATIAL_ENTITY)
+    omni_schema = get_builtin_schema(*StoreType)
     database = get_database(f"test-{_clean_name(request.node.name)[:32]}-omni")
     await create_test_db(database, omni_schema)
     try:
