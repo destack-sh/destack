@@ -41,4 +41,4 @@ class Reaction(
     parent: Union["IsReactable", None] = property_parent_(node_is_customizable=True)
     owned_by: "IsSubject" = property_(22)
 
-    content: str = property_(40)
+    content: str = property_(40, is_repr=True)

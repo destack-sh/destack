@@ -42,7 +42,7 @@ class QueryContainer[RootT: "Trait | Node" = Node]:
     def __repr__(self) -> str:
         return f"<QueryContainer {self!s}>"
 
-    def _add_result(self, result: QueryResultBase, query: Query, is_root: bool) -> None:
+    def _add_result(self, result: QueryResultBase, query: Query) -> None:
         """Add a QueryResult to the connection (recursively)."""
         from ..common import unpack_value
 
@@ -61,8 +61,7 @@ class QueryContainer[RootT: "Trait | Node" = Node]:
                 _connection=self.connection,
             )
             assert isinstance(node, Node), f"expected Node, got {node!r} in {self!r}"
-            if is_root:
-                self.roots.append(cast(RootT, node))
+            self.roots.append(cast(RootT, node))
 
         if isinstance(result, QueryResult):
             # subgroups
@@ -77,13 +76,13 @@ class QueryContainer[RootT: "Trait | Node" = Node]:
                     self.connection, subtype, query, group, group.discriminator
                 )
                 self.subcontainers.append(subcontainer)
-                subcontainer._add_result(group, query, is_root=False)
+                subcontainer._add_result(group, query)
             # subqueries
             for i, subresult in enumerate(result.subresults):
                 subquery = query.subqueries[i]
                 subcontainer = QueryContainer(self.connection, subquery.type, subquery, subresult)
                 self.subcontainers.append(subcontainer)
-                subcontainer._add_result(subresult, subquery, is_root=True)
+                subcontainer._add_result(subresult, subquery)
 
     def to_one_or_none(self) -> Optional[RootT]:
         """Get the root Node (if any)."""
@@ -107,7 +106,6 @@ class QueryContainer[RootT: "Trait | Node" = Node]:
         """Get the list of roots."""
         assert self.type == QueryType.NODE, f"not a node Query: {self.query!r}"
         assert self.result is not None, f"no result for {self!r}"
-        assert len(self.roots) > 0, f"no roots in {self!r}"
         return self.roots
 
     def to_count(self) -> int:
@@ -124,23 +122,23 @@ class QueryContainer[RootT: "Trait | Node" = Node]:
         assert self.result.exists is not None, f"no exists in {self!r}"
         return self.result.exists
 
-    def to_scalar(self) -> "Value":
+    def to_scalar(self) -> Any:
         """Get the scalar value."""
         assert self.type == QueryType.SCALAR, f"not a scalar Query: {self.query!r}"
         assert self.result is not None, f"no result for {self!r}"
         assert self.result.scalar is not None, f"no scalar in {self!r}"
-        return self.result.scalar
+        return self.result.scalar.unpack()
 
     def to_scalar_by_group(self) -> Mapping[Any, Any]:
         """Get the scalar value by group."""
         assert self.type == QueryType.GROUPED_SCALAR, f"not a grouped scalar Query: {self.query!r}"
         assert isinstance(self.result, QueryResult), f"no group result for {self!r}"
-        scalar_by_group: dict[Any, Value] = {}
+        scalar_by_group: dict[Any, Any] = {}
         for subcontainer in self.subcontainers:
             if subcontainer.discriminator is None:
                 continue
             discriminator = subcontainer.discriminator.unpack()
-            scalar_by_group[discriminator] = subcontainer.to_scalar().unpack()
+            scalar_by_group[discriminator] = subcontainer.to_scalar()
         return scalar_by_group
 
     def to_list_by_group(self) -> Mapping[Any, list[Node]]:
@@ -196,7 +194,7 @@ class QueryConnection[RootT: "Trait | Node"](QueryContainer[RootT]):
         """Execute the Query."""
         async with self.lock:
             self.result = await self.store.query(self.query)
-            self._add_result(self.result, self.query, is_root=True)
+            self._add_result(self.result, self.query)
 
     def close(self) -> None:
         """Close the QueryConnection."""

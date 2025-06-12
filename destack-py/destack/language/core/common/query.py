@@ -397,7 +397,7 @@ class Query[RootT: "Trait | Node"](StructFrozen):
         connection = await self.execute()
         return connection.to_count()
 
-    async def execute_scalar(self) -> Value:
+    async def execute_scalar(self) -> Any:
         """Execute the Query and return the scalar value."""
         assert self.type in (QueryType.SCALAR, QueryType.GROUPED_SCALAR), f"cannot scalar {self!r}"
         connection = await self.execute()

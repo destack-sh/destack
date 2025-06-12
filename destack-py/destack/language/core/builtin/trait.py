@@ -43,7 +43,6 @@ if TYPE_CHECKING:
     from destack.language import (
         AggregationType,
         Condition,
-        Expression,
         ExpressionIn,
         Icon,
         Node,
@@ -193,12 +192,13 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         join: Optional["JoinIn"] = None,
         having: Optional["Condition"] = None,
         sort: Optional[list["Sort"]] = None,
-        group_by: Optional[list["Expression"]] = None,
+        group_by: Optional[list["ExpressionIn"]] = None,
         limit: Optional[int] = None,
         offset: Optional[int] = None,
         **subqueries: "Query",
     ) -> "Query[Self]":  # type: ignore
         from ..common.query import Query, QueryType, to_subqueries
+        from ..common.query import expression as to_expression
         from ..common.query import join as to_join
 
         query = Query(
@@ -208,7 +208,7 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
             join=to_join(join) if join is not None else None,
             where=where,
             having=having,
-            group_by=group_by or [],
+            group_by=[to_expression(expr) for expr in group_by or ()],
             sort=sort or [],
             limit=limit,
             offset=offset,
@@ -225,8 +225,9 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         join: Optional["JoinIn"] = None,
         expression: "ExpressionIn | None" = None,
         where: Optional["Condition"] = None,
-        group_by: Optional[list["Expression"]] = None,
         sort: Optional[list["Sort"]] = None,
+        group_by: Optional[list["ExpressionIn"]] = None,
+        having: Optional["Condition"] = None,
     ) -> "Query[Self]":  # type: ignore
         from ..common.query import Aggregation, Query, QueryType
         from ..common.query import expression as to_expression
@@ -238,7 +239,8 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
             name=name or cls.metatype.camel_name,
             join=to_join(join) if join is not None else None,
             where=where,
-            group_by=group_by or [],
+            having=having,
+            group_by=[to_expression(expr) for expr in group_by or ()],
             aggregation=Aggregation(
                 type=type, expression=to_expression(expression) if expression else None
             ),
@@ -274,6 +276,7 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         *,
         name: str | None = None,
         join: Optional["JoinIn"] = None,
+        sort: Optional[list["Sort"]] = None,
         group_by: Optional[list["ExpressionIn"]] = None,
         having: Optional["Condition"] = None,
     ) -> "Query[Self]":  # type: ignore
@@ -288,8 +291,9 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
             join=to_join(join) if join is not None else None,
             where=where,
             having=having,
-            aggregation=Aggregation(type=AggregationType.COUNT),
             group_by=[to_expression(expr) for expr in group_by or ()],
+            aggregation=Aggregation(type=AggregationType.COUNT),
+            sort=sort or [],
         )
         return query  # type: ignore
 
@@ -303,6 +307,7 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         where: Optional["Condition"] = None,
         having: Optional["Condition"] = None,
         group_by: Optional[list["ExpressionIn"]] = None,
+        sort: Optional[list["Sort"]] = None,
     ) -> "Query[Self]":  # type: ignore
         from ..common.query import Aggregation, AggregationType, Query, QueryType
         from ..common.query import expression as to_expression
@@ -317,6 +322,7 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
             having=having,
             group_by=[to_expression(expr) for expr in group_by or ()],
             aggregation=Aggregation(type=AggregationType.MIN, expression=to_expression(expression)),
+            sort=sort or [],
         )
         return query  # type: ignore
 
@@ -330,6 +336,7 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         where: Optional["Condition"] = None,
         having: Optional["Condition"] = None,
         group_by: Optional[list["ExpressionIn"]] = None,
+        sort: Optional[list["Sort"]] = None,
     ) -> "Query[Self]":  # type: ignore
         from ..common.query import Aggregation, AggregationType, Query, QueryType
         from ..common.query import expression as to_expression
@@ -344,6 +351,7 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
             having=having,
             group_by=[to_expression(expr) for expr in group_by or ()],
             aggregation=Aggregation(type=AggregationType.MAX, expression=to_expression(expression)),
+            sort=sort or [],
         )
         return query  # type: ignore
 
@@ -357,6 +365,7 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         where: Optional["Condition"] = None,
         having: Optional["Condition"] = None,
         group_by: Optional[list["ExpressionIn"]] = None,
+        sort: Optional[list["Sort"]] = None,
     ) -> "Query[Self]":  # type: ignore
         from ..common.query import Aggregation, AggregationType, Query, QueryType
         from ..common.query import expression as to_expression
@@ -373,6 +382,7 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
             aggregation=Aggregation(
                 type=AggregationType.AVERAGE, expression=to_expression(expression)
             ),
+            sort=sort or [],
         )
         return query  # type: ignore
 
@@ -632,7 +642,7 @@ class IsActionable(Trait):
 class IsOwnable(Trait):
     """A Node that can be owned by another Node."""
 
-    owned_by: Optional["IsSubject"] = property_(22)
+    owned_by: Optional["IsSubject"] = property_(22, is_repr=True)
     if TYPE_CHECKING:
         owned_by_id: Optional[UUID] = None
         owned_by_type: Optional[NodeType] = None

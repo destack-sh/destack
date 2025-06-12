@@ -272,21 +272,39 @@ async def test_create_reaction_groups(session: Session):
     session.create(message)
     await session.commit()
 
-    reactions: tuple[str, ...] = ("👍", "👎", "🤷", "🤔", "🤨")
+    reactions_content: tuple[str, ...] = ("👍", "👎", "🤷", "🤔", "🤨")
+    reactions: list[Reaction] = []
     for user in users:
-        for reaction in reactions:
+        for reaction in reactions_content:
             reaction = Reaction(parent=message, content=reaction, owned_by=user)
+            reactions.append(reaction)
             session.create(reaction)
     await session.commit()
 
+    # scalar by group
     message_tree = await Message.get(
         where=Message.property("id").eq(message.id),
-        Reactions=Reaction.count(group_by=[Reaction.property("content")]),
+        Reactions=Reaction.count(
+            sort=[Reaction.property("created_at").asc()],
+            group_by=[Reaction.property("content")],
+        ),
     ).execute()
-    assert message_tree.get("Reactions").to_scalar_by_group() == {
-        "👍": 10,
-        "👎": 10,
-        "🤷": 10,
-        "🤔": 10,
-        "🤨": 10,
+    assert message_tree.get("Reactions").to_scalar_by_group() == dict.fromkeys(
+        reactions_content, 10
+    )
+
+    # node by group
+    message_tree = await Message.get(
+        where=Message.property("id").eq(message.id),
+        Reactions=Reaction.search(group_by=[Reaction.property("content")]),
+        # ReactionsTotal=Reaction.count(), # nocheckin: parallel postgres queries
+    ).execute()
+    reactions_by_content = {
+        content: [reaction for reaction in reactions if reaction.content == content]
+        for content in reactions_content
     }
+    reactions_by_content_unpacked = message_tree.get("Reactions").to_list_by_group()
+    for reaction_content in reactions_content:
+        reactions = reactions_by_content[reaction_content]
+        reactions_unpacked = reactions_by_content_unpacked[reaction_content]
+        assert {str(r.id) for r in reactions} == {str(r.id) for r in reactions_unpacked}
