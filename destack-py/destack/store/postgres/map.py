@@ -1,7 +1,6 @@
 from cachetools import cached
 
 from destack.language import (
-    AreaType,
     CustomEntityDefinition,
     EdgeType,
     Node,
@@ -9,6 +8,7 @@ from destack.language import (
     NodeType,
     PrimitiveType,
     ScalarType,
+    StoreType,
     TraitType,
     TypeCardinality,
 )
@@ -138,12 +138,12 @@ def map_custom_node_to_database_table(definition: CustomEntityDefinition) -> Pos
 
 
 @cached({})
-def get_builtin_schema(*areas: AreaType) -> PostgresSchema:
+def get_builtin_schema(*store_types: StoreType) -> PostgresSchema:
     """Gets the builtin schema for the given traits."""
 
     node_types: list[NodeType] = []
-    has_global = AreaType.GLOBAL_ENTITY in areas
-    has_spatial = AreaType.SPATIAL_ENTITY in areas
+    has_global = StoreType.GLOBAL_ENTITY in store_types
+    has_spatial = StoreType.SPATIAL_ENTITY in store_types
     for node_type, node_cls in NODE_CLASS_BY_TYPE.items():
         if TraitType.ENTITY in node_cls.__traits__ and (
             (has_global and TraitType.GLOBAL in node_cls.__traits__)

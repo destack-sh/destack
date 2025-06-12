@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from typing import Self, assert_never, override
+from typing import ClassVar, Self, assert_never, override
 
 import asyncpg
 import structlog
@@ -7,7 +7,6 @@ from fastuuid import UUID
 from opentelemetry import trace
 
 from destack.language import (
-    AreaType,
     Change,
     ChangeResult,
     ChangeStatus,
@@ -15,8 +14,6 @@ from destack.language import (
     DatabaseInfo,
     DatabaseType,
     Edit,
-    EditOperation,
-    EditType,
     NodeReference,
     NodeType,
     Query,
@@ -24,6 +21,8 @@ from destack.language import (
     RelationReference,
     RelationType,
     Store,
+    StoreImplementation,
+    StoreType,
 )
 from destack.language.registry import (
     NODE_CLASS_BY_TYPE,
@@ -46,31 +45,16 @@ class PostgresStore(Store):
     A Store backed by a Postgres Databases.
     """
 
-    __supports_edit_types__ = (
-        EditType.CREATE,
-        EditType.UPSERT,
-        EditType.UPDATE,
-        EditType.DELETE,
-        EditType.MOVE,
-        EditType.ARCHIVE,
-        EditType.UNARCHIVE,
-        EditType.ERASE,
-        EditType.RESTORE,
-    )
-    __supports_operations__ = (
-        EditOperation.SET,
-        EditOperation.CLEAR,
-    )
-    __supports_cascade__ = True
+    implementation: ClassVar[StoreImplementation | None] = StoreImplementation.POSTGRES
 
     __slots__ = ("context", "database")
 
-    def __init__(self, database: DatabaseInfo, areas: tuple[AreaType, ...]):
+    def __init__(self, database: DatabaseInfo, types: tuple[StoreType, ...]):
+        super().__init__(types)
         if database.type != DatabaseType.POSTGRES:
             raise ValueError(f"unexpected {database!r}")
         self.database = database
         self.context: PostgresStoreContext | None = None
-        self.areas = areas
 
     def __str__(self) -> str:
         return f"database={self.database!r}"
@@ -146,8 +130,8 @@ class PostgresStoreContext(PostgresContext):
     def __init__(self, store: PostgresStore):
         self.store = store
         self.tables_by_name: dict[str, PostgresTable] = {}
-        for area in store.areas:
-            for table in get_builtin_schema(area).tables:
+        for store_type in store.types:
+            for table in get_builtin_schema(store_type).tables:
                 self.tables_by_name[table.name] = table
         self.custom_node_definitions: dict[UUID, CustomEntityDefinition] = {}
 

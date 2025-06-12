@@ -4780,7 +4780,7 @@ export interface QueryResultGroupData {
      */
     type: QueryType;
     /**
-     * @generated from protobuf field: optional symbol.destack.ValueData discriminator = 31;
+     * @generated from protobuf field: symbol.destack.ValueData discriminator = 31;
      */
     discriminator?: ValueData;
     /**
@@ -8061,23 +8061,6 @@ export enum Align {
     END = 3
 }
 /**
- * @generated from protobuf enum symbol.destack.AreaType
- */
-export enum AreaType {
-    /**
-     * @generated from protobuf enum value: AREA_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: AREA_TYPE_GLOBAL_POSTGRES = 1;
-     */
-    GLOBAL_POSTGRES = 1,
-    /**
-     * @generated from protobuf enum value: AREA_TYPE_SPACE_POSTGRES = 20;
-     */
-    SPACE_POSTGRES = 20
-}
-/**
  * @generated from protobuf enum symbol.destack.AttributeType
  */
 export enum AttributeType {
@@ -8868,29 +8851,37 @@ export enum EnumType {
      */
     TRAIT_TYPE = 5,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_AREA_TYPE = 7;
+     * @generated from protobuf enum value: ENUM_TYPE_STORE_ZONE = 6;
      */
-    AREA_TYPE = 7,
+    STORE_ZONE = 6,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUNTIME_TYPE = 8;
+     * @generated from protobuf enum value: ENUM_TYPE_STORE_TYPE = 7;
      */
-    RUNTIME_TYPE = 8,
+    STORE_TYPE = 7,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUNTIME_LANGUAGE = 9;
+     * @generated from protobuf enum value: ENUM_TYPE_STORE_IMPLEMENTATION = 8;
      */
-    RUNTIME_LANGUAGE = 9,
+    STORE_IMPLEMENTATION = 8,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PROPERTY_REFERENCE_TYPE = 10;
+     * @generated from protobuf enum value: ENUM_TYPE_PROPERTY_REFERENCE_TYPE = 12;
      */
-    PROPERTY_REFERENCE_TYPE = 10,
+    PROPERTY_REFERENCE_TYPE = 12,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_USER_STATUS = 11;
+     * @generated from protobuf enum value: ENUM_TYPE_RUNTIME_TYPE = 10;
      */
-    USER_STATUS = 11,
+    RUNTIME_TYPE = 10,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ORGANIZATION_STATUS = 12;
+     * @generated from protobuf enum value: ENUM_TYPE_RUNTIME_LANGUAGE = 11;
      */
-    ORGANIZATION_STATUS = 12,
+    RUNTIME_LANGUAGE = 11,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_USER_STATUS = 13;
+     */
+    USER_STATUS = 13,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_ORGANIZATION_STATUS = 14;
+     */
+    ORGANIZATION_STATUS = 14,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_SPACE_STATUS = 57;
      */
@@ -11664,6 +11655,65 @@ export enum SpringType {
      * @generated from protobuf enum value: SPRING_TYPE_PHYSICS = 2;
      */
     PHYSICS = 2
+}
+/**
+ * @generated from protobuf enum symbol.destack.StoreImplementation
+ */
+export enum StoreImplementation {
+    /**
+     * @generated from protobuf enum value: STORE_IMPLEMENTATION_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: STORE_IMPLEMENTATION_POSTGRES = 1;
+     */
+    POSTGRES = 1,
+    /**
+     * @generated from protobuf enum value: STORE_IMPLEMENTATION_MEMORY = 10;
+     */
+    MEMORY = 10
+}
+/**
+ * @generated from protobuf enum symbol.destack.StoreType
+ */
+export enum StoreType {
+    /**
+     * @generated from protobuf enum value: STORE_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: STORE_TYPE_GLOBAL_ENTITY = 100;
+     */
+    GLOBAL_ENTITY = 100,
+    /**
+     * @generated from protobuf enum value: STORE_TYPE_SPATIAL_ENTITY = 200;
+     */
+    SPATIAL_ENTITY = 200,
+    /**
+     * @generated from protobuf enum value: STORE_TYPE_LOCAL_MEMORY = 300;
+     */
+    LOCAL_MEMORY = 300
+}
+/**
+ * @generated from protobuf enum symbol.destack.StoreZone
+ */
+export enum StoreZone {
+    /**
+     * @generated from protobuf enum value: STORE_ZONE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: STORE_ZONE_GLOBAL = 1;
+     */
+    GLOBAL = 1,
+    /**
+     * @generated from protobuf enum value: STORE_ZONE_SPATIAL = 2;
+     */
+    SPATIAL = 2,
+    /**
+     * @generated from protobuf enum value: STORE_ZONE_LOCAL = 3;
+     */
+    LOCAL = 3
 }
 /**
  * The format of a string.
@@ -23874,7 +23924,7 @@ class QueryResultGroupData$Type extends MessageType$<QueryResultGroupData> {
                 case /* symbol.destack.QueryType type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* optional symbol.destack.ValueData discriminator */ 31:
+                case /* symbol.destack.ValueData discriminator */ 31:
                     message.discriminator = ValueData.internalBinaryRead(reader, reader.uint32(), options, message.discriminator);
                     break;
                 case /* repeated symbol.destack.ValueData nodes */ 40:
@@ -23907,7 +23957,7 @@ class QueryResultGroupData$Type extends MessageType$<QueryResultGroupData> {
         /* symbol.destack.QueryType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* optional symbol.destack.ValueData discriminator = 31; */
+        /* symbol.destack.ValueData discriminator = 31; */
         if (message.discriminator)
             ValueData.internalBinaryWrite(message.discriminator, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbol.destack.ValueData nodes = 40; */

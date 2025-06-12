@@ -7,7 +7,6 @@ from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
 from destack.language import (
-    AreaType,
     Client,
     Database,
     DatabaseInfo,
@@ -20,6 +19,7 @@ from destack.language import (
     Session,
     Space,
     SpaceStatus,
+    StoreType,
     User,
     UserStatus,
 )
@@ -96,7 +96,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
     @override
     async def make_session(self, metadata: RpcMetadata) -> "Session":
         postgres_store = PostgresStore(
-            database=self.global_database, areas=(AreaType.GLOBAL_ENTITY,)
+            database=self.global_database, types=(StoreType.GLOBAL_ENTITY,)
         )
         return Session(store=postgres_store)
 
@@ -177,14 +177,8 @@ class SupervisorService(ServiceBase, SupervisorBase):
         )
         space.database = database
         session.store = SplitStore(
-            store_by_area={
-                AreaType.GLOBAL_ENTITY: PostgresStore(
-                    database=self.global_database, areas=(AreaType.GLOBAL_ENTITY,)
-                ),
-                AreaType.SPATIAL_ENTITY: PostgresStore(
-                    database=main_database, areas=(AreaType.SPATIAL_ENTITY,)
-                ),
-            },
+            PostgresStore(database=self.global_database, types=(StoreType.GLOBAL_ENTITY,)),
+            PostgresStore(database=main_database, types=(StoreType.SPATIAL_ENTITY,)),
         )
         await session.stage()
 

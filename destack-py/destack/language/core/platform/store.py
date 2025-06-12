@@ -1,16 +1,17 @@
 import abc
 from collections.abc import AsyncIterator, Sequence
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, Optional
 
 if TYPE_CHECKING:
     from destack.language import (
         Change,
         ChangeResult,
-        EditOperation,
-        EditType,
         Query,
         QueryResult,
         QueryUpdate,
+        StoreImplementation,
+        StoreType,
+        StoreZone,
     )
 
 
@@ -21,9 +22,11 @@ class Store(abc.ABC):
     Some Stores only support a subset of Edits.
     """
 
-    __supports_edit_types__: ClassVar[tuple["EditType", ...]]
-    __supports_operations__: ClassVar[tuple["EditOperation", ...]]
-    __supports_cascade__: ClassVar[bool]
+    implementation: ClassVar[Optional["StoreImplementation"]]
+
+    def __init__(self, types: tuple["StoreType", ...]):
+        self.types: tuple[StoreType, ...] = types
+        self.zones: tuple[StoreZone, ...] = tuple({type.zone for type in types})
 
     @abc.abstractmethod
     async def query(self, query: "Query") -> "QueryResult":

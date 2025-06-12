@@ -5,6 +5,9 @@ package symbol.destack;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/struct.proto";
+import "destack-proto/google/type/datetime.proto";
+import "destack-proto/google/type/date.proto";
+import "destack-proto/google/type/timeofday.proto";
 
 enum ActionCardinality {
   ACTION_CARDINALITY_UNSPECIFIED = 0;
@@ -27,12 +30,6 @@ enum Align {
   ALIGN_START = 1;
   ALIGN_CENTER = 2;
   ALIGN_END = 3;
-}
-
-enum AreaType {
-  AREA_TYPE_UNSPECIFIED = 0;
-  AREA_TYPE_GLOBAL_POSTGRES = 1;
-  AREA_TYPE_SPACE_POSTGRES = 20;
 }
 
 enum AttributeType {
@@ -277,12 +274,14 @@ enum EnumType {
   ENUM_TYPE_NODE_TYPE = 2;
   ENUM_TYPE_STRUCT_TYPE = 3;
   ENUM_TYPE_TRAIT_TYPE = 5;
-  ENUM_TYPE_AREA_TYPE = 7;
-  ENUM_TYPE_RUNTIME_TYPE = 8;
-  ENUM_TYPE_RUNTIME_LANGUAGE = 9;
-  ENUM_TYPE_PROPERTY_REFERENCE_TYPE = 10;
-  ENUM_TYPE_USER_STATUS = 11;
-  ENUM_TYPE_ORGANIZATION_STATUS = 12;
+  ENUM_TYPE_STORE_ZONE = 6;
+  ENUM_TYPE_STORE_TYPE = 7;
+  ENUM_TYPE_STORE_IMPLEMENTATION = 8;
+  ENUM_TYPE_PROPERTY_REFERENCE_TYPE = 12;
+  ENUM_TYPE_RUNTIME_TYPE = 10;
+  ENUM_TYPE_RUNTIME_LANGUAGE = 11;
+  ENUM_TYPE_USER_STATUS = 13;
+  ENUM_TYPE_ORGANIZATION_STATUS = 14;
   ENUM_TYPE_SPACE_STATUS = 57;
   ENUM_TYPE_FOLDER_TYPE = 51;
   ENUM_TYPE_ERROR_TYPE = 62;
@@ -1090,6 +1089,26 @@ enum SpringType {
   SPRING_TYPE_UNSPECIFIED = 0;
   SPRING_TYPE_TIME = 1;
   SPRING_TYPE_PHYSICS = 2;
+}
+
+enum StoreImplementation {
+  STORE_IMPLEMENTATION_UNSPECIFIED = 0;
+  STORE_IMPLEMENTATION_POSTGRES = 1;
+  STORE_IMPLEMENTATION_MEMORY = 10;
+}
+
+enum StoreType {
+  STORE_TYPE_UNSPECIFIED = 0;
+  STORE_TYPE_GLOBAL_ENTITY = 100;
+  STORE_TYPE_SPATIAL_ENTITY = 200;
+  STORE_TYPE_LOCAL_MEMORY = 300;
+}
+
+enum StoreZone {
+  STORE_ZONE_UNSPECIFIED = 0;
+  STORE_ZONE_GLOBAL = 1;
+  STORE_ZONE_SPATIAL = 2;
+  STORE_ZONE_LOCAL = 3;
 }
 
 // The format of a string.
@@ -2728,7 +2747,7 @@ message QueryResultData {
 message QueryResultGroupData {
   StructType metatype = 1;
   QueryType type = 30;
-  optional ValueData discriminator = 31;
+  ValueData discriminator = 31;
   repeated ValueData nodes = 40;
   optional int64 count = 41;
   optional bool exists = 42;

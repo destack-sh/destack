@@ -15,7 +15,7 @@ from destack.test.conftest import _setup_test_env
 _setup_test_env()
 
 
-from destack.language import REGION, AreaType, DatabaseInfo, DatabaseType, Tenancy
+from destack.language import REGION, DatabaseInfo, DatabaseType, StoreType, Tenancy
 from destack.sharding import get_global_database_from_env
 from destack.store.postgres import (
     DESTACK_BUILTIN_TABLE_PREFIX,
@@ -91,7 +91,7 @@ async def global_database(request: pytest.FixtureRequest) -> AsyncGenerator[Data
     """Gets the per test function global Database"""
 
     database = get_database(f"test-{_clean_name(request.node.name)[:32]}-global")
-    schema = get_builtin_schema(AreaType.GLOBAL_ENTITY)
+    schema = get_builtin_schema(StoreType.GLOBAL_ENTITY)
     await create_test_db(database, schema)
     try:
         yield database
@@ -104,7 +104,7 @@ async def spatial_database(request: pytest.FixtureRequest) -> AsyncGenerator[Dat
     """Gets the per test function spatial Database"""
 
     database = get_database(f"test-{_clean_name(request.node.name)[:32]}-spatial")
-    schema = get_builtin_schema(AreaType.SPATIAL_ENTITY)
+    schema = get_builtin_schema(StoreType.SPATIAL_ENTITY)
     await create_test_db(database, schema)
     try:
         yield database
@@ -117,7 +117,7 @@ async def omni_postgres_database(
     request: pytest.FixtureRequest,
 ) -> AsyncGenerator[DatabaseInfo, None]:
     """Gets the per test function omni Database"""
-    omni_schema = get_builtin_schema(AreaType.GLOBAL_ENTITY, AreaType.SPATIAL_ENTITY)
+    omni_schema = get_builtin_schema(StoreType.GLOBAL_ENTITY, StoreType.SPATIAL_ENTITY)
     database = get_database(f"test-{_clean_name(request.node.name)[:32]}-omni")
     await create_test_db(database, omni_schema)
     try:

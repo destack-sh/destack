@@ -5,13 +5,13 @@ from typing import TYPE_CHECKING, Annotated, Optional
 import structlog
 import typer
 
-from destack.language.core import REGION, AreaType, Region
+from destack.language.core import REGION, Region, StoreType
 from destack.utils.func import sanitize_connection_url
 
-from .utils import async_to_sync, parse_node_area, parse_region
+from .utils import async_to_sync, parse_region, parse_store_type
 
 if TYPE_CHECKING:
-    from destack.language import AreaType, Region
+    from destack.language import Region, StoreType
 
 app = typer.Typer(short_help="postgres management")
 logger = structlog.get_logger(__name__)
@@ -21,29 +21,29 @@ logger = structlog.get_logger(__name__)
 @app.command()
 @async_to_sync
 async def sqlshell(
-    area: Annotated[AreaType, typer.Option(parser=parse_node_area)],
+    store_type: Annotated[StoreType, typer.Option(parser=parse_store_type)],
     region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,
     cell_name: Optional[str] = None,
     external_id: Optional[str] = None,
     space: Optional[str] = None,
 ):  # type: ignore
     """Open a psql shell to either the global or a Space-local database."""
-    from destack.language import AreaType
+    from destack.language import StoreType
     from destack.sharding import DATABASE_PROVIDER, get_global_database_from_env
 
-    if area == AreaType.GLOBAL_ENTITY:
+    if store_type == StoreType.GLOBAL_ENTITY:
         database = get_global_database_from_env()
-    elif area == AreaType.SPATIAL_ENTITY:
-        assert cell_name is not None, "cell_name is required for main area"
-        assert external_id is not None, "external_id is required for main area"
+    elif store_type == StoreType.SPATIAL_ENTITY:
+        assert cell_name is not None, "cell_name is required for main store_type"
+        assert external_id is not None, "external_id is required for main store_type"
         database = await DATABASE_PROVIDER.resolve_or_error(region, cell_name, external_id)
     else:
-        raise ValueError(f"invalid area: {area!r}")
+        raise ValueError(f"invalid store_type: {store_type!r}")
 
     assert database.connection_url, f"database {database!r} has no connection_uri"
     logger.info(
         "shell.psql",
-        area=area,
+        store_type=store_type,
         space=space,
         database=database,
         sql_url=sanitize_connection_url(database.connection_url),

@@ -7,7 +7,6 @@ from opentelemetry import trace
 
 from destack.language import (
     CLOUD,
-    AreaType,
     Change,
     Client,
     Database,
@@ -20,6 +19,7 @@ from destack.language import (
     Scope,
     Session,
     Space,
+    StoreType,
 )
 from destack.pb2 import (
     CommitRequest,
@@ -87,7 +87,7 @@ class HostService(ServiceBase, HostBase):
         self.space_ptr = NodeReference(node_type=NodeType.SPACE, id=space_id, space_id=space_id)
         self.scope = Scope(space_id=space_id)
         self.global_postgres_store = PostgresStore(
-            database=global_database, areas=(AreaType.GLOBAL_ENTITY,)
+            database=global_database, types=(StoreType.GLOBAL_ENTITY,)
         )
         self.spatial_postgres_store: PostgresStore | None = None
         self.store: LiveStore = ...  # type: ignore nocheckin: LiveStore
@@ -114,7 +114,7 @@ class HostService(ServiceBase, HostBase):
             ).execute_one()
             if (database := space.database) is not None:
                 self.spatial_postgres_store = PostgresStore(
-                    database=database.to_info(), areas=(AreaType.SPATIAL_ENTITY,)
+                    database=database.to_info(), types=(StoreType.SPATIAL_ENTITY,)
                 )
 
     def stop(self) -> None:

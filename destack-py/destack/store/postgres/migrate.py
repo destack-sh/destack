@@ -22,7 +22,7 @@ import structlog
 from more_itertools import first
 from opentelemetry import trace
 
-from destack.language import AreaType
+from destack.language import StoreType
 from destack.utils.code import format_code
 from destack.utils.env import REPOSITORY_PATH
 from destack.utils.func import partition, re_search_or_error
@@ -72,9 +72,9 @@ class Migration:
     def __repr__(self) -> str:
         return f"<Migration {self}>"
 
-    def has_area(self, area: AreaType) -> bool:
-        return (area == AreaType.GLOBAL_ENTITY and self.has_global) or (
-            area == AreaType.SPATIAL_ENTITY and self.has_spatial
+    def has_store_type(self, store_type: StoreType) -> bool:
+        return (store_type == StoreType.GLOBAL_ENTITY and self.has_global) or (
+            store_type == StoreType.SPATIAL_ENTITY and self.has_spatial
         )
 
 
@@ -157,7 +157,7 @@ async def sql_migrate(
     target: str | int | None,
     oracle: Oracle,
     *,
-    area: AreaType,
+    store_type: StoreType,
     database: "Database | None" = None,
 ) -> list[Migration]:
     """
@@ -178,11 +178,19 @@ async def sql_migrate(
             raise ValueError("no migrations found")
         target_migration = MIGRATIONS[-1]
 
-    logger.trace("migrations.load", target_migration=target_migration, area=area, database=database)
+    logger.trace(
+        "migrations.load",
+        target_migration=target_migration,
+        store_type=store_type,
+        database=database,
+    )
     databased_migrations = await read_migrations_from_pg(conn)
     is_upgrade = all(target_migration.id > m.id for m in databased_migrations if m.applied_at)
     log = logger.bind(
-        target_migration=target_migration, is_upgrade=is_upgrade, area=area, database=database
+        target_migration=target_migration,
+        is_upgrade=is_upgrade,
+        store_type=store_type,
+        database=database,
     )
     applied_migrations = [m for m in databased_migrations if m.applied_at is not None]
     current_migration = max(applied_migrations, key=lambda m: m.id) if applied_migrations else None
@@ -191,7 +199,7 @@ async def sql_migrate(
     # get the migrations to apply
     migrations_to_apply = []
     for migration in MIGRATIONS:
-        if not migration.has_area(area):
+        if not migration.has_store_type(store_type):
             continue
         if (is_upgrade and current_migration_id < migration.id <= target_migration.id) or (
             not is_upgrade and current_migration_id >= migration.id > target_migration.id
@@ -208,7 +216,7 @@ async def sql_migrate(
             migrations_to_apply,
             oracle=oracle,
             is_upgrade=is_upgrade,
-            area=area,
+            store_type=store_type,
             database=database,
         )
         log.debug("migrations.apply", conn=conn, migrations=migrations_to_apply, database=database)
@@ -233,15 +241,13 @@ async def _do_migrate(
     oracle: Oracle,
     *,
     is_upgrade: bool,
-    area: AreaType,
+    store_type: StoreType,
     database: Optional["Database"] = None,
 ):
     """Applies the given migrations in the given order."""
     for migration in migrations:
         with tracer.start_as_current_span("database.apply_migration"):
-            func_name = (
-                f"{(is_upgrade and 'upgrade') or 'downgrade'}_{(area.name.lower()) or 'local'}"
-            )
+            func_name = f"{(is_upgrade and 'upgrade') or 'downgrade'}_{(store_type.name.lower()) or 'local'}"
             migration_file = _load_migration_from_path(migration)
             func = getattr(migration_file.module, func_name)
             try:
@@ -270,7 +276,7 @@ async def _do_migrate(
 #
 
 
-class DatabaseMigrationOpType(enum.Enum):
+class PostgresMigrationOpType(enum.Enum):
     CREATE = "CREATE"
     RENAME = "RENAME"
     UPDATE = "UPDATE"
@@ -278,22 +284,22 @@ class DatabaseMigrationOpType(enum.Enum):
 
 
 @dataclass
-class DatabaseMigrationOp:
-    type: DatabaseMigrationOpType
+class PostgresMigrationOp:
+    type: PostgresMigrationOpType
     new_object: Optional[PostgresObject]
     old_object: Optional[PostgresObject]
     diff_keys: Optional[tuple[str, ...]] = None
 
     def __str__(self) -> str:
         op_str = f"{self.type.value} {self.object_kind.name}"
-        if self.type == DatabaseMigrationOpType.CREATE:
+        if self.type == PostgresMigrationOpType.CREATE:
             assert self.new_object is not None, f"new_object not set for {self!r}"
             return f"{op_str} {self.new_object.qualified_name}"
-        elif self.type == DatabaseMigrationOpType.RENAME:
+        elif self.type == PostgresMigrationOpType.RENAME:
             assert self.old_object is not None, f"old_object not set for {self!r}"
             assert self.new_object is not None, f"new_object not set for {self!r}"
             return f"{op_str} {self.old_object.qualified_name} -> {self.new_object.qualified_name}"
-        elif self.type == DatabaseMigrationOpType.UPDATE:
+        elif self.type == PostgresMigrationOpType.UPDATE:
             assert self.diff_keys is not None, f"diff_keys not set for {self!r}"
             assert self.new_object is not None, f"new_object not set for {self!r}"
             diff_str = ", ".join(
@@ -301,7 +307,7 @@ class DatabaseMigrationOp:
                 for k in self.diff_keys
             )
             return f"{op_str} {self.new_object.qualified_name} ({diff_str})"
-        elif self.type == DatabaseMigrationOpType.DELETE:
+        elif self.type == PostgresMigrationOpType.DELETE:
             assert self.old_object is not None, f"old_object not set for {self!r}"
             return f"{op_str} {self.old_object.qualified_name}"
         else:
@@ -328,20 +334,20 @@ class DatabaseMigrationOp:
         else:
             raise RuntimeError(f"no object set for {self!r}")
 
-    def invert(self) -> "DatabaseMigrationOp":
+    def invert(self) -> "PostgresMigrationOp":
         """Returns the inverse of this operation for undoing migrations."""
-        if self.type == DatabaseMigrationOpType.CREATE:
-            return DatabaseMigrationOp(DatabaseMigrationOpType.DELETE, None, self.new_object)
-        elif self.type == DatabaseMigrationOpType.RENAME:
-            return DatabaseMigrationOp(
-                DatabaseMigrationOpType.RENAME, self.old_object, self.new_object
+        if self.type == PostgresMigrationOpType.CREATE:
+            return PostgresMigrationOp(PostgresMigrationOpType.DELETE, None, self.new_object)
+        elif self.type == PostgresMigrationOpType.RENAME:
+            return PostgresMigrationOp(
+                PostgresMigrationOpType.RENAME, self.old_object, self.new_object
             )
-        elif self.type == DatabaseMigrationOpType.UPDATE:
-            return DatabaseMigrationOp(
-                DatabaseMigrationOpType.UPDATE, self.old_object, self.new_object, self.diff_keys
+        elif self.type == PostgresMigrationOpType.UPDATE:
+            return PostgresMigrationOp(
+                PostgresMigrationOpType.UPDATE, self.old_object, self.new_object, self.diff_keys
             )
-        elif self.type == DatabaseMigrationOpType.DELETE:
-            return DatabaseMigrationOp(DatabaseMigrationOpType.CREATE, self.old_object, None)
+        elif self.type == PostgresMigrationOpType.DELETE:
+            return PostgresMigrationOp(PostgresMigrationOpType.CREATE, self.old_object, None)
         raise RuntimeError(f"unexpected migration op type: {self.type}")
 
 
@@ -355,8 +361,8 @@ def generate_migration_code(
     migration: Migration,
     oracle: Oracle,
     *,
-    global_ops: list[DatabaseMigrationOp],
-    main_ops: list[DatabaseMigrationOp],
+    global_ops: list[PostgresMigrationOp],
+    main_ops: list[PostgresMigrationOp],
     exclude_inverse: bool = False,
 ) -> str:
     """Generates the Python migration file."""
@@ -397,17 +403,17 @@ def generate_migration_ops(
     *,
     old_schema: PostgresSchema,
     new_schema: PostgresSchema,
-    include_types: tuple[DatabaseMigrationOpType, ...] = tuple(DatabaseMigrationOpType),
-) -> list[DatabaseMigrationOp]:
+    include_types: tuple[PostgresMigrationOpType, ...] = tuple(PostgresMigrationOpType),
+) -> list[PostgresMigrationOp]:
     """Generates the migration operations to go from the old tables to the new tables."""
 
     # extensions
-    extension_ops: list[DatabaseMigrationOp] = []
+    extension_ops: list[PostgresMigrationOp] = []
     old_extensions = {ext.name for ext in old_schema.extensions}
     new_extensions = {ext.name for ext in new_schema.extensions}
     for ext_name in new_extensions - old_extensions:
         extension_ops.append(
-            DatabaseMigrationOp(DatabaseMigrationOpType.CREATE, PostgresExtension(ext_name), None)
+            PostgresMigrationOp(PostgresMigrationOpType.CREATE, PostgresExtension(ext_name), None)
         )
     # NOTE: we don't remove extensions for now
 
@@ -425,7 +431,7 @@ def generate_migration_ops(
 
     # diff objects
     deleted_ids: set[str] = set()
-    deleted_table_ops: list[DatabaseMigrationOp] = []
+    deleted_table_ops: list[PostgresMigrationOp] = []
     for old_object in old_table_objects:
         old_id = _to_id(old_object)
         new_object = new_table_objects_by_id.get(old_id)
@@ -441,11 +447,11 @@ def generate_migration_ops(
                 ):
                     continue
             deleted_table_ops.append(
-                DatabaseMigrationOp(DatabaseMigrationOpType.DELETE, None, old_object)
+                PostgresMigrationOp(PostgresMigrationOpType.DELETE, None, old_object)
             )
             deleted_ids.add(old_id)
     # regular order: table -> column -> index -> constraint
-    cru_ops: list[DatabaseMigrationOp] = []
+    cru_ops: list[PostgresMigrationOp] = []
     for new_object in new_table_objects:
         new_id = _to_id(new_object)
         old_object = old_table_objects_by_id.get(new_id)
@@ -457,26 +463,26 @@ def generate_migration_ops(
                 and _to_id(new_object.table) not in old_table_objects_by_id
             ):
                 continue
-            cru_ops.append(DatabaseMigrationOp(DatabaseMigrationOpType.CREATE, new_object, None))
+            cru_ops.append(PostgresMigrationOp(PostgresMigrationOpType.CREATE, new_object, None))
         elif new_object.name != old_object.name:
             cru_ops.append(
-                DatabaseMigrationOp(DatabaseMigrationOpType.RENAME, new_object, old_object)
+                PostgresMigrationOp(PostgresMigrationOpType.RENAME, new_object, old_object)
             )
         elif old_object.hash_flat() != new_object.hash_flat():
             diff = new_object.diff_keys(old_object)
             if not diff:
                 continue  # hashing changed
             cru_ops.append(
-                DatabaseMigrationOp(DatabaseMigrationOpType.UPDATE, new_object, old_object, diff)
+                PostgresMigrationOp(PostgresMigrationOpType.UPDATE, new_object, old_object, diff)
             )
 
     # fix cyclic dependencies between creates & FKs -> split into two passes:
     #  1. create tables without FK columns
     #  2. patch in all the FK columns, create indexes, and constraints
-    first_table_cru_ops: list[DatabaseMigrationOp] = []
-    patch_table_cru_ops: list[DatabaseMigrationOp] = []
+    first_table_cru_ops: list[PostgresMigrationOp] = []
+    patch_table_cru_ops: list[PostgresMigrationOp] = []
     for op in cru_ops:
-        if op.type != DatabaseMigrationOpType.CREATE:
+        if op.type != PostgresMigrationOpType.CREATE:
             patch_table_cru_ops.append(op)
             continue
 
@@ -489,12 +495,12 @@ def generate_migration_ops(
             )
             first_table = replace(op.new_object, columns=first_columns, constraints=(), indexes=())
             first_table_cru_ops.append(
-                DatabaseMigrationOp(DatabaseMigrationOpType.CREATE, first_table, None)
+                PostgresMigrationOp(PostgresMigrationOpType.CREATE, first_table, None)
             )
             for col in deferred_columns:
                 col._table = first_table
                 patch_table_cru_ops.append(
-                    DatabaseMigrationOp(DatabaseMigrationOpType.CREATE, col, None)
+                    PostgresMigrationOp(PostgresMigrationOpType.CREATE, col, None)
                 )
         elif op.object_kind == DatabaseObjectKind.COLUMN:
             assert isinstance(op.new_object, PostgresColumn)
@@ -506,14 +512,14 @@ def generate_migration_ops(
             patch_table_cru_ops.append(op)
 
     # combine and filter ops
-    ops: list[DatabaseMigrationOp] = []
+    ops: list[PostgresMigrationOp] = []
     for op in chain(extension_ops, deleted_table_ops, first_table_cru_ops, patch_table_cru_ops):
         if op.type in include_types:
             ops.append(op)
     return ops
 
 
-def _render_migration_body(ops: list[DatabaseMigrationOp] | None) -> str:
+def _render_migration_body(ops: list[PostgresMigrationOp] | None) -> str:
     """Renders migration operations into an executable method body."""
 
     if ops is None:
@@ -614,7 +620,7 @@ def _render_migration_body(ops: list[DatabaseMigrationOp] | None) -> str:
 
 
 @tracer.start_as_current_span("database.apply_migration_ops")
-async def apply_migration_ops(conn: asyncpg.Connection, ops: list[DatabaseMigrationOp]) -> None:
+async def apply_migration_ops(conn: asyncpg.Connection, ops: list[PostgresMigrationOp]) -> None:
     """Directly apply the given migration ops."""
     method_body = _render_migration_body(ops)
     method_body = format_code(method_body)
@@ -645,12 +651,12 @@ def add_migration_to_fs(migration: Migration, code: str, *, overwrite: bool = Fa
     return migration_path
 
 
-def _render_migration_op(op: DatabaseMigrationOp) -> str | None:
+def _render_migration_op(op: PostgresMigrationOp) -> str | None:
     """
     Renders the given operation into a SQL string.
     Generally 'flat' - ops do not include nested objects - except for CREATE TABLE.
     """
-    if op.type == DatabaseMigrationOpType.CREATE:
+    if op.type == PostgresMigrationOpType.CREATE:
         if isinstance(op.new_object, PostgresExtension):
             return f'CREATE EXTENSION IF NOT EXISTS "{op.new_object.name}"'
         elif isinstance(op.new_object, PostgresTable):
@@ -666,7 +672,7 @@ def _render_migration_op(op: DatabaseMigrationOp) -> str | None:
         elif isinstance(op.new_object, PostgresConstraint):
             return f'ALTER TABLE "{op.new_object.table.name}" ADD CONSTRAINT {op.new_object.sql()}'
 
-    elif op.type == DatabaseMigrationOpType.RENAME:
+    elif op.type == PostgresMigrationOpType.RENAME:
         assert op.new_object is not None, f"expected a new object: {op!r}"
         if isinstance(op.old_object, PostgresTable):
             return f'ALTER TABLE "{op.old_object.name}" RENAME TO "{op.new_object.name}"'
@@ -677,7 +683,7 @@ def _render_migration_op(op: DatabaseMigrationOp) -> str | None:
         elif isinstance(op.old_object, PostgresConstraint):
             return f'ALTER TABLE "{op.old_object.table.name}" RENAME CONSTRAINT "{op.old_object.name}" TO "{op.new_object.name}"'
 
-    elif op.type == DatabaseMigrationOpType.UPDATE:
+    elif op.type == PostgresMigrationOpType.UPDATE:
         if isinstance(op.old_object, PostgresTable):
             # there are no table properties we can update (outside name, which is handled by rename)
             raise NotImplementedError(f"cannot render {op!r}")
@@ -759,7 +765,7 @@ def _render_migration_op(op: DatabaseMigrationOp) -> str | None:
                 f" ADD CONSTRAINT {op.new_object.sql()}"
             )
 
-    elif op.type == DatabaseMigrationOpType.DELETE:
+    elif op.type == PostgresMigrationOpType.DELETE:
         if isinstance(op.old_object, PostgresExtension):
             return f'DROP EXTENSION IF EXISTS "{op.old_object.name}"'
         elif isinstance(op.old_object, PostgresTable):
