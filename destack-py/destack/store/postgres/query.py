@@ -542,7 +542,84 @@ async def _query_grouped_node(
     offset: int | None,
 ) -> list[tuple[Value, list[Value], list[NodeReference]]]:
     """Execute a grouped node Query."""
-    raise NotImplementedError
+    if relation.is_multi:
+        raise NotImplementedError(f"cannot query grouped node on multi relation: {relation!r}")
+
+    # build statement to get groups
+    table = context.get_relation(relation)
+    group_arguments: list[Any] = []
+    group_by_parts = [_compile_expression(context, group_arguments, expr) for expr in group_by]
+    group_by_clause = ", ".join(group_by_parts)
+    stmt_parts: list[str] = [
+        "SELECT",
+        f"{group_by_clause}, ARRAY_AGG(id ORDER BY id) as grouped_ids",
+        f"FROM {table.name}",
+    ]
+    if where is not None:
+        stmt_parts.append(f"WHERE {_compile_condition(context, group_arguments, where)}")
+    stmt_parts.append(f"GROUP BY {group_by_clause}")
+    if having is not None:
+        stmt_parts.append(f"HAVING {_compile_condition(context, group_arguments, having)}")
+    if sort:
+        stmt_parts.append(f"ORDER BY {_compile_sort(context, group_arguments, sort)}")
+    if limit is not None:
+        stmt_parts.append(f"LIMIT {limit}")
+    if offset is not None:
+        stmt_parts.append(f"OFFSET {offset}")
+    group_stmt = "\n".join(stmt_parts)
+
+    # execute statement to get groups
+    group_rows: list[asyncpg.Record] = await conn.fetch(group_stmt, *group_arguments)
+    group_by_count = len(group_by)
+    nodes_id: list[UUID] = []
+    nodes_id_by_discriminator: dict[Any, list[UUID]] = {}
+    for row in group_rows:
+        group_values = row[:group_by_count]
+        discriminator = group_values[0] if group_by_count == 1 else tuple(group_values)
+        group_ids = [fastuuid.UUID(str(id)) for id in row[group_by_count]]  # ARRAY_AGG result
+        nodes_id_by_discriminator[discriminator] = group_ids
+        nodes_id.extend(group_ids)
+
+    # build statement to get nodes
+    node_arguments: list[Any] = []
+    node_stmt_parts: list[str] = ["SELECT"]
+    if select:
+        node_stmt_parts.append(_compile_select(context, node_arguments, select))
+    else:
+        columns_clause = ", ".join(f'"{col.name}"' for col in table.columns)
+        node_stmt_parts.append(columns_clause)
+    node_stmt_parts.append(f"FROM {table.name}")  # noqa: FURB113
+    node_stmt_parts.append(f"WHERE id = ANY(${len(node_arguments) + 1})")
+    node_arguments.append(nodes_id)
+    node_stmt = "\n".join(node_stmt_parts)
+
+    # execute statement to get nodes
+    node_rows: list[asyncpg.Record] = await conn.fetch(node_stmt, *node_arguments)
+    nodes_by_id: dict[UUID, tuple[Value, NodeReference]] = {}
+    for row in node_rows:
+        value, ptr = unpack_node_row(table, row)
+        nodes_by_id[ptr.id] = (value, ptr)
+
+    # assemble results
+    results: list[tuple[Value, list[Value], list[NodeReference]]] = []
+    for discriminator, group_node_ids in nodes_id_by_discriminator.items():
+        group_discriminator = to_value(discriminator)
+        group_nodes_value: list[Value] = []
+        group_nodes_ptr: list[NodeReference] = []
+        for node_id in group_node_ids:
+            assert node_id in nodes_by_id, f"node {node_id} not found in {nodes_by_id!r}"
+            value, ptr = nodes_by_id[node_id]
+            group_nodes_value.append(value)
+            group_nodes_ptr.append(ptr)
+        results.append((group_discriminator, group_nodes_value, group_nodes_ptr))
+
+    logger.debug(
+        "postgres.query_grouped_node",
+        groups=len(results),
+        total_nodes=len(node_rows),
+        span="current",
+    )
+    return results
 
 
 @tracer.start_as_current_span("postgres.query_grouped_scalar")

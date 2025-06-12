@@ -11,7 +11,7 @@ from destack.language import (
     StoreType,
 )
 
-# nocheckin: proper split committing/querying (store area_type in NodeReference?)
+# nocheckin: proper split committing/querying (keep store_type in Node & NodeReference instances?)
 #  (including live/in-memory overrides)
 
 

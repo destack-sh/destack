@@ -1,4 +1,4 @@
-from .connection import QueryConnection
+from .connection import QueryConnection, QueryContainer
 from .graph import Graph, PolyGraph, SingletonGraph, Supergraph
 from .render import Aliasing, Renderer, RenderOptions, get_active_aliasing
 from .session import Session
@@ -11,6 +11,7 @@ __all__ = [
     "OptimisticStore",
     "PolyGraph",
     "QueryConnection",
+    "QueryContainer",
     "RenderOptions",
     "Renderer",
     "Session",
