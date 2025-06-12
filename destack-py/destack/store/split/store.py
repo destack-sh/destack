@@ -1,16 +1,18 @@
-from collections.abc import Mapping, Sequence
-from typing import override
+from collections.abc import Sequence
+from typing import ClassVar, override
 
 from destack.language import (
-    AreaType,
     Change,
     ChangeResult,
     Query,
     QueryResult,
     Store,
+    StoreImplementation,
+    StoreType,
 )
 
-# nocheckin: proper split committing/querying (store area in NodeReference?)
+# nocheckin: proper split committing/querying (store area_type in NodeReference?)
+#  (including live/in-memory overrides)
 
 
 class SplitStore(Store):
@@ -19,13 +21,19 @@ class SplitStore(Store):
     Does not support atomic Changes across Stores (yet).
     """
 
-    def __init__(self, store_by_area: Mapping[AreaType, Store]):
-        self.store_by_area = store_by_area
+    backend: ClassVar[StoreImplementation | None] = None
+
+    def __init__(self, *stores: Store):
+        self.stores: tuple[Store, ...] = stores
+        self.store_by_type: dict[StoreType, Store] = {}
+        for store in stores:
+            for type in store.types:
+                self.store_by_type[type] = store
 
     def __str__(self):
         content_parts: list[str] = []
-        for area, store in self.store_by_area.items():
-            content_parts.append(f"{area.name}={store!s}")
+        for type, store in self.store_by_type.items():
+            content_parts.append(f"{type.name}={store!s}")
         return ", ".join(content_parts)
 
     def __repr__(self):

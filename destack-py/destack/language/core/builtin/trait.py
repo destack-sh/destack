@@ -681,7 +681,7 @@ class LikeInvite(Trait):
 
 @trait_(TraitType.TAG)
 class LikeTag(Trait):
-    """A Node that can be tagged."""
+    """A Node that represents a Tag."""
 
     pass
 

@@ -45,12 +45,6 @@ class Align(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ALIGN_CENTER: _ClassVar[Align]
     ALIGN_END: _ClassVar[Align]
 
-class AreaType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    AREA_TYPE_UNSPECIFIED: _ClassVar[AreaType]
-    AREA_TYPE_GLOBAL_POSTGRES: _ClassVar[AreaType]
-    AREA_TYPE_SPACE_POSTGRES: _ClassVar[AreaType]
-
 class AttributeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     ATTRIBUTE_TYPE_UNSPECIFIED: _ClassVar[AttributeType]
@@ -282,10 +276,12 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_NODE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_STRUCT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_TRAIT_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_AREA_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_STORE_ZONE: _ClassVar[EnumType]
+    ENUM_TYPE_STORE_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_STORE_IMPLEMENTATION: _ClassVar[EnumType]
+    ENUM_TYPE_PROPERTY_REFERENCE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_RUNTIME_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_RUNTIME_LANGUAGE: _ClassVar[EnumType]
-    ENUM_TYPE_PROPERTY_REFERENCE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_USER_STATUS: _ClassVar[EnumType]
     ENUM_TYPE_ORGANIZATION_STATUS: _ClassVar[EnumType]
     ENUM_TYPE_SPACE_STATUS: _ClassVar[EnumType]
@@ -1075,6 +1071,26 @@ class SpringType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     SPRING_TYPE_TIME: _ClassVar[SpringType]
     SPRING_TYPE_PHYSICS: _ClassVar[SpringType]
 
+class StoreImplementation(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    STORE_IMPLEMENTATION_UNSPECIFIED: _ClassVar[StoreImplementation]
+    STORE_IMPLEMENTATION_POSTGRES: _ClassVar[StoreImplementation]
+    STORE_IMPLEMENTATION_MEMORY: _ClassVar[StoreImplementation]
+
+class StoreType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    STORE_TYPE_UNSPECIFIED: _ClassVar[StoreType]
+    STORE_TYPE_GLOBAL_ENTITY: _ClassVar[StoreType]
+    STORE_TYPE_SPATIAL_ENTITY: _ClassVar[StoreType]
+    STORE_TYPE_LOCAL_MEMORY: _ClassVar[StoreType]
+
+class StoreZone(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    STORE_ZONE_UNSPECIFIED: _ClassVar[StoreZone]
+    STORE_ZONE_GLOBAL: _ClassVar[StoreZone]
+    STORE_ZONE_SPATIAL: _ClassVar[StoreZone]
+    STORE_ZONE_LOCAL: _ClassVar[StoreZone]
+
 class StringFormat(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     STRING_FORMAT_UNSPECIFIED: _ClassVar[StringFormat]
@@ -1354,9 +1370,6 @@ ALIGN_UNSPECIFIED: Align
 ALIGN_START: Align
 ALIGN_CENTER: Align
 ALIGN_END: Align
-AREA_TYPE_UNSPECIFIED: AreaType
-AREA_TYPE_GLOBAL_POSTGRES: AreaType
-AREA_TYPE_SPACE_POSTGRES: AreaType
 ATTRIBUTE_TYPE_UNSPECIFIED: AttributeType
 ATTRIBUTE_TYPE_PROPERTY: AttributeType
 ATTRIBUTE_TYPE_FIELD: AttributeType
@@ -1520,10 +1533,12 @@ ENUM_TYPE_ENUM_TYPE: EnumType
 ENUM_TYPE_NODE_TYPE: EnumType
 ENUM_TYPE_STRUCT_TYPE: EnumType
 ENUM_TYPE_TRAIT_TYPE: EnumType
-ENUM_TYPE_AREA_TYPE: EnumType
+ENUM_TYPE_STORE_ZONE: EnumType
+ENUM_TYPE_STORE_TYPE: EnumType
+ENUM_TYPE_STORE_IMPLEMENTATION: EnumType
+ENUM_TYPE_PROPERTY_REFERENCE_TYPE: EnumType
 ENUM_TYPE_RUNTIME_TYPE: EnumType
 ENUM_TYPE_RUNTIME_LANGUAGE: EnumType
-ENUM_TYPE_PROPERTY_REFERENCE_TYPE: EnumType
 ENUM_TYPE_USER_STATUS: EnumType
 ENUM_TYPE_ORGANIZATION_STATUS: EnumType
 ENUM_TYPE_SPACE_STATUS: EnumType
@@ -2135,6 +2150,17 @@ SPACE_STATUS_PAUSED: SpaceStatus
 SPRING_TYPE_UNSPECIFIED: SpringType
 SPRING_TYPE_TIME: SpringType
 SPRING_TYPE_PHYSICS: SpringType
+STORE_IMPLEMENTATION_UNSPECIFIED: StoreImplementation
+STORE_IMPLEMENTATION_POSTGRES: StoreImplementation
+STORE_IMPLEMENTATION_MEMORY: StoreImplementation
+STORE_TYPE_UNSPECIFIED: StoreType
+STORE_TYPE_GLOBAL_ENTITY: StoreType
+STORE_TYPE_SPATIAL_ENTITY: StoreType
+STORE_TYPE_LOCAL_MEMORY: StoreType
+STORE_ZONE_UNSPECIFIED: StoreZone
+STORE_ZONE_GLOBAL: StoreZone
+STORE_ZONE_SPATIAL: StoreZone
+STORE_ZONE_LOCAL: StoreZone
 STRING_FORMAT_UNSPECIFIED: StringFormat
 STRING_FORMAT_NAME: StringFormat
 STRING_FORMAT_SLUG: StringFormat

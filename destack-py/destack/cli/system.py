@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Annotated
 import structlog
 import typer
 
-from destack.language import REGION, AreaType, Region, Session
+from destack.language import REGION, Region, Session, StoreType
 
 from .utils import async_to_sync, parse_region
 
@@ -25,7 +25,7 @@ async def bootstrap(
     from destack.supervisor import create_system_destackes
 
     global_database = get_global_database_from_env()
-    store = PostgresStore(database=global_database, areas=(AreaType.GLOBAL_ENTITY,))
+    store = PostgresStore(database=global_database, types=(StoreType.GLOBAL_ENTITY,))
     async with Session(store=store) as session:
         await create_system_destackes(region=region, session=session, upsert=upsert)
         await session.commit()

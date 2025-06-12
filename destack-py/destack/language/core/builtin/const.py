@@ -279,12 +279,14 @@ class EnumType(BuiltinEnum):
     NODE_TYPE = 2
     STRUCT_TYPE = 3
     TRAIT_TYPE = 5
-    AREA_TYPE = 7
-    RUNTIME_TYPE = 8
-    RUNTIME_LANGUAGE = 9
-    PROPERTY_REFERENCE_TYPE = 10
-    USER_STATUS = 11
-    ORGANIZATION_STATUS = 12
+    STORE_ZONE = 6
+    STORE_TYPE = 7
+    STORE_IMPLEMENTATION = 8
+    PROPERTY_REFERENCE_TYPE = 12
+    RUNTIME_TYPE = 10
+    RUNTIME_LANGUAGE = 11
+    USER_STATUS = 13
+    ORGANIZATION_STATUS = 14
     SPACE_STATUS = 57
     FOLDER_TYPE = 51
     ERROR_TYPE = 62
@@ -965,12 +967,32 @@ class TraitType(BuiltinEnum):
     # ...
 
 
-@enum_(EnumType.AREA_TYPE)
-class AreaType(BuiltinEnum):
-    GLOBAL_ENTITY = 1
+@enum_(EnumType.STORE_ZONE)
+class StoreZone(BuiltinEnum):
+    GLOBAL = 1
+    SPATIAL = 2
+    LOCAL = 3
+
+
+@enum_(EnumType.STORE_TYPE)
+class StoreType(BuiltinEnum):
+    GLOBAL_ENTITY = 100
     # GLOBAL_SEARCH?
-    SPATIAL_ENTITY = 20
-    # SPATIAL_PARTICLE, SPATIAL_SEARCH, SPATIAL_ANALYTIC, ...
+    SPATIAL_ENTITY = 200
+    # SPATIAL_PARTICLE, SPATIAL_ANALYTIC, ...
+    # SPATIAL_SEARCH, SPATIAL_CACHE, ...
+    LOCAL_MEMORY = 300
+
+    @property
+    def zone(self) -> StoreZone:
+        return StoreZone(self.value // 100)
+
+
+@enum_(EnumType.STORE_IMPLEMENTATION)
+class StoreImplementation(BuiltinEnum):
+    POSTGRES = 1
+    # CASSANDRA, ELASTICSEARCH, REDIS, ...
+    MEMORY = 10
 
 
 @enum_(EnumType.RUNTIME_LANGUAGE)
