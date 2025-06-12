@@ -15,6 +15,7 @@ from .core.builtin.const import (
     UNSET,
     EnumType,
     NodeType,
+    StoreType,
     StructType,
     TraitType,
 )
@@ -38,6 +39,7 @@ ENUM_TYPE_BY_CLASS = _ENUM_TYPE_BY_CLASS  # re-exported to avoid circular import
 
 NODE_CLASS_BY_TYPE: dict[NodeType, type["Node"]] = {}
 NODE_TYPE_BY_CLASS: dict[type["Node"], NodeType] = {}
+NODE_TYPES_BY_MAIN_STORE_TYPE: dict[StoreType, tuple[NodeType, ...]] = {}
 
 TRAIT_CLASS_BY_TRAIT: dict[TraitType, type["BuiltinObjectBase"]] = {}
 TRAIT_TYPE_BY_CLASS: dict[type["Trait"], TraitType] = {}
@@ -100,6 +102,21 @@ def _complete_destack_setup():
 
     if _is_setup_complete():
         return
+
+    # index node types by store type
+    node_types_by_store_type: dict[StoreType, list[NodeType]] = defaultdict(list)
+    for node_cls in NODE_CLASS_BY_TYPE.values():
+        if TraitType.ENTITY in node_cls.__traits__:
+            if TraitType.GLOBAL in node_cls.__traits__:
+                node_types_by_store_type[StoreType.GLOBAL_ENTITY].append(node_cls.metatype)
+            elif TraitType.SPATIAL in node_cls.__traits__:
+                node_types_by_store_type[StoreType.SPATIAL_ENTITY].append(node_cls.metatype)
+            else:
+                raise ValueError(f"unexpected entity node type: {node_cls!r}")
+    for store_type in StoreType:
+        NODE_TYPES_BY_MAIN_STORE_TYPE[store_type] = tuple(
+            node_types_by_store_type.get(store_type, ())
+        )
 
     # index node types by trait
     node_types_by_trait: dict[TraitType, list[NodeType]] = defaultdict(list)

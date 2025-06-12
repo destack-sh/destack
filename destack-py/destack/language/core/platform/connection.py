@@ -13,7 +13,10 @@ if TYPE_CHECKING:
 
 
 class QueryContainer[RootT: "Trait | Node" = Node]:
-    """A container for some QueryResult."""
+    """
+    A container for some QueryResult.
+    NOTE: 'root' refers to the main Query, not necessarily the roots of the Graph.
+    """
 
     __slots__ = ("connection", "discriminator", "query", "result", "roots", "subcontainers", "type")
 
@@ -164,7 +167,6 @@ class QueryContainer[RootT: "Trait | Node" = Node]:
 class QueryConnection[RootT: "Trait | Node"](QueryContainer[RootT]):
     """
     A connection to a Query and its result.
-    NOTE: 'root' refers to the root Query, not necessarily the root of the result Graph.
     """
 
     __slots__ = (

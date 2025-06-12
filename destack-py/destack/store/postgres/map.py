@@ -9,10 +9,9 @@ from destack.language import (
     PrimitiveType,
     ScalarType,
     StoreType,
-    TraitType,
     TypeCardinality,
 )
-from destack.language.registry import NODE_CLASS_BY_TYPE
+from destack.language.registry import NODE_CLASS_BY_TYPE, NODE_TYPES_BY_MAIN_STORE_TYPE
 
 from .core import (
     EXTENSIONS,
@@ -141,16 +140,13 @@ def map_custom_node_to_database_table(definition: CustomEntityDefinition) -> Pos
 def get_builtin_schema(*store_types: StoreType) -> PostgresSchema:
     """Gets the builtin schema for the given traits."""
 
-    node_types: list[NodeType] = []
-    has_global = StoreType.GLOBAL_ENTITY in store_types
-    has_spatial = StoreType.SPATIAL_ENTITY in store_types
-    for node_type, node_cls in NODE_CLASS_BY_TYPE.items():
-        if TraitType.ENTITY in node_cls.__traits__ and (
-            (has_global and TraitType.GLOBAL in node_cls.__traits__)
-            or (has_spatial and TraitType.SPATIAL in node_cls.__traits__)
-        ):
-            node_types.append(node_type)
-
+    node_types: tuple[NodeType, ...] = tuple(
+        {
+            node_type
+            for store_type in store_types
+            for node_type in NODE_TYPES_BY_MAIN_STORE_TYPE[store_type]
+        }
+    )
     tables: list[PostgresTable] = [
         map_builtin_node_to_database_table(NODE_CLASS_BY_TYPE[node_type])
         for node_type in node_types
