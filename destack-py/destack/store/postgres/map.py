@@ -1,7 +1,6 @@
-from collections.abc import Mapping
+from cachetools import cached
 
 from destack.language import (
-    NODE_TYPES,
     AreaType,
     CustomEntityDefinition,
     EdgeType,
@@ -138,28 +137,22 @@ def map_custom_node_to_database_table(definition: CustomEntityDefinition) -> Pos
     raise NotImplementedError(definition)
 
 
-BUILTIN_TABLE_BY_NODE_TYPE: Mapping[NodeType, PostgresTable] = {
-    node_type: map_builtin_node_to_database_table(NODE_CLASS_BY_TYPE[node_type])
-    for node_type in NODE_TYPES
-}
-BUILTIN_TABLE_BY_NAME: Mapping[str, PostgresTable] = {
-    table.name: table for table in BUILTIN_TABLE_BY_NODE_TYPE.values()
-}
-BUILTIN_NODE_TABLES: tuple[PostgresTable, ...] = tuple(BUILTIN_TABLE_BY_NODE_TYPE.values())
+@cached({})
+def get_builtin_schema(*areas: AreaType) -> PostgresSchema:
+    """Gets the builtin schema for the given traits."""
 
-BUILTIN_GLOBAL_TABLES: tuple[PostgresTable, ...] = tuple(
-    BUILTIN_TABLE_BY_NODE_TYPE[node.metatype]
-    for node in NODE_CLASS_BY_TYPE.values()
-    if TraitType.GLOBAL in node.__traits__ and TraitType.ENTITY in node.__traits__
-)
-BUILTIN_SPATIAL_TABLES: tuple[PostgresTable, ...] = tuple(
-    BUILTIN_TABLE_BY_NODE_TYPE[node.metatype]
-    for node in NODE_CLASS_BY_TYPE.values()
-    if TraitType.SPATIAL in node.__traits__ and TraitType.ENTITY in node.__traits__
-)
-BUILTIN_TABLE_BY_AREA: Mapping[AreaType, tuple[PostgresTable, ...]] = {
-    AreaType.GLOBAL_POSTGRES: BUILTIN_GLOBAL_TABLES,
-    AreaType.SPATIAL_POSTGRES: BUILTIN_SPATIAL_TABLES,
-}
-BUILTIN_GLOBAL_SCHEMA = PostgresSchema(EXTENSIONS, BUILTIN_GLOBAL_TABLES)
-BUILTIN_SPATIAL_SCHEMA = PostgresSchema(EXTENSIONS, BUILTIN_SPATIAL_TABLES)
+    node_types: list[NodeType] = []
+    has_global = AreaType.GLOBAL_ENTITY in areas
+    has_spatial = AreaType.SPATIAL_ENTITY in areas
+    for node_type, node_cls in NODE_CLASS_BY_TYPE.items():
+        if TraitType.ENTITY in node_cls.__traits__ and (
+            (has_global and TraitType.GLOBAL in node_cls.__traits__)
+            or (has_spatial and TraitType.SPATIAL in node_cls.__traits__)
+        ):
+            node_types.append(node_type)
+
+    tables: list[PostgresTable] = [
+        map_builtin_node_to_database_table(NODE_CLASS_BY_TYPE[node_type])
+        for node_type in node_types
+    ]
+    return PostgresSchema(EXTENSIONS, tuple(tables))

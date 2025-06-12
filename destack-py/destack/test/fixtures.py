@@ -15,19 +15,15 @@ from destack.test.conftest import _setup_test_env
 _setup_test_env()
 
 
-from destack.language import REGION, DatabaseInfo, DatabaseType, Tenancy
+from destack.language import REGION, AreaType, DatabaseInfo, DatabaseType, Tenancy
 from destack.sharding import get_global_database_from_env
 from destack.store.postgres import (
-    BUILTIN_GLOBAL_SCHEMA,
-    BUILTIN_GLOBAL_TABLES,
-    BUILTIN_SPATIAL_SCHEMA,
-    BUILTIN_SPATIAL_TABLES,
     DESTACK_BUILTIN_TABLE_PREFIX,
     DESTACK_CUSTOM_TABLE_PREFIX,
-    EXTENSIONS,
     PostgresSchema,
     apply_migration_ops,
     generate_migration_ops,
+    get_builtin_schema,
     introspect_schema,
     pg_connection,
 )
@@ -95,7 +91,8 @@ async def global_database(request: pytest.FixtureRequest) -> AsyncGenerator[Data
     """Gets the per test function global Database"""
 
     database = get_database(f"test-{_clean_name(request.node.name)[:32]}-global")
-    await create_test_db(database, BUILTIN_GLOBAL_SCHEMA)
+    schema = get_builtin_schema(AreaType.GLOBAL_ENTITY)
+    await create_test_db(database, schema)
     try:
         yield database
     finally:
@@ -107,7 +104,8 @@ async def spatial_database(request: pytest.FixtureRequest) -> AsyncGenerator[Dat
     """Gets the per test function spatial Database"""
 
     database = get_database(f"test-{_clean_name(request.node.name)[:32]}-spatial")
-    await create_test_db(database, BUILTIN_SPATIAL_SCHEMA)
+    schema = get_builtin_schema(AreaType.SPATIAL_ENTITY)
+    await create_test_db(database, schema)
     try:
         yield database
     finally:
@@ -119,10 +117,7 @@ async def omni_postgres_database(
     request: pytest.FixtureRequest,
 ) -> AsyncGenerator[DatabaseInfo, None]:
     """Gets the per test function omni Database"""
-    omni_tables_by_name = {
-        table.name: table for table in BUILTIN_GLOBAL_TABLES + BUILTIN_SPATIAL_TABLES
-    }
-    omni_schema = PostgresSchema(EXTENSIONS, tuple(omni_tables_by_name.values()))
+    omni_schema = get_builtin_schema(AreaType.GLOBAL_ENTITY, AreaType.SPATIAL_ENTITY)
     database = get_database(f"test-{_clean_name(request.node.name)[:32]}-omni")
     await create_test_db(database, omni_schema)
     try:

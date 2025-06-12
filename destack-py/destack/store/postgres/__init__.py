@@ -15,17 +15,11 @@ from .core import (
 )
 from .edit import execute_change
 from .map import (
-    BUILTIN_GLOBAL_SCHEMA,
-    BUILTIN_GLOBAL_TABLES,
-    BUILTIN_NODE_TABLES,
-    BUILTIN_SPATIAL_SCHEMA,
-    BUILTIN_SPATIAL_TABLES,
-    BUILTIN_TABLE_BY_NAME,
-    BUILTIN_TABLE_BY_NODE_TYPE,
     DESTACK_BUILTIN_TABLE_PREFIX,
     DESTACK_CUSTOM_FIELD_PREFIX,
     DESTACK_CUSTOM_TABLE_PREFIX,
     EXTENSIONS,
+    get_builtin_schema,
     map_builtin_node_to_database_table,
     map_custom_node_to_database_table,
 )
@@ -50,13 +44,6 @@ from .query import execute_query
 from .store import PostgresStore
 
 __all__ = [
-    "BUILTIN_GLOBAL_SCHEMA",
-    "BUILTIN_GLOBAL_TABLES",
-    "BUILTIN_NODE_TABLES",
-    "BUILTIN_SPATIAL_SCHEMA",
-    "BUILTIN_SPATIAL_TABLES",
-    "BUILTIN_TABLE_BY_NAME",
-    "BUILTIN_TABLE_BY_NODE_TYPE",
     "DESTACK_BUILTIN_TABLE_PREFIX",
     "DESTACK_CUSTOM_FIELD_PREFIX",
     "DESTACK_CUSTOM_TABLE_PREFIX",
@@ -87,6 +74,7 @@ __all__ = [
     "execute_query",
     "generate_migration_code",
     "generate_migration_ops",
+    "get_builtin_schema",
     "introspect_schema",
     "map_builtin_node_to_database_table",
     "map_custom_node_to_database_table",

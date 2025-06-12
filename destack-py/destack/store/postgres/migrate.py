@@ -73,8 +73,8 @@ class Migration:
         return f"<Migration {self}>"
 
     def has_area(self, area: AreaType) -> bool:
-        return (area == AreaType.GLOBAL_POSTGRES and self.has_global) or (
-            area == AreaType.SPATIAL_POSTGRES and self.has_spatial
+        return (area == AreaType.GLOBAL_ENTITY and self.has_global) or (
+            area == AreaType.SPATIAL_ENTITY and self.has_spatial
         )
 
 
