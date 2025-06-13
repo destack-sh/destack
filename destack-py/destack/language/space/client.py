@@ -8,7 +8,6 @@ from destack.language.core import (
     Entity,
     Global,
     HasName,
-    IndexIn,
     IsDeletable,
     IsSubject,
     Node,
@@ -29,10 +28,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(
-    NodeType.CLIENT,
-    index=(IndexIn(columns=("access_token",), is_unique=True),),
-)
+@builtin_node(NodeType.CLIENT)
 class Client(
     HasName,
     Global,
@@ -54,7 +50,7 @@ class Client(
         user_ptr: Optional[NodeReference] = None
 
     # status
-    access_token: Optional[str] = property_(50)
+    access_token: Optional[str] = property_(50, is_unique=True)
     seen_at: Optional[datetime] = property_(51)
     logged_in_at: Optional[datetime] = property_(52)
     cursor: Optional["Cursor"] = property_(55)

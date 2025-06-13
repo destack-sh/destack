@@ -1018,10 +1018,10 @@ class StoreZone(Enum):
 @builtin_enum(EnumType.STORE_TYPE)
 class StoreType(Enum):
     GLOBAL_ENTITY = 100
-    # GLOBAL_INDEX?
+    # GLOBAL_SEARCH?
     SPATIAL_ENTITY = 200
     # SPATIAL_PARTICLE, SPATIAL_ANALYTIC, ...
-    # SPATIAL_INDEX, SPATIAL_CACHE, ...
+    # SPATIAL_SEARCH, SPATIAL_CACHE, ...
     LOCAL_MEMORY = 300
 
     @property

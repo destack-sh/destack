@@ -7,6 +7,7 @@ from destack.language import (
     NodeReference,
     NodeType,
     PrimitiveType,
+    Property,
     ScalarType,
     StoreType,
     TypeCardinality,
@@ -18,6 +19,7 @@ from .core import (
     PostgresColumn,
     PostgresConstraint,
     PostgresIndex,
+    PostgresIndexType,
     PostgresSchema,
 )
 from .core import PostgresTable as PostgresTable
@@ -42,7 +44,9 @@ def map_builtin_node_to_database_table(node: type[Node]) -> PostgresTable:
     columns: list[PostgresColumn] = []
     constraints: list[PostgresConstraint] = []
     indexes: list[PostgresIndex] = []
-    properties = [p for p in node.__properties__.values() if p.is_stored and p.ptr_prop is None]
+    properties: list[Property] = [
+        p for p in node.__properties__.values() if p.is_stored and p.ptr_prop is None
+    ]
     properties.sort(key=lambda p: p.id or -1)
 
     # map properties to columns, add per-column indices
@@ -51,7 +55,7 @@ def map_builtin_node_to_database_table(node: type[Node]) -> PostgresTable:
             continue  # no parent for root nodes
 
         if prop.scalar_type == ScalarType.NODE_REFERENCE:
-            # node ptr property
+            # unravel node ptr column
             assert prop.runtime_prop is not None, f"no runtime prop for {prop!r}"
             prop = prop.runtime_prop
             assert prop.cardinality == TypeCardinality.SCALAR, (
@@ -100,6 +104,16 @@ def map_builtin_node_to_database_table(node: type[Node]) -> PostgresTable:
                 prop=prop,
             )
             columns.append(column)
+
+        # unique
+        if prop.is_unique:
+            index = PostgresIndex(
+                inner_name=f"unique_{prop.name}",
+                type=PostgresIndexType.BTREE,
+                columns=(prop.name,),
+                is_unique=True,
+            )
+            indexes.append(index)
 
     # extras
     for index in node.__indexes__:
