@@ -801,7 +801,11 @@ class Measurement(IsCustomNode, Analytic):
 
 
 @trait_(TraitType.EVENT, pretend_frozen=True)
-class Event(Particle, Indexed, Analytic, IsFrozen):
+class Event[N: Node = Node](Particle, Indexed, Analytic, IsFrozen):
     """A Node that represents an Event."""
 
-    pass
+    node: Optional["Node"] = property_(35)
+    if TYPE_CHECKING:
+        node_ptr: Optional[NodeReference] = None
+        node_id: Optional[UUID] = None
+        node_type: Optional[NodeType] = None

@@ -6,9 +6,7 @@ from fastuuid import UUID
 
 from destack.language.core import (
     UNSET,
-    BuiltinEnum,
     Entity,
-    EnumType,
     IsDeletable,
     IsOwnable,
     IsReactable,
@@ -19,7 +17,6 @@ from destack.language.core import (
     Spatial,
     Text,
     TextIn,
-    enum_,
     node_,
     property_,
     property_parent_,
@@ -33,19 +30,6 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 logger = structlog.get_logger(__name__)
-
-
-@enum_(EnumType.MESSAGE_TYPE)
-class MessageType(BuiltinEnum):
-    DEFAULT = 1, "Default", "Regular text (and nodes)", "fas fa-envelope"
-    # FORWARDED = 3, "Forwarded", "Forwarded Message", "fas fa-forward"
-    JOIN = 10, "Join", "Join a chat", "fas fa-arrow-right-to-bracket"
-    LEAVE = 11, "Leave", "Leave a chat", "fas fa-arrow-left-from-line"
-    RESOURCE = 20, "Resource", "Resource update", "fas fa-plug"
-    RUN = 100, "Run", None, "fas fa-play"
-    THREAD = 110, "Thread", "Thread inside a chat", "fas fa-thread"
-    # EDIT, STREAM, ...
-    # also see https://discord.com/developers/docs/resources/message
 
 
 @node_(NodeType.MESSAGE)
@@ -65,7 +49,6 @@ class Message(
 
     # meta
     parent: Union["Thread", None] = property_parent_(node_is_customizable=True)
-    type: MessageType = property_(30, default=MessageType.DEFAULT, is_repr=True)
     # platform? source?
     thread: Optional["Thread"] = property_(35, node_space_from="self")
     if TYPE_CHECKING:

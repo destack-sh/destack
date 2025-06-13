@@ -1,11 +1,15 @@
 from typing import TYPE_CHECKING
 
 from destack.language.core import (
+    BuiltinEnum,
     Entity,
+    EnumType,
+    Event,
     IsOwnable,
     Node,
     NodeType,
     Spatial,
+    enum_,
     node_,
     property_,
 )
@@ -17,6 +21,40 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
+@enum_(EnumType.NOTIFICATION_STATUS)
+class NotificationStatus(BuiltinEnum):
+    """A Status of a Notification."""
+
+    UNREAD = 1, "Pending", "Pending", "fas fa-circle"
+    READ = 2, "Read", "Read", "fas fa-check"
+    DISMISSED = 3, "Dismissed", "Dismissed", "fas fa-times"
+    EXPIRED = 4, "Expired", "Expired", "fas fa-clock"
+    RESCINDED = 5, "Rescinded", "Rescinded", "fas fa-times"
+
+
+@enum_(EnumType.NOTIFICATION_EVENT_TYPE)
+class NotificationEventType(BuiltinEnum):
+    """A Type of Notification Event."""
+
+    SENT = 1, "Sent", "Sent", "fas fa-circle"
+    RESCINDED = 2, "Rescinded", "Rescinded", "fas fa-times"
+    READ = 3, "Read", "Read", "fas fa-check"
+    DISMISSED = 4, "Dismissed", "Dismissed", "fas fa-times"
+    EXPIRED = 5, "Expired", "Expired", "fas fa-clock"
+
+
+@node_(NodeType.NOTIFICATION_EVENT)
+class NotificationEvent(
+    Spatial,
+    Event["Notification"],
+    Node["NotificationEventData"],
+):
+    """A Event regarding a Notification."""
+
+    type: NotificationEventType = property_(30)
+    node: "Notification" = property_(35)
+
+
 @node_(NodeType.NOTIFICATION)
 class Notification(
     Spatial,
@@ -26,5 +64,6 @@ class Notification(
 ):
     """A Notification is a message about something."""
 
-    title: str = property_(40)
-    text: "Text | None" = property_(41)
+    status: NotificationStatus = property_(40)
+    title: str = property_(50)
+    text: "Text | None" = property_(51)

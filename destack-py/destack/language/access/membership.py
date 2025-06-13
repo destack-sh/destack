@@ -1,7 +1,10 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
+    BuiltinEnum,
     Entity,
+    EnumType,
+    Event,
     Global,
     IsDeletable,
     IsJoinable,
@@ -12,6 +15,7 @@ from destack.language.core import (
     Node,
     NodeType,
     Spatial,
+    enum_,
     node_,
     property_,
     property_parent_,
@@ -22,6 +26,23 @@ if TYPE_CHECKING:
     from destack.language import Role, RoleType
 
 # pyright: reportIncompatibleVariableOverride=false
+
+
+@enum_(EnumType.MEMBERSHIP_EVENT_TYPE)
+class MembershipEventType(BuiltinEnum):
+    """A Type of Membership Event."""
+
+    JOIN = 1, "Join", "Join", "fas fa-user-plus"
+    LEAVE = 2, "Leave", "Leave", "fas fa-user-minus"
+
+
+@node_(NodeType.MEMBERSHIP_EVENT)
+class MembershipEvent(
+    Spatial,
+    Event,
+    Node["MembershipEventData"],
+):
+    """A Event regarding a Membership."""
 
 
 @node_(NodeType.MEMBERSHIP)
