@@ -17,6 +17,7 @@ from destack.language.core import (
     Node,
     NodeType,
     Region,
+    RoleType,
     Spatial,
     builtin_enum,
     builtin_node,
@@ -40,15 +41,6 @@ class SpaceStatus(Enum):
     PAUSED = 20
 
 
-# @builtin_enum(EnumType.SPACE_PERMISSION)
-# class SpacePermission(BuiltinEnum):
-#     """The permission of a Space"""
-
-#     MANAGE_ROLES = 1
-#     MANAGE_MEMBERS = 2
-#     BAN_MEMBERS = 3
-
-
 @builtin_node(NodeType.SPACE, root_type=None)
 class Space(
     HasName,
@@ -70,13 +62,13 @@ class Space(
     # meta
     name: str = property_(31, is_repr=True)
     slug: str = property_(33, is_repr=True)
-    status: SpaceStatus = property_(40, is_repr=True, can_write="system")
-    handle: Optional["Handle"] = property_(41, node_space_from="self", can_write="system")
+    status: SpaceStatus = property_(40, is_repr=True, can_write=RoleType.SYSTEM)
+    handle: Optional["Handle"] = property_(41, node_space_from="self", can_write=RoleType.SYSTEM)
     system_folder: Optional["Folder"] = property_(
-        42, node_space_from="self", can_write="system", description="The system Folder."
+        42, node_space_from="self", can_write=RoleType.SYSTEM, description="The system Folder."
     )
     home_folder: Optional["Folder"] = property_(
-        43, node_space_from="self", can_write="system", description="The home Folder."
+        43, node_space_from="self", can_write=RoleType.SYSTEM, description="The home Folder."
     )
     if TYPE_CHECKING:
         handle_ptr: Optional[NodeReference] = None
@@ -87,9 +79,11 @@ class Space(
         home_folder_id: Optional[UUID] = None
 
     # infra
-    region: Region = property_(50, can_write="system")
-    cell_name: str | None = property_(51, can_write="system")  # -> Cell?
-    database: Optional["Database"] = property_(55, node_space_from="self", can_write="system")
+    region: Region = property_(50, can_write=RoleType.SYSTEM)
+    cell_name: str | None = property_(51, can_write=RoleType.SYSTEM)  # -> Cell?
+    database: Optional["Database"] = property_(
+        55, node_space_from="self", can_write=RoleType.SYSTEM
+    )
     # search, analytics, vault, cache, ...
     if TYPE_CHECKING:
         database_ptr: Optional[NodeReference] = None

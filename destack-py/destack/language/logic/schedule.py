@@ -4,10 +4,8 @@ from typing import TYPE_CHECKING
 from dateutil.rrule import rrule
 
 from destack.language.core import (
-    Day,
     Enum,
     EnumType,
-    Month,
     StructMutable,
     StructType,
     builtin_enum,
@@ -19,6 +17,33 @@ if TYPE_CHECKING:
     pass
 
 # pyright: reportIncompatibleVariableOverride=false
+
+
+@builtin_enum(EnumType.DAY_OF_WEEK)
+class DayOfWeek(Enum):
+    MONDAY = 1
+    TUESDAY = 2
+    WEDNESDAY = 3
+    THURSDAY = 4
+    FRIDAY = 5
+    SATURDAY = 6
+    SUNDAY = 7
+
+
+@builtin_enum(EnumType.MONTH)
+class Month(Enum):
+    JANUARY = 1
+    FEBRUARY = 2
+    MARCH = 3
+    APRIL = 4
+    MAY = 5
+    JUNE = 6
+    JULY = 7
+    AUGUST = 8
+    SEPTEMBER = 9
+    OCTOBER = 10
+    NOVEMBER = 11
+    DECEMBER = 12
 
 
 @builtin_enum(EnumType.SCHEDULE_FREQUENCY)
@@ -40,14 +65,14 @@ class Schedule(StructMutable):
     start: datetime | None = property_(33)
     end: datetime | None = property_(34)
     count: int | None = property_(35)
-    week_start: Day | None = property_(36)
+    week_start: DayOfWeek | None = property_(36)
     by_set_pos: list[int] = property_(37)
     by_month: list[Month] = property_(38)
     by_month_day: list[int] = property_(39)
     by_year_day: list[int] = property_(40)
     by_easter: list[int] = property_(41)
     by_week_no: list[int] = property_(42)
-    by_week_day: list[Day] = property_(43)
+    by_week_day: list[DayOfWeek] = property_(43)
     by_hour: list[int] = property_(44)
     by_minute: list[int] = property_(45)
     by_second: list[int] = property_(46)
@@ -108,7 +133,7 @@ class Schedule(StructMutable):
     def weekly(
         *,
         start: datetime | None = None,
-        weekdays: list[Day] | None = None,
+        weekdays: list[DayOfWeek] | None = None,
         end: datetime | None = None,
         count: int | None = None,
     ) -> "Schedule":

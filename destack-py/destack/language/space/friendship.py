@@ -11,6 +11,7 @@ from destack.language.core import (
     LikeInvite,
     Node,
     NodeType,
+    RoleType,
     builtin_enum,
     builtin_node,
     property_,
@@ -31,8 +32,8 @@ class Friendship(
 ):
     """A Friendship between two Users."""
 
-    user_a: "User" = property_(40, can_write="system")
-    user_b: "User" = property_(41, can_write="system")
+    user_a: "User" = property_(40, can_write=RoleType.SYSTEM, is_repr=True)
+    user_b: "User" = property_(41, can_write=RoleType.SYSTEM, is_repr=True)
 
 
 @builtin_enum(EnumType.FRIENDSHIP_INVITE_EVENT_TYPE)

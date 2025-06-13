@@ -26,9 +26,13 @@ from destack.utils.fractional import INTEGER_ZERO
 from .const import (
     UNSET,
     EdgeType,
+    Enum,
+    EnumType,
     NodeType,
     ResourceStatus,
+    RoleType,
     TraitType,
+    builtin_enum,
 )
 from .object import BuiltinObjectMutable, _process_object_cls
 from .property import (
@@ -400,7 +404,7 @@ class Trait(Node if TYPE_CHECKING else NodeBase):
     # 1-9: node identity
     #  (repeat common Node properties here so trait RelationReferences can reference them,
     #   since Trait doesn't inherit from Node directly for circularity reasons)
-    id: UUID = property_(2, is_managed=True, is_eq=False, can_write="system")
+    id: UUID = property_(2, is_managed=True, is_eq=False, can_write=None)
     parent: Optional["Node"] = property_parent_(node_is_customizable=True)
     if TYPE_CHECKING:
         parent_type: NodeType | None = None
@@ -448,7 +452,7 @@ class HasIcon(Trait):
 class IsTracked(Trait):
     """A Node that is "tracked" on create/update."""
 
-    created_at: datetime = property_(10, is_managed=True, is_eq=False, can_write="system")
+    created_at: datetime = property_(10, is_managed=True, is_eq=False, can_write=RoleType.SYSTEM)
     created_by: Optional["IsSubject"] = property_(
         11,
         default=None,
@@ -456,9 +460,9 @@ class IsTracked(Trait):
         is_eq=False,
         node_space_from="self",
         node_is_customizable=False,
-        can_write="system",
+        can_write=RoleType.SYSTEM,
     )
-    updated_at: datetime = property_(12, is_managed=True, is_eq=False, can_write="system")
+    updated_at: datetime = property_(12, is_managed=True, is_eq=False, can_write=RoleType.SYSTEM)
     updated_by: Optional["IsSubject"] = property_(
         13,
         default=None,
@@ -466,7 +470,7 @@ class IsTracked(Trait):
         is_eq=False,
         node_space_from="self",
         node_is_customizable=False,
-        can_write="system",
+        can_write=RoleType.SYSTEM,
     )
     if TYPE_CHECKING:
         created_by_id: Optional[UUID] = None
@@ -652,6 +656,16 @@ class IsOwnable(Trait):
         owned_by_ptr: Optional[NodeReference] = None
 
 
+@builtin_enum(EnumType.JOINABLE_PERMISSION)
+class JoinablePermission(Enum):
+    """A Permission for a Joinable."""
+
+    INVITE = 1
+    REMOVE = 2
+    KICK = 3
+    BAN = 4
+
+
 @builtin_trait(TraitType.JOINABLE)
 class IsJoinable(Trait):
     """A Node that can be joined by Subjects."""
@@ -784,8 +798,6 @@ class Resource(Entity):
     parent: Optional["Folder"] = property_parent_(node_is_customizable=False)
     status: ResourceStatus = property_(40, default=ResourceStatus.PENDING)
     target_status: Optional[datetime] = property_(41)
-    failed_at: Optional[datetime] = property_(47, can_write="system")
-    failed_attempts: int = property_(48, default=0, can_write="system")
 
 
 @builtin_trait(TraitType.METRIC)

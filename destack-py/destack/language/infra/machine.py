@@ -10,6 +10,7 @@ from destack.language.core import (
     NodeReference,
     NodeType,
     Resource,
+    RoleType,
     Spatial,
     builtin_enum,
     builtin_node,
@@ -46,18 +47,20 @@ class Machine(
     type: MachineType = property_(30, default=MachineType.RUNTIME)
 
     version: str = property_(60, default=VERSION)
-    external_name: Optional[str] = property_(62, can_read="system", can_write="system")
-    external_id: Optional[str] = property_(63, can_read="system", can_write="system")
-    image_id: Optional[str] = property_(64, can_read="system", can_write="system")
-    grpc_url: Optional[str] = property_(65, can_read="system", can_write="system")
-    vnc_url: Optional[str] = property_(66, can_read="system", can_write="system")
+    external_name: Optional[str] = property_(
+        62, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM
+    )
+    external_id: Optional[str] = property_(63, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM)
+    image_id: Optional[str] = property_(64, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM)
+    grpc_url: Optional[str] = property_(65, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM)
+    vnc_url: Optional[str] = property_(66, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM)
     client: Optional["Client"] = property_(69, node_space_from="self")
     if TYPE_CHECKING:
         client_ptr: Optional[NodeReference] = None
         client_id: Optional[UUID] = None
 
-    cpu: float = property_(70, description="vCPU count", default=1.0, can_write="system")
-    ram: float = property_(71, description="GB", default=1.0, can_write="system")
-    width: int = property_(75, default=1280, can_write="system")
-    height: int = property_(76, default=960, can_write="system")
-    is_headless: bool = property_(77, default=False, can_write="system")
+    cpu: float = property_(70, description="vCPU count", default=1.0, can_write=RoleType.SYSTEM)
+    ram: float = property_(71, description="GB", default=1.0, can_write=RoleType.SYSTEM)
+    width: int = property_(75, default=1280, can_write=RoleType.SYSTEM)
+    height: int = property_(76, default=960, can_write=RoleType.SYSTEM)
+    is_headless: bool = property_(77, default=False, can_write=RoleType.SYSTEM)

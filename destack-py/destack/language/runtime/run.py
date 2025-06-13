@@ -14,7 +14,6 @@ from destack.language.core import (
     Node,
     NodeType,
     Particle,
-    RunType,
     Spatial,
     builtin_enum,
     builtin_node,
@@ -116,11 +115,7 @@ class Run(
     Run something somewhere, somehow.
     """
 
-    # meta
     parent: Optional["Space"] = property_parent_(node_is_customizable=False)
-    type: RunType = property_(30, can_write="system", is_repr=True)
-
-    # content
     target: Optional[IsRunnable] = property_(40)
     if TYPE_CHECKING:
         target_ptr: Optional[NodeReference] = None

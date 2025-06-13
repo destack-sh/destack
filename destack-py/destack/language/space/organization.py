@@ -15,6 +15,7 @@ from destack.language.core import (
     Node,
     NodeReference,
     NodeType,
+    RoleType,
     builtin_enum,
     builtin_node,
     property_,
@@ -50,10 +51,10 @@ class Organization(
 
     slug: str = property_(33, is_repr=True)
     status: OrganizationStatus = property_(
-        40, can_write="system", is_repr=True, default=OrganizationStatus.CREATING
+        40, can_write=RoleType.SYSTEM, is_repr=True, default=OrganizationStatus.CREATING
     )
-    space: "Space" = property_(50, can_write="system")
-    handle: Optional["Handle"] = property_(51, can_write="system")
+    space: "Space" = property_(50, can_write=RoleType.SYSTEM)
+    handle: Optional["Handle"] = property_(51, can_write=RoleType.SYSTEM)
     if TYPE_CHECKING:
         space_id: UUID = property_()
         space_ptr: NodeReference = property_()
