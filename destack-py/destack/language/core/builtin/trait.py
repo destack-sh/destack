@@ -47,13 +47,12 @@ if TYPE_CHECKING:
         Folder,
         Icon,
         Node,
-        NodeInfo,
+        NodeDefinition,
         NodeReference,
         Query,
         Script,
         Sort,
         Space,
-        TraitInfo,
         Value,
     )
 
@@ -140,7 +139,7 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
     metatype: ClassVar[TraitType | NodeType]
     __is_node__: ClassVar[bool] = True
 
-    __info__: ClassVar["NodeInfo"]
+    __definition__: ClassVar["NodeDefinition"]
 
     __is_node__: ClassVar[bool] = True
     __is_trait__: ClassVar[bool] = False  # override Trait.__is_trait__
@@ -401,7 +400,6 @@ class Trait(Node if TYPE_CHECKING else NodeBase):
     """A Node trait."""
 
     metatype: ClassVar[TraitType]
-    info: ClassVar["TraitInfo"]
 
     # 1-9: node identity
     #  (repeat common Node properties here so trait RelationReferences can reference them,

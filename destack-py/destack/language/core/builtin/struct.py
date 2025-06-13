@@ -18,7 +18,7 @@ from .object import BuiltinObjectBase, BuiltinObjectFrozen, BuiltinObjectMutable
 from .property import _PROPERTY_SPECIFIERS, property_runtime_
 
 if TYPE_CHECKING:
-    from destack.language import Json, StructInfo
+    from destack.language import Json, StructDefinition
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -54,7 +54,7 @@ class StructBase[StructDataT: AnyStructData](BuiltinObjectBase[StructDataT], abc
     """A Struct is an ordered collection of Properties."""
 
     metatype: ClassVar[StructType]
-    __info__: ClassVar["StructInfo"]
+    __definition__: ClassVar["StructDefinition"]
 
     __is_struct__: ClassVar[bool] = True
 

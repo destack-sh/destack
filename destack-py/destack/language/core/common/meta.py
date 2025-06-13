@@ -32,8 +32,8 @@ if TYPE_CHECKING:
 _type = type
 
 
-@builtin_struct(StructType.PROPERTY_INFO, frozen=True)
-class PropertyInfo(StructFrozen):
+@builtin_struct(StructType.PROPERTY_DEFINITION, frozen=True)
+class PropertyDefinition(StructFrozen):
     """Information about a Property."""
 
     id: int = property_(2)
@@ -76,8 +76,8 @@ class PropertyInfo(StructFrozen):
     is_computed: bool = property_(86)
 
     @classmethod
-    def from_property(cls, property: Property) -> "PropertyInfo":
-        """Create PropertyInfo from a Property."""
+    def from_property(cls, property: Property) -> "PropertyDefinition":
+        """Create PropertyDefinition from a Property."""
         assert property.id is not None, f"{property!r} has no id"
         type = property._to_type()
 
@@ -115,34 +115,34 @@ class PropertyInfo(StructFrozen):
         )
 
 
-@builtin_struct(StructType.TRAIT_INFO, frozen=True)
-class TraitInfo(StructFrozen):
-    """Information about a Trait."""
+@builtin_struct(StructType.TRAIT_DEFINITION, frozen=True)
+class TraitDefinition(StructFrozen):
+    """Definition of a Trait."""
 
     id: int = property_(2)
     type: TraitType = property_(30)
     name: str = property_(31)
     icon: "Icon | None" = property_(34)
     description: str | None = property_(36)
-    properties: list["PropertyInfo"] = property_(50)
+    properties: list["PropertyDefinition"] = property_(50)
     nodes: list[NodeType] = property_(51)
 
 
-@builtin_struct(StructType.NODE_INFO, frozen=True)
-class NodeInfo(StructFrozen):
-    """Information about a Node."""
+@builtin_struct(StructType.NODE_DEFINITION, frozen=True)
+class NodeDefinition(StructFrozen):
+    """Definition of a Node."""
 
     id: int = property_(2)
     type: NodeType = property_(30)
     name: str = property_(31)
     icon: "Icon | None" = property_(34)
     description: str | None = property_(36)
-    properties: list["PropertyInfo"] = property_(50)
+    properties: list["PropertyDefinition"] = property_(50)
     traits: list[TraitType] = property_(51)
 
     @classmethod
-    def from_node(cls, node_cls: _type["Node"]) -> "NodeInfo":
-        """Create NodeInfo from a Node class."""
+    def from_node(cls, node_cls: _type["Node"]) -> "NodeDefinition":
+        """Create NodeDefinition from a Node class."""
         from .icon import to_icon
 
         return cls(
@@ -151,25 +151,27 @@ class NodeInfo(StructFrozen):
             name=node_cls.metatype.camel_name,
             icon=to_icon(node_cls.metatype.icon) if node_cls.metatype.icon else None,
             description=node_cls.__doc__,
-            properties=[prop.info for prop in node_cls.__properties__.values() if prop.is_wired],
+            properties=[
+                prop.definition for prop in node_cls.__properties__.values() if prop.is_wired
+            ],
             traits=list(node_cls.__traits__),
         )
 
 
-@builtin_struct(StructType.STRUCT_INFO, frozen=True)
-class StructInfo(StructFrozen):
-    """Information about a Struct."""
+@builtin_struct(StructType.STRUCT_DEFINITION, frozen=True)
+class StructDefinition(StructFrozen):
+    """Definition of a Struct."""
 
     id: int = property_(2)
     type: StructType = property_(30)
     name: str = property_(31)
     icon: "Icon | None" = property_(34)
     description: str | None = property_(36)
-    properties: list["PropertyInfo"] = property_(50)
+    properties: list["PropertyDefinition"] = property_(50)
 
     @classmethod
-    def from_struct(cls, struct_cls: _type[StructBase]) -> "StructInfo":
-        """Create StructInfo from a Struct class."""
+    def from_struct(cls, struct_cls: _type[StructBase]) -> "StructDefinition":
+        """Create StructDefinition from a Struct class."""
         from .icon import to_icon
 
         return cls(
@@ -178,24 +180,26 @@ class StructInfo(StructFrozen):
             name=struct_cls.metatype.camel_name,
             icon=to_icon(struct_cls.metatype.icon) if struct_cls.metatype.icon else None,
             description=struct_cls.__doc__,
-            properties=[prop.info for prop in struct_cls.__properties__.values() if prop.is_wired],
+            properties=[
+                prop.definition for prop in struct_cls.__properties__.values() if prop.is_wired
+            ],
         )
 
 
-@builtin_struct(StructType.ENUM_INFO, frozen=True)
-class EnumInfo(StructFrozen):
-    """Information about an Enum."""
+@builtin_struct(StructType.ENUM_DEFINITION, frozen=True)
+class EnumDefinition(StructFrozen):
+    """Definition of an Enum."""
 
     id: int = property_(2)
     type: EnumType = property_(30)
     name: str = property_(31)
     icon: "Icon | None" = property_(34)
     description: str | None = property_(36)
-    options: list["EnumOptionInfo"] = property_(50)
+    options: list["EnumOptionDefinition"] = property_(50)
 
     @classmethod
-    def from_enum(cls, enum_type: EnumType, enum_cls: _type[Enum]) -> "EnumInfo":
-        """Create EnumInfo from an Enum class."""
+    def from_enum(cls, enum_type: EnumType, enum_cls: _type[Enum]) -> "EnumDefinition":
+        """Create EnumDefinition from an Enum class."""
         from .icon import to_icon
 
         return cls(
@@ -205,15 +209,15 @@ class EnumInfo(StructFrozen):
             icon=to_icon(enum_type.icon) if enum_type.icon else None,
             description=enum_type.__doc__,
             options=[
-                EnumOptionInfo.from_enum_option(enum_type, option)
+                EnumOptionDefinition.from_enum_option(enum_type, option)
                 for option in enum_cls.__members__.values()
             ],
         )
 
 
-@builtin_struct(StructType.ENUM_OPTION_INFO, frozen=True)
-class EnumOptionInfo(StructFrozen):
-    """Information about an Enum Option."""
+@builtin_struct(StructType.ENUM_OPTION_DEFINITION, frozen=True)
+class EnumOptionDefinition(StructFrozen):
+    """Definition of an Enum Option."""
 
     id: int = property_(2)
     type: EnumType = property_(30)
@@ -222,8 +226,8 @@ class EnumOptionInfo(StructFrozen):
     description: str | None = property_(36)
 
     @classmethod
-    def from_enum_option(cls, enum_type: EnumType, option: Enum) -> "EnumOptionInfo":
-        """Create EnumOptionInfo from an Enum option."""
+    def from_enum_option(cls, enum_type: EnumType, option: Enum) -> "EnumOptionDefinition":
+        """Create EnumOptionDefinition from an Enum option."""
         from .icon import to_icon
 
         return cls(
