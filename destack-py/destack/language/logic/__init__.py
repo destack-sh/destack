@@ -1,7 +1,7 @@
 from .action import Action, ActionCardinality
 from .cursor import Cursor, CursorStatus, EventCursor, ScreenCursor, ThreadCursor
 from .route import Route
-from .schedule import Schedule, ScheduleFrequency
+from .schedule import DayOfWeek, Month, Schedule, ScheduleFrequency
 from .script import Script
 from .service import Service
 from .timer import Timer, TimerType
@@ -12,7 +12,9 @@ __all__ = [
     "ActionCardinality",
     "Cursor",
     "CursorStatus",
+    "DayOfWeek",
     "EventCursor",
+    "Month",
     "Route",
     "Schedule",
     "ScheduleFrequency",

@@ -14,7 +14,6 @@ from destack.language.core import (
     IsTemplatable,
     Node,
     NodeType,
-    RunType,
     Spatial,
     builtin_enum,
     builtin_node,
@@ -61,6 +60,3 @@ class Action(
 
     cardinality: ActionCardinality = property_(40, default=ActionCardinality.UNARY)
     text: Optional["Text"] = property_(41)
-
-    def run_type(self) -> RunType:
-        return RunType.ACTION

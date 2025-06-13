@@ -3,7 +3,7 @@ import hashlib
 import io
 import tempfile
 from collections.abc import Collection, Sequence
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import (
     TYPE_CHECKING,
     Literal,
@@ -489,10 +489,6 @@ class File(
     thumbnail_width: int | None = property_(74)
     thumbnail_height: int | None = property_(75)
     content: bytes | None = property_(76)
-    retention: FileRetentionMode = property_(
-        80, default=FileRetentionMode.AUTOMATIC, can_write="system"
-    )
-    expires_at: Optional[datetime] = property_(81)
 
     # cached content
     _original: Optional["File"] = property_runtime_(default=None)  # if converted

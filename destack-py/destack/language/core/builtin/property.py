@@ -31,6 +31,7 @@ from .const import (
     EnumType,
     NodeType,
     PrimitiveType,
+    RoleType,
     ScalarType,
     StructType,
     TraitType,
@@ -366,8 +367,8 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
     is_managed: bool = False  # set automatically by the system
     is_computed: bool = False  # set automatically at runtime
 
-    can_read: Literal["any", "owner", "system"] = "any"
-    can_write: Literal["any", "owner", "system"] = "any"
+    can_read: RoleType = RoleType.SPECTATOR
+    can_write: RoleType | None = RoleType.SPECTATOR
 
     _ref: Optional["PropertyReference"] = None
     _type: Optional["Type"] = None
@@ -628,8 +629,8 @@ def property_(
     is_repr: bool = False,
     is_hash: bool = True,
     is_eq: bool = True,
-    can_read: Literal["any", "owner", "system"] = "any",
-    can_write: Literal["any", "owner", "system"] = "any",
+    can_read: RoleType = RoleType.SPECTATOR,
+    can_write: RoleType | None = RoleType.SPECTATOR,
 ) -> Any:
     return Property(
         id=id,

@@ -9,6 +9,7 @@ from destack.language.core import (
     NodeType,
     Region,
     Resource,
+    RoleType,
     Spatial,
     StructMutable,
     StructType,
@@ -37,15 +38,17 @@ class DatabaseType(Enum):
 
 @object_()
 class DatabaseBase(BuiltinObjectMutable):
-    type: DatabaseType = property_(30, can_write="system", is_repr=True)
-    region: Region = property_(50, can_write="system", is_repr=True)
-    cell_name: str | None = property_(51, can_write="system", is_repr=True)
-    external_name: str = property_(52, can_read="system", can_write="system", is_repr=True)
+    type: DatabaseType = property_(30, can_write=RoleType.SYSTEM, is_repr=True)
+    region: Region = property_(50, can_write=RoleType.SYSTEM, is_repr=True)
+    cell_name: str | None = property_(51, can_write=RoleType.SYSTEM, is_repr=True)
+    external_name: str = property_(
+        52, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM, is_repr=True
+    )
     custom_schema_name: str | None = property_(
-        53, can_read="system", can_write="system", is_repr=True
+        53, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM, is_repr=True
     )
     tenancy: Tenancy = property_(55, default=Tenancy.DEDICATED, is_repr=True)
-    connection_url: str | None = property_(58, can_read="system", can_write="system")
+    connection_url: str | None = property_(58, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM)
 
     def to_info(self) -> "DatabaseInfo":
         return DatabaseInfo(

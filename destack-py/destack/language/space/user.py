@@ -17,6 +17,7 @@ from destack.language.core import (
     IsSubject,
     Node,
     NodeType,
+    RoleType,
     StringFormat,
     builtin_enum,
     builtin_node,
@@ -58,15 +59,15 @@ class User(
     name: str = property_(31, is_repr=True)
     slug: str = property_(33, is_repr=True)
     status: UserStatus = property_(
-        40, can_write="system", is_repr=True, default=UserStatus.CREATING
+        40, can_write=RoleType.SYSTEM, is_repr=True, default=UserStatus.CREATING
     )
-    last_logged_in_at: Optional[datetime] = property_(41, can_write="system")
+    last_logged_in_at: Optional[datetime] = property_(41, can_write=RoleType.SYSTEM)
     # last_active_at, seen_at, ...
-    is_staff: bool = property_(45, default=False, can_write="system")
+    is_staff: bool = property_(45, default=False, can_write=RoleType.SYSTEM)
 
-    space: "Space" = property_(50, can_write="system", node_space_from="self")
-    handle: Optional["Handle"] = property_(51, can_write="system", node_space_from="self")
-    cursor: Optional["Cursor"] = property_(52, can_write="system", node_space_from="self")
+    space: "Space" = property_(50, can_write=RoleType.SYSTEM, node_space_from="self")
+    handle: Optional["Handle"] = property_(51, can_write=RoleType.SYSTEM, node_space_from="self")
+    cursor: Optional["Cursor"] = property_(52, can_write=RoleType.SYSTEM, node_space_from="self")
     if TYPE_CHECKING:
         space_id: UUID = property_()
         space_ptr: NodeReference = property_()
@@ -78,9 +79,13 @@ class User(
     # auth
     # NOTE: Incomplete: factor out auth/Credentials/Challenges/... for Users/Client
     email: str | None = property_(
-        60, format=StringFormat.EMAIL, can_read="owner", can_write="system"
+        60, format=StringFormat.EMAIL, can_read=RoleType.OWNER, can_write=RoleType.SYSTEM
     )
-    password_salt: Optional[bytes] = property_(61, can_read="system", can_write="system")
-    password_hash: Optional[bytes] = property_(62, can_read="system", can_write="system")
+    password_salt: Optional[bytes] = property_(
+        61, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM
+    )
+    password_hash: Optional[bytes] = property_(
+        62, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM
+    )
     # challenges?
     # password_reset_token, email_confirmation_token, ...

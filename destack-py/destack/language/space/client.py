@@ -45,8 +45,8 @@ class Client(
     # meta
     parent: Optional[IsSubject] = property_parent_(node_is_customizable=False)
     type: ClientType = property_(30)
-    machine: Optional["Machine"] = property_(36, can_write="system")
-    user: Optional["User"] = property_(37, can_write="system")
+    machine: Optional["Machine"] = property_(36)
+    user: Optional["User"] = property_(37)
     if TYPE_CHECKING:
         machine_id: Optional[UUID] = None
         machine_ptr: Optional[NodeReference] = None
@@ -54,9 +54,9 @@ class Client(
         user_ptr: Optional[NodeReference] = None
 
     # status
-    access_token: Optional[str] = property_(50, can_read="system", can_write="system")
-    seen_at: Optional[datetime] = property_(51, can_write="system")
-    logged_in_at: Optional[datetime] = property_(52, can_write="system")
+    access_token: Optional[str] = property_(50)
+    seen_at: Optional[datetime] = property_(51)
+    logged_in_at: Optional[datetime] = property_(52)
     cursor: Optional["Cursor"] = property_(55)
 
     # details

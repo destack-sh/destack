@@ -281,6 +281,22 @@ enum EffectType {
   EFFECT_TYPE_LOOP = 30;
 }
 
+// A Type of Entitlement Event.
+enum EntitlementEventType {
+  ENTITLEMENT_EVENT_TYPE_UNSPECIFIED = 0;
+  ENTITLEMENT_EVENT_TYPE_REQUESTED = 1;
+  ENTITLEMENT_EVENT_TYPE_GRANTED = 2;
+  ENTITLEMENT_EVENT_TYPE_REVOKED = 3;
+  ENTITLEMENT_EVENT_TYPE_EXPIRED = 4;
+}
+
+// A Type of Entitlement.
+enum EntitlementType {
+  ENTITLEMENT_TYPE_UNSPECIFIED = 0;
+  ENTITLEMENT_TYPE_BAN = 1;
+  ENTITLEMENT_TYPE_MUTE = 2;
+}
+
 enum EnumType {
   ENUM_TYPE_UNSPECIFIED = 0;
   ENUM_TYPE_SPACE_STATUS = 1;
@@ -302,6 +318,11 @@ enum EnumType {
   ENUM_TYPE_INVITE_EVENT_TYPE = 410;
   ENUM_TYPE_ROLE_TYPE = 420;
   ENUM_TYPE_ROLE_EVENT_TYPE = 421;
+  ENUM_TYPE_PERMISSION_TYPE = 430;
+  ENUM_TYPE_SANCTION_TYPE = 440;
+  ENUM_TYPE_SANCTION_EVENT_TYPE = 441;
+  ENUM_TYPE_ENTITLEMENT_TYPE = 450;
+  ENUM_TYPE_ENTITLEMENT_EVENT_TYPE = 451;
   ENUM_TYPE_FOLDER_TYPE = 600;
   ENUM_TYPE_TEXT_LINE_TYPE = 1401;
   ENUM_TYPE_TEXT_SPAN_TYPE = 1402;
@@ -406,7 +427,8 @@ enum EnumType {
   ENUM_TYPE_EDIT_TYPE = 10050;
   ENUM_TYPE_EDIT_OPERATION = 10051;
   ENUM_TYPE_CHANGE_STATUS = 10052;
-  ENUM_TYPE_NODE_PERMISSION = 10060;
+  ENUM_TYPE_NODE_PERMISSION = 10100;
+  ENUM_TYPE_JOINABLE_PERMISSION = 10101;
 }
 
 enum EnvironmentType {
@@ -718,6 +740,15 @@ enum JoinType {
   JOIN_TYPE_CHILD = 11;
 }
 
+// A Permission for a Joinable.
+enum JoinablePermission {
+  JOINABLE_PERMISSION_UNSPECIFIED = 0;
+  JOINABLE_PERMISSION_INVITE = 1;
+  JOINABLE_PERMISSION_REMOVE = 2;
+  JOINABLE_PERMISSION_KICK = 3;
+  JOINABLE_PERMISSION_BAN = 4;
+}
+
 // Built-in layer types.
 enum LayerType {
   LAYER_TYPE_UNSPECIFIED = 0;
@@ -767,6 +798,8 @@ enum MembershipEventType {
   MEMBERSHIP_EVENT_TYPE_UNSPECIFIED = 0;
   MEMBERSHIP_EVENT_TYPE_JOIN = 1;
   MEMBERSHIP_EVENT_TYPE_LEAVE = 2;
+  MEMBERSHIP_EVENT_TYPE_KICK = 3;
+  MEMBERSHIP_EVENT_TYPE_BAN = 4;
 }
 
 // A Permission for a Membership.
@@ -835,7 +868,12 @@ enum NodeType {
   NODE_TYPE_INVITE_EVENT = 411;
   NODE_TYPE_ROLE = 420;
   NODE_TYPE_ROLE_EVENT = 421;
-  NODE_TYPE_AGENT = 430;
+  NODE_TYPE_PERMISSION = 430;
+  NODE_TYPE_SANCTION = 440;
+  NODE_TYPE_SANCTION_EVENT = 441;
+  NODE_TYPE_ENTITLEMENT = 450;
+  NODE_TYPE_ENTITLEMENT_EVENT = 451;
+  NODE_TYPE_AGENT = 500;
   NODE_TYPE_FOLDER = 600;
   NODE_TYPE_TAG = 610;
   NODE_TYPE_TAGGING = 611;
@@ -968,6 +1006,12 @@ enum Overflow {
   OVERFLOW_HIDDEN = 2;
   OVERFLOW_VISIBLE = 3;
   OVERFLOW_SCROLL = 4;
+}
+
+// A Type of Permission.
+enum PermissionType {
+  PERMISSION_TYPE_UNSPECIFIED = 0;
+  PERMISSION_TYPE_GENERAL = 1;
 }
 
 enum PlaneShapeType {
@@ -1166,6 +1210,22 @@ enum RuntimeType {
   RUNTIME_TYPE_UNSPECIFIED = 0;
   RUNTIME_TYPE_PYTHON = 1;
   RUNTIME_TYPE_JAVASCRIPT = 2;
+}
+
+// A Type of Sanction Event.
+enum SanctionEventType {
+  SANCTION_EVENT_TYPE_UNSPECIFIED = 0;
+  SANCTION_EVENT_TYPE_REQUESTED = 1;
+  SANCTION_EVENT_TYPE_GRANTED = 2;
+  SANCTION_EVENT_TYPE_REVOKED = 3;
+  SANCTION_EVENT_TYPE_EXPIRED = 4;
+}
+
+// A Type of Sanction.
+enum SanctionType {
+  SANCTION_TYPE_UNSPECIFIED = 0;
+  SANCTION_TYPE_BAN = 1;
+  SANCTION_TYPE_MUTE = 2;
 }
 
 // The type of a scalar.
@@ -2219,6 +2279,34 @@ message EffectStyleData {
   optional TransitionData transition = 70;
 }
 
+// A Entitlement to some Subject.
+message EntitlementData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 5;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  EntitlementType type = 30;
+  optional google.protobuf.Timestamp expires_at = 40;
+  NodeReferenceData target_ptr = 41;
+}
+
+message EntitlementEventData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 5;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  NodeReferenceData node_ptr = 35;
+}
+
 message EnumDefinitionData {
   StructType metatype = 1;
   int64 id = 2;
@@ -3164,6 +3252,23 @@ message OriginData {
   optional string nonce = 33;
 }
 
+// A Permission for something.
+message PermissionData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 5;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  PermissionType type = 30;
+  string name = 31;
+  optional string slug = 33;
+  optional IconData icon = 34;
+}
+
 message PermissionDefinitionData {
   StructType metatype = 1;
   int64 id = 2;
@@ -3426,6 +3531,34 @@ message RunEventData {
   RunEventType type = 30;
   NodeReferenceData node_ptr = 35;
   optional NodeReferenceData target_ptr = 40;
+}
+
+// A Sanction on some Subject.
+message SanctionData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 5;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  SanctionType type = 30;
+  optional google.protobuf.Timestamp expires_at = 40;
+  NodeReferenceData target_ptr = 41;
+}
+
+message SanctionEventData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 5;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  NodeReferenceData node_ptr = 35;
 }
 
 // A Scene is a container for a specific interaction point.
@@ -4224,7 +4357,12 @@ message SomeNodeData {
     InviteEventData invite_event = 411;
     RoleData role = 420;
     RoleEventData role_event = 421;
-    AgentData agent = 430;
+    PermissionData permission = 430;
+    SanctionData sanction = 440;
+    SanctionEventData sanction_event = 441;
+    EntitlementData entitlement = 450;
+    EntitlementEventData entitlement_event = 451;
+    AgentData agent = 500;
     FolderData folder = 600;
     TagData tag = 610;
     TaggingData tagging = 611;

@@ -49,7 +49,7 @@ class Agent(
     name: str = property_(31, is_repr=True)
     slug: str = property_(33, is_repr=True)
 
-    cursor: Optional["Cursor"] = property_(52, can_write="system", node_space_from="self")
+    cursor: Optional["Cursor"] = property_(52, node_space_from="self")
     if TYPE_CHECKING:
         cursor_id: Optional[UUID] = None
         cursor_ptr: Optional[NodeReference] = None

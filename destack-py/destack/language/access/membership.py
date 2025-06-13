@@ -34,6 +34,8 @@ class MembershipEventType(Enum):
 
     JOIN = 1, "Join", "Join", "fas fa-user-plus"
     LEAVE = 2, "Leave", "Leave", "fas fa-user-minus"
+    KICK = 3, "Kick", "Kick", "fas fa-user-minus"
+    BAN = 4, "Ban", "Ban", "fas fa-user-minus"
 
 
 @builtin_node(NodeType.MEMBERSHIP_EVENT)

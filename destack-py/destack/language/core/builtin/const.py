@@ -295,6 +295,11 @@ class EnumType(Enum):
     INVITE_EVENT_TYPE = 410
     ROLE_TYPE = 420
     ROLE_EVENT_TYPE = 421
+    PERMISSION_TYPE = 430
+    SANCTION_TYPE = 440
+    SANCTION_EVENT_TYPE = 441
+    ENTITLEMENT_TYPE = 450
+    ENTITLEMENT_EVENT_TYPE = 451
     # ...
 
     # folder [600-800]
@@ -325,9 +330,6 @@ class EnumType(Enum):
     EDGE_TYPE = 1522
     EDGE_DIRECTION = 1523
     CASCADE_ACTION = 1524
-    DAY = 1531
-    MONTH = 1532
-    TIME_INTERVAL = 1533
     RESOURCE_STATUS = 1701
     # ...
 
@@ -335,6 +337,8 @@ class EnumType(Enum):
     ACTION_CARDINALITY = 1821
     CURSOR_STATUS = 1922
     SCHEDULE_FREQUENCY = 1930
+    DAY_OF_WEEK = 1931
+    MONTH = 1932
     TIMER_TYPE = 1940
     TIMER_EVENT_TYPE = 1941
     TRIGGER_TYPE = 1950
@@ -347,7 +351,6 @@ class EnumType(Enum):
     # runtime [2400-2800]
     RUN_STATUS = 2410
     RUN_EVENT_TYPE = 2411
-    RUN_TYPE = 2412
     INTERRUPTION_TYPE = 2420
     INTERRUPTION_STATUS = 2421
     INTERRUPTION_RESPONSE = 2422
@@ -455,6 +458,7 @@ class EnumType(Enum):
     OFFSCREEN_BEHAVIOR = 9085
 
     # meta [10000-11000]
+    # relation [10000-10010]
     ENUM_TYPE = 10000
     NODE_TYPE = 10001
     STRUCT_TYPE = 10002
@@ -472,7 +476,9 @@ class EnumType(Enum):
     EDIT_TYPE = 10050
     EDIT_OPERATION = 10051
     CHANGE_STATUS = 10052
-    NODE_PERMISSION = 10060
+    # access [10100-10200]
+    NODE_PERMISSION = 10100
+    JOINABLE_PERMISSION = 10101
 
 
 builtin_enum(EnumType.ENUM_TYPE)(EnumType)
@@ -660,11 +666,13 @@ class NodeType(Enum):
     INVITE_EVENT = 411, "Invite Event", "Invite Event", "fas fa-user-plus"
     ROLE = 420, "Role", "Role in something", "fas fa-user-tag"
     ROLE_EVENT = 421, "Role Event", "Role Event", "fas fa-user-tag"
-    AGENT = 430, "Agent", "Agent", "fas fa-robot"
-    # PERMISSION, PERMISSION_GROUP, ...
-    # CHALLENGE, ENTITLEMENT, ...
-    # KICK/BAN/BLOCK, ...
-    # RATE_LIMIT, ...
+    PERMISSION = 430, "Permission", "Permission for something", "fas fa-user-shield"
+    SANCTION = 440, "Sanction", "Temporary or permanent restriction", "fas fa-user-minus"
+    SANCTION_EVENT = 441, "Sanction Event", "Sanction Event", "fas fa-user-minus"
+    ENTITLEMENT = 450, "Entitlement", "Temporary or permanent grant", "fas fa-user-check"
+    ENTITLEMENT_EVENT = 451, "Entitlement Event", "Entitlement Event", "fas fa-user-check"
+    AGENT = 500, "Agent", "Agent", "fas fa-robot"
+    # CHALLENGE, ...
 
     # folder [600-800]
     FOLDER = 600, "Folder", "Sub-space of a Space", "fas fa-folder-open"
@@ -673,7 +681,8 @@ class NodeType(Enum):
     TAGGING = 611, "Tagging", "Tagging", "fas fa-tag"
 
     # history [800-1000]
-    # HISTORY, SNAPSHOT/SAVEPOINT, OVERLAY, BRANCH, ...
+    # HISTORY, SNAPSHOT/SAVEPOINT, OVERLAY, ...
+    # BRANCH, FORK, ...
 
     # entity [1000-1400]
     CUSTOM_ENTITY_DEFINITION = (
@@ -712,6 +721,7 @@ class NodeType(Enum):
     # QUERY_CURSOR, WEB_CURSOR, ...
     # ROOM, CHANNEL, LOCK, ...
     # TASK, ...
+    # RATE_LIMIT, ...
 
     # test [2000-2400]
     # TEST, TEST_SUITE, TEST_CASE, TEST_RESULT, ...
@@ -747,6 +757,7 @@ class NodeType(Enum):
     # INCIDENT, ESCALATION, ...
 
     # product [3000-3400]
+    # SETTINGS, ...
     # RECORDING/REPLAY, SURVEY, ...
     # ONBOARDING, TOUR, FUNNEL, COHORT, JOURNEY, ..
     # FEATURE, FEATURE_FLAG, FEATURE_GATE, ...
@@ -1365,54 +1376,14 @@ class DefaultFactory(Enum):
     REGION = 3
 
 
-@builtin_enum(EnumType.TIME_INTERVAL)
-class TimeInterval(Enum):
-    SECOND = 2
-    MINUTE = 3
-    HOUR = 4
-    DAY = 5
-    WEEK = 6
-    MONTH = 7
-    YEAR = 8
-
-
-@builtin_enum(EnumType.DAY)
-class Day(Enum):
-    """The day of the week."""
-
-    MONDAY = 1
-    TUESDAY = 2
-    WEDNESDAY = 3
-    THURSDAY = 4
-    FRIDAY = 5
-    SATURDAY = 6
-    SUNDAY = 7
-
-
-@builtin_enum(EnumType.MONTH)
-class Month(Enum):
-    """The month of the year."""
-
-    JANUARY = 1
-    FEBRUARY = 2
-    MARCH = 3
-    APRIL = 4
-    MAY = 5
-    JUNE = 6
-    JULY = 7
-    AUGUST = 8
-    SEPTEMBER = 9
-    OCTOBER = 10
-    NOVEMBER = 11
-    DECEMBER = 12
-
-
-@builtin_enum(EnumType.RUN_TYPE)
-class RunType(Enum):
-    CODE = 1
-    ACTION = 10
-    FLOW = 11
-    AGENT = 15
+@builtin_enum(EnumType.ROLE_TYPE)
+class RoleType(Enum):
+    SYSTEM = 1
+    OWNER = 2
+    ADMIN = 3
+    DEVELOPER = 5
+    USER = 7
+    SPECTATOR = 10
 
 
 @builtin_enum(EnumType.RESOURCE_STATUS)

@@ -23,7 +23,7 @@ from destack.pb2 import AnyNodeData
 from destack.utils.fractional import get_order_key
 from destack.utils.func import get_superclasses
 
-from .const import Enum, EnumType, NodeType, TraitType, builtin_enum
+from .const import Enum, EnumType, NodeType, RoleType, TraitType, builtin_enum
 from .object import _process_object_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
@@ -117,7 +117,7 @@ class Node[NodeDataT: AnyNodeData](NodeBase[NodeDataT]):
 
     # 1-9: node identity
     # Node.metatype: 1
-    id: UUID = property_(2, is_managed=True, is_eq=False, can_write="system")
+    id: UUID = property_(2, is_managed=True, is_eq=False, can_write=RoleType.SYSTEM)
     # Node.variant_id: 3?
     parent: Optional["Node"] = property_parent_(node_is_customizable=True)
     if TYPE_CHECKING:
