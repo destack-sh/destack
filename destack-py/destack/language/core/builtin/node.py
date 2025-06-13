@@ -32,7 +32,7 @@ from .property import (
     property_parent_,
     property_runtime_,
 )
-from .trait import IndexIn, NodeBase
+from .trait import IndexIn, NodeBase, Spatial
 
 if TYPE_CHECKING:
     from destack.language import Graph, NodeReference, QueryConnection, Session, Supergraph
@@ -249,6 +249,15 @@ class Node[NodeDataT: AnyNodeData](NodeBase[NodeDataT]):
         for node in nodes:
             node._graph = new_graph
             new_graph.add(node)
+
+        # assign space
+        if isinstance(child, Spatial) and (
+            (isinstance(self, Spatial) and (space_ptr := self.space_ptr) is not None)
+            or (self.metatype == NodeType.SPACE and (space_ptr := self.to_ref()) is not None)
+        ):
+            for node in nodes:
+                if isinstance(node, Spatial):
+                    node.space_ptr = space_ptr
 
         # create new nodes
         if child._is_new and self._is_attached:

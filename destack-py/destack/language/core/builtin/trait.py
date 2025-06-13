@@ -39,7 +39,6 @@ from .property import (
     _PROPERTY_SPECIFIERS,
     Property,
     property_,
-    property_ancestor_,
     property_parent_,
 )
 
@@ -744,9 +743,9 @@ class Spatial(Trait):
     """A Node in a Space."""
 
     parent: Optional["Space"] = property_parent_(node_is_customizable=False)
-    # nocheckin: remove ancestor Node properties
-    space: "Space | None" = property_ancestor_(5, is_required=True)
+    space: "Space | None" = property_(5)
     if TYPE_CHECKING:
+        space_id: Optional[UUID] = None
         space_ptr: Optional[NodeReference] = None
 
 

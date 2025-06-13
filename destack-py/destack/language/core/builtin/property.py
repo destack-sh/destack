@@ -478,14 +478,6 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
         # node reference
         elif self.scalar_type == ScalarType.NODE_REFERENCE:
             assert self.edge_type is not None, f"no edge type for {self!r}"
-            if self.edge_type == EdgeType.PARENT:
-                is_computed = False
-            elif self.edge_type == EdgeType.ANCESTOR:
-                is_computed = True
-            elif self.edge_type in (EdgeType.REGULAR, EdgeType.TEMPLATE):
-                is_computed = False
-            else:
-                raise ValueError(f"unexpected reference kind {self.edge_type!r} for {self!r}")
             ptr_prop = Property(
                 id=self.id,
                 name=self.name + "_ptr",
@@ -506,12 +498,8 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
                 is_stored=True,
                 is_eq=self.is_eq,
                 is_hash=self.is_hash,
-                is_computed=is_computed,
+                is_computed=False,
             )
-            if self.edge_type == EdgeType.ANCESTOR:
-                # wired ancestors are not required (even though stored ancestors are)
-                ptr_prop.is_required = False
-
             return ptr_prop
 
     def determine(self, object_type: NodeType | StructType | None, is_root_node: bool) -> None:
@@ -675,24 +663,6 @@ def property_parent_(*, node_is_customizable: bool) -> Any:
     )
 
 
-def property_ancestor_(
-    id: int,
-    is_required: bool,
-) -> Any:
-    """Computed nearest or farthest ancestor of the given type."""
-    return Property(
-        id=id,
-        edge_type=EdgeType.ANCESTOR,
-        is_computed=True,
-        is_required=is_required,
-        is_wired=True,
-        is_stored=True,
-        is_eq=False,  # no point since it's derived
-        node_space_from="self",
-        node_is_customizable=True,
-    )
-
-
 def property_runtime_(*, default: Any = UNSET) -> Any:
     """A property that is only used at runtime."""
     return Property(
@@ -707,9 +677,4 @@ def property_runtime_(*, default: Any = UNSET) -> Any:
     )
 
 
-_PROPERTY_SPECIFIERS: tuple[Callable, ...] = (
-    property_,
-    property_parent_,
-    property_ancestor_,
-    property_runtime_,
-)
+_PROPERTY_SPECIFIERS: tuple[Callable, ...] = (property_, property_parent_, property_runtime_)
