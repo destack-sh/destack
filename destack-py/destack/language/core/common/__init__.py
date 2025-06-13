@@ -12,7 +12,14 @@ from .error import Error, ErrorType
 from .event import CustomEvent, CustomEventDefinition, EditEvent
 from .field import Field, FieldType
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
-from .meta import EnumInfo, EnumOptionInfo, NodeInfo, PropertyInfo, StructInfo, TraitInfo
+from .meta import (
+    EnumDefinition,
+    EnumOptionDefinition,
+    NodeDefinition,
+    PropertyDefinition,
+    StructDefinition,
+    TraitDefinition,
+)
 from .metric import (
     CounterMeasurement,
     CounterMetric,
@@ -165,8 +172,8 @@ __all__ = [
     "EditEvent",
     "EditOperation",
     "EditType",
-    "EnumInfo",
-    "EnumOptionInfo",
+    "EnumDefinition",
+    "EnumOptionDefinition",
     "Error",
     "ErrorType",
     "Expression",
@@ -195,7 +202,7 @@ __all__ = [
     "Length",
     "LengthUnit",
     "NodeConstraint",
-    "NodeInfo",
+    "NodeDefinition",
     "NodeReference",
     "NumberConstraint",
     "NumberFormat",
@@ -203,7 +210,7 @@ __all__ = [
     "Overflow",
     "Position",
     "PositionType",
-    "PropertyInfo",
+    "PropertyDefinition",
     "PropertyReference",
     "PropertyReferenceType",
     "Query",
@@ -224,7 +231,7 @@ __all__ = [
     "SortType",
     "StringConstraint",
     "StringFormat",
-    "StructInfo",
+    "StructDefinition",
     "Text",
     "TextIn",
     "TextLine",
@@ -232,7 +239,7 @@ __all__ = [
     "TextLineType",
     "TextSpan",
     "TextSpanType",
-    "TraitInfo",
+    "TraitDefinition",
     "Type",
     "ValidationError",
     "Value",

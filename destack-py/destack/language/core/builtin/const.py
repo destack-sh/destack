@@ -484,16 +484,17 @@ class StructType(Enum):
     ORIGIN = 2
     NODE_REFERENCE = 3
     PROPERTY_REFERENCE = 5
-    PROPERTY_INFO = 11
-    TRAIT_INFO = 12
-    NODE_INFO = 13
-    STRUCT_INFO = 14
-    ENUM_INFO = 15
-    ENUM_OPTION_INFO = 16
-    # METHOD_INFO, ...?
-    EDIT = 21
-    CHANGE = 22
-    CHANGE_RESULT = 23
+    PROPERTY_DEFINITION = 11
+    TRAIT_DEFINITION = 12
+    NODE_DEFINITION = 13
+    STRUCT_DEFINITION = 14
+    ENUM_DEFINITION = 15
+    ENUM_OPTION_DEFINITION = 16
+    PERMISSION_DEFINITION = 17
+    # ACTION_DEFINITION, ...?
+    EDIT = 30
+    CHANGE = 31
+    CHANGE_RESULT = 32
     EXPRESSION = 101
     FUNCTION = 102
     JOIN = 103
@@ -715,6 +716,7 @@ class NodeType(Enum):
 
     # runtime [2400-2800]
     RUN = 2400, "Run", "Run", "fas fa-play"
+    RUN_EVENT = 2401, "Run Event", "Run Event", "fas fa-play"
     # RUN_QUEUE = 2401, "Run Queue", "Run Queue", "fas fa-list-check"
     SPAN = 2410, "Span", "Span", "fas fa-ruler-horizontal"
     INTERRUPTION = 2420, "Interruption", "Interruption", "fas fa-hand"
@@ -734,14 +736,12 @@ class NodeType(Enum):
     )
     CUSTOM_EVENT = 2601, "Custom Event", "Custom Event", "fas fa-signal"
     EDIT_EVENT = 2602, "Edit Event", "Edit Event", "fas fa-file-lines"
-    RUN_EVENT = 2610, "Run Event", "Run Event", "fas fa-play"
     # CHANGE_EVENT, QUERY_EVENT, ...
-    # ERROR_EVENT, TRIGGER_EVENT, RUN_EVENT, ...
 
     # deployment [2800-3000]
     ENVIRONMENT = 2800, "Environment", "Environment", "fas fa-environment"
     # DEPLOYMENT, ...
-    # PREVIEW, DRAFT,RELEASE, ROLLOUT, ...
+    # PREVIEW, DRAFT, RELEASE, ROLLOUT, ...
     # INCIDENT, ESCALATION, ...
 
     # product [3000-3400]

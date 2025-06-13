@@ -42,7 +42,7 @@ if TYPE_CHECKING:
         BuiltinObjectBase,
         Constraint,
         Format,
-        PropertyInfo,
+        PropertyDefinition,
         PropertyReference,
         Type,
     )
@@ -381,7 +381,7 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
 
     _ref: Optional["PropertyReference"] = None
     _type: Optional["Type"] = None
-    _info: Optional["PropertyInfo"] = None
+    _info: Optional["PropertyDefinition"] = None
 
     def __str__(self):
         if self.component is None:
@@ -448,11 +448,11 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
         return self._type
 
     @property
-    def info(self) -> "PropertyInfo":
+    def definition(self) -> "PropertyDefinition":
         if self._info is None:
-            from ..common.meta import PropertyInfo
+            from ..common.meta import PropertyDefinition
 
-            self._info = PropertyInfo.from_property(self)
+            self._info = PropertyDefinition.from_property(self)
         return self._info
 
     def _to_ptr_prop(self) -> Optional["Property"]:

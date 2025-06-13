@@ -24,13 +24,13 @@ if TYPE_CHECKING:
     from destack.language import (
         BuiltinObjectBase,
         Enum,
-        EnumInfo,
+        EnumDefinition,
         Node,
         NodeBase,
-        NodeInfo,
+        NodeDefinition,
         RelationReference,
         StructBase,
-        StructInfo,
+        StructDefinition,
         Trait,
     )
 
@@ -51,9 +51,9 @@ STRUCT_CLASS_BY_TYPE: dict[StructType, type["StructBase"]] = {}
 STRUCT_TYPE_BY_CLASS: dict[type["StructBase"], StructType] = {}
 
 RELATION_REF_BY_CLASS: dict[type["NodeBase"], "RelationReference"] = {}
-STRUCT_INFO_BY_TYPE: dict[StructType, "StructInfo"] = {}
-ENUM_INFO_BY_TYPE: dict[EnumType, "EnumInfo"] = {}
-NODE_INFO_BY_TYPE: dict[NodeType, "NodeInfo"] = {}
+ENUM_DEFINITION_BY_TYPE: dict[EnumType, "EnumDefinition"] = {}
+STRUCT_DEFINITION_BY_TYPE: dict[StructType, "StructDefinition"] = {}
+NODE_DEFINITION_BY_TYPE: dict[NodeType, "NodeDefinition"] = {}
 
 DESCENDANT_NODE_TYPES_BY_TYPE: dict[NodeType, tuple[NodeType, ...]] = {}
 ANCESTOR_NODE_TYPES_BY_TYPE: dict[NodeType, tuple[NodeType, ...]] = {}
@@ -252,19 +252,19 @@ def _complete_setup():
         RELATION_REF_BY_CLASS[cls] = relation_ref(cls)
 
     # generate meta info
-    from destack.language.core import EnumInfo, NodeInfo, StructInfo
+    from destack.language.core import EnumDefinition, NodeDefinition, StructDefinition
 
     for node_cls in NODE_CLASS_BY_TYPE.values():
-        node_info = NodeInfo.from_node(node_cls)
-        NODE_INFO_BY_TYPE[node_cls.metatype] = node_info
-        node_cls.__info__ = node_info
+        node_definition = NodeDefinition.from_node(node_cls)
+        NODE_DEFINITION_BY_TYPE[node_cls.metatype] = node_definition
+        node_cls.__definition__ = node_definition
     for struct_cls in STRUCT_CLASS_BY_TYPE.values():
-        struct_info = StructInfo.from_struct(struct_cls)
-        STRUCT_INFO_BY_TYPE[struct_cls.metatype] = struct_info
-        struct_cls.__info__ = struct_info
+        struct_definition = StructDefinition.from_struct(struct_cls)
+        STRUCT_DEFINITION_BY_TYPE[struct_cls.metatype] = struct_definition
+        struct_cls.__definition__ = struct_definition
     for enum_type in ENUM_TYPES:
-        enum_info = EnumInfo.from_enum(enum_type, ENUM_CLASS_BY_TYPE[enum_type])
-        ENUM_INFO_BY_TYPE[enum_type] = enum_info
+        enum_definition = EnumDefinition.from_enum(enum_type, ENUM_CLASS_BY_TYPE[enum_type])
+        ENUM_DEFINITION_BY_TYPE[enum_type] = enum_definition
 
     # sanity check stuff
     if IS_DEV or IS_TEST:
