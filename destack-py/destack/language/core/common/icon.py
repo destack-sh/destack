@@ -1,6 +1,14 @@
 from typing import TYPE_CHECKING, Optional, Union
 
-from ..builtin import BuiltinEnum, EnumType, StructFrozen, StructType, enum_, property_, struct_
+from ..builtin import (
+    Enum,
+    EnumType,
+    StructFrozen,
+    StructType,
+    builtin_enum,
+    builtin_struct,
+    property_,
+)
 
 if TYPE_CHECKING:
     from destack.language import Color, ColorIn, File
@@ -13,8 +21,8 @@ if TYPE_CHECKING:
 #
 
 
-@enum_(EnumType.ICON_TYPE)
-class IconType(BuiltinEnum):
+@builtin_enum(EnumType.ICON_TYPE)
+class IconType(Enum):
     EMOJI = 1
     FONT_AWESOME = 3
     VS_CODE = 4
@@ -22,7 +30,7 @@ class IconType(BuiltinEnum):
     FILE_URL = 11
 
 
-@struct_(StructType.ICON, frozen=True)
+@builtin_struct(StructType.ICON, frozen=True)
 class Icon(StructFrozen):
     """An icon to be displayed in some view."""
 

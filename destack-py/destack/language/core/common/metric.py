@@ -14,14 +14,14 @@ from ..builtin import (
     Node,
     NodeType,
     Spatial,
-    node_,
+    builtin_node,
     property_,
 )
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(NodeType.GAUGE_METRIC)
+@builtin_node(NodeType.GAUGE_METRIC)
 class GaugeMetric(
     Spatial,
     Metric,
@@ -33,7 +33,7 @@ class GaugeMetric(
     pass
 
 
-@node_(NodeType.GAUGE_MEASUREMENT)
+@builtin_node(NodeType.GAUGE_MEASUREMENT)
 class GaugeMeasurement(
     Spatial,
     Measurement,
@@ -44,7 +44,7 @@ class GaugeMeasurement(
     definition: "GaugeMetric" = property_(17)
 
 
-@node_(NodeType.COUNTER_METRIC)
+@builtin_node(NodeType.COUNTER_METRIC)
 class CounterMetric(
     Spatial,
     Metric,
@@ -56,7 +56,7 @@ class CounterMetric(
     pass
 
 
-@node_(NodeType.COUNTER_MEASUREMENT)
+@builtin_node(NodeType.COUNTER_MEASUREMENT)
 class CounterMeasurement(
     Spatial,
     Measurement,
@@ -67,7 +67,7 @@ class CounterMeasurement(
     definition: "CounterMetric" = property_(17)
 
 
-@node_(NodeType.HISTOGRAM_METRIC)
+@builtin_node(NodeType.HISTOGRAM_METRIC)
 class HistogramMetric(
     Spatial,
     Metric,
@@ -79,7 +79,7 @@ class HistogramMetric(
     pass
 
 
-@node_(NodeType.HISTOGRAM_MEASUREMENT)
+@builtin_node(NodeType.HISTOGRAM_MEASUREMENT)
 class HistogramMeasurement(
     Spatial,
     Measurement,

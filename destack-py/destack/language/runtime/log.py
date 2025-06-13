@@ -7,7 +7,7 @@ from destack.language.core import (
     Node,
     NodeType,
     Spatial,
-    node_,
+    builtin_node,
     property_,
     property_parent_,
 )
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(NodeType.LOG, pretend_frozen=True)
+@builtin_node(NodeType.LOG, pretend_frozen=True)
 class Log(
     Spatial,
     Analytic,

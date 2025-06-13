@@ -1,18 +1,18 @@
 from typing import TYPE_CHECKING, Optional, assert_never
 
 from destack.language.core import (
-    BuiltinEnum,
     BuiltinObjectMutable,
+    Enum,
     EnumType,
     Node,
     NodeType,
     StructMutable,
     StructType,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
+    builtin_struct,
     object_,
     property_,
-    struct_,
 )
 from destack.pb2 import ColorStyleData
 
@@ -25,8 +25,8 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.COLOR_TYPE)
-class ColorType(BuiltinEnum):
+@builtin_enum(EnumType.COLOR_TYPE)
+class ColorType(Enum):
     """Built-in color formats."""
 
     BUILTIN = 1
@@ -37,8 +37,8 @@ class ColorType(BuiltinEnum):
     P3 = 12
 
 
-@enum_(EnumType.COLOR_HUE)
-class ColorHue(BuiltinEnum):
+@builtin_enum(EnumType.COLOR_HUE)
+class ColorHue(Enum):
     """Built-in colors a la SwiftUI or Tailwind."""
 
     GRAY = 30
@@ -61,8 +61,8 @@ class ColorHue(BuiltinEnum):
     ROSE = 47
 
 
-@enum_(EnumType.COLOR_SHADE)
-class ColorShade(BuiltinEnum):
+@builtin_enum(EnumType.COLOR_SHADE)
+class ColorShade(Enum):
     """Built-in color shades a la Tailwind."""
 
     S25 = 25
@@ -94,7 +94,7 @@ class ColorBase(BuiltinObjectMutable):
     alpha: Optional[float] = property_(55, is_repr=True)
 
 
-@struct_(StructType.COLOR)
+@builtin_struct(StructType.COLOR)
 class Color(ColorBase, StructMutable):
     """A color value."""
 
@@ -108,7 +108,7 @@ class Color(ColorBase, StructMutable):
         return Color(type=ColorType.BUILTIN, hue=hue, shade=shade)
 
 
-@node_(NodeType.COLOR_STYLE)
+@builtin_node(NodeType.COLOR_STYLE)
 class ColorStyle(
     Style,
     ColorBase,

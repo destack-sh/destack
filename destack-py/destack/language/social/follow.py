@@ -12,7 +12,7 @@ from destack.language.core import (
     Node,
     NodeType,
     Spatial,
-    node_,
+    builtin_node,
     property_,
     property_parent_,
 )
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(
+@builtin_node(
     NodeType.FOLLOW,
     index=(IndexIn(columns=("parent_id", "owned_by_id"), is_unique=True),),
 )

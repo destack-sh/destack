@@ -1,19 +1,27 @@
 from typing import TYPE_CHECKING, Any, Optional
 
-from ..builtin import BuiltinEnum, EnumType, StructFrozen, StructType, enum_, property_, struct_
+from ..builtin import (
+    Enum,
+    EnumType,
+    StructFrozen,
+    StructType,
+    builtin_enum,
+    builtin_struct,
+    property_,
+)
 
 if TYPE_CHECKING:
     from destack.language import Field, Node
 
 
-@enum_(EnumType.VARIABLE_TYPE)
-class VariableType(BuiltinEnum):
+@builtin_enum(EnumType.VARIABLE_TYPE)
+class VariableType(Enum):
     """The type of a variable."""
 
     FIELD = 10
 
 
-@struct_(StructType.VARIABLE, frozen=True)
+@builtin_struct(StructType.VARIABLE, frozen=True)
 class Variable[T: Any](StructFrozen):
     """A variable value / reference (to be resolved at runtime)."""
 

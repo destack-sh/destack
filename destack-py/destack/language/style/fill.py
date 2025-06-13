@@ -1,18 +1,18 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
-    BuiltinEnum,
     BuiltinObjectMutable,
+    Enum,
     EnumType,
     Node,
     NodeType,
     StructMutable,
     StructType,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
+    builtin_struct,
     object_,
     property_,
-    struct_,
 )
 from destack.pb2 import FillStyleData
 
@@ -26,16 +26,16 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.FILL_TYPE)
-class FillType(BuiltinEnum):
+@builtin_enum(EnumType.FILL_TYPE)
+class FillType(Enum):
     STYLE = 2
     SOLID = 10
     GRADIENT = 11
     IMAGE = 12
 
 
-@enum_(EnumType.FILL_POSITION)
-class FillPosition(BuiltinEnum):
+@builtin_enum(EnumType.FILL_POSITION)
+class FillPosition(Enum):
     TOP_LEFT = 1
     TOP_CENTER = 2
     TOP_RIGHT = 3
@@ -47,8 +47,8 @@ class FillPosition(BuiltinEnum):
     BOTTOM_RIGHT = 22
 
 
-@enum_(EnumType.FILL_SIZE)
-class FillSize(BuiltinEnum):
+@builtin_enum(EnumType.FILL_SIZE)
+class FillSize(Enum):
     FILL = 1
     STRETCH = 2
     FIT = 3
@@ -69,7 +69,7 @@ class FillBase(BuiltinObjectMutable):
     size: FillSize | None = property_(54, is_repr=True)
 
 
-@struct_(StructType.FILL)
+@builtin_struct(StructType.FILL)
 class Fill(FillBase, StructMutable):
     """A fill value."""
 
@@ -82,7 +82,7 @@ class Fill(FillBase, StructMutable):
         return Fill(type=FillType.GRADIENT, gradient=gradient)
 
 
-@node_(NodeType.FILL_STYLE)
+@builtin_node(NodeType.FILL_STYLE)
 class FillStyle(
     Style,
     FillBase,

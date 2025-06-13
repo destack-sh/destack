@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
-    BuiltinEnum,
     BuiltinObjectMutable,
+    Enum,
     EnumType,
     HasName,
     Node,
@@ -13,12 +13,12 @@ from destack.language.core import (
     StructMutable,
     StructType,
     Tenancy,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
+    builtin_struct,
     object_,
     property_,
     property_parent_,
-    struct_,
 )
 from destack.pb2 import DatabaseData
 
@@ -29,8 +29,8 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.DATABASE_TYPE)
-class DatabaseType(BuiltinEnum):
+@builtin_enum(EnumType.DATABASE_TYPE)
+class DatabaseType(Enum):
     POSTGRES = 1
     # CASSANDRA, CLICKHOUSE, ...
 
@@ -59,12 +59,12 @@ class DatabaseBase(BuiltinObjectMutable):
         )
 
 
-@struct_(StructType.DATABASE_INFO)
+@builtin_struct(StructType.DATABASE_INFO)
 class DatabaseInfo(DatabaseBase, StructMutable):
     pass
 
 
-@node_(NodeType.DATABASE)
+@builtin_node(NodeType.DATABASE)
 class Database(
     Spatial,
     Resource,

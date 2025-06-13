@@ -6,7 +6,7 @@ from destack.language.core import (
     HasSlug,
     Node,
     NodeType,
-    node_,
+    builtin_node,
     property_,
     property_parent_,
 )
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(NodeType.HANDLE)
+@builtin_node(NodeType.HANDLE)
 class Handle(
     Global,
     Entity,

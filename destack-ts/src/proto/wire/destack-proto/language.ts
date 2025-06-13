@@ -9536,7 +9536,7 @@ export interface SomeNodeData {
     } | {
         oneofKind: "machine";
         /**
-         * @generated from protobuf field: symbol.destack.MachineData machine = 5020;
+         * @generated from protobuf field: symbol.destack.MachineData machine = 5100;
          */
         machine: MachineData;
     } | {
@@ -12648,9 +12648,9 @@ export enum NodeType {
      */
     DATABASE = 5000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_MACHINE = 5020;
+     * @generated from protobuf enum value: NODE_TYPE_MACHINE = 5100;
      */
-    MACHINE = 5020,
+    MACHINE = 5100,
     /**
      * @generated from protobuf enum value: NODE_TYPE_WINDOW = 8000;
      */
@@ -36373,7 +36373,7 @@ class SomeNodeData$Type extends MessageType<SomeNodeData> {
             { no: 3500, name: "notification", kind: "message", oneof: "node", T: () => NotificationData },
             { no: 3501, name: "notification_event", kind: "message", oneof: "node", T: () => NotificationEventData },
             { no: 5000, name: "database", kind: "message", oneof: "node", T: () => DatabaseData },
-            { no: 5020, name: "machine", kind: "message", oneof: "node", T: () => MachineData },
+            { no: 5100, name: "machine", kind: "message", oneof: "node", T: () => MachineData },
             { no: 8000, name: "window", kind: "message", oneof: "node", T: () => WindowData },
             { no: 8010, name: "scene", kind: "message", oneof: "node", T: () => SceneData },
             { no: 8011, name: "scene_event", kind: "message", oneof: "node", T: () => SceneEventData },
@@ -36764,7 +36764,7 @@ class SomeNodeData$Type extends MessageType<SomeNodeData> {
                         database: DatabaseData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).database)
                     };
                     break;
-                case /* symbol.destack.MachineData machine */ 5020:
+                case /* symbol.destack.MachineData machine */ 5100:
                     message.node = {
                         oneofKind: "machine",
                         machine: MachineData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).machine)
@@ -37124,9 +37124,9 @@ class SomeNodeData$Type extends MessageType<SomeNodeData> {
         /* symbol.destack.DatabaseData database = 5000; */
         if (message.node.oneofKind === "database")
             DatabaseData.internalBinaryWrite(message.node.database, writer.tag(5000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.MachineData machine = 5020; */
+        /* symbol.destack.MachineData machine = 5100; */
         if (message.node.oneofKind === "machine")
-            MachineData.internalBinaryWrite(message.node.machine, writer.tag(5020, WireType.LengthDelimited).fork(), options).join();
+            MachineData.internalBinaryWrite(message.node.machine, writer.tag(5100, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.WindowData window = 8000; */
         if (message.node.oneofKind === "window")
             WindowData.internalBinaryWrite(message.node.window, writer.tag(8000, WireType.LengthDelimited).fork(), options).join();

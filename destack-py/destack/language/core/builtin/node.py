@@ -44,7 +44,7 @@ tracer = trace.get_tracer(__name__)
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def node_(
+def builtin_node(
     node_type: NodeType | None,
     root_type: NodeType | None = NodeType.SPACE,
     pretend_frozen: bool = False,  # :PretendFrozen
@@ -97,7 +97,7 @@ def node_(
 _object_set = object.__setattr__
 
 
-@node_(node_type=None, root_type=None)
+@builtin_node(node_type=None, root_type=None)
 class Node[NodeDataT: AnyNodeData](NodeBase[NodeDataT]):
     """
     A Node with Properties and a persistent identity.

@@ -3,7 +3,7 @@ from destack.language.core import (
     IsCustomNodeDefinition,
     Node,
     NodeType,
-    node_,
+    builtin_node,
     property_,
 )
 from destack.pb2 import CustomViewData, CustomViewDefinitionData
@@ -13,7 +13,7 @@ from .container import ContainerView
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(NodeType.CUSTOM_VIEW_DEFINITION)
+@builtin_node(NodeType.CUSTOM_VIEW_DEFINITION)
 class CustomViewDefinition(
     ContainerView,
     IsCustomNodeDefinition,
@@ -24,7 +24,7 @@ class CustomViewDefinition(
     pass
 
 
-@node_(NodeType.CUSTOM_VIEW)
+@builtin_node(NodeType.CUSTOM_VIEW)
 class CustomView(
     ContainerView,
     IsCustomNode,

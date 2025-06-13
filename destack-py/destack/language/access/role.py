@@ -1,8 +1,8 @@
 from typing import Optional
 
 from destack.language.core import (
-    BuiltinEnum,
     Entity,
+    Enum,
     EnumType,
     Event,
     Global,
@@ -15,8 +15,8 @@ from destack.language.core import (
     IsTemplatable,
     Node,
     NodeType,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
     property_,
     property_parent_,
 )
@@ -25,15 +25,15 @@ from destack.pb2 import RoleData, RoleEventData
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.ROLE_EVENT_TYPE)
-class RoleEventType(BuiltinEnum):
+@builtin_enum(EnumType.ROLE_EVENT_TYPE)
+class RoleEventType(Enum):
     """A Type of Role Event."""
 
     ASSIGNED = 1, "Assigned", "Assigned to someone", "fas fa-circle"
     REMOVED = 2, "Removed", "Removed from someone", "fas fa-circle"
 
 
-@node_(NodeType.ROLE_EVENT)
+@builtin_node(NodeType.ROLE_EVENT)
 class RoleEvent(
     Event["Role"],
     Node[RoleEventData],
@@ -44,8 +44,8 @@ class RoleEvent(
     node: "Role" = property_(35)
 
 
-@enum_(EnumType.ROLE_TYPE)
-class RoleType(BuiltinEnum):
+@builtin_enum(EnumType.ROLE_TYPE)
+class RoleType(Enum):
     """The role of a Role"""
 
     ADMIN = 1
@@ -54,7 +54,7 @@ class RoleType(BuiltinEnum):
     SPECTATOR = 10
 
 
-@node_(NodeType.ROLE)
+@builtin_node(NodeType.ROLE)
 class Role(
     Global,
     Entity,

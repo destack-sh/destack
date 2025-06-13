@@ -17,7 +17,7 @@ from destack.language.core import (
     Spatial,
     Text,
     TextIn,
-    node_,
+    builtin_node,
     property_,
     property_parent_,
     to_text,
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-@node_(NodeType.MESSAGE)
+@builtin_node(NodeType.MESSAGE)
 class Message(
     Entity,
     IsOwnable,

@@ -16,8 +16,8 @@ from destack.language.registry import ENUM_TYPE_BY_CLASS
 from ..builtin import (
     PRIMITIVE_PY_TYPES,
     PRIMITIVE_TYPE_BY_PY_TYPE,
-    BuiltinEnum,
     DefaultFactory,
+    Enum,
     EnumType,
     NodeType,
     PrimitiveType,
@@ -27,9 +27,9 @@ from ..builtin import (
     StructType,
     TraitType,
     TypeCardinality,
-    enum_,
+    builtin_enum,
+    builtin_struct,
     property_,
-    struct_,
 )
 
 if TYPE_CHECKING:
@@ -41,8 +41,8 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-@enum_(EnumType.STRING_FORMAT)
-class StringFormat(BuiltinEnum):
+@builtin_enum(EnumType.STRING_FORMAT)
+class StringFormat(Enum):
     """The format of a string."""
 
     NAME = 1
@@ -55,8 +55,8 @@ class StringFormat(BuiltinEnum):
     BASE64 = 20
 
 
-@enum_(EnumType.NUMBER_FORMAT)
-class NumberFormat(BuiltinEnum):
+@builtin_enum(EnumType.NUMBER_FORMAT)
+class NumberFormat(Enum):
     """The format of a number."""
 
     PERCENTAGE = 1
@@ -64,7 +64,7 @@ class NumberFormat(BuiltinEnum):
     CURRENCY = 3
 
 
-@struct_(StructType.STRING_CONSTRAINT, frozen=True)
+@builtin_struct(StructType.STRING_CONSTRAINT, frozen=True)
 class StringConstraint(StructFrozen):
     """The constraint of a string."""
 
@@ -81,7 +81,7 @@ URL_REGEX = r"^(?:[a-z]+:\/\/)?[\w.-]+\.[a-z]{2,}(?:\/\S*)?$"
 PHONE_NUMBER_REGEX = r"^\+?(\d{1,3})?[-.\s]?(\(?\d{1,4}\)?)?[-.\s]?\d{1,4}[-.\s]?\d{1,9}$"
 
 
-@struct_(StructType.NUMBER_CONSTRAINT, frozen=True)
+@builtin_struct(StructType.NUMBER_CONSTRAINT, frozen=True)
 class NumberConstraint(StructFrozen):
     """The constraint of a number."""
 
@@ -93,7 +93,7 @@ class NumberConstraint(StructFrozen):
     scale: Optional[int] = property_(45)  # for decimals
 
 
-@struct_(StructType.COLLECTION_CONSTRAINT, frozen=True)
+@builtin_struct(StructType.COLLECTION_CONSTRAINT, frozen=True)
 class CollectionConstraint(StructFrozen):
     """The constraint of a collection."""
 
@@ -101,7 +101,7 @@ class CollectionConstraint(StructFrozen):
     max_length: Optional[int] = property_(42)
 
 
-@struct_(StructType.NODE_CONSTRAINT, frozen=True)
+@builtin_struct(StructType.NODE_CONSTRAINT, frozen=True)
 class NodeConstraint(StructFrozen):
     """The constraint of a node."""
 
@@ -115,7 +115,7 @@ Constraint = Union[NumberConstraint, NodeConstraint, StringConstraint, Collectio
 type Json = Any
 
 
-@struct_(StructType.TYPE, frozen=True)
+@builtin_struct(StructType.TYPE, frozen=True)
 class Type(StructFrozen):
     """A Type in the type system."""
 
@@ -176,7 +176,7 @@ def to_type(value_or_type: Any, node_as_value: bool = False) -> "Type":
             scalar_type=ScalarType.STRUCT,
             struct_type=value_or_type.metatype,
         )
-    elif isinstance(value_or_type, BuiltinEnum):
+    elif isinstance(value_or_type, Enum):
         return Type(
             cardinality=TypeCardinality.SCALAR,
             scalar_type=ScalarType.ENUM,
@@ -291,7 +291,7 @@ def to_type(value_or_type: Any, node_as_value: bool = False) -> "Type":
 
     # type classes
     if isinstance(value_or_type, type):
-        if issubclass(value_or_type, BuiltinEnum):
+        if issubclass(value_or_type, Enum):
             return Type(
                 cardinality=TypeCardinality.SCALAR,
                 scalar_type=ScalarType.ENUM,

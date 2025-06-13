@@ -24,9 +24,9 @@ from ..builtin import (
     Property,
     StructFrozen,
     StructType,
+    builtin_struct,
     property_,
     property_runtime_,
-    struct_,
 )
 from .relation import NodeReference
 from .type import Json, ScalarType, Type, TypeCardinality, to_type
@@ -45,7 +45,7 @@ tracer = trace.get_tracer(__name__)
 type_ = type
 
 
-@struct_(StructType.VALUE, frozen=True)
+@builtin_struct(StructType.VALUE, frozen=True)
 class Value(StructFrozen[ValueData]):
     """A generic Value of any Type."""
 

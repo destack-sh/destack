@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING, Optional, Union
 
 from destack.language.core import (
-    BuiltinEnum,
     Entity,
+    Enum,
     EnumType,
     HasIcon,
     HasName,
@@ -19,8 +19,8 @@ from destack.language.core import (
     Node,
     NodeType,
     Spatial,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
     property_,
     property_parent_,
 )
@@ -32,8 +32,8 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.FOLDER_TYPE)
-class FolderType(BuiltinEnum):
+@builtin_enum(EnumType.FOLDER_TYPE)
+class FolderType(Enum):
     ROOT = 1, "Root", "The root folder of a Space", "fas fa-home"
     HOME = 2, "Home", "The home folder of a Space", "fas fa-home"
     GENERIC = 3, "Generic", "A generic folder", "fas fa-folder-open"
@@ -42,7 +42,7 @@ class FolderType(BuiltinEnum):
     # SERVICE, PLUGIN, WIDGET, TEMPLATE, LIBRARY, ...
 
 
-@node_(
+@builtin_node(
     NodeType.FOLDER,
     index=(IndexIn(columns=("space_id", "slug"), is_unique=True),),
 )

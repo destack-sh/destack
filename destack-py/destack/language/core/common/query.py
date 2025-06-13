@@ -3,9 +3,9 @@ from typing import TYPE_CHECKING, Any, Optional, Union, assert_never, cast
 from fastuuid import UUID
 
 from ..builtin import (
-    BuiltinEnum,
     BuiltinObjectMutable,
     DefaultFactory,
+    Enum,
     EnumType,
     Node,
     Property,
@@ -14,10 +14,10 @@ from ..builtin import (
     StructType,
     Trait,
     active_session,
-    enum_,
+    builtin_enum,
+    builtin_struct,
     object_,
     property_,
-    struct_,
 )
 from .relation import AttributeReference, RelationReference, attribute_ref
 from .value import Value
@@ -33,8 +33,8 @@ if TYPE_CHECKING:
 #
 
 
-@enum_(EnumType.FUNCTION_TYPE)
-class FunctionType(BuiltinEnum):
+@builtin_enum(EnumType.FUNCTION_TYPE)
+class FunctionType(Enum):
     ADD = 1  # +
     SUBTRACT = 2  # -
     MULTIPLY = 3  # *
@@ -43,7 +43,7 @@ class FunctionType(BuiltinEnum):
     POWER = 6  # ^ / **
 
 
-@struct_(StructType.FUNCTION, frozen=True)
+@builtin_struct(StructType.FUNCTION, frozen=True)
 class Function(StructFrozen):
     type: FunctionType = property_(30, is_repr=True)
     left: "Expression" = property_(31, is_repr=True)
@@ -63,8 +63,8 @@ def function(
 #
 
 
-@enum_(EnumType.CONDITIONAL_TYPE)
-class ConditionalType(BuiltinEnum):
+@builtin_enum(EnumType.CONDITIONAL_TYPE)
+class ConditionalType(Enum):
     # logical
     NOT = 1
     AND = 2
@@ -88,7 +88,7 @@ class ConditionalType(BuiltinEnum):
     NOT_EXISTS = 41
 
 
-@struct_(StructType.CONDITION, frozen=True)
+@builtin_struct(StructType.CONDITION, frozen=True)
 class Condition(StructFrozen):
     """Boolean predicate (AND, =, <, etc.)."""
 
@@ -120,8 +120,8 @@ def condition(
 #
 
 
-@enum_(EnumType.AGGREGATION_TYPE)
-class AggregationType(BuiltinEnum):
+@builtin_enum(EnumType.AGGREGATION_TYPE)
+class AggregationType(Enum):
     EXISTS = 1
     COUNT = 2
     SUM = 3
@@ -130,7 +130,7 @@ class AggregationType(BuiltinEnum):
     AVERAGE = 6
 
 
-@struct_(StructType.AGGREGATION, frozen=True)
+@builtin_struct(StructType.AGGREGATION, frozen=True)
 class Aggregation(StructFrozen):
     """Aggregation."""
 
@@ -151,8 +151,8 @@ def aggregation(
 #
 
 
-@enum_(EnumType.EXPRESSION_TYPE)
-class ExpressionType(BuiltinEnum):
+@builtin_enum(EnumType.EXPRESSION_TYPE)
+class ExpressionType(Enum):
     LITERAL = 1
     ATTRIBUTE = 2
     CONDITION = 3
@@ -161,7 +161,7 @@ class ExpressionType(BuiltinEnum):
     # SUBQUERY?
 
 
-@struct_(StructType.EXPRESSION, frozen=True)
+@builtin_struct(StructType.EXPRESSION, frozen=True)
 class Expression(StructFrozen):
     """Wrapper to unify any scalar / boolean / aggregate sub-tree."""
 
@@ -212,14 +212,14 @@ def expression(
 #
 
 
-@enum_(EnumType.SORT_TYPE)
-class SortType(BuiltinEnum):
+@builtin_enum(EnumType.SORT_TYPE)
+class SortType(Enum):
     ASCENDING = 1
     DESCENDING = 2
 
 
-@enum_(EnumType.SORT_MODE)
-class SortMode(BuiltinEnum):
+@builtin_enum(EnumType.SORT_MODE)
+class SortMode(Enum):
     MAX = 1
     MIN = 2
     AVERAGE = 3
@@ -227,7 +227,7 @@ class SortMode(BuiltinEnum):
     MEDIAN = 5
 
 
-@struct_(StructType.SORT, frozen=True)
+@builtin_struct(StructType.SORT, frozen=True)
 class Sort(StructFrozen):
     """ORDER BY specification."""
 
@@ -253,7 +253,7 @@ def sort(sort: SortIn, type: SortType = SortType.ASCENDING) -> Sort:
 #
 
 
-@struct_(StructType.SELECT, frozen=True)
+@builtin_struct(StructType.SELECT, frozen=True)
 class Select(StructFrozen):
     """Select specific Attributes."""
 
@@ -277,15 +277,15 @@ def select(*attributes: "Property | Field") -> Select:
 #
 
 
-@enum_(EnumType.JOIN_TYPE)
-class JoinType(BuiltinEnum):
+@builtin_enum(EnumType.JOIN_TYPE)
+class JoinType(Enum):
     LEFT = 1
     # RIGHT, INNER, OUTER, CROSS?
     PARENT = 10
     CHILD = 11
 
 
-@struct_(StructType.JOIN, frozen=True)
+@builtin_struct(StructType.JOIN, frozen=True)
 class Join(StructFrozen):
     """Join a Query with another Query."""
 
@@ -317,15 +317,15 @@ def join(
 #
 
 
-@enum_(EnumType.QUERY_TYPE)
-class QueryType(BuiltinEnum):
+@builtin_enum(EnumType.QUERY_TYPE)
+class QueryType(Enum):
     NODE = 1
     SCALAR = 2
     GROUPED_NODE = 10
     GROUPED_SCALAR = 11
 
 
-@struct_(StructType.QUERY, frozen=True)
+@builtin_struct(StructType.QUERY, frozen=True)
 class Query[RootT: "Trait | Node"](StructFrozen):
     """A GraphQL-inspired Query node (with subqueries)."""
 
@@ -414,7 +414,7 @@ def to_subqueries(subqueries: dict[str, "Query"]) -> list["Query"]:
     return list(subqueries.values())
 
 
-@struct_(StructType.HISTOGRAM, frozen=True)
+@builtin_struct(StructType.HISTOGRAM, frozen=True)
 class Histogram(StructFrozen):
     """A histogram."""
 
@@ -434,7 +434,7 @@ class QueryResultBase(BuiltinObjectMutable):
     scalar: Optional[Value] = property_(43, is_repr=True)
 
 
-@struct_(StructType.QUERY_RESULT)
+@builtin_struct(StructType.QUERY_RESULT)
 class QueryResult(QueryResultBase, StructMutable):
     """
     The result of a Query.
@@ -448,21 +448,21 @@ class QueryResult(QueryResultBase, StructMutable):
     subresults: list["QueryResult"] = property_(36, is_repr=True)
 
 
-@struct_(StructType.QUERY_RESULT_GROUP)
+@builtin_struct(StructType.QUERY_RESULT_GROUP)
 class QueryResultGroup(QueryResultBase, StructMutable):
     """A group in a QueryResult."""
 
     discriminator: Value = property_(31, is_repr=True)
 
 
-@enum_(EnumType.QUERY_UPDATE_TYPE)
-class QueryUpdateType(BuiltinEnum):
+@builtin_enum(EnumType.QUERY_UPDATE_TYPE)
+class QueryUpdateType(Enum):
     FULL_RESULT = 1, "Full Result", "Full result tree"
     PARTIAL_RESULT = 2, "Partial Result", "Just this result"
     ...
 
 
-@struct_(StructType.QUERY_UPDATE, frozen=True)
+@builtin_struct(StructType.QUERY_UPDATE, frozen=True)
 class QueryUpdate(StructFrozen):
     """An update to a QueryResult."""
 
@@ -544,7 +544,7 @@ class IntoQuery:
     descending = desc
 
 
-@struct_(StructType.SELECTION, frozen=True)
+@builtin_struct(StructType.SELECTION, frozen=True)
 class Selection(StructFrozen):
     """A selection of fields from a Node."""
 

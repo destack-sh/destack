@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING, Optional, Union
 
 from destack.language.core import (
-    BuiltinEnum,
     Entity,
+    Enum,
     EnumType,
     HasName,
     IsActionable,
@@ -16,8 +16,8 @@ from destack.language.core import (
     NodeType,
     RunType,
     Spatial,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
     property_,
     property_parent_,
 )
@@ -29,8 +29,8 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.ACTION_CARDINALITY)
-class ActionCardinality(BuiltinEnum):
+@builtin_enum(EnumType.ACTION_CARDINALITY)
+class ActionCardinality(Enum):
     UNARY = 1, "Unary", "Single in, single out"
     # UNARY_STREAM = 2, "Unary Stream", "Single in, stream out"
 
@@ -39,7 +39,7 @@ class ActionCardinality(BuiltinEnum):
         return self < 40
 
 
-@node_(NodeType.ACTION)
+@builtin_node(NodeType.ACTION)
 class Action(
     Spatial,
     Entity,

@@ -3,19 +3,19 @@ from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
     Axis3,
-    BuiltinEnum,
     BuiltinObjectMutable,
+    Enum,
     EnumType,
     Node,
     NodeType,
     StructMutable,
     StructType,
     Vector2,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
+    builtin_struct,
     object_,
     property_,
-    struct_,
 )
 from destack.pb2 import EffectStyleData
 
@@ -29,8 +29,8 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.EFFECT_TYPE)
-class EffectType(BuiltinEnum):
+@builtin_enum(EnumType.EFFECT_TYPE)
+class EffectType(Enum):
     """When the effect fires."""
 
     NONE = 1
@@ -47,22 +47,22 @@ class EffectType(BuiltinEnum):
     # SCROLL, ...
 
 
-@enum_(EnumType.REPEAT_TYPE)
-class RepeatType(BuiltinEnum):
+@builtin_enum(EnumType.REPEAT_TYPE)
+class RepeatType(Enum):
     LOOP = 1, "Loop", "Restart from beginning"
     REVERSE = 2, "Reverse", "Yoyo back and forth"
     MIRROR = 3, "Mirror", "Mirror keyframes"
 
 
-@enum_(EnumType.TEXT_SPLIT_TYPE)
-class TextSplitType(BuiltinEnum):
+@builtin_enum(EnumType.TEXT_SPLIT_TYPE)
+class TextSplitType(Enum):
     CHAR = 1, "Char", "Split by character"
     WORD = 2, "Word", "Split by word"
     LINE = 3, "Line", "Split by line"
 
 
-@enum_(EnumType.OFFSCREEN_BEHAVIOR)
-class OffscreenBehavior(BuiltinEnum):
+@builtin_enum(EnumType.OFFSCREEN_BEHAVIOR)
+class OffscreenBehavior(Enum):
     """What happens when the element is offscreen."""
 
     PLAY = 1, "Play", "Play the animation"
@@ -93,14 +93,14 @@ class EffectBase(BuiltinObjectMutable):
     transition: Optional["Transition"] = property_(70, is_repr=True)
 
 
-@struct_(StructType.EFFECT)
+@builtin_struct(StructType.EFFECT)
 class Effect(EffectBase, StructMutable):
     """An effect value."""
 
     pass
 
 
-@node_(NodeType.EFFECT_STYLE)
+@builtin_node(NodeType.EFFECT_STYLE)
 class EffectStyle(
     Style,
     EffectBase,

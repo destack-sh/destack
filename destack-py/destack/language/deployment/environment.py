@@ -8,7 +8,7 @@ from destack.language.core import (
     Node,
     NodeType,
     Spatial,
-    node_,
+    builtin_node,
     property_parent_,
 )
 from destack.pb2 import EnvironmentData
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(NodeType.ENVIRONMENT)
+@builtin_node(NodeType.ENVIRONMENT)
 class Environment(
     Spatial,
     Entity,

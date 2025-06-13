@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING, Union
 
 from destack.language.core import (
-    BuiltinEnum,
     Entity,
+    Enum,
     EnumType,
     HasName,
     IsDeletable,
@@ -13,8 +13,8 @@ from destack.language.core import (
     Node,
     NodeType,
     Spatial,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
     property_,
     property_parent_,
 )
@@ -26,13 +26,13 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.THREAD_STATUS)
-class ThreadStatus(BuiltinEnum):
+@builtin_enum(EnumType.THREAD_STATUS)
+class ThreadStatus(Enum):
     OPEN = 10
     CLOSED = 30
 
 
-@node_(NodeType.THREAD)
+@builtin_node(NodeType.THREAD)
 class Thread(
     HasName,
     Entity,

@@ -1,15 +1,15 @@
 from typing import TYPE_CHECKING, Optional, Union
 
 from destack.language.core import (
-    BuiltinEnum,
+    Enum,
     EnumType,
     Event,
     HasIcon,
     IsOwnable,
     Node,
     NodeType,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
     property_,
     property_parent_,
 )
@@ -23,15 +23,15 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.SCENE_EVENT_TYPE)
-class SceneEventType(BuiltinEnum):
+@builtin_enum(EnumType.SCENE_EVENT_TYPE)
+class SceneEventType(Enum):
     """A Type of Scene Event."""
 
     ENTERED = 1, "Entered", "Entered the Scene", "fas fa-circle"
     EXITED = 2, "Exited", "Exited the Scene", "fas fa-circle"
 
 
-@node_(NodeType.SCENE_EVENT)
+@builtin_node(NodeType.SCENE_EVENT)
 class SceneEvent(
     Event["Scene"],
     Node[SceneEventData],
@@ -42,7 +42,7 @@ class SceneEvent(
     node: "Scene" = property_(35)
 
 
-@node_(NodeType.SCENE)
+@builtin_node(NodeType.SCENE)
 class Scene(
     ContainerView,
     HasIcon,

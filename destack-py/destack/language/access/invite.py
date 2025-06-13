@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
-    BuiltinEnum,
     Entity,
+    Enum,
     EnumType,
     Event,
     Global,
@@ -14,8 +14,8 @@ from destack.language.core import (
     Node,
     NodeType,
     Spatial,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
     property_,
     property_parent_,
 )
@@ -27,8 +27,8 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.INVITE_EVENT_TYPE)
-class InviteEventType(BuiltinEnum):
+@builtin_enum(EnumType.INVITE_EVENT_TYPE)
+class InviteEventType(Enum):
     """A Type of Invite Event."""
 
     SENT = 1, "Sent", "Sent", "fas fa-envelope"
@@ -37,7 +37,7 @@ class InviteEventType(BuiltinEnum):
     REJECTED = 4, "Rejected", "Rejected", "fas fa-times"
 
 
-@node_(NodeType.INVITE_EVENT)
+@builtin_node(NodeType.INVITE_EVENT)
 class InviteEvent(
     Event,
     Node[InviteEventData],
@@ -45,7 +45,7 @@ class InviteEvent(
     """A Event regarding an Invite."""
 
 
-@node_(NodeType.INVITE)
+@builtin_node(NodeType.INVITE)
 class Invite(
     Global,
     Spatial,

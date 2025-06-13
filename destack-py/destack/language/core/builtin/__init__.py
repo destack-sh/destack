@@ -24,7 +24,6 @@ from .const import (
     UNSET,
     UUID_NAMESPACE,
     VERSION,
-    BuiltinEnum,
     BuiltinEnumOrUnion,
     CascadeAction,
     ClientType,
@@ -34,6 +33,7 @@ from .const import (
     DestackError,
     EdgeDirection,
     EdgeType,
+    Enum,
     EnumType,
     EnvironmentType,
     Month,
@@ -58,11 +58,11 @@ from .const import (
     TypeCardinality,
     active_session,
     bittuple,
-    enum_,
+    builtin_enum,
     get_active_session,
     repr_enums,
 )
-from .node import IndexIn, Node, node_
+from .node import IndexIn, Node, builtin_node
 from .object import (
     BuiltinObjectBase,
     BuiltinObjectFrozen,
@@ -79,7 +79,7 @@ from .property import (
     property_parent_,
     property_runtime_,
 )
-from .struct import StructBase, StructFrozen, StructMutable, struct_
+from .struct import StructBase, StructFrozen, StructMutable, builtin_struct
 from .trait import (
     Analytic,
     Entity,
@@ -152,7 +152,6 @@ __all__ = [
     "UUID_NAMESPACE",
     "VERSION",
     "Analytic",
-    "BuiltinEnum",
     "BuiltinEnumOrUnion",
     "BuiltinObjectBase",
     "BuiltinObjectFrozen",
@@ -166,6 +165,7 @@ __all__ = [
     "EdgeDirection",
     "EdgeType",
     "Entity",
+    "Enum",
     "EnumType",
     "EnvironmentType",
     "Event",
@@ -237,10 +237,11 @@ __all__ = [
     "_is_setup_complete",
     "active_session",
     "bittuple",
-    "enum_",
+    "builtin_enum",
+    "builtin_node",
+    "builtin_struct",
     "expand_node_types",
     "get_active_session",
-    "node_",
     "object_",
     "parse_type_annotation",
     "property_",
@@ -248,6 +249,5 @@ __all__ = [
     "property_parent_",
     "property_runtime_",
     "repr_enums",
-    "struct_",
     "trait_",
 ]

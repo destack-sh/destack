@@ -2,8 +2,8 @@ from typing import Optional
 
 from destack.language.core import (
     Axis2,
-    BuiltinEnum,
     BuiltinObjectMutable,
+    Enum,
     EnumType,
     Node,
     NodeType,
@@ -11,11 +11,11 @@ from destack.language.core import (
     StructFrozen,
     StructMutable,
     StructType,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
+    builtin_struct,
     object_,
     property_,
-    struct_,
 )
 from destack.pb2 import GradientStyleData
 
@@ -25,8 +25,8 @@ from .style import Style
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.GRADIENT_TYPE)
-class GradientType(BuiltinEnum):
+@builtin_enum(EnumType.GRADIENT_TYPE)
+class GradientType(Enum):
     """Built-in gradient types."""
 
     STYLE = 2
@@ -35,7 +35,7 @@ class GradientType(BuiltinEnum):
     CONIC = 12
 
 
-@struct_(StructType.GRADIENT_STOP, frozen=True)
+@builtin_struct(StructType.GRADIENT_STOP, frozen=True)
 class GradientStop(StructFrozen):
     """A gradient stop with color and position."""
 
@@ -52,14 +52,14 @@ class GradientBase(BuiltinObjectMutable):
     center_anchor: Optional[Axis2] = property_(52, is_repr=True)
 
 
-@struct_(StructType.GRADIENT)
+@builtin_struct(StructType.GRADIENT)
 class Gradient(GradientBase, StructMutable):
     """A gradient value."""
 
     pass
 
 
-@node_(NodeType.GRADIENT_STYLE)
+@builtin_node(NodeType.GRADIENT_STYLE)
 class GradientStyle(
     Style,
     GradientBase,

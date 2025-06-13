@@ -1,16 +1,16 @@
 from typing import TYPE_CHECKING
 
 from destack.language.core import (
-    BuiltinEnum,
     Entity,
+    Enum,
     EnumType,
     Event,
     IsOwnable,
     Node,
     NodeType,
     Spatial,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
     property_,
 )
 from destack.pb2 import NotificationData, NotificationEventData
@@ -21,8 +21,8 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.NOTIFICATION_STATUS)
-class NotificationStatus(BuiltinEnum):
+@builtin_enum(EnumType.NOTIFICATION_STATUS)
+class NotificationStatus(Enum):
     """A Status of a Notification."""
 
     UNREAD = 1, "Pending", "Pending", "fas fa-circle"
@@ -32,8 +32,8 @@ class NotificationStatus(BuiltinEnum):
     RESCINDED = 5, "Rescinded", "Rescinded", "fas fa-times"
 
 
-@enum_(EnumType.NOTIFICATION_EVENT_TYPE)
-class NotificationEventType(BuiltinEnum):
+@builtin_enum(EnumType.NOTIFICATION_EVENT_TYPE)
+class NotificationEventType(Enum):
     """A Type of Notification Event."""
 
     SENT = 1, "Sent", "Sent", "fas fa-circle"
@@ -43,7 +43,7 @@ class NotificationEventType(BuiltinEnum):
     EXPIRED = 5, "Expired", "Expired", "fas fa-clock"
 
 
-@node_(NodeType.NOTIFICATION_EVENT)
+@builtin_node(NodeType.NOTIFICATION_EVENT)
 class NotificationEvent(
     Event["Notification"],
     Node[NotificationEventData],
@@ -54,7 +54,7 @@ class NotificationEvent(
     node: "Notification" = property_(35)
 
 
-@node_(NodeType.NOTIFICATION)
+@builtin_node(NodeType.NOTIFICATION)
 class Notification(
     Spatial,
     IsOwnable,

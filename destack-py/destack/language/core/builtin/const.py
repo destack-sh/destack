@@ -85,10 +85,8 @@ def get_active_session() -> Optional["Session"]:
 _MIN_ID_BY_ENUM: dict[type, int] = {}
 _MAX_ID_BY_ENUM: dict[type, int] = {}
 
-BuiltinEnumT = TypeVar("BuiltinEnumT", bound="BuiltinEnum")
 
-
-class BuiltinEnum(enum.IntEnum):
+class Enum(enum.IntEnum):
     ord: int
     id: int
     title: str | None
@@ -149,12 +147,12 @@ class BuiltinEnum(enum.IntEnum):
         return len(cls)
 
 
-BuiltinEnumOrUnion = Union[BuiltinEnum, Union[BuiltinEnum, Any]]
-EnumT = TypeVar("EnumT", bound=BuiltinEnum)
-_ENUM_MEMBERS_BY_ORD: dict[type[BuiltinEnum], list[BuiltinEnum]] = {}
+BuiltinEnumOrUnion = Union[Enum, Union[Enum, Any]]
+EnumT = TypeVar("EnumT", bound=Enum)
+_ENUM_MEMBERS_BY_ORD: dict[type[Enum], list[Enum]] = {}
 
 
-def _get_enum_members_by_ord(enum_cls: type[BuiltinEnum]) -> list[BuiltinEnum]:
+def _get_enum_members_by_ord(enum_cls: type[Enum]) -> list[Enum]:
     if enum_cls not in _ENUM_MEMBERS_BY_ORD:
         _ENUM_MEMBERS_BY_ORD[enum_cls] = list(enum_cls.__members__.values())
     return _ENUM_MEMBERS_BY_ORD[enum_cls]
@@ -163,13 +161,13 @@ def _get_enum_members_by_ord(enum_cls: type[BuiltinEnum]) -> list[BuiltinEnum]:
 # noinspection PyPep8Naming
 
 # NOTE: we have the enum registry here to avoid circular imports
-_ENUM_CLASS_BY_TYPE: dict["EnumType", type[BuiltinEnum]] = {}
-_ENUM_TYPE_BY_CLASS: dict[type[BuiltinEnum], "EnumType"] = {}
+_ENUM_CLASS_BY_TYPE: dict["EnumType", type[Enum]] = {}
+_ENUM_TYPE_BY_CLASS: dict[type[Enum], "EnumType"] = {}
 
-BuiltinEnumT = typing.TypeVar("BuiltinEnumT", bound=BuiltinEnum)
+BuiltinEnumT = typing.TypeVar("BuiltinEnumT", bound=Enum)
 
 
-def enum_(enum_type: "EnumType"):
+def builtin_enum(enum_type: "EnumType"):
     """Register a Destack enum."""
 
     def register_enum(cls: type[BuiltinEnumT]) -> type[BuiltinEnumT]:
@@ -197,7 +195,7 @@ class bittuple(typing.Generic[EnumT], Collection[EnumT]):  # noqa: N801
         if enum_cls is None:
             assert len(items) > 0, "enum_cls or args is required"
             enum_cls = items[0].__class__
-        assert isinstance(enum_cls, type) and issubclass(enum_cls, BuiltinEnum), (
+        assert isinstance(enum_cls, type) and issubclass(enum_cls, Enum), (
             f"invalid bittuple {enum_cls}: {items}"
         )
         self.enum_cls = enum_cls
@@ -273,7 +271,7 @@ class bittuple(typing.Generic[EnumT], Collection[EnumT]):  # noqa: N801
 #
 
 
-class EnumType(BuiltinEnum):
+class EnumType(Enum):
     # destack [1-200]
     ENUM_TYPE = 1
     NODE_TYPE = 2
@@ -476,11 +474,11 @@ class EnumType(BuiltinEnum):
     OFFSCREEN_BEHAVIOR = 9085
 
 
-enum_(EnumType.ENUM_TYPE)(EnumType)
+builtin_enum(EnumType.ENUM_TYPE)(EnumType)
 
 
-@enum_(EnumType.STRUCT_TYPE)
-class StructType(BuiltinEnum):
+@builtin_enum(EnumType.STRUCT_TYPE)
+class StructType(Enum):
     # destack [1-200]
     SCOPE = 1
     ORIGIN = 2
@@ -630,8 +628,8 @@ class StructType(BuiltinEnum):
     CORNERS = 9032, None, None, "fas fa-corner"
 
 
-@enum_(EnumType.NODE_TYPE)
-class NodeType(BuiltinEnum):
+@builtin_enum(EnumType.NODE_TYPE)
+class NodeType(Enum):
     # space [1-400]
     SPACE = 1, "Space", "Universal Space", "https://heydestack.com/favicon.ico"
     HANDLE = 10, "Handle", "Unique @handle", "fas fa-at"
@@ -780,7 +778,7 @@ class NodeType(BuiltinEnum):
     DATABASE = 5000, "Database", "Database for Postgres data", "fas fa-database"
     # SEARCH/INDEX, VAULT, CACHE, S3, ...
     # CELL = 5010, "Cell", "Cell", "fas fa-cell"
-    MACHINE = 5020, "Machine", "Machine for ephemeral computing", "fas fa-machine-classic"
+    MACHINE = 5100, "Machine", "Machine for ephemeral computing", "fas fa-machine-classic"
     # HOST, ENDPOINT, DEPLOYMENT, NETWORK, AUTOSCALER, ...
 
     # intelligence [5400-5800]
@@ -859,8 +857,8 @@ class NodeType(BuiltinEnum):
     # SHADER, MATERIAL, ...
 
 
-@enum_(EnumType.TRAIT_TYPE)
-class TraitType(BuiltinEnum):
+@builtin_enum(EnumType.TRAIT_TYPE)
+class TraitType(Enum):
     # destack [1-400]
     # where
     GLOBAL = 1, "Global", "Is global", "fas fa-globe"
@@ -990,15 +988,15 @@ class TraitType(BuiltinEnum):
     # ...
 
 
-@enum_(EnumType.STORE_ZONE)
-class StoreZone(BuiltinEnum):
+@builtin_enum(EnumType.STORE_ZONE)
+class StoreZone(Enum):
     GLOBAL = 1
     SPATIAL = 2
     LOCAL = 3
 
 
-@enum_(EnumType.STORE_TYPE)
-class StoreType(BuiltinEnum):
+@builtin_enum(EnumType.STORE_TYPE)
+class StoreType(Enum):
     GLOBAL_ENTITY = 100
     # GLOBAL_INDEX?
     SPATIAL_ENTITY = 200
@@ -1011,30 +1009,30 @@ class StoreType(BuiltinEnum):
         return StoreZone(self.value // 100)
 
 
-@enum_(EnumType.STORE_IMPLEMENTATION)
-class StoreImplementation(BuiltinEnum):
+@builtin_enum(EnumType.STORE_IMPLEMENTATION)
+class StoreImplementation(Enum):
     POSTGRES = 1
     # CASSANDRA, ELASTICSEARCH, REDIS, ...
     MEMORY = 10
 
 
-@enum_(EnumType.RUNTIME_TYPE)
-class RuntimeType(BuiltinEnum):
+@builtin_enum(EnumType.RUNTIME_TYPE)
+class RuntimeType(Enum):
     PYTHON = 1
     JAVASCRIPT = 2
     # RUST, JAVA, SWIFT, ...
 
 
-@enum_(EnumType.PLATFORM_TYPE)
-class PlatformType(BuiltinEnum):
+@builtin_enum(EnumType.PLATFORM_TYPE)
+class PlatformType(Enum):
     SERVER = 1
     WEB = 2
     # MOBILE = 3
     # DESKTOP = 4
 
 
-@enum_(EnumType.OPERATING_SYSTEM)
-class OperatingSystem(BuiltinEnum):
+@builtin_enum(EnumType.OPERATING_SYSTEM)
+class OperatingSystem(Enum):
     # desktop
     LINUX = 1, "Linux", "Linux operating system", "fab fa-linux"
     WINDOWS = 2, "Windows", "Microsoft Windows", "fab fa-windows"
@@ -1045,8 +1043,8 @@ class OperatingSystem(BuiltinEnum):
     # WATCHOS, TVOS, IPADOS, ...
 
 
-@enum_(EnumType.ENVIRONMENT_TYPE)
-class EnvironmentType(BuiltinEnum):
+@builtin_enum(EnumType.ENVIRONMENT_TYPE)
+class EnvironmentType(Enum):
     SYSTEM = 1, "System", "Managed by the system", "fas fa-cog"
     DEVELOPMENT = 3, "Development", "Active in development", "fas fa-flask"
     TEST = 5, "Test", "Active in test", "fas fa-flask"
@@ -1059,8 +1057,8 @@ NODE_TYPES = bittuple(*NodeType)
 STRUCT_TYPES: bittuple[StructType] = bittuple(*StructType)
 
 
-@enum_(EnumType.CLOUD)
-class Cloud(BuiltinEnum):
+@builtin_enum(EnumType.CLOUD)
+class Cloud(Enum):
     """The cloud provider."""
 
     # own
@@ -1077,8 +1075,8 @@ class Cloud(BuiltinEnum):
         return self.name.lower().replace("_", "-")
 
 
-@enum_(EnumType.REGION_CONTINENT)
-class RegionContinent(BuiltinEnum):
+@builtin_enum(EnumType.REGION_CONTINENT)
+class RegionContinent(Enum):
     """
     'Continents' of Regions.
     """
@@ -1113,8 +1111,8 @@ REGION_CONTINENT_SLUGS: dict[RegionContinent, str] = {
 REGION_CONTINENT_BY_SLUG = {v: k for k, v in REGION_CONTINENT_SLUGS.items()}
 
 
-@enum_(EnumType.REGION_AREA)
-class RegionArea(BuiltinEnum):
+@builtin_enum(EnumType.REGION_AREA)
+class RegionArea(Enum):
     """
     A larger Area of Regions within a Continent.
     """
@@ -1160,8 +1158,8 @@ REGION_AREA_SLUGS: dict[RegionArea, str] = {
 REGION_AREA_BY_SLUG = {v: k for k, v in REGION_AREA_SLUGS.items()}
 
 
-@enum_(EnumType.REGION)
-class Region(BuiltinEnum):
+@builtin_enum(EnumType.REGION)
+class Region(Enum):
     """Regions in an Area on a Continent."""
 
     # eu-central
@@ -1216,8 +1214,8 @@ class Region(BuiltinEnum):
 REGION_BY_SLUG = {r.slug: r for r in Region}
 
 
-@enum_(EnumType.EDGE_TYPE)
-class EdgeType(BuiltinEnum):
+@builtin_enum(EnumType.EDGE_TYPE)
+class EdgeType(Enum):
     PARENT = 1
     ANCESTOR = 2
     REGULAR = 5
@@ -1232,23 +1230,23 @@ class EdgeType(BuiltinEnum):
         return self.id < 10
 
 
-@enum_(EnumType.CASCADE_ACTION)
-class CascadeAction(BuiltinEnum):
+@builtin_enum(EnumType.CASCADE_ACTION)
+class CascadeAction(Enum):
     RESTRICT = 1
     CASCADE = 2
     SET_NULL = 3
     # SET_DEFAULT, NONE, ...
 
 
-@enum_(EnumType.EDGE_DIRECTION)
-class EdgeDirection(BuiltinEnum):
+@builtin_enum(EnumType.EDGE_DIRECTION)
+class EdgeDirection(Enum):
     PARENT = 1
     CHILD = 2
     SIDE = 3
 
 
-@enum_(EnumType.PRIMITIVE_TYPE)
-class PrimitiveType(BuiltinEnum):
+@builtin_enum(EnumType.PRIMITIVE_TYPE)
+class PrimitiveType(Enum):
     """
     A fundamental scalar data type.
     """
@@ -1324,8 +1322,8 @@ PRIMITIVE_TYPE_BY_PY_TYPE: dict[type, PrimitiveType] = {
 PRIMITIVE_PY_TYPES = tuple(PRIMITIVE_TYPE_BY_PY_TYPE.keys())
 
 
-@enum_(EnumType.TYPE_CARDINALITY)
-class TypeCardinality(BuiltinEnum):
+@builtin_enum(EnumType.TYPE_CARDINALITY)
+class TypeCardinality(Enum):
     """The 'kind' of a Type."""
 
     SCALAR = 1
@@ -1337,8 +1335,8 @@ class TypeCardinality(BuiltinEnum):
     # UNION = 7
 
 
-@enum_(EnumType.SCALAR_TYPE)
-class ScalarType(BuiltinEnum):
+@builtin_enum(EnumType.SCALAR_TYPE)
+class ScalarType(Enum):
     """The type of a scalar."""
 
     PRIMITIVE = 1
@@ -1348,8 +1346,8 @@ class ScalarType(BuiltinEnum):
     STRUCT = 5
 
 
-@enum_(EnumType.DEFAULT_FACTORY)
-class DefaultFactory(BuiltinEnum):
+@builtin_enum(EnumType.DEFAULT_FACTORY)
+class DefaultFactory(Enum):
     """The factory to use for default values."""
 
     UUID = 1
@@ -1357,8 +1355,8 @@ class DefaultFactory(BuiltinEnum):
     REGION = 3
 
 
-@enum_(EnumType.TIME_INTERVAL)
-class TimeInterval(BuiltinEnum):
+@builtin_enum(EnumType.TIME_INTERVAL)
+class TimeInterval(Enum):
     SECOND = 2
     MINUTE = 3
     HOUR = 4
@@ -1368,8 +1366,8 @@ class TimeInterval(BuiltinEnum):
     YEAR = 8
 
 
-@enum_(EnumType.DAY)
-class Day(BuiltinEnum):
+@builtin_enum(EnumType.DAY)
+class Day(Enum):
     """The day of the week."""
 
     MONDAY = 1
@@ -1381,8 +1379,8 @@ class Day(BuiltinEnum):
     SUNDAY = 7
 
 
-@enum_(EnumType.MONTH)
-class Month(BuiltinEnum):
+@builtin_enum(EnumType.MONTH)
+class Month(Enum):
     """The month of the year."""
 
     JANUARY = 1
@@ -1399,16 +1397,16 @@ class Month(BuiltinEnum):
     DECEMBER = 12
 
 
-@enum_(EnumType.RUN_TYPE)
-class RunType(BuiltinEnum):
+@builtin_enum(EnumType.RUN_TYPE)
+class RunType(Enum):
     CODE = 1
     ACTION = 10
     FLOW = 11
     AGENT = 15
 
 
-@enum_(EnumType.RESOURCE_STATUS)
-class ResourceStatus(BuiltinEnum):
+@builtin_enum(EnumType.RESOURCE_STATUS)
+class ResourceStatus(Enum):
     """Generalized status of a Resource in its lifecycle."""
 
     # pre
@@ -1446,8 +1444,8 @@ class ResourceStatus(BuiltinEnum):
         return 30 <= self.value <= 40
 
 
-@enum_(EnumType.CLIENT_TYPE)
-class ClientType(BuiltinEnum):
+@builtin_enum(EnumType.CLIENT_TYPE)
+class ClientType(Enum):
     # user
     WEB = 1
     BROWSER_PLUGIN = 2
@@ -1457,8 +1455,8 @@ class ClientType(BuiltinEnum):
     MACHINE = 10
 
 
-@enum_(EnumType.TENANCY)
-class Tenancy(BuiltinEnum):
+@builtin_enum(EnumType.TENANCY)
+class Tenancy(Enum):
     DEDICATED = 1
     SHARED = 2
 
@@ -1474,5 +1472,5 @@ class DestackError(Exception):
     pass
 
 
-def repr_enums(enums: Iterable[BuiltinEnum]) -> str:
+def repr_enums(enums: Iterable[Enum]) -> str:
     return "|".join(e.camel_name for e in enums)

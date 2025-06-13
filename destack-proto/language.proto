@@ -863,7 +863,7 @@ enum NodeType {
   NODE_TYPE_NOTIFICATION = 3500;
   NODE_TYPE_NOTIFICATION_EVENT = 3501;
   NODE_TYPE_DATABASE = 5000;
-  NODE_TYPE_MACHINE = 5020;
+  NODE_TYPE_MACHINE = 5100;
   NODE_TYPE_WINDOW = 8000;
   NODE_TYPE_SCENE = 8010;
   NODE_TYPE_SCENE_EVENT = 8011;
@@ -4194,7 +4194,7 @@ message SomeNodeData {
     NotificationData notification = 3500;
     NotificationEventData notification_event = 3501;
     DatabaseData database = 5000;
-    MachineData machine = 5020;
+    MachineData machine = 5100;
     WindowData window = 8000;
     SceneData scene = 8010;
     SceneEventData scene_event = 8011;

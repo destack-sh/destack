@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Optional
 from destack.language.core import (
     Node,
     NodeType,
-    node_,
+    builtin_node,
     property_,
 )
 from destack.pb2 import TextViewData
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(NodeType.TEXT_VIEW)
+@builtin_node(NodeType.TEXT_VIEW)
 class TextView(ContentView, Node[TextViewData]):
     """A (rich) text view."""
 

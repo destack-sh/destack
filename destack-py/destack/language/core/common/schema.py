@@ -3,8 +3,8 @@ from typing import TYPE_CHECKING
 from destack.pb2 import SchemaData
 
 from ..builtin import (
-    BuiltinEnum,
     Entity,
+    Enum,
     EnumType,
     HasIcon,
     HasName,
@@ -16,8 +16,8 @@ from ..builtin import (
     Node,
     NodeType,
     Spatial,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
 )
 
 if TYPE_CHECKING:
@@ -26,8 +26,8 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.SCHEMA_TYPE)
-class SchemaType(BuiltinEnum):
+@builtin_enum(EnumType.SCHEMA_TYPE)
+class SchemaType(Enum):
     """Built-in schema types."""
 
     STRUCT = 1
@@ -35,7 +35,7 @@ class SchemaType(BuiltinEnum):
     # NEWTYPE?
 
 
-@node_(NodeType.SCHEMA)
+@builtin_node(NodeType.SCHEMA)
 class Schema(
     Spatial,
     Entity,

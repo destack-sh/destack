@@ -6,16 +6,16 @@ import regex
 from fastuuid import UUID
 
 from ..builtin import (
-    BuiltinEnum,
     BuiltinObjectBase,
+    Enum,
     EnumType,
     Node,
     StructMutable,
     StructType,
-    enum_,
+    builtin_enum,
+    builtin_struct,
     object_,
     property_,
-    struct_,
 )
 
 if TYPE_CHECKING:
@@ -43,8 +43,8 @@ class TextOptionsBase(BuiltinObjectBase):
         return kwargs
 
 
-@enum_(EnumType.TEXT_LINE_TYPE)
-class TextLineType(BuiltinEnum):  # :TextLineType
+@builtin_enum(EnumType.TEXT_LINE_TYPE)
+class TextLineType(Enum):  # :TextLineType
     # basic
     PARAGRAPH = 1, "Paragraph", "Plain paragraph", "fas fa-align-left"
     # heading
@@ -69,8 +69,8 @@ class TextLineType(BuiltinEnum):  # :TextLineType
     NODE = 1000
 
 
-@enum_(EnumType.TEXT_SPAN_TYPE)
-class TextSpanType(BuiltinEnum):
+@builtin_enum(EnumType.TEXT_SPAN_TYPE)
+class TextSpanType(Enum):
     TEXT = 1, "Formatted text"
     HARD_BREAK = 2, "Hard break"
     MENTION = 10, "Reference to a Node"
@@ -79,7 +79,7 @@ class TextSpanType(BuiltinEnum):
     EQUATION = 20, "TeX equation"
 
 
-@struct_(StructType.TEXT_SPAN)
+@builtin_struct(StructType.TEXT_SPAN)
 class TextSpan(TextOptionsBase, StructMutable):
     """A span of text with optional formatting"""
 
@@ -96,7 +96,7 @@ class TextSpan(TextOptionsBase, StructMutable):
         return TextSpan(type=TextSpanType.HARD_BREAK)
 
 
-@struct_(StructType.TEXT_LINE)
+@builtin_struct(StructType.TEXT_LINE)
 class TextLine(TextOptionsBase, StructMutable):
     """
     A single line of text; may contain inline TextSpans, or hold a TextTable or such.
@@ -201,7 +201,7 @@ class TextLine(TextOptionsBase, StructMutable):
         return TextLine(type=TextLineType.DIVIDER)
 
 
-@struct_(StructType.TEXT)
+@builtin_struct(StructType.TEXT)
 class Text(StructMutable):
     """
     Rich Text; composed of TextLines with many markdown+ goodies.
