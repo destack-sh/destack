@@ -283,8 +283,8 @@ class EnumType(BuiltinEnum):
     STORE_TYPE = 7
     STORE_IMPLEMENTATION = 8
     PROPERTY_REFERENCE_TYPE = 12
-    RUNTIME_TYPE = 10
-    RUNTIME_LANGUAGE = 11
+    PLATFORM_TYPE = 10
+    RUNTIME_TYPE = 11
     USER_STATUS = 13
     ORGANIZATION_STATUS = 14
     SPACE_STATUS = 57
@@ -997,15 +997,15 @@ class StoreImplementation(BuiltinEnum):
     MEMORY = 10
 
 
-@enum_(EnumType.RUNTIME_LANGUAGE)
-class RuntimeLanguage(BuiltinEnum):
-    PYTHON = 1
-    JAVASCRIPT = 2
-    # RUST, ...
-
-
 @enum_(EnumType.RUNTIME_TYPE)
 class RuntimeType(BuiltinEnum):
+    PYTHON = 1
+    JAVASCRIPT = 2
+    # RUST, JAVA, SWIFT, ...
+
+
+@enum_(EnumType.PLATFORM_TYPE)
+class PlatformType(BuiltinEnum):
     SERVER = 1
     WEB = 2
     # MOBILE = 3
