@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-import { Area, Continent, Region } from "@/proto/wire";
+import { RegionArea, RegionContinent, Region } from "@/proto/wire";
 import { IP_API_KEY } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { formatDuration } from "@/utils/time";
@@ -43,8 +43,8 @@ const GEOLOCATION_FIELDS = [
 ];
 
 export interface Geolocation {
-  continent: Continent | null;
-  area: Area | null;
+  continent: RegionContinent | null;
+  area: RegionArea | null;
   country: string | null;
   detail: GeolocationRaw;
 }
@@ -68,10 +68,10 @@ async function getGeolocation(): Promise<Geolocation> {
     log.debug("geolocation.complete", formatDuration(duration), data);
     console.group(`%cgeo`, "color:yellow");
     console.info(
-      `%cCONTINENT: ${geolocation.continent ? Continent[geolocation.continent] : "<unknown>"}`,
+      `%cCONTINENT: ${geolocation.continent ? RegionContinent[geolocation.continent] : "<unknown>"}`,
       "color:yellow",
     );
-    console.info(`%cAREA: ${geolocation.area ? Area[geolocation.area] : "<unknown>"}`, "color:yellow");
+    console.info(`%cAREA: ${geolocation.area ? RegionArea[geolocation.area] : "<unknown>"}`, "color:yellow");
     console.info(`%cCOUNTRY: ${geolocation.country}`, "color:yellow");
     console.groupEnd();
     return geolocation;
@@ -88,113 +88,113 @@ function parseGeolocation(data: GeolocationRaw): Geolocation {
   return gelocation;
 }
 
-const CONTINENT_BY_CONTINENT_CODE: Record<string, Continent> = {
-  EU: Continent.EUROPE,
-  NA: Continent.NORTH_AMERICA,
-  SA: Continent.SOUTH_AMERICA,
-  AS: Continent.ASIA,
-  AF: Continent.AFRICA,
-  OC: Continent.AUSTRALIA,
-  AU: Continent.AUSTRALIA,
+const CONTINENT_BY_CONTINENT_CODE: Record<string, RegionContinent> = {
+  EU: RegionContinent.EUROPE,
+  NA: RegionContinent.NORTH_AMERICA,
+  SA: RegionContinent.SOUTH_AMERICA,
+  AS: RegionContinent.ASIA,
+  AF: RegionContinent.AFRICA,
+  OC: RegionContinent.AUSTRALIA,
+  AU: RegionContinent.AUSTRALIA,
 };
 
-const AREA_BY_COUNTRY_CODE: Record<string, Area> = {
+const AREA_BY_COUNTRY_CODE: Record<string, RegionArea> = {
   // eu-central
-  AT: Area.EUROPE_CENTRAL,
-  BE: Area.EUROPE_CENTRAL,
-  CH: Area.EUROPE_CENTRAL,
-  CZ: Area.EUROPE_CENTRAL,
-  DE: Area.EUROPE_CENTRAL,
-  DK: Area.EUROPE_CENTRAL,
-  ES: Area.EUROPE_CENTRAL,
-  FI: Area.EUROPE_CENTRAL,
-  FR: Area.EUROPE_CENTRAL,
-  GB: Area.EUROPE_CENTRAL,
-  IE: Area.EUROPE_CENTRAL,
-  IT: Area.EUROPE_CENTRAL,
-  NL: Area.EUROPE_CENTRAL,
-  NO: Area.EUROPE_CENTRAL,
-  PL: Area.EUROPE_CENTRAL,
-  PT: Area.EUROPE_CENTRAL,
-  SE: Area.EUROPE_CENTRAL,
+  AT: RegionArea.EUROPE_CENTRAL,
+  BE: RegionArea.EUROPE_CENTRAL,
+  CH: RegionArea.EUROPE_CENTRAL,
+  CZ: RegionArea.EUROPE_CENTRAL,
+  DE: RegionArea.EUROPE_CENTRAL,
+  DK: RegionArea.EUROPE_CENTRAL,
+  ES: RegionArea.EUROPE_CENTRAL,
+  FI: RegionArea.EUROPE_CENTRAL,
+  FR: RegionArea.EUROPE_CENTRAL,
+  GB: RegionArea.EUROPE_CENTRAL,
+  IE: RegionArea.EUROPE_CENTRAL,
+  IT: RegionArea.EUROPE_CENTRAL,
+  NL: RegionArea.EUROPE_CENTRAL,
+  NO: RegionArea.EUROPE_CENTRAL,
+  PL: RegionArea.EUROPE_CENTRAL,
+  PT: RegionArea.EUROPE_CENTRAL,
+  SE: RegionArea.EUROPE_CENTRAL,
   // na-east
-  US: Area.NORTH_AMERICA_EAST,
-  CA: Area.NORTH_AMERICA_EAST,
+  US: RegionArea.NORTH_AMERICA_EAST,
+  CA: RegionArea.NORTH_AMERICA_EAST,
   // na-west
-  MX: Area.NORTH_AMERICA_WEST,
+  MX: RegionArea.NORTH_AMERICA_WEST,
   // sa-east
-  AR: Area.SOUTH_AMERICA_EAST,
-  BR: Area.SOUTH_AMERICA_EAST,
-  CL: Area.SOUTH_AMERICA_EAST,
-  CO: Area.SOUTH_AMERICA_EAST,
-  PE: Area.SOUTH_AMERICA_EAST,
+  AR: RegionArea.SOUTH_AMERICA_EAST,
+  BR: RegionArea.SOUTH_AMERICA_EAST,
+  CL: RegionArea.SOUTH_AMERICA_EAST,
+  CO: RegionArea.SOUTH_AMERICA_EAST,
+  PE: RegionArea.SOUTH_AMERICA_EAST,
   // me-central
-  AE: Area.MIDDLE_EAST_CENTRAL,
-  BH: Area.MIDDLE_EAST_CENTRAL,
-  IL: Area.MIDDLE_EAST_CENTRAL,
-  KW: Area.MIDDLE_EAST_CENTRAL,
-  OM: Area.MIDDLE_EAST_CENTRAL,
-  QA: Area.MIDDLE_EAST_CENTRAL,
-  SA: Area.MIDDLE_EAST_CENTRAL,
+  AE: RegionArea.MIDDLE_EAST_CENTRAL,
+  BH: RegionArea.MIDDLE_EAST_CENTRAL,
+  IL: RegionArea.MIDDLE_EAST_CENTRAL,
+  KW: RegionArea.MIDDLE_EAST_CENTRAL,
+  OM: RegionArea.MIDDLE_EAST_CENTRAL,
+  QA: RegionArea.MIDDLE_EAST_CENTRAL,
+  SA: RegionArea.MIDDLE_EAST_CENTRAL,
   // me-west
-  EG: Area.MIDDLE_EAST_WEST,
-  JO: Area.MIDDLE_EAST_WEST,
-  LB: Area.MIDDLE_EAST_WEST,
-  TR: Area.MIDDLE_EAST_WEST,
+  EG: RegionArea.MIDDLE_EAST_WEST,
+  JO: RegionArea.MIDDLE_EAST_WEST,
+  LB: RegionArea.MIDDLE_EAST_WEST,
+  TR: RegionArea.MIDDLE_EAST_WEST,
   // af-south
-  ZA: Area.AFRICA_SOUTH,
-  NG: Area.AFRICA_SOUTH,
-  KE: Area.AFRICA_SOUTH,
+  ZA: RegionArea.AFRICA_SOUTH,
+  NG: RegionArea.AFRICA_SOUTH,
+  KE: RegionArea.AFRICA_SOUTH,
   // as-west
-  RU: Area.ASIA_WEST,
-  KZ: Area.ASIA_WEST,
+  RU: RegionArea.ASIA_WEST,
+  KZ: RegionArea.ASIA_WEST,
   // as-south
-  IN: Area.ASIA_SOUTH,
-  PK: Area.ASIA_SOUTH,
-  BD: Area.ASIA_SOUTH,
-  LK: Area.ASIA_SOUTH,
+  IN: RegionArea.ASIA_SOUTH,
+  PK: RegionArea.ASIA_SOUTH,
+  BD: RegionArea.ASIA_SOUTH,
+  LK: RegionArea.ASIA_SOUTH,
   // as-east
-  CN: Area.ASIA_EAST,
-  HK: Area.ASIA_EAST,
-  JP: Area.ASIA_EAST,
-  KR: Area.ASIA_EAST,
-  MY: Area.ASIA_EAST,
-  PH: Area.ASIA_EAST,
-  SG: Area.ASIA_EAST,
-  TH: Area.ASIA_EAST,
-  TW: Area.ASIA_EAST,
-  VN: Area.ASIA_EAST,
+  CN: RegionArea.ASIA_EAST,
+  HK: RegionArea.ASIA_EAST,
+  JP: RegionArea.ASIA_EAST,
+  KR: RegionArea.ASIA_EAST,
+  MY: RegionArea.ASIA_EAST,
+  PH: RegionArea.ASIA_EAST,
+  SG: RegionArea.ASIA_EAST,
+  TH: RegionArea.ASIA_EAST,
+  TW: RegionArea.ASIA_EAST,
+  VN: RegionArea.ASIA_EAST,
   // au-south
-  AU: Area.AUSTRALIA_SOUTH,
-  NZ: Area.AUSTRALIA_SOUTH,
+  AU: RegionArea.AUSTRALIA_SOUTH,
+  NZ: RegionArea.AUSTRALIA_SOUTH,
 };
 
-export const DEFAULT_REGION_BY_AREA: Partial<Record<Continent, Region>> = {
-  [Continent.EUROPE]: Region.FRANKFURT,
-  [Continent.NORTH_AMERICA]: Region.VIRGINIA,
-  [Continent.SOUTH_AMERICA]: Region.SAO_PAULO,
-  [Continent.AFRICA]: Region.CAPE_TOWN,
-  [Continent.ASIA]: Region.MUMBAI,
-  [Continent.AUSTRALIA]: Region.SYDNEY,
+export const DEFAULT_REGION_BY_AREA: Partial<Record<RegionContinent, Region>> = {
+  [RegionContinent.EUROPE]: Region.FRANKFURT,
+  [RegionContinent.NORTH_AMERICA]: Region.VIRGINIA,
+  [RegionContinent.SOUTH_AMERICA]: Region.SAO_PAULO,
+  [RegionContinent.AFRICA]: Region.CAPE_TOWN,
+  [RegionContinent.ASIA]: Region.MUMBAI,
+  [RegionContinent.AUSTRALIA]: Region.SYDNEY,
 };
 
-export const DEFAULT_REGION_BY_CONTINENT: Partial<Record<Continent, Region>> = {
-  [Continent.EUROPE]: Region.FRANKFURT,
-  [Continent.NORTH_AMERICA]: Region.VIRGINIA,
-  [Continent.SOUTH_AMERICA]: Region.SAO_PAULO,
-  [Continent.AFRICA]: Region.CAPE_TOWN,
-  [Continent.ASIA]: Region.SINGAPORE,
-  [Continent.AUSTRALIA]: Region.SYDNEY,
+export const DEFAULT_REGION_BY_CONTINENT: Partial<Record<RegionContinent, Region>> = {
+  [RegionContinent.EUROPE]: Region.FRANKFURT,
+  [RegionContinent.NORTH_AMERICA]: Region.VIRGINIA,
+  [RegionContinent.SOUTH_AMERICA]: Region.SAO_PAULO,
+  [RegionContinent.AFRICA]: Region.CAPE_TOWN,
+  [RegionContinent.ASIA]: Region.SINGAPORE,
+  [RegionContinent.AUSTRALIA]: Region.SYDNEY,
 };
 
-export const REGION_CONTINENT_SLUGS: Partial<Record<Continent, string>> = {
-  [Continent.EUROPE]: "eu",
-  [Continent.NORTH_AMERICA]: "na",
-  [Continent.SOUTH_AMERICA]: "sa",
-  [Continent.MIDDLE_EAST]: "me",
-  [Continent.AFRICA]: "af",
-  [Continent.ASIA]: "as",
-  [Continent.AUSTRALIA]: "au",
+export const REGION_CONTINENT_SLUGS: Partial<Record<RegionContinent, string>> = {
+  [RegionContinent.EUROPE]: "eu",
+  [RegionContinent.NORTH_AMERICA]: "na",
+  [RegionContinent.SOUTH_AMERICA]: "sa",
+  [RegionContinent.MIDDLE_EAST]: "me",
+  [RegionContinent.AFRICA]: "af",
+  [RegionContinent.ASIA]: "as",
+  [RegionContinent.AUSTRALIA]: "au",
 };
 
 export const REGION_SLUGS: Partial<Record<Region, string>> = {
