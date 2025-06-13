@@ -739,10 +739,16 @@ class Entity(IsTracked):
     """An Entity is a Node in primary relational storage (OLTP)."""
 
     # nocheckin: support Entity variants/branching (use id+variant as primary key?)
-    #  (or maybe for some subset of Entities?)
+    #  (or maybe for some subset of Entities? IsBranchable?)
+    #  (or are templating/instancing and time-based instancing two different 'axis' (space/time?))
+    #  (partial Node / partial Graph -> full Node / partial Graph -> full Node / full Graph)
+    #  (also for templates? (templates just being full Node / full Graph variants?))
     #  (idea: 'materialized' base frames and Edit streams so we don't need a copy for each edit?)
     #  (or maybe support it for all Nodes to support staging Changes but only expose it for Entities?)
     #  (IsBranch trait and Node.variant_id for Forks/Branches/Variants/Templates/.....?)
+    #  (variant_id, VariantNodeProxy, ...?)
+    #  (of course, also ideally want to use this for optimistic changes,
+    #   like in-memory position/text/whatever updates periodically stored to the primary)
     pass
 
 
