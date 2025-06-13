@@ -649,7 +649,7 @@ class NodeType(Enum):
         "fas fa-user-plus",
     )
     ORGANIZATION = 40, "Organization", "Organization", "fas fa-building"
-    # TEAM, ...
+    TEAM = 50, "Team", "Team in an Organization", "fas fa-users"
     # CREDENTIAL, ACCOUNT, PROFILE, ...
     CLIENT = 100, "Client", "Client", "fas fa-desktop"
 
@@ -660,6 +660,7 @@ class NodeType(Enum):
     INVITE_EVENT = 411, "Invite Event", "Invite Event", "fas fa-user-plus"
     ROLE = 420, "Role", "Role in something", "fas fa-user-tag"
     ROLE_EVENT = 421, "Role Event", "Role Event", "fas fa-user-tag"
+    AGENT = 430, "Agent", "Agent", "fas fa-robot"
     # PERMISSION, PERMISSION_GROUP, ...
     # CHALLENGE, ENTITLEMENT, ...
     # KICK/BAN/BLOCK, ...
@@ -900,6 +901,7 @@ class TraitType(Enum):
     OWNABLE = 400, "Ownable", "Is ownable", "fas fa-user"
     JOINABLE = 402, "Joinable", "Is joinable", "fas fa-users"
     SUBJECT = 405, "Subject", "Is a Subject", "fas fa-user"
+    OWNER = 406, "Owner", "Is an Owner", "fas fa-user"
     MEMBERSHIP = 410, "Membership", "Is a Membership", "fas fa-users"
     INVITE = 411, "Invite", "Is an Invite", "fas fa-envelope"
 

@@ -11,9 +11,9 @@ from destack.language.core import (
     IsVisual,
     Spatial,
     TraitType,
+    builtin_trait,
     property_,
     property_parent_,
-    trait_,
 )
 
 if TYPE_CHECKING:
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@trait_(TraitType.VIEW)
+@builtin_trait(TraitType.VIEW)
 class View(
     Spatial,
     Entity,

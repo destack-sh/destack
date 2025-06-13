@@ -13,6 +13,7 @@ from destack.language.core import (
     HasSlug,
     IndexIn,
     IsFollowable,
+    IsOwner,
     IsSubject,
     Node,
     NodeType,
@@ -24,7 +25,7 @@ from destack.language.core import (
 from destack.pb2 import UserData
 
 if TYPE_CHECKING:
-    from destack.language import Cursor, Handle, NodeReference, Space, User
+    from destack.language import Cursor, Handle, NodeReference, Space
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -41,12 +42,13 @@ class UserStatus(Enum):
     index=(IndexIn(columns=("email",), is_unique=True),),
 )
 class User(
+    Global,
+    Entity,
     HasName,
     HasIcon,
     HasSlug,
-    Global,
+    IsOwner,
     IsFollowable,
-    Entity,
     IsSubject,
     Node[UserData],
 ):
@@ -74,7 +76,7 @@ class User(
         cursor_ptr: Optional[NodeReference] = None
 
     # auth
-    # NOTE: Incomplete: factor out authentication, Credentials & Challenges for Users/Client
+    # NOTE: Incomplete: factor out auth/Credentials/Challenges/... for Users/Client
     email: str | None = property_(
         60, format=StringFormat.EMAIL, can_read="owner", can_write="system"
     )

@@ -12,9 +12,11 @@ from destack.language.core import (
     IsDeletable,
     IsJoinable,
     IsOrdered,
+    IsOwner,
     IsTemplatable,
     Node,
     NodeType,
+    Spatial,
     builtin_enum,
     builtin_node,
     property_,
@@ -46,10 +48,10 @@ class RoleEvent(
 
 @builtin_enum(EnumType.ROLE_TYPE)
 class RoleType(Enum):
-    """The role of a Role"""
-
-    ADMIN = 1
-    DEVELOPER = 4
+    SYSTEM = 1
+    OWNER = 2
+    ADMIN = 3
+    DEVELOPER = 5
     USER = 7
     SPECTATOR = 10
 
@@ -57,14 +59,18 @@ class RoleType(Enum):
 @builtin_node(NodeType.ROLE)
 class Role(
     Global,
+    Spatial,
     Entity,
     HasSlug,
     HasIcon,
     HasName,
     IsTemplatable,
+    IsOwner,
     IsOrdered,
     IsDeletable,
     Node[RoleData],
 ):
+    """A Role for Subjects to take."""
+
     parent: Optional["IsJoinable"] = property_parent_(node_is_customizable=False)
     type: RoleType = property_(30, is_repr=True)
