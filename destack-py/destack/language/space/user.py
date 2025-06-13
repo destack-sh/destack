@@ -11,7 +11,6 @@ from destack.language.core import (
     HasIcon,
     HasName,
     HasSlug,
-    IndexIn,
     IsFollowable,
     IsOwner,
     IsSubject,
@@ -37,11 +36,7 @@ class UserStatus(Enum):
     ACTIVE = 10
 
 
-@builtin_node(
-    NodeType.USER,
-    root_type=None,
-    index=(IndexIn(columns=("email",), is_unique=True),),
-)
+@builtin_node(NodeType.USER, root_type=None)
 class User(
     Global,
     Entity,
@@ -78,8 +73,13 @@ class User(
 
     # auth
     # NOTE: Incomplete: factor out auth/Credentials/Challenges/... for Users/Client
+    #  (multiple auth methods, multiple connected accounts, etc.)
     email: str | None = property_(
-        60, format=StringFormat.EMAIL, can_read=RoleType.OWNER, can_write=RoleType.SYSTEM
+        60,
+        format=StringFormat.EMAIL,
+        can_read=RoleType.OWNER,
+        can_write=RoleType.SYSTEM,
+        is_unique=True,
     )
     password_salt: Optional[bytes] = property_(
         61, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM

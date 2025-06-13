@@ -359,6 +359,7 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
     edge_type: EdgeType | None = None
     cascade: CascadeAction | None = None
 
+    is_unique: bool = False  # unique in DB
     is_wired: bool = False  # serialized onto wire (in proto)
     is_stored: bool = False  # stored in DB
     is_repr: bool = False  # printed BuiltinObject.__repr__
@@ -629,6 +630,7 @@ def property_(
     is_repr: bool = False,
     is_hash: bool = True,
     is_eq: bool = True,
+    is_unique: bool = False,
     can_read: RoleType = RoleType.SPECTATOR,
     can_write: RoleType | None = RoleType.SPECTATOR,
 ) -> Any:
@@ -650,6 +652,7 @@ def property_(
         is_repr=is_repr,
         is_hash=is_hash,
         is_eq=is_eq,
+        is_unique=is_unique,
         can_read=can_read,
         can_write=can_write,
     )
