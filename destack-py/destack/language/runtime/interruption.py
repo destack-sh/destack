@@ -14,7 +14,6 @@ from destack.language.core import (
     NodeReference,
     NodeType,
     Particle,
-    RunStatus,
     Spatial,
     enum_,
     node_,
@@ -34,16 +33,6 @@ class InterruptionType(BuiltinEnum):
     PAUSE = 10, "Pause", "Run is marked as paused", "fas fa-pause"
     YIELD = 20, "Yield", "Yield to something", "fas fa-hand"
     WAIT = 30, "Wait", "Wait for a Trigger", "fas fa-hourglass-end"
-
-
-RUN_STATUS_BY_INTERRUPTION_TYPE: dict[InterruptionType, RunStatus] = {
-    InterruptionType.PAUSE: RunStatus.PAUSED,
-    InterruptionType.YIELD: RunStatus.YIELDED,
-    InterruptionType.WAIT: RunStatus.WAITING,
-}
-INTERRUPTION_TYPE_BY_RUN_STATUS: dict[RunStatus, InterruptionType] = {
-    v: k for k, v in RUN_STATUS_BY_INTERRUPTION_TYPE.items()
-}
 
 
 @enum_(EnumType.INTERRUPTION_STATUS)

@@ -282,11 +282,12 @@ class EnumType(BuiltinEnum):
     STORE_ZONE = 6
     STORE_TYPE = 7
     STORE_IMPLEMENTATION = 8
-    PROPERTY_REFERENCE_TYPE = 12
+    PROPERTY_REFERENCE_TYPE = 9
     PLATFORM_TYPE = 10
     RUNTIME_TYPE = 11
-    USER_STATUS = 13
-    ORGANIZATION_STATUS = 14
+    OPERATING_SYSTEM = 12
+    USER_STATUS = 20
+    ORGANIZATION_STATUS = 21
     SPACE_STATUS = 57
     FOLDER_TYPE = 51
     ERROR_TYPE = 62
@@ -310,6 +311,10 @@ class EnumType(BuiltinEnum):
 
     # access [400-600]
     ROLE_TYPE = 400
+    MEMBERSHIP_EVENT_TYPE = 401
+    INVITE_EVENT_TYPE = 402
+    ROLE_EVENT_TYPE = 403
+    FRIENDSHIP_INVITE_EVENT_TYPE = 405
     # ...
 
     # folder [600-800]
@@ -352,19 +357,22 @@ class EnumType(BuiltinEnum):
     ACTION_CARDINALITY = 1821
     CURSOR_STATUS = 1922
     SCHEDULE_FREQUENCY = 1930
-    TIMER_TYPE = 1931
-    TRIGGER_TYPE = 1932
+    TIMER_TYPE = 1940
+    TIMER_EVENT_TYPE = 1941
+    TRIGGER_TYPE = 1950
+    TRIGGER_EVENT_TYPE = 1951
     # ...
 
     # test [2000-2400]
     # ...
 
     # runtime [2400-2800]
-    RUN_STATUS = 2411
+    RUN_STATUS = 2410
+    RUN_EVENT_TYPE = 2411
     RUN_TYPE = 2412
-    INTERRUPTION_TYPE = 2432
-    INTERRUPTION_STATUS = 2433
-    INTERRUPTION_RESPONSE = 2434
+    INTERRUPTION_TYPE = 2420
+    INTERRUPTION_STATUS = 2421
+    INTERRUPTION_RESPONSE = 2422
     # ...
 
     # deployment [2800-3000]
@@ -375,8 +383,8 @@ class EnumType(BuiltinEnum):
 
     # social [3400-3800]
     THREAD_STATUS = 3402
-    MESSAGE_TYPE = 3421
-    # ...
+    NOTIFICATION_STATUS = 3430
+    NOTIFICATION_EVENT_TYPE = 3431
 
     # finance [3800-4200]
     # ...
@@ -408,6 +416,7 @@ class EnumType(BuiltinEnum):
 
     # scene [8000-8100]
     LAYER_TYPE = 8001
+    SCENE_EVENT_TYPE = 8010
 
     # interaction [8100-8200]
     # ...
@@ -634,15 +643,24 @@ class NodeType(BuiltinEnum):
         "Invite to be friends with another User",
         "fas fa-user-plus",
     )
+    FRIENDSHIP_INVITE_EVENT = (
+        32,
+        "Friendship Invite Event",
+        "Friendship Invite Event",
+        "fas fa-user-plus",
+    )
     ORGANIZATION = 40, "Organization", "Organization", "fas fa-building"
-    CLIENT = 50, "Client", "Client", "fas fa-desktop"
-    # TEAM, TEAM_MEMBERSHIP, TEAM_INVITE, ...
+    # TEAM, ...
     # CREDENTIAL, ACCOUNT, PROFILE, ...
+    CLIENT = 100, "Client", "Client", "fas fa-desktop"
 
     # access [400-600]
     MEMBERSHIP = 400, "Membership", "Membership in a Space/Folder", "fas fa-user-group"
-    INVITE = 401, "Invite", "Invite to a Space/Folder", "fas fa-user-plus"
-    ROLE = 410, "Role", "Role in something", "fas fa-user-tag"
+    MEMBERSHIP_EVENT = 401, "Membership Event", "Membership Event", "fas fa-user-group"
+    INVITE = 410, "Invite", "Invite to a Space/Folder", "fas fa-user-plus"
+    INVITE_EVENT = 411, "Invite Event", "Invite Event", "fas fa-user-plus"
+    ROLE = 420, "Role", "Role in something", "fas fa-user-tag"
+    ROLE_EVENT = 421, "Role Event", "Role Event", "fas fa-user-tag"
     # PERMISSION, PERMISSION_GROUP, ...
     # POLICY, RULE, ...
     # CHALLENGE, ENTITLEMENT,
@@ -674,7 +692,7 @@ class NodeType(BuiltinEnum):
     FIELD = 1401, "Field", "Field", "fas fa-triangle"
     OPTION = 1402, "Option", "Option", "fas fa-circle"
     FILE = 1410, "File", "File", "fas fa-file"
-    LINK = 1411, "Link", "Link to something", "fas fa-link"
+    LINK = 1420, "Link", "Link to something", "fas fa-link"
     # STREAM, SECRET, ...
 
     # logic [1800-2000]
@@ -683,7 +701,9 @@ class NodeType(BuiltinEnum):
     ACTION = 1820, "Action", "Action", "fas fa-step-forward"
     ROUTE = 1830, "Route", "Route", "fas fa-route"
     TRIGGER = 1840, "Trigger", "Trigger", "fas fa-bolt"
-    TIMER = 1841, "Timer", "Timer", "fas fa-clock"
+    TRIGGER_EVENT = 1841, "Trigger Event", "Trigger Event", "fas fa-bolt"
+    TIMER = 1850, "Timer", "Timer", "fas fa-clock"
+    TIMER_EVENT = 1851, "Timer Event", "Timer Event", "fas fa-clock"
     # BREAKPOINT, ...
     EVENT_CURSOR = 1900, "Event Cursor", "Event Cursor", "fas fa-signal"
     SCREEN_CURSOR = 1901, "Mouse Cursor", "Mouse Cursor", "fas fa-mouse"
@@ -700,24 +720,25 @@ class NodeType(BuiltinEnum):
     # RUN_QUEUE = 2401, "Run Queue", "Run Queue", "fas fa-list-check"
     SPAN = 2410, "Span", "Span", "fas fa-ruler-horizontal"
     INTERRUPTION = 2420, "Interruption", "Interruption", "fas fa-hand"
-    LOG = 2430, "Log", "Log", "fas fa-file-lines"
     # JOB, ...
+    LOG = 2500, "Log", "Log", "fas fa-file-lines"
+    GAUGE_METRIC = 2510, "Gauge Metric", "Gauge Metric", "fas fa-gauge"
+    GAUGE_MEASUREMENT = 2511, "Gauge Measurement", "Gauge Measurement", "fas fa-gauge"
+    COUNTER_METRIC = 2512, "Counter Metric", "Counter Metric", "fas fa-gauge"
+    COUNTER_MEASUREMENT = 2513, "Counter Measurement", "Counter Measurement", "fas fa-gauge"
+    HISTOGRAM_METRIC = 2514, "Histogram Metric", "Histogram Metric", "fas fa-gauge"
+    HISTOGRAM_MEASUREMENT = 2515, "Histogram Measurement", "Histogram Measurement", "fas fa-gauge"
     CUSTOM_EVENT_DEFINITION = (
-        2500,
+        2600,
         "Custom Event Definition",
         "Custom Event Definition",
         "fas fa-signal",
     )
-    CUSTOM_EVENT = 2501, "Custom Event", "Custom Event", "fas fa-signal"
-    EDIT_EVENT = 2502, "Edit Event", "Edit Event", "fas fa-file-lines"
+    CUSTOM_EVENT = 2601, "Custom Event", "Custom Event", "fas fa-signal"
+    EDIT_EVENT = 2602, "Edit Event", "Edit Event", "fas fa-file-lines"
+    RUN_EVENT = 2610, "Run Event", "Run Event", "fas fa-play"
     # CHANGE_EVENT, QUERY_EVENT, ...
     # ERROR_EVENT, TRIGGER_EVENT, RUN_EVENT, ...
-    GAUGE_METRIC = 2600, "Gauge Metric", "Gauge Metric", "fas fa-gauge"
-    GAUGE_MEASUREMENT = 2601, "Gauge Measurement", "Gauge Measurement", "fas fa-gauge"
-    COUNTER_METRIC = 2602, "Counter Metric", "Counter Metric", "fas fa-gauge"
-    COUNTER_MEASUREMENT = 2603, "Counter Measurement", "Counter Measurement", "fas fa-gauge"
-    HISTOGRAM_METRIC = 2604, "Histogram Metric", "Histogram Metric", "fas fa-gauge"
-    HISTOGRAM_MEASUREMENT = 2605, "Histogram Measurement", "Histogram Measurement", "fas fa-gauge"
 
     # deployment [2800-3000]
     ENVIRONMENT = 2800, "Environment", "Environment", "fas fa-environment"
@@ -732,17 +753,16 @@ class NodeType(BuiltinEnum):
     # SEGMENT, EXPERIMENT, ...
 
     # social [3400-3800]
-    #  (same goes for Files... maybe Threads)
     THREAD = 3400, "Thread", "Thread", "fas fa-reel"
-    # THREAD_MEMBERSHIP, ...
     MESSAGE = 3410, "Message", "Message", "fas fa-message"
     REACTION = 3420, "Reaction", "Reaction", "fas fa-heart"
     STAR = 3421, "Star", "Star", "fas fa-star"
     FOLLOW = 3430, "Follow", "Follow", "fas fa-plus"
-    # USER_FOLLOW, SPACE_FOLLOW, FEED, FEED_ITEM, ...
+    # FEED, FEED_ITEM, ...
     # POLL, VOTE, REVIEW, RATING, RANK, ...
     # ACHIEVEMENT, BADGE, WISHLIST/WATCHLIST, ...
     NOTIFICATION = 3500, "Notification", "Notification", "fas fa-bell"
+    NOTIFICATION_EVENT = 3501, "Notification Event", "Notification Event", "fas fa-bell"
 
     # finance [3800-4200]
     # WALLET, BALANCE, BUDGET, TRANSFER, CREDIT, ...
@@ -773,6 +793,7 @@ class NodeType(BuiltinEnum):
     # scene [8000-8100]
     WINDOW = 8000, "Window", "Window", "fas fa-galaxy"
     SCENE = 8010, "Scene", "Scene of an Application", "fas fa-masks-theater"
+    SCENE_EVENT = 8011, "Scene Event", "Scene Event", "fas fa-masks-theater"
     LAYER = 8020, "Layer", "Layer of a Scene", "fas fa-layer-group"
     # VIEWPORT, OVERLAY, WIDGET, MENU, ...
 
@@ -1010,6 +1031,18 @@ class PlatformType(BuiltinEnum):
     WEB = 2
     # MOBILE = 3
     # DESKTOP = 4
+
+
+@enum_(EnumType.OPERATING_SYSTEM)
+class OperatingSystem(BuiltinEnum):
+    # desktop
+    LINUX = 1, "Linux", "Linux operating system", "fab fa-linux"
+    WINDOWS = 2, "Windows", "Microsoft Windows", "fab fa-windows"
+    MACOS = 3, "macOS", "Apple macOS", "fab fa-apple"
+    # mobile
+    ANDROID = 50, "Android", "Google Android", "fab fa-android"
+    IOS = 51, "iOS", "Apple iOS", "fab fa-apple"
+    # WATCHOS, TVOS, IPADOS, ...
 
 
 @enum_(EnumType.ENVIRONMENT_TYPE)
@@ -1411,55 +1444,6 @@ class ResourceStatus(BuiltinEnum):
     def is_terminal(self) -> bool:
         """Whether this Resource is terminal."""
         return 30 <= self.value <= 40
-
-
-@enum_(EnumType.RUN_STATUS)
-class RunStatus(BuiltinEnum):
-    # pre
-    CREATED = 1, "Created", "Created but not yet assigned", "fas fa-circle"
-    ASSIGNED = 2, "Assigned", "Assigned to someone", "fas fa-clock"
-    SCHEDULED = 4, "Scheduled", "Scheduled for sometime", "fas fa-clock"
-    QUEUED = 5, "Queued", "Queued to happen soon", "fas fa-clock"
-    # active
-    RUNNING = 10, "Running", "Actively running", "fas fa-circle-notch"
-    FAILING = 11, "Failing", "Experiencing issues", "fas fa-circle-exclamation"
-    # interrupted
-    PAUSED = 20, "Paused", "Paused manually", "fas fa-circle-pause"
-    YIELDED = 21, "Yielded", "Yielded to someone", "fas fa-circle-pause"
-    WAITING = 22, "Waiting", "Waiting for a condition", "fas fa-circle-pause"
-    # inactive
-    IDLE = 30, "Idle", "Waiting for work", "fas fa-zzz"
-    # terminal
-    CANCELLED = 50, "Cancelled", "Cancelled before running", "fas fa-circle-xmark"
-    ABORTED = 51, "Aborted", "Aborted while running", "fas fa-circle-xmark"
-    DIED = 52, "Died", "Unresponsive while running", "fas fa-skull"
-    FAILED = 53, "Failed", "Failed due to an error", "fas fa-circle-xmark"
-    COMPLETED = 54, "Completed", "Completed successfully", "fas fa-circle-check"
-    SKIPPED = 55, "Skipped", "Skipped due to a condition", "fas fa-circle-exclamation"
-
-    @property
-    def is_pre(self) -> bool:
-        return self < 10
-
-    @property
-    def is_active(self) -> bool:
-        return self >= 10 and self < 20
-
-    @property
-    def is_interrupted(self) -> bool:
-        return self >= 20 and self < 30
-
-    @property
-    def is_inactive(self) -> bool:
-        return self >= 30 and self < 40
-
-    @property
-    def is_terminal(self) -> bool:
-        return self >= 50
-
-    @property
-    def is_bad(self) -> bool:
-        return self in (RunStatus.FAILED, RunStatus.ABORTED, RunStatus.CANCELLED)
 
 
 @enum_(EnumType.CLIENT_TYPE)

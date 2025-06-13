@@ -48,10 +48,10 @@ class EditEvent(
     # key
     type: "EditType" = property_(30, is_repr=True)
     operation: "EditOperation | None" = property_(31, is_repr=True)
-    node: "Node" = property_(32, is_repr=True)
-    prop: "Property | None" = property_(33, is_repr=True)
-    field: "Field | None" = property_(34, is_repr=True)  # for IsExtensible.value
-    key: "Value | None" = property_(35, is_repr=True)  # for map operations
+    node: "Node" = property_(35, is_repr=True)
+    prop: "Property | None" = property_(36, is_repr=True)
+    field: "Field | None" = property_(37, is_repr=True)  # for IsExtensible.value
+    key: "Value | None" = property_(38, is_repr=True)  # for map operations
     if TYPE_CHECKING:
         node_id: UUID = UNSET
         node_ptr: NodeReference = UNSET

@@ -4,6 +4,7 @@ from destack.language.core import (
     BuiltinEnum,
     Entity,
     EnumType,
+    Event,
     Global,
     HasIcon,
     HasName,
@@ -14,13 +15,35 @@ from destack.language.core import (
     IsTemplatable,
     Node,
     NodeType,
+    Spatial,
     enum_,
     node_,
+    property_,
     property_parent_,
 )
 from destack.pb2 import RoleData
 
 # pyright: reportIncompatibleVariableOverride=false
+
+
+@enum_(EnumType.ROLE_EVENT_TYPE)
+class RoleEventType(BuiltinEnum):
+    """A Type of Role Event."""
+
+    ASSIGNED = 1, "Assigned", "Assigned to someone", "fas fa-circle"
+    REMOVED = 2, "Removed", "Removed from someone", "fas fa-circle"
+
+
+@node_(NodeType.ROLE_EVENT)
+class RoleEvent(
+    Spatial,
+    Event["Role"],
+    Node["RoleEventData"],
+):
+    """A Event regarding a Role."""
+
+    type: RoleEventType = property_(30)
+    node: "Role" = property_(35)
 
 
 @enum_(EnumType.ROLE_TYPE)
@@ -46,3 +69,4 @@ class Role(
     Node[RoleData],
 ):
     parent: Optional["IsJoinable"] = property_parent_(node_is_customizable=False)
+    type: RoleType = property_(30, is_repr=True)

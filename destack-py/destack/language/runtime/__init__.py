@@ -1,23 +1,15 @@
-from .interruption import (
-    INTERRUPTION_TYPE_BY_RUN_STATUS,
-    RUN_STATUS_BY_INTERRUPTION_TYPE,
-    Interruption,
-    InterruptionResponse,
-    InterruptionStatus,
-    InterruptionType,
-)
+from .interruption import Interruption, InterruptionResponse, InterruptionStatus, InterruptionType
 from .log import Log
-from .run import Run
+from .run import Run, RunStatus
 from .span import Span
 
 __all__ = [
-    "INTERRUPTION_TYPE_BY_RUN_STATUS",
-    "RUN_STATUS_BY_INTERRUPTION_TYPE",
     "Interruption",
     "InterruptionResponse",
     "InterruptionStatus",
     "InterruptionType",
     "Log",
     "Run",
+    "RunStatus",
     "Span",
 ]

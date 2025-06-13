@@ -3,12 +3,12 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from destack import Client, CustomEntity, EdgeType, EditType, IsSubject, Session, User
-
 if not TYPE_CHECKING:
     pytest.skip(allow_module_level=True)
 
-from .scaffold import *  # noqa: F403  # noqa: F403
+from destack import *  # noqa: F403
+
+from .scaffold import *  # noqa: F403
 
 # ruff: noqa: F405
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
@@ -60,10 +60,11 @@ class MeetupCreated(Event):
 
 @entity
 class Meetup(IsStarable, Entity):
-    name: str | None = field(1)
-    capacity: int = field(2)
-    series: MeetupSeries | None = field(3)
-    planned_at: datetime = field(4)
+    id: int
+    name: str | None
+    capacity: int
+    series: MeetupSeries | None
+    planned_at: datetime
 
     @action
     def cancel(self: "Meetup"): ...
@@ -77,43 +78,77 @@ class Meetup(IsStarable, Entity):
 
 @event
 class MeetupAlmostFull(Event):
-    meetup: "Meetup" = field(1)
+    meetup: "Meetup"
 
 
 @event
 class MeetupFull(Event):
-    meetup: "Meetup" = field(1)
+    meetup: "Meetup"
 
 
 @event
 class MeetupCancelled(Event):
-    meetup: "Meetup" = field(1)
+    meetup: "Meetup"
 
 
 @event
 class MeetupStarted(Event):
-    meetup: "Meetup" = field(1)
+    meetup: "Meetup"
 
 
 @event
 class MeetupEnded(Event):
-    meetup: "Meetup" = field(1)
+    meetup: "Meetup"
+
+
+# ===============================================
+# ZurichAI/Emails [Script]
+# ===============================================
+
+announcement_template = script.field("announcement_template", 1, EmailTemplate)
+reminder_template = script.field("reminder_template", 2, EmailTemplate)
+
+
+def _create_timers(meetup: Meetup):
+    announcement_timer = Timer(name="AnnouncementTimer", at=meetup.planned_at - timedelta(days=14))
+    announcement_timer.on(
+        Timer.TimerExpired,
+        send_meetup_email(meetup=meetup, template=announcement_template),
+    )
+    meetup.add_child(announcement_timer)
+
+    reminder_timer = Timer(name="ReminderTimer", at=meetup.planned_at - timedelta(days=7))
+    reminder_timer.on(
+        Timer.TimerExpired,
+        send_meetup_email(meetup=meetup, template=reminder_template),
+    )
+    meetup.add_child(reminder_timer)
 
 
 @on(Meetup.event(EditType.CREATE))
 @action
 def on_meetup_created(meetup: Meetup):
-    reminder_timer = Timer(name="ReminderTimer", at=meetup.planned_at - timedelta(days=7))
-    reminder_timer.on(
-        Timer.TimerExpired,
-        send_meetup_email(meetup=meetup),
-    )
-    meetup.add_child(reminder_timer)
+    _create_timers(meetup)
+
+
+@on(Meetup.event(EditType.UPDATE), TriggerBehavior.COALESCE_LAST)
+@action
+def on_meetup_updated(meetup: Meetup):
+    """Update Timers when meetup is updated."""
+    for timer in meetup.get_children(Timer):
+        timer.delete()
+    _create_timers(meetup)
 
 
 @action
-async def send_meetup_email(meetup: Meetup):
-    pass
+async def send_meetup_email(meetup: Meetup, template: EmailTemplate):
+    for membership in space.get_children(Membership):
+        email = template.instance(
+            email=membership.user.email,
+            meetup=meetup,
+        )
+        await email.send()
+        log("email.sent", membership=membership, email=email)
 
 
 # ===============================================
@@ -123,25 +158,14 @@ async def send_meetup_email(meetup: Meetup):
 
 @entity
 class MeetupResponse(Entity):
-    parent: Meetup = field(2, edge_type=EdgeType.PARENT)
-    user: User = field(3)
+    parent: Meetup
+    user: User
 
 
 @event
 class MeetupRespondedYes(Event):
-    meetup: "Meetup" = field(1)
-    response: "MeetupResponse" = field(2)
-
-
-@action
-async def do_something(
-    session: Session,
-    subject: IsSubject,
-    client: Client,
-    event: CustomEntity,
-):
-    secret_value = await SECRET.read()
-    log("something_happened", secret_value)
+    meetup: Meetup
+    response: MeetupResponse
 
 
 @action

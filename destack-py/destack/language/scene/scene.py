@@ -1,10 +1,15 @@
 from typing import TYPE_CHECKING, Optional, Union
 
 from destack.language.core import (
+    BuiltinEnum,
+    EnumType,
+    Event,
     HasIcon,
     IsOwnable,
     Node,
     NodeType,
+    Spatial,
+    enum_,
     node_,
     property_,
     property_parent_,
@@ -17,6 +22,26 @@ if TYPE_CHECKING:
     from destack.language import Folder, Window
 
 # pyright: reportIncompatibleVariableOverride=false
+
+
+@enum_(EnumType.SCENE_EVENT_TYPE)
+class SceneEventType(BuiltinEnum):
+    """A Type of Scene Event."""
+
+    ENTERED = 1, "Entered", "Entered the Scene", "fas fa-circle"
+    EXITED = 2, "Exited", "Exited the Scene", "fas fa-circle"
+
+
+@node_(NodeType.SCENE_EVENT)
+class SceneEvent(
+    Spatial,
+    Event["Scene"],
+    Node["SceneEventData"],
+):
+    """A Event regarding a Scene."""
+
+    type: SceneEventType = property_(30)
+    node: "Scene" = property_(35)
 
 
 @node_(NodeType.SCENE)
