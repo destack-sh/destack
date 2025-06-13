@@ -13,8 +13,8 @@ from destack.language.core import (
     Vector2i,
     builtin_enum,
     builtin_node,
+    builtin_trait,
     property_,
-    trait_,
 )
 from destack.pb2 import EventCursorData, ScreenCursorData, ThreadCursorData
 
@@ -46,7 +46,7 @@ class CursorStatus(Enum):
     COMPLETED = 53, "Completed", "Completed", "fas fa-check"
 
 
-@trait_(TraitType.CURSOR)
+@builtin_trait(TraitType.CURSOR)
 class Cursor(Spatial, Entity):
     """A Node that is a Cursor."""
 

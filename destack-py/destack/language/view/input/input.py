@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
-from destack.language.core import TraitType, property_, trait_
+from destack.language.core import TraitType, builtin_trait, property_
 
 from ..view import View
 
@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@trait_(TraitType.INPUT_VIEW)
+@builtin_trait(TraitType.INPUT_VIEW)
 class InputView(View):
     """An input View."""
 

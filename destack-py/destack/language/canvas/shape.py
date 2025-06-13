@@ -1,7 +1,7 @@
-from destack.language.core import Trait, TraitType, trait_
+from destack.language.core import Trait, TraitType, builtin_trait
 
 
-@trait_(TraitType.SHAPE)
+@builtin_trait(TraitType.SHAPE)
 class IsShape(Trait):
     """A Node that is a Shape."""
 

@@ -73,11 +73,7 @@ AT_LEAST_ONE_TRAITS = (
     (TraitType.ENTITY, TraitType.PARTICLE, TraitType.ANALYTIC, TraitType.INDEXED),
 )
 AT_MOST_ONE_TRAITS = ((TraitType.ENTITY, TraitType.PARTICLE),)
-INFECTIOUS_TRAITS = (
-    TraitType.TEMPLATABLE,
-    TraitType.ARCHIVABLE,
-    TraitType.DELETABLE,
-)
+INFECTIOUS_TRAITS = (TraitType.ARCHIVABLE, TraitType.DELETABLE)
 INTER_ORDER_TRAITS = (TraitType.VIEW, TraitType.STYLE)
 
 
@@ -106,7 +102,7 @@ def expand_node_types(types: Collection[NodeType | TraitType]) -> tuple[NodeType
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def trait_(
+def builtin_trait(
     trait_type: TraitType | None,
     pretend_frozen: bool = False,  # :PretendFrozen
 ):
@@ -132,7 +128,7 @@ def trait_(
     return decorate
 
 
-@trait_(trait_type=None)  # type: ignore
+@builtin_trait(trait_type=None)  # type: ignore
 class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
     """A Node with Properties and a persistent identity."""
 
@@ -395,7 +391,7 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
         return query  # type: ignore
 
 
-@trait_(None)
+@builtin_trait(None)
 class Trait(Node if TYPE_CHECKING else NodeBase):
     """A Node trait."""
 
@@ -422,21 +418,21 @@ class Trait(Node if TYPE_CHECKING else NodeBase):
 #
 
 
-@trait_(TraitType.HAS_NAME)
+@builtin_trait(TraitType.HAS_NAME)
 class HasName(Trait):
     """A Node with a plain name."""
 
     name: str = property_(31, is_repr=True)
 
 
-@trait_(TraitType.HAS_SLUG)
+@builtin_trait(TraitType.HAS_SLUG)
 class HasSlug(Trait):
     """A Node with a slug."""
 
     slug: str | None = property_(33, is_repr=True)
 
 
-@trait_(TraitType.HAS_ICON)
+@builtin_trait(TraitType.HAS_ICON)
 class HasIcon(Trait):
     """A Node with an icon."""
 
@@ -448,7 +444,7 @@ class HasIcon(Trait):
 #
 
 
-@trait_(TraitType.TRACKED)
+@builtin_trait(TraitType.TRACKED)
 class IsTracked(Trait):
     """A Node that is "tracked" on create/update."""
 
@@ -481,14 +477,14 @@ class IsTracked(Trait):
         updated_by_ptr: Optional[NodeReference] = None
 
 
-@trait_(TraitType.VISUAL)
+@builtin_trait(TraitType.VISUAL)
 class IsVisual(IsTracked):
     """A Node that is a visual in some sense (views, styles, drawings, ...)."""
 
     pass
 
 
-@trait_(TraitType.FROZEN, pretend_frozen=True)
+@builtin_trait(TraitType.FROZEN, pretend_frozen=True)
 class IsFrozen(Trait):
     """
     A Node that is frozen (read-only).
@@ -500,7 +496,7 @@ class IsFrozen(Trait):
     pass
 
 
-@trait_(TraitType.ARCHIVABLE)
+@builtin_trait(TraitType.ARCHIVABLE)
 class IsArchivable(Trait):
     """A Node that can be archived."""
 
@@ -521,7 +517,7 @@ class IsArchivable(Trait):
         self._session.unarchive(self)
 
 
-@trait_(TraitType.DELETABLE)
+@builtin_trait(TraitType.DELETABLE)
 class IsDeletable(Trait):
     """A Node that can be deleted."""
 
@@ -538,7 +534,7 @@ class IsDeletable(Trait):
         self._session.restore(self)
 
 
-@trait_(TraitType.TEMPLATABLE)
+@builtin_trait(TraitType.TEMPLATABLE)
 class IsTemplatable(Trait):
     """A Node that can become a template (we can create Nodes derived from 'templates')."""
 
@@ -564,14 +560,14 @@ class IsTemplatable(Trait):
         raise NotImplementedError
 
 
-@trait_(TraitType.CUSTOM_NODE_DEFINITION)
+@builtin_trait(TraitType.CUSTOM_NODE_DEFINITION)
 class IsCustomNodeDefinition(Trait):
     """A Node that defines a Custom Node type."""
 
     pass
 
 
-@trait_(TraitType.CUSTOM_NODE)
+@builtin_trait(TraitType.CUSTOM_NODE)
 class IsCustomNode(Trait):
     """A Node that is asome Custom Node."""
 
@@ -581,42 +577,42 @@ class IsCustomNode(Trait):
         definition_ptr: Optional[NodeReference] = None
 
 
-@trait_(TraitType.EXTENSIBLE)
+@builtin_trait(TraitType.EXTENSIBLE)
 class IsExtensible(Trait):
     """A Node that can be extended with custom Values (one Value per Field)."""
 
     value: dict[UUID, "Value"] = property_(18)
 
 
-@trait_(TraitType.ORDERED)
+@builtin_trait(TraitType.ORDERED)
 class IsOrdered(Trait):
     """A Node that can be ordered."""
 
     order_key: str = property_(19, is_eq=False, default=INTEGER_ZERO)
 
 
-@trait_(TraitType.REACTABLE)
+@builtin_trait(TraitType.REACTABLE)
 class IsReactable(Trait):
     """A Node that can be reacted to."""
 
     pass
 
 
-@trait_(TraitType.STARABLE)
+@builtin_trait(TraitType.STARABLE)
 class IsStarable(Trait):
     """A Node that can be starred."""
 
     pass
 
 
-@trait_(TraitType.FOLLOWABLE)
+@builtin_trait(TraitType.FOLLOWABLE)
 class IsFollowable(Trait):
     """A Node that can be followed."""
 
     pass
 
 
-@trait_(TraitType.SOURCEABLE)
+@builtin_trait(TraitType.SOURCEABLE)
 class IsSourceable(IsOrdered):
     """A Node that can be sourced from / defined by a Script."""
 
@@ -624,53 +620,60 @@ class IsSourceable(IsOrdered):
     # token_range, ...
 
 
-@trait_(TraitType.SCRIPTABLE)
+@builtin_trait(TraitType.SCRIPTABLE)
 class IsScriptable(Trait):
     """A Node that can be scripted."""
 
     script: Optional["Script"] = property_(200)
 
 
-@trait_(TraitType.RUNNABLE)
+@builtin_trait(TraitType.RUNNABLE)
 class IsRunnable(Trait):
     """A Node that can be run (at runtime, in a Run)."""
 
     pass
 
 
-@trait_(TraitType.ACTIONABLE)
+@builtin_trait(TraitType.ACTIONABLE)
 class IsActionable(Trait):
     """A Node that can define an Action."""
 
     pass
 
 
-@trait_(TraitType.OWNABLE)
+@builtin_trait(TraitType.OWNABLE)
 class IsOwnable(Trait):
     """A Node that can be owned by another Node."""
 
-    owned_by: Optional["IsSubject"] = property_(22, is_repr=True)
+    owned_by: Optional["IsOwner"] = property_(22, is_repr=True)
     if TYPE_CHECKING:
         owned_by_id: Optional[UUID] = None
         owned_by_type: Optional[NodeType] = None
         owned_by_ptr: Optional[NodeReference] = None
 
 
-@trait_(TraitType.JOINABLE)
+@builtin_trait(TraitType.JOINABLE)
 class IsJoinable(Trait):
     """A Node that can be joined by Subjects."""
 
     pass
 
 
-@trait_(TraitType.SUBJECT)
+@builtin_trait(TraitType.SUBJECT)
 class IsSubject(Trait):
     """A Node that can be a Subject."""
 
     pass
 
 
-@trait_(TraitType.TAGGABLE)
+@builtin_trait(TraitType.OWNER)
+class IsOwner(Trait):
+    """A Node that can be an Owner."""
+
+    pass
+
+
+@builtin_trait(TraitType.TAGGABLE)
 class IsTaggable(Trait):
     """A Node that can be tagged (with a Tag)."""
 
@@ -682,28 +685,28 @@ class IsTaggable(Trait):
 #
 
 
-@trait_(TraitType.MEMBERSHIP)
+@builtin_trait(TraitType.MEMBERSHIP)
 class LikeMembership(Trait):
     """A Node that represents a Membership."""
 
     member: "IsSubject" = property_(40)
 
 
-@trait_(TraitType.INVITE)
+@builtin_trait(TraitType.INVITE)
 class LikeInvite(Trait):
     """A Node that represents an Invite."""
 
     member: "IsSubject" = property_(40)
 
 
-@trait_(TraitType.TAG)
+@builtin_trait(TraitType.TAG)
 class LikeTag(Trait):
     """A Node that represents a Tag."""
 
     pass
 
 
-@trait_(TraitType.FOLLOW)
+@builtin_trait(TraitType.FOLLOW)
 class LikeFollow(Trait):
     """A Node that represents a Follow."""
 
@@ -715,14 +718,14 @@ class LikeFollow(Trait):
 #
 
 
-@trait_(TraitType.GLOBAL)
+@builtin_trait(TraitType.GLOBAL)
 class Global(Trait):
     """A Node that is global."""
 
     pass
 
 
-@trait_(TraitType.SPATIAL)
+@builtin_trait(TraitType.SPATIAL)
 class Spatial(Trait):
     """A Node in a Space."""
 
@@ -733,7 +736,7 @@ class Spatial(Trait):
         space_ptr: Optional[NodeReference] = None
 
 
-@trait_(TraitType.ENTITY)
+@builtin_trait(TraitType.ENTITY)
 class Entity(IsTracked):
     """An Entity is a Node in primary relational storage (OLTP)."""
 
@@ -751,28 +754,28 @@ class Entity(IsTracked):
     pass
 
 
-@trait_(TraitType.PARTICLE)
+@builtin_trait(TraitType.PARTICLE)
 class Particle(IsTracked):
     """A Particle is a Node in primary document storage (OLTP, high volume)."""
 
     pass
 
 
-@trait_(TraitType.ANALYTIC)
+@builtin_trait(TraitType.ANALYTIC)
 class Analytic(IsTracked):
     """An Analytic is stored in primary or secondary warehouse storage (OLAP, bulk)."""
 
     pass
 
 
-@trait_(TraitType.INDEXED)
+@builtin_trait(TraitType.INDEXED)
 class Indexed(IsTracked):
     """A Node that is indexed in secondary search storage (OLTP)."""
 
     pass
 
 
-@trait_(TraitType.RESOURCE)
+@builtin_trait(TraitType.RESOURCE)
 class Resource(Entity):
     """
     A Resource represents an external asset, and may be managed by some provisioner.
@@ -785,21 +788,21 @@ class Resource(Entity):
     failed_attempts: int = property_(48, default=0, can_write="system")
 
 
-@trait_(TraitType.METRIC)
+@builtin_trait(TraitType.METRIC)
 class Metric(Entity, IsSourceable, IsCustomNodeDefinition):
     """A Node that represents a Metric."""
 
     pass
 
 
-@trait_(TraitType.MEASUREMENT)
+@builtin_trait(TraitType.MEASUREMENT)
 class Measurement(IsCustomNode, Analytic):
     """A Node that represents a Measurement."""
 
     definition: "Metric" = property_(17)
 
 
-@trait_(TraitType.EVENT, pretend_frozen=True)
+@builtin_trait(TraitType.EVENT, pretend_frozen=True)
 class Event[N: Node = Node](Spatial, Particle, Indexed, Analytic, IsFrozen):
     """A Node that represents an Event. Events always belong to a specific Space."""
 

@@ -100,6 +100,7 @@ from .trait import (
     IsJoinable,
     IsOrdered,
     IsOwnable,
+    IsOwner,
     IsReactable,
     IsRunnable,
     IsScriptable,
@@ -121,8 +122,8 @@ from .trait import (
     Resource,
     Spatial,
     Trait,
+    builtin_trait,
     expand_node_types,
-    trait_,
 )
 
 __all__ = [
@@ -187,6 +188,7 @@ __all__ = [
     "IsJoinable",
     "IsOrdered",
     "IsOwnable",
+    "IsOwner",
     "IsReactable",
     "IsRunnable",
     "IsScriptable",
@@ -241,6 +243,7 @@ __all__ = [
     "builtin_enum",
     "builtin_node",
     "builtin_struct",
+    "builtin_trait",
     "expand_node_types",
     "get_active_session",
     "object_",
@@ -250,5 +253,4 @@ __all__ = [
     "property_parent_",
     "property_runtime_",
     "repr_enums",
-    "trait_",
 ]

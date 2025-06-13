@@ -10,8 +10,8 @@ from destack.language.core import (
     IsVisual,
     Spatial,
     TraitType,
+    builtin_trait,
     property_parent_,
-    trait_,
 )
 
 if TYPE_CHECKING:
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@trait_(TraitType.STYLE)
+@builtin_trait(TraitType.STYLE)
 class Style(
     Spatial,
     Entity,

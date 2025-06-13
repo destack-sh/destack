@@ -11,7 +11,7 @@ from destack.language.core import (
     HasName,
     HasSlug,
     IsJoinable,
-    IsSubject,
+    IsOwner,
     Node,
     NodeReference,
     NodeType,
@@ -40,7 +40,7 @@ class Organization(
     HasSlug,
     HasIcon,
     HasName,
-    IsSubject,
+    IsOwner,
     IsJoinable,
     Node[OrganizationData],
 ):
@@ -48,14 +48,12 @@ class Organization(
     An Organization with Users and Teams.
     """
 
-    # meta
     slug: str = property_(33, is_repr=True)
     status: OrganizationStatus = property_(
-        38, can_write="system", is_repr=True, default=OrganizationStatus.CREATING
+        40, can_write="system", is_repr=True, default=OrganizationStatus.CREATING
     )
-
-    space: "Space" = property_(40, can_write="system")
-    handle: Optional["Handle"] = property_(41, can_write="system")
+    space: "Space" = property_(50, can_write="system")
+    handle: Optional["Handle"] = property_(51, can_write="system")
     if TYPE_CHECKING:
         space_id: UUID = property_()
         space_ptr: NodeReference = property_()
