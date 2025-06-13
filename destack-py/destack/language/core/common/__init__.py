@@ -107,7 +107,6 @@ from .type import (
 )
 from .validation import ValidationError
 from .value import Value, pack_value, to_value, unpack_value
-from .variable import Variable, VariableType
 from .view import (
     Align,
     Axis2,
@@ -243,8 +242,6 @@ __all__ = [
     "Type",
     "ValidationError",
     "Value",
-    "Variable",
-    "VariableType",
     "Vector2",
     "Vector2i",
     "Vector3",

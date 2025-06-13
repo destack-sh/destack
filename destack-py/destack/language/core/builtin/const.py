@@ -273,26 +273,10 @@ class bittuple(typing.Generic[EnumT], Collection[EnumT]):  # noqa: N801
 
 class EnumType(Enum):
     # destack [1-200]
-    ENUM_TYPE = 1
-    NODE_TYPE = 2
-    STRUCT_TYPE = 3
-    TRAIT_TYPE = 5
-    STORE_ZONE = 6
-    STORE_TYPE = 7
-    STORE_IMPLEMENTATION = 8
-    PROPERTY_REFERENCE_TYPE = 9
-    PLATFORM_TYPE = 10
-    RUNTIME_TYPE = 11
-    OPERATING_SYSTEM = 12
+    SPACE_STATUS = 1
     USER_STATUS = 20
-    ORGANIZATION_STATUS = 21
-    SPACE_STATUS = 57
-    FOLDER_TYPE = 51
-    ERROR_TYPE = 62
-    VARIABLE_TYPE = 64
-    EDIT_TYPE = 71
-    EDIT_OPERATION = 72
-    CHANGE_STATUS = 76
+    FRIENDSHIP_INVITE_EVENT_TYPE = 31
+    ORGANIZATION_STATUS = 40
     CLIENT_TYPE = 100
     # query
     CONDITIONAL_TYPE = 103
@@ -302,22 +286,19 @@ class EnumType(Enum):
     JOIN_TYPE = 107
     FUNCTION_TYPE = 108
     EXPRESSION_TYPE = 109
-    RELATION_TYPE = 110
-    ATTRIBUTE_TYPE = 111
     QUERY_TYPE = 120
     QUERY_UPDATE_TYPE = 121
 
     # access [400-600]
-    ROLE_TYPE = 400
-    MEMBERSHIP_EVENT_TYPE = 401
-    INVITE_EVENT_TYPE = 402
-    ROLE_EVENT_TYPE = 403
-    FRIENDSHIP_INVITE_EVENT_TYPE = 405
+    MEMBERSHIP_EVENT_TYPE = 400
+    MEMBERSHIP_PERMISSION = 401
+    INVITE_EVENT_TYPE = 410
+    ROLE_TYPE = 420
+    ROLE_EVENT_TYPE = 421
     # ...
 
     # folder [600-800]
-    WINDOW_TYPE = 601
-    # ...
+    FOLDER_TYPE = 600
 
     # history [800-1000]
     # ...
@@ -413,8 +394,9 @@ class EnumType(Enum):
     # ...
 
     # scene [8000-8100]
-    LAYER_TYPE = 8001
-    SCENE_EVENT_TYPE = 8010
+    WINDOW_TYPE = 8000
+    SCENE_EVENT_TYPE = 8011
+    LAYER_TYPE = 8020
 
     # interaction [8100-8200]
     # ...
@@ -473,6 +455,25 @@ class EnumType(Enum):
     TEXT_SPLIT_TYPE = 9084
     OFFSCREEN_BEHAVIOR = 9085
 
+    # meta [10000-11000]
+    ENUM_TYPE = 10000
+    NODE_TYPE = 10001
+    STRUCT_TYPE = 10002
+    TRAIT_TYPE = 10003
+    RELATION_TYPE = 10010
+    ATTRIBUTE_TYPE = 10011
+    PROPERTY_REFERENCE_TYPE = 10012
+    STORE_ZONE = 10020
+    STORE_TYPE = 10021
+    STORE_IMPLEMENTATION = 10022
+    PLATFORM_TYPE = 10030
+    RUNTIME_TYPE = 10031
+    OPERATING_SYSTEM = 10040
+    ERROR_TYPE = 10041
+    EDIT_TYPE = 10050
+    EDIT_OPERATION = 10051
+    CHANGE_STATUS = 10060
+
 
 builtin_enum(EnumType.ENUM_TYPE)(EnumType)
 
@@ -509,7 +510,6 @@ class StructType(Enum):
     QUERY_RESULT_GROUP = 113
     QUERY_UPDATE = 116
     HISTOGRAM = 114
-    VARIABLE = 121
 
     # access [400-600]
     # PROFILE? (for User, or maybe global?)
@@ -661,9 +661,9 @@ class NodeType(Enum):
     ROLE = 420, "Role", "Role in something", "fas fa-user-tag"
     ROLE_EVENT = 421, "Role Event", "Role Event", "fas fa-user-tag"
     # PERMISSION, PERMISSION_GROUP, ...
-    # POLICY, RULE, ...
-    # CHALLENGE, ENTITLEMENT,
-    # KICK/BAN, ...
+    # CHALLENGE, ENTITLEMENT, ...
+    # KICK/BAN/BLOCK, ...
+    # RATE_LIMIT, ...
 
     # folder [600-800]
     FOLDER = 600, "Folder", "Sub-space of a Space", "fas fa-folder-open"
@@ -796,7 +796,7 @@ class NodeType(Enum):
     # VIEWPORT, OVERLAY, WIDGET, MENU, ...
 
     # interaction [8100-8200]
-    # COMMAND, TOOL, ...
+    # COMMAND, TOOL, SHORTCUT/KEYBINDING, ...
     # CAMERA, GESTURE, MICROPHONE, ...
 
     # container views [8200-8300]
@@ -855,6 +855,9 @@ class NodeType(Enum):
     EFFECT_STYLE = 9017, "Effect Style", "Effect Style", "fas fa-sparkle"
     # BRUSH_STYLE, ...
     # SHADER, MATERIAL, ...
+
+    # meta [10000-11000]
+    # ...
 
 
 @builtin_enum(EnumType.TRAIT_TYPE)
@@ -985,6 +988,9 @@ class TraitType(Enum):
     SHAPE = 9200, "Shape", "Is a Shape", "fas fa-shapes"
 
     # animation [9400-9600]
+    # ...
+
+    # meta [10000-11000]
     # ...
 
 

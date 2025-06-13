@@ -44,6 +44,12 @@ class InviteEvent(
 ):
     """A Event regarding an Invite."""
 
+    node: "Invite" = property_(35)
+    joinable: "IsJoinable" = property_(40)
+    member: "IsSubject" = property_(41)
+    role: "Role | None" = property_(42)
+    role_type: "RoleType" = property_(43)
+
 
 @builtin_node(NodeType.INVITE)
 class Invite(

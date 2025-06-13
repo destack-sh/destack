@@ -34,7 +34,7 @@ _type = type
 
 @builtin_struct(StructType.PROPERTY_DEFINITION, frozen=True)
 class PropertyDefinition(StructFrozen):
-    """Information about a Property."""
+    """Information about a builtin Property."""
 
     id: int = property_(2)
     name: str = property_(31)
@@ -117,7 +117,7 @@ class PropertyDefinition(StructFrozen):
 
 @builtin_struct(StructType.TRAIT_DEFINITION, frozen=True)
 class TraitDefinition(StructFrozen):
-    """Definition of a Trait."""
+    """Definition of a builtin Trait."""
 
     id: int = property_(2)
     type: TraitType = property_(30)
@@ -130,7 +130,7 @@ class TraitDefinition(StructFrozen):
 
 @builtin_struct(StructType.NODE_DEFINITION, frozen=True)
 class NodeDefinition(StructFrozen):
-    """Definition of a Node."""
+    """Definition of a builtin Node."""
 
     id: int = property_(2)
     type: NodeType = property_(30)
@@ -160,7 +160,7 @@ class NodeDefinition(StructFrozen):
 
 @builtin_struct(StructType.STRUCT_DEFINITION, frozen=True)
 class StructDefinition(StructFrozen):
-    """Definition of a Struct."""
+    """Definition of a builtin Struct."""
 
     id: int = property_(2)
     type: StructType = property_(30)
@@ -188,7 +188,7 @@ class StructDefinition(StructFrozen):
 
 @builtin_struct(StructType.ENUM_DEFINITION, frozen=True)
 class EnumDefinition(StructFrozen):
-    """Definition of an Enum."""
+    """Definition of a builtin Enum."""
 
     id: int = property_(2)
     type: EnumType = property_(30)
@@ -217,7 +217,7 @@ class EnumDefinition(StructFrozen):
 
 @builtin_struct(StructType.ENUM_OPTION_DEFINITION, frozen=True)
 class EnumOptionDefinition(StructFrozen):
-    """Definition of an Enum Option."""
+    """Definition of a builtin Enum Option."""
 
     id: int = property_(2)
     type: EnumType = property_(30)
@@ -237,3 +237,14 @@ class EnumOptionDefinition(StructFrozen):
             icon=to_icon(option.icon) if option.icon else None,
             description=option.__doc__,
         )
+
+
+@builtin_struct(StructType.PERMISSION_DEFINITION, frozen=True)
+class PermissionDefinition(StructFrozen):
+    """Definition of a builtin Permission for a builtin Node."""
+
+    id: int = property_(2)
+    type: EnumType = property_(30)
+    name: str = property_(31)
+    node_type: NodeType = property_(32)
+    icon: "Icon | None" = property_(34)

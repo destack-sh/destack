@@ -727,6 +727,7 @@ class Spatial(Trait):
     """A Node in a Space."""
 
     parent: Optional["Space"] = property_parent_(node_is_customizable=False)
+    # nocheckin: remove ancestor Node properties
     space: "Space | None" = property_ancestor_(5, is_required=True)
     if TYPE_CHECKING:
         space_ptr: Optional[NodeReference] = None
@@ -800,7 +801,7 @@ class Measurement(IsCustomNode, Analytic):
 
 @trait_(TraitType.EVENT, pretend_frozen=True)
 class Event[N: Node = Node](Spatial, Particle, Indexed, Analytic, IsFrozen):
-    """A Node that represents an Event. Events are always in a Space."""
+    """A Node that represents an Event. Events always belong to a specific Space."""
 
     node: Optional["Node"] = property_(35)
     if TYPE_CHECKING:

@@ -101,17 +101,6 @@ def map_builtin_node_to_database_table(node: type[Node]) -> PostgresTable:
             )
             columns.append(column)
 
-        # variable properties
-        if prop.is_variable:
-            column.is_nullable = True
-            variable_column = PostgresColumn(
-                name=f"{prop.name}_variable",
-                type=PrimitiveType.JSON,
-                is_nullable=True,
-                prop=prop,
-            )
-            columns.append(variable_column)
-
     # extras
     for index in node.__indexes__:
         assert not index.name or not index.name.startswith("destack_"), f"bad idnex name: {index!r}"

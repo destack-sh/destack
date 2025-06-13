@@ -24,7 +24,6 @@ from destack.language.core import (
     Property,
     ScalarType,
     TypeCardinality,
-    Variable,
 )
 from destack.language.registry import STRUCT_CLASS_BY_TYPE, get_builtin_type
 from destack.pb2 import AnyNodeData, RpcMetadata
@@ -79,7 +78,6 @@ def __unpack_proto__(cls,
 from_proto = __unpack_proto__
 """
     return proto_impl, {
-        "Variable": Variable,
         "Timestamp": Timestamp,
         "Duration": Duration,
         "pytz": pytz,
@@ -171,17 +169,7 @@ def _generate_pack_property(prop: "Property") -> list[str] | None:
     obj_value = f"_object.{prop.name}"
 
     if prop.cardinality == TypeCardinality.SCALAR:
-        if prop.is_variable:
-            # write to _variable if it's a Variable, else write to _value
-            lines.append(f"if isinstance({obj_value}, Variable):")
-            lines.append(f"    _object_data.{prop.name}.CopyFrom({obj_value}.to_proto())")
-            lines.append(f"elif ({prop.name} := {obj_value}) is not None:")
-            scalar_expr = _generate_pack_scalar(prop, prop.name)
-            if _is_proto_primitive(prop):
-                lines.append(f"    _object_data.{prop.name}_value = {scalar_expr}")
-            else:
-                lines.append(f"    _object_data.{prop.name}_value.CopyFrom({scalar_expr})")
-        elif prop.is_optional:
+        if prop.is_optional:
             lines.append(f"if ({prop.name} := {obj_value}) is not None:")
             scalar_expr = _generate_pack_scalar(prop, prop.name)
             if _is_proto_primitive(prop):
@@ -245,17 +233,7 @@ def _generate_unpack_property(prop: "Property") -> list[str] | None:
     data_value = f"_object_data.{prop.name}"
 
     if prop.cardinality == TypeCardinality.SCALAR:
-        if prop.is_variable:
-            # read from _variable if it's a Variable, else read from _value
-            lines.append(f"if _object_data.HasField('{prop.name}_variable'):")
-            scalar_expr_variable = _generate_unpack_scalar(prop, f"{data_value}_variable")
-            lines.append(f"    _unpacked_{prop.name} = {scalar_expr_variable}")
-            lines.append(f"elif _object_data.HasField('{prop.name}_value'):")
-            scalar_expr_value = _generate_unpack_scalar(prop, f"{data_value}_value")
-            lines.append(f"    _unpacked_{prop.name} = {scalar_expr_value}")
-            lines.append("else:")
-            lines.append(f"    _unpacked_{prop.name} = None")
-        elif prop.is_optional:
+        if prop.is_optional:
             scalar_expr = _generate_unpack_scalar(prop, data_value)
             lines.append(f"_unpacked_{prop.name} = {_wrap_with_null_check(scalar_expr)}")
         else:

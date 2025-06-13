@@ -139,24 +139,6 @@ def _map_property_to_proto_field(
         )
         return wrapper_field
 
-    # variable
-    if prop.is_variable:
-        field.optional = False  # proto fields in oneof cannot have labels
-        variable_field = ProtoField(
-            id=prop.id + VARIABLE_PROPERTY_OFFSET,
-            name=f"{prop.name}_variable",
-            type="VariableData",
-            repeated=prop.cardinality == TypeCardinality.LIST,
-        )
-        wrapper_field = ProtoField(
-            id=prop.id,
-            name=field.name,
-            type=ProtoFieldType.ONE_OF,
-            sub_fields=(field, variable_field),
-        )
-        field.name = f"{field.name}_value"
-        return wrapper_field
-
     return field
 
 

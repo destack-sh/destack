@@ -38,10 +38,24 @@ class MembershipEventType(Enum):
 
 @builtin_node(NodeType.MEMBERSHIP_EVENT)
 class MembershipEvent(
-    Event,
+    Event["Membership"],
     Node[MembershipEventData],
 ):
     """A Event regarding a Membership."""
+
+    node: "Membership" = property_(35)
+    joinable: "IsJoinable" = property_(40)
+    member: "IsSubject" = property_(41)
+    role: "Role | None" = property_(42)
+    role_type: "RoleType" = property_(43)
+
+
+@builtin_enum(EnumType.MEMBERSHIP_PERMISSION)
+class MembershipPermission(Enum):
+    """A Permission for a Membership."""
+
+    KICK = 10
+    BAN = 11
 
 
 @builtin_node(NodeType.MEMBERSHIP)
