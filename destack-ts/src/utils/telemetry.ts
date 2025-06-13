@@ -1,4 +1,3 @@
-import { resetTransactionBuffers } from "@/language/core/transaction";
 import { IS_DEV } from "@/utils/globals";
 import { log } from "@/utils/log";
 import posthog from "posthog-js";
@@ -13,5 +12,4 @@ export function onUnhandledError(err: unknown) {
 
 export function captureException(err: unknown) {
   posthog.captureException(err);
-  resetTransactionBuffers(); // NOTE: shouldn't we only do this if really needed?
 }
