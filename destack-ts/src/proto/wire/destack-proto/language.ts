@@ -2024,14 +2024,6 @@ export interface DatabaseData {
      */
     targetStatus?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp failed_at = 47;
-     */
-    failedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: int64 failed_attempts = 48;
-     */
-    failedAttempts: bigint;
-    /**
      * @generated from protobuf field: symbol.destack.Region region = 50;
      */
     region: Region;
@@ -2930,14 +2922,6 @@ export interface FileData {
      */
     targetStatus?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp failed_at = 47;
-     */
-    failedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: int64 failed_attempts = 48;
-     */
-    failedAttempts: bigint;
-    /**
      * @generated from protobuf field: symbol.destack.FileSource source = 60;
      */
     source: FileSource;
@@ -3005,14 +2989,6 @@ export interface FileData {
      * @generated from protobuf field: optional bytes content = 76;
      */
     content?: Uint8Array;
-    /**
-     * @generated from protobuf field: symbol.destack.FileRetentionMode retention = 80;
-     */
-    retention: FileRetentionMode;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp expires_at = 81;
-     */
-    expiresAt?: Timestamp;
 }
 /**
  * @generated from protobuf message symbol.destack.FillData
@@ -4965,14 +4941,6 @@ export interface LinkData {
      */
     targetStatus?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp failed_at = 47;
-     */
-    failedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: int64 failed_attempts = 48;
-     */
-    failedAttempts: bigint;
-    /**
      * @generated from protobuf field: optional string url = 50;
      */
     url?: string;
@@ -5125,14 +5093,6 @@ export interface MachineData {
      * @generated from protobuf field: optional google.protobuf.Timestamp target_status = 41;
      */
     targetStatus?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp failed_at = 47;
-     */
-    failedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: int64 failed_attempts = 48;
-     */
-    failedAttempts: bigint;
     /**
      * @generated from protobuf field: string version = 60;
      */
@@ -6186,9 +6146,9 @@ export interface PropertyDefinitionData {
      */
     isRequired?: boolean;
     /**
-     * @generated from protobuf field: optional bool is_variable = 51;
+     * @generated from protobuf field: optional bool is_unique = 51;
      */
-    isVariable?: boolean;
+    isUnique?: boolean;
     /**
      * @generated from protobuf field: optional symbol.destack.ValueData default = 55;
      */
@@ -6741,10 +6701,6 @@ export interface RunData {
         [key: string]: ValueData;
     };
     /**
-     * @generated from protobuf field: symbol.destack.RunType type = 30;
-     */
-    type: RunType;
-    /**
      * @generated from protobuf field: optional symbol.destack.NodeReferenceData target_ptr = 40;
      */
     targetPtr?: NodeReferenceData;
@@ -7189,9 +7145,9 @@ export interface ScheduleData {
      */
     count?: bigint;
     /**
-     * @generated from protobuf field: optional symbol.destack.Day week_start = 36;
+     * @generated from protobuf field: optional symbol.destack.DayOfWeek week_start = 36;
      */
-    weekStart?: Day;
+    weekStart?: DayOfWeek;
     /**
      * @generated from protobuf field: repeated int64 by_set_pos = 37;
      */
@@ -7217,9 +7173,9 @@ export interface ScheduleData {
      */
     byWeekNo: bigint[];
     /**
-     * @generated from protobuf field: repeated symbol.destack.Day by_week_day = 43;
+     * @generated from protobuf field: repeated symbol.destack.DayOfWeek by_week_day = 43;
      */
-    byWeekDay: Day[];
+    byWeekDay: DayOfWeek[];
     /**
      * @generated from protobuf field: repeated int64 by_hour = 44;
      */
@@ -10819,41 +10775,39 @@ export enum DatabaseType {
     POSTGRES = 1
 }
 /**
- * The day of the week.
- *
- * @generated from protobuf enum symbol.destack.Day
+ * @generated from protobuf enum symbol.destack.DayOfWeek
  */
-export enum Day {
+export enum DayOfWeek {
     /**
-     * @generated from protobuf enum value: DAY_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: DAY_OF_WEEK_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: DAY_MONDAY = 1;
+     * @generated from protobuf enum value: DAY_OF_WEEK_MONDAY = 1;
      */
     MONDAY = 1,
     /**
-     * @generated from protobuf enum value: DAY_TUESDAY = 2;
+     * @generated from protobuf enum value: DAY_OF_WEEK_TUESDAY = 2;
      */
     TUESDAY = 2,
     /**
-     * @generated from protobuf enum value: DAY_WEDNESDAY = 3;
+     * @generated from protobuf enum value: DAY_OF_WEEK_WEDNESDAY = 3;
      */
     WEDNESDAY = 3,
     /**
-     * @generated from protobuf enum value: DAY_THURSDAY = 4;
+     * @generated from protobuf enum value: DAY_OF_WEEK_THURSDAY = 4;
      */
     THURSDAY = 4,
     /**
-     * @generated from protobuf enum value: DAY_FRIDAY = 5;
+     * @generated from protobuf enum value: DAY_OF_WEEK_FRIDAY = 5;
      */
     FRIDAY = 5,
     /**
-     * @generated from protobuf enum value: DAY_SATURDAY = 6;
+     * @generated from protobuf enum value: DAY_OF_WEEK_SATURDAY = 6;
      */
     SATURDAY = 6,
     /**
-     * @generated from protobuf enum value: DAY_SUNDAY = 7;
+     * @generated from protobuf enum value: DAY_OF_WEEK_SUNDAY = 7;
      */
     SUNDAY = 7
 }
@@ -10988,10 +10942,6 @@ export enum EdgeType {
      * @generated from protobuf enum value: EDGE_TYPE_PARENT = 1;
      */
     PARENT = 1,
-    /**
-     * @generated from protobuf enum value: EDGE_TYPE_ANCESTOR = 2;
-     */
-    ANCESTOR = 2,
     /**
      * @generated from protobuf enum value: EDGE_TYPE_REGULAR = 5;
      */
@@ -11156,13 +11106,13 @@ export enum EntitlementType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: ENTITLEMENT_TYPE_BAN = 1;
+     * @generated from protobuf enum value: ENTITLEMENT_TYPE_PERMISSION = 1;
      */
-    BAN = 1,
+    PERMISSION = 1,
     /**
-     * @generated from protobuf enum value: ENTITLEMENT_TYPE_MUTE = 2;
+     * @generated from protobuf enum value: ENTITLEMENT_TYPE_ROLE = 2;
      */
-    MUTE = 2
+    ROLE = 2
 }
 /**
  * @generated from protobuf enum symbol.destack.EnumType
@@ -11345,18 +11295,6 @@ export enum EnumType {
      */
     CASCADE_ACTION = 1524,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_DAY = 1531;
-     */
-    DAY = 1531,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_MONTH = 1532;
-     */
-    MONTH = 1532,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_TIME_INTERVAL = 1533;
-     */
-    TIME_INTERVAL = 1533,
-    /**
      * @generated from protobuf enum value: ENUM_TYPE_RESOURCE_STATUS = 1701;
      */
     RESOURCE_STATUS = 1701,
@@ -11372,6 +11310,14 @@ export enum EnumType {
      * @generated from protobuf enum value: ENUM_TYPE_SCHEDULE_FREQUENCY = 1930;
      */
     SCHEDULE_FREQUENCY = 1930,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_DAY_OF_WEEK = 1931;
+     */
+    DAY_OF_WEEK = 1931,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_MONTH = 1932;
+     */
+    MONTH = 1932,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_TIMER_TYPE = 1940;
      */
@@ -11396,10 +11342,6 @@ export enum EnumType {
      * @generated from protobuf enum value: ENUM_TYPE_RUN_EVENT_TYPE = 2411;
      */
     RUN_EVENT_TYPE = 2411,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUN_TYPE = 2412;
-     */
-    RUN_TYPE = 2412,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_INTERRUPTION_TYPE = 2420;
      */
@@ -13009,8 +12951,6 @@ export enum ModelProvider {
     XAI = 1040
 }
 /**
- * The month of the year.
- *
  * @generated from protobuf enum symbol.destack.Month
  */
 export enum Month {
@@ -14269,31 +14209,6 @@ export enum RunStatus {
     COMPLETED = 54
 }
 /**
- * @generated from protobuf enum symbol.destack.RunType
- */
-export enum RunType {
-    /**
-     * @generated from protobuf enum value: RUN_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: RUN_TYPE_CODE = 1;
-     */
-    CODE = 1,
-    /**
-     * @generated from protobuf enum value: RUN_TYPE_ACTION = 10;
-     */
-    ACTION = 10,
-    /**
-     * @generated from protobuf enum value: RUN_TYPE_FLOW = 11;
-     */
-    FLOW = 11,
-    /**
-     * @generated from protobuf enum value: RUN_TYPE_AGENT = 15;
-     */
-    AGENT = 15
-}
-/**
  * @generated from protobuf enum symbol.destack.RuntimeType
  */
 export enum RuntimeType {
@@ -15210,43 +15125,6 @@ export enum ThreadStatus {
      * @generated from protobuf enum value: THREAD_STATUS_CLOSED = 30;
      */
     CLOSED = 30
-}
-/**
- * @generated from protobuf enum symbol.destack.TimeInterval
- */
-export enum TimeInterval {
-    /**
-     * @generated from protobuf enum value: TIME_INTERVAL_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: TIME_INTERVAL_SECOND = 2;
-     */
-    SECOND = 2,
-    /**
-     * @generated from protobuf enum value: TIME_INTERVAL_MINUTE = 3;
-     */
-    MINUTE = 3,
-    /**
-     * @generated from protobuf enum value: TIME_INTERVAL_HOUR = 4;
-     */
-    HOUR = 4,
-    /**
-     * @generated from protobuf enum value: TIME_INTERVAL_DAY = 5;
-     */
-    DAY = 5,
-    /**
-     * @generated from protobuf enum value: TIME_INTERVAL_WEEK = 6;
-     */
-    WEEK = 6,
-    /**
-     * @generated from protobuf enum value: TIME_INTERVAL_MONTH = 7;
-     */
-    MONTH = 7,
-    /**
-     * @generated from protobuf enum value: TIME_INTERVAL_YEAR = 8;
-     */
-    YEAR = 8
 }
 /**
  * A Type of Timer Event.
@@ -20140,8 +20018,6 @@ class DatabaseData$Type extends MessageType<DatabaseData> {
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "status", kind: "enum", T: () => ["symbol.destack.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
             { no: 41, name: "target_status", kind: "message", T: () => Timestamp },
-            { no: 47, name: "failed_at", kind: "message", T: () => Timestamp },
-            { no: 48, name: "failed_attempts", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 50, name: "region", kind: "enum", T: () => ["symbol.destack.Region", Region, "REGION_"] },
             { no: 51, name: "cell_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 52, name: "external_name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -20157,7 +20033,6 @@ class DatabaseData$Type extends MessageType<DatabaseData> {
         message.type = 0;
         message.name = "";
         message.status = 0;
-        message.failedAttempts = 0n;
         message.region = 0;
         message.externalName = "";
         message.tenancy = 0;
@@ -20205,12 +20080,6 @@ class DatabaseData$Type extends MessageType<DatabaseData> {
                     break;
                 case /* optional google.protobuf.Timestamp target_status */ 41:
                     message.targetStatus = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.targetStatus);
-                    break;
-                case /* optional google.protobuf.Timestamp failed_at */ 47:
-                    message.failedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.failedAt);
-                    break;
-                case /* int64 failed_attempts */ 48:
-                    message.failedAttempts = reader.int64().toBigInt();
                     break;
                 case /* symbol.destack.Region region */ 50:
                     message.region = reader.int32();
@@ -20278,12 +20147,6 @@ class DatabaseData$Type extends MessageType<DatabaseData> {
         /* optional google.protobuf.Timestamp target_status = 41; */
         if (message.targetStatus)
             Timestamp.internalBinaryWrite(message.targetStatus, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp failed_at = 47; */
-        if (message.failedAt)
-            Timestamp.internalBinaryWrite(message.failedAt, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
-        /* int64 failed_attempts = 48; */
-        if (message.failedAttempts !== 0n)
-            writer.tag(48, WireType.Varint).int64(message.failedAttempts);
         /* symbol.destack.Region region = 50; */
         if (message.region !== 0)
             writer.tag(50, WireType.Varint).int32(message.region);
@@ -22248,8 +22111,6 @@ class FileData$Type extends MessageType<FileData> {
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "status", kind: "enum", T: () => ["symbol.destack.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
             { no: 41, name: "target_status", kind: "message", T: () => Timestamp },
-            { no: 47, name: "failed_at", kind: "message", T: () => Timestamp },
-            { no: 48, name: "failed_attempts", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 60, name: "source", kind: "enum", T: () => ["symbol.destack.FileSource", FileSource, "FILE_SOURCE_"] },
             { no: 61, name: "mime_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 62, name: "format", kind: "enum", opt: true, T: () => ["symbol.destack.FileFormat", FileFormat, "FILE_FORMAT_"] },
@@ -22266,9 +22127,7 @@ class FileData$Type extends MessageType<FileData> {
             { no: 73, name: "favicon_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 74, name: "thumbnail_width", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 75, name: "thumbnail_height", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 76, name: "content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
-            { no: 80, name: "retention", kind: "enum", T: () => ["symbol.destack.FileRetentionMode", FileRetentionMode, "FILE_RETENTION_MODE_"] },
-            { no: 81, name: "expires_at", kind: "message", T: () => Timestamp }
+            { no: 76, name: "content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ }
         ]);
     }
     create(value?: PartialMessage<FileData>): FileData {
@@ -22278,9 +22137,7 @@ class FileData$Type extends MessageType<FileData> {
         message.type = 0;
         message.name = "";
         message.status = 0;
-        message.failedAttempts = 0n;
         message.source = 0;
-        message.retention = 0;
         if (value !== undefined)
             reflectionMergePartial<FileData>(this, message, value);
         return message;
@@ -22325,12 +22182,6 @@ class FileData$Type extends MessageType<FileData> {
                     break;
                 case /* optional google.protobuf.Timestamp target_status */ 41:
                     message.targetStatus = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.targetStatus);
-                    break;
-                case /* optional google.protobuf.Timestamp failed_at */ 47:
-                    message.failedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.failedAt);
-                    break;
-                case /* int64 failed_attempts */ 48:
-                    message.failedAttempts = reader.int64().toBigInt();
                     break;
                 case /* symbol.destack.FileSource source */ 60:
                     message.source = reader.int32();
@@ -22383,12 +22234,6 @@ class FileData$Type extends MessageType<FileData> {
                 case /* optional bytes content */ 76:
                     message.content = reader.bytes();
                     break;
-                case /* symbol.destack.FileRetentionMode retention */ 80:
-                    message.retention = reader.int32();
-                    break;
-                case /* optional google.protobuf.Timestamp expires_at */ 81:
-                    message.expiresAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.expiresAt);
-                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -22437,12 +22282,6 @@ class FileData$Type extends MessageType<FileData> {
         /* optional google.protobuf.Timestamp target_status = 41; */
         if (message.targetStatus)
             Timestamp.internalBinaryWrite(message.targetStatus, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp failed_at = 47; */
-        if (message.failedAt)
-            Timestamp.internalBinaryWrite(message.failedAt, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
-        /* int64 failed_attempts = 48; */
-        if (message.failedAttempts !== 0n)
-            writer.tag(48, WireType.Varint).int64(message.failedAttempts);
         /* symbol.destack.FileSource source = 60; */
         if (message.source !== 0)
             writer.tag(60, WireType.Varint).int32(message.source);
@@ -22494,12 +22333,6 @@ class FileData$Type extends MessageType<FileData> {
         /* optional bytes content = 76; */
         if (message.content !== undefined)
             writer.tag(76, WireType.LengthDelimited).bytes(message.content);
-        /* symbol.destack.FileRetentionMode retention = 80; */
-        if (message.retention !== 0)
-            writer.tag(80, WireType.Varint).int32(message.retention);
-        /* optional google.protobuf.Timestamp expires_at = 81; */
-        if (message.expiresAt)
-            Timestamp.internalBinaryWrite(message.expiresAt, writer.tag(81, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -26928,8 +26761,6 @@ class LinkData$Type extends MessageType<LinkData> {
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.destack.LinkType", LinkType, "LINK_TYPE_"] },
             { no: 40, name: "status", kind: "enum", T: () => ["symbol.destack.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
             { no: 41, name: "target_status", kind: "message", T: () => Timestamp },
-            { no: 47, name: "failed_at", kind: "message", T: () => Timestamp },
-            { no: 48, name: "failed_attempts", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 50, name: "url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 51, name: "domain", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 52, name: "content_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -26951,7 +26782,6 @@ class LinkData$Type extends MessageType<LinkData> {
         message.id = "";
         message.type = 0;
         message.status = 0;
-        message.failedAttempts = 0n;
         message.imageUrls = [];
         if (value !== undefined)
             reflectionMergePartial<LinkData>(this, message, value);
@@ -26994,12 +26824,6 @@ class LinkData$Type extends MessageType<LinkData> {
                     break;
                 case /* optional google.protobuf.Timestamp target_status */ 41:
                     message.targetStatus = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.targetStatus);
-                    break;
-                case /* optional google.protobuf.Timestamp failed_at */ 47:
-                    message.failedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.failedAt);
-                    break;
-                case /* int64 failed_attempts */ 48:
-                    message.failedAttempts = reader.int64().toBigInt();
                     break;
                 case /* optional string url */ 50:
                     message.url = reader.string();
@@ -27085,12 +26909,6 @@ class LinkData$Type extends MessageType<LinkData> {
         /* optional google.protobuf.Timestamp target_status = 41; */
         if (message.targetStatus)
             Timestamp.internalBinaryWrite(message.targetStatus, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp failed_at = 47; */
-        if (message.failedAt)
-            Timestamp.internalBinaryWrite(message.failedAt, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
-        /* int64 failed_attempts = 48; */
-        if (message.failedAttempts !== 0n)
-            writer.tag(48, WireType.Varint).int64(message.failedAttempts);
         /* optional string url = 50; */
         if (message.url !== undefined)
             writer.tag(50, WireType.LengthDelimited).string(message.url);
@@ -27288,8 +27106,6 @@ class MachineData$Type extends MessageType<MachineData> {
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.destack.MachineType", MachineType, "MACHINE_TYPE_"] },
             { no: 40, name: "status", kind: "enum", T: () => ["symbol.destack.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
             { no: 41, name: "target_status", kind: "message", T: () => Timestamp },
-            { no: 47, name: "failed_at", kind: "message", T: () => Timestamp },
-            { no: 48, name: "failed_attempts", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 60, name: "version", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 62, name: "external_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 63, name: "external_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -27310,7 +27126,6 @@ class MachineData$Type extends MessageType<MachineData> {
         message.id = "";
         message.type = 0;
         message.status = 0;
-        message.failedAttempts = 0n;
         message.version = "";
         message.cpu = 0;
         message.ram = 0;
@@ -27358,12 +27173,6 @@ class MachineData$Type extends MessageType<MachineData> {
                     break;
                 case /* optional google.protobuf.Timestamp target_status */ 41:
                     message.targetStatus = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.targetStatus);
-                    break;
-                case /* optional google.protobuf.Timestamp failed_at */ 47:
-                    message.failedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.failedAt);
-                    break;
-                case /* int64 failed_attempts */ 48:
-                    message.failedAttempts = reader.int64().toBigInt();
                     break;
                 case /* string version */ 60:
                     message.version = reader.string();
@@ -27446,12 +27255,6 @@ class MachineData$Type extends MessageType<MachineData> {
         /* optional google.protobuf.Timestamp target_status = 41; */
         if (message.targetStatus)
             Timestamp.internalBinaryWrite(message.targetStatus, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp failed_at = 47; */
-        if (message.failedAt)
-            Timestamp.internalBinaryWrite(message.failedAt, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
-        /* int64 failed_attempts = 48; */
-        if (message.failedAttempts !== 0n)
-            writer.tag(48, WireType.Varint).int64(message.failedAttempts);
         /* string version = 60; */
         if (message.version !== "")
             writer.tag(60, WireType.LengthDelimited).string(message.version);
@@ -29758,7 +29561,7 @@ class PropertyDefinitionData$Type extends MessageType<PropertyDefinitionData> {
             { no: 46, name: "struct_type", kind: "enum", opt: true, T: () => ["symbol.destack.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 48, name: "key_type", kind: "message", T: () => TypeData },
             { no: 50, name: "is_required", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 51, name: "is_variable", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 51, name: "is_unique", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 55, name: "default", kind: "message", T: () => ValueData },
             { no: 56, name: "default_factory", kind: "enum", opt: true, T: () => ["symbol.destack.DefaultFactory", DefaultFactory, "DEFAULT_FACTORY_"] },
             { no: 60, name: "collection_constraint", kind: "message", T: () => CollectionConstraintData },
@@ -29840,8 +29643,8 @@ class PropertyDefinitionData$Type extends MessageType<PropertyDefinitionData> {
                 case /* optional bool is_required */ 50:
                     message.isRequired = reader.bool();
                     break;
-                case /* optional bool is_variable */ 51:
-                    message.isVariable = reader.bool();
+                case /* optional bool is_unique */ 51:
+                    message.isUnique = reader.bool();
                     break;
                 case /* optional symbol.destack.ValueData default */ 55:
                     message.default = ValueData.internalBinaryRead(reader, reader.uint32(), options, message.default);
@@ -29942,9 +29745,9 @@ class PropertyDefinitionData$Type extends MessageType<PropertyDefinitionData> {
         /* optional bool is_required = 50; */
         if (message.isRequired !== undefined)
             writer.tag(50, WireType.Varint).bool(message.isRequired);
-        /* optional bool is_variable = 51; */
-        if (message.isVariable !== undefined)
-            writer.tag(51, WireType.Varint).bool(message.isVariable);
+        /* optional bool is_unique = 51; */
+        if (message.isUnique !== undefined)
+            writer.tag(51, WireType.Varint).bool(message.isUnique);
         /* optional symbol.destack.ValueData default = 55; */
         if (message.default)
             ValueData.internalBinaryWrite(message.default, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
@@ -31116,7 +30919,6 @@ class RunData$Type extends MessageType<RunData> {
             { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "value", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueData } },
-            { no: 30, name: "type", kind: "enum", T: () => ["symbol.destack.RunType", RunType, "RUN_TYPE_"] },
             { no: 40, name: "target_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 41, name: "status", kind: "enum", T: () => ["symbol.destack.RunStatus", RunStatus, "RUN_STATUS_"] },
             { no: 42, name: "duration", kind: "message", T: () => Duration },
@@ -31134,7 +30936,6 @@ class RunData$Type extends MessageType<RunData> {
         message.metatype = 0;
         message.id = "";
         message.value = {};
-        message.type = 0;
         message.status = 0;
         if (value !== undefined)
             reflectionMergePartial<RunData>(this, message, value);
@@ -31171,9 +30972,6 @@ class RunData$Type extends MessageType<RunData> {
                     break;
                 case /* map<string, symbol.destack.ValueData> value */ 18:
                     this.binaryReadMap18(message.value, reader, options);
-                    break;
-                case /* symbol.destack.RunType type */ 30:
-                    message.type = reader.int32();
                     break;
                 case /* optional symbol.destack.NodeReferenceData target_ptr */ 40:
                     message.targetPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.targetPtr);
@@ -31264,9 +31062,6 @@ class RunData$Type extends MessageType<RunData> {
             ValueData.internalBinaryWrite(message.value[k], writer, options);
             writer.join().join();
         }
-        /* symbol.destack.RunType type = 30; */
-        if (message.type !== 0)
-            writer.tag(30, WireType.Varint).int32(message.type);
         /* optional symbol.destack.NodeReferenceData target_ptr = 40; */
         if (message.targetPtr)
             NodeReferenceData.internalBinaryWrite(message.targetPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -32143,14 +31938,14 @@ class ScheduleData$Type extends MessageType<ScheduleData> {
             { no: 33, name: "start", kind: "message", T: () => Timestamp },
             { no: 34, name: "end", kind: "message", T: () => Timestamp },
             { no: 35, name: "count", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 36, name: "week_start", kind: "enum", opt: true, T: () => ["symbol.destack.Day", Day, "DAY_"] },
+            { no: 36, name: "week_start", kind: "enum", opt: true, T: () => ["symbol.destack.DayOfWeek", DayOfWeek, "DAY_OF_WEEK_"] },
             { no: 37, name: "by_set_pos", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 38, name: "by_month", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.Month", Month, "MONTH_"] },
             { no: 39, name: "by_month_day", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 40, name: "by_year_day", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 41, name: "by_easter", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 42, name: "by_week_no", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 43, name: "by_week_day", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.Day", Day, "DAY_"] },
+            { no: 43, name: "by_week_day", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.DayOfWeek", DayOfWeek, "DAY_OF_WEEK_"] },
             { no: 44, name: "by_hour", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 45, name: "by_minute", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 46, name: "by_second", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
@@ -32198,7 +31993,7 @@ class ScheduleData$Type extends MessageType<ScheduleData> {
                 case /* optional int64 count */ 35:
                     message.count = reader.int64().toBigInt();
                     break;
-                case /* optional symbol.destack.Day week_start */ 36:
+                case /* optional symbol.destack.DayOfWeek week_start */ 36:
                     message.weekStart = reader.int32();
                     break;
                 case /* repeated int64 by_set_pos */ 37:
@@ -32243,7 +32038,7 @@ class ScheduleData$Type extends MessageType<ScheduleData> {
                     else
                         message.byWeekNo.push(reader.int64().toBigInt());
                     break;
-                case /* repeated symbol.destack.Day by_week_day */ 43:
+                case /* repeated symbol.destack.DayOfWeek by_week_day */ 43:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
                             message.byWeekDay.push(reader.int32());
@@ -32301,7 +32096,7 @@ class ScheduleData$Type extends MessageType<ScheduleData> {
         /* optional int64 count = 35; */
         if (message.count !== undefined)
             writer.tag(35, WireType.Varint).int64(message.count);
-        /* optional symbol.destack.Day week_start = 36; */
+        /* optional symbol.destack.DayOfWeek week_start = 36; */
         if (message.weekStart !== undefined)
             writer.tag(36, WireType.Varint).int32(message.weekStart);
         /* repeated int64 by_set_pos = 37; */
@@ -32346,7 +32141,7 @@ class ScheduleData$Type extends MessageType<ScheduleData> {
                 writer.int64(message.byWeekNo[i]);
             writer.join();
         }
-        /* repeated symbol.destack.Day by_week_day = 43; */
+        /* repeated symbol.destack.DayOfWeek by_week_day = 43; */
         if (message.byWeekDay.length) {
             writer.tag(43, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.byWeekDay.length; i++)

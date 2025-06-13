@@ -37,7 +37,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.06.13.0"
+VERSION = "2025.06.13.1"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"destack")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -1237,7 +1237,6 @@ REGION_BY_SLUG = {r.slug: r for r in Region}
 @builtin_enum(EnumType.EDGE_TYPE)
 class EdgeType(Enum):
     PARENT = 1
-    ANCESTOR = 2
     REGULAR = 5
     TEMPLATE = 6
 

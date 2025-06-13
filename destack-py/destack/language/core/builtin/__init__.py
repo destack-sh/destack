@@ -72,7 +72,6 @@ from .property import (
     Property,
     parse_type_annotation,
     property_,
-    property_ancestor_,
     property_parent_,
     property_runtime_,
 )
@@ -245,7 +244,6 @@ __all__ = [
     "object_",
     "parse_type_annotation",
     "property_",
-    "property_ancestor_",
     "property_parent_",
     "property_runtime_",
     "repr_enums",

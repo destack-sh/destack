@@ -186,16 +186,15 @@ enum DatabaseType {
   DATABASE_TYPE_POSTGRES = 1;
 }
 
-// The day of the week.
-enum Day {
-  DAY_UNSPECIFIED = 0;
-  DAY_MONDAY = 1;
-  DAY_TUESDAY = 2;
-  DAY_WEDNESDAY = 3;
-  DAY_THURSDAY = 4;
-  DAY_FRIDAY = 5;
-  DAY_SATURDAY = 6;
-  DAY_SUNDAY = 7;
+enum DayOfWeek {
+  DAY_OF_WEEK_UNSPECIFIED = 0;
+  DAY_OF_WEEK_MONDAY = 1;
+  DAY_OF_WEEK_TUESDAY = 2;
+  DAY_OF_WEEK_WEDNESDAY = 3;
+  DAY_OF_WEEK_THURSDAY = 4;
+  DAY_OF_WEEK_FRIDAY = 5;
+  DAY_OF_WEEK_SATURDAY = 6;
+  DAY_OF_WEEK_SUNDAY = 7;
 }
 
 // The factory to use for default values.
@@ -241,7 +240,6 @@ enum EdgeDirection {
 enum EdgeType {
   EDGE_TYPE_UNSPECIFIED = 0;
   EDGE_TYPE_PARENT = 1;
-  EDGE_TYPE_ANCESTOR = 2;
   EDGE_TYPE_REGULAR = 5;
   EDGE_TYPE_TEMPLATE = 6;
 }
@@ -293,8 +291,8 @@ enum EntitlementEventType {
 // A Type of Entitlement.
 enum EntitlementType {
   ENTITLEMENT_TYPE_UNSPECIFIED = 0;
-  ENTITLEMENT_TYPE_BAN = 1;
-  ENTITLEMENT_TYPE_MUTE = 2;
+  ENTITLEMENT_TYPE_PERMISSION = 1;
+  ENTITLEMENT_TYPE_ROLE = 2;
 }
 
 enum EnumType {
@@ -342,20 +340,18 @@ enum EnumType {
   ENUM_TYPE_EDGE_TYPE = 1522;
   ENUM_TYPE_EDGE_DIRECTION = 1523;
   ENUM_TYPE_CASCADE_ACTION = 1524;
-  ENUM_TYPE_DAY = 1531;
-  ENUM_TYPE_MONTH = 1532;
-  ENUM_TYPE_TIME_INTERVAL = 1533;
   ENUM_TYPE_RESOURCE_STATUS = 1701;
   ENUM_TYPE_ACTION_CARDINALITY = 1821;
   ENUM_TYPE_CURSOR_STATUS = 1922;
   ENUM_TYPE_SCHEDULE_FREQUENCY = 1930;
+  ENUM_TYPE_DAY_OF_WEEK = 1931;
+  ENUM_TYPE_MONTH = 1932;
   ENUM_TYPE_TIMER_TYPE = 1940;
   ENUM_TYPE_TIMER_EVENT_TYPE = 1941;
   ENUM_TYPE_TRIGGER_TYPE = 1950;
   ENUM_TYPE_TRIGGER_EVENT_TYPE = 1951;
   ENUM_TYPE_RUN_STATUS = 2410;
   ENUM_TYPE_RUN_EVENT_TYPE = 2411;
-  ENUM_TYPE_RUN_TYPE = 2412;
   ENUM_TYPE_INTERRUPTION_TYPE = 2420;
   ENUM_TYPE_INTERRUPTION_STATUS = 2421;
   ENUM_TYPE_INTERRUPTION_RESPONSE = 2422;
@@ -826,7 +822,6 @@ enum ModelProvider {
   MODEL_PROVIDER_XAI = 1040;
 }
 
-// The month of the year.
 enum Month {
   MONTH_UNSPECIFIED = 0;
   MONTH_JANUARY = 1;
@@ -1198,14 +1193,6 @@ enum RunStatus {
   RUN_STATUS_COMPLETED = 54;
 }
 
-enum RunType {
-  RUN_TYPE_UNSPECIFIED = 0;
-  RUN_TYPE_CODE = 1;
-  RUN_TYPE_ACTION = 10;
-  RUN_TYPE_FLOW = 11;
-  RUN_TYPE_AGENT = 15;
-}
-
 enum RuntimeType {
   RUNTIME_TYPE_UNSPECIFIED = 0;
   RUNTIME_TYPE_PYTHON = 1;
@@ -1484,17 +1471,6 @@ enum ThreadStatus {
   THREAD_STATUS_UNSPECIFIED = 0;
   THREAD_STATUS_OPEN = 10;
   THREAD_STATUS_CLOSED = 30;
-}
-
-enum TimeInterval {
-  TIME_INTERVAL_UNSPECIFIED = 0;
-  TIME_INTERVAL_SECOND = 2;
-  TIME_INTERVAL_MINUTE = 3;
-  TIME_INTERVAL_HOUR = 4;
-  TIME_INTERVAL_DAY = 5;
-  TIME_INTERVAL_WEEK = 6;
-  TIME_INTERVAL_MONTH = 7;
-  TIME_INTERVAL_YEAR = 8;
 }
 
 // A Type of Timer Event.
@@ -2167,8 +2143,6 @@ message DatabaseData {
   string name = 31;
   ResourceStatus status = 40;
   optional google.protobuf.Timestamp target_status = 41;
-  optional google.protobuf.Timestamp failed_at = 47;
-  int64 failed_attempts = 48;
   Region region = 50;
   optional string cell_name = 51;
   string external_name = 52;
@@ -2425,8 +2399,6 @@ message FileData {
   string name = 31;
   ResourceStatus status = 40;
   optional google.protobuf.Timestamp target_status = 41;
-  optional google.protobuf.Timestamp failed_at = 47;
-  int64 failed_attempts = 48;
   FileSource source = 60;
   optional string mime_type = 61;
   optional FileFormat format = 62;
@@ -2444,8 +2416,6 @@ message FileData {
   optional int64 thumbnail_width = 74;
   optional int64 thumbnail_height = 75;
   optional bytes content = 76;
-  FileRetentionMode retention = 80;
-  optional google.protobuf.Timestamp expires_at = 81;
 }
 
 message FillData {
@@ -3000,8 +2970,6 @@ message LinkData {
   LinkType type = 30;
   ResourceStatus status = 40;
   optional google.protobuf.Timestamp target_status = 41;
-  optional google.protobuf.Timestamp failed_at = 47;
-  int64 failed_attempts = 48;
   optional string url = 50;
   optional string domain = 51;
   optional string content_url = 52;
@@ -3045,8 +3013,6 @@ message MachineData {
   MachineType type = 30;
   ResourceStatus status = 40;
   optional google.protobuf.Timestamp target_status = 41;
-  optional google.protobuf.Timestamp failed_at = 47;
-  int64 failed_attempts = 48;
   string version = 60;
   optional string external_name = 62;
   optional string external_id = 63;
@@ -3345,7 +3311,7 @@ message PropertyDefinitionData {
   optional StructType struct_type = 46;
   optional TypeData key_type = 48;
   optional bool is_required = 50;
-  optional bool is_variable = 51;
+  optional bool is_unique = 51;
   optional ValueData default = 55;
   optional DefaultFactory default_factory = 56;
   optional CollectionConstraintData collection_constraint = 60;
@@ -3505,7 +3471,6 @@ message RunData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   map<string, ValueData> value = 18;
-  RunType type = 30;
   optional NodeReferenceData target_ptr = 40;
   RunStatus status = 41;
   optional google.protobuf.Duration duration = 42;
@@ -3629,14 +3594,14 @@ message ScheduleData {
   optional google.protobuf.Timestamp start = 33;
   optional google.protobuf.Timestamp end = 34;
   optional int64 count = 35;
-  optional Day week_start = 36;
+  optional DayOfWeek week_start = 36;
   repeated int64 by_set_pos = 37;
   repeated Month by_month = 38;
   repeated int64 by_month_day = 39;
   repeated int64 by_year_day = 40;
   repeated int64 by_easter = 41;
   repeated int64 by_week_no = 42;
-  repeated Day by_week_day = 43;
+  repeated DayOfWeek by_week_day = 43;
   repeated int64 by_hour = 44;
   repeated int64 by_minute = 45;
   repeated int64 by_second = 46;

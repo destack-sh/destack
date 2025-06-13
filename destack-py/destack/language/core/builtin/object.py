@@ -865,46 +865,6 @@ def {prop.name}_{obj_key}(self: "BuiltinObjectBase") -> tuple["Node", ...]:
 """
 
 
-def _generate_node_ancestor_property_impl(
-    object_type: NodeType | StructType, prop: Property
-) -> str:
-    """The machine get property for Node ancestors."""
-
-    node_types_str = ", ".join(str(t.value) for t in prop.node_types or ())
-    assert node_types_str, f"no node types for {prop!r}"
-
-    if prop.edge_type == EdgeType.ANCESTOR and object_type in (prop.node_types or ()):
-        return f"""\
-@property
-def {prop.name}(self: "Node") -> "Node":
-    return self
-
-@property
-def {prop.name}_ptr(self: "Node") -> "NodeType":
-    return self.to_ref()
-"""
-    else:
-        return f"""\
-@property
-def {prop.name}(self: "Node") -> "Node | None":
-    node = self.parent
-    while node is not None:
-        if node.metatype in ({node_types_str},):
-            return node
-        node = node.parent
-    return None
-
-@property
-def {prop.name}_ptr(self: "Node") -> "NodeType":
-    node = self
-    while node is not None:
-        if node.metatype in ({node_types_str},):
-            return node.to_ref()
-        node = node.parent
-    return None
-"""
-
-
 def _process_object_cls[ObjectT: BuiltinObjectBase](
     cls: type[ObjectT],
     object_type: NodeType | StructType | None,
@@ -1117,15 +1077,6 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
             ):
                 node_property_str = _generate_node_property_impl(prop)
                 exec_(node_property_str, {}, cls_dict, f"{cls.__name__}:node_property:{prop.name}")
-            # computed node ancestor property
-            elif prop.edge_type == EdgeType.ANCESTOR:
-                ancestor_property_str = _generate_node_ancestor_property_impl(object_type, prop)
-                exec_(
-                    ancestor_property_str,
-                    {},
-                    cls_dict,
-                    f"{cls.__name__}:ancestor_property:{prop.name}",
-                )
             # computed _x node reference properties (e.g., parent_id, node_ck, node_type, ...)
             if prop.scalar_type == ScalarType.NODE_REFERENCE:
                 for obj_key, ptr_key in (("id", "id"), ("ck", "ck"), ("type", "node_type")):

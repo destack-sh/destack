@@ -21,7 +21,6 @@ from destack.utils.code import format_code
 from ..builtin import (
     NODE_TYPES,
     BuiltinObjectBase,
-    EdgeType,
     Node,
     NodeType,
     Property,
@@ -285,7 +284,7 @@ def _deconstruct_builtin_object(
             continue  # exclude
         elif include_properties is not None and prop not in include_properties:
             pass  # include
-        elif prop.id is None or prop.runtime_prop or prop.edge_type == EdgeType.ANCESTOR:
+        elif prop.id is None or prop.runtime_prop:
             continue  # ignore internal properties
         prop_value = getattr(obj, prop.name)
         if (

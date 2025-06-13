@@ -43,13 +43,13 @@ class SpaceStatus(Enum):
 
 @builtin_node(NodeType.SPACE, root_type=None)
 class Space(
+    Global,
+    Entity,
     HasName,
     HasSlug,
     HasIcon,
     IsFollowable,
     IsJoinable,
-    Global,
-    Entity,
     IsOwnable,
     IsStarable,
     Spatial,
