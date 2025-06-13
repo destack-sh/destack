@@ -10,6 +10,7 @@ from destack.language.core import (
     HasIcon,
     HasName,
     HasSlug,
+    IsJoinable,
     IsSubject,
     Node,
     NodeReference,
@@ -18,9 +19,7 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.pb2 import (
-    OrganizationData,
-)
+from destack.pb2 import OrganizationData
 
 if TYPE_CHECKING:
     from destack.language import Handle, Space
@@ -38,10 +37,11 @@ class OrganizationStatus(Enum):
 class Organization(
     Global,
     Entity,
-    IsSubject,
     HasSlug,
     HasIcon,
     HasName,
+    IsSubject,
+    IsJoinable,
     Node[OrganizationData],
 ):
     """
