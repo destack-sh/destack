@@ -94,7 +94,7 @@ def get_builtin_type(
         raise ValueError(f"invalid destack type: {cls!r}")
 
 
-def _complete_destack_setup():
+def _complete_setup():
     """Finalize setup of all language constructs after everything is imported."""
     from destack.language.core.builtin.object import (
         _is_setup_complete,
@@ -150,9 +150,9 @@ def _complete_destack_setup():
             if node_cls.__parent_property__.ptr_prop is not None:
                 node_cls.__parent_property__.ptr_prop.node_types = ()
         else:
-            node_cls.__parent_types__ = expand_node_types(
-                node_cls.__parent_property__.node_types or ()
-            )
+            parent_types = expand_node_types(node_cls.__parent_property__.node_types or ())
+            assert len(parent_types) < len(NodeType), f"generic parent for '{node_cls.__name__}'"
+            node_cls.__parent_types__ = parent_types
 
     # index child types
     child_types_by_parent: dict[NodeType, list[NodeType]] = defaultdict(list)

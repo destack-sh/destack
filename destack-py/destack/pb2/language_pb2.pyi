@@ -292,8 +292,9 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_STORE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_STORE_IMPLEMENTATION: _ClassVar[EnumType]
     ENUM_TYPE_PROPERTY_REFERENCE_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_PLATFORM_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_RUNTIME_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_RUNTIME_LANGUAGE: _ClassVar[EnumType]
+    ENUM_TYPE_OPERATING_SYSTEM: _ClassVar[EnumType]
     ENUM_TYPE_USER_STATUS: _ClassVar[EnumType]
     ENUM_TYPE_ORGANIZATION_STATUS: _ClassVar[EnumType]
     ENUM_TYPE_SPACE_STATUS: _ClassVar[EnumType]
@@ -316,6 +317,10 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_QUERY_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_QUERY_UPDATE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_ROLE_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_MEMBERSHIP_EVENT_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_INVITE_EVENT_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_ROLE_EVENT_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_FRIENDSHIP_INVITE_EVENT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_WINDOW_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_TEXT_LINE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_TEXT_SPAN_TYPE: _ClassVar[EnumType]
@@ -344,15 +349,19 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_CURSOR_STATUS: _ClassVar[EnumType]
     ENUM_TYPE_SCHEDULE_FREQUENCY: _ClassVar[EnumType]
     ENUM_TYPE_TIMER_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_TIMER_EVENT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_TRIGGER_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_TRIGGER_EVENT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_RUN_STATUS: _ClassVar[EnumType]
+    ENUM_TYPE_RUN_EVENT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_RUN_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_INTERRUPTION_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_INTERRUPTION_STATUS: _ClassVar[EnumType]
     ENUM_TYPE_INTERRUPTION_RESPONSE: _ClassVar[EnumType]
     ENUM_TYPE_ENVIRONMENT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_THREAD_STATUS: _ClassVar[EnumType]
-    ENUM_TYPE_MESSAGE_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_NOTIFICATION_STATUS: _ClassVar[EnumType]
+    ENUM_TYPE_NOTIFICATION_EVENT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_CLOUD: _ClassVar[EnumType]
     ENUM_TYPE_REGION: _ClassVar[EnumType]
     ENUM_TYPE_REGION_AREA: _ClassVar[EnumType]
@@ -363,6 +372,7 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_MODEL_DEVELOPER: _ClassVar[EnumType]
     ENUM_TYPE_MODEL_PROVIDER: _ClassVar[EnumType]
     ENUM_TYPE_LAYER_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_SCENE_EVENT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_CANVAS_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_PLANE_SHAPE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_ARROW_HEAD_TYPE: _ClassVar[EnumType]
@@ -634,6 +644,14 @@ class FontWeight(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     FONT_WEIGHT_EXTRA_BOLD: _ClassVar[FontWeight]
     FONT_WEIGHT_BLACK: _ClassVar[FontWeight]
 
+class FriendshipInviteEventType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    FRIENDSHIP_INVITE_EVENT_TYPE_UNSPECIFIED: _ClassVar[FriendshipInviteEventType]
+    FRIENDSHIP_INVITE_EVENT_TYPE_SENT: _ClassVar[FriendshipInviteEventType]
+    FRIENDSHIP_INVITE_EVENT_TYPE_RESCINDED: _ClassVar[FriendshipInviteEventType]
+    FRIENDSHIP_INVITE_EVENT_TYPE_ACCEPTED: _ClassVar[FriendshipInviteEventType]
+    FRIENDSHIP_INVITE_EVENT_TYPE_REJECTED: _ClassVar[FriendshipInviteEventType]
+
 class FunctionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     FUNCTION_TYPE_UNSPECIFIED: _ClassVar[FunctionType]
@@ -680,6 +698,14 @@ class InterruptionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     INTERRUPTION_TYPE_PAUSE: _ClassVar[InterruptionType]
     INTERRUPTION_TYPE_YIELD: _ClassVar[InterruptionType]
     INTERRUPTION_TYPE_WAIT: _ClassVar[InterruptionType]
+
+class InviteEventType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    INVITE_EVENT_TYPE_UNSPECIFIED: _ClassVar[InviteEventType]
+    INVITE_EVENT_TYPE_SENT: _ClassVar[InviteEventType]
+    INVITE_EVENT_TYPE_RESCINDED: _ClassVar[InviteEventType]
+    INVITE_EVENT_TYPE_ACCEPTED: _ClassVar[InviteEventType]
+    INVITE_EVENT_TYPE_REJECTED: _ClassVar[InviteEventType]
 
 class JoinType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -729,15 +755,11 @@ class MachineType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     MACHINE_TYPE_WINDOWS: _ClassVar[MachineType]
     MACHINE_TYPE_CUSTOM: _ClassVar[MachineType]
 
-class MessageType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class MembershipEventType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    MESSAGE_TYPE_UNSPECIFIED: _ClassVar[MessageType]
-    MESSAGE_TYPE_DEFAULT: _ClassVar[MessageType]
-    MESSAGE_TYPE_JOIN: _ClassVar[MessageType]
-    MESSAGE_TYPE_LEAVE: _ClassVar[MessageType]
-    MESSAGE_TYPE_RESOURCE: _ClassVar[MessageType]
-    MESSAGE_TYPE_RUN: _ClassVar[MessageType]
-    MESSAGE_TYPE_THREAD: _ClassVar[MessageType]
+    MEMBERSHIP_EVENT_TYPE_UNSPECIFIED: _ClassVar[MembershipEventType]
+    MEMBERSHIP_EVENT_TYPE_JOIN: _ClassVar[MembershipEventType]
+    MEMBERSHIP_EVENT_TYPE_LEAVE: _ClassVar[MembershipEventType]
 
 class ModelDeveloper(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -780,11 +802,15 @@ class NodeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     NODE_TYPE_USER: _ClassVar[NodeType]
     NODE_TYPE_FRIENDSHIP: _ClassVar[NodeType]
     NODE_TYPE_FRIENDSHIP_INVITE: _ClassVar[NodeType]
+    NODE_TYPE_FRIENDSHIP_INVITE_EVENT: _ClassVar[NodeType]
     NODE_TYPE_ORGANIZATION: _ClassVar[NodeType]
     NODE_TYPE_CLIENT: _ClassVar[NodeType]
     NODE_TYPE_MEMBERSHIP: _ClassVar[NodeType]
+    NODE_TYPE_MEMBERSHIP_EVENT: _ClassVar[NodeType]
     NODE_TYPE_INVITE: _ClassVar[NodeType]
+    NODE_TYPE_INVITE_EVENT: _ClassVar[NodeType]
     NODE_TYPE_ROLE: _ClassVar[NodeType]
+    NODE_TYPE_ROLE_EVENT: _ClassVar[NodeType]
     NODE_TYPE_FOLDER: _ClassVar[NodeType]
     NODE_TYPE_TAG: _ClassVar[NodeType]
     NODE_TYPE_TAGGING: _ClassVar[NodeType]
@@ -800,7 +826,9 @@ class NodeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     NODE_TYPE_ACTION: _ClassVar[NodeType]
     NODE_TYPE_ROUTE: _ClassVar[NodeType]
     NODE_TYPE_TRIGGER: _ClassVar[NodeType]
+    NODE_TYPE_TRIGGER_EVENT: _ClassVar[NodeType]
     NODE_TYPE_TIMER: _ClassVar[NodeType]
+    NODE_TYPE_TIMER_EVENT: _ClassVar[NodeType]
     NODE_TYPE_EVENT_CURSOR: _ClassVar[NodeType]
     NODE_TYPE_SCREEN_CURSOR: _ClassVar[NodeType]
     NODE_TYPE_THREAD_CURSOR: _ClassVar[NodeType]
@@ -808,15 +836,16 @@ class NodeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     NODE_TYPE_SPAN: _ClassVar[NodeType]
     NODE_TYPE_INTERRUPTION: _ClassVar[NodeType]
     NODE_TYPE_LOG: _ClassVar[NodeType]
-    NODE_TYPE_CUSTOM_EVENT_DEFINITION: _ClassVar[NodeType]
-    NODE_TYPE_CUSTOM_EVENT: _ClassVar[NodeType]
-    NODE_TYPE_EDIT_EVENT: _ClassVar[NodeType]
     NODE_TYPE_GAUGE_METRIC: _ClassVar[NodeType]
     NODE_TYPE_GAUGE_MEASUREMENT: _ClassVar[NodeType]
     NODE_TYPE_COUNTER_METRIC: _ClassVar[NodeType]
     NODE_TYPE_COUNTER_MEASUREMENT: _ClassVar[NodeType]
     NODE_TYPE_HISTOGRAM_METRIC: _ClassVar[NodeType]
     NODE_TYPE_HISTOGRAM_MEASUREMENT: _ClassVar[NodeType]
+    NODE_TYPE_CUSTOM_EVENT_DEFINITION: _ClassVar[NodeType]
+    NODE_TYPE_CUSTOM_EVENT: _ClassVar[NodeType]
+    NODE_TYPE_EDIT_EVENT: _ClassVar[NodeType]
+    NODE_TYPE_RUN_EVENT: _ClassVar[NodeType]
     NODE_TYPE_ENVIRONMENT: _ClassVar[NodeType]
     NODE_TYPE_THREAD: _ClassVar[NodeType]
     NODE_TYPE_MESSAGE: _ClassVar[NodeType]
@@ -824,10 +853,12 @@ class NodeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     NODE_TYPE_STAR: _ClassVar[NodeType]
     NODE_TYPE_FOLLOW: _ClassVar[NodeType]
     NODE_TYPE_NOTIFICATION: _ClassVar[NodeType]
+    NODE_TYPE_NOTIFICATION_EVENT: _ClassVar[NodeType]
     NODE_TYPE_DATABASE: _ClassVar[NodeType]
     NODE_TYPE_MACHINE: _ClassVar[NodeType]
     NODE_TYPE_WINDOW: _ClassVar[NodeType]
     NODE_TYPE_SCENE: _ClassVar[NodeType]
+    NODE_TYPE_SCENE_EVENT: _ClassVar[NodeType]
     NODE_TYPE_LAYER: _ClassVar[NodeType]
     NODE_TYPE_CUSTOM_VIEW_DEFINITION: _ClassVar[NodeType]
     NODE_TYPE_CUSTOM_VIEW: _ClassVar[NodeType]
@@ -854,6 +885,24 @@ class NodeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     NODE_TYPE_TRANSITION_STYLE: _ClassVar[NodeType]
     NODE_TYPE_EFFECT_STYLE: _ClassVar[NodeType]
 
+class NotificationEventType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    NOTIFICATION_EVENT_TYPE_UNSPECIFIED: _ClassVar[NotificationEventType]
+    NOTIFICATION_EVENT_TYPE_SENT: _ClassVar[NotificationEventType]
+    NOTIFICATION_EVENT_TYPE_RESCINDED: _ClassVar[NotificationEventType]
+    NOTIFICATION_EVENT_TYPE_READ: _ClassVar[NotificationEventType]
+    NOTIFICATION_EVENT_TYPE_DISMISSED: _ClassVar[NotificationEventType]
+    NOTIFICATION_EVENT_TYPE_EXPIRED: _ClassVar[NotificationEventType]
+
+class NotificationStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    NOTIFICATION_STATUS_UNSPECIFIED: _ClassVar[NotificationStatus]
+    NOTIFICATION_STATUS_UNREAD: _ClassVar[NotificationStatus]
+    NOTIFICATION_STATUS_READ: _ClassVar[NotificationStatus]
+    NOTIFICATION_STATUS_DISMISSED: _ClassVar[NotificationStatus]
+    NOTIFICATION_STATUS_EXPIRED: _ClassVar[NotificationStatus]
+    NOTIFICATION_STATUS_RESCINDED: _ClassVar[NotificationStatus]
+
 class NumberFormat(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     NUMBER_FORMAT_UNSPECIFIED: _ClassVar[NumberFormat]
@@ -866,6 +915,15 @@ class OffscreenBehavior(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OFFSCREEN_BEHAVIOR_UNSPECIFIED: _ClassVar[OffscreenBehavior]
     OFFSCREEN_BEHAVIOR_PLAY: _ClassVar[OffscreenBehavior]
     OFFSCREEN_BEHAVIOR_PAUSE: _ClassVar[OffscreenBehavior]
+
+class OperatingSystem(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    OPERATING_SYSTEM_UNSPECIFIED: _ClassVar[OperatingSystem]
+    OPERATING_SYSTEM_LINUX: _ClassVar[OperatingSystem]
+    OPERATING_SYSTEM_WINDOWS: _ClassVar[OperatingSystem]
+    OPERATING_SYSTEM_MACOS: _ClassVar[OperatingSystem]
+    OPERATING_SYSTEM_ANDROID: _ClassVar[OperatingSystem]
+    OPERATING_SYSTEM_IOS: _ClassVar[OperatingSystem]
 
 class OrganizationStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -888,6 +946,12 @@ class PlaneShapeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PLANE_SHAPE_TYPE_CIRCLE: _ClassVar[PlaneShapeType]
     PLANE_SHAPE_TYPE_ELLIPSE: _ClassVar[PlaneShapeType]
     PLANE_SHAPE_TYPE_POLYGON: _ClassVar[PlaneShapeType]
+
+class PlatformType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    PLATFORM_TYPE_UNSPECIFIED: _ClassVar[PlatformType]
+    PLATFORM_TYPE_SERVER: _ClassVar[PlatformType]
+    PLATFORM_TYPE_WEB: _ClassVar[PlatformType]
 
 class PositionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1006,6 +1070,12 @@ class ResourceStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RESOURCE_STATUS_OFFLINE: _ClassVar[ResourceStatus]
     RESOURCE_STATUS_FAILED: _ClassVar[ResourceStatus]
 
+class RoleEventType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    ROLE_EVENT_TYPE_UNSPECIFIED: _ClassVar[RoleEventType]
+    ROLE_EVENT_TYPE_ASSIGNED: _ClassVar[RoleEventType]
+    ROLE_EVENT_TYPE_REMOVED: _ClassVar[RoleEventType]
+
 class RoleType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     ROLE_TYPE_UNSPECIFIED: _ClassVar[RoleType]
@@ -1014,25 +1084,32 @@ class RoleType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ROLE_TYPE_USER: _ClassVar[RoleType]
     ROLE_TYPE_SPECTATOR: _ClassVar[RoleType]
 
+class RunEventType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    RUN_EVENT_TYPE_UNSPECIFIED: _ClassVar[RunEventType]
+    RUN_EVENT_TYPE_SCHEDULED: _ClassVar[RunEventType]
+    RUN_EVENT_TYPE_RUNNING: _ClassVar[RunEventType]
+    RUN_EVENT_TYPE_REQUESTED_PAUSE: _ClassVar[RunEventType]
+    RUN_EVENT_TYPE_PAUSED: _ClassVar[RunEventType]
+    RUN_EVENT_TYPE_REQUESTED_RESUME: _ClassVar[RunEventType]
+    RUN_EVENT_TYPE_RESUMED: _ClassVar[RunEventType]
+    RUN_EVENT_TYPE_REQUESTED_CANCEL: _ClassVar[RunEventType]
+    RUN_EVENT_TYPE_CANCELLED: _ClassVar[RunEventType]
+    RUN_EVENT_TYPE_ABORTED: _ClassVar[RunEventType]
+    RUN_EVENT_TYPE_FAILED: _ClassVar[RunEventType]
+    RUN_EVENT_TYPE_COMPLETED: _ClassVar[RunEventType]
+
 class RunStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     RUN_STATUS_UNSPECIFIED: _ClassVar[RunStatus]
-    RUN_STATUS_CREATED: _ClassVar[RunStatus]
-    RUN_STATUS_ASSIGNED: _ClassVar[RunStatus]
     RUN_STATUS_SCHEDULED: _ClassVar[RunStatus]
-    RUN_STATUS_QUEUED: _ClassVar[RunStatus]
     RUN_STATUS_RUNNING: _ClassVar[RunStatus]
-    RUN_STATUS_FAILING: _ClassVar[RunStatus]
     RUN_STATUS_PAUSED: _ClassVar[RunStatus]
     RUN_STATUS_YIELDED: _ClassVar[RunStatus]
-    RUN_STATUS_WAITING: _ClassVar[RunStatus]
-    RUN_STATUS_IDLE: _ClassVar[RunStatus]
     RUN_STATUS_CANCELLED: _ClassVar[RunStatus]
     RUN_STATUS_ABORTED: _ClassVar[RunStatus]
-    RUN_STATUS_DIED: _ClassVar[RunStatus]
     RUN_STATUS_FAILED: _ClassVar[RunStatus]
     RUN_STATUS_COMPLETED: _ClassVar[RunStatus]
-    RUN_STATUS_SKIPPED: _ClassVar[RunStatus]
 
 class RunType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1042,17 +1119,11 @@ class RunType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RUN_TYPE_FLOW: _ClassVar[RunType]
     RUN_TYPE_AGENT: _ClassVar[RunType]
 
-class RuntimeLanguage(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    RUNTIME_LANGUAGE_UNSPECIFIED: _ClassVar[RuntimeLanguage]
-    RUNTIME_LANGUAGE_PYTHON: _ClassVar[RuntimeLanguage]
-    RUNTIME_LANGUAGE_JAVASCRIPT: _ClassVar[RuntimeLanguage]
-
 class RuntimeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     RUNTIME_TYPE_UNSPECIFIED: _ClassVar[RuntimeType]
-    RUNTIME_TYPE_SERVER: _ClassVar[RuntimeType]
-    RUNTIME_TYPE_WEB: _ClassVar[RuntimeType]
+    RUNTIME_TYPE_PYTHON: _ClassVar[RuntimeType]
+    RUNTIME_TYPE_JAVASCRIPT: _ClassVar[RuntimeType]
 
 class ScalarType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1062,6 +1133,12 @@ class ScalarType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     SCALAR_TYPE_NODE_REFERENCE: _ClassVar[ScalarType]
     SCALAR_TYPE_NODE_VALUE: _ClassVar[ScalarType]
     SCALAR_TYPE_STRUCT: _ClassVar[ScalarType]
+
+class SceneEventType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    SCENE_EVENT_TYPE_UNSPECIFIED: _ClassVar[SceneEventType]
+    SCENE_EVENT_TYPE_ENTERED: _ClassVar[SceneEventType]
+    SCENE_EVENT_TYPE_EXITED: _ClassVar[SceneEventType]
 
 class ScheduleFrequency(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1315,6 +1392,13 @@ class TimeInterval(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TIME_INTERVAL_MONTH: _ClassVar[TimeInterval]
     TIME_INTERVAL_YEAR: _ClassVar[TimeInterval]
 
+class TimerEventType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    TIMER_EVENT_TYPE_UNSPECIFIED: _ClassVar[TimerEventType]
+    TIMER_EVENT_TYPE_STARTED: _ClassVar[TimerEventType]
+    TIMER_EVENT_TYPE_STOPPED: _ClassVar[TimerEventType]
+    TIMER_EVENT_TYPE_EXPIRED: _ClassVar[TimerEventType]
+
 class TimerType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     TIMER_TYPE_UNSPECIFIED: _ClassVar[TimerType]
@@ -1330,7 +1414,6 @@ class TraitType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TRAIT_TYPE_PARTICLE: _ClassVar[TraitType]
     TRAIT_TYPE_ANALYTIC: _ClassVar[TraitType]
     TRAIT_TYPE_INDEXED: _ClassVar[TraitType]
-    TRAIT_TYPE_ASSET: _ClassVar[TraitType]
     TRAIT_TYPE_RESOURCE: _ClassVar[TraitType]
     TRAIT_TYPE_EVENT: _ClassVar[TraitType]
     TRAIT_TYPE_CUSTOM_NODE_DEFINITION: _ClassVar[TraitType]
@@ -1380,6 +1463,13 @@ class TransitionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TRANSITION_TYPE_FIELD: _ClassVar[TransitionType]
     TRANSITION_TYPE_TWEEN: _ClassVar[TransitionType]
     TRANSITION_TYPE_SPRING: _ClassVar[TransitionType]
+
+class TriggerEventType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    TRIGGER_EVENT_TYPE_UNSPECIFIED: _ClassVar[TriggerEventType]
+    TRIGGER_EVENT_TYPE_STARTED: _ClassVar[TriggerEventType]
+    TRIGGER_EVENT_TYPE_TRIGGERED: _ClassVar[TriggerEventType]
+    TRIGGER_EVENT_TYPE_STOPPED: _ClassVar[TriggerEventType]
 
 class TriggerType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1596,8 +1686,9 @@ ENUM_TYPE_STORE_ZONE: EnumType
 ENUM_TYPE_STORE_TYPE: EnumType
 ENUM_TYPE_STORE_IMPLEMENTATION: EnumType
 ENUM_TYPE_PROPERTY_REFERENCE_TYPE: EnumType
+ENUM_TYPE_PLATFORM_TYPE: EnumType
 ENUM_TYPE_RUNTIME_TYPE: EnumType
-ENUM_TYPE_RUNTIME_LANGUAGE: EnumType
+ENUM_TYPE_OPERATING_SYSTEM: EnumType
 ENUM_TYPE_USER_STATUS: EnumType
 ENUM_TYPE_ORGANIZATION_STATUS: EnumType
 ENUM_TYPE_SPACE_STATUS: EnumType
@@ -1620,6 +1711,10 @@ ENUM_TYPE_ATTRIBUTE_TYPE: EnumType
 ENUM_TYPE_QUERY_TYPE: EnumType
 ENUM_TYPE_QUERY_UPDATE_TYPE: EnumType
 ENUM_TYPE_ROLE_TYPE: EnumType
+ENUM_TYPE_MEMBERSHIP_EVENT_TYPE: EnumType
+ENUM_TYPE_INVITE_EVENT_TYPE: EnumType
+ENUM_TYPE_ROLE_EVENT_TYPE: EnumType
+ENUM_TYPE_FRIENDSHIP_INVITE_EVENT_TYPE: EnumType
 ENUM_TYPE_WINDOW_TYPE: EnumType
 ENUM_TYPE_TEXT_LINE_TYPE: EnumType
 ENUM_TYPE_TEXT_SPAN_TYPE: EnumType
@@ -1648,15 +1743,19 @@ ENUM_TYPE_ACTION_CARDINALITY: EnumType
 ENUM_TYPE_CURSOR_STATUS: EnumType
 ENUM_TYPE_SCHEDULE_FREQUENCY: EnumType
 ENUM_TYPE_TIMER_TYPE: EnumType
+ENUM_TYPE_TIMER_EVENT_TYPE: EnumType
 ENUM_TYPE_TRIGGER_TYPE: EnumType
+ENUM_TYPE_TRIGGER_EVENT_TYPE: EnumType
 ENUM_TYPE_RUN_STATUS: EnumType
+ENUM_TYPE_RUN_EVENT_TYPE: EnumType
 ENUM_TYPE_RUN_TYPE: EnumType
 ENUM_TYPE_INTERRUPTION_TYPE: EnumType
 ENUM_TYPE_INTERRUPTION_STATUS: EnumType
 ENUM_TYPE_INTERRUPTION_RESPONSE: EnumType
 ENUM_TYPE_ENVIRONMENT_TYPE: EnumType
 ENUM_TYPE_THREAD_STATUS: EnumType
-ENUM_TYPE_MESSAGE_TYPE: EnumType
+ENUM_TYPE_NOTIFICATION_STATUS: EnumType
+ENUM_TYPE_NOTIFICATION_EVENT_TYPE: EnumType
 ENUM_TYPE_CLOUD: EnumType
 ENUM_TYPE_REGION: EnumType
 ENUM_TYPE_REGION_AREA: EnumType
@@ -1667,6 +1766,7 @@ ENUM_TYPE_MACHINE_TYPE: EnumType
 ENUM_TYPE_MODEL_DEVELOPER: EnumType
 ENUM_TYPE_MODEL_PROVIDER: EnumType
 ENUM_TYPE_LAYER_TYPE: EnumType
+ENUM_TYPE_SCENE_EVENT_TYPE: EnumType
 ENUM_TYPE_CANVAS_TYPE: EnumType
 ENUM_TYPE_PLANE_SHAPE_TYPE: EnumType
 ENUM_TYPE_ARROW_HEAD_TYPE: EnumType
@@ -1892,6 +1992,11 @@ FONT_WEIGHT_SEMI_BOLD: FontWeight
 FONT_WEIGHT_BOLD: FontWeight
 FONT_WEIGHT_EXTRA_BOLD: FontWeight
 FONT_WEIGHT_BLACK: FontWeight
+FRIENDSHIP_INVITE_EVENT_TYPE_UNSPECIFIED: FriendshipInviteEventType
+FRIENDSHIP_INVITE_EVENT_TYPE_SENT: FriendshipInviteEventType
+FRIENDSHIP_INVITE_EVENT_TYPE_RESCINDED: FriendshipInviteEventType
+FRIENDSHIP_INVITE_EVENT_TYPE_ACCEPTED: FriendshipInviteEventType
+FRIENDSHIP_INVITE_EVENT_TYPE_REJECTED: FriendshipInviteEventType
 FUNCTION_TYPE_UNSPECIFIED: FunctionType
 FUNCTION_TYPE_ADD: FunctionType
 FUNCTION_TYPE_SUBTRACT: FunctionType
@@ -1921,6 +2026,11 @@ INTERRUPTION_TYPE_UNSPECIFIED: InterruptionType
 INTERRUPTION_TYPE_PAUSE: InterruptionType
 INTERRUPTION_TYPE_YIELD: InterruptionType
 INTERRUPTION_TYPE_WAIT: InterruptionType
+INVITE_EVENT_TYPE_UNSPECIFIED: InviteEventType
+INVITE_EVENT_TYPE_SENT: InviteEventType
+INVITE_EVENT_TYPE_RESCINDED: InviteEventType
+INVITE_EVENT_TYPE_ACCEPTED: InviteEventType
+INVITE_EVENT_TYPE_REJECTED: InviteEventType
 JOIN_TYPE_UNSPECIFIED: JoinType
 JOIN_TYPE_LEFT: JoinType
 JOIN_TYPE_PARENT: JoinType
@@ -1948,13 +2058,9 @@ MACHINE_TYPE_UBUNTU: MachineType
 MACHINE_TYPE_MAC: MachineType
 MACHINE_TYPE_WINDOWS: MachineType
 MACHINE_TYPE_CUSTOM: MachineType
-MESSAGE_TYPE_UNSPECIFIED: MessageType
-MESSAGE_TYPE_DEFAULT: MessageType
-MESSAGE_TYPE_JOIN: MessageType
-MESSAGE_TYPE_LEAVE: MessageType
-MESSAGE_TYPE_RESOURCE: MessageType
-MESSAGE_TYPE_RUN: MessageType
-MESSAGE_TYPE_THREAD: MessageType
+MEMBERSHIP_EVENT_TYPE_UNSPECIFIED: MembershipEventType
+MEMBERSHIP_EVENT_TYPE_JOIN: MembershipEventType
+MEMBERSHIP_EVENT_TYPE_LEAVE: MembershipEventType
 MODEL_DEVELOPER_UNSPECIFIED: ModelDeveloper
 MODEL_DEVELOPER_OPENAI: ModelDeveloper
 MODEL_DEVELOPER_ANTHROPIC: ModelDeveloper
@@ -1985,11 +2091,15 @@ NODE_TYPE_HANDLE: NodeType
 NODE_TYPE_USER: NodeType
 NODE_TYPE_FRIENDSHIP: NodeType
 NODE_TYPE_FRIENDSHIP_INVITE: NodeType
+NODE_TYPE_FRIENDSHIP_INVITE_EVENT: NodeType
 NODE_TYPE_ORGANIZATION: NodeType
 NODE_TYPE_CLIENT: NodeType
 NODE_TYPE_MEMBERSHIP: NodeType
+NODE_TYPE_MEMBERSHIP_EVENT: NodeType
 NODE_TYPE_INVITE: NodeType
+NODE_TYPE_INVITE_EVENT: NodeType
 NODE_TYPE_ROLE: NodeType
+NODE_TYPE_ROLE_EVENT: NodeType
 NODE_TYPE_FOLDER: NodeType
 NODE_TYPE_TAG: NodeType
 NODE_TYPE_TAGGING: NodeType
@@ -2005,7 +2115,9 @@ NODE_TYPE_SERVICE: NodeType
 NODE_TYPE_ACTION: NodeType
 NODE_TYPE_ROUTE: NodeType
 NODE_TYPE_TRIGGER: NodeType
+NODE_TYPE_TRIGGER_EVENT: NodeType
 NODE_TYPE_TIMER: NodeType
+NODE_TYPE_TIMER_EVENT: NodeType
 NODE_TYPE_EVENT_CURSOR: NodeType
 NODE_TYPE_SCREEN_CURSOR: NodeType
 NODE_TYPE_THREAD_CURSOR: NodeType
@@ -2013,15 +2125,16 @@ NODE_TYPE_RUN: NodeType
 NODE_TYPE_SPAN: NodeType
 NODE_TYPE_INTERRUPTION: NodeType
 NODE_TYPE_LOG: NodeType
-NODE_TYPE_CUSTOM_EVENT_DEFINITION: NodeType
-NODE_TYPE_CUSTOM_EVENT: NodeType
-NODE_TYPE_EDIT_EVENT: NodeType
 NODE_TYPE_GAUGE_METRIC: NodeType
 NODE_TYPE_GAUGE_MEASUREMENT: NodeType
 NODE_TYPE_COUNTER_METRIC: NodeType
 NODE_TYPE_COUNTER_MEASUREMENT: NodeType
 NODE_TYPE_HISTOGRAM_METRIC: NodeType
 NODE_TYPE_HISTOGRAM_MEASUREMENT: NodeType
+NODE_TYPE_CUSTOM_EVENT_DEFINITION: NodeType
+NODE_TYPE_CUSTOM_EVENT: NodeType
+NODE_TYPE_EDIT_EVENT: NodeType
+NODE_TYPE_RUN_EVENT: NodeType
 NODE_TYPE_ENVIRONMENT: NodeType
 NODE_TYPE_THREAD: NodeType
 NODE_TYPE_MESSAGE: NodeType
@@ -2029,10 +2142,12 @@ NODE_TYPE_REACTION: NodeType
 NODE_TYPE_STAR: NodeType
 NODE_TYPE_FOLLOW: NodeType
 NODE_TYPE_NOTIFICATION: NodeType
+NODE_TYPE_NOTIFICATION_EVENT: NodeType
 NODE_TYPE_DATABASE: NodeType
 NODE_TYPE_MACHINE: NodeType
 NODE_TYPE_WINDOW: NodeType
 NODE_TYPE_SCENE: NodeType
+NODE_TYPE_SCENE_EVENT: NodeType
 NODE_TYPE_LAYER: NodeType
 NODE_TYPE_CUSTOM_VIEW_DEFINITION: NodeType
 NODE_TYPE_CUSTOM_VIEW: NodeType
@@ -2058,6 +2173,18 @@ NODE_TYPE_SHADOW_STYLE: NodeType
 NODE_TYPE_GRADIENT_STYLE: NodeType
 NODE_TYPE_TRANSITION_STYLE: NodeType
 NODE_TYPE_EFFECT_STYLE: NodeType
+NOTIFICATION_EVENT_TYPE_UNSPECIFIED: NotificationEventType
+NOTIFICATION_EVENT_TYPE_SENT: NotificationEventType
+NOTIFICATION_EVENT_TYPE_RESCINDED: NotificationEventType
+NOTIFICATION_EVENT_TYPE_READ: NotificationEventType
+NOTIFICATION_EVENT_TYPE_DISMISSED: NotificationEventType
+NOTIFICATION_EVENT_TYPE_EXPIRED: NotificationEventType
+NOTIFICATION_STATUS_UNSPECIFIED: NotificationStatus
+NOTIFICATION_STATUS_UNREAD: NotificationStatus
+NOTIFICATION_STATUS_READ: NotificationStatus
+NOTIFICATION_STATUS_DISMISSED: NotificationStatus
+NOTIFICATION_STATUS_EXPIRED: NotificationStatus
+NOTIFICATION_STATUS_RESCINDED: NotificationStatus
 NUMBER_FORMAT_UNSPECIFIED: NumberFormat
 NUMBER_FORMAT_PERCENTAGE: NumberFormat
 NUMBER_FORMAT_ANGLE: NumberFormat
@@ -2065,6 +2192,12 @@ NUMBER_FORMAT_CURRENCY: NumberFormat
 OFFSCREEN_BEHAVIOR_UNSPECIFIED: OffscreenBehavior
 OFFSCREEN_BEHAVIOR_PLAY: OffscreenBehavior
 OFFSCREEN_BEHAVIOR_PAUSE: OffscreenBehavior
+OPERATING_SYSTEM_UNSPECIFIED: OperatingSystem
+OPERATING_SYSTEM_LINUX: OperatingSystem
+OPERATING_SYSTEM_WINDOWS: OperatingSystem
+OPERATING_SYSTEM_MACOS: OperatingSystem
+OPERATING_SYSTEM_ANDROID: OperatingSystem
+OPERATING_SYSTEM_IOS: OperatingSystem
 ORGANIZATION_STATUS_UNSPECIFIED: OrganizationStatus
 ORGANIZATION_STATUS_CREATING: OrganizationStatus
 ORGANIZATION_STATUS_ACTIVE: OrganizationStatus
@@ -2078,6 +2211,9 @@ PLANE_SHAPE_TYPE_TRIANGLE: PlaneShapeType
 PLANE_SHAPE_TYPE_CIRCLE: PlaneShapeType
 PLANE_SHAPE_TYPE_ELLIPSE: PlaneShapeType
 PLANE_SHAPE_TYPE_POLYGON: PlaneShapeType
+PLATFORM_TYPE_UNSPECIFIED: PlatformType
+PLATFORM_TYPE_SERVER: PlatformType
+PLATFORM_TYPE_WEB: PlatformType
 POSITION_TYPE_UNSPECIFIED: PositionType
 POSITION_TYPE_RELATIVE: PositionType
 POSITION_TYPE_ABSOLUTE: PositionType
@@ -2162,45 +2298,52 @@ RESOURCE_STATUS_UNAVAILABLE: ResourceStatus
 RESOURCE_STATUS_IMPAIRED: ResourceStatus
 RESOURCE_STATUS_OFFLINE: ResourceStatus
 RESOURCE_STATUS_FAILED: ResourceStatus
+ROLE_EVENT_TYPE_UNSPECIFIED: RoleEventType
+ROLE_EVENT_TYPE_ASSIGNED: RoleEventType
+ROLE_EVENT_TYPE_REMOVED: RoleEventType
 ROLE_TYPE_UNSPECIFIED: RoleType
 ROLE_TYPE_ADMIN: RoleType
 ROLE_TYPE_DEVELOPER: RoleType
 ROLE_TYPE_USER: RoleType
 ROLE_TYPE_SPECTATOR: RoleType
+RUN_EVENT_TYPE_UNSPECIFIED: RunEventType
+RUN_EVENT_TYPE_SCHEDULED: RunEventType
+RUN_EVENT_TYPE_RUNNING: RunEventType
+RUN_EVENT_TYPE_REQUESTED_PAUSE: RunEventType
+RUN_EVENT_TYPE_PAUSED: RunEventType
+RUN_EVENT_TYPE_REQUESTED_RESUME: RunEventType
+RUN_EVENT_TYPE_RESUMED: RunEventType
+RUN_EVENT_TYPE_REQUESTED_CANCEL: RunEventType
+RUN_EVENT_TYPE_CANCELLED: RunEventType
+RUN_EVENT_TYPE_ABORTED: RunEventType
+RUN_EVENT_TYPE_FAILED: RunEventType
+RUN_EVENT_TYPE_COMPLETED: RunEventType
 RUN_STATUS_UNSPECIFIED: RunStatus
-RUN_STATUS_CREATED: RunStatus
-RUN_STATUS_ASSIGNED: RunStatus
 RUN_STATUS_SCHEDULED: RunStatus
-RUN_STATUS_QUEUED: RunStatus
 RUN_STATUS_RUNNING: RunStatus
-RUN_STATUS_FAILING: RunStatus
 RUN_STATUS_PAUSED: RunStatus
 RUN_STATUS_YIELDED: RunStatus
-RUN_STATUS_WAITING: RunStatus
-RUN_STATUS_IDLE: RunStatus
 RUN_STATUS_CANCELLED: RunStatus
 RUN_STATUS_ABORTED: RunStatus
-RUN_STATUS_DIED: RunStatus
 RUN_STATUS_FAILED: RunStatus
 RUN_STATUS_COMPLETED: RunStatus
-RUN_STATUS_SKIPPED: RunStatus
 RUN_TYPE_UNSPECIFIED: RunType
 RUN_TYPE_CODE: RunType
 RUN_TYPE_ACTION: RunType
 RUN_TYPE_FLOW: RunType
 RUN_TYPE_AGENT: RunType
-RUNTIME_LANGUAGE_UNSPECIFIED: RuntimeLanguage
-RUNTIME_LANGUAGE_PYTHON: RuntimeLanguage
-RUNTIME_LANGUAGE_JAVASCRIPT: RuntimeLanguage
 RUNTIME_TYPE_UNSPECIFIED: RuntimeType
-RUNTIME_TYPE_SERVER: RuntimeType
-RUNTIME_TYPE_WEB: RuntimeType
+RUNTIME_TYPE_PYTHON: RuntimeType
+RUNTIME_TYPE_JAVASCRIPT: RuntimeType
 SCALAR_TYPE_UNSPECIFIED: ScalarType
 SCALAR_TYPE_PRIMITIVE: ScalarType
 SCALAR_TYPE_ENUM: ScalarType
 SCALAR_TYPE_NODE_REFERENCE: ScalarType
 SCALAR_TYPE_NODE_VALUE: ScalarType
 SCALAR_TYPE_STRUCT: ScalarType
+SCENE_EVENT_TYPE_UNSPECIFIED: SceneEventType
+SCENE_EVENT_TYPE_ENTERED: SceneEventType
+SCENE_EVENT_TYPE_EXITED: SceneEventType
 SCHEDULE_FREQUENCY_UNSPECIFIED: ScheduleFrequency
 SCHEDULE_FREQUENCY_YEAR: ScheduleFrequency
 SCHEDULE_FREQUENCY_MONTH: ScheduleFrequency
@@ -2384,6 +2527,10 @@ TIME_INTERVAL_DAY: TimeInterval
 TIME_INTERVAL_WEEK: TimeInterval
 TIME_INTERVAL_MONTH: TimeInterval
 TIME_INTERVAL_YEAR: TimeInterval
+TIMER_EVENT_TYPE_UNSPECIFIED: TimerEventType
+TIMER_EVENT_TYPE_STARTED: TimerEventType
+TIMER_EVENT_TYPE_STOPPED: TimerEventType
+TIMER_EVENT_TYPE_EXPIRED: TimerEventType
 TIMER_TYPE_UNSPECIFIED: TimerType
 TIMER_TYPE_ONCE: TimerType
 TIMER_TYPE_RECURRING: TimerType
@@ -2394,7 +2541,6 @@ TRAIT_TYPE_ENTITY: TraitType
 TRAIT_TYPE_PARTICLE: TraitType
 TRAIT_TYPE_ANALYTIC: TraitType
 TRAIT_TYPE_INDEXED: TraitType
-TRAIT_TYPE_ASSET: TraitType
 TRAIT_TYPE_RESOURCE: TraitType
 TRAIT_TYPE_EVENT: TraitType
 TRAIT_TYPE_CUSTOM_NODE_DEFINITION: TraitType
@@ -2441,6 +2587,10 @@ TRANSITION_TYPE_STYLE: TransitionType
 TRANSITION_TYPE_FIELD: TransitionType
 TRANSITION_TYPE_TWEEN: TransitionType
 TRANSITION_TYPE_SPRING: TransitionType
+TRIGGER_EVENT_TYPE_UNSPECIFIED: TriggerEventType
+TRIGGER_EVENT_TYPE_STARTED: TriggerEventType
+TRIGGER_EVENT_TYPE_TRIGGERED: TriggerEventType
+TRIGGER_EVENT_TYPE_STOPPED: TriggerEventType
 TRIGGER_TYPE_UNSPECIFIED: TriggerType
 TRIGGER_TYPE_EVENT: TriggerType
 TYPE_CARDINALITY_UNSPECIFIED: TypeCardinality
@@ -3158,7 +3308,7 @@ class CustomEntityDefinitionData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., order_key: _Optional[str] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., name: _Optional[str] = ..., traits: _Optional[_Iterable[_Union[TraitType, str]]] = ..., script_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., source_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class CustomEventData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "definition_ptr")
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "node_ptr", "definition_ptr")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -3167,6 +3317,7 @@ class CustomEventData(_message.Message):
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    NODE_PTR_FIELD_NUMBER: _ClassVar[int]
     DEFINITION_PTR_FIELD_NUMBER: _ClassVar[int]
     metatype: NodeType
     id: str
@@ -3176,8 +3327,9 @@ class CustomEventData(_message.Message):
     created_by_ptr: NodeReferenceData
     updated_at: _timestamp_pb2.Timestamp
     updated_by_ptr: NodeReferenceData
+    node_ptr: NodeReferenceData
     definition_ptr: NodeReferenceData
-    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class CustomEventDefinitionData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "order_key", "name", "source_ptr")
@@ -3390,7 +3542,7 @@ class CustomViewDefinitionData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., value: _Optional[_Mapping[str, ValueData]] = ..., order_key: _Optional[str] = ..., name: _Optional[str] = ..., position: _Optional[_Union[PositionData, _Mapping]] = ..., width: _Optional[_Union[DimensionData, _Mapping]] = ..., height: _Optional[_Union[DimensionData, _Mapping]] = ..., min_width: _Optional[_Union[DimensionData, _Mapping]] = ..., min_height: _Optional[_Union[DimensionData, _Mapping]] = ..., max_width: _Optional[_Union[DimensionData, _Mapping]] = ..., max_height: _Optional[_Union[DimensionData, _Mapping]] = ..., layout: _Optional[_Union[Layout, str]] = ..., direction: _Optional[_Union[Direction, str]] = ..., distribute: _Optional[_Union[Distribute, str]] = ..., align: _Optional[_Union[Align, str]] = ..., gap: _Optional[_Union[Axis2Data, _Mapping]] = ..., padding: _Optional[_Union[InsetsData, _Mapping]] = ..., grid: _Optional[_Union[GridData, _Mapping]] = ..., grid_span: _Optional[_Union[GridSpanData, _Mapping]] = ..., aspect_ratio: _Optional[float] = ..., is_wrap: bool = ..., is_visible: bool = ..., opacity: _Optional[float] = ..., fill: _Optional[_Union[FillData, _Mapping]] = ..., rotation: _Optional[_Union[Axis3Data, _Mapping]] = ..., skew: _Optional[_Union[Vector2Data, _Mapping]] = ..., scale: _Optional[float] = ..., shadow: _Optional[_Union[ShadowData, _Mapping]] = ..., border: _Optional[_Union[BorderData, _Mapping]] = ..., radius: _Optional[_Union[CornersData, _Mapping]] = ..., script_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class DatabaseData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "order_key", "type", "name", "status", "target_status", "failed_at", "failed_attempts", "region", "cell_name", "external_name", "custom_schema_name", "tenancy", "connection_url")
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "type", "name", "status", "target_status", "failed_at", "failed_attempts", "region", "cell_name", "external_name", "custom_schema_name", "tenancy", "connection_url")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -3399,7 +3551,6 @@ class DatabaseData(_message.Message):
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
@@ -3420,7 +3571,6 @@ class DatabaseData(_message.Message):
     created_by_ptr: NodeReferenceData
     updated_at: _timestamp_pb2.Timestamp
     updated_by_ptr: NodeReferenceData
-    order_key: str
     type: DatabaseType
     name: str
     status: ResourceStatus
@@ -3433,7 +3583,7 @@ class DatabaseData(_message.Message):
     custom_schema_name: str
     tenancy: Tenancy
     connection_url: str
-    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., order_key: _Optional[str] = ..., type: _Optional[_Union[DatabaseType, str]] = ..., name: _Optional[str] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., target_status: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., failed_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., failed_attempts: _Optional[int] = ..., region: _Optional[_Union[Region, str]] = ..., cell_name: _Optional[str] = ..., external_name: _Optional[str] = ..., custom_schema_name: _Optional[str] = ..., tenancy: _Optional[_Union[Tenancy, str]] = ..., connection_url: _Optional[str] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., type: _Optional[_Union[DatabaseType, str]] = ..., name: _Optional[str] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., target_status: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., failed_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., failed_attempts: _Optional[int] = ..., region: _Optional[_Union[Region, str]] = ..., cell_name: _Optional[str] = ..., external_name: _Optional[str] = ..., custom_schema_name: _Optional[str] = ..., tenancy: _Optional[_Union[Tenancy, str]] = ..., connection_url: _Optional[str] = ...) -> None: ...
 
 class DatabaseInfoData(_message.Message):
     __slots__ = ("metatype", "type", "region", "cell_name", "external_name", "custom_schema_name", "tenancy", "connection_url")
@@ -3812,7 +3962,7 @@ class FieldData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., order_key: _Optional[str] = ..., type: _Optional[_Union[FieldType, str]] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., cardinality: _Optional[_Union[TypeCardinality, str]] = ..., scalar_type: _Optional[_Union[ScalarType, str]] = ..., primitive_type: _Optional[_Union[PrimitiveType, str]] = ..., enum_type: _Optional[_Union[EnumType, str]] = ..., node_type: _Optional[_Union[NodeType, str]] = ..., node_definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., struct_type: _Optional[_Union[StructType, str]] = ..., base_type_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., key_type: _Optional[_Union[TypeData, _Mapping]] = ..., is_required: bool = ..., default: _Optional[_Union[ValueData, _Mapping]] = ..., default_factory: _Optional[_Union[DefaultFactory, str]] = ..., collection_constraint: _Optional[_Union[CollectionConstraintData, _Mapping]] = ..., string_constraint: _Optional[_Union[StringConstraintData, _Mapping]] = ..., number_constraint: _Optional[_Union[NumberConstraintData, _Mapping]] = ..., node_constraint: _Optional[_Union[NodeConstraintData, _Mapping]] = ..., edge_type: _Optional[_Union[EdgeType, str]] = ..., cascade: _Optional[_Union[CascadeAction, str]] = ..., source_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class FileData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "order_key", "type", "name", "source", "mime_type", "format", "size", "sha256", "width", "height", "aspect_ratio", "codec", "duration", "url", "content_url", "thumbnail_url", "favicon_url", "thumbnail_width", "thumbnail_height", "content", "retention", "expires_at")
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "type", "name", "status", "target_status", "failed_at", "failed_attempts", "source", "mime_type", "format", "size", "sha256", "width", "height", "aspect_ratio", "codec", "duration", "url", "content_url", "thumbnail_url", "favicon_url", "thumbnail_width", "thumbnail_height", "content", "retention", "expires_at")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -3821,9 +3971,12 @@ class FileData(_message.Message):
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    TARGET_STATUS_FIELD_NUMBER: _ClassVar[int]
+    FAILED_AT_FIELD_NUMBER: _ClassVar[int]
+    FAILED_ATTEMPTS_FIELD_NUMBER: _ClassVar[int]
     SOURCE_FIELD_NUMBER: _ClassVar[int]
     MIME_TYPE_FIELD_NUMBER: _ClassVar[int]
     FORMAT_FIELD_NUMBER: _ClassVar[int]
@@ -3851,9 +4004,12 @@ class FileData(_message.Message):
     created_by_ptr: NodeReferenceData
     updated_at: _timestamp_pb2.Timestamp
     updated_by_ptr: NodeReferenceData
-    order_key: str
     type: FileType
     name: str
+    status: ResourceStatus
+    target_status: _timestamp_pb2.Timestamp
+    failed_at: _timestamp_pb2.Timestamp
+    failed_attempts: int
     source: FileSource
     mime_type: str
     format: FileFormat
@@ -3873,7 +4029,7 @@ class FileData(_message.Message):
     content: bytes
     retention: FileRetentionMode
     expires_at: _timestamp_pb2.Timestamp
-    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., order_key: _Optional[str] = ..., type: _Optional[_Union[FileType, str]] = ..., name: _Optional[str] = ..., source: _Optional[_Union[FileSource, str]] = ..., mime_type: _Optional[str] = ..., format: _Optional[_Union[FileFormat, str]] = ..., size: _Optional[int] = ..., sha256: _Optional[str] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., aspect_ratio: _Optional[float] = ..., codec: _Optional[str] = ..., duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., url: _Optional[str] = ..., content_url: _Optional[str] = ..., thumbnail_url: _Optional[str] = ..., favicon_url: _Optional[str] = ..., thumbnail_width: _Optional[int] = ..., thumbnail_height: _Optional[int] = ..., content: _Optional[bytes] = ..., retention: _Optional[_Union[FileRetentionMode, str]] = ..., expires_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., type: _Optional[_Union[FileType, str]] = ..., name: _Optional[str] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., target_status: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., failed_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., failed_attempts: _Optional[int] = ..., source: _Optional[_Union[FileSource, str]] = ..., mime_type: _Optional[str] = ..., format: _Optional[_Union[FileFormat, str]] = ..., size: _Optional[int] = ..., sha256: _Optional[str] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., aspect_ratio: _Optional[float] = ..., codec: _Optional[str] = ..., duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., url: _Optional[str] = ..., content_url: _Optional[str] = ..., thumbnail_url: _Optional[str] = ..., favicon_url: _Optional[str] = ..., thumbnail_width: _Optional[int] = ..., thumbnail_height: _Optional[int] = ..., content: _Optional[bytes] = ..., retention: _Optional[_Union[FileRetentionMode, str]] = ..., expires_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class FillData(_message.Message):
     __slots__ = ("metatype", "type", "style_ptr", "color", "gradient", "image_ptr", "position", "size")
@@ -4189,7 +4345,7 @@ class FriendshipData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., user_a_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., user_b_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class FriendshipInviteData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "owned_by_ptr", "member_ptr", "inviter_ptr")
+    __slots__ = ("metatype", "id", "parent_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "owned_by_ptr", "member_ptr")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -4197,10 +4353,8 @@ class FriendshipInviteData(_message.Message):
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     OWNED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     MEMBER_PTR_FIELD_NUMBER: _ClassVar[int]
-    INVITER_PTR_FIELD_NUMBER: _ClassVar[int]
     metatype: NodeType
     id: str
     parent_ptr: NodeReferenceData
@@ -4208,11 +4362,33 @@ class FriendshipInviteData(_message.Message):
     created_by_ptr: NodeReferenceData
     updated_at: _timestamp_pb2.Timestamp
     updated_by_ptr: NodeReferenceData
-    deleted_at: _timestamp_pb2.Timestamp
     owned_by_ptr: NodeReferenceData
     member_ptr: NodeReferenceData
-    inviter_ptr: NodeReferenceData
-    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., member_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., inviter_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., member_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+
+class FriendshipInviteEventData(_message.Message):
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "type", "node_ptr")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
+    SPACE_PTR_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    NODE_PTR_FIELD_NUMBER: _ClassVar[int]
+    metatype: NodeType
+    id: str
+    parent_ptr: NodeReferenceData
+    space_ptr: NodeReferenceData
+    created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
+    updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
+    type: FriendshipInviteEventType
+    node_ptr: NodeReferenceData
+    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., type: _Optional[_Union[FriendshipInviteEventType, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class FunctionData(_message.Message):
     __slots__ = ("metatype", "type", "left", "right")
@@ -4557,6 +4733,28 @@ class InviteData(_message.Message):
     role_type: RoleType
     def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., member_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., role_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., role_type: _Optional[_Union[RoleType, str]] = ...) -> None: ...
 
+class InviteEventData(_message.Message):
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "node_ptr")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
+    SPACE_PTR_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    NODE_PTR_FIELD_NUMBER: _ClassVar[int]
+    metatype: NodeType
+    id: str
+    parent_ptr: NodeReferenceData
+    space_ptr: NodeReferenceData
+    created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
+    updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
+    node_ptr: NodeReferenceData
+    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+
 class JoinData(_message.Message):
     __slots__ = ("metatype", "type", "relation", "recursive", "depth", "on")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -4828,7 +5026,7 @@ class LineShapeData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., order_key: _Optional[str] = ..., type: _Optional[_Union[LineType, str]] = ..., name: _Optional[str] = ..., position: _Optional[_Union[PositionData, _Mapping]] = ..., width: _Optional[_Union[DimensionData, _Mapping]] = ..., height: _Optional[_Union[DimensionData, _Mapping]] = ..., min_width: _Optional[_Union[DimensionData, _Mapping]] = ..., min_height: _Optional[_Union[DimensionData, _Mapping]] = ..., max_width: _Optional[_Union[DimensionData, _Mapping]] = ..., max_height: _Optional[_Union[DimensionData, _Mapping]] = ..., align: _Optional[_Union[Align, str]] = ..., is_visible: bool = ..., opacity: _Optional[float] = ..., points: _Optional[_Iterable[_Union[Vector2Data, _Mapping]]] = ..., color: _Optional[_Union[ColorData, _Mapping]] = ..., script_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class LinkData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "order_key", "type", "url", "domain", "content_url", "thumbnail_url", "favicon_url", "thumbnail_width", "thumbnail_height", "content", "attribution", "attribution_tag", "published_at", "expires_at", "image_urls")
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "type", "status", "target_status", "failed_at", "failed_attempts", "url", "domain", "content_url", "thumbnail_url", "favicon_url", "thumbnail_width", "thumbnail_height", "content", "attribution", "attribution_tag", "published_at", "expires_at", "image_urls")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -4837,8 +5035,11 @@ class LinkData(_message.Message):
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    TARGET_STATUS_FIELD_NUMBER: _ClassVar[int]
+    FAILED_AT_FIELD_NUMBER: _ClassVar[int]
+    FAILED_ATTEMPTS_FIELD_NUMBER: _ClassVar[int]
     URL_FIELD_NUMBER: _ClassVar[int]
     DOMAIN_FIELD_NUMBER: _ClassVar[int]
     CONTENT_URL_FIELD_NUMBER: _ClassVar[int]
@@ -4860,8 +5061,11 @@ class LinkData(_message.Message):
     created_by_ptr: NodeReferenceData
     updated_at: _timestamp_pb2.Timestamp
     updated_by_ptr: NodeReferenceData
-    order_key: str
     type: LinkType
+    status: ResourceStatus
+    target_status: _timestamp_pb2.Timestamp
+    failed_at: _timestamp_pb2.Timestamp
+    failed_attempts: int
     url: str
     domain: str
     content_url: str
@@ -4875,7 +5079,7 @@ class LinkData(_message.Message):
     published_at: _timestamp_pb2.Timestamp
     expires_at: _timestamp_pb2.Timestamp
     image_urls: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., order_key: _Optional[str] = ..., type: _Optional[_Union[LinkType, str]] = ..., url: _Optional[str] = ..., domain: _Optional[str] = ..., content_url: _Optional[str] = ..., thumbnail_url: _Optional[str] = ..., favicon_url: _Optional[str] = ..., thumbnail_width: _Optional[int] = ..., thumbnail_height: _Optional[int] = ..., content: _Optional[str] = ..., attribution: _Optional[str] = ..., attribution_tag: _Optional[str] = ..., published_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., expires_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., image_urls: _Optional[_Iterable[str]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., type: _Optional[_Union[LinkType, str]] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., target_status: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., failed_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., failed_attempts: _Optional[int] = ..., url: _Optional[str] = ..., domain: _Optional[str] = ..., content_url: _Optional[str] = ..., thumbnail_url: _Optional[str] = ..., favicon_url: _Optional[str] = ..., thumbnail_width: _Optional[int] = ..., thumbnail_height: _Optional[int] = ..., content: _Optional[str] = ..., attribution: _Optional[str] = ..., attribution_tag: _Optional[str] = ..., published_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., expires_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., image_urls: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class LogData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "content", "attributes")
@@ -4909,7 +5113,7 @@ class LogData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., content: _Optional[str] = ..., attributes: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
 
 class MachineData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "order_key", "type", "status", "target_status", "failed_at", "failed_attempts", "version", "external_name", "external_id", "image_id", "grpc_url", "vnc_url", "client_ptr", "cpu", "ram", "width", "height", "is_headless")
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "type", "status", "target_status", "failed_at", "failed_attempts", "version", "external_name", "external_id", "image_id", "grpc_url", "vnc_url", "client_ptr", "cpu", "ram", "width", "height", "is_headless")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -4918,7 +5122,6 @@ class MachineData(_message.Message):
     CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     TARGET_STATUS_FIELD_NUMBER: _ClassVar[int]
@@ -4944,7 +5147,6 @@ class MachineData(_message.Message):
     created_by_ptr: NodeReferenceData
     updated_at: _timestamp_pb2.Timestamp
     updated_by_ptr: NodeReferenceData
-    order_key: str
     type: MachineType
     status: ResourceStatus
     target_status: _timestamp_pb2.Timestamp
@@ -4962,7 +5164,7 @@ class MachineData(_message.Message):
     width: int
     height: int
     is_headless: bool
-    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., order_key: _Optional[str] = ..., type: _Optional[_Union[MachineType, str]] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., target_status: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., failed_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., failed_attempts: _Optional[int] = ..., version: _Optional[str] = ..., external_name: _Optional[str] = ..., external_id: _Optional[str] = ..., image_id: _Optional[str] = ..., grpc_url: _Optional[str] = ..., vnc_url: _Optional[str] = ..., client_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., cpu: _Optional[float] = ..., ram: _Optional[float] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., is_headless: bool = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., type: _Optional[_Union[MachineType, str]] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., target_status: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., failed_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., failed_attempts: _Optional[int] = ..., version: _Optional[str] = ..., external_name: _Optional[str] = ..., external_id: _Optional[str] = ..., image_id: _Optional[str] = ..., grpc_url: _Optional[str] = ..., vnc_url: _Optional[str] = ..., client_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., cpu: _Optional[float] = ..., ram: _Optional[float] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., is_headless: bool = ...) -> None: ...
 
 class MembershipData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "owned_by_ptr", "member_ptr", "role_ptr", "role_type")
@@ -4996,8 +5198,30 @@ class MembershipData(_message.Message):
     role_type: RoleType
     def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., member_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., role_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., role_type: _Optional[_Union[RoleType, str]] = ...) -> None: ...
 
+class MembershipEventData(_message.Message):
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "node_ptr")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
+    SPACE_PTR_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    NODE_PTR_FIELD_NUMBER: _ClassVar[int]
+    metatype: NodeType
+    id: str
+    parent_ptr: NodeReferenceData
+    space_ptr: NodeReferenceData
+    created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
+    updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
+    node_ptr: NodeReferenceData
+    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+
 class MessageData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "owned_by_ptr", "type", "thread_ptr", "edited_at", "reply_to_ptr", "forwarded_from_ptr", "text", "node_ptr")
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "owned_by_ptr", "thread_ptr", "edited_at", "reply_to_ptr", "forwarded_from_ptr", "text", "node_ptr")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -5009,7 +5233,6 @@ class MessageData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     TEMPLATE_PTR_FIELD_NUMBER: _ClassVar[int]
     OWNED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
     THREAD_PTR_FIELD_NUMBER: _ClassVar[int]
     EDITED_AT_FIELD_NUMBER: _ClassVar[int]
     REPLY_TO_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -5027,14 +5250,13 @@ class MessageData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     template_ptr: NodeReferenceData
     owned_by_ptr: NodeReferenceData
-    type: MessageType
     thread_ptr: NodeReferenceData
     edited_at: _timestamp_pb2.Timestamp
     reply_to_ptr: NodeReferenceData
     forwarded_from_ptr: NodeReferenceData
     text: TextData
     node_ptr: NodeReferenceData
-    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., type: _Optional[_Union[MessageType, str]] = ..., thread_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., edited_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., reply_to_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., forwarded_from_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., thread_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., edited_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., reply_to_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., forwarded_from_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class NodeConstraintData(_message.Message):
     __slots__ = ("metatype", "node_types", "node_traits")
@@ -5081,7 +5303,7 @@ class NodeReferenceData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., node_type: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., space_id: _Optional[str] = ..., definition_id: _Optional[str] = ...) -> None: ...
 
 class NotificationData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "owned_by_ptr", "title", "text")
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "owned_by_ptr", "status", "title", "text")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -5091,6 +5313,7 @@ class NotificationData(_message.Message):
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     OWNED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     metatype: NodeType
@@ -5102,9 +5325,34 @@ class NotificationData(_message.Message):
     updated_at: _timestamp_pb2.Timestamp
     updated_by_ptr: NodeReferenceData
     owned_by_ptr: NodeReferenceData
+    status: NotificationStatus
     title: str
     text: TextData
-    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., title: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., status: _Optional[_Union[NotificationStatus, str]] = ..., title: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ...) -> None: ...
+
+class NotificationEventData(_message.Message):
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "type", "node_ptr")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
+    SPACE_PTR_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    NODE_PTR_FIELD_NUMBER: _ClassVar[int]
+    metatype: NodeType
+    id: str
+    parent_ptr: NodeReferenceData
+    space_ptr: NodeReferenceData
+    created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
+    updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
+    type: NotificationEventType
+    node_ptr: NodeReferenceData
+    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., type: _Optional[_Union[NotificationEventType, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class NumberConstraintData(_message.Message):
     __slots__ = ("metatype", "format", "min_value", "max_value", "step_value", "precision", "scale")
@@ -5568,7 +5816,7 @@ class RelationReferenceData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., type: _Optional[_Union[RelationType, str]] = ..., node_type: _Optional[_Union[NodeType, str]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., trait_type: _Optional[_Union[TraitType, str]] = ...) -> None: ...
 
 class RoleData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "order_key", "name", "slug", "icon")
+    __slots__ = ("metatype", "id", "parent_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "order_key", "type", "name", "slug", "icon")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -5579,6 +5827,7 @@ class RoleData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     TEMPLATE_PTR_FIELD_NUMBER: _ClassVar[int]
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     SLUG_FIELD_NUMBER: _ClassVar[int]
     ICON_FIELD_NUMBER: _ClassVar[int]
@@ -5592,10 +5841,35 @@ class RoleData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     template_ptr: NodeReferenceData
     order_key: str
+    type: RoleType
     name: str
     slug: str
     icon: IconData
-    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., order_key: _Optional[str] = ..., name: _Optional[str] = ..., slug: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., order_key: _Optional[str] = ..., type: _Optional[_Union[RoleType, str]] = ..., name: _Optional[str] = ..., slug: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ...) -> None: ...
+
+class RoleEventData(_message.Message):
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "type", "node_ptr")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
+    SPACE_PTR_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    NODE_PTR_FIELD_NUMBER: _ClassVar[int]
+    metatype: NodeType
+    id: str
+    parent_ptr: NodeReferenceData
+    space_ptr: NodeReferenceData
+    created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
+    updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
+    type: RoleEventType
+    node_ptr: NodeReferenceData
+    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., type: _Optional[_Union[RoleEventType, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class RouteData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "order_key", "owned_by_ptr", "name", "scene_ptr")
@@ -5630,7 +5904,7 @@ class RouteData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., order_key: _Optional[str] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., name: _Optional[str] = ..., scene_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class RunData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "value", "type", "target_ptr", "status", "duration", "scheduled_at", "started_at", "active_at", "interrupted_at", "terminated_at", "error", "interruption_ptr")
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "value", "type", "target_ptr", "status", "duration", "scheduled_at", "started_at", "seen_at", "interrupted_at", "terminated_at", "error", "interruption_ptr")
     class ValueEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -5653,7 +5927,7 @@ class RunData(_message.Message):
     DURATION_FIELD_NUMBER: _ClassVar[int]
     SCHEDULED_AT_FIELD_NUMBER: _ClassVar[int]
     STARTED_AT_FIELD_NUMBER: _ClassVar[int]
-    ACTIVE_AT_FIELD_NUMBER: _ClassVar[int]
+    SEEN_AT_FIELD_NUMBER: _ClassVar[int]
     INTERRUPTED_AT_FIELD_NUMBER: _ClassVar[int]
     TERMINATED_AT_FIELD_NUMBER: _ClassVar[int]
     ERROR_FIELD_NUMBER: _ClassVar[int]
@@ -5673,12 +5947,38 @@ class RunData(_message.Message):
     duration: _duration_pb2.Duration
     scheduled_at: _timestamp_pb2.Timestamp
     started_at: _timestamp_pb2.Timestamp
-    active_at: _timestamp_pb2.Timestamp
+    seen_at: _timestamp_pb2.Timestamp
     interrupted_at: _timestamp_pb2.Timestamp
     terminated_at: _timestamp_pb2.Timestamp
     error: ErrorData
     interruption_ptr: NodeReferenceData
-    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., value: _Optional[_Mapping[str, ValueData]] = ..., type: _Optional[_Union[RunType, str]] = ..., target_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., status: _Optional[_Union[RunStatus, str]] = ..., duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., scheduled_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., started_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., active_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., interrupted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., terminated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., error: _Optional[_Union[ErrorData, _Mapping]] = ..., interruption_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., value: _Optional[_Mapping[str, ValueData]] = ..., type: _Optional[_Union[RunType, str]] = ..., target_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., status: _Optional[_Union[RunStatus, str]] = ..., duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., scheduled_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., started_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., seen_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., interrupted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., terminated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., error: _Optional[_Union[ErrorData, _Mapping]] = ..., interruption_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+
+class RunEventData(_message.Message):
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "type", "node_ptr", "target_ptr")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
+    SPACE_PTR_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    NODE_PTR_FIELD_NUMBER: _ClassVar[int]
+    TARGET_PTR_FIELD_NUMBER: _ClassVar[int]
+    metatype: NodeType
+    id: str
+    parent_ptr: NodeReferenceData
+    space_ptr: NodeReferenceData
+    created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
+    updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
+    type: RunEventType
+    node_ptr: NodeReferenceData
+    target_ptr: NodeReferenceData
+    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., type: _Optional[_Union[RunEventType, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., target_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class SceneData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "value", "order_key", "owned_by_ptr", "name", "icon", "position", "width", "height", "min_width", "min_height", "max_width", "max_height", "layout", "direction", "distribute", "align", "gap", "padding", "grid", "grid_span", "aspect_ratio", "is_wrap", "is_visible", "opacity", "fill", "rotation", "skew", "scale", "shadow", "border", "radius", "root_view_ptr", "script_ptr")
@@ -5776,6 +6076,30 @@ class SceneData(_message.Message):
     root_view_ptr: NodeReferenceData
     script_ptr: NodeReferenceData
     def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., value: _Optional[_Mapping[str, ValueData]] = ..., order_key: _Optional[str] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., position: _Optional[_Union[PositionData, _Mapping]] = ..., width: _Optional[_Union[DimensionData, _Mapping]] = ..., height: _Optional[_Union[DimensionData, _Mapping]] = ..., min_width: _Optional[_Union[DimensionData, _Mapping]] = ..., min_height: _Optional[_Union[DimensionData, _Mapping]] = ..., max_width: _Optional[_Union[DimensionData, _Mapping]] = ..., max_height: _Optional[_Union[DimensionData, _Mapping]] = ..., layout: _Optional[_Union[Layout, str]] = ..., direction: _Optional[_Union[Direction, str]] = ..., distribute: _Optional[_Union[Distribute, str]] = ..., align: _Optional[_Union[Align, str]] = ..., gap: _Optional[_Union[Axis2Data, _Mapping]] = ..., padding: _Optional[_Union[InsetsData, _Mapping]] = ..., grid: _Optional[_Union[GridData, _Mapping]] = ..., grid_span: _Optional[_Union[GridSpanData, _Mapping]] = ..., aspect_ratio: _Optional[float] = ..., is_wrap: bool = ..., is_visible: bool = ..., opacity: _Optional[float] = ..., fill: _Optional[_Union[FillData, _Mapping]] = ..., rotation: _Optional[_Union[Axis3Data, _Mapping]] = ..., skew: _Optional[_Union[Vector2Data, _Mapping]] = ..., scale: _Optional[float] = ..., shadow: _Optional[_Union[ShadowData, _Mapping]] = ..., border: _Optional[_Union[BorderData, _Mapping]] = ..., radius: _Optional[_Union[CornersData, _Mapping]] = ..., root_view_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., script_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+
+class SceneEventData(_message.Message):
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "type", "node_ptr")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
+    SPACE_PTR_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    NODE_PTR_FIELD_NUMBER: _ClassVar[int]
+    metatype: NodeType
+    id: str
+    parent_ptr: NodeReferenceData
+    space_ptr: NodeReferenceData
+    created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
+    updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
+    type: SceneEventType
+    node_ptr: NodeReferenceData
+    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., type: _Optional[_Union[SceneEventType, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class ScheduleData(_message.Message):
     __slots__ = ("metatype", "frequency", "interval", "start", "end", "count", "week_start", "by_set_pos", "by_month", "by_month_day", "by_year_day", "by_easter", "by_week_no", "by_week_day", "by_hour", "by_minute", "by_second")
@@ -6690,6 +7014,30 @@ class TimerData(_message.Message):
     schedule: ScheduleData
     def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., type: _Optional[_Union[TimerType, str]] = ..., name: _Optional[str] = ..., schedule: _Optional[_Union[ScheduleData, _Mapping]] = ...) -> None: ...
 
+class TimerEventData(_message.Message):
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "type", "node_ptr")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
+    SPACE_PTR_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    NODE_PTR_FIELD_NUMBER: _ClassVar[int]
+    metatype: NodeType
+    id: str
+    parent_ptr: NodeReferenceData
+    space_ptr: NodeReferenceData
+    created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
+    updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
+    type: TimerEventType
+    node_ptr: NodeReferenceData
+    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., type: _Optional[_Union[TimerEventType, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+
 class TraitInfoData(_message.Message):
     __slots__ = ("metatype", "id", "type", "name", "icon", "description", "properties", "nodes")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -6822,6 +7170,30 @@ class TriggerData(_message.Message):
     target_ptr: NodeReferenceData
     arguments: _containers.MessageMap[str, ValueData]
     def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., type: _Optional[_Union[TriggerType, str]] = ..., name: _Optional[str] = ..., event: _Optional[_Union[RelationReferenceData, _Mapping]] = ..., where: _Optional[_Union[ConditionData, _Mapping]] = ..., target_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., arguments: _Optional[_Mapping[str, ValueData]] = ...) -> None: ...
+
+class TriggerEventData(_message.Message):
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "type", "node_ptr")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
+    SPACE_PTR_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    NODE_PTR_FIELD_NUMBER: _ClassVar[int]
+    metatype: NodeType
+    id: str
+    parent_ptr: NodeReferenceData
+    space_ptr: NodeReferenceData
+    created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
+    updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
+    type: TriggerEventType
+    node_ptr: NodeReferenceData
+    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., type: _Optional[_Union[TriggerEventType, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class TypeData(_message.Message):
     __slots__ = ("metatype", "cardinality", "scalar_type", "primitive_type", "enum_type", "node_type", "node_definition_ptr", "struct_type", "base_type_ptr", "key_type", "is_required", "is_variable", "default", "default_factory", "collection_constraint", "string_constraint", "number_constraint", "node_constraint")
@@ -7084,17 +7456,21 @@ class WizardViewData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., order_key: _Optional[str] = ..., name: _Optional[str] = ..., position: _Optional[_Union[PositionData, _Mapping]] = ..., width: _Optional[_Union[DimensionData, _Mapping]] = ..., height: _Optional[_Union[DimensionData, _Mapping]] = ..., min_width: _Optional[_Union[DimensionData, _Mapping]] = ..., min_height: _Optional[_Union[DimensionData, _Mapping]] = ..., max_width: _Optional[_Union[DimensionData, _Mapping]] = ..., max_height: _Optional[_Union[DimensionData, _Mapping]] = ..., script_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class SomeNodeData(_message.Message):
-    __slots__ = ("space", "handle", "user", "friendship", "friendship_invite", "organization", "client", "membership", "invite", "role", "folder", "tag", "tagging", "custom_entity_definition", "custom_entity", "schema", "field", "option", "file", "link", "script", "service", "action", "route", "trigger", "timer", "event_cursor", "screen_cursor", "thread_cursor", "run", "span", "interruption", "log", "custom_event_definition", "custom_event", "edit_event", "gauge_metric", "gauge_measurement", "counter_metric", "counter_measurement", "histogram_metric", "histogram_measurement", "environment", "thread", "message", "reaction", "star", "follow", "notification", "database", "machine", "window", "scene", "layer", "custom_view_definition", "custom_view", "frame_view", "label_view", "split_view", "text_view", "number_input_view", "slider_input_view", "thread_view", "wizard_view", "canvas", "line_shape", "plane_shape", "arrow_shape", "annotation_shape", "theme", "color_style", "fill_style", "font_style", "border_style", "shadow_style", "gradient_style", "transition_style", "effect_style")
+    __slots__ = ("space", "handle", "user", "friendship", "friendship_invite", "friendship_invite_event", "organization", "client", "membership", "membership_event", "invite", "invite_event", "role", "role_event", "folder", "tag", "tagging", "custom_entity_definition", "custom_entity", "schema", "field", "option", "file", "link", "script", "service", "action", "route", "trigger", "trigger_event", "timer", "timer_event", "event_cursor", "screen_cursor", "thread_cursor", "run", "span", "interruption", "log", "gauge_metric", "gauge_measurement", "counter_metric", "counter_measurement", "histogram_metric", "histogram_measurement", "custom_event_definition", "custom_event", "edit_event", "run_event", "environment", "thread", "message", "reaction", "star", "follow", "notification", "notification_event", "database", "machine", "window", "scene", "scene_event", "layer", "custom_view_definition", "custom_view", "frame_view", "label_view", "split_view", "text_view", "number_input_view", "slider_input_view", "thread_view", "wizard_view", "canvas", "line_shape", "plane_shape", "arrow_shape", "annotation_shape", "theme", "color_style", "fill_style", "font_style", "border_style", "shadow_style", "gradient_style", "transition_style", "effect_style")
     SPACE_FIELD_NUMBER: _ClassVar[int]
     HANDLE_FIELD_NUMBER: _ClassVar[int]
     USER_FIELD_NUMBER: _ClassVar[int]
     FRIENDSHIP_FIELD_NUMBER: _ClassVar[int]
     FRIENDSHIP_INVITE_FIELD_NUMBER: _ClassVar[int]
+    FRIENDSHIP_INVITE_EVENT_FIELD_NUMBER: _ClassVar[int]
     ORGANIZATION_FIELD_NUMBER: _ClassVar[int]
     CLIENT_FIELD_NUMBER: _ClassVar[int]
     MEMBERSHIP_FIELD_NUMBER: _ClassVar[int]
+    MEMBERSHIP_EVENT_FIELD_NUMBER: _ClassVar[int]
     INVITE_FIELD_NUMBER: _ClassVar[int]
+    INVITE_EVENT_FIELD_NUMBER: _ClassVar[int]
     ROLE_FIELD_NUMBER: _ClassVar[int]
+    ROLE_EVENT_FIELD_NUMBER: _ClassVar[int]
     FOLDER_FIELD_NUMBER: _ClassVar[int]
     TAG_FIELD_NUMBER: _ClassVar[int]
     TAGGING_FIELD_NUMBER: _ClassVar[int]
@@ -7110,7 +7486,9 @@ class SomeNodeData(_message.Message):
     ACTION_FIELD_NUMBER: _ClassVar[int]
     ROUTE_FIELD_NUMBER: _ClassVar[int]
     TRIGGER_FIELD_NUMBER: _ClassVar[int]
+    TRIGGER_EVENT_FIELD_NUMBER: _ClassVar[int]
     TIMER_FIELD_NUMBER: _ClassVar[int]
+    TIMER_EVENT_FIELD_NUMBER: _ClassVar[int]
     EVENT_CURSOR_FIELD_NUMBER: _ClassVar[int]
     SCREEN_CURSOR_FIELD_NUMBER: _ClassVar[int]
     THREAD_CURSOR_FIELD_NUMBER: _ClassVar[int]
@@ -7118,15 +7496,16 @@ class SomeNodeData(_message.Message):
     SPAN_FIELD_NUMBER: _ClassVar[int]
     INTERRUPTION_FIELD_NUMBER: _ClassVar[int]
     LOG_FIELD_NUMBER: _ClassVar[int]
-    CUSTOM_EVENT_DEFINITION_FIELD_NUMBER: _ClassVar[int]
-    CUSTOM_EVENT_FIELD_NUMBER: _ClassVar[int]
-    EDIT_EVENT_FIELD_NUMBER: _ClassVar[int]
     GAUGE_METRIC_FIELD_NUMBER: _ClassVar[int]
     GAUGE_MEASUREMENT_FIELD_NUMBER: _ClassVar[int]
     COUNTER_METRIC_FIELD_NUMBER: _ClassVar[int]
     COUNTER_MEASUREMENT_FIELD_NUMBER: _ClassVar[int]
     HISTOGRAM_METRIC_FIELD_NUMBER: _ClassVar[int]
     HISTOGRAM_MEASUREMENT_FIELD_NUMBER: _ClassVar[int]
+    CUSTOM_EVENT_DEFINITION_FIELD_NUMBER: _ClassVar[int]
+    CUSTOM_EVENT_FIELD_NUMBER: _ClassVar[int]
+    EDIT_EVENT_FIELD_NUMBER: _ClassVar[int]
+    RUN_EVENT_FIELD_NUMBER: _ClassVar[int]
     ENVIRONMENT_FIELD_NUMBER: _ClassVar[int]
     THREAD_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
@@ -7134,10 +7513,12 @@ class SomeNodeData(_message.Message):
     STAR_FIELD_NUMBER: _ClassVar[int]
     FOLLOW_FIELD_NUMBER: _ClassVar[int]
     NOTIFICATION_FIELD_NUMBER: _ClassVar[int]
+    NOTIFICATION_EVENT_FIELD_NUMBER: _ClassVar[int]
     DATABASE_FIELD_NUMBER: _ClassVar[int]
     MACHINE_FIELD_NUMBER: _ClassVar[int]
     WINDOW_FIELD_NUMBER: _ClassVar[int]
     SCENE_FIELD_NUMBER: _ClassVar[int]
+    SCENE_EVENT_FIELD_NUMBER: _ClassVar[int]
     LAYER_FIELD_NUMBER: _ClassVar[int]
     CUSTOM_VIEW_DEFINITION_FIELD_NUMBER: _ClassVar[int]
     CUSTOM_VIEW_FIELD_NUMBER: _ClassVar[int]
@@ -7168,11 +7549,15 @@ class SomeNodeData(_message.Message):
     user: UserData
     friendship: FriendshipData
     friendship_invite: FriendshipInviteData
+    friendship_invite_event: FriendshipInviteEventData
     organization: OrganizationData
     client: ClientData
     membership: MembershipData
+    membership_event: MembershipEventData
     invite: InviteData
+    invite_event: InviteEventData
     role: RoleData
+    role_event: RoleEventData
     folder: FolderData
     tag: TagData
     tagging: TaggingData
@@ -7188,7 +7573,9 @@ class SomeNodeData(_message.Message):
     action: ActionData
     route: RouteData
     trigger: TriggerData
+    trigger_event: TriggerEventData
     timer: TimerData
+    timer_event: TimerEventData
     event_cursor: EventCursorData
     screen_cursor: ScreenCursorData
     thread_cursor: ThreadCursorData
@@ -7196,15 +7583,16 @@ class SomeNodeData(_message.Message):
     span: SpanData
     interruption: InterruptionData
     log: LogData
-    custom_event_definition: CustomEventDefinitionData
-    custom_event: CustomEventData
-    edit_event: EditEventData
     gauge_metric: GaugeMetricData
     gauge_measurement: GaugeMeasurementData
     counter_metric: CounterMetricData
     counter_measurement: CounterMeasurementData
     histogram_metric: HistogramMetricData
     histogram_measurement: HistogramMeasurementData
+    custom_event_definition: CustomEventDefinitionData
+    custom_event: CustomEventData
+    edit_event: EditEventData
+    run_event: RunEventData
     environment: EnvironmentData
     thread: ThreadData
     message: MessageData
@@ -7212,10 +7600,12 @@ class SomeNodeData(_message.Message):
     star: StarData
     follow: FollowData
     notification: NotificationData
+    notification_event: NotificationEventData
     database: DatabaseData
     machine: MachineData
     window: WindowData
     scene: SceneData
+    scene_event: SceneEventData
     layer: LayerData
     custom_view_definition: CustomViewDefinitionData
     custom_view: CustomViewData
@@ -7241,4 +7631,4 @@ class SomeNodeData(_message.Message):
     gradient_style: GradientStyleData
     transition_style: TransitionStyleData
     effect_style: EffectStyleData
-    def __init__(self, space: _Optional[_Union[SpaceData, _Mapping]] = ..., handle: _Optional[_Union[HandleData, _Mapping]] = ..., user: _Optional[_Union[UserData, _Mapping]] = ..., friendship: _Optional[_Union[FriendshipData, _Mapping]] = ..., friendship_invite: _Optional[_Union[FriendshipInviteData, _Mapping]] = ..., organization: _Optional[_Union[OrganizationData, _Mapping]] = ..., client: _Optional[_Union[ClientData, _Mapping]] = ..., membership: _Optional[_Union[MembershipData, _Mapping]] = ..., invite: _Optional[_Union[InviteData, _Mapping]] = ..., role: _Optional[_Union[RoleData, _Mapping]] = ..., folder: _Optional[_Union[FolderData, _Mapping]] = ..., tag: _Optional[_Union[TagData, _Mapping]] = ..., tagging: _Optional[_Union[TaggingData, _Mapping]] = ..., custom_entity_definition: _Optional[_Union[CustomEntityDefinitionData, _Mapping]] = ..., custom_entity: _Optional[_Union[CustomEntityData, _Mapping]] = ..., schema: _Optional[_Union[SchemaData, _Mapping]] = ..., field: _Optional[_Union[FieldData, _Mapping]] = ..., option: _Optional[_Union[OptionData, _Mapping]] = ..., file: _Optional[_Union[FileData, _Mapping]] = ..., link: _Optional[_Union[LinkData, _Mapping]] = ..., script: _Optional[_Union[ScriptData, _Mapping]] = ..., service: _Optional[_Union[ServiceData, _Mapping]] = ..., action: _Optional[_Union[ActionData, _Mapping]] = ..., route: _Optional[_Union[RouteData, _Mapping]] = ..., trigger: _Optional[_Union[TriggerData, _Mapping]] = ..., timer: _Optional[_Union[TimerData, _Mapping]] = ..., event_cursor: _Optional[_Union[EventCursorData, _Mapping]] = ..., screen_cursor: _Optional[_Union[ScreenCursorData, _Mapping]] = ..., thread_cursor: _Optional[_Union[ThreadCursorData, _Mapping]] = ..., run: _Optional[_Union[RunData, _Mapping]] = ..., span: _Optional[_Union[SpanData, _Mapping]] = ..., interruption: _Optional[_Union[InterruptionData, _Mapping]] = ..., log: _Optional[_Union[LogData, _Mapping]] = ..., custom_event_definition: _Optional[_Union[CustomEventDefinitionData, _Mapping]] = ..., custom_event: _Optional[_Union[CustomEventData, _Mapping]] = ..., edit_event: _Optional[_Union[EditEventData, _Mapping]] = ..., gauge_metric: _Optional[_Union[GaugeMetricData, _Mapping]] = ..., gauge_measurement: _Optional[_Union[GaugeMeasurementData, _Mapping]] = ..., counter_metric: _Optional[_Union[CounterMetricData, _Mapping]] = ..., counter_measurement: _Optional[_Union[CounterMeasurementData, _Mapping]] = ..., histogram_metric: _Optional[_Union[HistogramMetricData, _Mapping]] = ..., histogram_measurement: _Optional[_Union[HistogramMeasurementData, _Mapping]] = ..., environment: _Optional[_Union[EnvironmentData, _Mapping]] = ..., thread: _Optional[_Union[ThreadData, _Mapping]] = ..., message: _Optional[_Union[MessageData, _Mapping]] = ..., reaction: _Optional[_Union[ReactionData, _Mapping]] = ..., star: _Optional[_Union[StarData, _Mapping]] = ..., follow: _Optional[_Union[FollowData, _Mapping]] = ..., notification: _Optional[_Union[NotificationData, _Mapping]] = ..., database: _Optional[_Union[DatabaseData, _Mapping]] = ..., machine: _Optional[_Union[MachineData, _Mapping]] = ..., window: _Optional[_Union[WindowData, _Mapping]] = ..., scene: _Optional[_Union[SceneData, _Mapping]] = ..., layer: _Optional[_Union[LayerData, _Mapping]] = ..., custom_view_definition: _Optional[_Union[CustomViewDefinitionData, _Mapping]] = ..., custom_view: _Optional[_Union[CustomViewData, _Mapping]] = ..., frame_view: _Optional[_Union[FrameViewData, _Mapping]] = ..., label_view: _Optional[_Union[LabelViewData, _Mapping]] = ..., split_view: _Optional[_Union[SplitViewData, _Mapping]] = ..., text_view: _Optional[_Union[TextViewData, _Mapping]] = ..., number_input_view: _Optional[_Union[NumberInputViewData, _Mapping]] = ..., slider_input_view: _Optional[_Union[SliderInputViewData, _Mapping]] = ..., thread_view: _Optional[_Union[ThreadViewData, _Mapping]] = ..., wizard_view: _Optional[_Union[WizardViewData, _Mapping]] = ..., canvas: _Optional[_Union[CanvasData, _Mapping]] = ..., line_shape: _Optional[_Union[LineShapeData, _Mapping]] = ..., plane_shape: _Optional[_Union[PlaneShapeData, _Mapping]] = ..., arrow_shape: _Optional[_Union[ArrowShapeData, _Mapping]] = ..., annotation_shape: _Optional[_Union[AnnotationShapeData, _Mapping]] = ..., theme: _Optional[_Union[ThemeData, _Mapping]] = ..., color_style: _Optional[_Union[ColorStyleData, _Mapping]] = ..., fill_style: _Optional[_Union[FillStyleData, _Mapping]] = ..., font_style: _Optional[_Union[FontStyleData, _Mapping]] = ..., border_style: _Optional[_Union[BorderStyleData, _Mapping]] = ..., shadow_style: _Optional[_Union[ShadowStyleData, _Mapping]] = ..., gradient_style: _Optional[_Union[GradientStyleData, _Mapping]] = ..., transition_style: _Optional[_Union[TransitionStyleData, _Mapping]] = ..., effect_style: _Optional[_Union[EffectStyleData, _Mapping]] = ...) -> None: ...
+    def __init__(self, space: _Optional[_Union[SpaceData, _Mapping]] = ..., handle: _Optional[_Union[HandleData, _Mapping]] = ..., user: _Optional[_Union[UserData, _Mapping]] = ..., friendship: _Optional[_Union[FriendshipData, _Mapping]] = ..., friendship_invite: _Optional[_Union[FriendshipInviteData, _Mapping]] = ..., friendship_invite_event: _Optional[_Union[FriendshipInviteEventData, _Mapping]] = ..., organization: _Optional[_Union[OrganizationData, _Mapping]] = ..., client: _Optional[_Union[ClientData, _Mapping]] = ..., membership: _Optional[_Union[MembershipData, _Mapping]] = ..., membership_event: _Optional[_Union[MembershipEventData, _Mapping]] = ..., invite: _Optional[_Union[InviteData, _Mapping]] = ..., invite_event: _Optional[_Union[InviteEventData, _Mapping]] = ..., role: _Optional[_Union[RoleData, _Mapping]] = ..., role_event: _Optional[_Union[RoleEventData, _Mapping]] = ..., folder: _Optional[_Union[FolderData, _Mapping]] = ..., tag: _Optional[_Union[TagData, _Mapping]] = ..., tagging: _Optional[_Union[TaggingData, _Mapping]] = ..., custom_entity_definition: _Optional[_Union[CustomEntityDefinitionData, _Mapping]] = ..., custom_entity: _Optional[_Union[CustomEntityData, _Mapping]] = ..., schema: _Optional[_Union[SchemaData, _Mapping]] = ..., field: _Optional[_Union[FieldData, _Mapping]] = ..., option: _Optional[_Union[OptionData, _Mapping]] = ..., file: _Optional[_Union[FileData, _Mapping]] = ..., link: _Optional[_Union[LinkData, _Mapping]] = ..., script: _Optional[_Union[ScriptData, _Mapping]] = ..., service: _Optional[_Union[ServiceData, _Mapping]] = ..., action: _Optional[_Union[ActionData, _Mapping]] = ..., route: _Optional[_Union[RouteData, _Mapping]] = ..., trigger: _Optional[_Union[TriggerData, _Mapping]] = ..., trigger_event: _Optional[_Union[TriggerEventData, _Mapping]] = ..., timer: _Optional[_Union[TimerData, _Mapping]] = ..., timer_event: _Optional[_Union[TimerEventData, _Mapping]] = ..., event_cursor: _Optional[_Union[EventCursorData, _Mapping]] = ..., screen_cursor: _Optional[_Union[ScreenCursorData, _Mapping]] = ..., thread_cursor: _Optional[_Union[ThreadCursorData, _Mapping]] = ..., run: _Optional[_Union[RunData, _Mapping]] = ..., span: _Optional[_Union[SpanData, _Mapping]] = ..., interruption: _Optional[_Union[InterruptionData, _Mapping]] = ..., log: _Optional[_Union[LogData, _Mapping]] = ..., gauge_metric: _Optional[_Union[GaugeMetricData, _Mapping]] = ..., gauge_measurement: _Optional[_Union[GaugeMeasurementData, _Mapping]] = ..., counter_metric: _Optional[_Union[CounterMetricData, _Mapping]] = ..., counter_measurement: _Optional[_Union[CounterMeasurementData, _Mapping]] = ..., histogram_metric: _Optional[_Union[HistogramMetricData, _Mapping]] = ..., histogram_measurement: _Optional[_Union[HistogramMeasurementData, _Mapping]] = ..., custom_event_definition: _Optional[_Union[CustomEventDefinitionData, _Mapping]] = ..., custom_event: _Optional[_Union[CustomEventData, _Mapping]] = ..., edit_event: _Optional[_Union[EditEventData, _Mapping]] = ..., run_event: _Optional[_Union[RunEventData, _Mapping]] = ..., environment: _Optional[_Union[EnvironmentData, _Mapping]] = ..., thread: _Optional[_Union[ThreadData, _Mapping]] = ..., message: _Optional[_Union[MessageData, _Mapping]] = ..., reaction: _Optional[_Union[ReactionData, _Mapping]] = ..., star: _Optional[_Union[StarData, _Mapping]] = ..., follow: _Optional[_Union[FollowData, _Mapping]] = ..., notification: _Optional[_Union[NotificationData, _Mapping]] = ..., notification_event: _Optional[_Union[NotificationEventData, _Mapping]] = ..., database: _Optional[_Union[DatabaseData, _Mapping]] = ..., machine: _Optional[_Union[MachineData, _Mapping]] = ..., window: _Optional[_Union[WindowData, _Mapping]] = ..., scene: _Optional[_Union[SceneData, _Mapping]] = ..., scene_event: _Optional[_Union[SceneEventData, _Mapping]] = ..., layer: _Optional[_Union[LayerData, _Mapping]] = ..., custom_view_definition: _Optional[_Union[CustomViewDefinitionData, _Mapping]] = ..., custom_view: _Optional[_Union[CustomViewData, _Mapping]] = ..., frame_view: _Optional[_Union[FrameViewData, _Mapping]] = ..., label_view: _Optional[_Union[LabelViewData, _Mapping]] = ..., split_view: _Optional[_Union[SplitViewData, _Mapping]] = ..., text_view: _Optional[_Union[TextViewData, _Mapping]] = ..., number_input_view: _Optional[_Union[NumberInputViewData, _Mapping]] = ..., slider_input_view: _Optional[_Union[SliderInputViewData, _Mapping]] = ..., thread_view: _Optional[_Union[ThreadViewData, _Mapping]] = ..., wizard_view: _Optional[_Union[WizardViewData, _Mapping]] = ..., canvas: _Optional[_Union[CanvasData, _Mapping]] = ..., line_shape: _Optional[_Union[LineShapeData, _Mapping]] = ..., plane_shape: _Optional[_Union[PlaneShapeData, _Mapping]] = ..., arrow_shape: _Optional[_Union[ArrowShapeData, _Mapping]] = ..., annotation_shape: _Optional[_Union[AnnotationShapeData, _Mapping]] = ..., theme: _Optional[_Union[ThemeData, _Mapping]] = ..., color_style: _Optional[_Union[ColorStyleData, _Mapping]] = ..., fill_style: _Optional[_Union[FillStyleData, _Mapping]] = ..., font_style: _Optional[_Union[FontStyleData, _Mapping]] = ..., border_style: _Optional[_Union[BorderStyleData, _Mapping]] = ..., shadow_style: _Optional[_Union[ShadowStyleData, _Mapping]] = ..., gradient_style: _Optional[_Union[GradientStyleData, _Mapping]] = ..., transition_style: _Optional[_Union[TransitionStyleData, _Mapping]] = ..., effect_style: _Optional[_Union[EffectStyleData, _Mapping]] = ...) -> None: ...

@@ -13,7 +13,7 @@ from destack.language.core import (
     node_,
     property_,
 )
-from destack.pb2 import NotificationData
+from destack.pb2 import NotificationData, NotificationEventData
 
 if TYPE_CHECKING:
     from destack.language import Text
@@ -45,9 +45,8 @@ class NotificationEventType(BuiltinEnum):
 
 @node_(NodeType.NOTIFICATION_EVENT)
 class NotificationEvent(
-    Spatial,
     Event["Notification"],
-    Node["NotificationEventData"],
+    Node[NotificationEventData],
 ):
     """A Event regarding a Notification."""
 

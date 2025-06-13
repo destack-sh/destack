@@ -8,13 +8,12 @@ from destack.language.core import (
     IsOwnable,
     Node,
     NodeType,
-    Spatial,
     enum_,
     node_,
     property_,
     property_parent_,
 )
-from destack.pb2 import SceneData
+from destack.pb2 import SceneData, SceneEventData
 
 from ..view import ContainerView
 
@@ -34,9 +33,8 @@ class SceneEventType(BuiltinEnum):
 
 @node_(NodeType.SCENE_EVENT)
 class SceneEvent(
-    Spatial,
     Event["Scene"],
-    Node["SceneEventData"],
+    Node[SceneEventData],
 ):
     """A Event regarding a Scene."""
 

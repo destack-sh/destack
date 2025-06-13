@@ -15,7 +15,7 @@ from destack.language.core import (
     node_,
     property_,
 )
-from destack.pb2 import FriendshipData, FriendshipInviteData
+from destack.pb2 import FriendshipData, FriendshipInviteData, FriendshipInviteEventData
 
 if TYPE_CHECKING:
     from destack.language import User
@@ -47,9 +47,8 @@ class FriendshipInviteEventType(BuiltinEnum):
 
 @node_(NodeType.FRIENDSHIP_INVITE_EVENT)
 class FriendshipInviteEvent(
-    Global,
     Event["FriendshipInvite"],
-    Node["FriendshipInviteEventData"],
+    Node[FriendshipInviteEventData],
 ):
     """A Event regarding a Friendship Invite."""
 
