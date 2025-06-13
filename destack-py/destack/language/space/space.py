@@ -72,8 +72,8 @@ class Space(
     slug: str = property_(33, is_repr=True)
     status: SpaceStatus = property_(40, is_repr=True, can_write="system")
     handle: Optional["Handle"] = property_(41, node_space_from="self", can_write="system")
-    root_folder: Optional["Folder"] = property_(
-        42, node_space_from="self", can_write="system", description="The root Folder."
+    system_folder: Optional["Folder"] = property_(
+        42, node_space_from="self", can_write="system", description="The system Folder."
     )
     home_folder: Optional["Folder"] = property_(
         43, node_space_from="self", can_write="system", description="The home Folder."

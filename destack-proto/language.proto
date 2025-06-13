@@ -283,26 +283,10 @@ enum EffectType {
 
 enum EnumType {
   ENUM_TYPE_UNSPECIFIED = 0;
-  ENUM_TYPE_ENUM_TYPE = 1;
-  ENUM_TYPE_NODE_TYPE = 2;
-  ENUM_TYPE_STRUCT_TYPE = 3;
-  ENUM_TYPE_TRAIT_TYPE = 5;
-  ENUM_TYPE_STORE_ZONE = 6;
-  ENUM_TYPE_STORE_TYPE = 7;
-  ENUM_TYPE_STORE_IMPLEMENTATION = 8;
-  ENUM_TYPE_PROPERTY_REFERENCE_TYPE = 9;
-  ENUM_TYPE_PLATFORM_TYPE = 10;
-  ENUM_TYPE_RUNTIME_TYPE = 11;
-  ENUM_TYPE_OPERATING_SYSTEM = 12;
+  ENUM_TYPE_SPACE_STATUS = 1;
   ENUM_TYPE_USER_STATUS = 20;
-  ENUM_TYPE_ORGANIZATION_STATUS = 21;
-  ENUM_TYPE_SPACE_STATUS = 57;
-  ENUM_TYPE_FOLDER_TYPE = 51;
-  ENUM_TYPE_ERROR_TYPE = 62;
-  ENUM_TYPE_VARIABLE_TYPE = 64;
-  ENUM_TYPE_EDIT_TYPE = 71;
-  ENUM_TYPE_EDIT_OPERATION = 72;
-  ENUM_TYPE_CHANGE_STATUS = 76;
+  ENUM_TYPE_FRIENDSHIP_INVITE_EVENT_TYPE = 31;
+  ENUM_TYPE_ORGANIZATION_STATUS = 40;
   ENUM_TYPE_CLIENT_TYPE = 100;
   ENUM_TYPE_CONDITIONAL_TYPE = 103;
   ENUM_TYPE_AGGREGATION_TYPE = 104;
@@ -311,16 +295,14 @@ enum EnumType {
   ENUM_TYPE_JOIN_TYPE = 107;
   ENUM_TYPE_FUNCTION_TYPE = 108;
   ENUM_TYPE_EXPRESSION_TYPE = 109;
-  ENUM_TYPE_RELATION_TYPE = 110;
-  ENUM_TYPE_ATTRIBUTE_TYPE = 111;
   ENUM_TYPE_QUERY_TYPE = 120;
   ENUM_TYPE_QUERY_UPDATE_TYPE = 121;
-  ENUM_TYPE_ROLE_TYPE = 400;
-  ENUM_TYPE_MEMBERSHIP_EVENT_TYPE = 401;
-  ENUM_TYPE_INVITE_EVENT_TYPE = 402;
-  ENUM_TYPE_ROLE_EVENT_TYPE = 403;
-  ENUM_TYPE_FRIENDSHIP_INVITE_EVENT_TYPE = 405;
-  ENUM_TYPE_WINDOW_TYPE = 601;
+  ENUM_TYPE_MEMBERSHIP_EVENT_TYPE = 400;
+  ENUM_TYPE_MEMBERSHIP_PERMISSION = 401;
+  ENUM_TYPE_INVITE_EVENT_TYPE = 410;
+  ENUM_TYPE_ROLE_TYPE = 420;
+  ENUM_TYPE_ROLE_EVENT_TYPE = 421;
+  ENUM_TYPE_FOLDER_TYPE = 600;
   ENUM_TYPE_TEXT_LINE_TYPE = 1401;
   ENUM_TYPE_TEXT_SPAN_TYPE = 1402;
   ENUM_TYPE_FILE_RETENTION_MODE = 1421;
@@ -335,7 +317,6 @@ enum EnumType {
   ENUM_TYPE_DEFAULT_FACTORY = 1504;
   ENUM_TYPE_STRING_FORMAT = 1511;
   ENUM_TYPE_NUMBER_FORMAT = 1512;
-  ENUM_TYPE_SCHEMA_TYPE = 1520;
   ENUM_TYPE_FIELD_TYPE = 1521;
   ENUM_TYPE_EDGE_TYPE = 1522;
   ENUM_TYPE_EDGE_DIRECTION = 1523;
@@ -370,8 +351,9 @@ enum EnumType {
   ENUM_TYPE_MACHINE_TYPE = 5020;
   ENUM_TYPE_MODEL_DEVELOPER = 5401;
   ENUM_TYPE_MODEL_PROVIDER = 5402;
-  ENUM_TYPE_LAYER_TYPE = 8001;
-  ENUM_TYPE_SCENE_EVENT_TYPE = 8010;
+  ENUM_TYPE_WINDOW_TYPE = 8000;
+  ENUM_TYPE_SCENE_EVENT_TYPE = 8011;
+  ENUM_TYPE_LAYER_TYPE = 8020;
   ENUM_TYPE_CANVAS_TYPE = 8600;
   ENUM_TYPE_PLANE_SHAPE_TYPE = 8601;
   ENUM_TYPE_ARROW_HEAD_TYPE = 8602;
@@ -407,6 +389,23 @@ enum EnumType {
   ENUM_TYPE_REPEAT_TYPE = 9082;
   ENUM_TYPE_TEXT_SPLIT_TYPE = 9084;
   ENUM_TYPE_OFFSCREEN_BEHAVIOR = 9085;
+  ENUM_TYPE_ENUM_TYPE = 10000;
+  ENUM_TYPE_NODE_TYPE = 10001;
+  ENUM_TYPE_STRUCT_TYPE = 10002;
+  ENUM_TYPE_TRAIT_TYPE = 10003;
+  ENUM_TYPE_RELATION_TYPE = 10010;
+  ENUM_TYPE_ATTRIBUTE_TYPE = 10011;
+  ENUM_TYPE_PROPERTY_REFERENCE_TYPE = 10012;
+  ENUM_TYPE_STORE_ZONE = 10020;
+  ENUM_TYPE_STORE_TYPE = 10021;
+  ENUM_TYPE_STORE_IMPLEMENTATION = 10022;
+  ENUM_TYPE_PLATFORM_TYPE = 10030;
+  ENUM_TYPE_RUNTIME_TYPE = 10031;
+  ENUM_TYPE_OPERATING_SYSTEM = 10040;
+  ENUM_TYPE_ERROR_TYPE = 10041;
+  ENUM_TYPE_EDIT_TYPE = 10050;
+  ENUM_TYPE_EDIT_OPERATION = 10051;
+  ENUM_TYPE_CHANGE_STATUS = 10060;
 }
 
 enum EnvironmentType {
@@ -769,6 +768,13 @@ enum MembershipEventType {
   MEMBERSHIP_EVENT_TYPE_LEAVE = 2;
 }
 
+// A Permission for a Membership.
+enum MembershipPermission {
+  MEMBERSHIP_PERMISSION_UNSPECIFIED = 0;
+  MEMBERSHIP_PERMISSION_KICK = 10;
+  MEMBERSHIP_PERMISSION_BAN = 11;
+}
+
 enum ModelDeveloper {
   MODEL_DEVELOPER_UNSPECIFIED = 0;
   MODEL_DEVELOPER_OPENAI = 1010;
@@ -824,11 +830,12 @@ enum NodeType {
   NODE_TYPE_TAGGING = 611;
   NODE_TYPE_CUSTOM_ENTITY_DEFINITION = 1000;
   NODE_TYPE_CUSTOM_ENTITY = 1001;
-  NODE_TYPE_SCHEMA = 1400;
-  NODE_TYPE_FIELD = 1401;
-  NODE_TYPE_OPTION = 1402;
-  NODE_TYPE_FILE = 1410;
-  NODE_TYPE_LINK = 1420;
+  NODE_TYPE_CUSTOM_STRUCT_DEFINITION = 1400;
+  NODE_TYPE_CUSTOM_ENUM_DEFINITION = 1410;
+  NODE_TYPE_FIELD = 1420;
+  NODE_TYPE_OPTION = 1430;
+  NODE_TYPE_FILE = 1440;
+  NODE_TYPE_LINK = 1450;
   NODE_TYPE_SCRIPT = 1800;
   NODE_TYPE_SERVICE = 1810;
   NODE_TYPE_ACTION = 1820;
@@ -841,6 +848,7 @@ enum NodeType {
   NODE_TYPE_SCREEN_CURSOR = 1901;
   NODE_TYPE_THREAD_CURSOR = 1902;
   NODE_TYPE_RUN = 2400;
+  NODE_TYPE_RUN_EVENT = 2401;
   NODE_TYPE_SPAN = 2410;
   NODE_TYPE_INTERRUPTION = 2420;
   NODE_TYPE_LOG = 2500;
@@ -853,7 +861,6 @@ enum NodeType {
   NODE_TYPE_CUSTOM_EVENT_DEFINITION = 2600;
   NODE_TYPE_CUSTOM_EVENT = 2601;
   NODE_TYPE_EDIT_EVENT = 2602;
-  NODE_TYPE_RUN_EVENT = 2610;
   NODE_TYPE_ENVIRONMENT = 2800;
   NODE_TYPE_THREAD = 3400;
   NODE_TYPE_MESSAGE = 3410;
@@ -1176,13 +1183,6 @@ enum ScheduleFrequency {
   SCHEDULE_FREQUENCY_MINUTE = 6;
 }
 
-// Built-in schema types.
-enum SchemaType {
-  SCHEMA_TYPE_UNSPECIFIED = 0;
-  SCHEMA_TYPE_STRUCT = 1;
-  SCHEMA_TYPE_ENUM = 2;
-}
-
 // Built-in shadow positions.
 enum ShadowPosition {
   SHADOW_POSITION_UNSPECIFIED = 0;
@@ -1269,15 +1269,16 @@ enum StructType {
   STRUCT_TYPE_ORIGIN = 2;
   STRUCT_TYPE_NODE_REFERENCE = 3;
   STRUCT_TYPE_PROPERTY_REFERENCE = 5;
-  STRUCT_TYPE_PROPERTY_INFO = 11;
-  STRUCT_TYPE_TRAIT_INFO = 12;
-  STRUCT_TYPE_NODE_INFO = 13;
-  STRUCT_TYPE_STRUCT_INFO = 14;
-  STRUCT_TYPE_ENUM_INFO = 15;
-  STRUCT_TYPE_ENUM_OPTION_INFO = 16;
-  STRUCT_TYPE_EDIT = 21;
-  STRUCT_TYPE_CHANGE = 22;
-  STRUCT_TYPE_CHANGE_RESULT = 23;
+  STRUCT_TYPE_PROPERTY_DEFINITION = 11;
+  STRUCT_TYPE_TRAIT_DEFINITION = 12;
+  STRUCT_TYPE_NODE_DEFINITION = 13;
+  STRUCT_TYPE_STRUCT_DEFINITION = 14;
+  STRUCT_TYPE_ENUM_DEFINITION = 15;
+  STRUCT_TYPE_ENUM_OPTION_DEFINITION = 16;
+  STRUCT_TYPE_PERMISSION_DEFINITION = 17;
+  STRUCT_TYPE_EDIT = 30;
+  STRUCT_TYPE_CHANGE = 31;
+  STRUCT_TYPE_CHANGE_RESULT = 32;
   STRUCT_TYPE_EXPRESSION = 101;
   STRUCT_TYPE_FUNCTION = 102;
   STRUCT_TYPE_JOIN = 103;
@@ -1292,7 +1293,6 @@ enum StructType {
   STRUCT_TYPE_QUERY_RESULT_GROUP = 113;
   STRUCT_TYPE_QUERY_UPDATE = 116;
   STRUCT_TYPE_HISTOGRAM = 114;
-  STRUCT_TYPE_VARIABLE = 121;
   STRUCT_TYPE_VALUE = 1400;
   STRUCT_TYPE_TYPE = 1401;
   STRUCT_TYPE_NUMBER_CONSTRAINT = 1402;
@@ -1524,12 +1524,6 @@ enum UserStatus {
   USER_STATUS_UNSPECIFIED = 0;
   USER_STATUS_CREATING = 2;
   USER_STATUS_ACTIVE = 10;
-}
-
-// The type of a variable.
-enum VariableType {
-  VARIABLE_TYPE_UNSPECIFIED = 0;
-  VARIABLE_TYPE_FIELD = 10;
 }
 
 enum WindowType {
@@ -1911,6 +1905,25 @@ message CustomEntityDefinitionData {
   optional NodeReferenceData source_ptr = 210;
 }
 
+// A CustomEnumDefinition describes a custom Enum with Options.
+message CustomEnumDefinitionData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 5;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  map<string, ValueData> value = 18;
+  string order_key = 19;
+  string name = 31;
+  optional IconData icon = 34;
+  optional NodeReferenceData source_ptr = 210;
+}
+
 // An instance of a CustomEventDefinition.
 message CustomEventData {
   NodeType metatype = 1;
@@ -1937,6 +1950,25 @@ message CustomEventDefinitionData {
   optional NodeReferenceData updated_by_ptr = 13;
   string order_key = 19;
   string name = 31;
+  optional NodeReferenceData source_ptr = 210;
+}
+
+// A CustomStructDefinition describes a custom Type with Fields.
+message CustomStructDefinitionData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 5;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  map<string, ValueData> value = 18;
+  string order_key = 19;
+  string name = 31;
+  optional IconData icon = 34;
   optional NodeReferenceData source_ptr = 210;
 }
 
@@ -2154,17 +2186,17 @@ message EffectStyleData {
   optional TransitionData transition = 70;
 }
 
-message EnumInfoData {
+message EnumDefinitionData {
   StructType metatype = 1;
   int64 id = 2;
   EnumType type = 30;
   string name = 31;
   optional IconData icon = 34;
   optional string description = 36;
-  repeated EnumOptionInfoData options = 50;
+  repeated EnumOptionDefinitionData options = 50;
 }
 
-message EnumOptionInfoData {
+message EnumOptionDefinitionData {
   StructType metatype = 1;
   int64 id = 2;
   EnumType type = 30;
@@ -2221,7 +2253,7 @@ message ExpressionData {
   optional AggregationData aggregation = 35;
 }
 
-// A Field is a user-defined attribute.
+// A Field is a custom attribute of a CustomStructDefinition or an IsExtensible.
 message FieldData {
   NodeType metatype = 1;
   string id = 2;
@@ -2691,7 +2723,11 @@ message InviteEventData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional NodeReferenceData node_ptr = 35;
+  NodeReferenceData node_ptr = 35;
+  NodeReferenceData joinable_ptr = 40;
+  NodeReferenceData member_ptr = 41;
+  optional NodeReferenceData role_ptr = 42;
+  RoleType role_type = 43;
 }
 
 message JoinData {
@@ -2932,7 +2968,11 @@ message MembershipEventData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional NodeReferenceData node_ptr = 35;
+  NodeReferenceData node_ptr = 35;
+  NodeReferenceData joinable_ptr = 40;
+  NodeReferenceData member_ptr = 41;
+  optional NodeReferenceData role_ptr = 42;
+  RoleType role_type = 43;
 }
 
 // A Message about something (usually in a Thread or a Channel).
@@ -2962,14 +3002,14 @@ message NodeConstraintData {
   repeated TraitType node_traits = 42;
 }
 
-message NodeInfoData {
+message NodeDefinitionData {
   StructType metatype = 1;
   int64 id = 2;
   NodeType type = 30;
   string name = 31;
   optional IconData icon = 34;
   optional string description = 36;
-  repeated PropertyInfoData properties = 50;
+  repeated PropertyDefinitionData properties = 50;
   repeated TraitType traits = 51;
 }
 
@@ -3091,6 +3131,15 @@ message OriginData {
   optional string nonce = 33;
 }
 
+message PermissionDefinitionData {
+  StructType metatype = 1;
+  int64 id = 2;
+  EnumType type = 30;
+  string name = 31;
+  NodeType node_type = 32;
+  optional IconData icon = 34;
+}
+
 message PlaneShapeData {
   NodeType metatype = 1;
   string id = 2;
@@ -3144,7 +3193,7 @@ message PositionData {
   optional LengthData height = 53;
 }
 
-message PropertyInfoData {
+message PropertyDefinitionData {
   StructType metatype = 1;
   int64 id = 2;
   string name = 31;
@@ -3425,25 +3474,6 @@ message ScheduleData {
   repeated int64 by_second = 46;
 }
 
-// A Schema describes a custom Type with Fields.
-message SchemaData {
-  NodeType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 5;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData template_ptr = 16;
-  map<string, ValueData> value = 18;
-  string order_key = 19;
-  string name = 31;
-  optional IconData icon = 34;
-  optional NodeReferenceData source_ptr = 210;
-}
-
 message ScopeData {
   StructType metatype = 1;
   optional Region region = 31;
@@ -3690,14 +3720,14 @@ message StringConstraintData {
   optional string ends_with = 43;
 }
 
-message StructInfoData {
+message StructDefinitionData {
   StructType metatype = 1;
   int64 id = 2;
   StructType type = 30;
   string name = 31;
   optional IconData icon = 34;
   optional string description = 36;
-  repeated PropertyInfoData properties = 50;
+  repeated PropertyDefinitionData properties = 50;
 }
 
 // A Tag to tag something.
@@ -3907,14 +3937,14 @@ message TimerEventData {
   NodeReferenceData node_ptr = 35;
 }
 
-message TraitInfoData {
+message TraitDefinitionData {
   StructType metatype = 1;
   int64 id = 2;
   TraitType type = 30;
   string name = 31;
   optional IconData icon = 34;
   optional string description = 36;
-  repeated PropertyInfoData properties = 50;
+  repeated PropertyDefinitionData properties = 50;
   repeated NodeType nodes = 51;
 }
 
@@ -4040,12 +4070,6 @@ message ValueData {
   google.protobuf.Value value = 40;
 }
 
-message VariableData {
-  StructType metatype = 1;
-  optional NodeReferenceData field_ptr = 40;
-  optional NodeReferenceData node_ptr = 41;
-}
-
 message Vector2Data {
   StructType metatype = 1;
   double x = 50;
@@ -4155,11 +4179,12 @@ message SomeNodeData {
     TaggingData tagging = 611;
     CustomEntityDefinitionData custom_entity_definition = 1000;
     CustomEntityData custom_entity = 1001;
-    SchemaData schema = 1400;
-    FieldData field = 1401;
-    OptionData option = 1402;
-    FileData file = 1410;
-    LinkData link = 1420;
+    CustomStructDefinitionData custom_struct_definition = 1400;
+    CustomEnumDefinitionData custom_enum_definition = 1410;
+    FieldData field = 1420;
+    OptionData option = 1430;
+    FileData file = 1440;
+    LinkData link = 1450;
     ScriptData script = 1800;
     ServiceData service = 1810;
     ActionData action = 1820;
@@ -4172,6 +4197,7 @@ message SomeNodeData {
     ScreenCursorData screen_cursor = 1901;
     ThreadCursorData thread_cursor = 1902;
     RunData run = 2400;
+    RunEventData run_event = 2401;
     SpanData span = 2410;
     InterruptionData interruption = 2420;
     LogData log = 2500;
@@ -4184,7 +4210,6 @@ message SomeNodeData {
     CustomEventDefinitionData custom_event_definition = 2600;
     CustomEventData custom_event = 2601;
     EditEventData edit_event = 2602;
-    RunEventData run_event = 2610;
     EnvironmentData environment = 2800;
     ThreadData thread = 3400;
     MessageData message = 3410;

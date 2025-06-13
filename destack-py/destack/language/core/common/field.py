@@ -70,7 +70,7 @@ class Field(
     Node[FieldData],
 ):
     """
-    A Field is a user-defined attribute.
+    A Field is a custom attribute of a CustomStructDefinition or an IsExtensible.
     """
 
     parent: Union["IsExtensible", "Field", None] = property_parent_(node_is_customizable=True)

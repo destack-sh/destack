@@ -183,9 +183,9 @@ class SupervisorService(ServiceBase, SupervisorBase):
         await session.stage()
 
         # create main Folders
-        root_folder = Folder(parent=space, type=FolderType.HOME, name="Home", slug="home")
-        space.add_child(root_folder)
-        space.root_folder = root_folder
+        home_folder = Folder(parent=space, type=FolderType.HOME, name="Home", slug="home")
+        space.add_child(home_folder)
+        space.home_folder = home_folder
         await session.stage()
 
         # done

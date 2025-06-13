@@ -6,7 +6,7 @@ import pytest
 if not TYPE_CHECKING:
     pytest.skip(allow_module_level=True)
 
-from destack import Client, EditType, IsSubject, Notification, Session, User
+from destack import *  # noqa: F403
 
 from .scaffold import *  # noqa: F403
 
@@ -19,13 +19,7 @@ from .scaffold import *  # noqa: F403
 # ===============================================
 
 
-@schema
-class CalendlySchema(Schema):
-    pass
-
-
-CALENDLY_API_KEY = script.field("calendly_api_key", 1, str)
-NOTIFICATION_SETTINGS = script.field("notification_settings", 2, dict)
+CALENDLY_API_KEY: str = script.field("calendly_api_key", 1)
 
 
 @action
@@ -44,52 +38,21 @@ async def sync_with_calendly_api(
 
 @entity
 class CalendlyEventType(IsStarable, IsFollowable, Entity):
-    name: str | None = field(1)
-    description: str | None = field(2)
-    duration_minutes: int = field(3)
-    location: str | None = field(4)
-    buffer_time_before: int = field(5)  # minutes
-    buffer_time_after: int = field(6)  # minutes
-    max_bookings_per_day: int | None = field(7)
-    is_active: bool = field(8)
-
-    @action
-    def create_scheduled_event(
-        self: "CalendlyEventType",
-        session: Session,
-        start_time: datetime,
-        attendee: User,
-        attendee_email: str,
-        attendee_name: str,
-    ):
-        scheduled_event = ScheduledEvent(
-            event_type=self,
-            start_time=start_time,
-            end_time=start_time + timedelta(minutes=self.duration_minutes),
-            attendee=attendee,
-            attendee_email=attendee_email,
-            attendee_name=attendee_name,
-            status="scheduled",
-        )
-        session.create(scheduled_event)
-        return scheduled_event
+    name: str
+    description: Text | None
+    duration_minutes: int
+    location: str | None
+    buffer_time_before: int  # minutes
+    buffer_time_after: int  # minutes
+    max_bookings_per_day: int | None
+    is_active: bool
 
     @action
     def deactivate(self: "CalendlyEventType"):
         self.is_active = False
 
 
-@event
-class EventTypeCreated(Event):
-    event_type: "CalendlyEventType" = field(1)
-
-
-@event
-class EventTypeDeactivated(Event):
-    event_type: "CalendlyEventType" = field(1)
-
-
-@on(CalendlyEventType.EventTypeCreated)
+# @on(EditType.CREATE, CalendlyEventType)
 @action
 def on_event_type_created(event_type: CalendlyEventType):
     # Set up default availability rules
@@ -112,11 +75,11 @@ def on_event_type_created(event_type: CalendlyEventType):
 
 @entity
 class WeeklyAvailabilityRule(Entity):
-    event_type: CalendlyEventType = field(1)
-    day_of_week: int = field(2)  # 0=Monday, 6=Sunday
-    start_time: str = field(3)  # "09:00"
-    end_time: str = field(4)  # "17:00"
-    is_available: bool = field(5)
+    event_type: CalendlyEventType
+    day_of_week: int  # 0=Monday, 6=Sunday
+    start_time: str  # "09:00"
+    end_time: str  # "17:00"
+    is_available: bool
 
 
 # ===============================================
@@ -126,11 +89,11 @@ class WeeklyAvailabilityRule(Entity):
 
 @entity
 class DateAvailabilityOverride(Entity):
-    event_type: CalendlyEventType = field(1)
-    date: datetime = field(2)
-    start_time: str | None = field(3)
-    end_time: str | None = field(4)
-    is_available: bool = field(5)
+    event_type: CalendlyEventType
+    date: datetime
+    start_time: str | None
+    end_time: str | None
+    is_available: bool
 
 
 # ===============================================
@@ -138,7 +101,7 @@ class DateAvailabilityOverride(Entity):
 # ===============================================
 
 
-@schema
+@enum
 class ScheduledEventStatus(Enum):
     SCHEDULED = 1
     CANCELLED = 2
@@ -147,16 +110,16 @@ class ScheduledEventStatus(Enum):
 
 
 @entity
-class ScheduledEvent(IsStarable, Entity):
-    event_type: CalendlyEventType = field(1)
-    start_time: datetime = field(2)
-    end_time: datetime = field(3)
-    attendee: User | None = field(4)
-    attendee_email: str = field(5)
-    attendee_name: str = field(6)
-    status: ScheduledEventStatus = field(7)
-    meeting_link: str | None = field(8)
-    notes: str | None = field(9)
+class ScheduledEvent(IsStarable, IsOwnable, Entity):
+    event_type: CalendlyEventType
+    start_time: datetime
+    end_time: datetime
+    attendee: User | None
+    attendee_email: str
+    attendee_name: str
+    status: ScheduledEventStatus
+    meeting_link: str | None
+    notes: str | None
 
     @action
     def cancel(self: "ScheduledEvent", reason: str | None = None):
@@ -182,25 +145,24 @@ class ScheduledEvent(IsStarable, Entity):
 
 @event
 class EventScheduled(Event):
-    scheduled_event: "ScheduledEvent" = field(1)
+    scheduled_event: "ScheduledEvent"
 
 
 @event
 class EventCancelled(Event):
-    scheduled_event: "ScheduledEvent" = field(1)
-    reason: str | None = field(2)
+    scheduled_event: "ScheduledEvent"
 
 
 @event
 class EventCompleted(Event):
-    scheduled_event: "ScheduledEvent" = field(1)
+    scheduled_event: "ScheduledEvent"
 
 
 @event
 class EventRescheduled(Event):
-    scheduled_event: "ScheduledEvent" = field(1)
-    old_start_time: datetime = field(2)
-    new_start_time: datetime = field(3)
+    scheduled_event: "ScheduledEvent"
+    old_start_time: datetime
+    new_start_time: datetime
 
 
 @on(ScheduledEvent.event(EditType.CREATE))
@@ -244,7 +206,6 @@ def on_event_scheduled(scheduled_event: ScheduledEvent):
 @on(ScheduledEvent.EventCancelled)
 @action
 def on_event_cancelled(event: ScheduledEvent):
-    # Cancel any pending reminders
     log("event_cancelled", event.attendee_email, event.status)
 
 
@@ -253,24 +214,32 @@ def on_event_cancelled(event: ScheduledEvent):
 # ===============================================
 
 
+@enum
+class CalendlyReminderType(Enum):
+    EMAIL = 1
+    SMS = 2
+    PUSH = 3
+
+
+@enum
+class CalendlyReminderStatus(Enum):
+    PENDING = 1
+    SENT = 2
+    FAILED = 3
+
+
 @entity
 class CalendlyReminder(Entity):
-    scheduled_event: ScheduledEvent = field(1)
-    notification: Optional[Notification] = field(2)
-    reminder_type: str = field(3)  # "email", "sms", "push"
-    minutes_before: int = field(4)  # minutes before event
-    is_sent: bool = field(5)
-
-    @action
-    def send_reminder(self: "CalendlyReminder", session: Session):
-        if not self.is_sent:
-            # Create notification logic here
-            self.is_sent = True
+    scheduled_event: ScheduledEvent
+    notification: Optional[Notification]
+    reminder_type: CalendlyReminderType
+    minutes_before: int  # minutes before event
+    status: CalendlyReminderStatus
 
 
 @event
 class CalendlyReminderSent(Event):
-    reminder: "CalendlyReminder" = field(1)
+    reminder: "CalendlyReminder"
 
 
 @action

@@ -658,7 +658,7 @@ class IsOwnable(Trait):
 
 @trait_(TraitType.JOINABLE)
 class IsJoinable(Trait):
-    """A Node that can be joined by a Subject."""
+    """A Node that can be joined by Subjects."""
 
     pass
 
@@ -672,7 +672,7 @@ class IsSubject(Trait):
 
 @trait_(TraitType.TAGGABLE)
 class IsTaggable(Trait):
-    """A Node that can be tagged."""
+    """A Node that can be tagged (with a Tag)."""
 
     pass
 

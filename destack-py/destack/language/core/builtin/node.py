@@ -23,7 +23,7 @@ from destack.pb2 import AnyNodeData
 from destack.utils.fractional import get_order_key
 from destack.utils.func import get_superclasses
 
-from .const import NodeType, TraitType
+from .const import Enum, EnumType, NodeType, TraitType, builtin_enum
 from .object import _process_object_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
@@ -95,6 +95,16 @@ def builtin_node(
 
 
 _object_set = object.__setattr__
+
+
+@builtin_enum(EnumType.NODE_PERMISSION)
+class NodePermission(Enum):
+    # read
+    READ = 1, "Read"
+    # write
+    ADD = 10, "Create, Upsert, Unarchive, Restore"
+    UPDATE = 11, "Update"
+    REMOVE = 12, "Archive, Delete, Erase"
 
 
 @builtin_node(node_type=None, root_type=None)

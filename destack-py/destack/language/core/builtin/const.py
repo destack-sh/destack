@@ -37,7 +37,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.06.12.0"
+VERSION = "2025.06.13.0"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"destack")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -321,7 +321,6 @@ class EnumType(Enum):
     DEFAULT_FACTORY = 1504
     STRING_FORMAT = 1511
     NUMBER_FORMAT = 1512
-    SCHEMA_TYPE = 1520
     FIELD_TYPE = 1521
     EDGE_TYPE = 1522
     EDGE_DIRECTION = 1523
@@ -472,7 +471,8 @@ class EnumType(Enum):
     ERROR_TYPE = 10041
     EDIT_TYPE = 10050
     EDIT_OPERATION = 10051
-    CHANGE_STATUS = 10060
+    CHANGE_STATUS = 10052
+    NODE_PERMISSION = 10060
 
 
 builtin_enum(EnumType.ENUM_TYPE)(EnumType)
@@ -684,14 +684,15 @@ class NodeType(Enum):
     CUSTOM_ENTITY = 1001, "Custom Node Instance", "Custom Node Instance", "fas fa-database"
     # INDEX, CONSTRAINT, MIGRATION, ...
     # MIRROR/SYNC, ...
-    # TRAIT/TRAIT_DEFINITION/TRAIT_IMPLEMENTATION, INTERFACE, ...
+    # TRAIT_DEFINITION/TRAIT_IMPLEMENTATION, INTERFACE, ...
 
     # data [1400-1800]
-    SCHEMA = 1400, "Schema", "Schema", "fas fa-shapes"
-    FIELD = 1401, "Field", "Field", "fas fa-triangle"
-    OPTION = 1402, "Option", "Option", "fas fa-circle"
-    FILE = 1410, "File", "File", "fas fa-file"
-    LINK = 1420, "Link", "Link to something", "fas fa-link"
+    CUSTOM_STRUCT_DEFINITION = 1400, "Struct", "Struct", "fas fa-shapes"
+    CUSTOM_ENUM_DEFINITION = 1410, "Enum", "Enum", "fas fa-shapes"
+    FIELD = 1420, "Field", "Field", "fas fa-triangle"
+    OPTION = 1430, "Option", "Option", "fas fa-circle"
+    FILE = 1440, "File", "File", "fas fa-file"
+    LINK = 1450, "Link", "Link to something", "fas fa-link"
     # STREAM, SECRET, ...
 
     # logic [1800-2000]
@@ -1350,6 +1351,7 @@ class ScalarType(Enum):
     NODE_REFERENCE = 3
     NODE_VALUE = 4
     STRUCT = 5
+    # CUSTOM_ENUM, CUSTOM_STRUCT, ...
 
 
 @builtin_enum(EnumType.DEFAULT_FACTORY)

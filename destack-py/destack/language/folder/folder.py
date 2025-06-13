@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 
 @builtin_enum(EnumType.FOLDER_TYPE)
 class FolderType(Enum):
-    ROOT = 1, "Root", "The root folder of a Space", "fas fa-home"
+    SYSTEM = 1, "Root", "The root folder of a Space", "fas fa-home"
     HOME = 2, "Home", "The home folder of a Space", "fas fa-home"
     GENERIC = 3, "Generic", "A generic folder", "fas fa-folder-open"
     MODULE = 4, "Module", "A module", "fas fa-box-open"
