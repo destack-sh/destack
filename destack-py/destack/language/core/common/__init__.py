@@ -8,6 +8,7 @@ from .edit import (
     EditType,
 )
 from .entity import CustomEntity, CustomEntityDefinition
+from .enum import CustomEnumDefinition
 from .error import Error, ErrorType
 from .event import CustomEvent, CustomEventDefinition, EditEvent
 from .field import Field, FieldType
@@ -74,7 +75,7 @@ from .relation import (
     attribute_ref,
     relation_ref,
 )
-from .schema import Schema
+from .struct import CustomStructDefinition
 from .text import (
     Text,
     TextIn,
@@ -161,8 +162,10 @@ __all__ = [
     "CounterMetric",
     "CustomEntity",
     "CustomEntityDefinition",
+    "CustomEnumDefinition",
     "CustomEvent",
     "CustomEventDefinition",
+    "CustomStructDefinition",
     "Dimension",
     "DimensionType",
     "Direction",
@@ -221,7 +224,6 @@ __all__ = [
     "QueryUpdateType",
     "RelationReference",
     "RelationType",
-    "Schema",
     "Scope",
     "Select",
     "Selection",

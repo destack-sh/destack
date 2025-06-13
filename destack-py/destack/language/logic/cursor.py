@@ -75,7 +75,7 @@ class ScreenCursor(
     Node[ScreenCursorData],
 ):
     """
-    A PointerCursor is a visual cursor corresponding to a pointing device.
+    A ScreenCursor is a visual cursor corresponding to a pointing device on some screen.
     """
 
     # content

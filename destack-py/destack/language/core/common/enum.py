@@ -1,12 +1,13 @@
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
-from destack.pb2 import OptionData
+from destack.pb2 import CustomEnumDefinitionData
 
 from ..builtin import (
     Entity,
     HasIcon,
     HasName,
     IsDeletable,
+    IsExtensible,
     IsSourceable,
     IsTaggable,
     IsTemplatable,
@@ -14,17 +15,16 @@ from ..builtin import (
     NodeType,
     Spatial,
     builtin_node,
-    property_parent_,
 )
 
 if TYPE_CHECKING:
-    from destack.language import CustomStructDefinition, Field
+    pass
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.OPTION)
-class Option(
+@builtin_node(NodeType.CUSTOM_ENUM_DEFINITION)
+class CustomEnumDefinition(
     Spatial,
     Entity,
     HasName,
@@ -33,8 +33,9 @@ class Option(
     IsTemplatable,
     IsDeletable,
     IsSourceable,
-    Node[OptionData],
+    IsExtensible,
+    Node[CustomEnumDefinitionData],
 ):
-    parent: Union["CustomStructDefinition", "Field", None] = property_parent_(
-        node_is_customizable=True
-    )
+    """A CustomEnumDefinition describes a custom Enum with Options."""
+
+    pass

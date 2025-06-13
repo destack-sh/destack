@@ -100,7 +100,7 @@ async def test_create_user_with_clients(session: Session):
 async def test_create_folders_recursive(session: Session):
     """Create a Folder with recursive sub-Folders, mutate it, querying along the way."""
     # create
-    root_folder = Folder(name="Folder", type=FolderType.ROOT)
+    root_folder = Folder(name="Folder", type=FolderType.SYSTEM)
     session.create(root_folder)
     target_folder_count = 4 * (1 + 4 * (1 + 4))
     for a in ("a", "b", "c", "d"):

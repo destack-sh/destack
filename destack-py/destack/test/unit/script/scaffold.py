@@ -23,7 +23,7 @@ log: Any = ...
 Entity: Any = ...
 Event: Any = ...
 Enum: Any = ...
-Schema: Any = ...
+Struct: Any = ...
 field: Any = ...
 
 Email: Any = ...
@@ -43,11 +43,15 @@ def action(func, *args, **kwargs):
     return func
 
 
-def entity(cls, *args, **kwargs):
+def enum(cls, *args, **kwargs):
     return cls
 
 
-def schema(cls, *args, **kwargs):
+def struct(cls, *args, **kwargs):
+    return cls
+
+
+def entity(cls, *args, **kwargs):
     return cls
 
 

@@ -1,11 +1,9 @@
 from typing import TYPE_CHECKING
 
-from destack.pb2 import SchemaData
+from destack.pb2 import CustomStructDefinitionData
 
 from ..builtin import (
     Entity,
-    Enum,
-    EnumType,
     HasIcon,
     HasName,
     IsDeletable,
@@ -16,7 +14,6 @@ from ..builtin import (
     Node,
     NodeType,
     Spatial,
-    builtin_enum,
     builtin_node,
 )
 
@@ -26,17 +23,8 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_enum(EnumType.SCHEMA_TYPE)
-class SchemaType(Enum):
-    """Built-in schema types."""
-
-    STRUCT = 1
-    ENUM = 2
-    # NEWTYPE?
-
-
-@builtin_node(NodeType.SCHEMA)
-class Schema(
+@builtin_node(NodeType.CUSTOM_STRUCT_DEFINITION)
+class CustomStructDefinition(
     Spatial,
     Entity,
     HasName,
@@ -46,8 +34,8 @@ class Schema(
     IsDeletable,
     IsSourceable,
     IsExtensible,
-    Node[SchemaData],
+    Node[CustomStructDefinitionData],
 ):
-    """A Schema describes a custom Type with Fields."""
+    """A CustomStructDefinition describes a custom Type with Fields."""
 
     pass

@@ -15,15 +15,6 @@ from .scaffold import *  # noqa: F403
 
 # nocheckin: access control / permissions
 
-# ===============================================
-# ZurichAI/Common [Script]
-# ===============================================
-
-
-@schema
-class TestSchema(Schema):
-    pass
-
 
 SECRET = script.field("secret_key", 1, str)
 
@@ -34,25 +25,7 @@ SECRET = script.field("secret_key", 1, str)
 
 @entity
 class MeetupSeries(IsStarable, IsFollowable, Entity):
-    name: str | None = field(1)
-
-    @action
-    def create_meetup(
-        self: "MeetupSeries",
-        session: Session,
-        name: str,
-        capacity: int,
-        at: datetime,
-    ):
-        meetup = Meetup(name=name, capacity=capacity, at=at, series=self)
-        session.create(meetup)
-        return meetup
-
-
-@event
-class MeetupCreated(Event):
-    series: "MeetupSeries" = field(1)
-    meetup: "Meetup" = field(2)
+    name: str
 
 
 # ===============================================
@@ -158,15 +131,24 @@ async def send_meetup_email(meetup: Meetup, template: EmailTemplate):
 # ===============================================
 
 
+@enum
+class MeetupResponseType(Enum):
+    YES = 1
+    NO = 2
+    MAYBE = 3
+
+
 @entity
-class MeetupResponse(Entity):
-    parent: Meetup
+class MeetupResponse(IsOwnable, Entity):
+    meetup: Meetup
     user: User
+    response_type: MeetupResponseType
 
 
 @event
-class MeetupRespondedYes(Event):
+class MeetupResponded(Event):
     meetup: Meetup
+    response_type: MeetupResponseType
     response: MeetupResponse
 
 

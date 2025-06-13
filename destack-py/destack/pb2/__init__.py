@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2025.06.12.0"
+VERSION = "2025.06.13.0"
 
 # import from all generated files
 from .runtime_pb2 import *
@@ -25,6 +25,7 @@ from .google.type.datetime_pb2 import *
 AnyNodeData = Union[
     CustomEntityDefinitionData,
     CustomEntityData,
+    CustomEnumDefinitionData,
     EditEventData,
     CustomEventDefinitionData,
     CustomEventData,
@@ -36,7 +37,7 @@ AnyNodeData = Union[
     HistogramMetricData,
     HistogramMeasurementData,
     OptionData,
-    SchemaData,
+    CustomStructDefinitionData,
     InviteEventData,
     InviteData,
     MembershipEventData,
@@ -141,16 +142,16 @@ AnyStructData = Union[
     QueryUpdateData,
     SelectionData,
     IconData,
-    PropertyInfoData,
-    TraitInfoData,
-    NodeInfoData,
-    StructInfoData,
-    EnumInfoData,
-    EnumOptionInfoData,
+    PropertyDefinitionData,
+    TraitDefinitionData,
+    NodeDefinitionData,
+    StructDefinitionData,
+    EnumDefinitionData,
+    EnumOptionDefinitionData,
+    PermissionDefinitionData,
     TextSpanData,
     TextLineData,
     TextData,
-    VariableData,
     LengthData,
     PositionData,
     DimensionData,
