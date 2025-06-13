@@ -8,8 +8,8 @@ from opentelemetry import trace
 
 from ..builtin import (
     UNSET,
-    BuiltinEnum,
     DefaultFactory,
+    Enum,
     EnumType,
     Node,
     NodeType,
@@ -17,9 +17,9 @@ from ..builtin import (
     StructFrozen,
     StructType,
     bittuple,
-    enum_,
+    builtin_enum,
+    builtin_struct,
     property_,
-    struct_,
 )
 from .relation import NodeReference, PropertyReference
 
@@ -30,8 +30,8 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-@enum_(EnumType.EDIT_TYPE)
-class EditType(BuiltinEnum):
+@builtin_enum(EnumType.EDIT_TYPE)
+class EditType(Enum):
     CREATE = 1
     UPSERT = 2
     UPDATE = 3
@@ -52,8 +52,8 @@ CASCADING_EDIT_TYPES: bittuple[EditType] = bittuple(
 )
 
 
-@enum_(EnumType.EDIT_OPERATION)
-class EditOperation(BuiltinEnum):
+@builtin_enum(EnumType.EDIT_OPERATION)
+class EditOperation(Enum):
     # direct
     SET = 1
     CLEAR = 2
@@ -80,7 +80,7 @@ class EditOperation(BuiltinEnum):
     # BITMAP_INSERT, BITMAP_DELETE, ...
 
 
-@struct_(StructType.EDIT, frozen=True)
+@builtin_struct(StructType.EDIT, frozen=True)
 class Edit(StructFrozen):
     """
     An Edit to a Node.
@@ -108,7 +108,7 @@ class Edit(StructFrozen):
     )
 
 
-@struct_(StructType.CHANGE, frozen=True)
+@builtin_struct(StructType.CHANGE, frozen=True)
 class Change(StructFrozen):
     """A Change is an atomic sequence of Edits."""
 
@@ -124,8 +124,8 @@ class Change(StructFrozen):
     edits: list[Edit] = property_(40)
 
 
-@enum_(EnumType.CHANGE_STATUS)
-class ChangeStatus(BuiltinEnum):
+@builtin_enum(EnumType.CHANGE_STATUS)
+class ChangeStatus(Enum):
     """The status of a Change."""
 
     # PENDING?
@@ -133,7 +133,7 @@ class ChangeStatus(BuiltinEnum):
     FAILED = 3
 
 
-@struct_(StructType.CHANGE_RESULT, frozen=True)
+@builtin_struct(StructType.CHANGE_RESULT, frozen=True)
 class ChangeResult(StructFrozen):
     """The result of a Change. If rejected, edits/cascaded_edits are empty."""
 

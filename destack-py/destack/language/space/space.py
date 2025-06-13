@@ -3,8 +3,8 @@ from typing import TYPE_CHECKING, Optional
 from fastuuid import UUID
 
 from destack.language.core import (
-    BuiltinEnum,
     Entity,
+    Enum,
     EnumType,
     Global,
     HasIcon,
@@ -17,8 +17,8 @@ from destack.language.core import (
     NodeType,
     Region,
     Spatial,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
     property_,
 )
 from destack.pb2 import SpaceData
@@ -29,8 +29,8 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.SPACE_STATUS)
-class SpaceStatus(BuiltinEnum):
+@builtin_enum(EnumType.SPACE_STATUS)
+class SpaceStatus(Enum):
     """The status of a Space"""
 
     CREATING = 1
@@ -39,7 +39,16 @@ class SpaceStatus(BuiltinEnum):
     PAUSED = 20
 
 
-@node_(NodeType.SPACE, root_type=None)
+# @builtin_enum(EnumType.SPACE_PERMISSION)
+# class SpacePermission(BuiltinEnum):
+#     """The permission of a Space"""
+
+#     MANAGE_ROLES = 1
+#     MANAGE_MEMBERS = 2
+#     BAN_MEMBERS = 3
+
+
+@builtin_node(NodeType.SPACE, root_type=None)
 class Space(
     HasName,
     HasSlug,

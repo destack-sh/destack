@@ -3,8 +3,8 @@ from itertools import chain
 from typing import TYPE_CHECKING, Any, cast
 
 from destack.language import (
-    BuiltinEnum,
     BuiltinObjectBase,
+    Enum,
     EnumType,
     Node,
     NodeType,
@@ -59,7 +59,7 @@ PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, ProtoFieldType] = {
 
 
 def _map_property_to_proto_field(
-    prop: "Property", cache: dict[type[BuiltinObjectBase] | type[BuiltinEnum], ProtoThing]
+    prop: "Property", cache: dict[type[BuiltinObjectBase] | type[Enum], ProtoThing]
 ) -> ProtoField:
     assert prop.id == 1 or prop.is_wired, f"not a wired property: {prop!r}"
     assert isinstance(prop.id, int), f"invalid id: {prop!r}"
@@ -162,7 +162,7 @@ def _map_property_to_proto_field(
 
 def _map_builtin_object_to_proto_message(
     cls: type[BuiltinObjectBase],
-    cache: dict[type[BuiltinObjectBase] | type[BuiltinEnum], ProtoThing],
+    cache: dict[type[BuiltinObjectBase] | type[Enum], ProtoThing],
     alias: str | None = None,
     properties: Sequence["Property"] | None = None,
 ) -> ProtoMessage:
@@ -186,10 +186,10 @@ def _map_builtin_object_to_proto_message(
 
 
 def _map_builtin_enum_to_proto_enum(
-    destack_t: type[BuiltinEnum],
+    destack_t: type[Enum],
     alias: str | None = None,
 ) -> ProtoEnum:
-    assert issubclass(destack_t, BuiltinEnum), f"invalid enum: {destack_t!r}"
+    assert issubclass(destack_t, Enum), f"invalid enum: {destack_t!r}"
     enum_prefix = to_casing(alias or destack_t.__name__, Casing.ALL_CAPS) + "_"
     enum_values = [
         ProtoEnumValue(id=member.id, name=enum_prefix + member.name) for member in destack_t
@@ -207,8 +207,8 @@ def _map_builtin_enum_to_proto_enum(
 
 
 def _map_object_type_to_proto(
-    destack_cls: type[BuiltinObjectBase] | type[BuiltinEnum],
-    cache: dict[type[BuiltinObjectBase] | type[BuiltinEnum], ProtoThing],
+    destack_cls: type[BuiltinObjectBase] | type[Enum],
+    cache: dict[type[BuiltinObjectBase] | type[Enum], ProtoThing],
     alias: str | None = None,
 ) -> ProtoThing:
     """Maps a Destack type to a Proto type. If not yet mapped, adds it to the cache."""
@@ -218,7 +218,7 @@ def _map_object_type_to_proto(
         return cache[destack_cls]
     if issubclass(destack_cls, BuiltinObjectBase):
         ret = _map_builtin_object_to_proto_message(destack_cls, cache, alias=alias)
-    elif issubclass(destack_cls, BuiltinEnum):
+    elif issubclass(destack_cls, Enum):
         ret = _map_builtin_enum_to_proto_enum(destack_cls, alias=alias)
     else:
         raise TypeError(f"invalid destack type: {destack_cls!r}")
@@ -233,7 +233,7 @@ def generate_proto_schema(
     message_postfix: str,
 ) -> ProtoSchema:
     # walk all destack types to populate the cache
-    cache: dict[type[BuiltinObjectBase] | type[BuiltinEnum], ProtoThing] = {}
+    cache: dict[type[BuiltinObjectBase] | type[Enum], ProtoThing] = {}
     for destack_cls in chain(
         NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values(), ENUM_CLASS_BY_TYPE.values()
     ):

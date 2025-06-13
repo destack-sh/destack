@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING, Optional
 from fastuuid import UUID
 
 from destack.language.core import (
-    BuiltinEnum,
     Entity,
+    Enum,
     EnumType,
     Global,
     HasIcon,
@@ -17,8 +17,8 @@ from destack.language.core import (
     Node,
     NodeType,
     StringFormat,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
     property_,
 )
 from destack.pb2 import UserData
@@ -29,13 +29,13 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.USER_STATUS)
-class UserStatus(BuiltinEnum):
+@builtin_enum(EnumType.USER_STATUS)
+class UserStatus(Enum):
     CREATING = 2
     ACTIVE = 10
 
 
-@node_(
+@builtin_node(
     NodeType.USER,
     root_type=None,
     index=(IndexIn(columns=("email",), is_unique=True),),

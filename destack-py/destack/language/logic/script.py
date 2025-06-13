@@ -13,7 +13,7 @@ from destack.language.core import (
     Node,
     NodeType,
     Spatial,
-    node_,
+    builtin_node,
     property_,
     property_parent_,
 )
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(NodeType.SCRIPT)
+@builtin_node(NodeType.SCRIPT)
 class Script(
     Spatial,
     Entity,

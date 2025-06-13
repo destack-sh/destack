@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING
 
 from destack.language.core import (
-    BuiltinEnum,
     Entity,
+    Enum,
     EnumType,
     Event,
     Global,
@@ -11,8 +11,8 @@ from destack.language.core import (
     LikeInvite,
     Node,
     NodeType,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
     property_,
 )
 from destack.pb2 import FriendshipData, FriendshipInviteData, FriendshipInviteEventData
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(NodeType.FRIENDSHIP, root_type=None)
+@builtin_node(NodeType.FRIENDSHIP, root_type=None)
 class Friendship(
     Global,
     Entity,
@@ -35,8 +35,8 @@ class Friendship(
     user_b: "User" = property_(41, can_write="system")
 
 
-@enum_(EnumType.FRIENDSHIP_INVITE_EVENT_TYPE)
-class FriendshipInviteEventType(BuiltinEnum):
+@builtin_enum(EnumType.FRIENDSHIP_INVITE_EVENT_TYPE)
+class FriendshipInviteEventType(Enum):
     """A Type of Friendship Invite Event."""
 
     SENT = 1, "Sent", "Sent", "fas fa-circle"
@@ -45,7 +45,7 @@ class FriendshipInviteEventType(BuiltinEnum):
     REJECTED = 4, "Rejected", "Rejected", "fas fa-xmark"
 
 
-@node_(NodeType.FRIENDSHIP_INVITE_EVENT)
+@builtin_node(NodeType.FRIENDSHIP_INVITE_EVENT)
 class FriendshipInviteEvent(
     Event["FriendshipInvite"],
     Node[FriendshipInviteEventData],
@@ -56,7 +56,7 @@ class FriendshipInviteEvent(
     node: "FriendshipInvite" = property_(35)
 
 
-@node_(NodeType.FRIENDSHIP_INVITE, root_type=None)
+@builtin_node(NodeType.FRIENDSHIP_INVITE, root_type=None)
 class FriendshipInvite(
     Global,
     Entity,

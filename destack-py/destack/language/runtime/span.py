@@ -6,7 +6,7 @@ from destack.language.core import (
     Node,
     NodeType,
     Spatial,
-    node_,
+    builtin_node,
     property_parent_,
 )
 from destack.pb2 import SpanData
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(NodeType.SPAN)
+@builtin_node(NodeType.SPAN)
 class Span(
     Spatial,
     Analytic,

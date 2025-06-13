@@ -15,10 +15,10 @@ from destack.language.core import (
     NodeType,
     StructFrozen,
     StructType,
-    node_,
+    builtin_node,
+    builtin_struct,
     property_,
     property_parent_,
-    struct_,
 )
 from destack.pb2 import ClientData, OriginData
 
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(
+@builtin_node(
     NodeType.CLIENT,
     index=(IndexIn(columns=("access_token",), is_unique=True),),
 )
@@ -68,7 +68,7 @@ class Client(
         return Origin(type=self.type, id=self.id, nonce=nonce or self.id)
 
 
-@struct_(StructType.ORIGIN, frozen=True)
+@builtin_struct(StructType.ORIGIN, frozen=True)
 class Origin(StructFrozen[OriginData]):
     """Origin of something."""
 

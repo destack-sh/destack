@@ -8,14 +8,14 @@ import structlog
 from opentelemetry import trace
 
 from destack.language.core import (
-    BuiltinEnum,
+    Enum,
     EnumType,
     Node,
     NodeType,
     Resource,
     Spatial,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
     property_,
 )
 from destack.pb2 import LinkData
@@ -29,12 +29,12 @@ tracer = trace.get_tracer(__name__)
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.LINK_TYPE)
-class LinkType(BuiltinEnum):
+@builtin_enum(EnumType.LINK_TYPE)
+class LinkType(Enum):
     WEB = 1
 
 
-@node_(NodeType.LINK)
+@builtin_node(NodeType.LINK)
 class Link(
     Spatial,
     Resource,

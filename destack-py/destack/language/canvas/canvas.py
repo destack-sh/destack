@@ -1,12 +1,12 @@
 from typing import TYPE_CHECKING
 
 from destack.language.core import (
-    BuiltinEnum,
+    Enum,
     EnumType,
     Node,
     NodeType,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
     property_,
 )
 from destack.pb2 import CanvasData
@@ -19,15 +19,15 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.CANVAS_TYPE)
-class CanvasType(BuiltinEnum):
+@builtin_enum(EnumType.CANVAS_TYPE)
+class CanvasType(Enum):
     """Built-in canvas types."""
 
     SHAPE = 1
     # RASTER, ...
 
 
-@node_(NodeType.CANVAS, pretend_frozen=True)
+@builtin_node(NodeType.CANVAS, pretend_frozen=True)
 class Canvas(ContainerView, Node[CanvasData]):
     """A Canvas is a container for only Shapes (other than that it's just a ContainerView)."""
 

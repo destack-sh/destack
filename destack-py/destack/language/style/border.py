@@ -1,19 +1,19 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
-    BuiltinEnum,
     BuiltinObjectMutable,
+    Enum,
     EnumType,
     Insets,
     Node,
     NodeType,
     StructMutable,
     StructType,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
+    builtin_struct,
     object_,
     property_,
-    struct_,
 )
 from destack.pb2 import BorderStyleData
 
@@ -27,8 +27,8 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.BORDER_TYPE)
-class BorderType(BuiltinEnum):
+@builtin_enum(EnumType.BORDER_TYPE)
+class BorderType(Enum):
     """Built-in border types."""
 
     NONE = 1
@@ -48,7 +48,7 @@ class BorderBase(BuiltinObjectMutable):
     width: Optional[Insets] = property_(51, is_repr=True)
 
 
-@struct_(
+@builtin_struct(
     StructType.BORDER,
 )
 class Border(BorderBase, StructMutable):
@@ -57,7 +57,7 @@ class Border(BorderBase, StructMutable):
     pass
 
 
-@node_(NodeType.BORDER_STYLE)
+@builtin_node(NodeType.BORDER_STYLE)
 class BorderStyle(
     Style,
     BorderBase,

@@ -5,7 +5,7 @@ from fastuuid import UUID
 
 from destack.language.core import (
     Analytic,
-    BuiltinEnum,
+    Enum,
     EnumType,
     Indexed,
     IsExtensible,
@@ -15,8 +15,8 @@ from destack.language.core import (
     NodeType,
     Particle,
     Spatial,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
     property_,
     property_parent_,
 )
@@ -28,15 +28,15 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.INTERRUPTION_TYPE)
-class InterruptionType(BuiltinEnum):
+@builtin_enum(EnumType.INTERRUPTION_TYPE)
+class InterruptionType(Enum):
     PAUSE = 10, "Pause", "Run is marked as paused", "fas fa-pause"
     YIELD = 20, "Yield", "Yield to something", "fas fa-hand"
     WAIT = 30, "Wait", "Wait for a Trigger", "fas fa-hourglass-end"
 
 
-@enum_(EnumType.INTERRUPTION_STATUS)
-class InterruptionStatus(BuiltinEnum):
+@builtin_enum(EnumType.INTERRUPTION_STATUS)
+class InterruptionStatus(Enum):
     OPEN = 10
     CANCELLED = 30
     COMPLETED = 33
@@ -50,14 +50,14 @@ class InterruptionStatus(BuiltinEnum):
         return self >= 30
 
 
-@enum_(EnumType.INTERRUPTION_RESPONSE)
-class InterruptionResponse(BuiltinEnum):
+@builtin_enum(EnumType.INTERRUPTION_RESPONSE)
+class InterruptionResponse(Enum):
     ACCEPT = 10
     REJECT = 20
     # CRITIQUE/EDIT, ...?
 
 
-@node_(NodeType.INTERRUPTION)
+@builtin_node(NodeType.INTERRUPTION)
 class Interruption(
     Spatial,
     Particle,

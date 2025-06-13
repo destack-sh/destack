@@ -1,16 +1,16 @@
 from typing import TYPE_CHECKING
 
 from destack.language.core import (
-    BuiltinEnum,
     Entity,
+    Enum,
     EnumType,
     Event,
     HasName,
     Node,
     NodeType,
     Spatial,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
     property_,
 )
 from destack.pb2 import TimerData, TimerEventData
@@ -23,8 +23,8 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.TIMER_EVENT_TYPE)
-class TimerEventType(BuiltinEnum):
+@builtin_enum(EnumType.TIMER_EVENT_TYPE)
+class TimerEventType(Enum):
     """A Type of Timer Event."""
 
     STARTED = 1, "Started", "Started", "fas fa-play"
@@ -32,7 +32,7 @@ class TimerEventType(BuiltinEnum):
     EXPIRED = 3, "Expired", "Expired", "fas fa-clock"
 
 
-@node_(NodeType.TIMER_EVENT)
+@builtin_node(NodeType.TIMER_EVENT)
 class TimerEvent(
     Event["Timer"],
     Node[TimerEventData],
@@ -43,13 +43,13 @@ class TimerEvent(
     node: "Timer" = property_(35)
 
 
-@enum_(EnumType.TIMER_TYPE)
-class TimerType(BuiltinEnum):
+@builtin_enum(EnumType.TIMER_TYPE)
+class TimerType(Enum):
     ONCE = 1
     RECURRING = 2
 
 
-@node_(NodeType.TIMER)
+@builtin_node(NodeType.TIMER)
 class Timer(
     Spatial,
     Entity,

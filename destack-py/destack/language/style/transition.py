@@ -1,18 +1,18 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
-    BuiltinEnum,
     BuiltinObjectMutable,
+    Enum,
     EnumType,
     Node,
     NodeType,
     StructMutable,
     StructType,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
+    builtin_struct,
     object_,
     property_,
-    struct_,
 )
 from destack.pb2 import TransitionStyleData
 
@@ -25,8 +25,8 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.TRANSITION_TYPE)
-class TransitionType(BuiltinEnum):
+@builtin_enum(EnumType.TRANSITION_TYPE)
+class TransitionType(Enum):
     """Built-in transition types."""
 
     STYLE = 2
@@ -35,8 +35,8 @@ class TransitionType(BuiltinEnum):
     SPRING = 11
 
 
-@enum_(EnumType.SPRING_TYPE)
-class SpringType(BuiltinEnum):
+@builtin_enum(EnumType.SPRING_TYPE)
+class SpringType(Enum):
     """Built-in spring types."""
 
     TIME = 1
@@ -57,14 +57,14 @@ class TransitionBase(BuiltinObjectMutable):
     spring_type: SpringType | None = property_(57, is_repr=True)
 
 
-@struct_(StructType.TRANSITION)
+@builtin_struct(StructType.TRANSITION)
 class Transition(TransitionBase, StructMutable):
     """A transition value."""
 
     pass
 
 
-@node_(NodeType.TRANSITION_STYLE)
+@builtin_node(NodeType.TRANSITION_STYLE)
 class TransitionStyle(
     Style,
     TransitionBase,

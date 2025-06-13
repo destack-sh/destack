@@ -28,7 +28,7 @@ type_ = type
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def struct_[ObjectT: BuiltinObjectBase](struct_type: StructType, frozen: bool = False):
+def builtin_struct[ObjectT: BuiltinObjectBase](struct_type: StructType, frozen: bool = False):
     """Register a class as a concrete struct for the given struct type."""
 
     def decorate(cls: type[ObjectT]) -> type[ObjectT]:

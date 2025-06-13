@@ -1,19 +1,19 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
-    BuiltinEnum,
     BuiltinObjectMutable,
+    Enum,
     EnumType,
     Length,
     Node,
     NodeType,
     StructMutable,
     StructType,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
+    builtin_struct,
     object_,
     property_,
-    struct_,
 )
 from destack.pb2 import FontStyleData
 
@@ -26,8 +26,8 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.FONT_TYPE)
-class FontType(BuiltinEnum):
+@builtin_enum(EnumType.FONT_TYPE)
+class FontType(Enum):
     STYLE = 2
     FIELD = 3
     SERIF = 10
@@ -35,8 +35,8 @@ class FontType(BuiltinEnum):
     MONO = 12
 
 
-@enum_(EnumType.FONT_WEIGHT)
-class FontWeight(BuiltinEnum):
+@builtin_enum(EnumType.FONT_WEIGHT)
+class FontWeight(Enum):
     THIN = 100
     EXTRA_LIGHT = 200
     LIGHT = 300
@@ -48,8 +48,8 @@ class FontWeight(BuiltinEnum):
     BLACK = 900
 
 
-@enum_(EnumType.FONT_SIZE)
-class FontSize(BuiltinEnum):
+@builtin_enum(EnumType.FONT_SIZE)
+class FontSize(Enum):
     XS = 12
     SM = 14
     BASE = 16
@@ -63,23 +63,23 @@ class FontSize(BuiltinEnum):
     XL7 = 72
 
 
-@enum_(EnumType.TEXT_ALIGN)
-class TextAlign(BuiltinEnum):
+@builtin_enum(EnumType.TEXT_ALIGN)
+class TextAlign(Enum):
     LEFT = 1
     CENTER = 2
     RIGHT = 3
     JUSTIFY = 4
 
 
-@enum_(EnumType.TEXT_DECORATION)
-class TextDecoration(BuiltinEnum):
+@builtin_enum(EnumType.TEXT_DECORATION)
+class TextDecoration(Enum):
     NONE = 1
     UNDERLINE = 2
     STRIKETHROUGH = 3
 
 
-@enum_(EnumType.TEXT_TRANSFORM)
-class TextTransform(BuiltinEnum):
+@builtin_enum(EnumType.TEXT_TRANSFORM)
+class TextTransform(Enum):
     NONE = 1
     UPPERCASE = 2
     LOWERCASE = 3
@@ -102,14 +102,14 @@ class FontBase(BuiltinObjectMutable):
     transform: Optional[TextTransform] = property_(57, default=TextTransform.NONE, is_repr=True)
 
 
-@struct_(StructType.FONT)
+@builtin_struct(StructType.FONT)
 class Font(FontBase, StructMutable):
     """A font value."""
 
     pass
 
 
-@node_(NodeType.FONT_STYLE)
+@builtin_node(NodeType.FONT_STYLE)
 class FontStyle(
     Style,
     FontBase,

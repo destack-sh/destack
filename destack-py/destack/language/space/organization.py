@@ -3,8 +3,8 @@ from typing import TYPE_CHECKING, Optional
 from fastuuid import UUID
 
 from destack.language.core import (
-    BuiltinEnum,
     Entity,
+    Enum,
     EnumType,
     Global,
     HasIcon,
@@ -14,8 +14,8 @@ from destack.language.core import (
     Node,
     NodeReference,
     NodeType,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
     property_,
 )
 from destack.pb2 import (
@@ -28,13 +28,13 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.ORGANIZATION_STATUS)
-class OrganizationStatus(BuiltinEnum):
+@builtin_enum(EnumType.ORGANIZATION_STATUS)
+class OrganizationStatus(Enum):
     CREATING = 1
     ACTIVE = 10
 
 
-@node_(NodeType.ORGANIZATION, root_type=None)
+@builtin_node(NodeType.ORGANIZATION, root_type=None)
 class Organization(
     Global,
     Entity,

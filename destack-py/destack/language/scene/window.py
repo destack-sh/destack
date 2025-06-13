@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
-    BuiltinEnum,
     Entity,
+    Enum,
     EnumType,
     IsDeletable,
     IsOrdered,
@@ -14,8 +14,8 @@ from destack.language.core import (
     Selection,
     Spatial,
     StringFormat,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
     property_,
 )
 from destack.pb2 import WindowData
@@ -26,14 +26,14 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.WINDOW_TYPE)
-class WindowType(BuiltinEnum):
+@builtin_enum(EnumType.WINDOW_TYPE)
+class WindowType(Enum):
     BROWSER = 10
     DESKTOP = 20
     MOBILE = 30
 
 
-@node_(NodeType.WINDOW)
+@builtin_node(NodeType.WINDOW)
 class Window(
     Spatial,
     Entity,

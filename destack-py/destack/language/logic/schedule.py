@@ -4,15 +4,15 @@ from typing import TYPE_CHECKING
 from dateutil.rrule import rrule
 
 from destack.language.core import (
-    BuiltinEnum,
     Day,
+    Enum,
     EnumType,
     Month,
     StructMutable,
     StructType,
-    enum_,
+    builtin_enum,
+    builtin_struct,
     property_,
-    struct_,
 )
 
 if TYPE_CHECKING:
@@ -21,8 +21,8 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.SCHEDULE_FREQUENCY)
-class ScheduleFrequency(BuiltinEnum):
+@builtin_enum(EnumType.SCHEDULE_FREQUENCY)
+class ScheduleFrequency(Enum):
     YEAR = 1
     MONTH = 2
     WEEK = 3
@@ -31,7 +31,7 @@ class ScheduleFrequency(BuiltinEnum):
     MINUTE = 6
 
 
-@struct_(StructType.SCHEDULE)
+@builtin_struct(StructType.SCHEDULE)
 class Schedule(StructMutable):
     """The time-based schedule of something (compatible with rrule)."""
 

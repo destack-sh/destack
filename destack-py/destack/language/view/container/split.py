@@ -1,4 +1,4 @@
-from destack.language.core import Node, NodeType, node_
+from destack.language.core import Node, NodeType, builtin_node
 from destack.pb2 import SplitViewData
 
 from .container import ContainerView
@@ -6,7 +6,7 @@ from .container import ContainerView
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(NodeType.SPLIT_VIEW)
+@builtin_node(NodeType.SPLIT_VIEW)
 class SplitView(
     ContainerView,
     Node[SplitViewData],

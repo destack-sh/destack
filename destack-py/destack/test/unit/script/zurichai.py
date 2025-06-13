@@ -13,6 +13,8 @@ from .scaffold import *  # noqa: F403
 # ruff: noqa: F405
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
+# nocheckin: access control / permissions
+
 # ===============================================
 # ZurichAI/Common [Script]
 # ===============================================

@@ -17,8 +17,8 @@ from destack.language.registry import (
 from destack.pb2 import NodeReferenceData, PropertyReferenceData, ScopeData
 
 from ..builtin import (
-    BuiltinEnum,
     BuiltinObjectBase,
+    Enum,
     EnumType,
     Node,
     NodeType,
@@ -28,9 +28,9 @@ from ..builtin import (
     StructType,
     Trait,
     TraitType,
-    enum_,
+    builtin_enum,
+    builtin_struct,
     property_,
-    struct_,
 )
 
 if TYPE_CHECKING:
@@ -43,7 +43,7 @@ tracer = trace.get_tracer(__name__)
 type_ = type
 
 
-@struct_(StructType.SCOPE, frozen=True)
+@builtin_struct(StructType.SCOPE, frozen=True)
 class Scope(StructFrozen[ScopeData]):
     """The scope in the Space graph."""
 
@@ -51,15 +51,15 @@ class Scope(StructFrozen[ScopeData]):
     space_id: Optional[UUID] = property_(32, is_repr=True)
 
 
-@enum_(EnumType.RELATION_TYPE)
-class RelationType(BuiltinEnum):
+@builtin_enum(EnumType.RELATION_TYPE)
+class RelationType(Enum):
     BUILTIN_NODE = 1
     CUSTOM_NODE = 2
     TRAIT = 3
     # MULTI?
 
 
-@struct_(StructType.RELATION_REFERENCE, frozen=True)
+@builtin_struct(StructType.RELATION_REFERENCE, frozen=True)
 class RelationReference(StructFrozen):
     """Reference to a Node "type" (builtin or custom, i.e. a "relation")."""
 
@@ -128,13 +128,13 @@ def relation_ref(base: "NodeType | type[NodeBase] | CustomEntityDefinition") -> 
         assert_never(base)
 
 
-@enum_(EnumType.ATTRIBUTE_TYPE)
-class AttributeType(BuiltinEnum):
+@builtin_enum(EnumType.ATTRIBUTE_TYPE)
+class AttributeType(Enum):
     PROPERTY = 1
     FIELD = 2
 
 
-@struct_(StructType.ATTRIBUTE_REFERENCE, frozen=True)
+@builtin_struct(StructType.ATTRIBUTE_REFERENCE, frozen=True)
 class AttributeReference(StructFrozen):
     """Reference to a Field or Property."""
 
@@ -161,8 +161,8 @@ def attribute_ref(attribute: AttributeReferenceIn) -> AttributeReference:
         assert_never(attribute)
 
 
-@enum_(EnumType.PROPERTY_REFERENCE_TYPE)
-class PropertyReferenceType(BuiltinEnum):
+@builtin_enum(EnumType.PROPERTY_REFERENCE_TYPE)
+class PropertyReferenceType(Enum):
     """The type of a property reference."""
 
     NODE = 1
@@ -170,7 +170,7 @@ class PropertyReferenceType(BuiltinEnum):
     STRUCT = 3
 
 
-@struct_(StructType.PROPERTY_REFERENCE, frozen=True)
+@builtin_struct(StructType.PROPERTY_REFERENCE, frozen=True)
 class PropertyReference(StructFrozen[PropertyReferenceData]):
     """
     A reference to a builtin object's Property.
@@ -211,7 +211,7 @@ class PropertyReference(StructFrozen[PropertyReferenceData]):
         return prop
 
 
-@struct_(StructType.NODE_REFERENCE, frozen=True)
+@builtin_struct(StructType.NODE_REFERENCE, frozen=True)
 class NodeReference(StructFrozen[NodeReferenceData]):
     """
     A reference to a Node.

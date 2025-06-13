@@ -1,15 +1,15 @@
 from typing import TYPE_CHECKING
 
 from ..builtin import (
-    BuiltinEnum,
     DestackError,
+    Enum,
     EnumType,
     Node,
     StructFrozen,
     StructType,
-    enum_,
+    builtin_enum,
+    builtin_struct,
     property_,
-    struct_,
 )
 
 if TYPE_CHECKING:
@@ -20,8 +20,8 @@ if TYPE_CHECKING:
 # TODO :Incomplete: proper Errors/stacktraces/...
 
 
-@enum_(EnumType.ERROR_TYPE)
-class ErrorType(BuiltinEnum):
+@builtin_enum(EnumType.ERROR_TYPE)
+class ErrorType(Enum):
     # unretryable
     ABORTED = 2
     RUNTIME_UNAVAILABLE = 3
@@ -43,7 +43,7 @@ class ErrorType(BuiltinEnum):
         return self > 500
 
 
-@struct_(StructType.ERROR, frozen=True)
+@builtin_struct(StructType.ERROR, frozen=True)
 class Error(StructFrozen, DestackError):
     """An error that occurred in the context of a Run."""
 

@@ -3,9 +3,9 @@ from destack.language.core import (
     Region,
     StructMutable,
     StructType,
+    builtin_struct,
     object_,
     property_,
-    struct_,
 )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -21,7 +21,7 @@ class CellBase(BuiltinObjectMutable):
     host: str = property_(52, can_write="system", is_repr=True)
 
 
-@struct_(StructType.CELL_INFO)
+@builtin_struct(StructType.CELL_INFO)
 class CellInfo(CellBase, StructMutable):
     pass
 

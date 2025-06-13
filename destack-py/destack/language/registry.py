@@ -22,8 +22,8 @@ from .core.builtin.const import (
 
 if TYPE_CHECKING:
     from destack.language import (
-        BuiltinEnum,
         BuiltinObjectBase,
+        Enum,
         EnumInfo,
         Node,
         NodeBase,
@@ -70,7 +70,7 @@ def get_builtin_object_cls(object_type: NodeType | StructType) -> type["BuiltinO
 
 def get_builtin_class(
     destack_tgype: NodeType | StructType | EnumType,
-) -> type["BuiltinObjectBase"] | type["BuiltinEnum"]:
+) -> type["BuiltinObjectBase"] | type["Enum"]:
     if isinstance(destack_tgype, NodeType):
         return NODE_CLASS_BY_TYPE[destack_tgype]
     elif isinstance(destack_tgype, StructType):
@@ -82,13 +82,13 @@ def get_builtin_class(
 
 
 def get_builtin_type(
-    cls: type["BuiltinObjectBase"] | type["BuiltinEnum"],
+    cls: type["BuiltinObjectBase"] | type["Enum"],
 ) -> NodeType | StructType | EnumType:
-    from .core import BuiltinEnum, Node, StructBase
+    from .core import Enum, Node, StructBase
 
     if issubclass(cls, (Node, StructBase)):
         return cls.metatype
-    elif issubclass(cls, BuiltinEnum):
+    elif issubclass(cls, Enum):
         return ENUM_TYPE_BY_CLASS[cls]
     else:
         raise ValueError(f"invalid destack type: {cls!r}")

@@ -5,7 +5,7 @@ from fastuuid import UUID
 
 from destack.language.core import (
     Analytic,
-    BuiltinEnum,
+    Enum,
     EnumType,
     Event,
     Indexed,
@@ -16,8 +16,8 @@ from destack.language.core import (
     Particle,
     RunType,
     Spatial,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
     property_,
     property_parent_,
 )
@@ -30,8 +30,8 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.RUN_STATUS)
-class RunStatus(BuiltinEnum):
+@builtin_enum(EnumType.RUN_STATUS)
+class RunStatus(Enum):
     # pre
     SCHEDULED = 2, "Scheduled", "Scheduled for sometime", "fas fa-clock"
     # active
@@ -70,8 +70,8 @@ class RunStatus(BuiltinEnum):
         return self in (RunStatus.FAILED, RunStatus.ABORTED, RunStatus.CANCELLED)
 
 
-@enum_(EnumType.RUN_EVENT_TYPE)
-class RunEventType(BuiltinEnum):
+@builtin_enum(EnumType.RUN_EVENT_TYPE)
+class RunEventType(Enum):
     """A Type of Run Event."""
 
     SCHEDULED = 1, "Scheduled", "Scheduled for sometime", "fas fa-clock"
@@ -87,7 +87,7 @@ class RunEventType(BuiltinEnum):
     COMPLETED = 54, "Completed", "Completed successfully", "fas fa-circle-check"
 
 
-@node_(NodeType.RUN_EVENT)
+@builtin_node(NodeType.RUN_EVENT)
 class RunEvent(
     Event["Run"],
     Node[RunEventData],
@@ -103,7 +103,7 @@ class RunEvent(
         target_type: Optional[NodeType] = None
 
 
-@node_(NodeType.RUN)
+@builtin_node(NodeType.RUN)
 class Run(
     Spatial,
     Particle,

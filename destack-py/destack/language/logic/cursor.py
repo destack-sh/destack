@@ -2,8 +2,8 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
-    BuiltinEnum,
     Entity,
+    Enum,
     EnumType,
     IsOwnable,
     Node,
@@ -11,8 +11,8 @@ from destack.language.core import (
     Spatial,
     TraitType,
     Vector2i,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
     property_,
     trait_,
 )
@@ -25,8 +25,8 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.CURSOR_STATUS)
-class CursorStatus(BuiltinEnum):
+@builtin_enum(EnumType.CURSOR_STATUS)
+class CursorStatus(Enum):
     """
     The status of a Cursor.
     """
@@ -54,7 +54,7 @@ class Cursor(Spatial, Entity):
     active_at: Optional[datetime] = property_(41)
 
 
-@node_(NodeType.EVENT_CURSOR)
+@builtin_node(NodeType.EVENT_CURSOR)
 class EventCursor(
     Cursor,
     IsOwnable,
@@ -68,7 +68,7 @@ class EventCursor(
     pass
 
 
-@node_(NodeType.SCREEN_CURSOR)
+@builtin_node(NodeType.SCREEN_CURSOR)
 class ScreenCursor(
     Cursor,
     IsOwnable,
@@ -82,7 +82,7 @@ class ScreenCursor(
     position: Optional[Vector2i] = property_(50)
 
 
-@node_(NodeType.THREAD_CURSOR)
+@builtin_node(NodeType.THREAD_CURSOR)
 class ThreadCursor(
     Cursor,
     IsOwnable,

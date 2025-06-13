@@ -1,13 +1,13 @@
 from typing import TYPE_CHECKING
 
 from ..builtin import (
-    BuiltinEnum,
+    Enum,
     EnumType,
     StructFrozen,
     StructType,
-    enum_,
+    builtin_enum,
+    builtin_struct,
     property_,
-    struct_,
 )
 
 if TYPE_CHECKING:
@@ -16,16 +16,16 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.LAYOUT)
-class Layout(BuiltinEnum):
+@builtin_enum(EnumType.LAYOUT)
+class Layout(Enum):
     """The layout of a View."""
 
     STACK = 1, "Stack", "Stack", "fas fa-objects-align-center-vertical"
     GRID = 2, "Grid", "Grid", "fas fa-grid-2"
 
 
-@enum_(EnumType.OVERFLOW)
-class Overflow(BuiltinEnum):
+@builtin_enum(EnumType.OVERFLOW)
+class Overflow(Enum):
     """The overflow behavior of a View."""
 
     HIDDEN = 2, "Hidden", "Hidden", "fas fa-eye-slash"
@@ -33,16 +33,16 @@ class Overflow(BuiltinEnum):
     SCROLL = 4, "Scroll", "Scroll", "fas fa-machine-mouse-scrollwheel"
 
 
-@enum_(EnumType.DIRECTION)
-class Direction(BuiltinEnum):
+@builtin_enum(EnumType.DIRECTION)
+class Direction(Enum):
     """The direction of a View."""
 
     HORIZONTAL = 1, "Horizontal", "Horizontal", "fas fa-left-right"
     VERTICAL = 2, "Vertical", "Vertical", "fas fa-up-down"
 
 
-@enum_(EnumType.DISTRIBUTE)
-class Distribute(BuiltinEnum):
+@builtin_enum(EnumType.DISTRIBUTE)
+class Distribute(Enum):
     """The distribution of a View's children."""
 
     START = 1, "Start", "Start", "fas fa-align-left"
@@ -53,8 +53,8 @@ class Distribute(BuiltinEnum):
     SPACE_EVENLY = 6, "Viewport Evenly", "Viewport Evenly"
 
 
-@enum_(EnumType.ALIGN)
-class Align(BuiltinEnum):
+@builtin_enum(EnumType.ALIGN)
+class Align(Enum):
     """The alignment of a View."""
 
     START = 1, "Start", "Start", "fas fa-align-left"
@@ -62,8 +62,8 @@ class Align(BuiltinEnum):
     END = 3, "End", "End", "fas fa-align-right"
 
 
-@enum_(EnumType.LENGTH_UNIT)
-class LengthUnit(BuiltinEnum):
+@builtin_enum(EnumType.LENGTH_UNIT)
+class LengthUnit(Enum):
     """The unit of a length value."""
 
     PIXEL = 1, "Pixel", "px"
@@ -72,7 +72,7 @@ class LengthUnit(BuiltinEnum):
     FR = 4, "Fr", "fr"
 
 
-@struct_(StructType.LENGTH, frozen=True)
+@builtin_struct(StructType.LENGTH, frozen=True)
 class Length(StructFrozen):
     """A length value."""
 
@@ -80,8 +80,8 @@ class Length(StructFrozen):
     value: float = property_(51)
 
 
-@enum_(EnumType.POSITION_TYPE)
-class PositionType(BuiltinEnum):
+@builtin_enum(EnumType.POSITION_TYPE)
+class PositionType(Enum):
     """The position type of a View."""
 
     RELATIVE = 1, "Relative", "Relative"
@@ -90,7 +90,7 @@ class PositionType(BuiltinEnum):
     STICKY = 4, "Sticky", "Sticky"
 
 
-@struct_(StructType.POSITION, frozen=True)
+@builtin_struct(StructType.POSITION, frozen=True)
 class Position(StructFrozen):
     """A position value."""
 
@@ -101,14 +101,14 @@ class Position(StructFrozen):
     height: Length | None = property_(53, is_repr=True)
 
 
-@enum_(EnumType.DIMENSION_TYPE)
-class DimensionType(BuiltinEnum):
+@builtin_enum(EnumType.DIMENSION_TYPE)
+class DimensionType(Enum):
     FIXED = 2, "Fixed", "Fixed", "fas fa-ruler-horizontal"
     FIT = 3, "Fit", "Fit", "fas fa-arrows-up-to-line"
     FILL = 4, "Fill", "Fill", "fas fa-arrows-from-dotted-line"
 
 
-@struct_(StructType.DIMENSION, frozen=True)
+@builtin_struct(StructType.DIMENSION, frozen=True)
 class Dimension(StructFrozen):
     """A dimension value (like Length but can fit or fill container)."""
 
@@ -117,7 +117,7 @@ class Dimension(StructFrozen):
     value: float = property_(51, is_repr=True)
 
 
-@struct_(StructType.INSETS, frozen=True)
+@builtin_struct(StructType.INSETS, frozen=True)
 class Insets(StructFrozen):
     """An insets value (base + side overrides)."""
 
@@ -128,7 +128,7 @@ class Insets(StructFrozen):
     bottom: int | None = property_(54, is_repr=True)
 
 
-@struct_(StructType.CORNERS, frozen=True)
+@builtin_struct(StructType.CORNERS, frozen=True)
 class Corners(StructFrozen):
     """A corners value (base + corner overrides)."""
 
@@ -139,7 +139,7 @@ class Corners(StructFrozen):
     bottom_right: int | None = property_(54, is_repr=True)
 
 
-@struct_(StructType.AXIS2, frozen=True)
+@builtin_struct(StructType.AXIS2, frozen=True)
 class Axis2(StructFrozen):
     """A gap value (base + x/y overrides)."""
 
@@ -148,7 +148,7 @@ class Axis2(StructFrozen):
     y: float | None = property_(52, is_repr=True)
 
 
-@struct_(StructType.AXIS3, frozen=True)
+@builtin_struct(StructType.AXIS3, frozen=True)
 class Axis3(StructFrozen):
     """A rotation value (base + x/y/z overrides)."""
 
@@ -158,7 +158,7 @@ class Axis3(StructFrozen):
     z: float | None = property_(53, is_repr=True)
 
 
-@struct_(StructType.VECTOR2, frozen=True)
+@builtin_struct(StructType.VECTOR2, frozen=True)
 class Vector2(StructFrozen):
     """A 2D float vector."""
 
@@ -166,7 +166,7 @@ class Vector2(StructFrozen):
     y: float = property_(51, is_repr=True)
 
 
-@struct_(StructType.VECTOR3, frozen=True)
+@builtin_struct(StructType.VECTOR3, frozen=True)
 class Vector3(StructFrozen):
     """A 3D float vector."""
 
@@ -175,7 +175,7 @@ class Vector3(StructFrozen):
     z: float = property_(52, is_repr=True)
 
 
-@struct_(StructType.VECTOR4, frozen=True)
+@builtin_struct(StructType.VECTOR4, frozen=True)
 class Vector4(StructFrozen):
     """A 4D float vector."""
 
@@ -185,7 +185,7 @@ class Vector4(StructFrozen):
     w: float = property_(53, is_repr=True)
 
 
-@struct_(StructType.VECTOR2I, frozen=True)
+@builtin_struct(StructType.VECTOR2I, frozen=True)
 class Vector2i(StructFrozen):
     """A 2D integer vector."""
 
@@ -193,7 +193,7 @@ class Vector2i(StructFrozen):
     y: int = property_(51, is_repr=True)
 
 
-@struct_(StructType.VECTOR3I, frozen=True)
+@builtin_struct(StructType.VECTOR3I, frozen=True)
 class Vector3i(StructFrozen):
     """A 3D integer vector."""
 
@@ -202,7 +202,7 @@ class Vector3i(StructFrozen):
     z: int = property_(52, is_repr=True)
 
 
-@struct_(StructType.VECTOR4I, frozen=True)
+@builtin_struct(StructType.VECTOR4I, frozen=True)
 class Vector4i(StructFrozen):
     """A 4D integer vector."""
 
@@ -236,7 +236,7 @@ def vector4i(x: int, y: int, z: int, w: int) -> "Vector4i":
     return Vector4i(x=int(x), y=int(y), z=int(z), w=int(w))
 
 
-@struct_(StructType.GRID, frozen=True)
+@builtin_struct(StructType.GRID, frozen=True)
 class Grid(StructFrozen):
     """A grid configuration value."""
 
@@ -247,7 +247,7 @@ class Grid(StructFrozen):
     row_height: Dimension | None = property_(54, is_repr=True)
 
 
-@struct_(StructType.GRID_SPAN, frozen=True)
+@builtin_struct(StructType.GRID_SPAN, frozen=True)
 class GridSpan(StructFrozen):
     """A grid span value."""
 

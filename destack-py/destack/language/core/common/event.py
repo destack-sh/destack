@@ -19,7 +19,7 @@ from ..builtin import (
     NodeType,
     Property,
     Spatial,
-    node_,
+    builtin_node,
     property_,
 )
 
@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(NodeType.EDIT_EVENT, pretend_frozen=True)
+@builtin_node(NodeType.EDIT_EVENT, pretend_frozen=True)
 class EditEvent(
     Event,
     IsTaggable,
@@ -63,7 +63,7 @@ class EditEvent(
     value: "Value | None" = property_(40)
 
 
-@node_(NodeType.CUSTOM_EVENT_DEFINITION)
+@builtin_node(NodeType.CUSTOM_EVENT_DEFINITION)
 class CustomEventDefinition(
     Spatial,
     Entity,
@@ -76,7 +76,7 @@ class CustomEventDefinition(
     pass
 
 
-@node_(NodeType.CUSTOM_EVENT, pretend_frozen=True)
+@builtin_node(NodeType.CUSTOM_EVENT, pretend_frozen=True)
 class CustomEvent(
     Event,
     Node[CustomEventData],

@@ -1,14 +1,14 @@
 from typing import TYPE_CHECKING, Union
 
 from destack.language.core import (
-    BuiltinEnum,
+    Enum,
     EnumType,
     HasIcon,
     IsOwnable,
     Node,
     NodeType,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
     property_,
     property_parent_,
 )
@@ -22,8 +22,8 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.LAYER_TYPE)
-class LayerType(BuiltinEnum):
+@builtin_enum(EnumType.LAYER_TYPE)
+class LayerType(Enum):
     """Built-in layer types."""
 
     GENERAL = 1
@@ -31,7 +31,7 @@ class LayerType(BuiltinEnum):
     # RASTER, ...
 
 
-@node_(NodeType.LAYER)
+@builtin_node(NodeType.LAYER)
 class Layer(
     ContainerView,
     HasIcon,

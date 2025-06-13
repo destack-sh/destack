@@ -15,7 +15,7 @@ from destack.language.core import (
     Node,
     NodeType,
     Spatial,
-    node_,
+    builtin_node,
 )
 from destack.pb2 import ServiceData
 
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
 
-@node_(NodeType.SERVICE)
+@builtin_node(NodeType.SERVICE)
 class Service(
     Spatial,
     Entity,

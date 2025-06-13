@@ -2,18 +2,18 @@ from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
     Axis2,
-    BuiltinEnum,
     BuiltinObjectMutable,
+    Enum,
     EnumType,
     Node,
     NodeType,
     StructMutable,
     StructType,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
+    builtin_struct,
     object_,
     property_,
-    struct_,
 )
 from destack.pb2 import ShadowStyleData
 
@@ -26,8 +26,8 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.SHADOW_TYPE)
-class ShadowType(BuiltinEnum):
+@builtin_enum(EnumType.SHADOW_TYPE)
+class ShadowType(Enum):
     """Built-in shadow types."""
 
     STYLE = 2
@@ -36,8 +36,8 @@ class ShadowType(BuiltinEnum):
     REALISTIC = 11
 
 
-@enum_(EnumType.SHADOW_POSITION)
-class ShadowPosition(BuiltinEnum):
+@builtin_enum(EnumType.SHADOW_POSITION)
+class ShadowPosition(Enum):
     """Built-in shadow positions."""
 
     OUTSIDE = 1
@@ -56,14 +56,14 @@ class ShadowBase(BuiltinObjectMutable):
     diffusion: float | None = property_(55, is_repr=True)
 
 
-@struct_(StructType.SHADOW)
+@builtin_struct(StructType.SHADOW)
 class Shadow(ShadowBase, StructMutable):
     """A shadow value."""
 
     pass
 
 
-@node_(NodeType.SHADOW_STYLE)
+@builtin_node(NodeType.SHADOW_STYLE)
 class ShadowStyle(
     Style,
     ShadowBase,

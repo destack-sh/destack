@@ -1,13 +1,13 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
-    BuiltinEnum,
+    Enum,
     EnumType,
     Node,
     NodeType,
     Vector2,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
     property_,
 )
 from destack.pb2 import LineShapeData
@@ -21,14 +21,14 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.LINE_TYPE)
-class LineType(BuiltinEnum):
+@builtin_enum(EnumType.LINE_TYPE)
+class LineType(Enum):
     SOLID = 1
     DASHED = 2
     DOTTED = 3
 
 
-@node_(NodeType.LINE_SHAPE, pretend_frozen=True)
+@builtin_node(NodeType.LINE_SHAPE, pretend_frozen=True)
 class LineShape(ContentView, IsShape, Node[LineShapeData]):
     """A LineShape is a shape that represents a line."""
 

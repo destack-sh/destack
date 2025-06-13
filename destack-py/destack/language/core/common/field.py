@@ -3,10 +3,10 @@ from typing import TYPE_CHECKING, Optional, Union
 from destack.pb2 import FieldData
 
 from ..builtin import (
-    BuiltinEnum,
     CascadeAction,
     EdgeType,
     Entity,
+    Enum,
     EnumType,
     HasIcon,
     HasName,
@@ -17,8 +17,8 @@ from ..builtin import (
     Node,
     NodeType,
     Spatial,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
     property_,
     property_parent_,
 )
@@ -49,14 +49,14 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
 
-@enum_(EnumType.FIELD_TYPE)
-class FieldType(BuiltinEnum):
+@builtin_enum(EnumType.FIELD_TYPE)
+class FieldType(Enum):
     MEMBER = 1, "Member", "Member", "fas fa-arrow-down"
     INPUT = 2, "Input", "Input", "fas fa-arrow-down"
     OUTPUT = 3, "Output", "Output", "fas fa-arrow-up"
 
 
-@node_(NodeType.FIELD)
+@builtin_node(NodeType.FIELD)
 class Field(
     Spatial,
     Entity,

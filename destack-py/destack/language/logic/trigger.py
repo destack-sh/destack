@@ -3,8 +3,8 @@ from typing import TYPE_CHECKING, Optional
 from fastuuid import UUID
 
 from destack.language.core import (
-    BuiltinEnum,
     Entity,
+    Enum,
     EnumType,
     Event,
     HasName,
@@ -14,8 +14,8 @@ from destack.language.core import (
     RelationReference,
     Spatial,
     Value,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
     property_,
 )
 from destack.pb2 import TriggerData, TriggerEventData
@@ -26,8 +26,8 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.TRIGGER_EVENT_TYPE)
-class TriggerEventType(BuiltinEnum):
+@builtin_enum(EnumType.TRIGGER_EVENT_TYPE)
+class TriggerEventType(Enum):
     """A Type of Trigger Event."""
 
     STARTED = 1, "Started", "Started", "fas fa-play"
@@ -35,7 +35,7 @@ class TriggerEventType(BuiltinEnum):
     STOPPED = 3, "Stopped", "Stopped", "fas fa-stop"
 
 
-@node_(NodeType.TRIGGER_EVENT)
+@builtin_node(NodeType.TRIGGER_EVENT)
 class TriggerEvent(
     Event["Trigger"],
     Node[TriggerEventData],
@@ -46,12 +46,12 @@ class TriggerEvent(
     node: "Trigger" = property_(35)
 
 
-@enum_(EnumType.TRIGGER_TYPE)
-class TriggerType(BuiltinEnum):
+@builtin_enum(EnumType.TRIGGER_TYPE)
+class TriggerType(Enum):
     EVENT = 1
 
 
-@node_(NodeType.TRIGGER)
+@builtin_node(NodeType.TRIGGER)
 class Trigger(
     Spatial,
     Entity,

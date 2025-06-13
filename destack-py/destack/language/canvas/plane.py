@@ -1,11 +1,11 @@
 from destack.language.core import (
-    BuiltinEnum,
+    Enum,
     EnumType,
     Node,
     NodeType,
     Vector2,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
     property_,
 )
 from destack.pb2 import PlaneShapeData
@@ -16,8 +16,8 @@ from .shape import IsShape
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.PLANE_SHAPE_TYPE)
-class PlaneShapeType(BuiltinEnum):
+@builtin_enum(EnumType.PLANE_SHAPE_TYPE)
+class PlaneShapeType(Enum):
     RECTANGLE = 1
     TRIANGLE = 2
     CIRCLE = 3
@@ -25,6 +25,6 @@ class PlaneShapeType(BuiltinEnum):
     POLYGON = 5
 
 
-@node_(NodeType.PLANE_SHAPE, pretend_frozen=True)
+@builtin_node(NodeType.PLANE_SHAPE, pretend_frozen=True)
 class PlaneShape(ContainerView, IsShape, Node[PlaneShapeData]):
     points: list[Vector2] = property_(100)

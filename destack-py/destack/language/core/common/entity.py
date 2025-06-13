@@ -22,7 +22,7 @@ from ..builtin import (
     NodeType,
     Spatial,
     TraitType,
-    node_,
+    builtin_node,
     property_,
     property_parent_,
 )
@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-@node_(NodeType.CUSTOM_ENTITY_DEFINITION)
+@builtin_node(NodeType.CUSTOM_ENTITY_DEFINITION)
 class CustomEntityDefinition(
     Spatial,
     Entity,
@@ -61,7 +61,7 @@ class CustomEntityDefinition(
     traits: list[TraitType] = property_(40)
 
 
-@node_(NodeType.CUSTOM_ENTITY)
+@builtin_node(NodeType.CUSTOM_ENTITY)
 class CustomEntity(
     Spatial,
     Entity,

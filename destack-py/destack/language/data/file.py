@@ -18,7 +18,7 @@ from opentelemetry import trace
 from PIL import Image
 
 from destack.language.core import (
-    BuiltinEnum,
+    Enum,
     EnumType,
     Global,
     HasName,
@@ -27,8 +27,8 @@ from destack.language.core import (
     PrimitiveType,
     Resource,
     Spatial,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
     property_,
     property_runtime_,
 )
@@ -58,22 +58,22 @@ MAX_FILE_SIZE = get_from_env(
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.FILE_SOURCE)
-class FileSource(BuiltinEnum):
+@builtin_enum(EnumType.FILE_SOURCE)
+class FileSource(Enum):
     SPACE = 1
     INLINE = 3
     EXTERNAL = 10
 
 
-@enum_(EnumType.FILE_RETENTION_MODE)
-class FileRetentionMode(BuiltinEnum):
+@builtin_enum(EnumType.FILE_RETENTION_MODE)
+class FileRetentionMode(Enum):
     AUTOMATIC = 1  # garbage collected if no references
     MANUAL = 2  # never garbage collected
     TIMED = 3  # delete after a certain time
 
 
-@enum_(EnumType.FILE_TYPE)
-class FileType(BuiltinEnum):
+@builtin_enum(EnumType.FILE_TYPE)
+class FileType(Enum):
     TEXT = 1, None, None, "fas fa-file-lines"
     CODE = 2, None, None, "fas fa-file-code"
     IMAGE = 3, None, None, "fas fa-image"
@@ -86,8 +86,8 @@ class FileType(BuiltinEnum):
     GENERIC = 99, None, None, "fas fa-file"
 
 
-@enum_(EnumType.FILE_FORMAT)
-class FileFormat(BuiltinEnum):  # :FileFormats
+@builtin_enum(EnumType.FILE_FORMAT)
+class FileFormat(Enum):  # :FileFormats
     """The format of a file (roughly an extension)."""
 
     # text
@@ -455,7 +455,7 @@ MIME_TYPES_BY_FILE_FORMAT = group_by(
 MIME_TYPE_BY_FORMAT: dict[FileFormat, str] = {v: k for k, v in FILE_FORMAT_BY_MIME_TYPE.items()}
 
 
-@node_(NodeType.FILE)
+@builtin_node(NodeType.FILE)
 class File(
     Spatial,
     Global,

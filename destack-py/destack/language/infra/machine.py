@@ -4,15 +4,15 @@ from fastuuid import UUID
 
 from destack.language.core import (
     VERSION,
-    BuiltinEnum,
+    Enum,
     EnumType,
     Node,
     NodeReference,
     NodeType,
     Resource,
     Spatial,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
     property_,
 )
 from destack.pb2 import MachineData
@@ -23,8 +23,8 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.MACHINE_TYPE)
-class MachineType(BuiltinEnum):
+@builtin_enum(EnumType.MACHINE_TYPE)
+class MachineType(Enum):
     RUNTIME = 10, "Runtime", "The main Destack runtime", "fas fa-machine-classic"
     UBUNTU = 1000, "Ubuntu", "A Linux machine running Ubuntu", "fab fa-ubuntu"
     MAC = 1100, "Mac", "A Mac machine", "fab fa-apple"
@@ -32,7 +32,7 @@ class MachineType(BuiltinEnum):
     CUSTOM = 9000, "Custom", "A custom Docker image", "fas fa-whale"
 
 
-@node_(NodeType.MACHINE)
+@builtin_node(NodeType.MACHINE)
 class Machine(
     Spatial,
     Resource,

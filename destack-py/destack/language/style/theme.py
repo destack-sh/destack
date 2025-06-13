@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING
 
 from destack.language.core import (
-    BuiltinEnum,
     Entity,
+    Enum,
     EnumType,
     HasIcon,
     HasName,
@@ -13,8 +13,8 @@ from destack.language.core import (
     Node,
     NodeType,
     Spatial,
-    enum_,
-    node_,
+    builtin_enum,
+    builtin_node,
     property_,
 )
 from destack.pb2 import ThemeData
@@ -25,8 +25,8 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.THEME_COLOR)
-class ThemeColor(BuiltinEnum):
+@builtin_enum(EnumType.THEME_COLOR)
+class ThemeColor(Enum):
     """A color in the theme."""
 
     PRIMARY = 50
@@ -38,7 +38,7 @@ class ThemeColor(BuiltinEnum):
     ERROR = 56
 
 
-@node_(NodeType.THEME)
+@builtin_node(NodeType.THEME)
 class Theme(
     Spatial,
     Entity,

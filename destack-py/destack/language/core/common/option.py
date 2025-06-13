@@ -13,7 +13,7 @@ from ..builtin import (
     Node,
     NodeType,
     Spatial,
-    node_,
+    builtin_node,
     property_parent_,
 )
 
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(NodeType.OPTION)
+@builtin_node(NodeType.OPTION)
 class Option(
     Spatial,
     Entity,

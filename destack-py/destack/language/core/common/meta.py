@@ -1,9 +1,9 @@
 from typing import TYPE_CHECKING, Optional
 
 from ..builtin import (
-    BuiltinEnum,
     CascadeAction,
     EdgeType,
+    Enum,
     EnumType,
     NodeType,
     Property,
@@ -11,8 +11,8 @@ from ..builtin import (
     StructFrozen,
     StructType,
     TraitType,
+    builtin_struct,
     property_,
-    struct_,
 )
 from .type import (
     CollectionConstraint,
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 _type = type
 
 
-@struct_(StructType.PROPERTY_INFO, frozen=True)
+@builtin_struct(StructType.PROPERTY_INFO, frozen=True)
 class PropertyInfo(StructFrozen):
     """Information about a Property."""
 
@@ -115,7 +115,7 @@ class PropertyInfo(StructFrozen):
         )
 
 
-@struct_(StructType.TRAIT_INFO, frozen=True)
+@builtin_struct(StructType.TRAIT_INFO, frozen=True)
 class TraitInfo(StructFrozen):
     """Information about a Trait."""
 
@@ -128,7 +128,7 @@ class TraitInfo(StructFrozen):
     nodes: list[NodeType] = property_(51)
 
 
-@struct_(StructType.NODE_INFO, frozen=True)
+@builtin_struct(StructType.NODE_INFO, frozen=True)
 class NodeInfo(StructFrozen):
     """Information about a Node."""
 
@@ -156,7 +156,7 @@ class NodeInfo(StructFrozen):
         )
 
 
-@struct_(StructType.STRUCT_INFO, frozen=True)
+@builtin_struct(StructType.STRUCT_INFO, frozen=True)
 class StructInfo(StructFrozen):
     """Information about a Struct."""
 
@@ -182,7 +182,7 @@ class StructInfo(StructFrozen):
         )
 
 
-@struct_(StructType.ENUM_INFO, frozen=True)
+@builtin_struct(StructType.ENUM_INFO, frozen=True)
 class EnumInfo(StructFrozen):
     """Information about an Enum."""
 
@@ -194,7 +194,7 @@ class EnumInfo(StructFrozen):
     options: list["EnumOptionInfo"] = property_(50)
 
     @classmethod
-    def from_enum(cls, enum_type: EnumType, enum_cls: _type[BuiltinEnum]) -> "EnumInfo":
+    def from_enum(cls, enum_type: EnumType, enum_cls: _type[Enum]) -> "EnumInfo":
         """Create EnumInfo from an Enum class."""
         from .icon import to_icon
 
@@ -211,7 +211,7 @@ class EnumInfo(StructFrozen):
         )
 
 
-@struct_(StructType.ENUM_OPTION_INFO, frozen=True)
+@builtin_struct(StructType.ENUM_OPTION_INFO, frozen=True)
 class EnumOptionInfo(StructFrozen):
     """Information about an Enum Option."""
 
@@ -222,7 +222,7 @@ class EnumOptionInfo(StructFrozen):
     description: str | None = property_(36)
 
     @classmethod
-    def from_enum_option(cls, enum_type: EnumType, option: BuiltinEnum) -> "EnumOptionInfo":
+    def from_enum_option(cls, enum_type: EnumType, option: Enum) -> "EnumOptionInfo":
         """Create EnumOptionInfo from an Enum option."""
         from .icon import to_icon
 
