@@ -21,7 +21,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.pb2 import RunData
+from destack.pb2 import RunData, RunEventData
 
 if TYPE_CHECKING:
     from destack.language import Error, Interruption, NodeReference, Space
@@ -89,9 +89,8 @@ class RunEventType(BuiltinEnum):
 
 @node_(NodeType.RUN_EVENT)
 class RunEvent(
-    Spatial,
     Event["Run"],
-    Node["RunEventData"],
+    Node[RunEventData],
 ):
     """A Event regarding a Run."""
 

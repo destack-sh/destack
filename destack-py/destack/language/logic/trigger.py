@@ -18,7 +18,7 @@ from destack.language.core import (
     node_,
     property_,
 )
-from destack.pb2 import TriggerData
+from destack.pb2 import TriggerData, TriggerEventData
 
 if TYPE_CHECKING:
     from destack.language import Condition
@@ -37,9 +37,8 @@ class TriggerEventType(BuiltinEnum):
 
 @node_(NodeType.TRIGGER_EVENT)
 class TriggerEvent(
-    Spatial,
     Event["Trigger"],
-    Node["TriggerEventData"],
+    Node[TriggerEventData],
 ):
     """A Event regarding a Trigger."""
 

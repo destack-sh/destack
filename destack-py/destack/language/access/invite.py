@@ -19,7 +19,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.pb2 import InviteData
+from destack.pb2 import InviteData, InviteEventData
 
 if TYPE_CHECKING:
     from destack.language import Role, RoleType
@@ -39,9 +39,8 @@ class InviteEventType(BuiltinEnum):
 
 @node_(NodeType.INVITE_EVENT)
 class InviteEvent(
-    Spatial,
     Event,
-    Node["InviteEventData"],
+    Node[InviteEventData],
 ):
     """A Event regarding an Invite."""
 

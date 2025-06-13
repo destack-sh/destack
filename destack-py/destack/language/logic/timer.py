@@ -13,7 +13,7 @@ from destack.language.core import (
     node_,
     property_,
 )
-from destack.pb2 import TimerData
+from destack.pb2 import TimerData, TimerEventData
 
 from .schedule import Schedule
 
@@ -34,9 +34,8 @@ class TimerEventType(BuiltinEnum):
 
 @node_(NodeType.TIMER_EVENT)
 class TimerEvent(
-    Spatial,
     Event["Timer"],
-    Node["TimerEventData"],
+    Node[TimerEventData],
 ):
     """A Event regarding a Timer."""
 

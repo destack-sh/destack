@@ -290,11 +290,12 @@ enum EnumType {
   ENUM_TYPE_STORE_ZONE = 6;
   ENUM_TYPE_STORE_TYPE = 7;
   ENUM_TYPE_STORE_IMPLEMENTATION = 8;
-  ENUM_TYPE_PROPERTY_REFERENCE_TYPE = 12;
-  ENUM_TYPE_RUNTIME_TYPE = 10;
-  ENUM_TYPE_RUNTIME_LANGUAGE = 11;
-  ENUM_TYPE_USER_STATUS = 13;
-  ENUM_TYPE_ORGANIZATION_STATUS = 14;
+  ENUM_TYPE_PROPERTY_REFERENCE_TYPE = 9;
+  ENUM_TYPE_PLATFORM_TYPE = 10;
+  ENUM_TYPE_RUNTIME_TYPE = 11;
+  ENUM_TYPE_OPERATING_SYSTEM = 12;
+  ENUM_TYPE_USER_STATUS = 20;
+  ENUM_TYPE_ORGANIZATION_STATUS = 21;
   ENUM_TYPE_SPACE_STATUS = 57;
   ENUM_TYPE_FOLDER_TYPE = 51;
   ENUM_TYPE_ERROR_TYPE = 62;
@@ -315,6 +316,10 @@ enum EnumType {
   ENUM_TYPE_QUERY_TYPE = 120;
   ENUM_TYPE_QUERY_UPDATE_TYPE = 121;
   ENUM_TYPE_ROLE_TYPE = 400;
+  ENUM_TYPE_MEMBERSHIP_EVENT_TYPE = 401;
+  ENUM_TYPE_INVITE_EVENT_TYPE = 402;
+  ENUM_TYPE_ROLE_EVENT_TYPE = 403;
+  ENUM_TYPE_FRIENDSHIP_INVITE_EVENT_TYPE = 405;
   ENUM_TYPE_WINDOW_TYPE = 601;
   ENUM_TYPE_TEXT_LINE_TYPE = 1401;
   ENUM_TYPE_TEXT_SPAN_TYPE = 1402;
@@ -342,16 +347,20 @@ enum EnumType {
   ENUM_TYPE_ACTION_CARDINALITY = 1821;
   ENUM_TYPE_CURSOR_STATUS = 1922;
   ENUM_TYPE_SCHEDULE_FREQUENCY = 1930;
-  ENUM_TYPE_TIMER_TYPE = 1931;
-  ENUM_TYPE_TRIGGER_TYPE = 1932;
-  ENUM_TYPE_RUN_STATUS = 2411;
+  ENUM_TYPE_TIMER_TYPE = 1940;
+  ENUM_TYPE_TIMER_EVENT_TYPE = 1941;
+  ENUM_TYPE_TRIGGER_TYPE = 1950;
+  ENUM_TYPE_TRIGGER_EVENT_TYPE = 1951;
+  ENUM_TYPE_RUN_STATUS = 2410;
+  ENUM_TYPE_RUN_EVENT_TYPE = 2411;
   ENUM_TYPE_RUN_TYPE = 2412;
-  ENUM_TYPE_INTERRUPTION_TYPE = 2432;
-  ENUM_TYPE_INTERRUPTION_STATUS = 2433;
-  ENUM_TYPE_INTERRUPTION_RESPONSE = 2434;
+  ENUM_TYPE_INTERRUPTION_TYPE = 2420;
+  ENUM_TYPE_INTERRUPTION_STATUS = 2421;
+  ENUM_TYPE_INTERRUPTION_RESPONSE = 2422;
   ENUM_TYPE_ENVIRONMENT_TYPE = 2800;
   ENUM_TYPE_THREAD_STATUS = 3402;
-  ENUM_TYPE_MESSAGE_TYPE = 3421;
+  ENUM_TYPE_NOTIFICATION_STATUS = 3430;
+  ENUM_TYPE_NOTIFICATION_EVENT_TYPE = 3431;
   ENUM_TYPE_CLOUD = 5000;
   ENUM_TYPE_REGION = 5001;
   ENUM_TYPE_REGION_AREA = 5002;
@@ -362,6 +371,7 @@ enum EnumType {
   ENUM_TYPE_MODEL_DEVELOPER = 5401;
   ENUM_TYPE_MODEL_PROVIDER = 5402;
   ENUM_TYPE_LAYER_TYPE = 8001;
+  ENUM_TYPE_SCENE_EVENT_TYPE = 8010;
   ENUM_TYPE_CANVAS_TYPE = 8600;
   ENUM_TYPE_PLANE_SHAPE_TYPE = 8601;
   ENUM_TYPE_ARROW_HEAD_TYPE = 8602;
@@ -635,6 +645,15 @@ enum FontWeight {
   FONT_WEIGHT_BLACK = 900;
 }
 
+// A Type of Friendship Invite Event.
+enum FriendshipInviteEventType {
+  FRIENDSHIP_INVITE_EVENT_TYPE_UNSPECIFIED = 0;
+  FRIENDSHIP_INVITE_EVENT_TYPE_SENT = 1;
+  FRIENDSHIP_INVITE_EVENT_TYPE_RESCINDED = 2;
+  FRIENDSHIP_INVITE_EVENT_TYPE_ACCEPTED = 3;
+  FRIENDSHIP_INVITE_EVENT_TYPE_REJECTED = 4;
+}
+
 enum FunctionType {
   FUNCTION_TYPE_UNSPECIFIED = 0;
   FUNCTION_TYPE_ADD = 1;
@@ -681,6 +700,15 @@ enum InterruptionType {
   INTERRUPTION_TYPE_PAUSE = 10;
   INTERRUPTION_TYPE_YIELD = 20;
   INTERRUPTION_TYPE_WAIT = 30;
+}
+
+// A Type of Invite Event.
+enum InviteEventType {
+  INVITE_EVENT_TYPE_UNSPECIFIED = 0;
+  INVITE_EVENT_TYPE_SENT = 1;
+  INVITE_EVENT_TYPE_RESCINDED = 2;
+  INVITE_EVENT_TYPE_ACCEPTED = 3;
+  INVITE_EVENT_TYPE_REJECTED = 4;
 }
 
 enum JoinType {
@@ -734,14 +762,11 @@ enum MachineType {
   MACHINE_TYPE_CUSTOM = 9000;
 }
 
-enum MessageType {
-  MESSAGE_TYPE_UNSPECIFIED = 0;
-  MESSAGE_TYPE_DEFAULT = 1;
-  MESSAGE_TYPE_JOIN = 10;
-  MESSAGE_TYPE_LEAVE = 11;
-  MESSAGE_TYPE_RESOURCE = 20;
-  MESSAGE_TYPE_RUN = 100;
-  MESSAGE_TYPE_THREAD = 110;
+// A Type of Membership Event.
+enum MembershipEventType {
+  MEMBERSHIP_EVENT_TYPE_UNSPECIFIED = 0;
+  MEMBERSHIP_EVENT_TYPE_JOIN = 1;
+  MEMBERSHIP_EVENT_TYPE_LEAVE = 2;
 }
 
 enum ModelDeveloper {
@@ -785,11 +810,15 @@ enum NodeType {
   NODE_TYPE_USER = 20;
   NODE_TYPE_FRIENDSHIP = 30;
   NODE_TYPE_FRIENDSHIP_INVITE = 31;
+  NODE_TYPE_FRIENDSHIP_INVITE_EVENT = 32;
   NODE_TYPE_ORGANIZATION = 40;
-  NODE_TYPE_CLIENT = 50;
+  NODE_TYPE_CLIENT = 100;
   NODE_TYPE_MEMBERSHIP = 400;
-  NODE_TYPE_INVITE = 401;
-  NODE_TYPE_ROLE = 410;
+  NODE_TYPE_MEMBERSHIP_EVENT = 401;
+  NODE_TYPE_INVITE = 410;
+  NODE_TYPE_INVITE_EVENT = 411;
+  NODE_TYPE_ROLE = 420;
+  NODE_TYPE_ROLE_EVENT = 421;
   NODE_TYPE_FOLDER = 600;
   NODE_TYPE_TAG = 610;
   NODE_TYPE_TAGGING = 611;
@@ -799,29 +828,32 @@ enum NodeType {
   NODE_TYPE_FIELD = 1401;
   NODE_TYPE_OPTION = 1402;
   NODE_TYPE_FILE = 1410;
-  NODE_TYPE_LINK = 1411;
+  NODE_TYPE_LINK = 1420;
   NODE_TYPE_SCRIPT = 1800;
   NODE_TYPE_SERVICE = 1810;
   NODE_TYPE_ACTION = 1820;
   NODE_TYPE_ROUTE = 1830;
   NODE_TYPE_TRIGGER = 1840;
-  NODE_TYPE_TIMER = 1841;
+  NODE_TYPE_TRIGGER_EVENT = 1841;
+  NODE_TYPE_TIMER = 1850;
+  NODE_TYPE_TIMER_EVENT = 1851;
   NODE_TYPE_EVENT_CURSOR = 1900;
   NODE_TYPE_SCREEN_CURSOR = 1901;
   NODE_TYPE_THREAD_CURSOR = 1902;
   NODE_TYPE_RUN = 2400;
   NODE_TYPE_SPAN = 2410;
   NODE_TYPE_INTERRUPTION = 2420;
-  NODE_TYPE_LOG = 2430;
-  NODE_TYPE_CUSTOM_EVENT_DEFINITION = 2500;
-  NODE_TYPE_CUSTOM_EVENT = 2501;
-  NODE_TYPE_EDIT_EVENT = 2502;
-  NODE_TYPE_GAUGE_METRIC = 2600;
-  NODE_TYPE_GAUGE_MEASUREMENT = 2601;
-  NODE_TYPE_COUNTER_METRIC = 2602;
-  NODE_TYPE_COUNTER_MEASUREMENT = 2603;
-  NODE_TYPE_HISTOGRAM_METRIC = 2604;
-  NODE_TYPE_HISTOGRAM_MEASUREMENT = 2605;
+  NODE_TYPE_LOG = 2500;
+  NODE_TYPE_GAUGE_METRIC = 2510;
+  NODE_TYPE_GAUGE_MEASUREMENT = 2511;
+  NODE_TYPE_COUNTER_METRIC = 2512;
+  NODE_TYPE_COUNTER_MEASUREMENT = 2513;
+  NODE_TYPE_HISTOGRAM_METRIC = 2514;
+  NODE_TYPE_HISTOGRAM_MEASUREMENT = 2515;
+  NODE_TYPE_CUSTOM_EVENT_DEFINITION = 2600;
+  NODE_TYPE_CUSTOM_EVENT = 2601;
+  NODE_TYPE_EDIT_EVENT = 2602;
+  NODE_TYPE_RUN_EVENT = 2610;
   NODE_TYPE_ENVIRONMENT = 2800;
   NODE_TYPE_THREAD = 3400;
   NODE_TYPE_MESSAGE = 3410;
@@ -829,10 +861,12 @@ enum NodeType {
   NODE_TYPE_STAR = 3421;
   NODE_TYPE_FOLLOW = 3430;
   NODE_TYPE_NOTIFICATION = 3500;
+  NODE_TYPE_NOTIFICATION_EVENT = 3501;
   NODE_TYPE_DATABASE = 5000;
   NODE_TYPE_MACHINE = 5020;
   NODE_TYPE_WINDOW = 8000;
   NODE_TYPE_SCENE = 8010;
+  NODE_TYPE_SCENE_EVENT = 8011;
   NODE_TYPE_LAYER = 8020;
   NODE_TYPE_CUSTOM_VIEW_DEFINITION = 8200;
   NODE_TYPE_CUSTOM_VIEW = 8201;
@@ -860,6 +894,26 @@ enum NodeType {
   NODE_TYPE_EFFECT_STYLE = 9017;
 }
 
+// A Type of Notification Event.
+enum NotificationEventType {
+  NOTIFICATION_EVENT_TYPE_UNSPECIFIED = 0;
+  NOTIFICATION_EVENT_TYPE_SENT = 1;
+  NOTIFICATION_EVENT_TYPE_RESCINDED = 2;
+  NOTIFICATION_EVENT_TYPE_READ = 3;
+  NOTIFICATION_EVENT_TYPE_DISMISSED = 4;
+  NOTIFICATION_EVENT_TYPE_EXPIRED = 5;
+}
+
+// A Status of a Notification.
+enum NotificationStatus {
+  NOTIFICATION_STATUS_UNSPECIFIED = 0;
+  NOTIFICATION_STATUS_UNREAD = 1;
+  NOTIFICATION_STATUS_READ = 2;
+  NOTIFICATION_STATUS_DISMISSED = 3;
+  NOTIFICATION_STATUS_EXPIRED = 4;
+  NOTIFICATION_STATUS_RESCINDED = 5;
+}
+
 // The format of a number.
 enum NumberFormat {
   NUMBER_FORMAT_UNSPECIFIED = 0;
@@ -873,6 +927,15 @@ enum OffscreenBehavior {
   OFFSCREEN_BEHAVIOR_UNSPECIFIED = 0;
   OFFSCREEN_BEHAVIOR_PLAY = 1;
   OFFSCREEN_BEHAVIOR_PAUSE = 2;
+}
+
+enum OperatingSystem {
+  OPERATING_SYSTEM_UNSPECIFIED = 0;
+  OPERATING_SYSTEM_LINUX = 1;
+  OPERATING_SYSTEM_WINDOWS = 2;
+  OPERATING_SYSTEM_MACOS = 3;
+  OPERATING_SYSTEM_ANDROID = 50;
+  OPERATING_SYSTEM_IOS = 51;
 }
 
 enum OrganizationStatus {
@@ -896,6 +959,12 @@ enum PlaneShapeType {
   PLANE_SHAPE_TYPE_CIRCLE = 3;
   PLANE_SHAPE_TYPE_ELLIPSE = 4;
   PLANE_SHAPE_TYPE_POLYGON = 5;
+}
+
+enum PlatformType {
+  PLATFORM_TYPE_UNSPECIFIED = 0;
+  PLATFORM_TYPE_SERVER = 1;
+  PLATFORM_TYPE_WEB = 2;
 }
 
 // The position type of a View.
@@ -1022,6 +1091,13 @@ enum ResourceStatus {
   RESOURCE_STATUS_FAILED = 31;
 }
 
+// A Type of Role Event.
+enum RoleEventType {
+  ROLE_EVENT_TYPE_UNSPECIFIED = 0;
+  ROLE_EVENT_TYPE_ASSIGNED = 1;
+  ROLE_EVENT_TYPE_REMOVED = 2;
+}
+
 // The role of a Role
 enum RoleType {
   ROLE_TYPE_UNSPECIFIED = 0;
@@ -1031,24 +1107,32 @@ enum RoleType {
   ROLE_TYPE_SPECTATOR = 10;
 }
 
+// A Type of Run Event.
+enum RunEventType {
+  RUN_EVENT_TYPE_UNSPECIFIED = 0;
+  RUN_EVENT_TYPE_SCHEDULED = 1;
+  RUN_EVENT_TYPE_RUNNING = 10;
+  RUN_EVENT_TYPE_REQUESTED_PAUSE = 20;
+  RUN_EVENT_TYPE_PAUSED = 21;
+  RUN_EVENT_TYPE_REQUESTED_RESUME = 22;
+  RUN_EVENT_TYPE_RESUMED = 23;
+  RUN_EVENT_TYPE_REQUESTED_CANCEL = 50;
+  RUN_EVENT_TYPE_CANCELLED = 51;
+  RUN_EVENT_TYPE_ABORTED = 52;
+  RUN_EVENT_TYPE_FAILED = 53;
+  RUN_EVENT_TYPE_COMPLETED = 54;
+}
+
 enum RunStatus {
   RUN_STATUS_UNSPECIFIED = 0;
-  RUN_STATUS_CREATED = 1;
-  RUN_STATUS_ASSIGNED = 2;
-  RUN_STATUS_SCHEDULED = 4;
-  RUN_STATUS_QUEUED = 5;
+  RUN_STATUS_SCHEDULED = 2;
   RUN_STATUS_RUNNING = 10;
-  RUN_STATUS_FAILING = 11;
-  RUN_STATUS_PAUSED = 20;
-  RUN_STATUS_YIELDED = 21;
-  RUN_STATUS_WAITING = 22;
-  RUN_STATUS_IDLE = 30;
-  RUN_STATUS_CANCELLED = 50;
-  RUN_STATUS_ABORTED = 51;
-  RUN_STATUS_DIED = 52;
+  RUN_STATUS_PAUSED = 21;
+  RUN_STATUS_YIELDED = 23;
+  RUN_STATUS_CANCELLED = 51;
+  RUN_STATUS_ABORTED = 52;
   RUN_STATUS_FAILED = 53;
   RUN_STATUS_COMPLETED = 54;
-  RUN_STATUS_SKIPPED = 55;
 }
 
 enum RunType {
@@ -1059,16 +1143,10 @@ enum RunType {
   RUN_TYPE_AGENT = 15;
 }
 
-enum RuntimeLanguage {
-  RUNTIME_LANGUAGE_UNSPECIFIED = 0;
-  RUNTIME_LANGUAGE_PYTHON = 1;
-  RUNTIME_LANGUAGE_JAVASCRIPT = 2;
-}
-
 enum RuntimeType {
   RUNTIME_TYPE_UNSPECIFIED = 0;
-  RUNTIME_TYPE_SERVER = 1;
-  RUNTIME_TYPE_WEB = 2;
+  RUNTIME_TYPE_PYTHON = 1;
+  RUNTIME_TYPE_JAVASCRIPT = 2;
 }
 
 // The type of a scalar.
@@ -1079,6 +1157,13 @@ enum ScalarType {
   SCALAR_TYPE_NODE_REFERENCE = 3;
   SCALAR_TYPE_NODE_VALUE = 4;
   SCALAR_TYPE_STRUCT = 5;
+}
+
+// A Type of Scene Event.
+enum SceneEventType {
+  SCENE_EVENT_TYPE_UNSPECIFIED = 0;
+  SCENE_EVENT_TYPE_ENTERED = 1;
+  SCENE_EVENT_TYPE_EXITED = 2;
 }
 
 enum ScheduleFrequency {
@@ -1340,6 +1425,14 @@ enum TimeInterval {
   TIME_INTERVAL_YEAR = 8;
 }
 
+// A Type of Timer Event.
+enum TimerEventType {
+  TIMER_EVENT_TYPE_UNSPECIFIED = 0;
+  TIMER_EVENT_TYPE_STARTED = 1;
+  TIMER_EVENT_TYPE_STOPPED = 2;
+  TIMER_EVENT_TYPE_EXPIRED = 3;
+}
+
 enum TimerType {
   TIMER_TYPE_UNSPECIFIED = 0;
   TIMER_TYPE_ONCE = 1;
@@ -1354,7 +1447,6 @@ enum TraitType {
   TRAIT_TYPE_PARTICLE = 11;
   TRAIT_TYPE_ANALYTIC = 12;
   TRAIT_TYPE_INDEXED = 13;
-  TRAIT_TYPE_ASSET = 20;
   TRAIT_TYPE_RESOURCE = 21;
   TRAIT_TYPE_EVENT = 22;
   TRAIT_TYPE_CUSTOM_NODE_DEFINITION = 23;
@@ -1407,6 +1499,14 @@ enum TransitionType {
   TRANSITION_TYPE_SPRING = 11;
 }
 
+// A Type of Trigger Event.
+enum TriggerEventType {
+  TRIGGER_EVENT_TYPE_UNSPECIFIED = 0;
+  TRIGGER_EVENT_TYPE_STARTED = 1;
+  TRIGGER_EVENT_TYPE_TRIGGERED = 2;
+  TRIGGER_EVENT_TYPE_STOPPED = 3;
+}
+
 enum TriggerType {
   TRIGGER_TYPE_UNSPECIFIED = 0;
   TRIGGER_TYPE_EVENT = 1;
@@ -1445,7 +1545,7 @@ message ActionData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1471,7 +1571,7 @@ message AnnotationShapeData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1516,7 +1616,7 @@ message ArrowShapeData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1577,7 +1677,7 @@ message BorderStyleData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1597,7 +1697,7 @@ message CanvasData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1710,7 +1810,7 @@ message ColorStyleData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1751,7 +1851,7 @@ message CounterMeasurementData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1764,7 +1864,7 @@ message CounterMetricData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1779,7 +1879,7 @@ message CustomEntityData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1796,7 +1896,7 @@ message CustomEntityDefinitionData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1816,11 +1916,12 @@ message CustomEventData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
+  optional NodeReferenceData node_ptr = 35;
   NodeReferenceData definition_ptr = 40;
 }
 
@@ -1829,7 +1930,7 @@ message CustomEventDefinitionData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1843,7 +1944,7 @@ message CustomViewData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1888,7 +1989,7 @@ message CustomViewDefinitionData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1932,12 +2033,11 @@ message DatabaseData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  string order_key = 19;
   DatabaseType type = 30;
   string name = 31;
   ResourceStatus status = 40;
@@ -1988,17 +2088,17 @@ message EditEventData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   EditType type = 30;
   optional EditOperation operation = 31;
-  NodeReferenceData node_ptr = 32;
-  optional PropertyReferenceData prop_ptr = 33;
-  optional NodeReferenceData field_ptr = 34;
-  optional ValueData key = 35;
+  NodeReferenceData node_ptr = 35;
+  optional PropertyReferenceData prop_ptr = 36;
+  optional NodeReferenceData field_ptr = 37;
+  optional ValueData key = 38;
   optional ValueData value = 40;
 }
 
@@ -2027,7 +2127,7 @@ message EffectStyleData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -2078,7 +2178,7 @@ message EnvironmentData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -2101,7 +2201,7 @@ message EventCursorData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -2126,7 +2226,7 @@ message FieldData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -2163,14 +2263,17 @@ message FileData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  string order_key = 19;
   FileType type = 30;
   string name = 31;
+  ResourceStatus status = 40;
+  optional google.protobuf.Timestamp target_status = 41;
+  optional google.protobuf.Timestamp failed_at = 47;
+  int64 failed_attempts = 48;
   FileSource source = 60;
   optional string mime_type = 61;
   optional FileFormat format = 62;
@@ -2208,7 +2311,7 @@ message FillStyleData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -2231,7 +2334,7 @@ message FolderData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -2252,7 +2355,7 @@ message FollowData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -2281,7 +2384,7 @@ message FontStyleData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -2307,7 +2410,7 @@ message FrameViewData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -2368,10 +2471,22 @@ message FriendshipInviteData {
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData owned_by_ptr = 22;
+  NodeReferenceData owned_by_ptr = 22;
   NodeReferenceData member_ptr = 40;
-  NodeReferenceData inviter_ptr = 41;
+}
+
+// A Event regarding a Friendship Invite.
+message FriendshipInviteEventData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 5;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  FriendshipInviteEventType type = 30;
+  NodeReferenceData node_ptr = 35;
 }
 
 message FunctionData {
@@ -2386,7 +2501,7 @@ message GaugeMeasurementData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -2399,7 +2514,7 @@ message GaugeMetricData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -2429,7 +2544,7 @@ message GradientStyleData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -2484,7 +2599,7 @@ message HistogramMeasurementData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -2497,7 +2612,7 @@ message HistogramMetricData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -2532,7 +2647,7 @@ message InterruptionData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -2553,7 +2668,7 @@ message InviteData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -2564,6 +2679,19 @@ message InviteData {
   optional NodeReferenceData member_ptr = 40;
   optional NodeReferenceData role_ptr = 41;
   optional RoleType role_type = 42;
+}
+
+// A Event regarding an Invite.
+message InviteEventData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 5;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional NodeReferenceData node_ptr = 35;
 }
 
 message JoinData {
@@ -2580,7 +2708,7 @@ message LabelViewData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -2624,7 +2752,7 @@ message LayerData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -2677,7 +2805,7 @@ message LineShapeData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -2707,13 +2835,16 @@ message LinkData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  string order_key = 19;
   LinkType type = 30;
+  ResourceStatus status = 40;
+  optional google.protobuf.Timestamp target_status = 41;
+  optional google.protobuf.Timestamp failed_at = 47;
+  int64 failed_attempts = 48;
   optional string url = 50;
   optional string domain = 51;
   optional string content_url = 52;
@@ -2734,7 +2865,7 @@ message LogData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -2749,12 +2880,11 @@ message MachineData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
-  string order_key = 19;
   MachineType type = 30;
   ResourceStatus status = 40;
   optional google.protobuf.Timestamp target_status = 41;
@@ -2779,7 +2909,7 @@ message MembershipData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -2792,12 +2922,25 @@ message MembershipData {
   optional RoleType role_type = 42;
 }
 
+// A Event regarding a Membership.
+message MembershipEventData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 5;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional NodeReferenceData node_ptr = 35;
+}
+
 // A Message about something (usually in a Thread or a Channel).
 message MessageData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -2805,7 +2948,6 @@ message MessageData {
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   optional NodeReferenceData owned_by_ptr = 22;
-  MessageType type = 30;
   optional NodeReferenceData thread_ptr = 35;
   optional google.protobuf.Timestamp edited_at = 40;
   optional NodeReferenceData reply_to_ptr = 50;
@@ -2844,14 +2986,29 @@ message NotificationData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional NodeReferenceData owned_by_ptr = 22;
-  string title = 40;
-  optional TextData text = 41;
+  NotificationStatus status = 40;
+  string title = 50;
+  optional TextData text = 51;
+}
+
+// A Event regarding a Notification.
+message NotificationEventData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 5;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  NotificationEventType type = 30;
+  NodeReferenceData node_ptr = 35;
 }
 
 message NumberConstraintData {
@@ -2869,7 +3026,7 @@ message NumberInputViewData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -2896,7 +3053,7 @@ message OptionData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -2938,7 +3095,7 @@ message PlaneShapeData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -3080,7 +3237,7 @@ message ReactionData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -3110,9 +3267,24 @@ message RoleData {
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   string order_key = 19;
+  RoleType type = 30;
   string name = 31;
   optional string slug = 33;
   optional IconData icon = 34;
+}
+
+// A Event regarding a Role.
+message RoleEventData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 5;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  RoleEventType type = 30;
+  NodeReferenceData node_ptr = 35;
 }
 
 // A Route is a path to a Scene.
@@ -3120,7 +3292,7 @@ message RouteData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -3138,7 +3310,7 @@ message RunData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -3150,11 +3322,26 @@ message RunData {
   optional google.protobuf.Duration duration = 42;
   optional google.protobuf.Timestamp scheduled_at = 45;
   optional google.protobuf.Timestamp started_at = 46;
-  optional google.protobuf.Timestamp active_at = 47;
+  optional google.protobuf.Timestamp seen_at = 47;
   optional google.protobuf.Timestamp interrupted_at = 48;
   optional google.protobuf.Timestamp terminated_at = 49;
   optional ErrorData error = 50;
   optional NodeReferenceData interruption_ptr = 51;
+}
+
+// A Event regarding a Run.
+message RunEventData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 5;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  RunEventType type = 30;
+  NodeReferenceData node_ptr = 35;
+  optional NodeReferenceData target_ptr = 40;
 }
 
 // A Scene is a container for a specific interaction point.
@@ -3162,7 +3349,7 @@ message SceneData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -3204,6 +3391,20 @@ message SceneData {
   optional NodeReferenceData script_ptr = 200;
 }
 
+// A Event regarding a Scene.
+message SceneEventData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 5;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  SceneEventType type = 30;
+  NodeReferenceData node_ptr = 35;
+}
+
 message ScheduleData {
   StructType metatype = 1;
   ScheduleFrequency frequency = 31;
@@ -3229,7 +3430,7 @@ message SchemaData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -3254,7 +3455,7 @@ message ScreenCursorData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -3270,7 +3471,7 @@ message ScriptData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -3299,7 +3500,7 @@ message ServiceData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -3331,7 +3532,7 @@ message ShadowStyleData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -3355,7 +3556,7 @@ message SliderInputViewData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -3392,7 +3593,7 @@ message SpaceData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -3415,7 +3616,7 @@ message SpanData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -3427,7 +3628,7 @@ message SplitViewData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -3471,7 +3672,7 @@ message StarData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -3504,7 +3705,7 @@ message TagData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -3521,7 +3722,7 @@ message TaggingData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -3575,7 +3776,7 @@ message TextViewData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -3606,7 +3807,7 @@ message ThemeData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -3625,7 +3826,7 @@ message ThreadData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -3641,7 +3842,7 @@ message ThreadCursorData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -3656,7 +3857,7 @@ message ThreadViewData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -3682,7 +3883,7 @@ message TimerData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -3690,6 +3891,20 @@ message TimerData {
   TimerType type = 30;
   string name = 31;
   optional ScheduleData schedule = 40;
+}
+
+// A Event regarding a Timer.
+message TimerEventData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 5;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  TimerEventType type = 30;
+  NodeReferenceData node_ptr = 35;
 }
 
 message TraitInfoData {
@@ -3722,7 +3937,7 @@ message TransitionStyleData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -3748,7 +3963,7 @@ message TriggerData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -3759,6 +3974,20 @@ message TriggerData {
   optional ConditionData where = 41;
   NodeReferenceData target_ptr = 50;
   map<string, ValueData> arguments = 51;
+}
+
+// A Event regarding a Trigger.
+message TriggerEventData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 5;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  TriggerEventType type = 30;
+  NodeReferenceData node_ptr = 35;
 }
 
 message TypeData {
@@ -3864,7 +4093,7 @@ message WindowData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -3886,7 +4115,7 @@ message WizardViewData {
   NodeType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData space_ptr = 6;
+  optional NodeReferenceData space_ptr = 5;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -3912,11 +4141,15 @@ message SomeNodeData {
     UserData user = 20;
     FriendshipData friendship = 30;
     FriendshipInviteData friendship_invite = 31;
+    FriendshipInviteEventData friendship_invite_event = 32;
     OrganizationData organization = 40;
-    ClientData client = 50;
+    ClientData client = 100;
     MembershipData membership = 400;
-    InviteData invite = 401;
-    RoleData role = 410;
+    MembershipEventData membership_event = 401;
+    InviteData invite = 410;
+    InviteEventData invite_event = 411;
+    RoleData role = 420;
+    RoleEventData role_event = 421;
     FolderData folder = 600;
     TagData tag = 610;
     TaggingData tagging = 611;
@@ -3926,29 +4159,32 @@ message SomeNodeData {
     FieldData field = 1401;
     OptionData option = 1402;
     FileData file = 1410;
-    LinkData link = 1411;
+    LinkData link = 1420;
     ScriptData script = 1800;
     ServiceData service = 1810;
     ActionData action = 1820;
     RouteData route = 1830;
     TriggerData trigger = 1840;
-    TimerData timer = 1841;
+    TriggerEventData trigger_event = 1841;
+    TimerData timer = 1850;
+    TimerEventData timer_event = 1851;
     EventCursorData event_cursor = 1900;
     ScreenCursorData screen_cursor = 1901;
     ThreadCursorData thread_cursor = 1902;
     RunData run = 2400;
     SpanData span = 2410;
     InterruptionData interruption = 2420;
-    LogData log = 2430;
-    CustomEventDefinitionData custom_event_definition = 2500;
-    CustomEventData custom_event = 2501;
-    EditEventData edit_event = 2502;
-    GaugeMetricData gauge_metric = 2600;
-    GaugeMeasurementData gauge_measurement = 2601;
-    CounterMetricData counter_metric = 2602;
-    CounterMeasurementData counter_measurement = 2603;
-    HistogramMetricData histogram_metric = 2604;
-    HistogramMeasurementData histogram_measurement = 2605;
+    LogData log = 2500;
+    GaugeMetricData gauge_metric = 2510;
+    GaugeMeasurementData gauge_measurement = 2511;
+    CounterMetricData counter_metric = 2512;
+    CounterMeasurementData counter_measurement = 2513;
+    HistogramMetricData histogram_metric = 2514;
+    HistogramMeasurementData histogram_measurement = 2515;
+    CustomEventDefinitionData custom_event_definition = 2600;
+    CustomEventData custom_event = 2601;
+    EditEventData edit_event = 2602;
+    RunEventData run_event = 2610;
     EnvironmentData environment = 2800;
     ThreadData thread = 3400;
     MessageData message = 3410;
@@ -3956,10 +4192,12 @@ message SomeNodeData {
     StarData star = 3421;
     FollowData follow = 3430;
     NotificationData notification = 3500;
+    NotificationEventData notification_event = 3501;
     DatabaseData database = 5000;
     MachineData machine = 5020;
     WindowData window = 8000;
     SceneData scene = 8010;
+    SceneEventData scene_event = 8011;
     LayerData layer = 8020;
     CustomViewDefinitionData custom_view_definition = 8200;
     CustomViewData custom_view = 8201;

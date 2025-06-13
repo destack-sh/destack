@@ -801,8 +801,8 @@ class Measurement(IsCustomNode, Analytic):
 
 
 @trait_(TraitType.EVENT, pretend_frozen=True)
-class Event[N: Node = Node](Particle, Indexed, Analytic, IsFrozen):
-    """A Node that represents an Event."""
+class Event[N: Node = Node](Spatial, Particle, Indexed, Analytic, IsFrozen):
+    """A Node that represents an Event. Events are always in a Space."""
 
     node: Optional["Node"] = property_(35)
     if TYPE_CHECKING:

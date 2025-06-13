@@ -15,13 +15,12 @@ from destack.language.core import (
     IsTemplatable,
     Node,
     NodeType,
-    Spatial,
     enum_,
     node_,
     property_,
     property_parent_,
 )
-from destack.pb2 import RoleData
+from destack.pb2 import RoleData, RoleEventData
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -36,9 +35,8 @@ class RoleEventType(BuiltinEnum):
 
 @node_(NodeType.ROLE_EVENT)
 class RoleEvent(
-    Spatial,
     Event["Role"],
-    Node["RoleEventData"],
+    Node[RoleEventData],
 ):
     """A Event regarding a Role."""
 

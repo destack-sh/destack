@@ -20,7 +20,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.pb2 import MembershipData
+from destack.pb2 import MembershipData, MembershipEventData
 
 if TYPE_CHECKING:
     from destack.language import Role, RoleType
@@ -38,9 +38,8 @@ class MembershipEventType(BuiltinEnum):
 
 @node_(NodeType.MEMBERSHIP_EVENT)
 class MembershipEvent(
-    Spatial,
     Event,
-    Node["MembershipEventData"],
+    Node[MembershipEventData],
 ):
     """A Event regarding a Membership."""
 

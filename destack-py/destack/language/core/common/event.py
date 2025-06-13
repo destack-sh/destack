@@ -38,7 +38,6 @@ if TYPE_CHECKING:
 
 @node_(NodeType.EDIT_EVENT, pretend_frozen=True)
 class EditEvent(
-    Spatial,
     Event,
     IsTaggable,
     Node[EditEventData],
@@ -79,7 +78,6 @@ class CustomEventDefinition(
 
 @node_(NodeType.CUSTOM_EVENT, pretend_frozen=True)
 class CustomEvent(
-    Spatial,
     Event,
     Node[CustomEventData],
 ):
