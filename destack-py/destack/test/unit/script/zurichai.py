@@ -39,7 +39,8 @@ class Meetup(IsStarable, Entity):
     name: str | None
     capacity: int
     series: MeetupSeries | None
-    planned_at: datetime
+    starts_at: datetime
+    ends_at: datetime | None
 
     @action
     def cancel(self: "Meetup"): ...
@@ -85,14 +86,14 @@ reminder_template = script.field("reminder_template", 2, EmailTemplate)
 
 
 def _create_timers(meetup: Meetup):
-    announcement_timer = Timer(name="AnnouncementTimer", at=meetup.planned_at - timedelta(days=14))
+    announcement_timer = Timer(name="AnnouncementTimer", at=meetup.starts_at - timedelta(days=14))
     announcement_timer.on(
         Timer.TimerExpired,
         send_meetup_email(meetup=meetup, template=announcement_template),
     )
     meetup.add_child(announcement_timer)
 
-    reminder_timer = Timer(name="ReminderTimer", at=meetup.planned_at - timedelta(days=7))
+    reminder_timer = Timer(name="ReminderTimer", at=meetup.starts_at - timedelta(days=7))
     reminder_timer.on(
         Timer.TimerExpired,
         send_meetup_email(meetup=meetup, template=reminder_template),

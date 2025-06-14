@@ -31,7 +31,6 @@ class ShadowType(Enum):
     """Built-in shadow types."""
 
     STYLE = 2
-    FIELD = 3
     BOX = 10
     REALISTIC = 11
 
@@ -47,7 +46,6 @@ class ShadowPosition(Enum):
 @object_()
 class ShadowBase(BuiltinObjectMutable):
     type: ShadowType = property_(30, default=ShadowType.BOX, is_repr=True)
-    style: Optional["ShadowStyle"] = property_(41, is_repr=True)
     color: Optional["Color"] = property_(50, is_repr=True)
     position: ShadowPosition = property_(51, default=ShadowPosition.OUTSIDE, is_repr=True)
     offset: Optional[Axis2] = property_(52, is_repr=True)
@@ -60,7 +58,7 @@ class ShadowBase(BuiltinObjectMutable):
 class Shadow(ShadowBase, StructMutable):
     """A shadow value."""
 
-    pass
+    style: Optional["ShadowStyle"] = property_(41, is_repr=True)
 
 
 @builtin_node(NodeType.SHADOW_STYLE)

@@ -429,9 +429,10 @@ class EnumType(Enum):
     COLOR_TYPE = 9011
     COLOR_SHADE = 9012
     COLOR_HUE = 9013
-    FONT_WEIGHT = 9022
-    FONT_SIZE = 9023
-    FONT_TYPE = 9024
+    COLOR_INTENT = 9014
+    FONT_WEIGHT = 9020
+    FONT_SIZE = 9021
+    FONT_TYPE = 9022
     TEXT_ALIGN = 9025
     TEXT_DECORATION = 9026
     TEXT_TRANSFORM = 9027
@@ -451,7 +452,6 @@ class EnumType(Enum):
     TRANSITION_TYPE = 9077
     SPRING_TYPE = 9078
     DIMENSION_TYPE = 9079
-    THEME_COLOR = 9080
     EFFECT_TYPE = 9081
     REPEAT_TYPE = 9082
     TEXT_SPLIT_TYPE = 9084
@@ -858,14 +858,15 @@ class NodeType(Enum):
 
     # style [9000-9200]
     THEME = 9000, "Theme", "Theme", "fas fa-palette"
-    COLOR_STYLE = 9010, "Color Style", "Color Style", "fas fa-palette"
-    FILL_STYLE = 9011, "Fill Style", "Fill Style", "fas fa-fill"
-    FONT_STYLE = 9012, "Font Style", "Font Style", "fas fa-text"
-    BORDER_STYLE = 9013, "Border Style", "Border Style", "fas fa-border-outer"
-    SHADOW_STYLE = 9014, "Shadow Style", "Shadow Style", "fas fa-eclipse"
-    GRADIENT_STYLE = 9015, "Gradient Style", "Gradient Style", "fas fa-gradient"
-    TRANSITION_STYLE = 9016, "Transition Style", "Transition Style", "fas fa-bezier-curve"
-    EFFECT_STYLE = 9017, "Effect Style", "Effect Style", "fas fa-sparkle"
+    PALETTE = 9010, "Palette", "Palette", "fas fa-palette"
+    COLOR_STYLE = 9020, "Color Style", "Color Style", "fas fa-palette"
+    FILL_STYLE = 9021, "Fill Style", "Fill Style", "fas fa-fill"
+    FONT_STYLE = 9022, "Font Style", "Font Style", "fas fa-text"
+    BORDER_STYLE = 9023, "Border Style", "Border Style", "fas fa-border-outer"
+    SHADOW_STYLE = 9024, "Shadow Style", "Shadow Style", "fas fa-eclipse"
+    GRADIENT_STYLE = 9025, "Gradient Style", "Gradient Style", "fas fa-gradient"
+    TRANSITION_STYLE = 9026, "Transition Style", "Transition Style", "fas fa-bezier-curve"
+    EFFECT_STYLE = 9027, "Effect Style", "Effect Style", "fas fa-sparkle"
     # BRUSH_STYLE, ...
     # SHADER, MATERIAL, ...
 

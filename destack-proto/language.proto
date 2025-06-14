@@ -48,9 +48,7 @@ enum AttributeType {
 // Built-in border types.
 enum BorderType {
   BORDER_TYPE_UNSPECIFIED = 0;
-  BORDER_TYPE_NONE = 1;
   BORDER_TYPE_STYLE = 2;
-  BORDER_TYPE_FIELD = 3;
   BORDER_TYPE_SOLID = 10;
   BORDER_TYPE_DASHED = 11;
   BORDER_TYPE_DOTTED = 12;
@@ -266,9 +264,7 @@ enum EditType {
 // When the effect fires.
 enum EffectType {
   EFFECT_TYPE_UNSPECIFIED = 0;
-  EFFECT_TYPE_NONE = 1;
   EFFECT_TYPE_STYLE = 2;
-  EFFECT_TYPE_FIELD = 3;
   EFFECT_TYPE_APPEAR = 10;
   EFFECT_TYPE_ENTER = 11;
   EFFECT_TYPE_EXIT = 12;
@@ -401,7 +397,6 @@ enum EnumType {
   ENUM_TYPE_TRANSITION_TYPE = 9077;
   ENUM_TYPE_SPRING_TYPE = 9078;
   ENUM_TYPE_DIMENSION_TYPE = 9079;
-  ENUM_TYPE_THEME_COLOR = 9080;
   ENUM_TYPE_EFFECT_TYPE = 9081;
   ENUM_TYPE_REPEAT_TYPE = 9082;
   ENUM_TYPE_TEXT_SPLIT_TYPE = 9084;
@@ -644,7 +639,6 @@ enum FontSize {
 enum FontType {
   FONT_TYPE_UNSPECIFIED = 0;
   FONT_TYPE_STYLE = 2;
-  FONT_TYPE_FIELD = 3;
   FONT_TYPE_SERIF = 10;
   FONT_TYPE_SANS = 11;
   FONT_TYPE_MONO = 12;
@@ -935,14 +929,15 @@ enum NodeType {
   NODE_TYPE_ARROW_SHAPE = 8612;
   NODE_TYPE_ANNOTATION_SHAPE = 8613;
   NODE_TYPE_THEME = 9000;
-  NODE_TYPE_COLOR_STYLE = 9010;
-  NODE_TYPE_FILL_STYLE = 9011;
-  NODE_TYPE_FONT_STYLE = 9012;
-  NODE_TYPE_BORDER_STYLE = 9013;
-  NODE_TYPE_SHADOW_STYLE = 9014;
-  NODE_TYPE_GRADIENT_STYLE = 9015;
-  NODE_TYPE_TRANSITION_STYLE = 9016;
-  NODE_TYPE_EFFECT_STYLE = 9017;
+  NODE_TYPE_PALETTE = 9010;
+  NODE_TYPE_COLOR_STYLE = 9020;
+  NODE_TYPE_FILL_STYLE = 9021;
+  NODE_TYPE_FONT_STYLE = 9022;
+  NODE_TYPE_BORDER_STYLE = 9023;
+  NODE_TYPE_SHADOW_STYLE = 9024;
+  NODE_TYPE_GRADIENT_STYLE = 9025;
+  NODE_TYPE_TRANSITION_STYLE = 9026;
+  NODE_TYPE_EFFECT_STYLE = 9027;
 }
 
 // A Type of Notification Event.
@@ -1253,7 +1248,6 @@ enum ShadowPosition {
 enum ShadowType {
   SHADOW_TYPE_UNSPECIFIED = 0;
   SHADOW_TYPE_STYLE = 2;
-  SHADOW_TYPE_FIELD = 3;
   SHADOW_TYPE_BOX = 10;
   SHADOW_TYPE_REALISTIC = 11;
 }
@@ -1455,18 +1449,6 @@ enum TextTransform {
   TEXT_TRANSFORM_CAPITALIZE = 4;
 }
 
-// A color in the theme.
-enum ThemeColor {
-  THEME_COLOR_UNSPECIFIED = 0;
-  THEME_COLOR_PRIMARY = 50;
-  THEME_COLOR_SECONDARY = 51;
-  THEME_COLOR_ACCENT = 52;
-  THEME_COLOR_MUTED = 53;
-  THEME_COLOR_SUCCESS = 54;
-  THEME_COLOR_WARNING = 55;
-  THEME_COLOR_ERROR = 56;
-}
-
 enum ThreadStatus {
   THREAD_STATUS_UNSPECIFIED = 0;
   THREAD_STATUS_OPEN = 10;
@@ -1543,7 +1525,6 @@ enum TraitType {
 enum TransitionType {
   TRANSITION_TYPE_UNSPECIFIED = 0;
   TRANSITION_TYPE_STYLE = 2;
-  TRANSITION_TYPE_FIELD = 3;
   TRANSITION_TYPE_TWEEN = 10;
   TRANSITION_TYPE_SPRING = 11;
 }
@@ -1749,7 +1730,6 @@ message BorderStyleData {
   string order_key = 19;
   BorderType type = 30;
   string name = 31;
-  optional NodeReferenceData style_ptr = 41;
   optional ColorData color = 50;
   optional InsetsData width = 51;
 }
@@ -1883,7 +1863,6 @@ message ColorStyleData {
   string order_key = 19;
   ColorType type = 30;
   string name = 31;
-  optional NodeReferenceData style_ptr = 42;
   optional ColorHue hue = 50;
   optional ColorShade shade = 51;
   optional double x = 52;
@@ -2236,7 +2215,6 @@ message EffectStyleData {
   string order_key = 19;
   EffectType type = 30;
   string name = 31;
-  optional NodeReferenceData style_ptr = 41;
   optional double opacity = 50;
   optional Vector2Data offset = 51;
   optional double scale = 52;
@@ -2444,7 +2422,6 @@ message FillStyleData {
   string order_key = 19;
   FillType type = 30;
   string name = 31;
-  optional NodeReferenceData style_ptr = 42;
   optional ColorData color = 50;
   optional GradientData gradient = 51;
   optional NodeReferenceData image_ptr = 52;
@@ -2517,7 +2494,6 @@ message FontStyleData {
   string order_key = 19;
   FontType type = 30;
   string name = 31;
-  optional NodeReferenceData style_ptr = 41;
   optional FontWeight weight = 50;
   optional FillData color = 51;
   optional FontSize size = 52;
@@ -2677,7 +2653,6 @@ message GradientStyleData {
   string order_key = 19;
   GradientType type = 30;
   string name = 31;
-  optional NodeReferenceData style_ptr = 40;
   optional double angle = 50;
   repeated GradientStopData stops = 51;
   optional Axis2Data center_anchor = 52;
@@ -3218,6 +3193,22 @@ message OriginData {
   optional string nonce = 33;
 }
 
+// A Palette with common ColorStyles.
+message PaletteData {
+  NodeType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData space_ptr = 5;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  string order_key = 19;
+  string name = 31;
+  optional IconData icon = 34;
+}
+
 // A Permission for something.
 message PermissionData {
   NodeType metatype = 1;
@@ -3705,7 +3696,6 @@ message ShadowStyleData {
   string order_key = 19;
   ShadowType type = 30;
   string name = 31;
-  optional NodeReferenceData style_ptr = 41;
   optional ColorData color = 50;
   ShadowPosition position = 51;
   optional Axis2Data offset = 52;
@@ -3979,7 +3969,7 @@ message TextViewData {
   optional NodeReferenceData script_ptr = 200;
 }
 
-// A Theme with common styles.
+// A Theme with common Styles.
 message ThemeData {
   NodeType metatype = 1;
   string id = 2;
@@ -3993,7 +3983,6 @@ message ThemeData {
   string order_key = 19;
   string name = 31;
   optional IconData icon = 34;
-  map<int32, ColorData> colors = 50;
 }
 
 // A Thread for communicating with Messages.
@@ -4124,7 +4113,6 @@ message TransitionStyleData {
   string order_key = 19;
   TransitionType type = 30;
   string name = 31;
-  optional NodeReferenceData style_ptr = 41;
   optional double delay = 50;
   optional double duration = 51;
   repeated double ease = 52;
@@ -4394,14 +4382,15 @@ message SomeNodeData {
     ArrowShapeData arrow_shape = 8612;
     AnnotationShapeData annotation_shape = 8613;
     ThemeData theme = 9000;
-    ColorStyleData color_style = 9010;
-    FillStyleData fill_style = 9011;
-    FontStyleData font_style = 9012;
-    BorderStyleData border_style = 9013;
-    ShadowStyleData shadow_style = 9014;
-    GradientStyleData gradient_style = 9015;
-    TransitionStyleData transition_style = 9016;
-    EffectStyleData effect_style = 9017;
+    PaletteData palette = 9010;
+    ColorStyleData color_style = 9020;
+    FillStyleData fill_style = 9021;
+    FontStyleData font_style = 9022;
+    BorderStyleData border_style = 9023;
+    ShadowStyleData shadow_style = 9024;
+    GradientStyleData gradient_style = 9025;
+    TransitionStyleData transition_style = 9026;
+    EffectStyleData effect_style = 9027;
   };
 }
 

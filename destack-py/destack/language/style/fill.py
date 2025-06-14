@@ -60,10 +60,9 @@ class FillBase(BuiltinObjectMutable):
     """A fill value."""
 
     type: FillType = property_(30, is_repr=True)
-    style: Optional["FillStyle"] = property_(42, is_repr=True)
 
     color: Color | None = property_(50, is_repr=True)
-    gradient: Gradient | None = property_(51, is_repr=True)
+    gradient: Optional[Gradient] = property_(51, is_repr=True)
     image: "File | None" = property_(52, is_repr=True)
     position: FillPosition | None = property_(53, is_repr=True)
     size: FillSize | None = property_(54, is_repr=True)
@@ -72,6 +71,8 @@ class FillBase(BuiltinObjectMutable):
 @builtin_struct(StructType.FILL)
 class Fill(FillBase, StructMutable):
     """A fill value."""
+
+    style: Optional["FillStyle"] = property_(42, is_repr=True)
 
     @staticmethod
     def from_color(color: Color) -> "Fill":

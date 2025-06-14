@@ -116,6 +116,7 @@ AnyNodeData = Union[
     GradientStyleData,
     FillStyleData,
     FontStyleData,
+    PaletteData,
     ShadowStyleData,
     ThemeData,
 ]

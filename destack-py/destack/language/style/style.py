@@ -15,7 +15,7 @@ from destack.language.core import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import Scene, View
+    from destack.language import Scene, Theme, View
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -31,6 +31,6 @@ class Style(
     IsTemplatable,
     IsDeletable,
 ):
-    """A Style is a graphical interface."""
+    """A Style is a style definition."""
 
-    parent: Union["Scene", "View", None] = property_parent_(node_is_customizable=True)
+    parent: Union["Scene", "View", "Theme", None] = property_parent_(node_is_customizable=True)
