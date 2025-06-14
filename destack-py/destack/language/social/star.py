@@ -1,9 +1,9 @@
 from typing import TYPE_CHECKING, Union
 
 from destack.language.core import (
+    Entity,
     Global,
     IndexIn,
-    Instance,
     IsDeletable,
     IsOwnable,
     IsSubject,
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 class Star(
     Global,
     Spatial,
-    Instance,
+    Entity,
     IsDeletable,
     IsOwnable,
     Node[StarData],

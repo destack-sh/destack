@@ -1,6 +1,7 @@
 from typing import Optional
 
 from destack.language.core import (
+    Entity,
     Enum,
     EnumType,
     Event,
@@ -8,7 +9,6 @@ from destack.language.core import (
     HasIcon,
     HasName,
     HasSlug,
-    Instance,
     IsDeletable,
     IsJoinable,
     IsOrdered,
@@ -50,7 +50,7 @@ class RoleEvent(
 class Role(
     Global,
     Spatial,
-    Instance,
+    Entity,
     HasSlug,
     HasIcon,
     HasName,

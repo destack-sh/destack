@@ -3,9 +3,9 @@ from typing import TYPE_CHECKING
 from destack.pb2 import CustomStructDefinitionData
 
 from ..builtin import (
+    Entity,
     HasIcon,
     HasName,
-    Instance,
     IsDeletable,
     IsExtensible,
     IsSourceable,
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.CUSTOM_STRUCT_DEFINITION)
 class CustomStructDefinition(
     Spatial,
-    Instance,
+    Entity,
     HasName,
     HasIcon,
     IsTaggable,

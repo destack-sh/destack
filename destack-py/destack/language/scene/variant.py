@@ -1,12 +1,12 @@
 from typing import TYPE_CHECKING, Optional, Union
 
 from destack.language.core import (
+    Entity,
     Enum,
     EnumType,
     HasIcon,
     HasName,
     HasSlug,
-    Instance,
     IsDeletable,
     IsOwnable,
     Length,
@@ -38,7 +38,7 @@ class VariantType(Enum):
 @builtin_node(NodeType.VARIANT)
 class Variant(
     Spatial,
-    Instance,
+    Entity,
     HasName,
     HasSlug,
     HasIcon,

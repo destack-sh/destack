@@ -5,11 +5,11 @@ from destack.pb2 import FieldData
 from ..builtin import (
     CascadeAction,
     EdgeType,
+    Entity,
     Enum,
     EnumType,
     HasIcon,
     HasName,
-    Instance,
     IsDeletable,
     IsSourceable,
     IsTaggable,
@@ -58,7 +58,7 @@ class FieldType(Enum):
 @builtin_node(NodeType.FIELD)
 class Field(
     Spatial,
-    Instance,
+    Entity,
     HasName,
     HasIcon,
     IsTaggable,

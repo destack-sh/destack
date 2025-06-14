@@ -1,12 +1,12 @@
 from typing import TYPE_CHECKING, Union
 
 from destack.language.core import (
+    Entity,
     Enum,
     EnumType,
     HasIcon,
     HasName,
     HasSlug,
-    Instance,
     IsDeletable,
     IsJoinable,
     Node,
@@ -35,7 +35,7 @@ class PermissionType(Enum):
 @builtin_node(NodeType.PERMISSION)
 class Permission(
     Spatial,
-    Instance,
+    Entity,
     HasName,
     HasSlug,
     HasIcon,

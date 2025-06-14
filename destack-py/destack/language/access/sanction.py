@@ -5,10 +5,10 @@ from fastuuid import UUID
 
 from destack.language.core import (
     UNSET,
+    Entity,
     Enum,
     EnumType,
     Event,
-    Instance,
     IsDeletable,
     IsJoinable,
     IsSubject,
@@ -58,7 +58,7 @@ class SanctionType(Enum):
 @builtin_node(NodeType.SANCTION)
 class Sanction(
     Spatial,
-    Instance,
+    Entity,
     IsDeletable,
     Node[SanctionData],
 ):
