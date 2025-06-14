@@ -54,7 +54,7 @@ async def apply(
 ):
     from destack.language import REGION, StoreType
     from destack.sharding import DATABASE_PROVIDER, get_global_database_from_env
-    from destack.store.postgres import pg_transaction, sql_migrate
+    from destack.store.postgres import pg_transaction, postgres_migrate
 
     start = time.time()
 
@@ -74,7 +74,9 @@ async def apply(
 
     for database in databases:
         async with pg_transaction(database) as (conn, tx):
-            await sql_migrate(conn=conn, target=target, store_type=store_type, oracle=REAL_ORACLE)
+            await postgres_migrate(
+                conn=conn, target=target, store_type=store_type, oracle=REAL_ORACLE
+            )
             if not dry_run:
                 await tx.commit()
             else:

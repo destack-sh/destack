@@ -21,6 +21,7 @@ from destack.language import (
     Function,
     JoinType,
     NodeReference,
+    NodeType,
     Query,
     QueryResult,
     QueryResultGroup,
@@ -32,7 +33,6 @@ from destack.language import (
     Value,
     to_value,
 )
-from destack.language.core.builtin.const import NodeType
 
 from .core import PostgresContext
 from .map import DESTACK_CUSTOM_FIELD_PREFIX

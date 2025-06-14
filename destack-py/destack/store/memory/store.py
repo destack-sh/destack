@@ -14,6 +14,7 @@ from destack.language import (
 
 from .core import MemoryContext, MemoryDatabase
 from .edit import execute_change
+from .query import execute_query
 
 
 class MemoryStore(Store):
@@ -26,6 +27,13 @@ class MemoryStore(Store):
         self.database = MemoryDatabase()
         self.context = MemoryContext(self.database)
 
+    def __str__(self) -> str:
+        num_nodes = sum(len(table.rows) for table in self.database.tables.values())
+        return f"nodes={num_nodes}, tables={len(self.database.tables)}"
+
+    def __repr__(self) -> str:
+        return f"<MemoryStore {self!s}>"
+
     @override
     async def commit(self, changes: Sequence[Change]) -> Sequence[ChangeResult]:
         results: list[ChangeResult] = []
@@ -36,4 +44,4 @@ class MemoryStore(Store):
 
     @override
     async def query(self, query: Query) -> QueryResult:
-        raise NotImplementedError
+        return execute_query(self.context, query)
