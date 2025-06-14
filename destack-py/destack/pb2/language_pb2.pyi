@@ -125,6 +125,17 @@ class ColorHue(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     COLOR_HUE_PINK: _ClassVar[ColorHue]
     COLOR_HUE_ROSE: _ClassVar[ColorHue]
 
+class ColorIntent(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    COLOR_INTENT_UNSPECIFIED: _ClassVar[ColorIntent]
+    COLOR_INTENT_PRIMARY: _ClassVar[ColorIntent]
+    COLOR_INTENT_SECONDARY: _ClassVar[ColorIntent]
+    COLOR_INTENT_NEUTRAL: _ClassVar[ColorIntent]
+    COLOR_INTENT_SUCCESS: _ClassVar[ColorIntent]
+    COLOR_INTENT_INFO: _ClassVar[ColorIntent]
+    COLOR_INTENT_WARNING: _ClassVar[ColorIntent]
+    COLOR_INTENT_ERROR: _ClassVar[ColorIntent]
+
 class ColorShade(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     COLOR_SHADE_UNSPECIFIED: _ClassVar[ColorShade]
@@ -367,6 +378,8 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_WINDOW_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_SCENE_EVENT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_LAYER_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_MODE_TYPE: _ClassVar[EnumType]
+    ENUM_TYPE_TOOL_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_CANVAS_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_PLANE_SHAPE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_ARROW_HEAD_TYPE: _ClassVar[EnumType]
@@ -375,6 +388,7 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_COLOR_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_COLOR_SHADE: _ClassVar[EnumType]
     ENUM_TYPE_COLOR_HUE: _ClassVar[EnumType]
+    ENUM_TYPE_COLOR_INTENT: _ClassVar[EnumType]
     ENUM_TYPE_FONT_WEIGHT: _ClassVar[EnumType]
     ENUM_TYPE_FONT_SIZE: _ClassVar[EnumType]
     ENUM_TYPE_FONT_TYPE: _ClassVar[EnumType]
@@ -787,6 +801,14 @@ class MembershipPermission(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     MEMBERSHIP_PERMISSION_UNSPECIFIED: _ClassVar[MembershipPermission]
     MEMBERSHIP_PERMISSION_KICK: _ClassVar[MembershipPermission]
     MEMBERSHIP_PERMISSION_BAN: _ClassVar[MembershipPermission]
+
+class ModeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    MODE_TYPE_UNSPECIFIED: _ClassVar[ModeType]
+    MODE_TYPE_EDIT: _ClassVar[ModeType]
+    MODE_TYPE_INSPECT: _ClassVar[ModeType]
+    MODE_TYPE_PREVIEW: _ClassVar[ModeType]
+    MODE_TYPE_USE: _ClassVar[ModeType]
 
 class ModelDeveloper(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1284,6 +1306,37 @@ class StringFormat(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     STRUCT_TYPE_UNSPECIFIED: _ClassVar[StructType]
+    STRUCT_TYPE_VALUE: _ClassVar[StructType]
+    STRUCT_TYPE_TYPE: _ClassVar[StructType]
+    STRUCT_TYPE_NUMBER_CONSTRAINT: _ClassVar[StructType]
+    STRUCT_TYPE_STRING_CONSTRAINT: _ClassVar[StructType]
+    STRUCT_TYPE_COLLECTION_CONSTRAINT: _ClassVar[StructType]
+    STRUCT_TYPE_NODE_CONSTRAINT: _ClassVar[StructType]
+    STRUCT_TYPE_TEXT: _ClassVar[StructType]
+    STRUCT_TYPE_TEXT_LINE: _ClassVar[StructType]
+    STRUCT_TYPE_TEXT_SPAN: _ClassVar[StructType]
+    STRUCT_TYPE_ICON: _ClassVar[StructType]
+    STRUCT_TYPE_SELECTION: _ClassVar[StructType]
+    STRUCT_TYPE_SCHEDULE: _ClassVar[StructType]
+    STRUCT_TYPE_ERROR: _ClassVar[StructType]
+    STRUCT_TYPE_DATABASE_INFO: _ClassVar[StructType]
+    STRUCT_TYPE_CELL_INFO: _ClassVar[StructType]
+    STRUCT_TYPE_COLOR: _ClassVar[StructType]
+    STRUCT_TYPE_SHADOW: _ClassVar[StructType]
+    STRUCT_TYPE_BORDER: _ClassVar[StructType]
+    STRUCT_TYPE_FONT: _ClassVar[StructType]
+    STRUCT_TYPE_GRADIENT_STOP: _ClassVar[StructType]
+    STRUCT_TYPE_GRADIENT: _ClassVar[StructType]
+    STRUCT_TYPE_FILL: _ClassVar[StructType]
+    STRUCT_TYPE_LENGTH: _ClassVar[StructType]
+    STRUCT_TYPE_POSITION: _ClassVar[StructType]
+    STRUCT_TYPE_DIMENSION: _ClassVar[StructType]
+    STRUCT_TYPE_TRANSITION: _ClassVar[StructType]
+    STRUCT_TYPE_EFFECT: _ClassVar[StructType]
+    STRUCT_TYPE_GRID: _ClassVar[StructType]
+    STRUCT_TYPE_GRID_SPAN: _ClassVar[StructType]
+    STRUCT_TYPE_INSETS: _ClassVar[StructType]
+    STRUCT_TYPE_CORNERS: _ClassVar[StructType]
     STRUCT_TYPE_SCOPE: _ClassVar[StructType]
     STRUCT_TYPE_ORIGIN: _ClassVar[StructType]
     STRUCT_TYPE_NODE_REFERENCE: _ClassVar[StructType]
@@ -1312,21 +1365,6 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_QUERY_RESULT_GROUP: _ClassVar[StructType]
     STRUCT_TYPE_QUERY_UPDATE: _ClassVar[StructType]
     STRUCT_TYPE_HISTOGRAM: _ClassVar[StructType]
-    STRUCT_TYPE_VALUE: _ClassVar[StructType]
-    STRUCT_TYPE_TYPE: _ClassVar[StructType]
-    STRUCT_TYPE_NUMBER_CONSTRAINT: _ClassVar[StructType]
-    STRUCT_TYPE_STRING_CONSTRAINT: _ClassVar[StructType]
-    STRUCT_TYPE_COLLECTION_CONSTRAINT: _ClassVar[StructType]
-    STRUCT_TYPE_NODE_CONSTRAINT: _ClassVar[StructType]
-    STRUCT_TYPE_TEXT: _ClassVar[StructType]
-    STRUCT_TYPE_TEXT_LINE: _ClassVar[StructType]
-    STRUCT_TYPE_TEXT_SPAN: _ClassVar[StructType]
-    STRUCT_TYPE_ICON: _ClassVar[StructType]
-    STRUCT_TYPE_SELECTION: _ClassVar[StructType]
-    STRUCT_TYPE_SCHEDULE: _ClassVar[StructType]
-    STRUCT_TYPE_ERROR: _ClassVar[StructType]
-    STRUCT_TYPE_DATABASE_INFO: _ClassVar[StructType]
-    STRUCT_TYPE_CELL_INFO: _ClassVar[StructType]
     STRUCT_TYPE_VECTOR2: _ClassVar[StructType]
     STRUCT_TYPE_VECTOR3: _ClassVar[StructType]
     STRUCT_TYPE_VECTOR4: _ClassVar[StructType]
@@ -1335,22 +1373,6 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_VECTOR4I: _ClassVar[StructType]
     STRUCT_TYPE_AXIS2: _ClassVar[StructType]
     STRUCT_TYPE_AXIS3: _ClassVar[StructType]
-    STRUCT_TYPE_COLOR: _ClassVar[StructType]
-    STRUCT_TYPE_SHADOW: _ClassVar[StructType]
-    STRUCT_TYPE_BORDER: _ClassVar[StructType]
-    STRUCT_TYPE_FONT: _ClassVar[StructType]
-    STRUCT_TYPE_GRADIENT_STOP: _ClassVar[StructType]
-    STRUCT_TYPE_GRADIENT: _ClassVar[StructType]
-    STRUCT_TYPE_FILL: _ClassVar[StructType]
-    STRUCT_TYPE_LENGTH: _ClassVar[StructType]
-    STRUCT_TYPE_POSITION: _ClassVar[StructType]
-    STRUCT_TYPE_DIMENSION: _ClassVar[StructType]
-    STRUCT_TYPE_TRANSITION: _ClassVar[StructType]
-    STRUCT_TYPE_EFFECT: _ClassVar[StructType]
-    STRUCT_TYPE_GRID: _ClassVar[StructType]
-    STRUCT_TYPE_GRID_SPAN: _ClassVar[StructType]
-    STRUCT_TYPE_INSETS: _ClassVar[StructType]
-    STRUCT_TYPE_CORNERS: _ClassVar[StructType]
 
 class Tenancy(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1433,6 +1455,12 @@ class TimerType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TIMER_TYPE_ONCE: _ClassVar[TimerType]
     TIMER_TYPE_RECURRING: _ClassVar[TimerType]
 
+class ToolType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    TOOL_TYPE_UNSPECIFIED: _ClassVar[ToolType]
+    TOOL_TYPE_SELECT: _ClassVar[ToolType]
+    TOOL_TYPE_INSPECT: _ClassVar[ToolType]
+
 class TraitType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     TRAIT_TYPE_UNSPECIFIED: _ClassVar[TraitType]
@@ -1471,6 +1499,7 @@ class TraitType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TRAIT_TYPE_CURSOR: _ClassVar[TraitType]
     TRAIT_TYPE_METRIC: _ClassVar[TraitType]
     TRAIT_TYPE_MEASUREMENT: _ClassVar[TraitType]
+    TRAIT_TYPE_SETTINGS: _ClassVar[TraitType]
     TRAIT_TYPE_STARABLE: _ClassVar[TraitType]
     TRAIT_TYPE_REACTABLE: _ClassVar[TraitType]
     TRAIT_TYPE_FOLLOWABLE: _ClassVar[TraitType]
@@ -1482,8 +1511,8 @@ class TraitType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TRAIT_TYPE_INPUT_VIEW: _ClassVar[TraitType]
     TRAIT_TYPE_NODE_VIEW: _ClassVar[TraitType]
     TRAIT_TYPE_INTERNAL_VIEW: _ClassVar[TraitType]
-    TRAIT_TYPE_STYLE: _ClassVar[TraitType]
     TRAIT_TYPE_SHAPE: _ClassVar[TraitType]
+    TRAIT_TYPE_STYLE: _ClassVar[TraitType]
 
 class TransitionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1589,6 +1618,14 @@ COLOR_HUE_PURPLE: ColorHue
 COLOR_HUE_FUCHSIA: ColorHue
 COLOR_HUE_PINK: ColorHue
 COLOR_HUE_ROSE: ColorHue
+COLOR_INTENT_UNSPECIFIED: ColorIntent
+COLOR_INTENT_PRIMARY: ColorIntent
+COLOR_INTENT_SECONDARY: ColorIntent
+COLOR_INTENT_NEUTRAL: ColorIntent
+COLOR_INTENT_SUCCESS: ColorIntent
+COLOR_INTENT_INFO: ColorIntent
+COLOR_INTENT_WARNING: ColorIntent
+COLOR_INTENT_ERROR: ColorIntent
 COLOR_SHADE_UNSPECIFIED: ColorShade
 COLOR_SHADE_S25: ColorShade
 COLOR_SHADE_S50: ColorShade
@@ -1778,6 +1815,8 @@ ENUM_TYPE_MODEL_PROVIDER: EnumType
 ENUM_TYPE_WINDOW_TYPE: EnumType
 ENUM_TYPE_SCENE_EVENT_TYPE: EnumType
 ENUM_TYPE_LAYER_TYPE: EnumType
+ENUM_TYPE_MODE_TYPE: EnumType
+ENUM_TYPE_TOOL_TYPE: EnumType
 ENUM_TYPE_CANVAS_TYPE: EnumType
 ENUM_TYPE_PLANE_SHAPE_TYPE: EnumType
 ENUM_TYPE_ARROW_HEAD_TYPE: EnumType
@@ -1786,6 +1825,7 @@ ENUM_TYPE_POSITION_TYPE: EnumType
 ENUM_TYPE_COLOR_TYPE: EnumType
 ENUM_TYPE_COLOR_SHADE: EnumType
 ENUM_TYPE_COLOR_HUE: EnumType
+ENUM_TYPE_COLOR_INTENT: EnumType
 ENUM_TYPE_FONT_WEIGHT: EnumType
 ENUM_TYPE_FONT_SIZE: EnumType
 ENUM_TYPE_FONT_TYPE: EnumType
@@ -2099,6 +2139,11 @@ MEMBERSHIP_EVENT_TYPE_BAN: MembershipEventType
 MEMBERSHIP_PERMISSION_UNSPECIFIED: MembershipPermission
 MEMBERSHIP_PERMISSION_KICK: MembershipPermission
 MEMBERSHIP_PERMISSION_BAN: MembershipPermission
+MODE_TYPE_UNSPECIFIED: ModeType
+MODE_TYPE_EDIT: ModeType
+MODE_TYPE_INSPECT: ModeType
+MODE_TYPE_PREVIEW: ModeType
+MODE_TYPE_USE: ModeType
 MODEL_DEVELOPER_UNSPECIFIED: ModelDeveloper
 MODEL_DEVELOPER_OPENAI: ModelDeveloper
 MODEL_DEVELOPER_ANTHROPIC: ModelDeveloper
@@ -2455,6 +2500,37 @@ STRING_FORMAT_EMOJI: StringFormat
 STRING_FORMAT_MIME: StringFormat
 STRING_FORMAT_BASE64: StringFormat
 STRUCT_TYPE_UNSPECIFIED: StructType
+STRUCT_TYPE_VALUE: StructType
+STRUCT_TYPE_TYPE: StructType
+STRUCT_TYPE_NUMBER_CONSTRAINT: StructType
+STRUCT_TYPE_STRING_CONSTRAINT: StructType
+STRUCT_TYPE_COLLECTION_CONSTRAINT: StructType
+STRUCT_TYPE_NODE_CONSTRAINT: StructType
+STRUCT_TYPE_TEXT: StructType
+STRUCT_TYPE_TEXT_LINE: StructType
+STRUCT_TYPE_TEXT_SPAN: StructType
+STRUCT_TYPE_ICON: StructType
+STRUCT_TYPE_SELECTION: StructType
+STRUCT_TYPE_SCHEDULE: StructType
+STRUCT_TYPE_ERROR: StructType
+STRUCT_TYPE_DATABASE_INFO: StructType
+STRUCT_TYPE_CELL_INFO: StructType
+STRUCT_TYPE_COLOR: StructType
+STRUCT_TYPE_SHADOW: StructType
+STRUCT_TYPE_BORDER: StructType
+STRUCT_TYPE_FONT: StructType
+STRUCT_TYPE_GRADIENT_STOP: StructType
+STRUCT_TYPE_GRADIENT: StructType
+STRUCT_TYPE_FILL: StructType
+STRUCT_TYPE_LENGTH: StructType
+STRUCT_TYPE_POSITION: StructType
+STRUCT_TYPE_DIMENSION: StructType
+STRUCT_TYPE_TRANSITION: StructType
+STRUCT_TYPE_EFFECT: StructType
+STRUCT_TYPE_GRID: StructType
+STRUCT_TYPE_GRID_SPAN: StructType
+STRUCT_TYPE_INSETS: StructType
+STRUCT_TYPE_CORNERS: StructType
 STRUCT_TYPE_SCOPE: StructType
 STRUCT_TYPE_ORIGIN: StructType
 STRUCT_TYPE_NODE_REFERENCE: StructType
@@ -2483,21 +2559,6 @@ STRUCT_TYPE_QUERY_RESULT: StructType
 STRUCT_TYPE_QUERY_RESULT_GROUP: StructType
 STRUCT_TYPE_QUERY_UPDATE: StructType
 STRUCT_TYPE_HISTOGRAM: StructType
-STRUCT_TYPE_VALUE: StructType
-STRUCT_TYPE_TYPE: StructType
-STRUCT_TYPE_NUMBER_CONSTRAINT: StructType
-STRUCT_TYPE_STRING_CONSTRAINT: StructType
-STRUCT_TYPE_COLLECTION_CONSTRAINT: StructType
-STRUCT_TYPE_NODE_CONSTRAINT: StructType
-STRUCT_TYPE_TEXT: StructType
-STRUCT_TYPE_TEXT_LINE: StructType
-STRUCT_TYPE_TEXT_SPAN: StructType
-STRUCT_TYPE_ICON: StructType
-STRUCT_TYPE_SELECTION: StructType
-STRUCT_TYPE_SCHEDULE: StructType
-STRUCT_TYPE_ERROR: StructType
-STRUCT_TYPE_DATABASE_INFO: StructType
-STRUCT_TYPE_CELL_INFO: StructType
 STRUCT_TYPE_VECTOR2: StructType
 STRUCT_TYPE_VECTOR3: StructType
 STRUCT_TYPE_VECTOR4: StructType
@@ -2506,22 +2567,6 @@ STRUCT_TYPE_VECTOR3I: StructType
 STRUCT_TYPE_VECTOR4I: StructType
 STRUCT_TYPE_AXIS2: StructType
 STRUCT_TYPE_AXIS3: StructType
-STRUCT_TYPE_COLOR: StructType
-STRUCT_TYPE_SHADOW: StructType
-STRUCT_TYPE_BORDER: StructType
-STRUCT_TYPE_FONT: StructType
-STRUCT_TYPE_GRADIENT_STOP: StructType
-STRUCT_TYPE_GRADIENT: StructType
-STRUCT_TYPE_FILL: StructType
-STRUCT_TYPE_LENGTH: StructType
-STRUCT_TYPE_POSITION: StructType
-STRUCT_TYPE_DIMENSION: StructType
-STRUCT_TYPE_TRANSITION: StructType
-STRUCT_TYPE_EFFECT: StructType
-STRUCT_TYPE_GRID: StructType
-STRUCT_TYPE_GRID_SPAN: StructType
-STRUCT_TYPE_INSETS: StructType
-STRUCT_TYPE_CORNERS: StructType
 TENANCY_UNSPECIFIED: Tenancy
 TENANCY_DEDICATED: Tenancy
 TENANCY_SHARED: Tenancy
@@ -2573,6 +2618,9 @@ TIMER_EVENT_TYPE_EXPIRED: TimerEventType
 TIMER_TYPE_UNSPECIFIED: TimerType
 TIMER_TYPE_ONCE: TimerType
 TIMER_TYPE_RECURRING: TimerType
+TOOL_TYPE_UNSPECIFIED: ToolType
+TOOL_TYPE_SELECT: ToolType
+TOOL_TYPE_INSPECT: ToolType
 TRAIT_TYPE_UNSPECIFIED: TraitType
 TRAIT_TYPE_GLOBAL: TraitType
 TRAIT_TYPE_SPATIAL: TraitType
@@ -2609,6 +2657,7 @@ TRAIT_TYPE_SOURCEABLE: TraitType
 TRAIT_TYPE_CURSOR: TraitType
 TRAIT_TYPE_METRIC: TraitType
 TRAIT_TYPE_MEASUREMENT: TraitType
+TRAIT_TYPE_SETTINGS: TraitType
 TRAIT_TYPE_STARABLE: TraitType
 TRAIT_TYPE_REACTABLE: TraitType
 TRAIT_TYPE_FOLLOWABLE: TraitType
@@ -2620,8 +2669,8 @@ TRAIT_TYPE_CONTENT_VIEW: TraitType
 TRAIT_TYPE_INPUT_VIEW: TraitType
 TRAIT_TYPE_NODE_VIEW: TraitType
 TRAIT_TYPE_INTERNAL_VIEW: TraitType
-TRAIT_TYPE_STYLE: TraitType
 TRAIT_TYPE_SHAPE: TraitType
+TRAIT_TYPE_STYLE: TraitType
 TRANSITION_TYPE_UNSPECIFIED: TransitionType
 TRANSITION_TYPE_STYLE: TransitionType
 TRANSITION_TYPE_TWEEN: TransitionType
@@ -3164,12 +3213,13 @@ class CollectionConstraintData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., min_length: _Optional[int] = ..., max_length: _Optional[int] = ...) -> None: ...
 
 class ColorData(_message.Message):
-    __slots__ = ("metatype", "type", "style_ptr", "hue", "shade", "x", "y", "z", "alpha")
+    __slots__ = ("metatype", "type", "style_ptr", "hue", "shade", "intent", "x", "y", "z", "alpha")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     STYLE_PTR_FIELD_NUMBER: _ClassVar[int]
     HUE_FIELD_NUMBER: _ClassVar[int]
     SHADE_FIELD_NUMBER: _ClassVar[int]
+    INTENT_FIELD_NUMBER: _ClassVar[int]
     X_FIELD_NUMBER: _ClassVar[int]
     Y_FIELD_NUMBER: _ClassVar[int]
     Z_FIELD_NUMBER: _ClassVar[int]
@@ -3179,14 +3229,15 @@ class ColorData(_message.Message):
     style_ptr: NodeReferenceData
     hue: ColorHue
     shade: ColorShade
+    intent: ColorIntent
     x: float
     y: float
     z: float
     alpha: float
-    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., type: _Optional[_Union[ColorType, str]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., hue: _Optional[_Union[ColorHue, str]] = ..., shade: _Optional[_Union[ColorShade, str]] = ..., x: _Optional[float] = ..., y: _Optional[float] = ..., z: _Optional[float] = ..., alpha: _Optional[float] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., type: _Optional[_Union[ColorType, str]] = ..., style_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., hue: _Optional[_Union[ColorHue, str]] = ..., shade: _Optional[_Union[ColorShade, str]] = ..., intent: _Optional[_Union[ColorIntent, str]] = ..., x: _Optional[float] = ..., y: _Optional[float] = ..., z: _Optional[float] = ..., alpha: _Optional[float] = ...) -> None: ...
 
 class ColorStyleData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "order_key", "type", "name", "hue", "shade", "x", "y", "z", "alpha", "dark")
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "order_key", "type", "name", "hue", "shade", "intent", "x", "y", "z", "alpha", "dark")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -3202,6 +3253,7 @@ class ColorStyleData(_message.Message):
     NAME_FIELD_NUMBER: _ClassVar[int]
     HUE_FIELD_NUMBER: _ClassVar[int]
     SHADE_FIELD_NUMBER: _ClassVar[int]
+    INTENT_FIELD_NUMBER: _ClassVar[int]
     X_FIELD_NUMBER: _ClassVar[int]
     Y_FIELD_NUMBER: _ClassVar[int]
     Z_FIELD_NUMBER: _ClassVar[int]
@@ -3222,12 +3274,13 @@ class ColorStyleData(_message.Message):
     name: str
     hue: ColorHue
     shade: ColorShade
+    intent: ColorIntent
     x: float
     y: float
     z: float
     alpha: float
     dark: ColorData
-    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., order_key: _Optional[str] = ..., type: _Optional[_Union[ColorType, str]] = ..., name: _Optional[str] = ..., hue: _Optional[_Union[ColorHue, str]] = ..., shade: _Optional[_Union[ColorShade, str]] = ..., x: _Optional[float] = ..., y: _Optional[float] = ..., z: _Optional[float] = ..., alpha: _Optional[float] = ..., dark: _Optional[_Union[ColorData, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., order_key: _Optional[str] = ..., type: _Optional[_Union[ColorType, str]] = ..., name: _Optional[str] = ..., hue: _Optional[_Union[ColorHue, str]] = ..., shade: _Optional[_Union[ColorShade, str]] = ..., intent: _Optional[_Union[ColorIntent, str]] = ..., x: _Optional[float] = ..., y: _Optional[float] = ..., z: _Optional[float] = ..., alpha: _Optional[float] = ..., dark: _Optional[_Union[ColorData, _Mapping]] = ...) -> None: ...
 
 class ConditionData(_message.Message):
     __slots__ = ("metatype", "type", "left", "right")
@@ -7643,7 +7696,7 @@ class Vector4iData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., x: _Optional[int] = ..., y: _Optional[int] = ..., z: _Optional[int] = ..., w: _Optional[int] = ...) -> None: ...
 
 class WindowData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "order_key", "owned_by_ptr", "type", "name", "selection", "focus_ptr", "inspection_ptr", "container_ptr", "thread_ptr")
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "order_key", "owned_by_ptr", "type", "name")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -7658,11 +7711,6 @@ class WindowData(_message.Message):
     OWNED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
-    SELECTION_FIELD_NUMBER: _ClassVar[int]
-    FOCUS_PTR_FIELD_NUMBER: _ClassVar[int]
-    INSPECTION_PTR_FIELD_NUMBER: _ClassVar[int]
-    CONTAINER_PTR_FIELD_NUMBER: _ClassVar[int]
-    THREAD_PTR_FIELD_NUMBER: _ClassVar[int]
     metatype: NodeType
     id: str
     parent_ptr: NodeReferenceData
@@ -7677,12 +7725,7 @@ class WindowData(_message.Message):
     owned_by_ptr: NodeReferenceData
     type: WindowType
     name: str
-    selection: SelectionData
-    focus_ptr: NodeReferenceData
-    inspection_ptr: NodeReferenceData
-    container_ptr: NodeReferenceData
-    thread_ptr: NodeReferenceData
-    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., order_key: _Optional[str] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., type: _Optional[_Union[WindowType, str]] = ..., name: _Optional[str] = ..., selection: _Optional[_Union[SelectionData, _Mapping]] = ..., focus_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., inspection_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., container_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., thread_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., order_key: _Optional[str] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., type: _Optional[_Union[WindowType, str]] = ..., name: _Optional[str] = ...) -> None: ...
 
 class WizardViewData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "order_key", "name", "position", "width", "height", "min_width", "min_height", "max_width", "max_height", "script_ptr")

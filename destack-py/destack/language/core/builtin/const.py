@@ -37,7 +37,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.06.13.1"
+VERSION = "2025.06.14.0"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"destack")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -272,7 +272,7 @@ class bittuple(typing.Generic[EnumT], Collection[EnumT]):  # noqa: N801
 
 
 class EnumType(Enum):
-    # destack [1-200]
+    # space [1-500]
     SPACE_STATUS = 1
     USER_STATUS = 20
     FRIENDSHIP_INVITE_EVENT_TYPE = 31
@@ -289,196 +289,195 @@ class EnumType(Enum):
     QUERY_TYPE = 120
     QUERY_UPDATE_TYPE = 121
 
-    # access [400-600]
-    MEMBERSHIP_EVENT_TYPE = 400
-    MEMBERSHIP_PERMISSION = 401
-    INVITE_EVENT_TYPE = 410
-    ROLE_TYPE = 420
-    ROLE_EVENT_TYPE = 421
-    PERMISSION_TYPE = 430
-    SANCTION_TYPE = 440
-    SANCTION_EVENT_TYPE = 441
-    ENTITLEMENT_TYPE = 450
-    ENTITLEMENT_EVENT_TYPE = 451
+    # access [500-1000]
+    MEMBERSHIP_EVENT_TYPE = 500
+    MEMBERSHIP_PERMISSION = 501
+    INVITE_EVENT_TYPE = 510
+    ROLE_TYPE = 520
+    ROLE_EVENT_TYPE = 521
+    PERMISSION_TYPE = 530
+    SANCTION_TYPE = 540
+    SANCTION_EVENT_TYPE = 541
+    ENTITLEMENT_TYPE = 550
+    ENTITLEMENT_EVENT_TYPE = 551
     # ...
 
-    # folder [600-800]
-    FOLDER_TYPE = 600
+    # folder [1000-1500]
+    FOLDER_TYPE = 1000
 
-    # history [800-1000]
+    # history [1500-2000]
     # ...
 
-    # entity [1000-1400]
+    # entity [2000-2500]
     # ...
 
-    # data [1400-1800]
-    TEXT_LINE_TYPE = 1401
-    TEXT_SPAN_TYPE = 1402
-    FILE_RETENTION_MODE = 1421
-    FILE_SOURCE = 1422
-    FILE_TYPE = 1423
-    FILE_FORMAT = 1424
-    ICON_TYPE = 1431
-    LINK_TYPE = 1451
-    PRIMITIVE_TYPE = 1501
-    TYPE_CARDINALITY = 1502
-    SCALAR_TYPE = 1503
-    DEFAULT_FACTORY = 1504
-    STRING_FORMAT = 1511
-    NUMBER_FORMAT = 1512
-    FIELD_TYPE = 1521
-    EDGE_TYPE = 1522
-    EDGE_DIRECTION = 1523
-    CASCADE_ACTION = 1524
-    RESOURCE_STATUS = 1701
+    # data [2500-3000]
+    TEXT_LINE_TYPE = 2521
+    TEXT_SPAN_TYPE = 2522
+    FILE_RETENTION_MODE = 2540
+    FILE_SOURCE = 2541
+    FILE_TYPE = 2542
+    FILE_FORMAT = 2543
+    ICON_TYPE = 2531
+    LINK_TYPE = 2550
+    PRIMITIVE_TYPE = 2560
+    TYPE_CARDINALITY = 2561
+    SCALAR_TYPE = 2562
+    DEFAULT_FACTORY = 2563
+    STRING_FORMAT = 2570
+    NUMBER_FORMAT = 2571
+    FIELD_TYPE = 2580
+    EDGE_TYPE = 2581
+    EDGE_DIRECTION = 2582
+    CASCADE_ACTION = 2583
+    RESOURCE_STATUS = 2590
     # ...
 
-    # logic [1800-2000]
-    ACTION_CARDINALITY = 1821
-    CURSOR_STATUS = 1922
-    SCHEDULE_FREQUENCY = 1930
-    DAY_OF_WEEK = 1931
-    MONTH = 1932
-    TIMER_TYPE = 1940
-    TIMER_EVENT_TYPE = 1941
-    TRIGGER_TYPE = 1950
-    TRIGGER_EVENT_TYPE = 1951
+    # logic [3000-3500]
+    ACTION_CARDINALITY = 3020
+    CURSOR_STATUS = 3100
+    SCHEDULE_FREQUENCY = 3050
+    DAY_OF_WEEK = 3051
+    MONTH = 3052
+    TIMER_TYPE = 3053
+    TIMER_EVENT_TYPE = 3054
+    TRIGGER_TYPE = 3040
+    TRIGGER_EVENT_TYPE = 3041
     # ...
 
-    # test [2000-2400]
+    # test [3500-4000]
     # ...
 
-    # runtime [2400-2800]
-    RUN_STATUS = 2410
-    RUN_EVENT_TYPE = 2411
-    INTERRUPTION_TYPE = 2420
-    INTERRUPTION_STATUS = 2421
-    INTERRUPTION_RESPONSE = 2422
+    # runtime [4000-4500]
+    RUN_STATUS = 4000
+    RUN_EVENT_TYPE = 4001
+    INTERRUPTION_TYPE = 4020
+    INTERRUPTION_STATUS = 4021
+    INTERRUPTION_RESPONSE = 4022
     # ...
 
-    # deployment [2800-3000]
-    ENVIRONMENT_TYPE = 2800
+    # deployment [4500-5000]
+    ENVIRONMENT_TYPE = 4500
 
-    # product [3000-3400]
+    # product [5000-5500]
     # ...
 
-    # social [3400-3800]
-    THREAD_STATUS = 3402
-    NOTIFICATION_STATUS = 3430
-    NOTIFICATION_EVENT_TYPE = 3431
+    # social [5500-6000]
+    THREAD_STATUS = 5500
+    NOTIFICATION_STATUS = 5600
+    NOTIFICATION_EVENT_TYPE = 5601
 
-    # finance [3800-4200]
+    # finance [6000-6500]
     # ...
 
-    # locale [4200-4600]
+    # locale [6500-7000]
     # ...
 
-    # internet [4600-5000]
+    # internet [7000-7500]
     # ...
 
-    # infra [5000-5400]
-    CLOUD = 5000
-    REGION = 5001
-    REGION_AREA = 5002
-    REGION_CONTINENT = 5003
-    TENANCY = 5004
-    DATABASE_TYPE = 5010
-    MACHINE_TYPE = 5020
+    # infra [7500-8000]
+    CLOUD = 7500
+    REGION = 7501
+    REGION_AREA = 7502
+    REGION_CONTINENT = 7503
+    TENANCY = 7504
+    DATABASE_TYPE = 7505
+    MACHINE_TYPE = 7600
     # SEARCH_TYPE, WAREHOUSE_TYPE, ...
     # ...
 
-    # intelligence [5400-5800]
-    MODEL_DEVELOPER = 5401
-    MODEL_PROVIDER = 5402
+    # intelligence [8000-8500]
+    MODEL_DEVELOPER = 8000
+    MODEL_PROVIDER = 8001
     # ...
 
-    # world [5800-6200]
+    # world [8500-9000]
     # ...
 
-    # scene [8000-8100]
-    WINDOW_TYPE = 8000
-    SCENE_EVENT_TYPE = 8011
-    LAYER_TYPE = 8020
+    # scene [9000-9500]
+    WINDOW_TYPE = 9000
+    SCENE_EVENT_TYPE = 9011
+    LAYER_TYPE = 9020
 
-    # interaction [8100-8200]
+    # interaction [9500-10000]
+    MODE_TYPE = 9500
+    TOOL_TYPE = 9501
+
+    # container views [10000-10200]
     # ...
 
-    # container views [8200-8300]
+    # content views [10200-10400]
     # ...
 
-    # content views [8300-8400]
+    # input views [10400-10600]
     # ...
 
-    # input views [8400-8500]
+    # node/internal views [10600-10800]
     # ...
 
-    # node/internal views [8500-8600]
+    # canvas [11000-11500]
+    CANVAS_TYPE = 11000
+    PLANE_SHAPE_TYPE = 11011
+    ARROW_HEAD_TYPE = 11012
+    LINE_TYPE = 11010
+
+    # animation [11500-12000]
     # ...
 
-    # canvas [8600-8800]
-    CANVAS_TYPE = 8600
-    PLANE_SHAPE_TYPE = 8601
-    ARROW_HEAD_TYPE = 8602
-    LINE_TYPE = 8603
+    # style [12000-12500]
+    POSITION_TYPE = 12000
+    COLOR_TYPE = 12020
+    COLOR_SHADE = 12021
+    COLOR_HUE = 12022
+    COLOR_INTENT = 12023
+    FONT_WEIGHT = 12024
+    FONT_SIZE = 12025
+    FONT_TYPE = 12026
+    TEXT_ALIGN = 12027
+    TEXT_DECORATION = 12028
+    TEXT_TRANSFORM = 12029
+    SHADOW_TYPE = 12030
+    SHADOW_POSITION = 12031
+    BORDER_TYPE = 12032
+    GRADIENT_TYPE = 12033
+    FILL_TYPE = 12034
+    FILL_POSITION = 12035
+    FILL_SIZE = 12036
+    LENGTH_UNIT = 12037
+    LAYOUT = 12038
+    DISTRIBUTE = 12039
+    ALIGN = 12040
+    DIRECTION = 12041
+    OVERFLOW = 12042
+    TRANSITION_TYPE = 12043
+    SPRING_TYPE = 12044
+    DIMENSION_TYPE = 12045
+    EFFECT_TYPE = 12046
+    REPEAT_TYPE = 12047
+    TEXT_SPLIT_TYPE = 12048
+    OFFSCREEN_BEHAVIOR = 12049
 
-    # animation [8800-9000]
-    # ...
-
-    # style [9000-9200]
-    POSITION_TYPE = 9001
-    COLOR_TYPE = 9011
-    COLOR_SHADE = 9012
-    COLOR_HUE = 9013
-    COLOR_INTENT = 9014
-    FONT_WEIGHT = 9020
-    FONT_SIZE = 9021
-    FONT_TYPE = 9022
-    TEXT_ALIGN = 9025
-    TEXT_DECORATION = 9026
-    TEXT_TRANSFORM = 9027
-    SHADOW_TYPE = 9031
-    SHADOW_POSITION = 9032
-    BORDER_TYPE = 9041
-    GRADIENT_TYPE = 9051
-    FILL_TYPE = 9061
-    FILL_POSITION = 9062
-    FILL_SIZE = 9063
-    LENGTH_UNIT = 9071
-    LAYOUT = 9072
-    DISTRIBUTE = 9073
-    ALIGN = 9074
-    DIRECTION = 9075
-    OVERFLOW = 9076
-    TRANSITION_TYPE = 9077
-    SPRING_TYPE = 9078
-    DIMENSION_TYPE = 9079
-    EFFECT_TYPE = 9081
-    REPEAT_TYPE = 9082
-    TEXT_SPLIT_TYPE = 9084
-    OFFSCREEN_BEHAVIOR = 9085
-
-    # meta [10000-11000]
-    # relation [10000-10010]
-    ENUM_TYPE = 10000
-    NODE_TYPE = 10001
-    STRUCT_TYPE = 10002
-    TRAIT_TYPE = 10003
-    RELATION_TYPE = 10010
-    ATTRIBUTE_TYPE = 10011
-    PROPERTY_REFERENCE_TYPE = 10012
-    STORE_ZONE = 10020
-    STORE_TYPE = 10021
-    STORE_IMPLEMENTATION = 10022
-    PLATFORM_TYPE = 10030
-    RUNTIME_TYPE = 10031
-    OPERATING_SYSTEM = 10040
-    ERROR_TYPE = 10041
-    EDIT_TYPE = 10050
-    EDIT_OPERATION = 10051
-    CHANGE_STATUS = 10052
-    # access [10100-10200]
-    NODE_PERMISSION = 10100
-    JOINABLE_PERMISSION = 10101
+    # meta [50000-51000]
+    ENUM_TYPE = 50000
+    NODE_TYPE = 50001
+    STRUCT_TYPE = 50002
+    TRAIT_TYPE = 50003
+    RELATION_TYPE = 50010
+    ATTRIBUTE_TYPE = 50011
+    PROPERTY_REFERENCE_TYPE = 50012
+    STORE_ZONE = 50020
+    STORE_TYPE = 50021
+    STORE_IMPLEMENTATION = 50022
+    PLATFORM_TYPE = 50030
+    RUNTIME_TYPE = 50031
+    OPERATING_SYSTEM = 50040
+    ERROR_TYPE = 50041
+    EDIT_TYPE = 50050
+    EDIT_OPERATION = 50051
+    CHANGE_STATUS = 50052
+    NODE_PERMISSION = 50100
+    JOINABLE_PERMISSION = 50101
 
 
 builtin_enum(EnumType.ENUM_TYPE)(EnumType)
@@ -486,158 +485,159 @@ builtin_enum(EnumType.ENUM_TYPE)(EnumType)
 
 @builtin_enum(EnumType.STRUCT_TYPE)
 class StructType(Enum):
-    # destack [1-200]
-    SCOPE = 1
-    ORIGIN = 2
-    NODE_REFERENCE = 3
-    PROPERTY_REFERENCE = 5
-    PROPERTY_DEFINITION = 11
-    TRAIT_DEFINITION = 12
-    NODE_DEFINITION = 13
-    STRUCT_DEFINITION = 14
-    ENUM_DEFINITION = 15
-    ENUM_OPTION_DEFINITION = 16
-    PERMISSION_DEFINITION = 17
-    # ACTION_DEFINITION, ...?
-    EDIT = 30
-    CHANGE = 31
-    CHANGE_RESULT = 32
-    EXPRESSION = 101
-    FUNCTION = 102
-    JOIN = 103
-    AGGREGATION = 104
-    CONDITION = 105
-    SORT = 106
-    SELECT = 107
-    RELATION_REFERENCE = 108
-    ATTRIBUTE_REFERENCE = 109
-    QUERY = 111
-    QUERY_RESULT = 112
-    QUERY_RESULT_GROUP = 113
-    QUERY_UPDATE = 116
-    HISTOGRAM = 114
-
-    # access [400-600]
-    # PROFILE? (for User, or maybe global?)
-
-    # folder [600-800]
+    # space [1-500]
     # ...
 
-    # history [800-1000]
+    # access [500-1000]
     # ...
 
-    # entity [1000-1400]
+    # folder [1000-1500]
     # ...
 
-    # data [1400-1800]
-    VALUE = 1400
-    TYPE = 1401
-    NUMBER_CONSTRAINT = 1402
-    STRING_CONSTRAINT = 1403
-    COLLECTION_CONSTRAINT = 1404
-    NODE_CONSTRAINT = 1405
-    TEXT = 1421, None, None, "fas fa-text"
-    TEXT_LINE = 1422, None, None, "fas fa-text"
-    TEXT_SPAN = 1423, None, None, "fas fa-text"
-    ICON = 1431
-    SELECTION = 1471
+    # history [1500-2000]
+    # ...
+
+    # entity [2000-2500]
+    # ...
+
+    # data [2500-3000]
+    VALUE = 2500
+    TYPE = 2501
+    NUMBER_CONSTRAINT = 2502
+    STRING_CONSTRAINT = 2503
+    COLLECTION_CONSTRAINT = 2504
+    NODE_CONSTRAINT = 2505
+    TEXT = 2521, None, None, "fas fa-text"
+    TEXT_LINE = 2522, None, None, "fas fa-text"
+    TEXT_SPAN = 2523, None, None, "fas fa-text"
+    ICON = 2531
+    SELECTION = 2571
     # SCHEMA, UNION, TAG, ...
 
-    # logic [1800-2000]
-    SCHEDULE = 1801
+    # logic [3000-3500]
+    SCHEDULE = 3001
     # ...
 
-    # test [2000-2400]
+    # test [3500-4000]
     # ...
 
-    # runtime [2400-2800]
-    ERROR = 2401
+    # runtime [4000-4500]
+    ERROR = 4001
     # ...
 
-    # deployment [2800-3000]
+    # deployment [4500-5000]
     # ...
 
-    # product [3000-3400]
+    # product [5000-5500]
     # ...
 
-    # social [3400-3800]
+    # social [5500-6000]
     # ...
 
-    # finance [3800-4200]
+    # finance [6000-6500]
     # ...
 
-    # locale [4200-4600]
+    # locale [6500-7000]
     # ...
 
-    # internet [4600-5000]
+    # internet [7000-7500]
     # ...
 
-    # infra [5000-5400]
-    DATABASE_INFO = 5001
-    CELL_INFO = 5101
+    # infra [7500-8000]
+    DATABASE_INFO = 7501
+    CELL_INFO = 7601
 
-    # intelligence [5400-5800]
+    # intelligence [8000-8500]
     # ...
 
-    # world [5800-6200]
+    # world [8500-9000]
     # ...
 
-    # visual [8000-10000]
-    VECTOR2 = 8000, None, None, "fas fa-vector-square"
-    VECTOR3 = 8001, None, None, "fas fa-vector-square"
-    VECTOR4 = 8002, None, None, "fas fa-vector-square"
-    VECTOR2I = 8003, None, None, "fas fa-vector-square"
-    VECTOR3I = 8004, None, None, "fas fa-vector-square"
-    VECTOR4I = 8005, None, None, "fas fa-vector-square"
-    AXIS2 = 8007, None, None, "fas fa-vector-square"
-    AXIS3 = 8009, None, None, "fas fa-vector-square"
-
-    # scene [8000-8100]
+    # scene [9000-9500]
     # ...
 
-    # media [8100-8200]
+    # interaction [9500-10000]
     # ...
 
-    # container views [8200-8300]
+    # container views [10000-10200]
     # ...
 
-    # content views [8300-8400]
+    # content views [10200-10400]
     # ...
 
-    # input views [8400-8500]
+    # input views [10400-10600]
     # ...
 
-    # node/internal views [8500-8600]
+    # node/internal views [10600-10800]
     # ...
 
-    # canvas [8600-8800]
+    # canvas [11000-11500]
     # ...
 
-    # animation [8800-9000]
+    # animation [11500-12000]
     # ...
 
-    # style [9000-9200]
-    COLOR = 9011, None, None, "fas fa-palette"
-    SHADOW = 9012, None, None, "fas fa-eclipse"
-    BORDER = 9013, None, None, "fas fa-border-outer"
-    FONT = 9014, None, None, "fas fa-text"
-    GRADIENT_STOP = 9015, None, None, "fas fa-gradient"
-    GRADIENT = 9016, None, None, "fas fa-gradient"
-    FILL = 9017, None, None, "fas fa-fill"
-    LENGTH = 9018, None, None, "fas fa-ruler"
-    POSITION = 9020, None, None, "fas fa-location-crosshair"
-    DIMENSION = 9022, None, None, "fas fa-ruler"
-    TRANSITION = 9024, None, None, "fas fa-bezier-curve"
-    EFFECT = 9025, None, None, "fas fa-sparkle"
-    GRID = 9026, None, None, "fas fa-grid-2"
-    GRID_SPAN = 9028, None, None, "fas fa-grid-2"
-    INSETS = 9030, None, None, "fas fa-corner"
-    CORNERS = 9032, None, None, "fas fa-corner"
+    # style [12000-12500]
+    COLOR = 12011, None, None, "fas fa-palette"
+    SHADOW = 12012, None, None, "fas fa-eclipse"
+    BORDER = 12013, None, None, "fas fa-border-outer"
+    FONT = 12014, None, None, "fas fa-text"
+    GRADIENT_STOP = 12015, None, None, "fas fa-gradient"
+    GRADIENT = 12016, None, None, "fas fa-gradient"
+    FILL = 12017, None, None, "fas fa-fill"
+    LENGTH = 12018, None, None, "fas fa-ruler"
+    POSITION = 12020, None, None, "fas fa-location-crosshair"
+    DIMENSION = 12022, None, None, "fas fa-ruler"
+    TRANSITION = 12024, None, None, "fas fa-bezier-curve"
+    EFFECT = 12025, None, None, "fas fa-sparkle"
+    GRID = 12026, None, None, "fas fa-grid-2"
+    GRID_SPAN = 12028, None, None, "fas fa-grid-2"
+    INSETS = 12030, None, None, "fas fa-corner"
+    CORNERS = 12032, None, None, "fas fa-corner"
+
+    # meta [50000-51000]
+    SCOPE = 50000
+    ORIGIN = 50001
+    NODE_REFERENCE = 50002
+    PROPERTY_REFERENCE = 50003
+    PROPERTY_DEFINITION = 50004
+    TRAIT_DEFINITION = 50005
+    NODE_DEFINITION = 50006
+    STRUCT_DEFINITION = 50007
+    ENUM_DEFINITION = 50008
+    ENUM_OPTION_DEFINITION = 50009
+    PERMISSION_DEFINITION = 50010
+    # ACTION_DEFINITION, ...?
+    EDIT = 50020
+    CHANGE = 50021
+    CHANGE_RESULT = 50022
+    EXPRESSION = 50100
+    FUNCTION = 50101
+    JOIN = 50102
+    AGGREGATION = 50103
+    CONDITION = 50104
+    SORT = 50105
+    SELECT = 50106
+    RELATION_REFERENCE = 50107
+    ATTRIBUTE_REFERENCE = 50108
+    QUERY = 50109
+    QUERY_RESULT = 50110
+    QUERY_RESULT_GROUP = 50111
+    QUERY_UPDATE = 50112
+    HISTOGRAM = 50113
+    VECTOR2 = 50200, None, None, "fas fa-vector-square"
+    VECTOR3 = 50201, None, None, "fas fa-vector-square"
+    VECTOR4 = 50202, None, None, "fas fa-vector-square"
+    VECTOR2I = 50203, None, None, "fas fa-vector-square"
+    VECTOR3I = 50204, None, None, "fas fa-vector-square"
+    VECTOR4I = 50205, None, None, "fas fa-vector-square"
+    AXIS2 = 50207, None, None, "fas fa-vector-square"
+    AXIS3 = 50209, None, None, "fas fa-vector-square"
 
 
 @builtin_enum(EnumType.NODE_TYPE)
 class NodeType(Enum):
-    # space [1-400]
+    # space [1-500]
     SPACE = 1, "Space", "Universal Space", "https://heydestack.com/favicon.ico"
     HANDLE = 10, "Handle", "Unique @handle", "fas fa-at"
     USER = 20, "User", "User", "fas fa-user"
@@ -659,218 +659,218 @@ class NodeType(Enum):
     # CREDENTIAL, ACCOUNT, PROFILE, ...
     CLIENT = 100, "Client", "Client", "fas fa-desktop"
 
-    # access [400-600]
-    MEMBERSHIP = 400, "Membership", "Membership in a Space/Folder", "fas fa-user-group"
-    MEMBERSHIP_EVENT = 401, "Membership Event", "Membership Event", "fas fa-user-group"
-    INVITE = 410, "Invite", "Invite to a Space/Folder", "fas fa-user-plus"
-    INVITE_EVENT = 411, "Invite Event", "Invite Event", "fas fa-user-plus"
-    ROLE = 420, "Role", "Role in something", "fas fa-user-tag"
-    ROLE_EVENT = 421, "Role Event", "Role Event", "fas fa-user-tag"
-    PERMISSION = 430, "Permission", "Permission for something", "fas fa-user-shield"
-    SANCTION = 440, "Sanction", "Temporary or permanent restriction", "fas fa-user-minus"
-    SANCTION_EVENT = 441, "Sanction Event", "Sanction Event", "fas fa-user-minus"
-    ENTITLEMENT = 450, "Entitlement", "Temporary or permanent grant", "fas fa-user-check"
-    ENTITLEMENT_EVENT = 451, "Entitlement Event", "Entitlement Event", "fas fa-user-check"
-    AGENT = 500, "Agent", "Agent", "fas fa-robot"
+    # access [500-1000]
+    MEMBERSHIP = 500, "Membership", "Membership in a Space/Folder", "fas fa-user-group"
+    MEMBERSHIP_EVENT = 501, "Membership Event", "Membership Event", "fas fa-user-group"
+    INVITE = 510, "Invite", "Invite to a Space/Folder", "fas fa-user-plus"
+    INVITE_EVENT = 511, "Invite Event", "Invite Event", "fas fa-user-plus"
+    ROLE = 520, "Role", "Role in something", "fas fa-user-tag"
+    ROLE_EVENT = 521, "Role Event", "Role Event", "fas fa-user-tag"
+    PERMISSION = 530, "Permission", "Permission for something", "fas fa-user-shield"
+    SANCTION = 540, "Sanction", "Temporary or permanent restriction", "fas fa-user-minus"
+    SANCTION_EVENT = 541, "Sanction Event", "Sanction Event", "fas fa-user-minus"
+    ENTITLEMENT = 550, "Entitlement", "Temporary or permanent grant", "fas fa-user-check"
+    ENTITLEMENT_EVENT = 551, "Entitlement Event", "Entitlement Event", "fas fa-user-check"
+    AGENT = 600, "Agent", "Agent", "fas fa-robot"
     # CHALLENGE, ...
 
-    # folder [600-800]
-    FOLDER = 600, "Folder", "Sub-space of a Space", "fas fa-folder-open"
+    # folder [1000-1500]
+    FOLDER = 1000, "Folder", "Sub-space of a Space", "fas fa-folder-open"
     # DEPENDENCY, ...
-    TAG = 610, "Tag", "Tag", "fas fa-tag"
-    TAGGING = 611, "Tagging", "Tagging", "fas fa-tag"
+    TAG = 1010, "Tag", "Tag", "fas fa-tag"
+    TAGGING = 1011, "Tagging", "Tagging", "fas fa-tag"
 
-    # history [800-1000]
+    # history [1500-2000]
     # HISTORY, SNAPSHOT/SAVEPOINT, OVERLAY, ...
     # BRANCH, FORK, ...
 
-    # entity [1000-1400]
+    # entity [2000-2500]
     CUSTOM_ENTITY_DEFINITION = (
-        1000,
+        2000,
         "Custom Node Definition",
         "Custom Node Definition",
         "fas fa-table",
     )
-    CUSTOM_ENTITY = 1001, "Custom Node Instance", "Custom Node Instance", "fas fa-database"
+    CUSTOM_ENTITY = 2001, "Custom Node Instance", "Custom Node Instance", "fas fa-database"
     # INDEX, CONSTRAINT, MIGRATION, ...
     # MIRROR/SYNC, ...
     # TRAIT_DEFINITION/TRAIT_IMPLEMENTATION, INTERFACE, ...
 
-    # data [1400-1800]
-    CUSTOM_STRUCT_DEFINITION = 1400, "Struct", "Struct", "fas fa-shapes"
-    CUSTOM_ENUM_DEFINITION = 1410, "Enum", "Enum", "fas fa-shapes"
-    FIELD = 1420, "Field", "Field", "fas fa-triangle"
-    OPTION = 1430, "Option", "Option", "fas fa-circle"
-    FILE = 1440, "File", "File", "fas fa-file"
-    LINK = 1450, "Link", "Link to something", "fas fa-link"
+    # data [2500-3000]
+    CUSTOM_STRUCT_DEFINITION = 2500, "Struct", "Struct", "fas fa-shapes"
+    CUSTOM_ENUM_DEFINITION = 2510, "Enum", "Enum", "fas fa-shapes"
+    FIELD = 2520, "Field", "Field", "fas fa-triangle"
+    OPTION = 2530, "Option", "Option", "fas fa-circle"
+    FILE = 2540, "File", "File", "fas fa-file"
+    LINK = 2550, "Link", "Link to something", "fas fa-link"
     # STREAM, SECRET, ...
 
-    # logic [1800-2000]
-    SCRIPT = 1800, "Script", "Script", "fas fa-code"
-    SERVICE = 1810, "Service", "Service", "fas fa-screwdriver-wrench"
-    ACTION = 1820, "Action", "Action", "fas fa-step-forward"
-    ROUTE = 1830, "Route", "Route", "fas fa-route"
-    TRIGGER = 1840, "Trigger", "Trigger", "fas fa-bolt"
-    TRIGGER_EVENT = 1841, "Trigger Event", "Trigger Event", "fas fa-bolt"
-    TIMER = 1850, "Timer", "Timer", "fas fa-clock"
-    TIMER_EVENT = 1851, "Timer Event", "Timer Event", "fas fa-clock"
+    # logic [3000-3500]
+    SCRIPT = 3000, "Script", "Script", "fas fa-code"
+    SERVICE = 3010, "Service", "Service", "fas fa-screwdriver-wrench"
+    ACTION = 3020, "Action", "Action", "fas fa-step-forward"
+    ROUTE = 3030, "Route", "Route", "fas fa-route"
+    TRIGGER = 3040, "Trigger", "Trigger", "fas fa-bolt"
+    TRIGGER_EVENT = 3041, "Trigger Event", "Trigger Event", "fas fa-bolt"
+    TIMER = 3050, "Timer", "Timer", "fas fa-clock"
+    TIMER_EVENT = 3051, "Timer Event", "Timer Event", "fas fa-clock"
     # BREAKPOINT, ...
-    EVENT_CURSOR = 1900, "Event Cursor", "Event Cursor", "fas fa-signal"
-    SCREEN_CURSOR = 1901, "Mouse Cursor", "Mouse Cursor", "fas fa-mouse"
-    THREAD_CURSOR = 1902, "Query Cursor", "Query Cursor", "fas fa-magnifying-glass"
+    EVENT_CURSOR = 3100, "Event Cursor", "Event Cursor", "fas fa-signal"
+    SCREEN_CURSOR = 3101, "Mouse Cursor", "Mouse Cursor", "fas fa-mouse"
+    THREAD_CURSOR = 3102, "Query Cursor", "Query Cursor", "fas fa-magnifying-glass"
     # QUERY_CURSOR, WEB_CURSOR, ...
     # ROOM, CHANNEL, LOCK, ...
     # TASK, ...
     # RATE_LIMIT, ...
 
-    # test [2000-2400]
+    # test [3500-4000]
     # TEST, TEST_SUITE, TEST_CASE, TEST_RESULT, ...
 
-    # runtime [2400-2800]
-    RUN = 2400, "Run", "Run", "fas fa-play"
-    RUN_EVENT = 2401, "Run Event", "Run Event", "fas fa-play"
-    # RUN_QUEUE = 2401, "Run Queue", "Run Queue", "fas fa-list-check"
-    SPAN = 2410, "Span", "Span", "fas fa-ruler-horizontal"
-    INTERRUPTION = 2420, "Interruption", "Interruption", "fas fa-hand"
+    # runtime [4000-4500]
+    RUN = 4000, "Run", "Run", "fas fa-play"
+    RUN_EVENT = 4001, "Run Event", "Run Event", "fas fa-play"
+    # RUN_QUEUE = 4001, "Run Queue", "Run Queue", "fas fa-list-check"
+    SPAN = 4010, "Span", "Span", "fas fa-ruler-horizontal"
+    INTERRUPTION = 4020, "Interruption", "Interruption", "fas fa-hand"
     # JOB, ...
-    LOG = 2500, "Log", "Log", "fas fa-file-lines"
-    GAUGE_METRIC = 2510, "Gauge Metric", "Gauge Metric", "fas fa-gauge"
-    GAUGE_MEASUREMENT = 2511, "Gauge Measurement", "Gauge Measurement", "fas fa-gauge"
-    COUNTER_METRIC = 2512, "Counter Metric", "Counter Metric", "fas fa-gauge"
-    COUNTER_MEASUREMENT = 2513, "Counter Measurement", "Counter Measurement", "fas fa-gauge"
-    HISTOGRAM_METRIC = 2514, "Histogram Metric", "Histogram Metric", "fas fa-gauge"
-    HISTOGRAM_MEASUREMENT = 2515, "Histogram Measurement", "Histogram Measurement", "fas fa-gauge"
+    LOG = 4100, "Log", "Log", "fas fa-file-lines"
+    GAUGE_METRIC = 4110, "Gauge Metric", "Gauge Metric", "fas fa-gauge"
+    GAUGE_MEASUREMENT = 4111, "Gauge Measurement", "Gauge Measurement", "fas fa-gauge"
+    COUNTER_METRIC = 4112, "Counter Metric", "Counter Metric", "fas fa-gauge"
+    COUNTER_MEASUREMENT = 4113, "Counter Measurement", "Counter Measurement", "fas fa-gauge"
+    HISTOGRAM_METRIC = 4114, "Histogram Metric", "Histogram Metric", "fas fa-gauge"
+    HISTOGRAM_MEASUREMENT = 4115, "Histogram Measurement", "Histogram Measurement", "fas fa-gauge"
     CUSTOM_EVENT_DEFINITION = (
-        2600,
+        4200,
         "Custom Event Definition",
         "Custom Event Definition",
         "fas fa-signal",
     )
-    CUSTOM_EVENT = 2601, "Custom Event", "Custom Event", "fas fa-signal"
-    EDIT_EVENT = 2602, "Edit Event", "Edit Event", "fas fa-file-lines"
+    CUSTOM_EVENT = 4201, "Custom Event", "Custom Event", "fas fa-signal"
+    EDIT_EVENT = 4202, "Edit Event", "Edit Event", "fas fa-file-lines"
     # CHANGE_EVENT, QUERY_EVENT, ...
 
-    # deployment [2800-3000]
-    ENVIRONMENT = 2800, "Environment", "Environment", "fas fa-environment"
+    # deployment [4500-5000]
+    ENVIRONMENT = 4500, "Environment", "Environment", "fas fa-environment"
     # DEPLOYMENT, ...
     # PREVIEW, DRAFT, RELEASE, ROLLOUT, ...
     # INCIDENT, ESCALATION, ...
 
-    # product [3000-3400]
+    # product [5000-5500]
     # SETTINGS, ...
     # RECORDING/REPLAY, SURVEY, ...
     # ONBOARDING, TOUR, FUNNEL, COHORT, JOURNEY, ..
     # FEATURE, FEATURE_FLAG, FEATURE_GATE, ...
     # SEGMENT, EXPERIMENT, ...
 
-    # social [3400-3800]
-    THREAD = 3400, "Thread", "Thread", "fas fa-reel"
-    MESSAGE = 3410, "Message", "Message", "fas fa-message"
-    REACTION = 3420, "Reaction", "Reaction", "fas fa-heart"
-    STAR = 3421, "Star", "Star", "fas fa-star"
-    FOLLOW = 3430, "Follow", "Follow", "fas fa-plus"
+    # social [5500-6000]
+    THREAD = 5500, "Thread", "Thread", "fas fa-reel"
+    MESSAGE = 5510, "Message", "Message", "fas fa-message"
+    REACTION = 5520, "Reaction", "Reaction", "fas fa-heart"
+    STAR = 5521, "Star", "Star", "fas fa-star"
+    FOLLOW = 5530, "Follow", "Follow", "fas fa-plus"
     # FEED, FEED_ITEM, ...
     # POLL, VOTE, REVIEW, RATING, RANK, ...
     # ACHIEVEMENT, BADGE, WISHLIST/WATCHLIST, ...
-    NOTIFICATION = 3500, "Notification", "Notification", "fas fa-bell"
-    NOTIFICATION_EVENT = 3501, "Notification Event", "Notification Event", "fas fa-bell"
+    NOTIFICATION = 5600, "Notification", "Notification", "fas fa-bell"
+    NOTIFICATION_EVENT = 5601, "Notification Event", "Notification Event", "fas fa-bell"
 
-    # finance [3800-4200]
+    # finance [6000-6500]
     # WALLET, BALANCE, BUDGET, TRANSFER, CREDIT, ...
     # TIER, SUBSCRIPTION, PRODUCT, PRICE, ...
     # ORDER, INVOICE, DISCOUNT, DISPUTE, REFUND, ...
 
-    # locale [4200-4600]
+    # locale [6500-7000]
     # LOCALE, STRING, TRANSLATION, ...
 
-    # internet [4600-5000]
+    # internet [7000-7500]
     # DOMAIN, ...
     # EMAIL, EMAIL_ATTEMPT, ...
 
-    # infra [5000-5400]
-    DATABASE = 5000, "Database", "Database for Postgres data", "fas fa-database"
+    # infra [7500-8000]
+    DATABASE = 7500, "Database", "Database for Postgres data", "fas fa-database"
     # SEARCH/INDEX, VAULT, CACHE, S3, ...
     # CELL = 5010, "Cell", "Cell", "fas fa-cell"
-    MACHINE = 5100, "Machine", "Machine for ephemeral computing", "fas fa-machine-classic"
+    MACHINE = 7600, "Machine", "Machine for ephemeral computing", "fas fa-machine-classic"
     # HOST, ENDPOINT, DEPLOYMENT, NETWORK, AUTOSCALER, ...
 
-    # intelligence [5400-5800]
+    # intelligence [8000-8500]
     # MODEL, FINETUNE, ...
     # INFERENCE, PROMPT, ...
+    # RECOMMENDATION, ...
 
-    # world [5800-6200]
+    # world [8500-9000]
     # PHONE_NUMBER, ADDRESS, ...
 
-    # scene [8000-8100]
-    WINDOW = 8000, "Window", "Window", "fas fa-galaxy"
-    SCENE = 8010, "Scene", "Scene of an Application", "fas fa-masks-theater"
-    SCENE_EVENT = 8011, "Scene Event", "Scene Event", "fas fa-masks-theater"
-    LAYER = 8020, "Layer", "Layer of a Scene", "fas fa-layer-group"
+    # scene [9000-9500]
+    WINDOW = 9000, "Window", "Window", "fas fa-galaxy"
+    SCENE = 9010, "Scene", "Scene of an Application", "fas fa-masks-theater"
+    SCENE_EVENT = 9011, "Scene Event", "Scene Event", "fas fa-masks-theater"
+    LAYER = 9020, "Layer", "Layer of a Scene", "fas fa-layer-group"
     # VIEWPORT, OVERLAY, WIDGET, MENU, ...
 
-    # interaction [8100-8200]
-    # COMMAND, TOOL, SHORTCUT/KEYBINDING, ...
+    # interaction [9500-10000]
+    # COMMAND, MODE, TOOL, SHORTCUT/KEYBINDING, ...
     # CAMERA, GESTURE, MICROPHONE, ...
 
-    # container views [8200-8300]
+    # container views [10000-10200]
     CUSTOM_VIEW_DEFINITION = (
-        8200,
+        10000,
         "Custom View Definition",
         "Custom View Definition",
         "fas fa-table",
     )
-    CUSTOM_VIEW = 8201, "Custom View", "Custom View", "fas fa-table"
-    FRAME_VIEW = 8202, "Frame View", "Fixed Container", "fas fa-frame"
-    LABEL_VIEW = 8203, "Label View", "Label Container", "fas fa-font-case"
+    CUSTOM_VIEW = 10001, "Custom View", "Custom View", "fas fa-table"
+    FRAME_VIEW = 10010, "Frame View", "Fixed Container", "fas fa-frame"
+    LABEL_VIEW = 10020, "Label View", "Label Container", "fas fa-font-case"
     # FORM_VIEW, MENU_VIEW, ...
-    SPLIT_VIEW = 8210, "Split View", "Split Container", "fas fa-columns"
-    # SLOT_DEFINITION_VIEW = 8230, "Slot Definition View", "Slot Definition View", "fas fa-columns"
-    # SLOT_VIEW = 8231, "Slot View", "Slot View", "fas fa-columns"
-    # TAB_VIEW = 8221, "Tab Container View", "Tab Container", "fas fa-tabs"
+    SPLIT_VIEW = 10030, "Split View", "Split Container", "fas fa-columns"
+    # SLOT_DEFINITION_VIEW, SLOT_VIEW, ...
+    # TAB_VIEW, ...
     # DRAWER_VIEW, SPLIT_DRAWER_VIEW, GRID/GRID_ELEMENT_VIEW, ...
 
-    # content views [8300-8400]
-    TEXT_VIEW = 8300, "Text View", "Text", "fas fa-text"
+    # content views [10200-10400]
+    TEXT_VIEW = 10200, "Text View", "Text", "fas fa-text"
     # CODE_VIEW, ICON_VIEW, IMAGE_VIEW, AUDIO_VIEW, VIDEO_VIEW, DOCUMENT_VIEW, ...
 
-    # input views [8400-8500]
-    NUMBER_INPUT_VIEW = 8400, "Number Input View", "Number Input", "fas fa-hashtag"
-    SLIDER_INPUT_VIEW = 8401, "Slider Input View", "Slider Input", "fas fa-slider"
+    # input views [10400-10600]
+    NUMBER_INPUT_VIEW = 10400, "Number Input View", "Number Input", "fas fa-hashtag"
+    SLIDER_INPUT_VIEW = 10401, "Slider Input View", "Slider Input", "fas fa-slider"
     # STRING_INPUT_VIEW, TOGGLE_INPUT_VIEW, PICKER_INPUT_VIEW, COLOR_INPUT_VIEW, ...
     # ICON_INPUT_VIEW, FILE_INPUT_VIEW, DATETIME_INPUT_VIEW, DURATION_INPUT_VIEW, ...
 
     # NOTE :Architecture: node and internal views should probably be defined in user space?
-    # node/internal views [8500-8600]
-    THREAD_VIEW = 8500, "Thread View", "Thread", "fas fa-reel"
-    WIZARD_VIEW = 8550, "Wizard View", "Wizard", "fas fa-wand-sparkles"
+    # node/internal views [10600-10800]
+    THREAD_VIEW = 10600, "Thread View", "Thread", "fas fa-reel"
+    WIZARD_VIEW = 10650, "Wizard View", "Wizard", "fas fa-wand-sparkles"
 
-    # canvas [8600-8800]
-    CANVAS = 8600, "Canvas", "Canvas", "fas fa-canvas"
-    LINE_SHAPE = 8610, "Line Shape", "Line Shape", "fas fa-line"
-    PLANE_SHAPE = 8611, "Plane Shape", "Plane Shape", "fas fa-shapes"
-    ARROW_SHAPE = 8612, "Arrow Shape", "Arrow Shape", "fas fa-arrow-right"
-    ANNOTATION_SHAPE = 8613, "Annotation Shape", "Annotation Shape", "fas fa-comment"
+    # canvas [11000-11500]
+    CANVAS = 11000, "Canvas", "Canvas", "fas fa-canvas"
+    LINE_SHAPE = 11010, "Line Shape", "Line Shape", "fas fa-line"
+    PLANE_SHAPE = 11011, "Plane Shape", "Plane Shape", "fas fa-shapes"
+    ARROW_SHAPE = 11012, "Arrow Shape", "Arrow Shape", "fas fa-arrow-right"
+    ANNOTATION_SHAPE = 11013, "Annotation Shape", "Annotation Shape", "fas fa-comment"
     # BITMAP, ...
 
-    # animation [8800-9000]
+    # animation [11500-12000]
     # ANIMATION, TRACK, KEYFRAME, FRAME, ...
     # SOUND, ...
 
-    # style [9000-9200]
-    THEME = 9000, "Theme", "Theme", "fas fa-palette"
-    PALETTE = 9010, "Palette", "Palette", "fas fa-palette"
-    COLOR_STYLE = 9020, "Color Style", "Color Style", "fas fa-palette"
-    FILL_STYLE = 9021, "Fill Style", "Fill Style", "fas fa-fill"
-    FONT_STYLE = 9022, "Font Style", "Font Style", "fas fa-text"
-    BORDER_STYLE = 9023, "Border Style", "Border Style", "fas fa-border-outer"
-    SHADOW_STYLE = 9024, "Shadow Style", "Shadow Style", "fas fa-eclipse"
-    GRADIENT_STYLE = 9025, "Gradient Style", "Gradient Style", "fas fa-gradient"
-    TRANSITION_STYLE = 9026, "Transition Style", "Transition Style", "fas fa-bezier-curve"
-    EFFECT_STYLE = 9027, "Effect Style", "Effect Style", "fas fa-sparkle"
+    # style [12000-12500]
+    THEME = 12000, "Theme", "Theme", "fas fa-palette"
+    PALETTE = 12010, "Palette", "Palette", "fas fa-palette"
+    COLOR_STYLE = 12020, "Color Style", "Color Style", "fas fa-palette"
+    FILL_STYLE = 12021, "Fill Style", "Fill Style", "fas fa-fill"
+    FONT_STYLE = 12022, "Font Style", "Font Style", "fas fa-text"
+    BORDER_STYLE = 12023, "Border Style", "Border Style", "fas fa-border-outer"
+    SHADOW_STYLE = 12024, "Shadow Style", "Shadow Style", "fas fa-eclipse"
+    GRADIENT_STYLE = 12025, "Gradient Style", "Gradient Style", "fas fa-gradient"
+    TRANSITION_STYLE = 12026, "Transition Style", "Transition Style", "fas fa-bezier-curve"
+    EFFECT_STYLE = 12027, "Effect Style", "Effect Style", "fas fa-sparkle"
     # BRUSH_STYLE, ...
     # SHADER, MATERIAL, ...
 
-    # meta [10000-11000]
+    # meta [50000-51000]
     # ...
 
 
@@ -909,103 +909,105 @@ class TraitType(Enum):
     HAS_SLUG = 101, "Slug", "Has a slug", "fas fa-hashtag"
     HAS_ICON = 102, "Icon", "Has an icon", "fas fa-icons"
 
-    # access [400-600]
-    OWNABLE = 400, "Ownable", "Is ownable", "fas fa-user"
-    JOINABLE = 402, "Joinable", "Is joinable", "fas fa-users"
-    SUBJECT = 405, "Subject", "Is a Subject", "fas fa-user"
-    OWNER = 406, "Owner", "Is an Owner", "fas fa-user"
-    MEMBERSHIP = 410, "Membership", "Is a Membership", "fas fa-users"
-    INVITE = 411, "Invite", "Is an Invite", "fas fa-envelope"
+    # access [500-1000]
+    OWNABLE = 500, "Ownable", "Is ownable", "fas fa-user"
+    JOINABLE = 502, "Joinable", "Is joinable", "fas fa-users"
+    SUBJECT = 505, "Subject", "Is a Subject", "fas fa-user"
+    OWNER = 506, "Owner", "Is an Owner", "fas fa-user"
+    MEMBERSHIP = 510, "Membership", "Is a Membership", "fas fa-users"
+    INVITE = 511, "Invite", "Is an Invite", "fas fa-envelope"
 
-    # folder [600-800]
-    TAGGABLE = 600, "Taggable", "Can be tagged", "fas fa-tag"
-    TAG = 601, "Tag", "Is a Tag", "fas fa-tag"
+    # folder [1000-1500]
+    TAGGABLE = 1000, "Taggable", "Can be tagged", "fas fa-tag"
+    TAG = 1001, "Tag", "Is a Tag", "fas fa-tag"
 
-    # history [800-1000]
+    # history [1500-2000]
     # ...
 
-    # infra [1000-1200]
+    # entity [2000-2500]
     # ...
 
-    # logic [1800-2200]
-    ACTIONABLE = 1800, "Actionable", "Can define an Action", "fas fa-play"
-    RUNNABLE = 1801, "Runnable", "Can be run", "fas fa-play"
-    SCRIPTABLE = 1802, "Scriptable", "Can be scripted", "fas fa-code"
-    SOURCEABLE = 1803, "Sourcable", "Can be defined in a Script", "fas fa-code"
-    CURSOR = 1812, "Cursor", "Is a Cursor", "fas fa-mouse-pointer"
-
-    # test [2000-2400]
+    # data [2500-3000]
     # ...
 
-    # runtime [2400-2800]
-    METRIC = 1810, "Instrument", "Is an Instrument", "fas fa-microscope"
-    MEASUREMENT = 1811, "Measurement", "Is a Measurement", "fas fa-microscope"
+    # logic [3000-3500]
+    ACTIONABLE = 3000, "Actionable", "Can define an Action", "fas fa-play"
+    RUNNABLE = 3001, "Runnable", "Can be run", "fas fa-play"
+    SCRIPTABLE = 3002, "Scriptable", "Can be scripted", "fas fa-code"
+    SOURCEABLE = 3003, "Sourcable", "Can be defined in a Script", "fas fa-code"
+    CURSOR = 3012, "Cursor", "Is a Cursor", "fas fa-mouse-pointer"
+
+    # test [3500-4000]
     # ...
 
-    # deployment [2800-3000]
+    # runtime [4000-4500]
+    METRIC = 4010, "Instrument", "Is an Instrument", "fas fa-microscope"
+    MEASUREMENT = 4011, "Measurement", "Is a Measurement", "fas fa-microscope"
     # ...
 
-    # product [3000-3400]
+    # deployment [4500-5000]
     # ...
 
-    # finance [3400-3800]
-    # ...
+    # product [5000-5500]
+    SETTINGS = 5000, "Settings", "Defines Settings", "fas fa-cog"
 
-    # social [3800-4200]
+    # social [5500-6000]
     # MESSAGE, THREAD, ...
-    STARABLE = 3830, "Starable", "Can be starred", "fas fa-star"
-    REACTABLE = 3832, "Reactable", "Can be reacted to", "fas fa-heart"
-    FOLLOWABLE = 3834, "Followable", "Can be followed", "fas fa-plus"
-    FOLLOW = 3835, "Follow", "Follow", "fas fa-plus"
+    STARABLE = 5530, "Starable", "Can be starred", "fas fa-star"
+    REACTABLE = 5532, "Reactable", "Can be reacted to", "fas fa-heart"
+    FOLLOWABLE = 5534, "Followable", "Can be followed", "fas fa-plus"
+    FOLLOW = 5535, "Follow", "Follow", "fas fa-plus"
     # RATEABLE, VOTABLE, ...
     # ASSIGNABLE, MESSAGEABLE, CLOSABLE, LOCKABLE, ...
 
-    # locale [4200-4600]
+    # finance [6000-6500]
     # ...
 
-    # internet [4600-5000]
+    # locale [6500-7000]
     # ...
 
-    # infra [5000-5400]
+    # internet [7000-7500]
     # ...
 
-    # world [5400-5800]
+    # infra [7500-8000]
     # ...
 
-    # visual [8000-10000]
-
-    # scene [8000-8100]
-    VISUAL = 8000, "Visual", "Is a Visual", "fas fa-eye"
-    VIEW = 8001, "View", "Is a View", "fas fa-eye"
-
-    # media [8100-8200]
+    # intelligence [8000-8500]
     # ...
 
-    # container views [8200-8300]
-    CONTAINER_VIEW = 8200, "Container View", "Is a Container View", "fas fa-container"
-
-    # content views [8300-8400]
-    CONTENT_VIEW = 8300, "Content View", "Is a Content View", "fas fa-content"
-
-    # input views [8400-8500]
-    INPUT_VIEW = 8400, "Input View", "Is an Input View", "fas fa-input"
-
-    # node views [8500-8600]
-    NODE_VIEW = 8500, "Node View", "Is a Node View", "fas fa-node"
-
-    # internal views [8600-8700]
-    INTERNAL_VIEW = 8600, "Internal View", "Is an Internal View", "fas fa-internal"
-
-    # style [9000-9200]
-    STYLE = 9000, "Style", "Is a Style", "fas fa-palette"
-
-    # canvas [9200-9400]
-    SHAPE = 9200, "Shape", "Is a Shape", "fas fa-shapes"
-
-    # animation [9400-9600]
+    # world [8500-9000]
     # ...
 
-    # meta [10000-11000]
+    # scene [9000-9500]
+    VISUAL = 9000, "Visual", "Is a Visual", "fas fa-eye"
+    VIEW = 9001, "View", "Is a View", "fas fa-eye"
+
+    # interaction [9500-10000]
+    # ...
+
+    # container views [10000-10200]
+    CONTAINER_VIEW = 10000, "Container View", "Is a Container View", "fas fa-container"
+
+    # content views [10200-10400]
+    CONTENT_VIEW = 10200, "Content View", "Is a Content View", "fas fa-content"
+
+    # input views [10400-10600]
+    INPUT_VIEW = 10400, "Input View", "Is an Input View", "fas fa-input"
+
+    # node/internal views [10600-10800]
+    NODE_VIEW = 10600, "Node View", "Is a Node View", "fas fa-node"
+    INTERNAL_VIEW = 10650, "Internal View", "Is an Internal View", "fas fa-internal"
+
+    # canvas [11000-11500]
+    SHAPE = 11000, "Shape", "Is a Shape", "fas fa-shapes"
+
+    # animation [11500-12000]
+    # ...
+
+    # style [12000-12500]
+    STYLE = 12000, "Style", "Is a Style", "fas fa-palette"
+
+    # meta [50000-51000]
     # ...
 
 
@@ -1071,6 +1073,20 @@ class EnvironmentType(Enum):
     TEST = 5, "Test", "Active in test", "fas fa-flask"
     STAGING = 7, "Staging", "Active in staging", "fas fa-globe"
     PRODUCTION = 10, "Production", "Active in production", "fas fa-globe"
+
+
+@builtin_enum(EnumType.MODE_TYPE)
+class ModeType(Enum):
+    EDIT = 1
+    INSPECT = 2
+    PREVIEW = 3
+    USE = 4
+
+
+@builtin_enum(EnumType.TOOL_TYPE)
+class ToolType(Enum):
+    SELECT = 1
+    INSPECT = 2
 
 
 ENUM_TYPES: bittuple[EnumType] = bittuple(*EnumType)

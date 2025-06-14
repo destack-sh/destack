@@ -1009,19 +1009,23 @@ export interface ColorData {
      */
     shade?: ColorShade;
     /**
-     * @generated from protobuf field: optional double x = 52;
+     * @generated from protobuf field: optional symbol.destack.ColorIntent intent = 52;
+     */
+    intent?: ColorIntent;
+    /**
+     * @generated from protobuf field: optional double x = 55;
      */
     x?: number;
     /**
-     * @generated from protobuf field: optional double y = 53;
+     * @generated from protobuf field: optional double y = 56;
      */
     y?: number;
     /**
-     * @generated from protobuf field: optional double z = 54;
+     * @generated from protobuf field: optional double z = 57;
      */
     z?: number;
     /**
-     * @generated from protobuf field: optional double alpha = 55;
+     * @generated from protobuf field: optional double alpha = 58;
      */
     alpha?: number;
 }
@@ -1092,19 +1096,23 @@ export interface ColorStyleData {
      */
     shade?: ColorShade;
     /**
-     * @generated from protobuf field: optional double x = 52;
+     * @generated from protobuf field: optional symbol.destack.ColorIntent intent = 52;
+     */
+    intent?: ColorIntent;
+    /**
+     * @generated from protobuf field: optional double x = 55;
      */
     x?: number;
     /**
-     * @generated from protobuf field: optional double y = 53;
+     * @generated from protobuf field: optional double y = 56;
      */
     y?: number;
     /**
-     * @generated from protobuf field: optional double z = 54;
+     * @generated from protobuf field: optional double z = 57;
      */
     z?: number;
     /**
-     * @generated from protobuf field: optional double alpha = 55;
+     * @generated from protobuf field: optional double alpha = 58;
      */
     alpha?: number;
     /**
@@ -9472,7 +9480,7 @@ export interface Vector4iData {
     w: bigint;
 }
 /**
- * A Window for someone to interact with a Space.
+ * A Window for someone to interact with a Space via Scenes.
  *
  * @generated from protobuf message symbol.destack.WindowData
  */
@@ -9533,26 +9541,6 @@ export interface WindowData {
      * @generated from protobuf field: optional string name = 31;
      */
     name?: string;
-    /**
-     * @generated from protobuf field: optional symbol.destack.SelectionData selection = 70;
-     */
-    selection?: SelectionData;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceData focus_ptr = 71;
-     */
-    focusPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceData inspection_ptr = 72;
-     */
-    inspectionPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceData container_ptr = 73;
-     */
-    containerPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceData thread_ptr = 75;
-     */
-    threadPtr?: NodeReferenceData;
 }
 /**
  * @generated from protobuf message symbol.destack.WizardViewData
@@ -9703,523 +9691,523 @@ export interface SomeNodeData {
     } | {
         oneofKind: "membership";
         /**
-         * @generated from protobuf field: symbol.destack.MembershipData membership = 400;
+         * @generated from protobuf field: symbol.destack.MembershipData membership = 500;
          */
         membership: MembershipData;
     } | {
         oneofKind: "membershipEvent";
         /**
-         * @generated from protobuf field: symbol.destack.MembershipEventData membership_event = 401;
+         * @generated from protobuf field: symbol.destack.MembershipEventData membership_event = 501;
          */
         membershipEvent: MembershipEventData;
     } | {
         oneofKind: "invite";
         /**
-         * @generated from protobuf field: symbol.destack.InviteData invite = 410;
+         * @generated from protobuf field: symbol.destack.InviteData invite = 510;
          */
         invite: InviteData;
     } | {
         oneofKind: "inviteEvent";
         /**
-         * @generated from protobuf field: symbol.destack.InviteEventData invite_event = 411;
+         * @generated from protobuf field: symbol.destack.InviteEventData invite_event = 511;
          */
         inviteEvent: InviteEventData;
     } | {
         oneofKind: "role";
         /**
-         * @generated from protobuf field: symbol.destack.RoleData role = 420;
+         * @generated from protobuf field: symbol.destack.RoleData role = 520;
          */
         role: RoleData;
     } | {
         oneofKind: "roleEvent";
         /**
-         * @generated from protobuf field: symbol.destack.RoleEventData role_event = 421;
+         * @generated from protobuf field: symbol.destack.RoleEventData role_event = 521;
          */
         roleEvent: RoleEventData;
     } | {
         oneofKind: "permission";
         /**
-         * @generated from protobuf field: symbol.destack.PermissionData permission = 430;
+         * @generated from protobuf field: symbol.destack.PermissionData permission = 530;
          */
         permission: PermissionData;
     } | {
         oneofKind: "sanction";
         /**
-         * @generated from protobuf field: symbol.destack.SanctionData sanction = 440;
+         * @generated from protobuf field: symbol.destack.SanctionData sanction = 540;
          */
         sanction: SanctionData;
     } | {
         oneofKind: "sanctionEvent";
         /**
-         * @generated from protobuf field: symbol.destack.SanctionEventData sanction_event = 441;
+         * @generated from protobuf field: symbol.destack.SanctionEventData sanction_event = 541;
          */
         sanctionEvent: SanctionEventData;
     } | {
         oneofKind: "entitlement";
         /**
-         * @generated from protobuf field: symbol.destack.EntitlementData entitlement = 450;
+         * @generated from protobuf field: symbol.destack.EntitlementData entitlement = 550;
          */
         entitlement: EntitlementData;
     } | {
         oneofKind: "entitlementEvent";
         /**
-         * @generated from protobuf field: symbol.destack.EntitlementEventData entitlement_event = 451;
+         * @generated from protobuf field: symbol.destack.EntitlementEventData entitlement_event = 551;
          */
         entitlementEvent: EntitlementEventData;
     } | {
         oneofKind: "agent";
         /**
-         * @generated from protobuf field: symbol.destack.AgentData agent = 500;
+         * @generated from protobuf field: symbol.destack.AgentData agent = 600;
          */
         agent: AgentData;
     } | {
         oneofKind: "folder";
         /**
-         * @generated from protobuf field: symbol.destack.FolderData folder = 600;
+         * @generated from protobuf field: symbol.destack.FolderData folder = 1000;
          */
         folder: FolderData;
     } | {
         oneofKind: "tag";
         /**
-         * @generated from protobuf field: symbol.destack.TagData tag = 610;
+         * @generated from protobuf field: symbol.destack.TagData tag = 1010;
          */
         tag: TagData;
     } | {
         oneofKind: "tagging";
         /**
-         * @generated from protobuf field: symbol.destack.TaggingData tagging = 611;
+         * @generated from protobuf field: symbol.destack.TaggingData tagging = 1011;
          */
         tagging: TaggingData;
     } | {
         oneofKind: "customEntityDefinition";
         /**
-         * @generated from protobuf field: symbol.destack.CustomEntityDefinitionData custom_entity_definition = 1000;
+         * @generated from protobuf field: symbol.destack.CustomEntityDefinitionData custom_entity_definition = 2000;
          */
         customEntityDefinition: CustomEntityDefinitionData;
     } | {
         oneofKind: "customEntity";
         /**
-         * @generated from protobuf field: symbol.destack.CustomEntityData custom_entity = 1001;
+         * @generated from protobuf field: symbol.destack.CustomEntityData custom_entity = 2001;
          */
         customEntity: CustomEntityData;
     } | {
         oneofKind: "customStructDefinition";
         /**
-         * @generated from protobuf field: symbol.destack.CustomStructDefinitionData custom_struct_definition = 1400;
+         * @generated from protobuf field: symbol.destack.CustomStructDefinitionData custom_struct_definition = 2500;
          */
         customStructDefinition: CustomStructDefinitionData;
     } | {
         oneofKind: "customEnumDefinition";
         /**
-         * @generated from protobuf field: symbol.destack.CustomEnumDefinitionData custom_enum_definition = 1410;
+         * @generated from protobuf field: symbol.destack.CustomEnumDefinitionData custom_enum_definition = 2510;
          */
         customEnumDefinition: CustomEnumDefinitionData;
     } | {
         oneofKind: "field";
         /**
-         * @generated from protobuf field: symbol.destack.FieldData field = 1420;
+         * @generated from protobuf field: symbol.destack.FieldData field = 2520;
          */
         field: FieldData;
     } | {
         oneofKind: "option";
         /**
-         * @generated from protobuf field: symbol.destack.OptionData option = 1430;
+         * @generated from protobuf field: symbol.destack.OptionData option = 2530;
          */
         option: OptionData;
     } | {
         oneofKind: "file";
         /**
-         * @generated from protobuf field: symbol.destack.FileData file = 1440;
+         * @generated from protobuf field: symbol.destack.FileData file = 2540;
          */
         file: FileData;
     } | {
         oneofKind: "link";
         /**
-         * @generated from protobuf field: symbol.destack.LinkData link = 1450;
+         * @generated from protobuf field: symbol.destack.LinkData link = 2550;
          */
         link: LinkData;
     } | {
         oneofKind: "script";
         /**
-         * @generated from protobuf field: symbol.destack.ScriptData script = 1800;
+         * @generated from protobuf field: symbol.destack.ScriptData script = 3000;
          */
         script: ScriptData;
     } | {
         oneofKind: "service";
         /**
-         * @generated from protobuf field: symbol.destack.ServiceData service = 1810;
+         * @generated from protobuf field: symbol.destack.ServiceData service = 3010;
          */
         service: ServiceData;
     } | {
         oneofKind: "action";
         /**
-         * @generated from protobuf field: symbol.destack.ActionData action = 1820;
+         * @generated from protobuf field: symbol.destack.ActionData action = 3020;
          */
         action: ActionData;
     } | {
         oneofKind: "route";
         /**
-         * @generated from protobuf field: symbol.destack.RouteData route = 1830;
+         * @generated from protobuf field: symbol.destack.RouteData route = 3030;
          */
         route: RouteData;
     } | {
         oneofKind: "trigger";
         /**
-         * @generated from protobuf field: symbol.destack.TriggerData trigger = 1840;
+         * @generated from protobuf field: symbol.destack.TriggerData trigger = 3040;
          */
         trigger: TriggerData;
     } | {
         oneofKind: "triggerEvent";
         /**
-         * @generated from protobuf field: symbol.destack.TriggerEventData trigger_event = 1841;
+         * @generated from protobuf field: symbol.destack.TriggerEventData trigger_event = 3041;
          */
         triggerEvent: TriggerEventData;
     } | {
         oneofKind: "timer";
         /**
-         * @generated from protobuf field: symbol.destack.TimerData timer = 1850;
+         * @generated from protobuf field: symbol.destack.TimerData timer = 3050;
          */
         timer: TimerData;
     } | {
         oneofKind: "timerEvent";
         /**
-         * @generated from protobuf field: symbol.destack.TimerEventData timer_event = 1851;
+         * @generated from protobuf field: symbol.destack.TimerEventData timer_event = 3051;
          */
         timerEvent: TimerEventData;
     } | {
         oneofKind: "eventCursor";
         /**
-         * @generated from protobuf field: symbol.destack.EventCursorData event_cursor = 1900;
+         * @generated from protobuf field: symbol.destack.EventCursorData event_cursor = 3100;
          */
         eventCursor: EventCursorData;
     } | {
         oneofKind: "screenCursor";
         /**
-         * @generated from protobuf field: symbol.destack.ScreenCursorData screen_cursor = 1901;
+         * @generated from protobuf field: symbol.destack.ScreenCursorData screen_cursor = 3101;
          */
         screenCursor: ScreenCursorData;
     } | {
         oneofKind: "threadCursor";
         /**
-         * @generated from protobuf field: symbol.destack.ThreadCursorData thread_cursor = 1902;
+         * @generated from protobuf field: symbol.destack.ThreadCursorData thread_cursor = 3102;
          */
         threadCursor: ThreadCursorData;
     } | {
         oneofKind: "run";
         /**
-         * @generated from protobuf field: symbol.destack.RunData run = 2400;
+         * @generated from protobuf field: symbol.destack.RunData run = 4000;
          */
         run: RunData;
     } | {
         oneofKind: "runEvent";
         /**
-         * @generated from protobuf field: symbol.destack.RunEventData run_event = 2401;
+         * @generated from protobuf field: symbol.destack.RunEventData run_event = 4001;
          */
         runEvent: RunEventData;
     } | {
         oneofKind: "span";
         /**
-         * @generated from protobuf field: symbol.destack.SpanData span = 2410;
+         * @generated from protobuf field: symbol.destack.SpanData span = 4010;
          */
         span: SpanData;
     } | {
         oneofKind: "interruption";
         /**
-         * @generated from protobuf field: symbol.destack.InterruptionData interruption = 2420;
+         * @generated from protobuf field: symbol.destack.InterruptionData interruption = 4020;
          */
         interruption: InterruptionData;
     } | {
         oneofKind: "log";
         /**
-         * @generated from protobuf field: symbol.destack.LogData log = 2500;
+         * @generated from protobuf field: symbol.destack.LogData log = 4100;
          */
         log: LogData;
     } | {
         oneofKind: "gaugeMetric";
         /**
-         * @generated from protobuf field: symbol.destack.GaugeMetricData gauge_metric = 2510;
+         * @generated from protobuf field: symbol.destack.GaugeMetricData gauge_metric = 4110;
          */
         gaugeMetric: GaugeMetricData;
     } | {
         oneofKind: "gaugeMeasurement";
         /**
-         * @generated from protobuf field: symbol.destack.GaugeMeasurementData gauge_measurement = 2511;
+         * @generated from protobuf field: symbol.destack.GaugeMeasurementData gauge_measurement = 4111;
          */
         gaugeMeasurement: GaugeMeasurementData;
     } | {
         oneofKind: "counterMetric";
         /**
-         * @generated from protobuf field: symbol.destack.CounterMetricData counter_metric = 2512;
+         * @generated from protobuf field: symbol.destack.CounterMetricData counter_metric = 4112;
          */
         counterMetric: CounterMetricData;
     } | {
         oneofKind: "counterMeasurement";
         /**
-         * @generated from protobuf field: symbol.destack.CounterMeasurementData counter_measurement = 2513;
+         * @generated from protobuf field: symbol.destack.CounterMeasurementData counter_measurement = 4113;
          */
         counterMeasurement: CounterMeasurementData;
     } | {
         oneofKind: "histogramMetric";
         /**
-         * @generated from protobuf field: symbol.destack.HistogramMetricData histogram_metric = 2514;
+         * @generated from protobuf field: symbol.destack.HistogramMetricData histogram_metric = 4114;
          */
         histogramMetric: HistogramMetricData;
     } | {
         oneofKind: "histogramMeasurement";
         /**
-         * @generated from protobuf field: symbol.destack.HistogramMeasurementData histogram_measurement = 2515;
+         * @generated from protobuf field: symbol.destack.HistogramMeasurementData histogram_measurement = 4115;
          */
         histogramMeasurement: HistogramMeasurementData;
     } | {
         oneofKind: "customEventDefinition";
         /**
-         * @generated from protobuf field: symbol.destack.CustomEventDefinitionData custom_event_definition = 2600;
+         * @generated from protobuf field: symbol.destack.CustomEventDefinitionData custom_event_definition = 4200;
          */
         customEventDefinition: CustomEventDefinitionData;
     } | {
         oneofKind: "customEvent";
         /**
-         * @generated from protobuf field: symbol.destack.CustomEventData custom_event = 2601;
+         * @generated from protobuf field: symbol.destack.CustomEventData custom_event = 4201;
          */
         customEvent: CustomEventData;
     } | {
         oneofKind: "editEvent";
         /**
-         * @generated from protobuf field: symbol.destack.EditEventData edit_event = 2602;
+         * @generated from protobuf field: symbol.destack.EditEventData edit_event = 4202;
          */
         editEvent: EditEventData;
     } | {
         oneofKind: "environment";
         /**
-         * @generated from protobuf field: symbol.destack.EnvironmentData environment = 2800;
+         * @generated from protobuf field: symbol.destack.EnvironmentData environment = 4500;
          */
         environment: EnvironmentData;
     } | {
         oneofKind: "thread";
         /**
-         * @generated from protobuf field: symbol.destack.ThreadData thread = 3400;
+         * @generated from protobuf field: symbol.destack.ThreadData thread = 5500;
          */
         thread: ThreadData;
     } | {
         oneofKind: "message";
         /**
-         * @generated from protobuf field: symbol.destack.MessageData message = 3410;
+         * @generated from protobuf field: symbol.destack.MessageData message = 5510;
          */
         message: MessageData;
     } | {
         oneofKind: "reaction";
         /**
-         * @generated from protobuf field: symbol.destack.ReactionData reaction = 3420;
+         * @generated from protobuf field: symbol.destack.ReactionData reaction = 5520;
          */
         reaction: ReactionData;
     } | {
         oneofKind: "star";
         /**
-         * @generated from protobuf field: symbol.destack.StarData star = 3421;
+         * @generated from protobuf field: symbol.destack.StarData star = 5521;
          */
         star: StarData;
     } | {
         oneofKind: "follow";
         /**
-         * @generated from protobuf field: symbol.destack.FollowData follow = 3430;
+         * @generated from protobuf field: symbol.destack.FollowData follow = 5530;
          */
         follow: FollowData;
     } | {
         oneofKind: "notification";
         /**
-         * @generated from protobuf field: symbol.destack.NotificationData notification = 3500;
+         * @generated from protobuf field: symbol.destack.NotificationData notification = 5600;
          */
         notification: NotificationData;
     } | {
         oneofKind: "notificationEvent";
         /**
-         * @generated from protobuf field: symbol.destack.NotificationEventData notification_event = 3501;
+         * @generated from protobuf field: symbol.destack.NotificationEventData notification_event = 5601;
          */
         notificationEvent: NotificationEventData;
     } | {
         oneofKind: "database";
         /**
-         * @generated from protobuf field: symbol.destack.DatabaseData database = 5000;
+         * @generated from protobuf field: symbol.destack.DatabaseData database = 7500;
          */
         database: DatabaseData;
     } | {
         oneofKind: "machine";
         /**
-         * @generated from protobuf field: symbol.destack.MachineData machine = 5100;
+         * @generated from protobuf field: symbol.destack.MachineData machine = 7600;
          */
         machine: MachineData;
     } | {
         oneofKind: "window";
         /**
-         * @generated from protobuf field: symbol.destack.WindowData window = 8000;
+         * @generated from protobuf field: symbol.destack.WindowData window = 9000;
          */
         window: WindowData;
     } | {
         oneofKind: "scene";
         /**
-         * @generated from protobuf field: symbol.destack.SceneData scene = 8010;
+         * @generated from protobuf field: symbol.destack.SceneData scene = 9010;
          */
         scene: SceneData;
     } | {
         oneofKind: "sceneEvent";
         /**
-         * @generated from protobuf field: symbol.destack.SceneEventData scene_event = 8011;
+         * @generated from protobuf field: symbol.destack.SceneEventData scene_event = 9011;
          */
         sceneEvent: SceneEventData;
     } | {
         oneofKind: "layer";
         /**
-         * @generated from protobuf field: symbol.destack.LayerData layer = 8020;
+         * @generated from protobuf field: symbol.destack.LayerData layer = 9020;
          */
         layer: LayerData;
     } | {
         oneofKind: "customViewDefinition";
         /**
-         * @generated from protobuf field: symbol.destack.CustomViewDefinitionData custom_view_definition = 8200;
+         * @generated from protobuf field: symbol.destack.CustomViewDefinitionData custom_view_definition = 10000;
          */
         customViewDefinition: CustomViewDefinitionData;
     } | {
         oneofKind: "customView";
         /**
-         * @generated from protobuf field: symbol.destack.CustomViewData custom_view = 8201;
+         * @generated from protobuf field: symbol.destack.CustomViewData custom_view = 10001;
          */
         customView: CustomViewData;
     } | {
         oneofKind: "frameView";
         /**
-         * @generated from protobuf field: symbol.destack.FrameViewData frame_view = 8202;
+         * @generated from protobuf field: symbol.destack.FrameViewData frame_view = 10010;
          */
         frameView: FrameViewData;
     } | {
         oneofKind: "labelView";
         /**
-         * @generated from protobuf field: symbol.destack.LabelViewData label_view = 8203;
+         * @generated from protobuf field: symbol.destack.LabelViewData label_view = 10020;
          */
         labelView: LabelViewData;
     } | {
         oneofKind: "splitView";
         /**
-         * @generated from protobuf field: symbol.destack.SplitViewData split_view = 8210;
+         * @generated from protobuf field: symbol.destack.SplitViewData split_view = 10030;
          */
         splitView: SplitViewData;
     } | {
         oneofKind: "textView";
         /**
-         * @generated from protobuf field: symbol.destack.TextViewData text_view = 8300;
+         * @generated from protobuf field: symbol.destack.TextViewData text_view = 10200;
          */
         textView: TextViewData;
     } | {
         oneofKind: "numberInputView";
         /**
-         * @generated from protobuf field: symbol.destack.NumberInputViewData number_input_view = 8400;
+         * @generated from protobuf field: symbol.destack.NumberInputViewData number_input_view = 10400;
          */
         numberInputView: NumberInputViewData;
     } | {
         oneofKind: "sliderInputView";
         /**
-         * @generated from protobuf field: symbol.destack.SliderInputViewData slider_input_view = 8401;
+         * @generated from protobuf field: symbol.destack.SliderInputViewData slider_input_view = 10401;
          */
         sliderInputView: SliderInputViewData;
     } | {
         oneofKind: "threadView";
         /**
-         * @generated from protobuf field: symbol.destack.ThreadViewData thread_view = 8500;
+         * @generated from protobuf field: symbol.destack.ThreadViewData thread_view = 10600;
          */
         threadView: ThreadViewData;
     } | {
         oneofKind: "wizardView";
         /**
-         * @generated from protobuf field: symbol.destack.WizardViewData wizard_view = 8550;
+         * @generated from protobuf field: symbol.destack.WizardViewData wizard_view = 10650;
          */
         wizardView: WizardViewData;
     } | {
         oneofKind: "canvas";
         /**
-         * @generated from protobuf field: symbol.destack.CanvasData canvas = 8600;
+         * @generated from protobuf field: symbol.destack.CanvasData canvas = 11000;
          */
         canvas: CanvasData;
     } | {
         oneofKind: "lineShape";
         /**
-         * @generated from protobuf field: symbol.destack.LineShapeData line_shape = 8610;
+         * @generated from protobuf field: symbol.destack.LineShapeData line_shape = 11010;
          */
         lineShape: LineShapeData;
     } | {
         oneofKind: "planeShape";
         /**
-         * @generated from protobuf field: symbol.destack.PlaneShapeData plane_shape = 8611;
+         * @generated from protobuf field: symbol.destack.PlaneShapeData plane_shape = 11011;
          */
         planeShape: PlaneShapeData;
     } | {
         oneofKind: "arrowShape";
         /**
-         * @generated from protobuf field: symbol.destack.ArrowShapeData arrow_shape = 8612;
+         * @generated from protobuf field: symbol.destack.ArrowShapeData arrow_shape = 11012;
          */
         arrowShape: ArrowShapeData;
     } | {
         oneofKind: "annotationShape";
         /**
-         * @generated from protobuf field: symbol.destack.AnnotationShapeData annotation_shape = 8613;
+         * @generated from protobuf field: symbol.destack.AnnotationShapeData annotation_shape = 11013;
          */
         annotationShape: AnnotationShapeData;
     } | {
         oneofKind: "theme";
         /**
-         * @generated from protobuf field: symbol.destack.ThemeData theme = 9000;
+         * @generated from protobuf field: symbol.destack.ThemeData theme = 12000;
          */
         theme: ThemeData;
     } | {
         oneofKind: "palette";
         /**
-         * @generated from protobuf field: symbol.destack.PaletteData palette = 9010;
+         * @generated from protobuf field: symbol.destack.PaletteData palette = 12010;
          */
         palette: PaletteData;
     } | {
         oneofKind: "colorStyle";
         /**
-         * @generated from protobuf field: symbol.destack.ColorStyleData color_style = 9020;
+         * @generated from protobuf field: symbol.destack.ColorStyleData color_style = 12020;
          */
         colorStyle: ColorStyleData;
     } | {
         oneofKind: "fillStyle";
         /**
-         * @generated from protobuf field: symbol.destack.FillStyleData fill_style = 9021;
+         * @generated from protobuf field: symbol.destack.FillStyleData fill_style = 12021;
          */
         fillStyle: FillStyleData;
     } | {
         oneofKind: "fontStyle";
         /**
-         * @generated from protobuf field: symbol.destack.FontStyleData font_style = 9022;
+         * @generated from protobuf field: symbol.destack.FontStyleData font_style = 12022;
          */
         fontStyle: FontStyleData;
     } | {
         oneofKind: "borderStyle";
         /**
-         * @generated from protobuf field: symbol.destack.BorderStyleData border_style = 9023;
+         * @generated from protobuf field: symbol.destack.BorderStyleData border_style = 12023;
          */
         borderStyle: BorderStyleData;
     } | {
         oneofKind: "shadowStyle";
         /**
-         * @generated from protobuf field: symbol.destack.ShadowStyleData shadow_style = 9024;
+         * @generated from protobuf field: symbol.destack.ShadowStyleData shadow_style = 12024;
          */
         shadowStyle: ShadowStyleData;
     } | {
         oneofKind: "gradientStyle";
         /**
-         * @generated from protobuf field: symbol.destack.GradientStyleData gradient_style = 9025;
+         * @generated from protobuf field: symbol.destack.GradientStyleData gradient_style = 12025;
          */
         gradientStyle: GradientStyleData;
     } | {
         oneofKind: "transitionStyle";
         /**
-         * @generated from protobuf field: symbol.destack.TransitionStyleData transition_style = 9026;
+         * @generated from protobuf field: symbol.destack.TransitionStyleData transition_style = 12026;
          */
         transitionStyle: TransitionStyleData;
     } | {
         oneofKind: "effectStyle";
         /**
-         * @generated from protobuf field: symbol.destack.EffectStyleData effect_style = 9027;
+         * @generated from protobuf field: symbol.destack.EffectStyleData effect_style = 12027;
          */
         effectStyle: EffectStyleData;
     } | {
@@ -10561,6 +10549,45 @@ export enum ColorHue {
      * @generated from protobuf enum value: COLOR_HUE_ROSE = 47;
      */
     ROSE = 47
+}
+/**
+ * Built-in color intents.
+ *
+ * @generated from protobuf enum symbol.destack.ColorIntent
+ */
+export enum ColorIntent {
+    /**
+     * @generated from protobuf enum value: COLOR_INTENT_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: COLOR_INTENT_PRIMARY = 1;
+     */
+    PRIMARY = 1,
+    /**
+     * @generated from protobuf enum value: COLOR_INTENT_SECONDARY = 2;
+     */
+    SECONDARY = 2,
+    /**
+     * @generated from protobuf enum value: COLOR_INTENT_NEUTRAL = 3;
+     */
+    NEUTRAL = 3,
+    /**
+     * @generated from protobuf enum value: COLOR_INTENT_SUCCESS = 10;
+     */
+    SUCCESS = 10,
+    /**
+     * @generated from protobuf enum value: COLOR_INTENT_INFO = 11;
+     */
+    INFO = 11,
+    /**
+     * @generated from protobuf enum value: COLOR_INTENT_WARNING = 12;
+     */
+    WARNING = 12,
+    /**
+     * @generated from protobuf enum value: COLOR_INTENT_ERROR = 13;
+     */
+    ERROR = 13
 }
 /**
  * Built-in color shades a la Tailwind.
@@ -11186,457 +11213,469 @@ export enum EnumType {
      */
     QUERY_UPDATE_TYPE = 121,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MEMBERSHIP_EVENT_TYPE = 400;
+     * @generated from protobuf enum value: ENUM_TYPE_MEMBERSHIP_EVENT_TYPE = 500;
      */
-    MEMBERSHIP_EVENT_TYPE = 400,
+    MEMBERSHIP_EVENT_TYPE = 500,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MEMBERSHIP_PERMISSION = 401;
+     * @generated from protobuf enum value: ENUM_TYPE_MEMBERSHIP_PERMISSION = 501;
      */
-    MEMBERSHIP_PERMISSION = 401,
+    MEMBERSHIP_PERMISSION = 501,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_INVITE_EVENT_TYPE = 410;
+     * @generated from protobuf enum value: ENUM_TYPE_INVITE_EVENT_TYPE = 510;
      */
-    INVITE_EVENT_TYPE = 410,
+    INVITE_EVENT_TYPE = 510,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ROLE_TYPE = 420;
+     * @generated from protobuf enum value: ENUM_TYPE_ROLE_TYPE = 520;
      */
-    ROLE_TYPE = 420,
+    ROLE_TYPE = 520,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ROLE_EVENT_TYPE = 421;
+     * @generated from protobuf enum value: ENUM_TYPE_ROLE_EVENT_TYPE = 521;
      */
-    ROLE_EVENT_TYPE = 421,
+    ROLE_EVENT_TYPE = 521,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PERMISSION_TYPE = 430;
+     * @generated from protobuf enum value: ENUM_TYPE_PERMISSION_TYPE = 530;
      */
-    PERMISSION_TYPE = 430,
+    PERMISSION_TYPE = 530,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SANCTION_TYPE = 440;
+     * @generated from protobuf enum value: ENUM_TYPE_SANCTION_TYPE = 540;
      */
-    SANCTION_TYPE = 440,
+    SANCTION_TYPE = 540,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SANCTION_EVENT_TYPE = 441;
+     * @generated from protobuf enum value: ENUM_TYPE_SANCTION_EVENT_TYPE = 541;
      */
-    SANCTION_EVENT_TYPE = 441,
+    SANCTION_EVENT_TYPE = 541,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ENTITLEMENT_TYPE = 450;
+     * @generated from protobuf enum value: ENUM_TYPE_ENTITLEMENT_TYPE = 550;
      */
-    ENTITLEMENT_TYPE = 450,
+    ENTITLEMENT_TYPE = 550,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ENTITLEMENT_EVENT_TYPE = 451;
+     * @generated from protobuf enum value: ENUM_TYPE_ENTITLEMENT_EVENT_TYPE = 551;
      */
-    ENTITLEMENT_EVENT_TYPE = 451,
+    ENTITLEMENT_EVENT_TYPE = 551,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FOLDER_TYPE = 600;
+     * @generated from protobuf enum value: ENUM_TYPE_FOLDER_TYPE = 1000;
      */
-    FOLDER_TYPE = 600,
+    FOLDER_TYPE = 1000,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TEXT_LINE_TYPE = 1401;
+     * @generated from protobuf enum value: ENUM_TYPE_TEXT_LINE_TYPE = 2521;
      */
-    TEXT_LINE_TYPE = 1401,
+    TEXT_LINE_TYPE = 2521,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TEXT_SPAN_TYPE = 1402;
+     * @generated from protobuf enum value: ENUM_TYPE_TEXT_SPAN_TYPE = 2522;
      */
-    TEXT_SPAN_TYPE = 1402,
+    TEXT_SPAN_TYPE = 2522,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILE_RETENTION_MODE = 1421;
+     * @generated from protobuf enum value: ENUM_TYPE_FILE_RETENTION_MODE = 2540;
      */
-    FILE_RETENTION_MODE = 1421,
+    FILE_RETENTION_MODE = 2540,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILE_SOURCE = 1422;
+     * @generated from protobuf enum value: ENUM_TYPE_FILE_SOURCE = 2541;
      */
-    FILE_SOURCE = 1422,
+    FILE_SOURCE = 2541,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILE_TYPE = 1423;
+     * @generated from protobuf enum value: ENUM_TYPE_FILE_TYPE = 2542;
      */
-    FILE_TYPE = 1423,
+    FILE_TYPE = 2542,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILE_FORMAT = 1424;
+     * @generated from protobuf enum value: ENUM_TYPE_FILE_FORMAT = 2543;
      */
-    FILE_FORMAT = 1424,
+    FILE_FORMAT = 2543,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ICON_TYPE = 1431;
+     * @generated from protobuf enum value: ENUM_TYPE_ICON_TYPE = 2531;
      */
-    ICON_TYPE = 1431,
+    ICON_TYPE = 2531,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_LINK_TYPE = 1451;
+     * @generated from protobuf enum value: ENUM_TYPE_LINK_TYPE = 2550;
      */
-    LINK_TYPE = 1451,
+    LINK_TYPE = 2550,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PRIMITIVE_TYPE = 1501;
+     * @generated from protobuf enum value: ENUM_TYPE_PRIMITIVE_TYPE = 2560;
      */
-    PRIMITIVE_TYPE = 1501,
+    PRIMITIVE_TYPE = 2560,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TYPE_CARDINALITY = 1502;
+     * @generated from protobuf enum value: ENUM_TYPE_TYPE_CARDINALITY = 2561;
      */
-    TYPE_CARDINALITY = 1502,
+    TYPE_CARDINALITY = 2561,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SCALAR_TYPE = 1503;
+     * @generated from protobuf enum value: ENUM_TYPE_SCALAR_TYPE = 2562;
      */
-    SCALAR_TYPE = 1503,
+    SCALAR_TYPE = 2562,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_DEFAULT_FACTORY = 1504;
+     * @generated from protobuf enum value: ENUM_TYPE_DEFAULT_FACTORY = 2563;
      */
-    DEFAULT_FACTORY = 1504,
+    DEFAULT_FACTORY = 2563,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_STRING_FORMAT = 1511;
+     * @generated from protobuf enum value: ENUM_TYPE_STRING_FORMAT = 2570;
      */
-    STRING_FORMAT = 1511,
+    STRING_FORMAT = 2570,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_NUMBER_FORMAT = 1512;
+     * @generated from protobuf enum value: ENUM_TYPE_NUMBER_FORMAT = 2571;
      */
-    NUMBER_FORMAT = 1512,
+    NUMBER_FORMAT = 2571,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FIELD_TYPE = 1521;
+     * @generated from protobuf enum value: ENUM_TYPE_FIELD_TYPE = 2580;
      */
-    FIELD_TYPE = 1521,
+    FIELD_TYPE = 2580,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_EDGE_TYPE = 1522;
+     * @generated from protobuf enum value: ENUM_TYPE_EDGE_TYPE = 2581;
      */
-    EDGE_TYPE = 1522,
+    EDGE_TYPE = 2581,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_EDGE_DIRECTION = 1523;
+     * @generated from protobuf enum value: ENUM_TYPE_EDGE_DIRECTION = 2582;
      */
-    EDGE_DIRECTION = 1523,
+    EDGE_DIRECTION = 2582,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CASCADE_ACTION = 1524;
+     * @generated from protobuf enum value: ENUM_TYPE_CASCADE_ACTION = 2583;
      */
-    CASCADE_ACTION = 1524,
+    CASCADE_ACTION = 2583,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RESOURCE_STATUS = 1701;
+     * @generated from protobuf enum value: ENUM_TYPE_RESOURCE_STATUS = 2590;
      */
-    RESOURCE_STATUS = 1701,
+    RESOURCE_STATUS = 2590,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ACTION_CARDINALITY = 1821;
+     * @generated from protobuf enum value: ENUM_TYPE_ACTION_CARDINALITY = 3020;
      */
-    ACTION_CARDINALITY = 1821,
+    ACTION_CARDINALITY = 3020,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CURSOR_STATUS = 1922;
+     * @generated from protobuf enum value: ENUM_TYPE_CURSOR_STATUS = 3100;
      */
-    CURSOR_STATUS = 1922,
+    CURSOR_STATUS = 3100,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SCHEDULE_FREQUENCY = 1930;
+     * @generated from protobuf enum value: ENUM_TYPE_SCHEDULE_FREQUENCY = 3050;
      */
-    SCHEDULE_FREQUENCY = 1930,
+    SCHEDULE_FREQUENCY = 3050,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_DAY_OF_WEEK = 1931;
+     * @generated from protobuf enum value: ENUM_TYPE_DAY_OF_WEEK = 3051;
      */
-    DAY_OF_WEEK = 1931,
+    DAY_OF_WEEK = 3051,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MONTH = 1932;
+     * @generated from protobuf enum value: ENUM_TYPE_MONTH = 3052;
      */
-    MONTH = 1932,
+    MONTH = 3052,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TIMER_TYPE = 1940;
+     * @generated from protobuf enum value: ENUM_TYPE_TIMER_TYPE = 3053;
      */
-    TIMER_TYPE = 1940,
+    TIMER_TYPE = 3053,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TIMER_EVENT_TYPE = 1941;
+     * @generated from protobuf enum value: ENUM_TYPE_TIMER_EVENT_TYPE = 3054;
      */
-    TIMER_EVENT_TYPE = 1941,
+    TIMER_EVENT_TYPE = 3054,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TRIGGER_TYPE = 1950;
+     * @generated from protobuf enum value: ENUM_TYPE_TRIGGER_TYPE = 3040;
      */
-    TRIGGER_TYPE = 1950,
+    TRIGGER_TYPE = 3040,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TRIGGER_EVENT_TYPE = 1951;
+     * @generated from protobuf enum value: ENUM_TYPE_TRIGGER_EVENT_TYPE = 3041;
      */
-    TRIGGER_EVENT_TYPE = 1951,
+    TRIGGER_EVENT_TYPE = 3041,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUN_STATUS = 2410;
+     * @generated from protobuf enum value: ENUM_TYPE_RUN_STATUS = 4000;
      */
-    RUN_STATUS = 2410,
+    RUN_STATUS = 4000,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUN_EVENT_TYPE = 2411;
+     * @generated from protobuf enum value: ENUM_TYPE_RUN_EVENT_TYPE = 4001;
      */
-    RUN_EVENT_TYPE = 2411,
+    RUN_EVENT_TYPE = 4001,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_INTERRUPTION_TYPE = 2420;
+     * @generated from protobuf enum value: ENUM_TYPE_INTERRUPTION_TYPE = 4020;
      */
-    INTERRUPTION_TYPE = 2420,
+    INTERRUPTION_TYPE = 4020,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_INTERRUPTION_STATUS = 2421;
+     * @generated from protobuf enum value: ENUM_TYPE_INTERRUPTION_STATUS = 4021;
      */
-    INTERRUPTION_STATUS = 2421,
+    INTERRUPTION_STATUS = 4021,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_INTERRUPTION_RESPONSE = 2422;
+     * @generated from protobuf enum value: ENUM_TYPE_INTERRUPTION_RESPONSE = 4022;
      */
-    INTERRUPTION_RESPONSE = 2422,
+    INTERRUPTION_RESPONSE = 4022,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ENVIRONMENT_TYPE = 2800;
+     * @generated from protobuf enum value: ENUM_TYPE_ENVIRONMENT_TYPE = 4500;
      */
-    ENVIRONMENT_TYPE = 2800,
+    ENVIRONMENT_TYPE = 4500,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_THREAD_STATUS = 3402;
+     * @generated from protobuf enum value: ENUM_TYPE_THREAD_STATUS = 5500;
      */
-    THREAD_STATUS = 3402,
+    THREAD_STATUS = 5500,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_NOTIFICATION_STATUS = 3430;
+     * @generated from protobuf enum value: ENUM_TYPE_NOTIFICATION_STATUS = 5600;
      */
-    NOTIFICATION_STATUS = 3430,
+    NOTIFICATION_STATUS = 5600,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_NOTIFICATION_EVENT_TYPE = 3431;
+     * @generated from protobuf enum value: ENUM_TYPE_NOTIFICATION_EVENT_TYPE = 5601;
      */
-    NOTIFICATION_EVENT_TYPE = 3431,
+    NOTIFICATION_EVENT_TYPE = 5601,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CLOUD = 5000;
+     * @generated from protobuf enum value: ENUM_TYPE_CLOUD = 7500;
      */
-    CLOUD = 5000,
+    CLOUD = 7500,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_REGION = 5001;
+     * @generated from protobuf enum value: ENUM_TYPE_REGION = 7501;
      */
-    REGION = 5001,
+    REGION = 7501,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_REGION_AREA = 5002;
+     * @generated from protobuf enum value: ENUM_TYPE_REGION_AREA = 7502;
      */
-    REGION_AREA = 5002,
+    REGION_AREA = 7502,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_REGION_CONTINENT = 5003;
+     * @generated from protobuf enum value: ENUM_TYPE_REGION_CONTINENT = 7503;
      */
-    REGION_CONTINENT = 5003,
+    REGION_CONTINENT = 7503,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TENANCY = 5004;
+     * @generated from protobuf enum value: ENUM_TYPE_TENANCY = 7504;
      */
-    TENANCY = 5004,
+    TENANCY = 7504,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_DATABASE_TYPE = 5010;
+     * @generated from protobuf enum value: ENUM_TYPE_DATABASE_TYPE = 7505;
      */
-    DATABASE_TYPE = 5010,
+    DATABASE_TYPE = 7505,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MACHINE_TYPE = 5020;
+     * @generated from protobuf enum value: ENUM_TYPE_MACHINE_TYPE = 7600;
      */
-    MACHINE_TYPE = 5020,
+    MACHINE_TYPE = 7600,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MODEL_DEVELOPER = 5401;
+     * @generated from protobuf enum value: ENUM_TYPE_MODEL_DEVELOPER = 8000;
      */
-    MODEL_DEVELOPER = 5401,
+    MODEL_DEVELOPER = 8000,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MODEL_PROVIDER = 5402;
+     * @generated from protobuf enum value: ENUM_TYPE_MODEL_PROVIDER = 8001;
      */
-    MODEL_PROVIDER = 5402,
+    MODEL_PROVIDER = 8001,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_WINDOW_TYPE = 8000;
+     * @generated from protobuf enum value: ENUM_TYPE_WINDOW_TYPE = 9000;
      */
-    WINDOW_TYPE = 8000,
+    WINDOW_TYPE = 9000,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SCENE_EVENT_TYPE = 8011;
+     * @generated from protobuf enum value: ENUM_TYPE_SCENE_EVENT_TYPE = 9011;
      */
-    SCENE_EVENT_TYPE = 8011,
+    SCENE_EVENT_TYPE = 9011,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_LAYER_TYPE = 8020;
+     * @generated from protobuf enum value: ENUM_TYPE_LAYER_TYPE = 9020;
      */
-    LAYER_TYPE = 8020,
+    LAYER_TYPE = 9020,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CANVAS_TYPE = 8600;
+     * @generated from protobuf enum value: ENUM_TYPE_MODE_TYPE = 9500;
      */
-    CANVAS_TYPE = 8600,
+    MODE_TYPE = 9500,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PLANE_SHAPE_TYPE = 8601;
+     * @generated from protobuf enum value: ENUM_TYPE_TOOL_TYPE = 9501;
      */
-    PLANE_SHAPE_TYPE = 8601,
+    TOOL_TYPE = 9501,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ARROW_HEAD_TYPE = 8602;
+     * @generated from protobuf enum value: ENUM_TYPE_CANVAS_TYPE = 11000;
      */
-    ARROW_HEAD_TYPE = 8602,
+    CANVAS_TYPE = 11000,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_LINE_TYPE = 8603;
+     * @generated from protobuf enum value: ENUM_TYPE_PLANE_SHAPE_TYPE = 11011;
      */
-    LINE_TYPE = 8603,
+    PLANE_SHAPE_TYPE = 11011,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_POSITION_TYPE = 9001;
+     * @generated from protobuf enum value: ENUM_TYPE_ARROW_HEAD_TYPE = 11012;
      */
-    POSITION_TYPE = 9001,
+    ARROW_HEAD_TYPE = 11012,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_COLOR_TYPE = 9011;
+     * @generated from protobuf enum value: ENUM_TYPE_LINE_TYPE = 11010;
      */
-    COLOR_TYPE = 9011,
+    LINE_TYPE = 11010,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_COLOR_SHADE = 9012;
+     * @generated from protobuf enum value: ENUM_TYPE_POSITION_TYPE = 12000;
      */
-    COLOR_SHADE = 9012,
+    POSITION_TYPE = 12000,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_COLOR_HUE = 9013;
+     * @generated from protobuf enum value: ENUM_TYPE_COLOR_TYPE = 12020;
      */
-    COLOR_HUE = 9013,
+    COLOR_TYPE = 12020,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FONT_WEIGHT = 9022;
+     * @generated from protobuf enum value: ENUM_TYPE_COLOR_SHADE = 12021;
      */
-    FONT_WEIGHT = 9022,
+    COLOR_SHADE = 12021,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FONT_SIZE = 9023;
+     * @generated from protobuf enum value: ENUM_TYPE_COLOR_HUE = 12022;
      */
-    FONT_SIZE = 9023,
+    COLOR_HUE = 12022,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FONT_TYPE = 9024;
+     * @generated from protobuf enum value: ENUM_TYPE_COLOR_INTENT = 12023;
      */
-    FONT_TYPE = 9024,
+    COLOR_INTENT = 12023,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TEXT_ALIGN = 9025;
+     * @generated from protobuf enum value: ENUM_TYPE_FONT_WEIGHT = 12024;
      */
-    TEXT_ALIGN = 9025,
+    FONT_WEIGHT = 12024,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TEXT_DECORATION = 9026;
+     * @generated from protobuf enum value: ENUM_TYPE_FONT_SIZE = 12025;
      */
-    TEXT_DECORATION = 9026,
+    FONT_SIZE = 12025,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TEXT_TRANSFORM = 9027;
+     * @generated from protobuf enum value: ENUM_TYPE_FONT_TYPE = 12026;
      */
-    TEXT_TRANSFORM = 9027,
+    FONT_TYPE = 12026,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SHADOW_TYPE = 9031;
+     * @generated from protobuf enum value: ENUM_TYPE_TEXT_ALIGN = 12027;
      */
-    SHADOW_TYPE = 9031,
+    TEXT_ALIGN = 12027,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SHADOW_POSITION = 9032;
+     * @generated from protobuf enum value: ENUM_TYPE_TEXT_DECORATION = 12028;
      */
-    SHADOW_POSITION = 9032,
+    TEXT_DECORATION = 12028,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_BORDER_TYPE = 9041;
+     * @generated from protobuf enum value: ENUM_TYPE_TEXT_TRANSFORM = 12029;
      */
-    BORDER_TYPE = 9041,
+    TEXT_TRANSFORM = 12029,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_GRADIENT_TYPE = 9051;
+     * @generated from protobuf enum value: ENUM_TYPE_SHADOW_TYPE = 12030;
      */
-    GRADIENT_TYPE = 9051,
+    SHADOW_TYPE = 12030,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILL_TYPE = 9061;
+     * @generated from protobuf enum value: ENUM_TYPE_SHADOW_POSITION = 12031;
      */
-    FILL_TYPE = 9061,
+    SHADOW_POSITION = 12031,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILL_POSITION = 9062;
+     * @generated from protobuf enum value: ENUM_TYPE_BORDER_TYPE = 12032;
      */
-    FILL_POSITION = 9062,
+    BORDER_TYPE = 12032,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILL_SIZE = 9063;
+     * @generated from protobuf enum value: ENUM_TYPE_GRADIENT_TYPE = 12033;
      */
-    FILL_SIZE = 9063,
+    GRADIENT_TYPE = 12033,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_LENGTH_UNIT = 9071;
+     * @generated from protobuf enum value: ENUM_TYPE_FILL_TYPE = 12034;
      */
-    LENGTH_UNIT = 9071,
+    FILL_TYPE = 12034,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_LAYOUT = 9072;
+     * @generated from protobuf enum value: ENUM_TYPE_FILL_POSITION = 12035;
      */
-    LAYOUT = 9072,
+    FILL_POSITION = 12035,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_DISTRIBUTE = 9073;
+     * @generated from protobuf enum value: ENUM_TYPE_FILL_SIZE = 12036;
      */
-    DISTRIBUTE = 9073,
+    FILL_SIZE = 12036,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ALIGN = 9074;
+     * @generated from protobuf enum value: ENUM_TYPE_LENGTH_UNIT = 12037;
      */
-    ALIGN = 9074,
+    LENGTH_UNIT = 12037,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_DIRECTION = 9075;
+     * @generated from protobuf enum value: ENUM_TYPE_LAYOUT = 12038;
      */
-    DIRECTION = 9075,
+    LAYOUT = 12038,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_OVERFLOW = 9076;
+     * @generated from protobuf enum value: ENUM_TYPE_DISTRIBUTE = 12039;
      */
-    OVERFLOW = 9076,
+    DISTRIBUTE = 12039,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TRANSITION_TYPE = 9077;
+     * @generated from protobuf enum value: ENUM_TYPE_ALIGN = 12040;
      */
-    TRANSITION_TYPE = 9077,
+    ALIGN = 12040,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SPRING_TYPE = 9078;
+     * @generated from protobuf enum value: ENUM_TYPE_DIRECTION = 12041;
      */
-    SPRING_TYPE = 9078,
+    DIRECTION = 12041,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_DIMENSION_TYPE = 9079;
+     * @generated from protobuf enum value: ENUM_TYPE_OVERFLOW = 12042;
      */
-    DIMENSION_TYPE = 9079,
+    OVERFLOW = 12042,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_EFFECT_TYPE = 9081;
+     * @generated from protobuf enum value: ENUM_TYPE_TRANSITION_TYPE = 12043;
      */
-    EFFECT_TYPE = 9081,
+    TRANSITION_TYPE = 12043,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_REPEAT_TYPE = 9082;
+     * @generated from protobuf enum value: ENUM_TYPE_SPRING_TYPE = 12044;
      */
-    REPEAT_TYPE = 9082,
+    SPRING_TYPE = 12044,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TEXT_SPLIT_TYPE = 9084;
+     * @generated from protobuf enum value: ENUM_TYPE_DIMENSION_TYPE = 12045;
      */
-    TEXT_SPLIT_TYPE = 9084,
+    DIMENSION_TYPE = 12045,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_OFFSCREEN_BEHAVIOR = 9085;
+     * @generated from protobuf enum value: ENUM_TYPE_EFFECT_TYPE = 12046;
      */
-    OFFSCREEN_BEHAVIOR = 9085,
+    EFFECT_TYPE = 12046,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ENUM_TYPE = 10000;
+     * @generated from protobuf enum value: ENUM_TYPE_REPEAT_TYPE = 12047;
      */
-    ENUM_TYPE = 10000,
+    REPEAT_TYPE = 12047,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_NODE_TYPE = 10001;
+     * @generated from protobuf enum value: ENUM_TYPE_TEXT_SPLIT_TYPE = 12048;
      */
-    NODE_TYPE = 10001,
+    TEXT_SPLIT_TYPE = 12048,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_STRUCT_TYPE = 10002;
+     * @generated from protobuf enum value: ENUM_TYPE_OFFSCREEN_BEHAVIOR = 12049;
      */
-    STRUCT_TYPE = 10002,
+    OFFSCREEN_BEHAVIOR = 12049,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TRAIT_TYPE = 10003;
+     * @generated from protobuf enum value: ENUM_TYPE_ENUM_TYPE = 50000;
      */
-    TRAIT_TYPE = 10003,
+    ENUM_TYPE = 50000,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RELATION_TYPE = 10010;
+     * @generated from protobuf enum value: ENUM_TYPE_NODE_TYPE = 50001;
      */
-    RELATION_TYPE = 10010,
+    NODE_TYPE = 50001,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ATTRIBUTE_TYPE = 10011;
+     * @generated from protobuf enum value: ENUM_TYPE_STRUCT_TYPE = 50002;
      */
-    ATTRIBUTE_TYPE = 10011,
+    STRUCT_TYPE = 50002,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PROPERTY_REFERENCE_TYPE = 10012;
+     * @generated from protobuf enum value: ENUM_TYPE_TRAIT_TYPE = 50003;
      */
-    PROPERTY_REFERENCE_TYPE = 10012,
+    TRAIT_TYPE = 50003,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_STORE_ZONE = 10020;
+     * @generated from protobuf enum value: ENUM_TYPE_RELATION_TYPE = 50010;
      */
-    STORE_ZONE = 10020,
+    RELATION_TYPE = 50010,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_STORE_TYPE = 10021;
+     * @generated from protobuf enum value: ENUM_TYPE_ATTRIBUTE_TYPE = 50011;
      */
-    STORE_TYPE = 10021,
+    ATTRIBUTE_TYPE = 50011,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_STORE_IMPLEMENTATION = 10022;
+     * @generated from protobuf enum value: ENUM_TYPE_PROPERTY_REFERENCE_TYPE = 50012;
      */
-    STORE_IMPLEMENTATION = 10022,
+    PROPERTY_REFERENCE_TYPE = 50012,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PLATFORM_TYPE = 10030;
+     * @generated from protobuf enum value: ENUM_TYPE_STORE_ZONE = 50020;
      */
-    PLATFORM_TYPE = 10030,
+    STORE_ZONE = 50020,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUNTIME_TYPE = 10031;
+     * @generated from protobuf enum value: ENUM_TYPE_STORE_TYPE = 50021;
      */
-    RUNTIME_TYPE = 10031,
+    STORE_TYPE = 50021,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_OPERATING_SYSTEM = 10040;
+     * @generated from protobuf enum value: ENUM_TYPE_STORE_IMPLEMENTATION = 50022;
      */
-    OPERATING_SYSTEM = 10040,
+    STORE_IMPLEMENTATION = 50022,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ERROR_TYPE = 10041;
+     * @generated from protobuf enum value: ENUM_TYPE_PLATFORM_TYPE = 50030;
      */
-    ERROR_TYPE = 10041,
+    PLATFORM_TYPE = 50030,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_EDIT_TYPE = 10050;
+     * @generated from protobuf enum value: ENUM_TYPE_RUNTIME_TYPE = 50031;
      */
-    EDIT_TYPE = 10050,
+    RUNTIME_TYPE = 50031,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_EDIT_OPERATION = 10051;
+     * @generated from protobuf enum value: ENUM_TYPE_OPERATING_SYSTEM = 50040;
      */
-    EDIT_OPERATION = 10051,
+    OPERATING_SYSTEM = 50040,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CHANGE_STATUS = 10052;
+     * @generated from protobuf enum value: ENUM_TYPE_ERROR_TYPE = 50041;
      */
-    CHANGE_STATUS = 10052,
+    ERROR_TYPE = 50041,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_NODE_PERMISSION = 10100;
+     * @generated from protobuf enum value: ENUM_TYPE_EDIT_TYPE = 50050;
      */
-    NODE_PERMISSION = 10100,
+    EDIT_TYPE = 50050,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_JOINABLE_PERMISSION = 10101;
+     * @generated from protobuf enum value: ENUM_TYPE_EDIT_OPERATION = 50051;
      */
-    JOINABLE_PERMISSION = 10101
+    EDIT_OPERATION = 50051,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_CHANGE_STATUS = 50052;
+     */
+    CHANGE_STATUS = 50052,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_NODE_PERMISSION = 50100;
+     */
+    NODE_PERMISSION = 50100,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_JOINABLE_PERMISSION = 50101;
+     */
+    JOINABLE_PERMISSION = 50101
 }
 /**
  * @generated from protobuf enum symbol.destack.EnvironmentType
@@ -12896,6 +12935,31 @@ export enum MembershipPermission {
     BAN = 11
 }
 /**
+ * @generated from protobuf enum symbol.destack.ModeType
+ */
+export enum ModeType {
+    /**
+     * @generated from protobuf enum value: MODE_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: MODE_TYPE_EDIT = 1;
+     */
+    EDIT = 1,
+    /**
+     * @generated from protobuf enum value: MODE_TYPE_INSPECT = 2;
+     */
+    INSPECT = 2,
+    /**
+     * @generated from protobuf enum value: MODE_TYPE_PREVIEW = 3;
+     */
+    PREVIEW = 3,
+    /**
+     * @generated from protobuf enum value: MODE_TYPE_USE = 4;
+     */
+    USE = 4
+}
+/**
  * @generated from protobuf enum symbol.destack.ModelDeveloper
  */
 export enum ModelDeveloper {
@@ -13076,353 +13140,353 @@ export enum NodeType {
      */
     CLIENT = 100,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_MEMBERSHIP = 400;
+     * @generated from protobuf enum value: NODE_TYPE_MEMBERSHIP = 500;
      */
-    MEMBERSHIP = 400,
+    MEMBERSHIP = 500,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_MEMBERSHIP_EVENT = 401;
+     * @generated from protobuf enum value: NODE_TYPE_MEMBERSHIP_EVENT = 501;
      */
-    MEMBERSHIP_EVENT = 401,
+    MEMBERSHIP_EVENT = 501,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_INVITE = 410;
+     * @generated from protobuf enum value: NODE_TYPE_INVITE = 510;
      */
-    INVITE = 410,
+    INVITE = 510,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_INVITE_EVENT = 411;
+     * @generated from protobuf enum value: NODE_TYPE_INVITE_EVENT = 511;
      */
-    INVITE_EVENT = 411,
+    INVITE_EVENT = 511,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ROLE = 420;
+     * @generated from protobuf enum value: NODE_TYPE_ROLE = 520;
      */
-    ROLE = 420,
+    ROLE = 520,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ROLE_EVENT = 421;
+     * @generated from protobuf enum value: NODE_TYPE_ROLE_EVENT = 521;
      */
-    ROLE_EVENT = 421,
+    ROLE_EVENT = 521,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_PERMISSION = 430;
+     * @generated from protobuf enum value: NODE_TYPE_PERMISSION = 530;
      */
-    PERMISSION = 430,
+    PERMISSION = 530,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SANCTION = 440;
+     * @generated from protobuf enum value: NODE_TYPE_SANCTION = 540;
      */
-    SANCTION = 440,
+    SANCTION = 540,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SANCTION_EVENT = 441;
+     * @generated from protobuf enum value: NODE_TYPE_SANCTION_EVENT = 541;
      */
-    SANCTION_EVENT = 441,
+    SANCTION_EVENT = 541,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ENTITLEMENT = 450;
+     * @generated from protobuf enum value: NODE_TYPE_ENTITLEMENT = 550;
      */
-    ENTITLEMENT = 450,
+    ENTITLEMENT = 550,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ENTITLEMENT_EVENT = 451;
+     * @generated from protobuf enum value: NODE_TYPE_ENTITLEMENT_EVENT = 551;
      */
-    ENTITLEMENT_EVENT = 451,
+    ENTITLEMENT_EVENT = 551,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_AGENT = 500;
+     * @generated from protobuf enum value: NODE_TYPE_AGENT = 600;
      */
-    AGENT = 500,
+    AGENT = 600,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FOLDER = 600;
+     * @generated from protobuf enum value: NODE_TYPE_FOLDER = 1000;
      */
-    FOLDER = 600,
+    FOLDER = 1000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TAG = 610;
+     * @generated from protobuf enum value: NODE_TYPE_TAG = 1010;
      */
-    TAG = 610,
+    TAG = 1010,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TAGGING = 611;
+     * @generated from protobuf enum value: NODE_TYPE_TAGGING = 1011;
      */
-    TAGGING = 611,
+    TAGGING = 1011,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_ENTITY_DEFINITION = 1000;
+     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_ENTITY_DEFINITION = 2000;
      */
-    CUSTOM_ENTITY_DEFINITION = 1000,
+    CUSTOM_ENTITY_DEFINITION = 2000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_ENTITY = 1001;
+     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_ENTITY = 2001;
      */
-    CUSTOM_ENTITY = 1001,
+    CUSTOM_ENTITY = 2001,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_STRUCT_DEFINITION = 1400;
+     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_STRUCT_DEFINITION = 2500;
      */
-    CUSTOM_STRUCT_DEFINITION = 1400,
+    CUSTOM_STRUCT_DEFINITION = 2500,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_ENUM_DEFINITION = 1410;
+     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_ENUM_DEFINITION = 2510;
      */
-    CUSTOM_ENUM_DEFINITION = 1410,
+    CUSTOM_ENUM_DEFINITION = 2510,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FIELD = 1420;
+     * @generated from protobuf enum value: NODE_TYPE_FIELD = 2520;
      */
-    FIELD = 1420,
+    FIELD = 2520,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_OPTION = 1430;
+     * @generated from protobuf enum value: NODE_TYPE_OPTION = 2530;
      */
-    OPTION = 1430,
+    OPTION = 2530,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FILE = 1440;
+     * @generated from protobuf enum value: NODE_TYPE_FILE = 2540;
      */
-    FILE = 1440,
+    FILE = 2540,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_LINK = 1450;
+     * @generated from protobuf enum value: NODE_TYPE_LINK = 2550;
      */
-    LINK = 1450,
+    LINK = 2550,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SCRIPT = 1800;
+     * @generated from protobuf enum value: NODE_TYPE_SCRIPT = 3000;
      */
-    SCRIPT = 1800,
+    SCRIPT = 3000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SERVICE = 1810;
+     * @generated from protobuf enum value: NODE_TYPE_SERVICE = 3010;
      */
-    SERVICE = 1810,
+    SERVICE = 3010,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ACTION = 1820;
+     * @generated from protobuf enum value: NODE_TYPE_ACTION = 3020;
      */
-    ACTION = 1820,
+    ACTION = 3020,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ROUTE = 1830;
+     * @generated from protobuf enum value: NODE_TYPE_ROUTE = 3030;
      */
-    ROUTE = 1830,
+    ROUTE = 3030,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TRIGGER = 1840;
+     * @generated from protobuf enum value: NODE_TYPE_TRIGGER = 3040;
      */
-    TRIGGER = 1840,
+    TRIGGER = 3040,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TRIGGER_EVENT = 1841;
+     * @generated from protobuf enum value: NODE_TYPE_TRIGGER_EVENT = 3041;
      */
-    TRIGGER_EVENT = 1841,
+    TRIGGER_EVENT = 3041,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TIMER = 1850;
+     * @generated from protobuf enum value: NODE_TYPE_TIMER = 3050;
      */
-    TIMER = 1850,
+    TIMER = 3050,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TIMER_EVENT = 1851;
+     * @generated from protobuf enum value: NODE_TYPE_TIMER_EVENT = 3051;
      */
-    TIMER_EVENT = 1851,
+    TIMER_EVENT = 3051,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_EVENT_CURSOR = 1900;
+     * @generated from protobuf enum value: NODE_TYPE_EVENT_CURSOR = 3100;
      */
-    EVENT_CURSOR = 1900,
+    EVENT_CURSOR = 3100,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SCREEN_CURSOR = 1901;
+     * @generated from protobuf enum value: NODE_TYPE_SCREEN_CURSOR = 3101;
      */
-    SCREEN_CURSOR = 1901,
+    SCREEN_CURSOR = 3101,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_THREAD_CURSOR = 1902;
+     * @generated from protobuf enum value: NODE_TYPE_THREAD_CURSOR = 3102;
      */
-    THREAD_CURSOR = 1902,
+    THREAD_CURSOR = 3102,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_RUN = 2400;
+     * @generated from protobuf enum value: NODE_TYPE_RUN = 4000;
      */
-    RUN = 2400,
+    RUN = 4000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_RUN_EVENT = 2401;
+     * @generated from protobuf enum value: NODE_TYPE_RUN_EVENT = 4001;
      */
-    RUN_EVENT = 2401,
+    RUN_EVENT = 4001,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SPAN = 2410;
+     * @generated from protobuf enum value: NODE_TYPE_SPAN = 4010;
      */
-    SPAN = 2410,
+    SPAN = 4010,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_INTERRUPTION = 2420;
+     * @generated from protobuf enum value: NODE_TYPE_INTERRUPTION = 4020;
      */
-    INTERRUPTION = 2420,
+    INTERRUPTION = 4020,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_LOG = 2500;
+     * @generated from protobuf enum value: NODE_TYPE_LOG = 4100;
      */
-    LOG = 2500,
+    LOG = 4100,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_GAUGE_METRIC = 2510;
+     * @generated from protobuf enum value: NODE_TYPE_GAUGE_METRIC = 4110;
      */
-    GAUGE_METRIC = 2510,
+    GAUGE_METRIC = 4110,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_GAUGE_MEASUREMENT = 2511;
+     * @generated from protobuf enum value: NODE_TYPE_GAUGE_MEASUREMENT = 4111;
      */
-    GAUGE_MEASUREMENT = 2511,
+    GAUGE_MEASUREMENT = 4111,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_COUNTER_METRIC = 2512;
+     * @generated from protobuf enum value: NODE_TYPE_COUNTER_METRIC = 4112;
      */
-    COUNTER_METRIC = 2512,
+    COUNTER_METRIC = 4112,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_COUNTER_MEASUREMENT = 2513;
+     * @generated from protobuf enum value: NODE_TYPE_COUNTER_MEASUREMENT = 4113;
      */
-    COUNTER_MEASUREMENT = 2513,
+    COUNTER_MEASUREMENT = 4113,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_HISTOGRAM_METRIC = 2514;
+     * @generated from protobuf enum value: NODE_TYPE_HISTOGRAM_METRIC = 4114;
      */
-    HISTOGRAM_METRIC = 2514,
+    HISTOGRAM_METRIC = 4114,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_HISTOGRAM_MEASUREMENT = 2515;
+     * @generated from protobuf enum value: NODE_TYPE_HISTOGRAM_MEASUREMENT = 4115;
      */
-    HISTOGRAM_MEASUREMENT = 2515,
+    HISTOGRAM_MEASUREMENT = 4115,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_EVENT_DEFINITION = 2600;
+     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_EVENT_DEFINITION = 4200;
      */
-    CUSTOM_EVENT_DEFINITION = 2600,
+    CUSTOM_EVENT_DEFINITION = 4200,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_EVENT = 2601;
+     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_EVENT = 4201;
      */
-    CUSTOM_EVENT = 2601,
+    CUSTOM_EVENT = 4201,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_EDIT_EVENT = 2602;
+     * @generated from protobuf enum value: NODE_TYPE_EDIT_EVENT = 4202;
      */
-    EDIT_EVENT = 2602,
+    EDIT_EVENT = 4202,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ENVIRONMENT = 2800;
+     * @generated from protobuf enum value: NODE_TYPE_ENVIRONMENT = 4500;
      */
-    ENVIRONMENT = 2800,
+    ENVIRONMENT = 4500,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_THREAD = 3400;
+     * @generated from protobuf enum value: NODE_TYPE_THREAD = 5500;
      */
-    THREAD = 3400,
+    THREAD = 5500,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_MESSAGE = 3410;
+     * @generated from protobuf enum value: NODE_TYPE_MESSAGE = 5510;
      */
-    MESSAGE = 3410,
+    MESSAGE = 5510,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_REACTION = 3420;
+     * @generated from protobuf enum value: NODE_TYPE_REACTION = 5520;
      */
-    REACTION = 3420,
+    REACTION = 5520,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_STAR = 3421;
+     * @generated from protobuf enum value: NODE_TYPE_STAR = 5521;
      */
-    STAR = 3421,
+    STAR = 5521,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FOLLOW = 3430;
+     * @generated from protobuf enum value: NODE_TYPE_FOLLOW = 5530;
      */
-    FOLLOW = 3430,
+    FOLLOW = 5530,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_NOTIFICATION = 3500;
+     * @generated from protobuf enum value: NODE_TYPE_NOTIFICATION = 5600;
      */
-    NOTIFICATION = 3500,
+    NOTIFICATION = 5600,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_NOTIFICATION_EVENT = 3501;
+     * @generated from protobuf enum value: NODE_TYPE_NOTIFICATION_EVENT = 5601;
      */
-    NOTIFICATION_EVENT = 3501,
+    NOTIFICATION_EVENT = 5601,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_DATABASE = 5000;
+     * @generated from protobuf enum value: NODE_TYPE_DATABASE = 7500;
      */
-    DATABASE = 5000,
+    DATABASE = 7500,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_MACHINE = 5100;
+     * @generated from protobuf enum value: NODE_TYPE_MACHINE = 7600;
      */
-    MACHINE = 5100,
+    MACHINE = 7600,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_WINDOW = 8000;
+     * @generated from protobuf enum value: NODE_TYPE_WINDOW = 9000;
      */
-    WINDOW = 8000,
+    WINDOW = 9000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SCENE = 8010;
+     * @generated from protobuf enum value: NODE_TYPE_SCENE = 9010;
      */
-    SCENE = 8010,
+    SCENE = 9010,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SCENE_EVENT = 8011;
+     * @generated from protobuf enum value: NODE_TYPE_SCENE_EVENT = 9011;
      */
-    SCENE_EVENT = 8011,
+    SCENE_EVENT = 9011,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_LAYER = 8020;
+     * @generated from protobuf enum value: NODE_TYPE_LAYER = 9020;
      */
-    LAYER = 8020,
+    LAYER = 9020,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_VIEW_DEFINITION = 8200;
+     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_VIEW_DEFINITION = 10000;
      */
-    CUSTOM_VIEW_DEFINITION = 8200,
+    CUSTOM_VIEW_DEFINITION = 10000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_VIEW = 8201;
+     * @generated from protobuf enum value: NODE_TYPE_CUSTOM_VIEW = 10001;
      */
-    CUSTOM_VIEW = 8201,
+    CUSTOM_VIEW = 10001,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FRAME_VIEW = 8202;
+     * @generated from protobuf enum value: NODE_TYPE_FRAME_VIEW = 10010;
      */
-    FRAME_VIEW = 8202,
+    FRAME_VIEW = 10010,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_LABEL_VIEW = 8203;
+     * @generated from protobuf enum value: NODE_TYPE_LABEL_VIEW = 10020;
      */
-    LABEL_VIEW = 8203,
+    LABEL_VIEW = 10020,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SPLIT_VIEW = 8210;
+     * @generated from protobuf enum value: NODE_TYPE_SPLIT_VIEW = 10030;
      */
-    SPLIT_VIEW = 8210,
+    SPLIT_VIEW = 10030,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TEXT_VIEW = 8300;
+     * @generated from protobuf enum value: NODE_TYPE_TEXT_VIEW = 10200;
      */
-    TEXT_VIEW = 8300,
+    TEXT_VIEW = 10200,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_NUMBER_INPUT_VIEW = 8400;
+     * @generated from protobuf enum value: NODE_TYPE_NUMBER_INPUT_VIEW = 10400;
      */
-    NUMBER_INPUT_VIEW = 8400,
+    NUMBER_INPUT_VIEW = 10400,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SLIDER_INPUT_VIEW = 8401;
+     * @generated from protobuf enum value: NODE_TYPE_SLIDER_INPUT_VIEW = 10401;
      */
-    SLIDER_INPUT_VIEW = 8401,
+    SLIDER_INPUT_VIEW = 10401,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_THREAD_VIEW = 8500;
+     * @generated from protobuf enum value: NODE_TYPE_THREAD_VIEW = 10600;
      */
-    THREAD_VIEW = 8500,
+    THREAD_VIEW = 10600,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_WIZARD_VIEW = 8550;
+     * @generated from protobuf enum value: NODE_TYPE_WIZARD_VIEW = 10650;
      */
-    WIZARD_VIEW = 8550,
+    WIZARD_VIEW = 10650,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_CANVAS = 8600;
+     * @generated from protobuf enum value: NODE_TYPE_CANVAS = 11000;
      */
-    CANVAS = 8600,
+    CANVAS = 11000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_LINE_SHAPE = 8610;
+     * @generated from protobuf enum value: NODE_TYPE_LINE_SHAPE = 11010;
      */
-    LINE_SHAPE = 8610,
+    LINE_SHAPE = 11010,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_PLANE_SHAPE = 8611;
+     * @generated from protobuf enum value: NODE_TYPE_PLANE_SHAPE = 11011;
      */
-    PLANE_SHAPE = 8611,
+    PLANE_SHAPE = 11011,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ARROW_SHAPE = 8612;
+     * @generated from protobuf enum value: NODE_TYPE_ARROW_SHAPE = 11012;
      */
-    ARROW_SHAPE = 8612,
+    ARROW_SHAPE = 11012,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ANNOTATION_SHAPE = 8613;
+     * @generated from protobuf enum value: NODE_TYPE_ANNOTATION_SHAPE = 11013;
      */
-    ANNOTATION_SHAPE = 8613,
+    ANNOTATION_SHAPE = 11013,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_THEME = 9000;
+     * @generated from protobuf enum value: NODE_TYPE_THEME = 12000;
      */
-    THEME = 9000,
+    THEME = 12000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_PALETTE = 9010;
+     * @generated from protobuf enum value: NODE_TYPE_PALETTE = 12010;
      */
-    PALETTE = 9010,
+    PALETTE = 12010,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_COLOR_STYLE = 9020;
+     * @generated from protobuf enum value: NODE_TYPE_COLOR_STYLE = 12020;
      */
-    COLOR_STYLE = 9020,
+    COLOR_STYLE = 12020,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FILL_STYLE = 9021;
+     * @generated from protobuf enum value: NODE_TYPE_FILL_STYLE = 12021;
      */
-    FILL_STYLE = 9021,
+    FILL_STYLE = 12021,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FONT_STYLE = 9022;
+     * @generated from protobuf enum value: NODE_TYPE_FONT_STYLE = 12022;
      */
-    FONT_STYLE = 9022,
+    FONT_STYLE = 12022,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_BORDER_STYLE = 9023;
+     * @generated from protobuf enum value: NODE_TYPE_BORDER_STYLE = 12023;
      */
-    BORDER_STYLE = 9023,
+    BORDER_STYLE = 12023,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SHADOW_STYLE = 9024;
+     * @generated from protobuf enum value: NODE_TYPE_SHADOW_STYLE = 12024;
      */
-    SHADOW_STYLE = 9024,
+    SHADOW_STYLE = 12024,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_GRADIENT_STYLE = 9025;
+     * @generated from protobuf enum value: NODE_TYPE_GRADIENT_STYLE = 12025;
      */
-    GRADIENT_STYLE = 9025,
+    GRADIENT_STYLE = 12025,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TRANSITION_STYLE = 9026;
+     * @generated from protobuf enum value: NODE_TYPE_TRANSITION_STYLE = 12026;
      */
-    TRANSITION_STYLE = 9026,
+    TRANSITION_STYLE = 12026,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_EFFECT_STYLE = 9027;
+     * @generated from protobuf enum value: NODE_TYPE_EFFECT_STYLE = 12027;
      */
-    EFFECT_STYLE = 9027
+    EFFECT_STYLE = 12027
 }
 /**
  * A Type of Notification Event.
@@ -14602,273 +14666,273 @@ export enum StructType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SCOPE = 1;
+     * @generated from protobuf enum value: STRUCT_TYPE_VALUE = 2500;
      */
-    SCOPE = 1,
+    VALUE = 2500,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ORIGIN = 2;
+     * @generated from protobuf enum value: STRUCT_TYPE_TYPE = 2501;
      */
-    ORIGIN = 2,
+    TYPE = 2501,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_NODE_REFERENCE = 3;
+     * @generated from protobuf enum value: STRUCT_TYPE_NUMBER_CONSTRAINT = 2502;
      */
-    NODE_REFERENCE = 3,
+    NUMBER_CONSTRAINT = 2502,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_PROPERTY_REFERENCE = 5;
+     * @generated from protobuf enum value: STRUCT_TYPE_STRING_CONSTRAINT = 2503;
      */
-    PROPERTY_REFERENCE = 5,
+    STRING_CONSTRAINT = 2503,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_PROPERTY_DEFINITION = 11;
+     * @generated from protobuf enum value: STRUCT_TYPE_COLLECTION_CONSTRAINT = 2504;
      */
-    PROPERTY_DEFINITION = 11,
+    COLLECTION_CONSTRAINT = 2504,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TRAIT_DEFINITION = 12;
+     * @generated from protobuf enum value: STRUCT_TYPE_NODE_CONSTRAINT = 2505;
      */
-    TRAIT_DEFINITION = 12,
+    NODE_CONSTRAINT = 2505,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_NODE_DEFINITION = 13;
+     * @generated from protobuf enum value: STRUCT_TYPE_TEXT = 2521;
      */
-    NODE_DEFINITION = 13,
+    TEXT = 2521,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_STRUCT_DEFINITION = 14;
+     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_LINE = 2522;
      */
-    STRUCT_DEFINITION = 14,
+    TEXT_LINE = 2522,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ENUM_DEFINITION = 15;
+     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_SPAN = 2523;
      */
-    ENUM_DEFINITION = 15,
+    TEXT_SPAN = 2523,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ENUM_OPTION_DEFINITION = 16;
+     * @generated from protobuf enum value: STRUCT_TYPE_ICON = 2531;
      */
-    ENUM_OPTION_DEFINITION = 16,
+    ICON = 2531,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_PERMISSION_DEFINITION = 17;
+     * @generated from protobuf enum value: STRUCT_TYPE_SELECTION = 2571;
      */
-    PERMISSION_DEFINITION = 17,
+    SELECTION = 2571,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_EDIT = 30;
+     * @generated from protobuf enum value: STRUCT_TYPE_SCHEDULE = 3001;
      */
-    EDIT = 30,
+    SCHEDULE = 3001,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CHANGE = 31;
+     * @generated from protobuf enum value: STRUCT_TYPE_ERROR = 4001;
      */
-    CHANGE = 31,
+    ERROR = 4001,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CHANGE_RESULT = 32;
+     * @generated from protobuf enum value: STRUCT_TYPE_DATABASE_INFO = 7501;
      */
-    CHANGE_RESULT = 32,
+    DATABASE_INFO = 7501,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_EXPRESSION = 101;
+     * @generated from protobuf enum value: STRUCT_TYPE_CELL_INFO = 7601;
      */
-    EXPRESSION = 101,
+    CELL_INFO = 7601,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_FUNCTION = 102;
+     * @generated from protobuf enum value: STRUCT_TYPE_COLOR = 12011;
      */
-    FUNCTION = 102,
+    COLOR = 12011,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_JOIN = 103;
+     * @generated from protobuf enum value: STRUCT_TYPE_SHADOW = 12012;
      */
-    JOIN = 103,
+    SHADOW = 12012,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_AGGREGATION = 104;
+     * @generated from protobuf enum value: STRUCT_TYPE_BORDER = 12013;
      */
-    AGGREGATION = 104,
+    BORDER = 12013,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CONDITION = 105;
+     * @generated from protobuf enum value: STRUCT_TYPE_FONT = 12014;
      */
-    CONDITION = 105,
+    FONT = 12014,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SORT = 106;
+     * @generated from protobuf enum value: STRUCT_TYPE_GRADIENT_STOP = 12015;
      */
-    SORT = 106,
+    GRADIENT_STOP = 12015,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SELECT = 107;
+     * @generated from protobuf enum value: STRUCT_TYPE_GRADIENT = 12016;
      */
-    SELECT = 107,
+    GRADIENT = 12016,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_RELATION_REFERENCE = 108;
+     * @generated from protobuf enum value: STRUCT_TYPE_FILL = 12017;
      */
-    RELATION_REFERENCE = 108,
+    FILL = 12017,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ATTRIBUTE_REFERENCE = 109;
+     * @generated from protobuf enum value: STRUCT_TYPE_LENGTH = 12018;
      */
-    ATTRIBUTE_REFERENCE = 109,
+    LENGTH = 12018,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_QUERY = 111;
+     * @generated from protobuf enum value: STRUCT_TYPE_POSITION = 12020;
      */
-    QUERY = 111,
+    POSITION = 12020,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_QUERY_RESULT = 112;
+     * @generated from protobuf enum value: STRUCT_TYPE_DIMENSION = 12022;
      */
-    QUERY_RESULT = 112,
+    DIMENSION = 12022,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_QUERY_RESULT_GROUP = 113;
+     * @generated from protobuf enum value: STRUCT_TYPE_TRANSITION = 12024;
      */
-    QUERY_RESULT_GROUP = 113,
+    TRANSITION = 12024,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_QUERY_UPDATE = 116;
+     * @generated from protobuf enum value: STRUCT_TYPE_EFFECT = 12025;
      */
-    QUERY_UPDATE = 116,
+    EFFECT = 12025,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_HISTOGRAM = 114;
+     * @generated from protobuf enum value: STRUCT_TYPE_GRID = 12026;
      */
-    HISTOGRAM = 114,
+    GRID = 12026,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VALUE = 1400;
+     * @generated from protobuf enum value: STRUCT_TYPE_GRID_SPAN = 12028;
      */
-    VALUE = 1400,
+    GRID_SPAN = 12028,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TYPE = 1401;
+     * @generated from protobuf enum value: STRUCT_TYPE_INSETS = 12030;
      */
-    TYPE = 1401,
+    INSETS = 12030,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_NUMBER_CONSTRAINT = 1402;
+     * @generated from protobuf enum value: STRUCT_TYPE_CORNERS = 12032;
      */
-    NUMBER_CONSTRAINT = 1402,
+    CORNERS = 12032,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_STRING_CONSTRAINT = 1403;
+     * @generated from protobuf enum value: STRUCT_TYPE_SCOPE = 50000;
      */
-    STRING_CONSTRAINT = 1403,
+    SCOPE = 50000,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_COLLECTION_CONSTRAINT = 1404;
+     * @generated from protobuf enum value: STRUCT_TYPE_ORIGIN = 50001;
      */
-    COLLECTION_CONSTRAINT = 1404,
+    ORIGIN = 50001,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_NODE_CONSTRAINT = 1405;
+     * @generated from protobuf enum value: STRUCT_TYPE_NODE_REFERENCE = 50002;
      */
-    NODE_CONSTRAINT = 1405,
+    NODE_REFERENCE = 50002,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TEXT = 1421;
+     * @generated from protobuf enum value: STRUCT_TYPE_PROPERTY_REFERENCE = 50003;
      */
-    TEXT = 1421,
+    PROPERTY_REFERENCE = 50003,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_LINE = 1422;
+     * @generated from protobuf enum value: STRUCT_TYPE_PROPERTY_DEFINITION = 50004;
      */
-    TEXT_LINE = 1422,
+    PROPERTY_DEFINITION = 50004,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_SPAN = 1423;
+     * @generated from protobuf enum value: STRUCT_TYPE_TRAIT_DEFINITION = 50005;
      */
-    TEXT_SPAN = 1423,
+    TRAIT_DEFINITION = 50005,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ICON = 1431;
+     * @generated from protobuf enum value: STRUCT_TYPE_NODE_DEFINITION = 50006;
      */
-    ICON = 1431,
+    NODE_DEFINITION = 50006,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SELECTION = 1471;
+     * @generated from protobuf enum value: STRUCT_TYPE_STRUCT_DEFINITION = 50007;
      */
-    SELECTION = 1471,
+    STRUCT_DEFINITION = 50007,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SCHEDULE = 1801;
+     * @generated from protobuf enum value: STRUCT_TYPE_ENUM_DEFINITION = 50008;
      */
-    SCHEDULE = 1801,
+    ENUM_DEFINITION = 50008,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ERROR = 2401;
+     * @generated from protobuf enum value: STRUCT_TYPE_ENUM_OPTION_DEFINITION = 50009;
      */
-    ERROR = 2401,
+    ENUM_OPTION_DEFINITION = 50009,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_DATABASE_INFO = 5001;
+     * @generated from protobuf enum value: STRUCT_TYPE_PERMISSION_DEFINITION = 50010;
      */
-    DATABASE_INFO = 5001,
+    PERMISSION_DEFINITION = 50010,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CELL_INFO = 5101;
+     * @generated from protobuf enum value: STRUCT_TYPE_EDIT = 50020;
      */
-    CELL_INFO = 5101,
+    EDIT = 50020,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR2 = 8000;
+     * @generated from protobuf enum value: STRUCT_TYPE_CHANGE = 50021;
      */
-    VECTOR2 = 8000,
+    CHANGE = 50021,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR3 = 8001;
+     * @generated from protobuf enum value: STRUCT_TYPE_CHANGE_RESULT = 50022;
      */
-    VECTOR3 = 8001,
+    CHANGE_RESULT = 50022,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR4 = 8002;
+     * @generated from protobuf enum value: STRUCT_TYPE_EXPRESSION = 50100;
      */
-    VECTOR4 = 8002,
+    EXPRESSION = 50100,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR2I = 8003;
+     * @generated from protobuf enum value: STRUCT_TYPE_FUNCTION = 50101;
      */
-    VECTOR2I = 8003,
+    FUNCTION = 50101,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR3I = 8004;
+     * @generated from protobuf enum value: STRUCT_TYPE_JOIN = 50102;
      */
-    VECTOR3I = 8004,
+    JOIN = 50102,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR4I = 8005;
+     * @generated from protobuf enum value: STRUCT_TYPE_AGGREGATION = 50103;
      */
-    VECTOR4I = 8005,
+    AGGREGATION = 50103,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_AXIS2 = 8007;
+     * @generated from protobuf enum value: STRUCT_TYPE_CONDITION = 50104;
      */
-    AXIS2 = 8007,
+    CONDITION = 50104,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_AXIS3 = 8009;
+     * @generated from protobuf enum value: STRUCT_TYPE_SORT = 50105;
      */
-    AXIS3 = 8009,
+    SORT = 50105,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_COLOR = 9011;
+     * @generated from protobuf enum value: STRUCT_TYPE_SELECT = 50106;
      */
-    COLOR = 9011,
+    SELECT = 50106,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SHADOW = 9012;
+     * @generated from protobuf enum value: STRUCT_TYPE_RELATION_REFERENCE = 50107;
      */
-    SHADOW = 9012,
+    RELATION_REFERENCE = 50107,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_BORDER = 9013;
+     * @generated from protobuf enum value: STRUCT_TYPE_ATTRIBUTE_REFERENCE = 50108;
      */
-    BORDER = 9013,
+    ATTRIBUTE_REFERENCE = 50108,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_FONT = 9014;
+     * @generated from protobuf enum value: STRUCT_TYPE_QUERY = 50109;
      */
-    FONT = 9014,
+    QUERY = 50109,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_GRADIENT_STOP = 9015;
+     * @generated from protobuf enum value: STRUCT_TYPE_QUERY_RESULT = 50110;
      */
-    GRADIENT_STOP = 9015,
+    QUERY_RESULT = 50110,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_GRADIENT = 9016;
+     * @generated from protobuf enum value: STRUCT_TYPE_QUERY_RESULT_GROUP = 50111;
      */
-    GRADIENT = 9016,
+    QUERY_RESULT_GROUP = 50111,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_FILL = 9017;
+     * @generated from protobuf enum value: STRUCT_TYPE_QUERY_UPDATE = 50112;
      */
-    FILL = 9017,
+    QUERY_UPDATE = 50112,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_LENGTH = 9018;
+     * @generated from protobuf enum value: STRUCT_TYPE_HISTOGRAM = 50113;
      */
-    LENGTH = 9018,
+    HISTOGRAM = 50113,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_POSITION = 9020;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR2 = 50200;
      */
-    POSITION = 9020,
+    VECTOR2 = 50200,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_DIMENSION = 9022;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR3 = 50201;
      */
-    DIMENSION = 9022,
+    VECTOR3 = 50201,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TRANSITION = 9024;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR4 = 50202;
      */
-    TRANSITION = 9024,
+    VECTOR4 = 50202,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_EFFECT = 9025;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR2I = 50203;
      */
-    EFFECT = 9025,
+    VECTOR2I = 50203,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_GRID = 9026;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR3I = 50204;
      */
-    GRID = 9026,
+    VECTOR3I = 50204,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_GRID_SPAN = 9028;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR4I = 50205;
      */
-    GRID_SPAN = 9028,
+    VECTOR4I = 50205,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_INSETS = 9030;
+     * @generated from protobuf enum value: STRUCT_TYPE_AXIS2 = 50207;
      */
-    INSETS = 9030,
+    AXIS2 = 50207,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CORNERS = 9032;
+     * @generated from protobuf enum value: STRUCT_TYPE_AXIS3 = 50209;
      */
-    CORNERS = 9032
+    AXIS3 = 50209
 }
 /**
  * @generated from protobuf enum symbol.destack.Tenancy
@@ -15127,6 +15191,23 @@ export enum TimerType {
     RECURRING = 2
 }
 /**
+ * @generated from protobuf enum symbol.destack.ToolType
+ */
+export enum ToolType {
+    /**
+     * @generated from protobuf enum value: TOOL_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: TOOL_TYPE_SELECT = 1;
+     */
+    SELECT = 1,
+    /**
+     * @generated from protobuf enum value: TOOL_TYPE_INSPECT = 2;
+     */
+    INSPECT = 2
+}
+/**
  * @generated from protobuf enum symbol.destack.TraitType
  */
 export enum TraitType {
@@ -15215,117 +15296,121 @@ export enum TraitType {
      */
     HAS_ICON = 102,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_OWNABLE = 400;
+     * @generated from protobuf enum value: TRAIT_TYPE_OWNABLE = 500;
      */
-    OWNABLE = 400,
+    OWNABLE = 500,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_JOINABLE = 402;
+     * @generated from protobuf enum value: TRAIT_TYPE_JOINABLE = 502;
      */
-    JOINABLE = 402,
+    JOINABLE = 502,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_SUBJECT = 405;
+     * @generated from protobuf enum value: TRAIT_TYPE_SUBJECT = 505;
      */
-    SUBJECT = 405,
+    SUBJECT = 505,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_OWNER = 406;
+     * @generated from protobuf enum value: TRAIT_TYPE_OWNER = 506;
      */
-    OWNER = 406,
+    OWNER = 506,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_MEMBERSHIP = 410;
+     * @generated from protobuf enum value: TRAIT_TYPE_MEMBERSHIP = 510;
      */
-    MEMBERSHIP = 410,
+    MEMBERSHIP = 510,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_INVITE = 411;
+     * @generated from protobuf enum value: TRAIT_TYPE_INVITE = 511;
      */
-    INVITE = 411,
+    INVITE = 511,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_TAGGABLE = 600;
+     * @generated from protobuf enum value: TRAIT_TYPE_TAGGABLE = 1000;
      */
-    TAGGABLE = 600,
+    TAGGABLE = 1000,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_TAG = 601;
+     * @generated from protobuf enum value: TRAIT_TYPE_TAG = 1001;
      */
-    TAG = 601,
+    TAG = 1001,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_ACTIONABLE = 1800;
+     * @generated from protobuf enum value: TRAIT_TYPE_ACTIONABLE = 3000;
      */
-    ACTIONABLE = 1800,
+    ACTIONABLE = 3000,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_RUNNABLE = 1801;
+     * @generated from protobuf enum value: TRAIT_TYPE_RUNNABLE = 3001;
      */
-    RUNNABLE = 1801,
+    RUNNABLE = 3001,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_SCRIPTABLE = 1802;
+     * @generated from protobuf enum value: TRAIT_TYPE_SCRIPTABLE = 3002;
      */
-    SCRIPTABLE = 1802,
+    SCRIPTABLE = 3002,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_SOURCEABLE = 1803;
+     * @generated from protobuf enum value: TRAIT_TYPE_SOURCEABLE = 3003;
      */
-    SOURCEABLE = 1803,
+    SOURCEABLE = 3003,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_CURSOR = 1812;
+     * @generated from protobuf enum value: TRAIT_TYPE_CURSOR = 3012;
      */
-    CURSOR = 1812,
+    CURSOR = 3012,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_METRIC = 1810;
+     * @generated from protobuf enum value: TRAIT_TYPE_METRIC = 4010;
      */
-    METRIC = 1810,
+    METRIC = 4010,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_MEASUREMENT = 1811;
+     * @generated from protobuf enum value: TRAIT_TYPE_MEASUREMENT = 4011;
      */
-    MEASUREMENT = 1811,
+    MEASUREMENT = 4011,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_STARABLE = 3830;
+     * @generated from protobuf enum value: TRAIT_TYPE_SETTINGS = 5000;
      */
-    STARABLE = 3830,
+    SETTINGS = 5000,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_REACTABLE = 3832;
+     * @generated from protobuf enum value: TRAIT_TYPE_STARABLE = 5530;
      */
-    REACTABLE = 3832,
+    STARABLE = 5530,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_FOLLOWABLE = 3834;
+     * @generated from protobuf enum value: TRAIT_TYPE_REACTABLE = 5532;
      */
-    FOLLOWABLE = 3834,
+    REACTABLE = 5532,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_FOLLOW = 3835;
+     * @generated from protobuf enum value: TRAIT_TYPE_FOLLOWABLE = 5534;
      */
-    FOLLOW = 3835,
+    FOLLOWABLE = 5534,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_VISUAL = 8000;
+     * @generated from protobuf enum value: TRAIT_TYPE_FOLLOW = 5535;
      */
-    VISUAL = 8000,
+    FOLLOW = 5535,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_VIEW = 8001;
+     * @generated from protobuf enum value: TRAIT_TYPE_VISUAL = 9000;
      */
-    VIEW = 8001,
+    VISUAL = 9000,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_CONTAINER_VIEW = 8200;
+     * @generated from protobuf enum value: TRAIT_TYPE_VIEW = 9001;
      */
-    CONTAINER_VIEW = 8200,
+    VIEW = 9001,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_CONTENT_VIEW = 8300;
+     * @generated from protobuf enum value: TRAIT_TYPE_CONTAINER_VIEW = 10000;
      */
-    CONTENT_VIEW = 8300,
+    CONTAINER_VIEW = 10000,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_INPUT_VIEW = 8400;
+     * @generated from protobuf enum value: TRAIT_TYPE_CONTENT_VIEW = 10200;
      */
-    INPUT_VIEW = 8400,
+    CONTENT_VIEW = 10200,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_NODE_VIEW = 8500;
+     * @generated from protobuf enum value: TRAIT_TYPE_INPUT_VIEW = 10400;
      */
-    NODE_VIEW = 8500,
+    INPUT_VIEW = 10400,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_INTERNAL_VIEW = 8600;
+     * @generated from protobuf enum value: TRAIT_TYPE_NODE_VIEW = 10600;
      */
-    INTERNAL_VIEW = 8600,
+    NODE_VIEW = 10600,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_STYLE = 9000;
+     * @generated from protobuf enum value: TRAIT_TYPE_INTERNAL_VIEW = 10650;
      */
-    STYLE = 9000,
+    INTERNAL_VIEW = 10650,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_SHAPE = 9200;
+     * @generated from protobuf enum value: TRAIT_TYPE_SHAPE = 11000;
      */
-    SHAPE = 9200
+    SHAPE = 11000,
+    /**
+     * @generated from protobuf enum value: TRAIT_TYPE_STYLE = 12000;
+     */
+    STYLE = 12000
 }
 /**
  * Built-in transition types.
@@ -17716,10 +17801,11 @@ class ColorData$Type extends MessageType<ColorData> {
             { no: 42, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "hue", kind: "enum", opt: true, T: () => ["symbol.destack.ColorHue", ColorHue, "COLOR_HUE_"] },
             { no: 51, name: "shade", kind: "enum", opt: true, T: () => ["symbol.destack.ColorShade", ColorShade, "COLOR_SHADE_"] },
-            { no: 52, name: "x", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
-            { no: 53, name: "y", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
-            { no: 54, name: "z", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
-            { no: 55, name: "alpha", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ }
+            { no: 52, name: "intent", kind: "enum", opt: true, T: () => ["symbol.destack.ColorIntent", ColorIntent, "COLOR_INTENT_"] },
+            { no: 55, name: "x", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 56, name: "y", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 57, name: "z", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 58, name: "alpha", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ }
         ]);
     }
     create(value?: PartialMessage<ColorData>): ColorData {
@@ -17750,16 +17836,19 @@ class ColorData$Type extends MessageType<ColorData> {
                 case /* optional symbol.destack.ColorShade shade */ 51:
                     message.shade = reader.int32();
                     break;
-                case /* optional double x */ 52:
+                case /* optional symbol.destack.ColorIntent intent */ 52:
+                    message.intent = reader.int32();
+                    break;
+                case /* optional double x */ 55:
                     message.x = reader.double();
                     break;
-                case /* optional double y */ 53:
+                case /* optional double y */ 56:
                     message.y = reader.double();
                     break;
-                case /* optional double z */ 54:
+                case /* optional double z */ 57:
                     message.z = reader.double();
                     break;
-                case /* optional double alpha */ 55:
+                case /* optional double alpha */ 58:
                     message.alpha = reader.double();
                     break;
                 default:
@@ -17789,18 +17878,21 @@ class ColorData$Type extends MessageType<ColorData> {
         /* optional symbol.destack.ColorShade shade = 51; */
         if (message.shade !== undefined)
             writer.tag(51, WireType.Varint).int32(message.shade);
-        /* optional double x = 52; */
+        /* optional symbol.destack.ColorIntent intent = 52; */
+        if (message.intent !== undefined)
+            writer.tag(52, WireType.Varint).int32(message.intent);
+        /* optional double x = 55; */
         if (message.x !== undefined)
-            writer.tag(52, WireType.Bit64).double(message.x);
-        /* optional double y = 53; */
+            writer.tag(55, WireType.Bit64).double(message.x);
+        /* optional double y = 56; */
         if (message.y !== undefined)
-            writer.tag(53, WireType.Bit64).double(message.y);
-        /* optional double z = 54; */
+            writer.tag(56, WireType.Bit64).double(message.y);
+        /* optional double z = 57; */
         if (message.z !== undefined)
-            writer.tag(54, WireType.Bit64).double(message.z);
-        /* optional double alpha = 55; */
+            writer.tag(57, WireType.Bit64).double(message.z);
+        /* optional double alpha = 58; */
         if (message.alpha !== undefined)
-            writer.tag(55, WireType.Bit64).double(message.alpha);
+            writer.tag(58, WireType.Bit64).double(message.alpha);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -17830,10 +17922,11 @@ class ColorStyleData$Type extends MessageType<ColorStyleData> {
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "hue", kind: "enum", opt: true, T: () => ["symbol.destack.ColorHue", ColorHue, "COLOR_HUE_"] },
             { no: 51, name: "shade", kind: "enum", opt: true, T: () => ["symbol.destack.ColorShade", ColorShade, "COLOR_SHADE_"] },
-            { no: 52, name: "x", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
-            { no: 53, name: "y", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
-            { no: 54, name: "z", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
-            { no: 55, name: "alpha", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 52, name: "intent", kind: "enum", opt: true, T: () => ["symbol.destack.ColorIntent", ColorIntent, "COLOR_INTENT_"] },
+            { no: 55, name: "x", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 56, name: "y", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 57, name: "z", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 58, name: "alpha", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 60, name: "dark", kind: "message", T: () => ColorData }
         ]);
     }
@@ -17898,16 +17991,19 @@ class ColorStyleData$Type extends MessageType<ColorStyleData> {
                 case /* optional symbol.destack.ColorShade shade */ 51:
                     message.shade = reader.int32();
                     break;
-                case /* optional double x */ 52:
+                case /* optional symbol.destack.ColorIntent intent */ 52:
+                    message.intent = reader.int32();
+                    break;
+                case /* optional double x */ 55:
                     message.x = reader.double();
                     break;
-                case /* optional double y */ 53:
+                case /* optional double y */ 56:
                     message.y = reader.double();
                     break;
-                case /* optional double z */ 54:
+                case /* optional double z */ 57:
                     message.z = reader.double();
                     break;
-                case /* optional double alpha */ 55:
+                case /* optional double alpha */ 58:
                     message.alpha = reader.double();
                     break;
                 case /* optional symbol.destack.ColorData dark */ 60:
@@ -17970,18 +18066,21 @@ class ColorStyleData$Type extends MessageType<ColorStyleData> {
         /* optional symbol.destack.ColorShade shade = 51; */
         if (message.shade !== undefined)
             writer.tag(51, WireType.Varint).int32(message.shade);
-        /* optional double x = 52; */
+        /* optional symbol.destack.ColorIntent intent = 52; */
+        if (message.intent !== undefined)
+            writer.tag(52, WireType.Varint).int32(message.intent);
+        /* optional double x = 55; */
         if (message.x !== undefined)
-            writer.tag(52, WireType.Bit64).double(message.x);
-        /* optional double y = 53; */
+            writer.tag(55, WireType.Bit64).double(message.x);
+        /* optional double y = 56; */
         if (message.y !== undefined)
-            writer.tag(53, WireType.Bit64).double(message.y);
-        /* optional double z = 54; */
+            writer.tag(56, WireType.Bit64).double(message.y);
+        /* optional double z = 57; */
         if (message.z !== undefined)
-            writer.tag(54, WireType.Bit64).double(message.z);
-        /* optional double alpha = 55; */
+            writer.tag(57, WireType.Bit64).double(message.z);
+        /* optional double alpha = 58; */
         if (message.alpha !== undefined)
-            writer.tag(55, WireType.Bit64).double(message.alpha);
+            writer.tag(58, WireType.Bit64).double(message.alpha);
         /* optional symbol.destack.ColorData dark = 60; */
         if (message.dark)
             ColorData.internalBinaryWrite(message.dark, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
@@ -37637,12 +37736,7 @@ class WindowData$Type extends MessageType<WindowData> {
             { no: 19, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 22, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.destack.WindowType", WindowType, "WINDOW_TYPE_"] },
-            { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 70, name: "selection", kind: "message", T: () => SelectionData },
-            { no: 71, name: "focus_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 72, name: "inspection_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 73, name: "container_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 75, name: "thread_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<WindowData>): WindowData {
@@ -37702,21 +37796,6 @@ class WindowData$Type extends MessageType<WindowData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional symbol.destack.SelectionData selection */ 70:
-                    message.selection = SelectionData.internalBinaryRead(reader, reader.uint32(), options, message.selection);
-                    break;
-                case /* optional symbol.destack.NodeReferenceData focus_ptr */ 71:
-                    message.focusPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.focusPtr);
-                    break;
-                case /* optional symbol.destack.NodeReferenceData inspection_ptr */ 72:
-                    message.inspectionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.inspectionPtr);
-                    break;
-                case /* optional symbol.destack.NodeReferenceData container_ptr */ 73:
-                    message.containerPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.containerPtr);
-                    break;
-                case /* optional symbol.destack.NodeReferenceData thread_ptr */ 75:
-                    message.threadPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.threadPtr);
-                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -37771,21 +37850,6 @@ class WindowData$Type extends MessageType<WindowData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.destack.SelectionData selection = 70; */
-        if (message.selection)
-            SelectionData.internalBinaryWrite(message.selection, writer.tag(70, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceData focus_ptr = 71; */
-        if (message.focusPtr)
-            NodeReferenceData.internalBinaryWrite(message.focusPtr, writer.tag(71, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceData inspection_ptr = 72; */
-        if (message.inspectionPtr)
-            NodeReferenceData.internalBinaryWrite(message.inspectionPtr, writer.tag(72, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceData container_ptr = 73; */
-        if (message.containerPtr)
-            NodeReferenceData.internalBinaryWrite(message.containerPtr, writer.tag(73, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceData thread_ptr = 75; */
-        if (message.threadPtr)
-            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(75, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -37992,93 +38056,93 @@ class SomeNodeData$Type extends MessageType<SomeNodeData> {
             { no: 40, name: "organization", kind: "message", oneof: "node", T: () => OrganizationData },
             { no: 50, name: "team", kind: "message", oneof: "node", T: () => TeamData },
             { no: 100, name: "client", kind: "message", oneof: "node", T: () => ClientData },
-            { no: 400, name: "membership", kind: "message", oneof: "node", T: () => MembershipData },
-            { no: 401, name: "membership_event", kind: "message", oneof: "node", T: () => MembershipEventData },
-            { no: 410, name: "invite", kind: "message", oneof: "node", T: () => InviteData },
-            { no: 411, name: "invite_event", kind: "message", oneof: "node", T: () => InviteEventData },
-            { no: 420, name: "role", kind: "message", oneof: "node", T: () => RoleData },
-            { no: 421, name: "role_event", kind: "message", oneof: "node", T: () => RoleEventData },
-            { no: 430, name: "permission", kind: "message", oneof: "node", T: () => PermissionData },
-            { no: 440, name: "sanction", kind: "message", oneof: "node", T: () => SanctionData },
-            { no: 441, name: "sanction_event", kind: "message", oneof: "node", T: () => SanctionEventData },
-            { no: 450, name: "entitlement", kind: "message", oneof: "node", T: () => EntitlementData },
-            { no: 451, name: "entitlement_event", kind: "message", oneof: "node", T: () => EntitlementEventData },
-            { no: 500, name: "agent", kind: "message", oneof: "node", T: () => AgentData },
-            { no: 600, name: "folder", kind: "message", oneof: "node", T: () => FolderData },
-            { no: 610, name: "tag", kind: "message", oneof: "node", T: () => TagData },
-            { no: 611, name: "tagging", kind: "message", oneof: "node", T: () => TaggingData },
-            { no: 1000, name: "custom_entity_definition", kind: "message", oneof: "node", T: () => CustomEntityDefinitionData },
-            { no: 1001, name: "custom_entity", kind: "message", oneof: "node", T: () => CustomEntityData },
-            { no: 1400, name: "custom_struct_definition", kind: "message", oneof: "node", T: () => CustomStructDefinitionData },
-            { no: 1410, name: "custom_enum_definition", kind: "message", oneof: "node", T: () => CustomEnumDefinitionData },
-            { no: 1420, name: "field", kind: "message", oneof: "node", T: () => FieldData },
-            { no: 1430, name: "option", kind: "message", oneof: "node", T: () => OptionData },
-            { no: 1440, name: "file", kind: "message", oneof: "node", T: () => FileData },
-            { no: 1450, name: "link", kind: "message", oneof: "node", T: () => LinkData },
-            { no: 1800, name: "script", kind: "message", oneof: "node", T: () => ScriptData },
-            { no: 1810, name: "service", kind: "message", oneof: "node", T: () => ServiceData },
-            { no: 1820, name: "action", kind: "message", oneof: "node", T: () => ActionData },
-            { no: 1830, name: "route", kind: "message", oneof: "node", T: () => RouteData },
-            { no: 1840, name: "trigger", kind: "message", oneof: "node", T: () => TriggerData },
-            { no: 1841, name: "trigger_event", kind: "message", oneof: "node", T: () => TriggerEventData },
-            { no: 1850, name: "timer", kind: "message", oneof: "node", T: () => TimerData },
-            { no: 1851, name: "timer_event", kind: "message", oneof: "node", T: () => TimerEventData },
-            { no: 1900, name: "event_cursor", kind: "message", oneof: "node", T: () => EventCursorData },
-            { no: 1901, name: "screen_cursor", kind: "message", oneof: "node", T: () => ScreenCursorData },
-            { no: 1902, name: "thread_cursor", kind: "message", oneof: "node", T: () => ThreadCursorData },
-            { no: 2400, name: "run", kind: "message", oneof: "node", T: () => RunData },
-            { no: 2401, name: "run_event", kind: "message", oneof: "node", T: () => RunEventData },
-            { no: 2410, name: "span", kind: "message", oneof: "node", T: () => SpanData },
-            { no: 2420, name: "interruption", kind: "message", oneof: "node", T: () => InterruptionData },
-            { no: 2500, name: "log", kind: "message", oneof: "node", T: () => LogData },
-            { no: 2510, name: "gauge_metric", kind: "message", oneof: "node", T: () => GaugeMetricData },
-            { no: 2511, name: "gauge_measurement", kind: "message", oneof: "node", T: () => GaugeMeasurementData },
-            { no: 2512, name: "counter_metric", kind: "message", oneof: "node", T: () => CounterMetricData },
-            { no: 2513, name: "counter_measurement", kind: "message", oneof: "node", T: () => CounterMeasurementData },
-            { no: 2514, name: "histogram_metric", kind: "message", oneof: "node", T: () => HistogramMetricData },
-            { no: 2515, name: "histogram_measurement", kind: "message", oneof: "node", T: () => HistogramMeasurementData },
-            { no: 2600, name: "custom_event_definition", kind: "message", oneof: "node", T: () => CustomEventDefinitionData },
-            { no: 2601, name: "custom_event", kind: "message", oneof: "node", T: () => CustomEventData },
-            { no: 2602, name: "edit_event", kind: "message", oneof: "node", T: () => EditEventData },
-            { no: 2800, name: "environment", kind: "message", oneof: "node", T: () => EnvironmentData },
-            { no: 3400, name: "thread", kind: "message", oneof: "node", T: () => ThreadData },
-            { no: 3410, name: "message", kind: "message", oneof: "node", T: () => MessageData },
-            { no: 3420, name: "reaction", kind: "message", oneof: "node", T: () => ReactionData },
-            { no: 3421, name: "star", kind: "message", oneof: "node", T: () => StarData },
-            { no: 3430, name: "follow", kind: "message", oneof: "node", T: () => FollowData },
-            { no: 3500, name: "notification", kind: "message", oneof: "node", T: () => NotificationData },
-            { no: 3501, name: "notification_event", kind: "message", oneof: "node", T: () => NotificationEventData },
-            { no: 5000, name: "database", kind: "message", oneof: "node", T: () => DatabaseData },
-            { no: 5100, name: "machine", kind: "message", oneof: "node", T: () => MachineData },
-            { no: 8000, name: "window", kind: "message", oneof: "node", T: () => WindowData },
-            { no: 8010, name: "scene", kind: "message", oneof: "node", T: () => SceneData },
-            { no: 8011, name: "scene_event", kind: "message", oneof: "node", T: () => SceneEventData },
-            { no: 8020, name: "layer", kind: "message", oneof: "node", T: () => LayerData },
-            { no: 8200, name: "custom_view_definition", kind: "message", oneof: "node", T: () => CustomViewDefinitionData },
-            { no: 8201, name: "custom_view", kind: "message", oneof: "node", T: () => CustomViewData },
-            { no: 8202, name: "frame_view", kind: "message", oneof: "node", T: () => FrameViewData },
-            { no: 8203, name: "label_view", kind: "message", oneof: "node", T: () => LabelViewData },
-            { no: 8210, name: "split_view", kind: "message", oneof: "node", T: () => SplitViewData },
-            { no: 8300, name: "text_view", kind: "message", oneof: "node", T: () => TextViewData },
-            { no: 8400, name: "number_input_view", kind: "message", oneof: "node", T: () => NumberInputViewData },
-            { no: 8401, name: "slider_input_view", kind: "message", oneof: "node", T: () => SliderInputViewData },
-            { no: 8500, name: "thread_view", kind: "message", oneof: "node", T: () => ThreadViewData },
-            { no: 8550, name: "wizard_view", kind: "message", oneof: "node", T: () => WizardViewData },
-            { no: 8600, name: "canvas", kind: "message", oneof: "node", T: () => CanvasData },
-            { no: 8610, name: "line_shape", kind: "message", oneof: "node", T: () => LineShapeData },
-            { no: 8611, name: "plane_shape", kind: "message", oneof: "node", T: () => PlaneShapeData },
-            { no: 8612, name: "arrow_shape", kind: "message", oneof: "node", T: () => ArrowShapeData },
-            { no: 8613, name: "annotation_shape", kind: "message", oneof: "node", T: () => AnnotationShapeData },
-            { no: 9000, name: "theme", kind: "message", oneof: "node", T: () => ThemeData },
-            { no: 9010, name: "palette", kind: "message", oneof: "node", T: () => PaletteData },
-            { no: 9020, name: "color_style", kind: "message", oneof: "node", T: () => ColorStyleData },
-            { no: 9021, name: "fill_style", kind: "message", oneof: "node", T: () => FillStyleData },
-            { no: 9022, name: "font_style", kind: "message", oneof: "node", T: () => FontStyleData },
-            { no: 9023, name: "border_style", kind: "message", oneof: "node", T: () => BorderStyleData },
-            { no: 9024, name: "shadow_style", kind: "message", oneof: "node", T: () => ShadowStyleData },
-            { no: 9025, name: "gradient_style", kind: "message", oneof: "node", T: () => GradientStyleData },
-            { no: 9026, name: "transition_style", kind: "message", oneof: "node", T: () => TransitionStyleData },
-            { no: 9027, name: "effect_style", kind: "message", oneof: "node", T: () => EffectStyleData }
+            { no: 500, name: "membership", kind: "message", oneof: "node", T: () => MembershipData },
+            { no: 501, name: "membership_event", kind: "message", oneof: "node", T: () => MembershipEventData },
+            { no: 510, name: "invite", kind: "message", oneof: "node", T: () => InviteData },
+            { no: 511, name: "invite_event", kind: "message", oneof: "node", T: () => InviteEventData },
+            { no: 520, name: "role", kind: "message", oneof: "node", T: () => RoleData },
+            { no: 521, name: "role_event", kind: "message", oneof: "node", T: () => RoleEventData },
+            { no: 530, name: "permission", kind: "message", oneof: "node", T: () => PermissionData },
+            { no: 540, name: "sanction", kind: "message", oneof: "node", T: () => SanctionData },
+            { no: 541, name: "sanction_event", kind: "message", oneof: "node", T: () => SanctionEventData },
+            { no: 550, name: "entitlement", kind: "message", oneof: "node", T: () => EntitlementData },
+            { no: 551, name: "entitlement_event", kind: "message", oneof: "node", T: () => EntitlementEventData },
+            { no: 600, name: "agent", kind: "message", oneof: "node", T: () => AgentData },
+            { no: 1000, name: "folder", kind: "message", oneof: "node", T: () => FolderData },
+            { no: 1010, name: "tag", kind: "message", oneof: "node", T: () => TagData },
+            { no: 1011, name: "tagging", kind: "message", oneof: "node", T: () => TaggingData },
+            { no: 2000, name: "custom_entity_definition", kind: "message", oneof: "node", T: () => CustomEntityDefinitionData },
+            { no: 2001, name: "custom_entity", kind: "message", oneof: "node", T: () => CustomEntityData },
+            { no: 2500, name: "custom_struct_definition", kind: "message", oneof: "node", T: () => CustomStructDefinitionData },
+            { no: 2510, name: "custom_enum_definition", kind: "message", oneof: "node", T: () => CustomEnumDefinitionData },
+            { no: 2520, name: "field", kind: "message", oneof: "node", T: () => FieldData },
+            { no: 2530, name: "option", kind: "message", oneof: "node", T: () => OptionData },
+            { no: 2540, name: "file", kind: "message", oneof: "node", T: () => FileData },
+            { no: 2550, name: "link", kind: "message", oneof: "node", T: () => LinkData },
+            { no: 3000, name: "script", kind: "message", oneof: "node", T: () => ScriptData },
+            { no: 3010, name: "service", kind: "message", oneof: "node", T: () => ServiceData },
+            { no: 3020, name: "action", kind: "message", oneof: "node", T: () => ActionData },
+            { no: 3030, name: "route", kind: "message", oneof: "node", T: () => RouteData },
+            { no: 3040, name: "trigger", kind: "message", oneof: "node", T: () => TriggerData },
+            { no: 3041, name: "trigger_event", kind: "message", oneof: "node", T: () => TriggerEventData },
+            { no: 3050, name: "timer", kind: "message", oneof: "node", T: () => TimerData },
+            { no: 3051, name: "timer_event", kind: "message", oneof: "node", T: () => TimerEventData },
+            { no: 3100, name: "event_cursor", kind: "message", oneof: "node", T: () => EventCursorData },
+            { no: 3101, name: "screen_cursor", kind: "message", oneof: "node", T: () => ScreenCursorData },
+            { no: 3102, name: "thread_cursor", kind: "message", oneof: "node", T: () => ThreadCursorData },
+            { no: 4000, name: "run", kind: "message", oneof: "node", T: () => RunData },
+            { no: 4001, name: "run_event", kind: "message", oneof: "node", T: () => RunEventData },
+            { no: 4010, name: "span", kind: "message", oneof: "node", T: () => SpanData },
+            { no: 4020, name: "interruption", kind: "message", oneof: "node", T: () => InterruptionData },
+            { no: 4100, name: "log", kind: "message", oneof: "node", T: () => LogData },
+            { no: 4110, name: "gauge_metric", kind: "message", oneof: "node", T: () => GaugeMetricData },
+            { no: 4111, name: "gauge_measurement", kind: "message", oneof: "node", T: () => GaugeMeasurementData },
+            { no: 4112, name: "counter_metric", kind: "message", oneof: "node", T: () => CounterMetricData },
+            { no: 4113, name: "counter_measurement", kind: "message", oneof: "node", T: () => CounterMeasurementData },
+            { no: 4114, name: "histogram_metric", kind: "message", oneof: "node", T: () => HistogramMetricData },
+            { no: 4115, name: "histogram_measurement", kind: "message", oneof: "node", T: () => HistogramMeasurementData },
+            { no: 4200, name: "custom_event_definition", kind: "message", oneof: "node", T: () => CustomEventDefinitionData },
+            { no: 4201, name: "custom_event", kind: "message", oneof: "node", T: () => CustomEventData },
+            { no: 4202, name: "edit_event", kind: "message", oneof: "node", T: () => EditEventData },
+            { no: 4500, name: "environment", kind: "message", oneof: "node", T: () => EnvironmentData },
+            { no: 5500, name: "thread", kind: "message", oneof: "node", T: () => ThreadData },
+            { no: 5510, name: "message", kind: "message", oneof: "node", T: () => MessageData },
+            { no: 5520, name: "reaction", kind: "message", oneof: "node", T: () => ReactionData },
+            { no: 5521, name: "star", kind: "message", oneof: "node", T: () => StarData },
+            { no: 5530, name: "follow", kind: "message", oneof: "node", T: () => FollowData },
+            { no: 5600, name: "notification", kind: "message", oneof: "node", T: () => NotificationData },
+            { no: 5601, name: "notification_event", kind: "message", oneof: "node", T: () => NotificationEventData },
+            { no: 7500, name: "database", kind: "message", oneof: "node", T: () => DatabaseData },
+            { no: 7600, name: "machine", kind: "message", oneof: "node", T: () => MachineData },
+            { no: 9000, name: "window", kind: "message", oneof: "node", T: () => WindowData },
+            { no: 9010, name: "scene", kind: "message", oneof: "node", T: () => SceneData },
+            { no: 9011, name: "scene_event", kind: "message", oneof: "node", T: () => SceneEventData },
+            { no: 9020, name: "layer", kind: "message", oneof: "node", T: () => LayerData },
+            { no: 10000, name: "custom_view_definition", kind: "message", oneof: "node", T: () => CustomViewDefinitionData },
+            { no: 10001, name: "custom_view", kind: "message", oneof: "node", T: () => CustomViewData },
+            { no: 10010, name: "frame_view", kind: "message", oneof: "node", T: () => FrameViewData },
+            { no: 10020, name: "label_view", kind: "message", oneof: "node", T: () => LabelViewData },
+            { no: 10030, name: "split_view", kind: "message", oneof: "node", T: () => SplitViewData },
+            { no: 10200, name: "text_view", kind: "message", oneof: "node", T: () => TextViewData },
+            { no: 10400, name: "number_input_view", kind: "message", oneof: "node", T: () => NumberInputViewData },
+            { no: 10401, name: "slider_input_view", kind: "message", oneof: "node", T: () => SliderInputViewData },
+            { no: 10600, name: "thread_view", kind: "message", oneof: "node", T: () => ThreadViewData },
+            { no: 10650, name: "wizard_view", kind: "message", oneof: "node", T: () => WizardViewData },
+            { no: 11000, name: "canvas", kind: "message", oneof: "node", T: () => CanvasData },
+            { no: 11010, name: "line_shape", kind: "message", oneof: "node", T: () => LineShapeData },
+            { no: 11011, name: "plane_shape", kind: "message", oneof: "node", T: () => PlaneShapeData },
+            { no: 11012, name: "arrow_shape", kind: "message", oneof: "node", T: () => ArrowShapeData },
+            { no: 11013, name: "annotation_shape", kind: "message", oneof: "node", T: () => AnnotationShapeData },
+            { no: 12000, name: "theme", kind: "message", oneof: "node", T: () => ThemeData },
+            { no: 12010, name: "palette", kind: "message", oneof: "node", T: () => PaletteData },
+            { no: 12020, name: "color_style", kind: "message", oneof: "node", T: () => ColorStyleData },
+            { no: 12021, name: "fill_style", kind: "message", oneof: "node", T: () => FillStyleData },
+            { no: 12022, name: "font_style", kind: "message", oneof: "node", T: () => FontStyleData },
+            { no: 12023, name: "border_style", kind: "message", oneof: "node", T: () => BorderStyleData },
+            { no: 12024, name: "shadow_style", kind: "message", oneof: "node", T: () => ShadowStyleData },
+            { no: 12025, name: "gradient_style", kind: "message", oneof: "node", T: () => GradientStyleData },
+            { no: 12026, name: "transition_style", kind: "message", oneof: "node", T: () => TransitionStyleData },
+            { no: 12027, name: "effect_style", kind: "message", oneof: "node", T: () => EffectStyleData }
         ]);
     }
     create(value?: PartialMessage<SomeNodeData>): SomeNodeData {
@@ -38147,523 +38211,523 @@ class SomeNodeData$Type extends MessageType<SomeNodeData> {
                         client: ClientData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).client)
                     };
                     break;
-                case /* symbol.destack.MembershipData membership */ 400:
+                case /* symbol.destack.MembershipData membership */ 500:
                     message.node = {
                         oneofKind: "membership",
                         membership: MembershipData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).membership)
                     };
                     break;
-                case /* symbol.destack.MembershipEventData membership_event */ 401:
+                case /* symbol.destack.MembershipEventData membership_event */ 501:
                     message.node = {
                         oneofKind: "membershipEvent",
                         membershipEvent: MembershipEventData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).membershipEvent)
                     };
                     break;
-                case /* symbol.destack.InviteData invite */ 410:
+                case /* symbol.destack.InviteData invite */ 510:
                     message.node = {
                         oneofKind: "invite",
                         invite: InviteData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).invite)
                     };
                     break;
-                case /* symbol.destack.InviteEventData invite_event */ 411:
+                case /* symbol.destack.InviteEventData invite_event */ 511:
                     message.node = {
                         oneofKind: "inviteEvent",
                         inviteEvent: InviteEventData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).inviteEvent)
                     };
                     break;
-                case /* symbol.destack.RoleData role */ 420:
+                case /* symbol.destack.RoleData role */ 520:
                     message.node = {
                         oneofKind: "role",
                         role: RoleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).role)
                     };
                     break;
-                case /* symbol.destack.RoleEventData role_event */ 421:
+                case /* symbol.destack.RoleEventData role_event */ 521:
                     message.node = {
                         oneofKind: "roleEvent",
                         roleEvent: RoleEventData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).roleEvent)
                     };
                     break;
-                case /* symbol.destack.PermissionData permission */ 430:
+                case /* symbol.destack.PermissionData permission */ 530:
                     message.node = {
                         oneofKind: "permission",
                         permission: PermissionData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).permission)
                     };
                     break;
-                case /* symbol.destack.SanctionData sanction */ 440:
+                case /* symbol.destack.SanctionData sanction */ 540:
                     message.node = {
                         oneofKind: "sanction",
                         sanction: SanctionData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).sanction)
                     };
                     break;
-                case /* symbol.destack.SanctionEventData sanction_event */ 441:
+                case /* symbol.destack.SanctionEventData sanction_event */ 541:
                     message.node = {
                         oneofKind: "sanctionEvent",
                         sanctionEvent: SanctionEventData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).sanctionEvent)
                     };
                     break;
-                case /* symbol.destack.EntitlementData entitlement */ 450:
+                case /* symbol.destack.EntitlementData entitlement */ 550:
                     message.node = {
                         oneofKind: "entitlement",
                         entitlement: EntitlementData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).entitlement)
                     };
                     break;
-                case /* symbol.destack.EntitlementEventData entitlement_event */ 451:
+                case /* symbol.destack.EntitlementEventData entitlement_event */ 551:
                     message.node = {
                         oneofKind: "entitlementEvent",
                         entitlementEvent: EntitlementEventData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).entitlementEvent)
                     };
                     break;
-                case /* symbol.destack.AgentData agent */ 500:
+                case /* symbol.destack.AgentData agent */ 600:
                     message.node = {
                         oneofKind: "agent",
                         agent: AgentData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).agent)
                     };
                     break;
-                case /* symbol.destack.FolderData folder */ 600:
+                case /* symbol.destack.FolderData folder */ 1000:
                     message.node = {
                         oneofKind: "folder",
                         folder: FolderData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).folder)
                     };
                     break;
-                case /* symbol.destack.TagData tag */ 610:
+                case /* symbol.destack.TagData tag */ 1010:
                     message.node = {
                         oneofKind: "tag",
                         tag: TagData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).tag)
                     };
                     break;
-                case /* symbol.destack.TaggingData tagging */ 611:
+                case /* symbol.destack.TaggingData tagging */ 1011:
                     message.node = {
                         oneofKind: "tagging",
                         tagging: TaggingData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).tagging)
                     };
                     break;
-                case /* symbol.destack.CustomEntityDefinitionData custom_entity_definition */ 1000:
+                case /* symbol.destack.CustomEntityDefinitionData custom_entity_definition */ 2000:
                     message.node = {
                         oneofKind: "customEntityDefinition",
                         customEntityDefinition: CustomEntityDefinitionData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customEntityDefinition)
                     };
                     break;
-                case /* symbol.destack.CustomEntityData custom_entity */ 1001:
+                case /* symbol.destack.CustomEntityData custom_entity */ 2001:
                     message.node = {
                         oneofKind: "customEntity",
                         customEntity: CustomEntityData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customEntity)
                     };
                     break;
-                case /* symbol.destack.CustomStructDefinitionData custom_struct_definition */ 1400:
+                case /* symbol.destack.CustomStructDefinitionData custom_struct_definition */ 2500:
                     message.node = {
                         oneofKind: "customStructDefinition",
                         customStructDefinition: CustomStructDefinitionData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customStructDefinition)
                     };
                     break;
-                case /* symbol.destack.CustomEnumDefinitionData custom_enum_definition */ 1410:
+                case /* symbol.destack.CustomEnumDefinitionData custom_enum_definition */ 2510:
                     message.node = {
                         oneofKind: "customEnumDefinition",
                         customEnumDefinition: CustomEnumDefinitionData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customEnumDefinition)
                     };
                     break;
-                case /* symbol.destack.FieldData field */ 1420:
+                case /* symbol.destack.FieldData field */ 2520:
                     message.node = {
                         oneofKind: "field",
                         field: FieldData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).field)
                     };
                     break;
-                case /* symbol.destack.OptionData option */ 1430:
+                case /* symbol.destack.OptionData option */ 2530:
                     message.node = {
                         oneofKind: "option",
                         option: OptionData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).option)
                     };
                     break;
-                case /* symbol.destack.FileData file */ 1440:
+                case /* symbol.destack.FileData file */ 2540:
                     message.node = {
                         oneofKind: "file",
                         file: FileData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).file)
                     };
                     break;
-                case /* symbol.destack.LinkData link */ 1450:
+                case /* symbol.destack.LinkData link */ 2550:
                     message.node = {
                         oneofKind: "link",
                         link: LinkData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).link)
                     };
                     break;
-                case /* symbol.destack.ScriptData script */ 1800:
+                case /* symbol.destack.ScriptData script */ 3000:
                     message.node = {
                         oneofKind: "script",
                         script: ScriptData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).script)
                     };
                     break;
-                case /* symbol.destack.ServiceData service */ 1810:
+                case /* symbol.destack.ServiceData service */ 3010:
                     message.node = {
                         oneofKind: "service",
                         service: ServiceData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).service)
                     };
                     break;
-                case /* symbol.destack.ActionData action */ 1820:
+                case /* symbol.destack.ActionData action */ 3020:
                     message.node = {
                         oneofKind: "action",
                         action: ActionData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).action)
                     };
                     break;
-                case /* symbol.destack.RouteData route */ 1830:
+                case /* symbol.destack.RouteData route */ 3030:
                     message.node = {
                         oneofKind: "route",
                         route: RouteData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).route)
                     };
                     break;
-                case /* symbol.destack.TriggerData trigger */ 1840:
+                case /* symbol.destack.TriggerData trigger */ 3040:
                     message.node = {
                         oneofKind: "trigger",
                         trigger: TriggerData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).trigger)
                     };
                     break;
-                case /* symbol.destack.TriggerEventData trigger_event */ 1841:
+                case /* symbol.destack.TriggerEventData trigger_event */ 3041:
                     message.node = {
                         oneofKind: "triggerEvent",
                         triggerEvent: TriggerEventData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).triggerEvent)
                     };
                     break;
-                case /* symbol.destack.TimerData timer */ 1850:
+                case /* symbol.destack.TimerData timer */ 3050:
                     message.node = {
                         oneofKind: "timer",
                         timer: TimerData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timer)
                     };
                     break;
-                case /* symbol.destack.TimerEventData timer_event */ 1851:
+                case /* symbol.destack.TimerEventData timer_event */ 3051:
                     message.node = {
                         oneofKind: "timerEvent",
                         timerEvent: TimerEventData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timerEvent)
                     };
                     break;
-                case /* symbol.destack.EventCursorData event_cursor */ 1900:
+                case /* symbol.destack.EventCursorData event_cursor */ 3100:
                     message.node = {
                         oneofKind: "eventCursor",
                         eventCursor: EventCursorData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).eventCursor)
                     };
                     break;
-                case /* symbol.destack.ScreenCursorData screen_cursor */ 1901:
+                case /* symbol.destack.ScreenCursorData screen_cursor */ 3101:
                     message.node = {
                         oneofKind: "screenCursor",
                         screenCursor: ScreenCursorData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).screenCursor)
                     };
                     break;
-                case /* symbol.destack.ThreadCursorData thread_cursor */ 1902:
+                case /* symbol.destack.ThreadCursorData thread_cursor */ 3102:
                     message.node = {
                         oneofKind: "threadCursor",
                         threadCursor: ThreadCursorData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).threadCursor)
                     };
                     break;
-                case /* symbol.destack.RunData run */ 2400:
+                case /* symbol.destack.RunData run */ 4000:
                     message.node = {
                         oneofKind: "run",
                         run: RunData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).run)
                     };
                     break;
-                case /* symbol.destack.RunEventData run_event */ 2401:
+                case /* symbol.destack.RunEventData run_event */ 4001:
                     message.node = {
                         oneofKind: "runEvent",
                         runEvent: RunEventData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).runEvent)
                     };
                     break;
-                case /* symbol.destack.SpanData span */ 2410:
+                case /* symbol.destack.SpanData span */ 4010:
                     message.node = {
                         oneofKind: "span",
                         span: SpanData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).span)
                     };
                     break;
-                case /* symbol.destack.InterruptionData interruption */ 2420:
+                case /* symbol.destack.InterruptionData interruption */ 4020:
                     message.node = {
                         oneofKind: "interruption",
                         interruption: InterruptionData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).interruption)
                     };
                     break;
-                case /* symbol.destack.LogData log */ 2500:
+                case /* symbol.destack.LogData log */ 4100:
                     message.node = {
                         oneofKind: "log",
                         log: LogData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).log)
                     };
                     break;
-                case /* symbol.destack.GaugeMetricData gauge_metric */ 2510:
+                case /* symbol.destack.GaugeMetricData gauge_metric */ 4110:
                     message.node = {
                         oneofKind: "gaugeMetric",
                         gaugeMetric: GaugeMetricData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).gaugeMetric)
                     };
                     break;
-                case /* symbol.destack.GaugeMeasurementData gauge_measurement */ 2511:
+                case /* symbol.destack.GaugeMeasurementData gauge_measurement */ 4111:
                     message.node = {
                         oneofKind: "gaugeMeasurement",
                         gaugeMeasurement: GaugeMeasurementData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).gaugeMeasurement)
                     };
                     break;
-                case /* symbol.destack.CounterMetricData counter_metric */ 2512:
+                case /* symbol.destack.CounterMetricData counter_metric */ 4112:
                     message.node = {
                         oneofKind: "counterMetric",
                         counterMetric: CounterMetricData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).counterMetric)
                     };
                     break;
-                case /* symbol.destack.CounterMeasurementData counter_measurement */ 2513:
+                case /* symbol.destack.CounterMeasurementData counter_measurement */ 4113:
                     message.node = {
                         oneofKind: "counterMeasurement",
                         counterMeasurement: CounterMeasurementData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).counterMeasurement)
                     };
                     break;
-                case /* symbol.destack.HistogramMetricData histogram_metric */ 2514:
+                case /* symbol.destack.HistogramMetricData histogram_metric */ 4114:
                     message.node = {
                         oneofKind: "histogramMetric",
                         histogramMetric: HistogramMetricData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).histogramMetric)
                     };
                     break;
-                case /* symbol.destack.HistogramMeasurementData histogram_measurement */ 2515:
+                case /* symbol.destack.HistogramMeasurementData histogram_measurement */ 4115:
                     message.node = {
                         oneofKind: "histogramMeasurement",
                         histogramMeasurement: HistogramMeasurementData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).histogramMeasurement)
                     };
                     break;
-                case /* symbol.destack.CustomEventDefinitionData custom_event_definition */ 2600:
+                case /* symbol.destack.CustomEventDefinitionData custom_event_definition */ 4200:
                     message.node = {
                         oneofKind: "customEventDefinition",
                         customEventDefinition: CustomEventDefinitionData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customEventDefinition)
                     };
                     break;
-                case /* symbol.destack.CustomEventData custom_event */ 2601:
+                case /* symbol.destack.CustomEventData custom_event */ 4201:
                     message.node = {
                         oneofKind: "customEvent",
                         customEvent: CustomEventData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customEvent)
                     };
                     break;
-                case /* symbol.destack.EditEventData edit_event */ 2602:
+                case /* symbol.destack.EditEventData edit_event */ 4202:
                     message.node = {
                         oneofKind: "editEvent",
                         editEvent: EditEventData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).editEvent)
                     };
                     break;
-                case /* symbol.destack.EnvironmentData environment */ 2800:
+                case /* symbol.destack.EnvironmentData environment */ 4500:
                     message.node = {
                         oneofKind: "environment",
                         environment: EnvironmentData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).environment)
                     };
                     break;
-                case /* symbol.destack.ThreadData thread */ 3400:
+                case /* symbol.destack.ThreadData thread */ 5500:
                     message.node = {
                         oneofKind: "thread",
                         thread: ThreadData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).thread)
                     };
                     break;
-                case /* symbol.destack.MessageData message */ 3410:
+                case /* symbol.destack.MessageData message */ 5510:
                     message.node = {
                         oneofKind: "message",
                         message: MessageData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).message)
                     };
                     break;
-                case /* symbol.destack.ReactionData reaction */ 3420:
+                case /* symbol.destack.ReactionData reaction */ 5520:
                     message.node = {
                         oneofKind: "reaction",
                         reaction: ReactionData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).reaction)
                     };
                     break;
-                case /* symbol.destack.StarData star */ 3421:
+                case /* symbol.destack.StarData star */ 5521:
                     message.node = {
                         oneofKind: "star",
                         star: StarData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).star)
                     };
                     break;
-                case /* symbol.destack.FollowData follow */ 3430:
+                case /* symbol.destack.FollowData follow */ 5530:
                     message.node = {
                         oneofKind: "follow",
                         follow: FollowData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).follow)
                     };
                     break;
-                case /* symbol.destack.NotificationData notification */ 3500:
+                case /* symbol.destack.NotificationData notification */ 5600:
                     message.node = {
                         oneofKind: "notification",
                         notification: NotificationData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).notification)
                     };
                     break;
-                case /* symbol.destack.NotificationEventData notification_event */ 3501:
+                case /* symbol.destack.NotificationEventData notification_event */ 5601:
                     message.node = {
                         oneofKind: "notificationEvent",
                         notificationEvent: NotificationEventData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).notificationEvent)
                     };
                     break;
-                case /* symbol.destack.DatabaseData database */ 5000:
+                case /* symbol.destack.DatabaseData database */ 7500:
                     message.node = {
                         oneofKind: "database",
                         database: DatabaseData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).database)
                     };
                     break;
-                case /* symbol.destack.MachineData machine */ 5100:
+                case /* symbol.destack.MachineData machine */ 7600:
                     message.node = {
                         oneofKind: "machine",
                         machine: MachineData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).machine)
                     };
                     break;
-                case /* symbol.destack.WindowData window */ 8000:
+                case /* symbol.destack.WindowData window */ 9000:
                     message.node = {
                         oneofKind: "window",
                         window: WindowData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).window)
                     };
                     break;
-                case /* symbol.destack.SceneData scene */ 8010:
+                case /* symbol.destack.SceneData scene */ 9010:
                     message.node = {
                         oneofKind: "scene",
                         scene: SceneData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).scene)
                     };
                     break;
-                case /* symbol.destack.SceneEventData scene_event */ 8011:
+                case /* symbol.destack.SceneEventData scene_event */ 9011:
                     message.node = {
                         oneofKind: "sceneEvent",
                         sceneEvent: SceneEventData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).sceneEvent)
                     };
                     break;
-                case /* symbol.destack.LayerData layer */ 8020:
+                case /* symbol.destack.LayerData layer */ 9020:
                     message.node = {
                         oneofKind: "layer",
                         layer: LayerData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).layer)
                     };
                     break;
-                case /* symbol.destack.CustomViewDefinitionData custom_view_definition */ 8200:
+                case /* symbol.destack.CustomViewDefinitionData custom_view_definition */ 10000:
                     message.node = {
                         oneofKind: "customViewDefinition",
                         customViewDefinition: CustomViewDefinitionData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customViewDefinition)
                     };
                     break;
-                case /* symbol.destack.CustomViewData custom_view */ 8201:
+                case /* symbol.destack.CustomViewData custom_view */ 10001:
                     message.node = {
                         oneofKind: "customView",
                         customView: CustomViewData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customView)
                     };
                     break;
-                case /* symbol.destack.FrameViewData frame_view */ 8202:
+                case /* symbol.destack.FrameViewData frame_view */ 10010:
                     message.node = {
                         oneofKind: "frameView",
                         frameView: FrameViewData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).frameView)
                     };
                     break;
-                case /* symbol.destack.LabelViewData label_view */ 8203:
+                case /* symbol.destack.LabelViewData label_view */ 10020:
                     message.node = {
                         oneofKind: "labelView",
                         labelView: LabelViewData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).labelView)
                     };
                     break;
-                case /* symbol.destack.SplitViewData split_view */ 8210:
+                case /* symbol.destack.SplitViewData split_view */ 10030:
                     message.node = {
                         oneofKind: "splitView",
                         splitView: SplitViewData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).splitView)
                     };
                     break;
-                case /* symbol.destack.TextViewData text_view */ 8300:
+                case /* symbol.destack.TextViewData text_view */ 10200:
                     message.node = {
                         oneofKind: "textView",
                         textView: TextViewData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).textView)
                     };
                     break;
-                case /* symbol.destack.NumberInputViewData number_input_view */ 8400:
+                case /* symbol.destack.NumberInputViewData number_input_view */ 10400:
                     message.node = {
                         oneofKind: "numberInputView",
                         numberInputView: NumberInputViewData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).numberInputView)
                     };
                     break;
-                case /* symbol.destack.SliderInputViewData slider_input_view */ 8401:
+                case /* symbol.destack.SliderInputViewData slider_input_view */ 10401:
                     message.node = {
                         oneofKind: "sliderInputView",
                         sliderInputView: SliderInputViewData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).sliderInputView)
                     };
                     break;
-                case /* symbol.destack.ThreadViewData thread_view */ 8500:
+                case /* symbol.destack.ThreadViewData thread_view */ 10600:
                     message.node = {
                         oneofKind: "threadView",
                         threadView: ThreadViewData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).threadView)
                     };
                     break;
-                case /* symbol.destack.WizardViewData wizard_view */ 8550:
+                case /* symbol.destack.WizardViewData wizard_view */ 10650:
                     message.node = {
                         oneofKind: "wizardView",
                         wizardView: WizardViewData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).wizardView)
                     };
                     break;
-                case /* symbol.destack.CanvasData canvas */ 8600:
+                case /* symbol.destack.CanvasData canvas */ 11000:
                     message.node = {
                         oneofKind: "canvas",
                         canvas: CanvasData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).canvas)
                     };
                     break;
-                case /* symbol.destack.LineShapeData line_shape */ 8610:
+                case /* symbol.destack.LineShapeData line_shape */ 11010:
                     message.node = {
                         oneofKind: "lineShape",
                         lineShape: LineShapeData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).lineShape)
                     };
                     break;
-                case /* symbol.destack.PlaneShapeData plane_shape */ 8611:
+                case /* symbol.destack.PlaneShapeData plane_shape */ 11011:
                     message.node = {
                         oneofKind: "planeShape",
                         planeShape: PlaneShapeData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).planeShape)
                     };
                     break;
-                case /* symbol.destack.ArrowShapeData arrow_shape */ 8612:
+                case /* symbol.destack.ArrowShapeData arrow_shape */ 11012:
                     message.node = {
                         oneofKind: "arrowShape",
                         arrowShape: ArrowShapeData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).arrowShape)
                     };
                     break;
-                case /* symbol.destack.AnnotationShapeData annotation_shape */ 8613:
+                case /* symbol.destack.AnnotationShapeData annotation_shape */ 11013:
                     message.node = {
                         oneofKind: "annotationShape",
                         annotationShape: AnnotationShapeData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).annotationShape)
                     };
                     break;
-                case /* symbol.destack.ThemeData theme */ 9000:
+                case /* symbol.destack.ThemeData theme */ 12000:
                     message.node = {
                         oneofKind: "theme",
                         theme: ThemeData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).theme)
                     };
                     break;
-                case /* symbol.destack.PaletteData palette */ 9010:
+                case /* symbol.destack.PaletteData palette */ 12010:
                     message.node = {
                         oneofKind: "palette",
                         palette: PaletteData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).palette)
                     };
                     break;
-                case /* symbol.destack.ColorStyleData color_style */ 9020:
+                case /* symbol.destack.ColorStyleData color_style */ 12020:
                     message.node = {
                         oneofKind: "colorStyle",
                         colorStyle: ColorStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).colorStyle)
                     };
                     break;
-                case /* symbol.destack.FillStyleData fill_style */ 9021:
+                case /* symbol.destack.FillStyleData fill_style */ 12021:
                     message.node = {
                         oneofKind: "fillStyle",
                         fillStyle: FillStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).fillStyle)
                     };
                     break;
-                case /* symbol.destack.FontStyleData font_style */ 9022:
+                case /* symbol.destack.FontStyleData font_style */ 12022:
                     message.node = {
                         oneofKind: "fontStyle",
                         fontStyle: FontStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).fontStyle)
                     };
                     break;
-                case /* symbol.destack.BorderStyleData border_style */ 9023:
+                case /* symbol.destack.BorderStyleData border_style */ 12023:
                     message.node = {
                         oneofKind: "borderStyle",
                         borderStyle: BorderStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).borderStyle)
                     };
                     break;
-                case /* symbol.destack.ShadowStyleData shadow_style */ 9024:
+                case /* symbol.destack.ShadowStyleData shadow_style */ 12024:
                     message.node = {
                         oneofKind: "shadowStyle",
                         shadowStyle: ShadowStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).shadowStyle)
                     };
                     break;
-                case /* symbol.destack.GradientStyleData gradient_style */ 9025:
+                case /* symbol.destack.GradientStyleData gradient_style */ 12025:
                     message.node = {
                         oneofKind: "gradientStyle",
                         gradientStyle: GradientStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).gradientStyle)
                     };
                     break;
-                case /* symbol.destack.TransitionStyleData transition_style */ 9026:
+                case /* symbol.destack.TransitionStyleData transition_style */ 12026:
                     message.node = {
                         oneofKind: "transitionStyle",
                         transitionStyle: TransitionStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).transitionStyle)
                     };
                     break;
-                case /* symbol.destack.EffectStyleData effect_style */ 9027:
+                case /* symbol.destack.EffectStyleData effect_style */ 12027:
                     message.node = {
                         oneofKind: "effectStyle",
                         effectStyle: EffectStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).effectStyle)
@@ -38708,267 +38772,267 @@ class SomeNodeData$Type extends MessageType<SomeNodeData> {
         /* symbol.destack.ClientData client = 100; */
         if (message.node.oneofKind === "client")
             ClientData.internalBinaryWrite(message.node.client, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.MembershipData membership = 400; */
+        /* symbol.destack.MembershipData membership = 500; */
         if (message.node.oneofKind === "membership")
-            MembershipData.internalBinaryWrite(message.node.membership, writer.tag(400, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.MembershipEventData membership_event = 401; */
+            MembershipData.internalBinaryWrite(message.node.membership, writer.tag(500, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.MembershipEventData membership_event = 501; */
         if (message.node.oneofKind === "membershipEvent")
-            MembershipEventData.internalBinaryWrite(message.node.membershipEvent, writer.tag(401, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.InviteData invite = 410; */
+            MembershipEventData.internalBinaryWrite(message.node.membershipEvent, writer.tag(501, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.InviteData invite = 510; */
         if (message.node.oneofKind === "invite")
-            InviteData.internalBinaryWrite(message.node.invite, writer.tag(410, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.InviteEventData invite_event = 411; */
+            InviteData.internalBinaryWrite(message.node.invite, writer.tag(510, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.InviteEventData invite_event = 511; */
         if (message.node.oneofKind === "inviteEvent")
-            InviteEventData.internalBinaryWrite(message.node.inviteEvent, writer.tag(411, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RoleData role = 420; */
+            InviteEventData.internalBinaryWrite(message.node.inviteEvent, writer.tag(511, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RoleData role = 520; */
         if (message.node.oneofKind === "role")
-            RoleData.internalBinaryWrite(message.node.role, writer.tag(420, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RoleEventData role_event = 421; */
+            RoleData.internalBinaryWrite(message.node.role, writer.tag(520, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RoleEventData role_event = 521; */
         if (message.node.oneofKind === "roleEvent")
-            RoleEventData.internalBinaryWrite(message.node.roleEvent, writer.tag(421, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.PermissionData permission = 430; */
+            RoleEventData.internalBinaryWrite(message.node.roleEvent, writer.tag(521, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.PermissionData permission = 530; */
         if (message.node.oneofKind === "permission")
-            PermissionData.internalBinaryWrite(message.node.permission, writer.tag(430, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SanctionData sanction = 440; */
+            PermissionData.internalBinaryWrite(message.node.permission, writer.tag(530, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SanctionData sanction = 540; */
         if (message.node.oneofKind === "sanction")
-            SanctionData.internalBinaryWrite(message.node.sanction, writer.tag(440, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SanctionEventData sanction_event = 441; */
+            SanctionData.internalBinaryWrite(message.node.sanction, writer.tag(540, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SanctionEventData sanction_event = 541; */
         if (message.node.oneofKind === "sanctionEvent")
-            SanctionEventData.internalBinaryWrite(message.node.sanctionEvent, writer.tag(441, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EntitlementData entitlement = 450; */
+            SanctionEventData.internalBinaryWrite(message.node.sanctionEvent, writer.tag(541, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EntitlementData entitlement = 550; */
         if (message.node.oneofKind === "entitlement")
-            EntitlementData.internalBinaryWrite(message.node.entitlement, writer.tag(450, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EntitlementEventData entitlement_event = 451; */
+            EntitlementData.internalBinaryWrite(message.node.entitlement, writer.tag(550, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EntitlementEventData entitlement_event = 551; */
         if (message.node.oneofKind === "entitlementEvent")
-            EntitlementEventData.internalBinaryWrite(message.node.entitlementEvent, writer.tag(451, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.AgentData agent = 500; */
+            EntitlementEventData.internalBinaryWrite(message.node.entitlementEvent, writer.tag(551, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.AgentData agent = 600; */
         if (message.node.oneofKind === "agent")
-            AgentData.internalBinaryWrite(message.node.agent, writer.tag(500, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FolderData folder = 600; */
+            AgentData.internalBinaryWrite(message.node.agent, writer.tag(600, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FolderData folder = 1000; */
         if (message.node.oneofKind === "folder")
-            FolderData.internalBinaryWrite(message.node.folder, writer.tag(600, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TagData tag = 610; */
+            FolderData.internalBinaryWrite(message.node.folder, writer.tag(1000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TagData tag = 1010; */
         if (message.node.oneofKind === "tag")
-            TagData.internalBinaryWrite(message.node.tag, writer.tag(610, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TaggingData tagging = 611; */
+            TagData.internalBinaryWrite(message.node.tag, writer.tag(1010, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TaggingData tagging = 1011; */
         if (message.node.oneofKind === "tagging")
-            TaggingData.internalBinaryWrite(message.node.tagging, writer.tag(611, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.CustomEntityDefinitionData custom_entity_definition = 1000; */
+            TaggingData.internalBinaryWrite(message.node.tagging, writer.tag(1011, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.CustomEntityDefinitionData custom_entity_definition = 2000; */
         if (message.node.oneofKind === "customEntityDefinition")
-            CustomEntityDefinitionData.internalBinaryWrite(message.node.customEntityDefinition, writer.tag(1000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.CustomEntityData custom_entity = 1001; */
+            CustomEntityDefinitionData.internalBinaryWrite(message.node.customEntityDefinition, writer.tag(2000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.CustomEntityData custom_entity = 2001; */
         if (message.node.oneofKind === "customEntity")
-            CustomEntityData.internalBinaryWrite(message.node.customEntity, writer.tag(1001, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.CustomStructDefinitionData custom_struct_definition = 1400; */
+            CustomEntityData.internalBinaryWrite(message.node.customEntity, writer.tag(2001, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.CustomStructDefinitionData custom_struct_definition = 2500; */
         if (message.node.oneofKind === "customStructDefinition")
-            CustomStructDefinitionData.internalBinaryWrite(message.node.customStructDefinition, writer.tag(1400, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.CustomEnumDefinitionData custom_enum_definition = 1410; */
+            CustomStructDefinitionData.internalBinaryWrite(message.node.customStructDefinition, writer.tag(2500, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.CustomEnumDefinitionData custom_enum_definition = 2510; */
         if (message.node.oneofKind === "customEnumDefinition")
-            CustomEnumDefinitionData.internalBinaryWrite(message.node.customEnumDefinition, writer.tag(1410, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FieldData field = 1420; */
+            CustomEnumDefinitionData.internalBinaryWrite(message.node.customEnumDefinition, writer.tag(2510, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FieldData field = 2520; */
         if (message.node.oneofKind === "field")
-            FieldData.internalBinaryWrite(message.node.field, writer.tag(1420, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.OptionData option = 1430; */
+            FieldData.internalBinaryWrite(message.node.field, writer.tag(2520, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.OptionData option = 2530; */
         if (message.node.oneofKind === "option")
-            OptionData.internalBinaryWrite(message.node.option, writer.tag(1430, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FileData file = 1440; */
+            OptionData.internalBinaryWrite(message.node.option, writer.tag(2530, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FileData file = 2540; */
         if (message.node.oneofKind === "file")
-            FileData.internalBinaryWrite(message.node.file, writer.tag(1440, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.LinkData link = 1450; */
+            FileData.internalBinaryWrite(message.node.file, writer.tag(2540, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.LinkData link = 2550; */
         if (message.node.oneofKind === "link")
-            LinkData.internalBinaryWrite(message.node.link, writer.tag(1450, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ScriptData script = 1800; */
+            LinkData.internalBinaryWrite(message.node.link, writer.tag(2550, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ScriptData script = 3000; */
         if (message.node.oneofKind === "script")
-            ScriptData.internalBinaryWrite(message.node.script, writer.tag(1800, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ServiceData service = 1810; */
+            ScriptData.internalBinaryWrite(message.node.script, writer.tag(3000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ServiceData service = 3010; */
         if (message.node.oneofKind === "service")
-            ServiceData.internalBinaryWrite(message.node.service, writer.tag(1810, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ActionData action = 1820; */
+            ServiceData.internalBinaryWrite(message.node.service, writer.tag(3010, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ActionData action = 3020; */
         if (message.node.oneofKind === "action")
-            ActionData.internalBinaryWrite(message.node.action, writer.tag(1820, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RouteData route = 1830; */
+            ActionData.internalBinaryWrite(message.node.action, writer.tag(3020, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RouteData route = 3030; */
         if (message.node.oneofKind === "route")
-            RouteData.internalBinaryWrite(message.node.route, writer.tag(1830, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TriggerData trigger = 1840; */
+            RouteData.internalBinaryWrite(message.node.route, writer.tag(3030, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TriggerData trigger = 3040; */
         if (message.node.oneofKind === "trigger")
-            TriggerData.internalBinaryWrite(message.node.trigger, writer.tag(1840, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TriggerEventData trigger_event = 1841; */
+            TriggerData.internalBinaryWrite(message.node.trigger, writer.tag(3040, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TriggerEventData trigger_event = 3041; */
         if (message.node.oneofKind === "triggerEvent")
-            TriggerEventData.internalBinaryWrite(message.node.triggerEvent, writer.tag(1841, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TimerData timer = 1850; */
+            TriggerEventData.internalBinaryWrite(message.node.triggerEvent, writer.tag(3041, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TimerData timer = 3050; */
         if (message.node.oneofKind === "timer")
-            TimerData.internalBinaryWrite(message.node.timer, writer.tag(1850, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TimerEventData timer_event = 1851; */
+            TimerData.internalBinaryWrite(message.node.timer, writer.tag(3050, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TimerEventData timer_event = 3051; */
         if (message.node.oneofKind === "timerEvent")
-            TimerEventData.internalBinaryWrite(message.node.timerEvent, writer.tag(1851, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EventCursorData event_cursor = 1900; */
+            TimerEventData.internalBinaryWrite(message.node.timerEvent, writer.tag(3051, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EventCursorData event_cursor = 3100; */
         if (message.node.oneofKind === "eventCursor")
-            EventCursorData.internalBinaryWrite(message.node.eventCursor, writer.tag(1900, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ScreenCursorData screen_cursor = 1901; */
+            EventCursorData.internalBinaryWrite(message.node.eventCursor, writer.tag(3100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ScreenCursorData screen_cursor = 3101; */
         if (message.node.oneofKind === "screenCursor")
-            ScreenCursorData.internalBinaryWrite(message.node.screenCursor, writer.tag(1901, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ThreadCursorData thread_cursor = 1902; */
+            ScreenCursorData.internalBinaryWrite(message.node.screenCursor, writer.tag(3101, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ThreadCursorData thread_cursor = 3102; */
         if (message.node.oneofKind === "threadCursor")
-            ThreadCursorData.internalBinaryWrite(message.node.threadCursor, writer.tag(1902, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RunData run = 2400; */
+            ThreadCursorData.internalBinaryWrite(message.node.threadCursor, writer.tag(3102, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RunData run = 4000; */
         if (message.node.oneofKind === "run")
-            RunData.internalBinaryWrite(message.node.run, writer.tag(2400, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RunEventData run_event = 2401; */
+            RunData.internalBinaryWrite(message.node.run, writer.tag(4000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RunEventData run_event = 4001; */
         if (message.node.oneofKind === "runEvent")
-            RunEventData.internalBinaryWrite(message.node.runEvent, writer.tag(2401, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SpanData span = 2410; */
+            RunEventData.internalBinaryWrite(message.node.runEvent, writer.tag(4001, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SpanData span = 4010; */
         if (message.node.oneofKind === "span")
-            SpanData.internalBinaryWrite(message.node.span, writer.tag(2410, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.InterruptionData interruption = 2420; */
+            SpanData.internalBinaryWrite(message.node.span, writer.tag(4010, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.InterruptionData interruption = 4020; */
         if (message.node.oneofKind === "interruption")
-            InterruptionData.internalBinaryWrite(message.node.interruption, writer.tag(2420, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.LogData log = 2500; */
+            InterruptionData.internalBinaryWrite(message.node.interruption, writer.tag(4020, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.LogData log = 4100; */
         if (message.node.oneofKind === "log")
-            LogData.internalBinaryWrite(message.node.log, writer.tag(2500, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.GaugeMetricData gauge_metric = 2510; */
+            LogData.internalBinaryWrite(message.node.log, writer.tag(4100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.GaugeMetricData gauge_metric = 4110; */
         if (message.node.oneofKind === "gaugeMetric")
-            GaugeMetricData.internalBinaryWrite(message.node.gaugeMetric, writer.tag(2510, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.GaugeMeasurementData gauge_measurement = 2511; */
+            GaugeMetricData.internalBinaryWrite(message.node.gaugeMetric, writer.tag(4110, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.GaugeMeasurementData gauge_measurement = 4111; */
         if (message.node.oneofKind === "gaugeMeasurement")
-            GaugeMeasurementData.internalBinaryWrite(message.node.gaugeMeasurement, writer.tag(2511, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.CounterMetricData counter_metric = 2512; */
+            GaugeMeasurementData.internalBinaryWrite(message.node.gaugeMeasurement, writer.tag(4111, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.CounterMetricData counter_metric = 4112; */
         if (message.node.oneofKind === "counterMetric")
-            CounterMetricData.internalBinaryWrite(message.node.counterMetric, writer.tag(2512, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.CounterMeasurementData counter_measurement = 2513; */
+            CounterMetricData.internalBinaryWrite(message.node.counterMetric, writer.tag(4112, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.CounterMeasurementData counter_measurement = 4113; */
         if (message.node.oneofKind === "counterMeasurement")
-            CounterMeasurementData.internalBinaryWrite(message.node.counterMeasurement, writer.tag(2513, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.HistogramMetricData histogram_metric = 2514; */
+            CounterMeasurementData.internalBinaryWrite(message.node.counterMeasurement, writer.tag(4113, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.HistogramMetricData histogram_metric = 4114; */
         if (message.node.oneofKind === "histogramMetric")
-            HistogramMetricData.internalBinaryWrite(message.node.histogramMetric, writer.tag(2514, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.HistogramMeasurementData histogram_measurement = 2515; */
+            HistogramMetricData.internalBinaryWrite(message.node.histogramMetric, writer.tag(4114, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.HistogramMeasurementData histogram_measurement = 4115; */
         if (message.node.oneofKind === "histogramMeasurement")
-            HistogramMeasurementData.internalBinaryWrite(message.node.histogramMeasurement, writer.tag(2515, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.CustomEventDefinitionData custom_event_definition = 2600; */
+            HistogramMeasurementData.internalBinaryWrite(message.node.histogramMeasurement, writer.tag(4115, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.CustomEventDefinitionData custom_event_definition = 4200; */
         if (message.node.oneofKind === "customEventDefinition")
-            CustomEventDefinitionData.internalBinaryWrite(message.node.customEventDefinition, writer.tag(2600, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.CustomEventData custom_event = 2601; */
+            CustomEventDefinitionData.internalBinaryWrite(message.node.customEventDefinition, writer.tag(4200, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.CustomEventData custom_event = 4201; */
         if (message.node.oneofKind === "customEvent")
-            CustomEventData.internalBinaryWrite(message.node.customEvent, writer.tag(2601, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EditEventData edit_event = 2602; */
+            CustomEventData.internalBinaryWrite(message.node.customEvent, writer.tag(4201, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EditEventData edit_event = 4202; */
         if (message.node.oneofKind === "editEvent")
-            EditEventData.internalBinaryWrite(message.node.editEvent, writer.tag(2602, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EnvironmentData environment = 2800; */
+            EditEventData.internalBinaryWrite(message.node.editEvent, writer.tag(4202, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EnvironmentData environment = 4500; */
         if (message.node.oneofKind === "environment")
-            EnvironmentData.internalBinaryWrite(message.node.environment, writer.tag(2800, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ThreadData thread = 3400; */
+            EnvironmentData.internalBinaryWrite(message.node.environment, writer.tag(4500, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ThreadData thread = 5500; */
         if (message.node.oneofKind === "thread")
-            ThreadData.internalBinaryWrite(message.node.thread, writer.tag(3400, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.MessageData message = 3410; */
+            ThreadData.internalBinaryWrite(message.node.thread, writer.tag(5500, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.MessageData message = 5510; */
         if (message.node.oneofKind === "message")
-            MessageData.internalBinaryWrite(message.node.message, writer.tag(3410, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ReactionData reaction = 3420; */
+            MessageData.internalBinaryWrite(message.node.message, writer.tag(5510, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ReactionData reaction = 5520; */
         if (message.node.oneofKind === "reaction")
-            ReactionData.internalBinaryWrite(message.node.reaction, writer.tag(3420, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.StarData star = 3421; */
+            ReactionData.internalBinaryWrite(message.node.reaction, writer.tag(5520, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.StarData star = 5521; */
         if (message.node.oneofKind === "star")
-            StarData.internalBinaryWrite(message.node.star, writer.tag(3421, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FollowData follow = 3430; */
+            StarData.internalBinaryWrite(message.node.star, writer.tag(5521, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FollowData follow = 5530; */
         if (message.node.oneofKind === "follow")
-            FollowData.internalBinaryWrite(message.node.follow, writer.tag(3430, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NotificationData notification = 3500; */
+            FollowData.internalBinaryWrite(message.node.follow, writer.tag(5530, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NotificationData notification = 5600; */
         if (message.node.oneofKind === "notification")
-            NotificationData.internalBinaryWrite(message.node.notification, writer.tag(3500, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NotificationEventData notification_event = 3501; */
+            NotificationData.internalBinaryWrite(message.node.notification, writer.tag(5600, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NotificationEventData notification_event = 5601; */
         if (message.node.oneofKind === "notificationEvent")
-            NotificationEventData.internalBinaryWrite(message.node.notificationEvent, writer.tag(3501, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.DatabaseData database = 5000; */
+            NotificationEventData.internalBinaryWrite(message.node.notificationEvent, writer.tag(5601, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.DatabaseData database = 7500; */
         if (message.node.oneofKind === "database")
-            DatabaseData.internalBinaryWrite(message.node.database, writer.tag(5000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.MachineData machine = 5100; */
+            DatabaseData.internalBinaryWrite(message.node.database, writer.tag(7500, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.MachineData machine = 7600; */
         if (message.node.oneofKind === "machine")
-            MachineData.internalBinaryWrite(message.node.machine, writer.tag(5100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.WindowData window = 8000; */
+            MachineData.internalBinaryWrite(message.node.machine, writer.tag(7600, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.WindowData window = 9000; */
         if (message.node.oneofKind === "window")
-            WindowData.internalBinaryWrite(message.node.window, writer.tag(8000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SceneData scene = 8010; */
+            WindowData.internalBinaryWrite(message.node.window, writer.tag(9000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SceneData scene = 9010; */
         if (message.node.oneofKind === "scene")
-            SceneData.internalBinaryWrite(message.node.scene, writer.tag(8010, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SceneEventData scene_event = 8011; */
+            SceneData.internalBinaryWrite(message.node.scene, writer.tag(9010, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SceneEventData scene_event = 9011; */
         if (message.node.oneofKind === "sceneEvent")
-            SceneEventData.internalBinaryWrite(message.node.sceneEvent, writer.tag(8011, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.LayerData layer = 8020; */
+            SceneEventData.internalBinaryWrite(message.node.sceneEvent, writer.tag(9011, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.LayerData layer = 9020; */
         if (message.node.oneofKind === "layer")
-            LayerData.internalBinaryWrite(message.node.layer, writer.tag(8020, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.CustomViewDefinitionData custom_view_definition = 8200; */
+            LayerData.internalBinaryWrite(message.node.layer, writer.tag(9020, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.CustomViewDefinitionData custom_view_definition = 10000; */
         if (message.node.oneofKind === "customViewDefinition")
-            CustomViewDefinitionData.internalBinaryWrite(message.node.customViewDefinition, writer.tag(8200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.CustomViewData custom_view = 8201; */
+            CustomViewDefinitionData.internalBinaryWrite(message.node.customViewDefinition, writer.tag(10000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.CustomViewData custom_view = 10001; */
         if (message.node.oneofKind === "customView")
-            CustomViewData.internalBinaryWrite(message.node.customView, writer.tag(8201, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FrameViewData frame_view = 8202; */
+            CustomViewData.internalBinaryWrite(message.node.customView, writer.tag(10001, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FrameViewData frame_view = 10010; */
         if (message.node.oneofKind === "frameView")
-            FrameViewData.internalBinaryWrite(message.node.frameView, writer.tag(8202, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.LabelViewData label_view = 8203; */
+            FrameViewData.internalBinaryWrite(message.node.frameView, writer.tag(10010, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.LabelViewData label_view = 10020; */
         if (message.node.oneofKind === "labelView")
-            LabelViewData.internalBinaryWrite(message.node.labelView, writer.tag(8203, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SplitViewData split_view = 8210; */
+            LabelViewData.internalBinaryWrite(message.node.labelView, writer.tag(10020, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SplitViewData split_view = 10030; */
         if (message.node.oneofKind === "splitView")
-            SplitViewData.internalBinaryWrite(message.node.splitView, writer.tag(8210, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TextViewData text_view = 8300; */
+            SplitViewData.internalBinaryWrite(message.node.splitView, writer.tag(10030, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TextViewData text_view = 10200; */
         if (message.node.oneofKind === "textView")
-            TextViewData.internalBinaryWrite(message.node.textView, writer.tag(8300, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NumberInputViewData number_input_view = 8400; */
+            TextViewData.internalBinaryWrite(message.node.textView, writer.tag(10200, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NumberInputViewData number_input_view = 10400; */
         if (message.node.oneofKind === "numberInputView")
-            NumberInputViewData.internalBinaryWrite(message.node.numberInputView, writer.tag(8400, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SliderInputViewData slider_input_view = 8401; */
+            NumberInputViewData.internalBinaryWrite(message.node.numberInputView, writer.tag(10400, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SliderInputViewData slider_input_view = 10401; */
         if (message.node.oneofKind === "sliderInputView")
-            SliderInputViewData.internalBinaryWrite(message.node.sliderInputView, writer.tag(8401, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ThreadViewData thread_view = 8500; */
+            SliderInputViewData.internalBinaryWrite(message.node.sliderInputView, writer.tag(10401, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ThreadViewData thread_view = 10600; */
         if (message.node.oneofKind === "threadView")
-            ThreadViewData.internalBinaryWrite(message.node.threadView, writer.tag(8500, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.WizardViewData wizard_view = 8550; */
+            ThreadViewData.internalBinaryWrite(message.node.threadView, writer.tag(10600, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.WizardViewData wizard_view = 10650; */
         if (message.node.oneofKind === "wizardView")
-            WizardViewData.internalBinaryWrite(message.node.wizardView, writer.tag(8550, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.CanvasData canvas = 8600; */
+            WizardViewData.internalBinaryWrite(message.node.wizardView, writer.tag(10650, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.CanvasData canvas = 11000; */
         if (message.node.oneofKind === "canvas")
-            CanvasData.internalBinaryWrite(message.node.canvas, writer.tag(8600, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.LineShapeData line_shape = 8610; */
+            CanvasData.internalBinaryWrite(message.node.canvas, writer.tag(11000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.LineShapeData line_shape = 11010; */
         if (message.node.oneofKind === "lineShape")
-            LineShapeData.internalBinaryWrite(message.node.lineShape, writer.tag(8610, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.PlaneShapeData plane_shape = 8611; */
+            LineShapeData.internalBinaryWrite(message.node.lineShape, writer.tag(11010, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.PlaneShapeData plane_shape = 11011; */
         if (message.node.oneofKind === "planeShape")
-            PlaneShapeData.internalBinaryWrite(message.node.planeShape, writer.tag(8611, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ArrowShapeData arrow_shape = 8612; */
+            PlaneShapeData.internalBinaryWrite(message.node.planeShape, writer.tag(11011, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ArrowShapeData arrow_shape = 11012; */
         if (message.node.oneofKind === "arrowShape")
-            ArrowShapeData.internalBinaryWrite(message.node.arrowShape, writer.tag(8612, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.AnnotationShapeData annotation_shape = 8613; */
+            ArrowShapeData.internalBinaryWrite(message.node.arrowShape, writer.tag(11012, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.AnnotationShapeData annotation_shape = 11013; */
         if (message.node.oneofKind === "annotationShape")
-            AnnotationShapeData.internalBinaryWrite(message.node.annotationShape, writer.tag(8613, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ThemeData theme = 9000; */
+            AnnotationShapeData.internalBinaryWrite(message.node.annotationShape, writer.tag(11013, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ThemeData theme = 12000; */
         if (message.node.oneofKind === "theme")
-            ThemeData.internalBinaryWrite(message.node.theme, writer.tag(9000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.PaletteData palette = 9010; */
+            ThemeData.internalBinaryWrite(message.node.theme, writer.tag(12000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.PaletteData palette = 12010; */
         if (message.node.oneofKind === "palette")
-            PaletteData.internalBinaryWrite(message.node.palette, writer.tag(9010, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ColorStyleData color_style = 9020; */
+            PaletteData.internalBinaryWrite(message.node.palette, writer.tag(12010, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ColorStyleData color_style = 12020; */
         if (message.node.oneofKind === "colorStyle")
-            ColorStyleData.internalBinaryWrite(message.node.colorStyle, writer.tag(9020, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FillStyleData fill_style = 9021; */
+            ColorStyleData.internalBinaryWrite(message.node.colorStyle, writer.tag(12020, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FillStyleData fill_style = 12021; */
         if (message.node.oneofKind === "fillStyle")
-            FillStyleData.internalBinaryWrite(message.node.fillStyle, writer.tag(9021, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FontStyleData font_style = 9022; */
+            FillStyleData.internalBinaryWrite(message.node.fillStyle, writer.tag(12021, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FontStyleData font_style = 12022; */
         if (message.node.oneofKind === "fontStyle")
-            FontStyleData.internalBinaryWrite(message.node.fontStyle, writer.tag(9022, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.BorderStyleData border_style = 9023; */
+            FontStyleData.internalBinaryWrite(message.node.fontStyle, writer.tag(12022, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.BorderStyleData border_style = 12023; */
         if (message.node.oneofKind === "borderStyle")
-            BorderStyleData.internalBinaryWrite(message.node.borderStyle, writer.tag(9023, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ShadowStyleData shadow_style = 9024; */
+            BorderStyleData.internalBinaryWrite(message.node.borderStyle, writer.tag(12023, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ShadowStyleData shadow_style = 12024; */
         if (message.node.oneofKind === "shadowStyle")
-            ShadowStyleData.internalBinaryWrite(message.node.shadowStyle, writer.tag(9024, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.GradientStyleData gradient_style = 9025; */
+            ShadowStyleData.internalBinaryWrite(message.node.shadowStyle, writer.tag(12024, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.GradientStyleData gradient_style = 12025; */
         if (message.node.oneofKind === "gradientStyle")
-            GradientStyleData.internalBinaryWrite(message.node.gradientStyle, writer.tag(9025, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TransitionStyleData transition_style = 9026; */
+            GradientStyleData.internalBinaryWrite(message.node.gradientStyle, writer.tag(12025, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TransitionStyleData transition_style = 12026; */
         if (message.node.oneofKind === "transitionStyle")
-            TransitionStyleData.internalBinaryWrite(message.node.transitionStyle, writer.tag(9026, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EffectStyleData effect_style = 9027; */
+            TransitionStyleData.internalBinaryWrite(message.node.transitionStyle, writer.tag(12026, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EffectStyleData effect_style = 12027; */
         if (message.node.oneofKind === "effectStyle")
-            EffectStyleData.internalBinaryWrite(message.node.effectStyle, writer.tag(9027, WireType.LengthDelimited).fork(), options).join();
+            EffectStyleData.internalBinaryWrite(message.node.effectStyle, writer.tag(12027, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
