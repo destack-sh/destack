@@ -151,8 +151,8 @@ def _load_migration_from_path(migration: Migration) -> MigrationFile:
     return file
 
 
-@tracer.start_as_current_span("database.migrate")
-async def sql_migrate(
+@tracer.start_as_current_span("postgres.migrate")
+async def postgres_migrate(
     conn: asyncpg.Connection,
     target: str | int | None,
     oracle: Oracle,
@@ -246,7 +246,7 @@ async def _do_migrate(
 ):
     """Applies the given migrations in the given order."""
     for migration in migrations:
-        with tracer.start_as_current_span("database.apply_migration"):
+        with tracer.start_as_current_span("postgres.apply_migration"):
             func_name = f"{(is_upgrade and 'upgrade') or 'downgrade'}_{(store_type.name.lower()) or 'local'}"
             migration_file = _load_migration_from_path(migration)
             func = getattr(migration_file.module, func_name)
@@ -356,7 +356,7 @@ class PostgresMigrationOp:
 #
 
 
-@tracer.start_as_current_span("database.generate_migration_code")
+@tracer.start_as_current_span("postgres.generate_migration_code")
 def generate_migration_code(
     migration: Migration,
     oracle: Oracle,
@@ -398,7 +398,7 @@ def generate_migration_code(
     return migration_code
 
 
-@tracer.start_as_current_span("database.generate_migration_ops")
+@tracer.start_as_current_span("postgres.generate_migration_ops")
 def generate_migration_ops(
     *,
     old_schema: PostgresSchema,
@@ -619,7 +619,7 @@ def _render_migration_body(ops: list[PostgresMigrationOp] | None) -> str:
     return method_body
 
 
-@tracer.start_as_current_span("database.apply_migration_ops")
+@tracer.start_as_current_span("postgres.apply_migration_ops")
 async def apply_migration_ops(conn: asyncpg.Connection, ops: list[PostgresMigrationOp]) -> None:
     """Directly apply the given migration ops."""
     method_body = _render_migration_body(ops)
@@ -632,10 +632,10 @@ async def apply_migration_ops(conn: asyncpg.Connection, ops: list[PostgresMigrat
     apply_inline = method_locals["_apply_inline"]
     try:
         await apply_inline(conn)
-        logger.debug("database.apply_migration_ops", ops=ops, conn=conn, span="current")
+        logger.debug("postgres.apply_migration_ops", ops=ops, conn=conn, span="current")
     except Exception as e:
         logger.error(
-            "database.apply_migration_ops.error", ops=ops, conn=conn, span="current", error=e
+            "postgres.apply_migration_ops.error", ops=ops, conn=conn, span="current", error=e
         )
         raise
 
@@ -867,7 +867,7 @@ async def delete_migrations(conn: asyncpg.Connection, from_id: int, to_id: int) 
 #
 
 
-@tracer.start_as_current_span("database.introspect_schema")
+@tracer.start_as_current_span("postgres.introspect_schema")
 async def introspect_schema(
     conn: asyncpg.Connection,
     *,
@@ -1132,6 +1132,6 @@ WHERE
         )
         tables.append(table)
 
-    logger.trace("database.introspect", conn=conn, tables=tables, span="current")
+    logger.trace("postgres.introspect", conn=conn, tables=tables, span="current")
 
     return PostgresSchema(extensions=extensions, tables=tuple(tables))

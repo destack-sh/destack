@@ -1,3 +1,4 @@
+from collections import defaultdict
 from collections.abc import Sequence
 from typing import Any, assert_never
 
@@ -17,8 +18,6 @@ from destack.language.registry import (
     RELATION_REF_BY_CLASS,
 )
 
-# ruff: noqa: B903
-
 
 class MemoryDatabase:
     """In-memory database of Nodes."""
@@ -28,6 +27,13 @@ class MemoryDatabase:
     def __init__(self):
         self.tables: dict[tuple[NodeType, UUID | None], MemoryTable] = {}
 
+    def __str__(self) -> str:
+        num_nodes = sum(len(table.rows) for table in self.tables.values())
+        return f"nodes={num_nodes}, tables={len(self.tables)}"
+
+    def __repr__(self) -> str:
+        return f"<MemoryDatabase {self!s}>"
+
 
 class MemoryContext:
     """In-memory context of a Database during a 'transaction'."""
@@ -36,6 +42,12 @@ class MemoryContext:
 
     def __init__(self, database: "MemoryDatabase"):
         self.database = database
+
+    def __str__(self) -> str:
+        return f"tables={len(self.database.tables)}"
+
+    def __repr__(self) -> str:
+        return f"<MemoryContext {self!s}>"
 
     def apply(self, edits: Sequence[Edit]) -> Sequence[Edit]:
         """Apply the Edits to the context. Returns the Edits that were applied."""
@@ -71,7 +83,14 @@ class MemoryContext:
 class MemoryTable:
     """In-memory table of Nodes for some relation."""
 
-    __slots__ = ("database", "definition", "definition_id", "metatype", "rows")
+    __slots__ = (
+        "database",
+        "definition",
+        "definition_id",
+        "node_type",
+        "rows",
+        "rows_by_parent_id",
+    )
 
     def __init__(
         self,
@@ -80,10 +99,17 @@ class MemoryTable:
         definition: CustomEntityDefinition | None,
     ):
         self.database = database
-        self.metatype = metatype
+        self.node_type = metatype
         self.definition = definition
         self.definition_id = definition.id if definition else None
         self.rows: dict[UUID, MemoryRow] = {}
+        self.rows_by_parent_id: dict[UUID, list[MemoryRow]] = defaultdict(list)
+
+    def __str__(self) -> str:
+        return f"node_type={self.node_type.name}, definition_id={self.definition_id}, rows={len(self.rows)}"
+
+    def __repr__(self) -> str:
+        return f"<MemoryTable {self!s}>"
 
 
 class MemoryRow:
@@ -106,3 +132,9 @@ class MemoryRow:
         self.ptr = ptr
         self.parent_ptr = parent_ptr
         self.value = value
+
+    def __str__(self) -> str:
+        return f"node_type={self.metatype.name}, id={self.id}, value={len(self.value)}"
+
+    def __repr__(self) -> str:
+        return f"<MemoryRow {self!s}>"

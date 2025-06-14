@@ -22,7 +22,7 @@ tracer = trace.get_tracer(__name__)
 logger = structlog.get_logger(__name__)
 
 
-@tracer.start_as_current_span("database.execute_change")
+@tracer.start_as_current_span("postgres.execute_change")
 def execute_change(
     database: MemoryDatabase, context: MemoryContext, change: Change
 ) -> tuple[Sequence[Edit], Sequence[Edit]]:
@@ -75,7 +75,7 @@ def _optimize_change(context: MemoryContext, edits: Sequence[Edit]) -> list[Edit
         grouped: OrderedDict[tuple[NodeType, UUID | None, EditType], list[Edit]] = OrderedDict()
         for e in buffer:
             table = context.get_relation(e.node_ptr)
-            key = (table.metatype, table.definition_id, e.type)
+            key = (table.node_type, table.definition_id, e.type)
             if key not in grouped:
                 grouped[key] = []
             grouped[key].append(e)
@@ -94,7 +94,7 @@ def _optimize_change(context: MemoryContext, edits: Sequence[Edit]) -> list[Edit
     return optimized_edits
 
 
-@tracer.start_as_current_span("database.execute_cascade")
+@tracer.start_as_current_span("postgres.execute_cascade")
 def _execute_cascade(
     database: MemoryDatabase,
     context: MemoryContext,
@@ -105,7 +105,7 @@ def _execute_cascade(
     raise NotImplementedError
 
 
-@tracer.start_as_current_span("database.execute_schema_edits")
+@tracer.start_as_current_span("postgres.execute_schema_edits")
 def _execute_schema_edits(
     database: MemoryDatabase,
     context: MemoryContext,
@@ -115,7 +115,7 @@ def _execute_schema_edits(
     raise NotImplementedError
 
 
-@tracer.start_as_current_span("database.execute_data_edit")
+@tracer.start_as_current_span("postgres.execute_data_edit")
 def _execute_data_edit(
     database: MemoryDatabase,
     context: MemoryContext,
@@ -133,7 +133,7 @@ def _execute_data_edit(
 
     from .wiring import pack_node_row
 
-    node_type = table.metatype
+    node_type = table.node_type
     node_cls = NODE_CLASS_BY_TYPE[node_type]
 
     # create/upsert
@@ -144,6 +144,9 @@ def _execute_data_edit(
             if edit_type == EditType.UPSERT or node_id not in table.rows:
                 row = pack_node_row(table, edit.value)
                 table.rows[node_id] = row
+                if row.parent_ptr is not None:
+                    parent_table = context.get_relation(row.parent_ptr)
+                    parent_table.rows_by_parent_id[row.parent_ptr.id].append(row)
         return edits, ()
 
     # update
@@ -157,9 +160,9 @@ def _execute_data_edit(
                 row = table.rows[node_id]
                 if edit.operation == EditOperation.SET:
                     assert edit.value is not None, f"no value for {edit!r}"
-                    row.value[prop.name] = edit.value.value
+                    row.value[str(prop.id)] = edit.value.value
                 elif edit.operation == EditOperation.CLEAR:
-                    row.value.pop(prop.name, None)
+                    row.value.pop(str(prop.id), None)
                 else:
                     raise RuntimeError(f"unsupported operation: {edit!r}")
         return edits, ()
@@ -175,8 +178,14 @@ def _execute_data_edit(
             node_id = edit.node_ptr.id
             if node_id in table.rows:
                 row = table.rows[node_id]
+                if row.parent_ptr is not None:
+                    parent_table = context.get_relation(row.parent_ptr)
+                    parent_table.rows_by_parent_id[row.parent_ptr.id].remove(row)
                 row.parent_ptr = edit.value.value
-                row.value[parent_prop.name] = edit.value.value
+                row.value[str(parent_prop.id)] = edit.value.value
+                if row.parent_ptr is not None:
+                    parent_table = context.get_relation(row.parent_ptr)
+                    parent_table.rows_by_parent_id[row.parent_ptr.id].append(row)
         return edits, ()
 
     # archive/unarchive/delete/restore

@@ -36,9 +36,9 @@ from .migrate import (
     generate_migration_code,
     generate_migration_ops,
     introspect_schema,
+    postgres_migrate,
     read_migrations_from_fs,
     read_migrations_from_pg,
-    sql_migrate,
 )
 from .query import execute_query
 from .store import PostgresStore
@@ -80,7 +80,7 @@ __all__ = [
     "map_custom_node_to_database_table",
     "pg_connection",
     "pg_transaction",
+    "postgres_migrate",
     "read_migrations_from_fs",
     "read_migrations_from_pg",
-    "sql_migrate",
 ]
