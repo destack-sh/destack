@@ -2,17 +2,8 @@
 
 -r base.in
 
-anthropic==0.50.0
-asyncpg==0.30.0
 base58==2.1.1
 black==24.10.0
-boto3==1.35.58
-botocore==1.35.58
-dateparser==1.1.8
-discord.py==2.5.2
-dropbox==11.36.2
-duckdb==1.1.1
-exa-py==1.12.0
 google-api-python-client==2.151.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
@@ -21,27 +12,10 @@ google-generativeai==0.8.3
 googleapis-common-protos==1.66.0
 grpcio>=1.67.0
 httpx[http2,brotli]>=0.28.0
-itsdangerous==2.1.2
 jsonschema==4.23.0
 langcodes==3.3.0
 magika==0.6.1
-markitdown==0.1.1
 multidict>=6.0.4
-openai==1.76.0
-opencv-python==4.10.0.84
-pillow==11.0.0
-posthog==4.0.1
-pyairtable==2.3.5
-pyarrow==18.0.0
 pydantic>=2
-pydub==0.25.1
-pypandoc==1.13
-pypdf>=3.16.0
-PyMuPDF==1.25.5
-python-docx==1.1.2
-python-pptx>=0.6.23
 requests>=2.31.0
-sqlglot==25.30.0
-tiktoken==0.9.0
-tqdm>=4.64.1
 uvloop==0.21.0
