@@ -299,7 +299,7 @@ async def test_benchmark_create_reactions(session: Session, async_benchmark: Asy
     session.create(user)
     await session.commit()
 
-    NUM_REACTIONS = 100
+    NUM_REACTIONS = 1000
 
     async def _create_reactions():
         reactions = []

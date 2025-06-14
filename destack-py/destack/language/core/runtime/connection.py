@@ -1,6 +1,6 @@
 import asyncio
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, Optional, cast
+from typing import TYPE_CHECKING, Any, Optional
 
 from fastuuid import UUID
 
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 class QueryContainer[RootT: "Trait | Node" = Node]:
     """
     A container for some QueryResult.
-    NOTE: 'root' refers to the main Query, not necessarily the roots of the Graph.
+    NOTE: 'root' refers to the root relation of the Query, not necessarily the roots of the Graph.
     """
 
     __slots__ = ("connection", "discriminator", "query", "result", "roots", "subcontainers", "type")
@@ -64,7 +64,7 @@ class QueryContainer[RootT: "Trait | Node" = Node]:
                 _connection=self.connection,
             )
             assert isinstance(node, Node), f"expected Node, got {node!r} in {self!r}"
-            self.roots.append(cast(RootT, node))
+            self.roots.append(node)  # type: ignore
 
         if isinstance(result, QueryResult):
             # subgroups

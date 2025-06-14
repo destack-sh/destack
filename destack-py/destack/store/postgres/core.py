@@ -113,7 +113,7 @@ class PostgresObject:
 @dataclass(slots=True)
 class PostgresExtension(PostgresObject):
     """
-    A SQL extension.
+    A Postgres extension.
     """
 
     FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]] = ("name",)
@@ -172,7 +172,7 @@ class PostgresTableObject(PostgresObject):
 
 class PostgresCascadeAction(enum.StrEnum):
     """
-    A SQL cascade action.
+    A Postgres cascade action.
     """
 
     RESTRICT = "RESTRICT"
@@ -185,7 +185,7 @@ class PostgresCascadeAction(enum.StrEnum):
 @dataclass(slots=True)
 class PostgresColumn(PostgresTableObject):
     """
-    A SQL column definition.
+    A Postgres column definition.
     """
 
     FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]] = (
@@ -287,7 +287,7 @@ class PostgresColumn(PostgresTableObject):
 
 class PostgresConstraintType(enum.StrEnum):
     """
-    A SQL constraint type.
+    A Postgres constraint type.
     """
 
     PRIMARY_KEY = "PRIMARY KEY"
@@ -299,7 +299,7 @@ class PostgresConstraintType(enum.StrEnum):
 @dataclass(slots=True)
 class PostgresConstraint(PostgresTableObject):
     """
-    A SQL constraint.
+    A Postgres constraint.
     """
 
     FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]] = ("inner_name", "type", "columns", "condition")
@@ -348,7 +348,7 @@ class PostgresConstraint(PostgresTableObject):
 
 class PostgresIndexType(enum.StrEnum):
     """
-    A SQL index type.
+    A Postgres index type.
     """
 
     BTREE = "BTREE"
@@ -361,7 +361,7 @@ class PostgresIndexType(enum.StrEnum):
 @dataclass(slots=True)
 class PostgresIndex(PostgresTableObject):
     """
-    A SQL index.
+    A Postgres index.
     """
 
     FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]] = (
@@ -430,7 +430,7 @@ class PostgresIndex(PostgresTableObject):
 @dataclass(slots=True)
 class PostgresTable(PostgresTableObject):
     """
-    A SQL table for a Node (builtin or custom).
+    A Postgres table for a Node (builtin or custom).
     """
 
     FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]] = ("name",)
@@ -501,7 +501,7 @@ class PostgresContext(abc.ABC):
 
 class PostgresColumnType(enum.StrEnum):
     """
-    A PostgreSQL column type.
+    A Postgres column type.
     """
 
     BIGINT = "bigint"

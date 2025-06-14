@@ -817,7 +817,7 @@ class Measurement(IsCustomNode, Analytic):
 class Event[N: Node = Node](Spatial, Particle, Indexed, Analytic, IsFrozen):
     """A Node that represents an Event. Events always belong to a specific Space."""
 
-    node: Optional["Node"] = property_(35)
+    node: Optional["Node"] = property_(35, description="The Node this Event is about.")
     if TYPE_CHECKING:
         node_ptr: Optional[NodeReference] = None
         node_id: Optional[UUID] = None

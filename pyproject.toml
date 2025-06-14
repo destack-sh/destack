@@ -107,15 +107,6 @@ addopts = [
 	'--hypothesis-show-statistics',
 ]
 markers = [
-	# levels
 	"hypothesis: test uses hypothesis",
-	"quick: quick to run (for simulations)",
-	"careful: test is slow or resource intensive",
-	"paranoid: test is very slow or resource intensive",
-	# resources
-	"model: test uses some ML model",
-	"browser: test uses browser",
-	# other
-	"slow: test is slow",
 ]
 filterwarnings = ["ignore::DeprecationWarning", "ignore::UserWarning"]
