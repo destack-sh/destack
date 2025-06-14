@@ -33,9 +33,7 @@ if TYPE_CHECKING:
 class EffectType(Enum):
     """When the effect fires."""
 
-    NONE = 1
     STYLE = 2
-    FIELD = 3
     APPEAR = 10, "Appear", "Initial render in"
     ENTER = 11, "Enter", "Enters viewport"
     EXIT = 12, "Exit", "Leaves viewport"
@@ -74,7 +72,6 @@ class EffectBase(BuiltinObjectMutable):
     """A base class for effects."""
 
     type: EffectType = property_(30, is_repr=True)
-    style: Optional["EffectStyle"] = property_(41, is_repr=True)
 
     opacity: Optional[float] = property_(50, is_repr=True)
     offset: Optional[Vector2] = property_(51, is_repr=True)
@@ -97,7 +94,7 @@ class EffectBase(BuiltinObjectMutable):
 class Effect(EffectBase, StructMutable):
     """An effect value."""
 
-    pass
+    style: Optional["EffectStyle"] = property_(41, is_repr=True)
 
 
 @builtin_node(NodeType.EFFECT_STYLE)

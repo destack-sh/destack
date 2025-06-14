@@ -3,6 +3,7 @@ from .color import (
     Color,
     ColorHue,
     ColorIn,
+    ColorIntent,
     ColorShade,
     ColorStyle,
     ColorType,
@@ -26,9 +27,10 @@ from .font import (
     TextTransform,
 )
 from .gradient import Gradient, GradientStop, GradientStyle, GradientType
+from .palette import Palette
 from .shadow import Shadow, ShadowBase, ShadowStyle, ShadowType
 from .style import Style
-from .theme import Theme, ThemeColor
+from .theme import Theme
 from .transition import Transition, TransitionBase, TransitionStyle, TransitionType
 
 __all__ = [
@@ -39,6 +41,7 @@ __all__ = [
     "Color",
     "ColorHue",
     "ColorIn",
+    "ColorIntent",
     "ColorShade",
     "ColorStyle",
     "ColorType",
@@ -60,6 +63,7 @@ __all__ = [
     "GradientStop",
     "GradientStyle",
     "GradientType",
+    "Palette",
     "Shadow",
     "ShadowBase",
     "ShadowStyle",
@@ -68,7 +72,6 @@ __all__ = [
     "TextDecoration",
     "TextTransform",
     "Theme",
-    "ThemeColor",
     "Transition",
     "TransitionBase",
     "TransitionStyle",

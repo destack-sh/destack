@@ -612,10 +612,6 @@ export interface BorderStyleData {
      */
     name: string;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceData style_ptr = 41;
-     */
-    stylePtr?: NodeReferenceData;
-    /**
      * @generated from protobuf field: optional symbol.destack.ColorData color = 50;
      */
     color?: ColorData;
@@ -1087,10 +1083,6 @@ export interface ColorStyleData {
      * @generated from protobuf field: string name = 31;
      */
     name: string;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceData style_ptr = 42;
-     */
-    stylePtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbol.destack.ColorHue hue = 50;
      */
@@ -2350,10 +2342,6 @@ export interface EffectStyleData {
      */
     name: string;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceData style_ptr = 41;
-     */
-    stylePtr?: NodeReferenceData;
-    /**
      * @generated from protobuf field: optional double opacity = 50;
      */
     opacity?: number;
@@ -3086,10 +3074,6 @@ export interface FillStyleData {
      */
     name: string;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceData style_ptr = 42;
-     */
-    stylePtr?: NodeReferenceData;
-    /**
      * @generated from protobuf field: optional symbol.destack.ColorData color = 50;
      */
     color?: ColorData;
@@ -3343,10 +3327,6 @@ export interface FontStyleData {
      * @generated from protobuf field: string name = 31;
      */
     name: string;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceData style_ptr = 41;
-     */
-    stylePtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbol.destack.FontWeight weight = 50;
      */
@@ -3901,10 +3881,6 @@ export interface GradientStyleData {
      * @generated from protobuf field: string name = 31;
      */
     name: string;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceData style_ptr = 40;
-     */
-    stylePtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional double angle = 50;
      */
@@ -5802,6 +5778,61 @@ export interface OriginData {
     nonce?: string;
 }
 /**
+ * A Palette with common ColorStyles.
+ *
+ * @generated from protobuf message symbol.destack.PaletteData
+ */
+export interface PaletteData {
+    /**
+     * @generated from protobuf field: symbol.destack.NodeType metatype = 1;
+     */
+    metatype: NodeType;
+    /**
+     * @generated from protobuf field: string id = 2;
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceData parent_ptr = 4;
+     */
+    parentPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceData space_ptr = 5;
+     */
+    spacePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 10;
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceData created_by_ptr = 11;
+     */
+    createdByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp updated_at = 12;
+     */
+    updatedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceData updated_by_ptr = 13;
+     */
+    updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 15;
+     */
+    deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: string order_key = 19;
+     */
+    orderKey: string;
+    /**
+     * @generated from protobuf field: string name = 31;
+     */
+    name: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.IconData icon = 34;
+     */
+    icon?: IconData;
+}
+/**
  * A Permission for something.
  *
  * @generated from protobuf message symbol.destack.PermissionData
@@ -7529,10 +7560,6 @@ export interface ShadowStyleData {
      */
     name: string;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceData style_ptr = 41;
-     */
-    stylePtr?: NodeReferenceData;
-    /**
      * @generated from protobuf field: optional symbol.destack.ColorData color = 50;
      */
     color?: ColorData;
@@ -8497,7 +8524,7 @@ export interface TextViewData {
     scriptPtr?: NodeReferenceData;
 }
 /**
- * A Theme with common styles.
+ * A Theme with common Styles.
  *
  * @generated from protobuf message symbol.destack.ThemeData
  */
@@ -8550,12 +8577,6 @@ export interface ThemeData {
      * @generated from protobuf field: optional symbol.destack.IconData icon = 34;
      */
     icon?: IconData;
-    /**
-     * @generated from protobuf field: map<int32, symbol.destack.ColorData> colors = 50;
-     */
-    colors: {
-        [key: number]: ColorData;
-    };
 }
 /**
  * A Thread for communicating with Messages.
@@ -9002,10 +9023,6 @@ export interface TransitionStyleData {
      * @generated from protobuf field: string name = 31;
      */
     name: string;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceData style_ptr = 41;
-     */
-    stylePtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional double delay = 50;
      */
@@ -10152,51 +10169,57 @@ export interface SomeNodeData {
          */
         theme: ThemeData;
     } | {
+        oneofKind: "palette";
+        /**
+         * @generated from protobuf field: symbol.destack.PaletteData palette = 9010;
+         */
+        palette: PaletteData;
+    } | {
         oneofKind: "colorStyle";
         /**
-         * @generated from protobuf field: symbol.destack.ColorStyleData color_style = 9010;
+         * @generated from protobuf field: symbol.destack.ColorStyleData color_style = 9020;
          */
         colorStyle: ColorStyleData;
     } | {
         oneofKind: "fillStyle";
         /**
-         * @generated from protobuf field: symbol.destack.FillStyleData fill_style = 9011;
+         * @generated from protobuf field: symbol.destack.FillStyleData fill_style = 9021;
          */
         fillStyle: FillStyleData;
     } | {
         oneofKind: "fontStyle";
         /**
-         * @generated from protobuf field: symbol.destack.FontStyleData font_style = 9012;
+         * @generated from protobuf field: symbol.destack.FontStyleData font_style = 9022;
          */
         fontStyle: FontStyleData;
     } | {
         oneofKind: "borderStyle";
         /**
-         * @generated from protobuf field: symbol.destack.BorderStyleData border_style = 9013;
+         * @generated from protobuf field: symbol.destack.BorderStyleData border_style = 9023;
          */
         borderStyle: BorderStyleData;
     } | {
         oneofKind: "shadowStyle";
         /**
-         * @generated from protobuf field: symbol.destack.ShadowStyleData shadow_style = 9014;
+         * @generated from protobuf field: symbol.destack.ShadowStyleData shadow_style = 9024;
          */
         shadowStyle: ShadowStyleData;
     } | {
         oneofKind: "gradientStyle";
         /**
-         * @generated from protobuf field: symbol.destack.GradientStyleData gradient_style = 9015;
+         * @generated from protobuf field: symbol.destack.GradientStyleData gradient_style = 9025;
          */
         gradientStyle: GradientStyleData;
     } | {
         oneofKind: "transitionStyle";
         /**
-         * @generated from protobuf field: symbol.destack.TransitionStyleData transition_style = 9016;
+         * @generated from protobuf field: symbol.destack.TransitionStyleData transition_style = 9026;
          */
         transitionStyle: TransitionStyleData;
     } | {
         oneofKind: "effectStyle";
         /**
-         * @generated from protobuf field: symbol.destack.EffectStyleData effect_style = 9017;
+         * @generated from protobuf field: symbol.destack.EffectStyleData effect_style = 9027;
          */
         effectStyle: EffectStyleData;
     } | {
@@ -10321,17 +10344,9 @@ export enum BorderType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: BORDER_TYPE_NONE = 1;
-     */
-    NONE = 1,
-    /**
      * @generated from protobuf enum value: BORDER_TYPE_STYLE = 2;
      */
     STYLE = 2,
-    /**
-     * @generated from protobuf enum value: BORDER_TYPE_FIELD = 3;
-     */
-    FIELD = 3,
     /**
      * @generated from protobuf enum value: BORDER_TYPE_SOLID = 10;
      */
@@ -11024,17 +11039,9 @@ export enum EffectType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: EFFECT_TYPE_NONE = 1;
-     */
-    NONE = 1,
-    /**
      * @generated from protobuf enum value: EFFECT_TYPE_STYLE = 2;
      */
     STYLE = 2,
-    /**
-     * @generated from protobuf enum value: EFFECT_TYPE_FIELD = 3;
-     */
-    FIELD = 3,
     /**
      * @generated from protobuf enum value: EFFECT_TYPE_APPEAR = 10;
      */
@@ -11538,10 +11545,6 @@ export enum EnumType {
      * @generated from protobuf enum value: ENUM_TYPE_DIMENSION_TYPE = 9079;
      */
     DIMENSION_TYPE = 9079,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_THEME_COLOR = 9080;
-     */
-    THEME_COLOR = 9080,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_EFFECT_TYPE = 9081;
      */
@@ -12410,10 +12413,6 @@ export enum FontType {
      * @generated from protobuf enum value: FONT_TYPE_STYLE = 2;
      */
     STYLE = 2,
-    /**
-     * @generated from protobuf enum value: FONT_TYPE_FIELD = 3;
-     */
-    FIELD = 3,
     /**
      * @generated from protobuf enum value: FONT_TYPE_SERIF = 10;
      */
@@ -13389,37 +13388,41 @@ export enum NodeType {
      */
     THEME = 9000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_COLOR_STYLE = 9010;
+     * @generated from protobuf enum value: NODE_TYPE_PALETTE = 9010;
      */
-    COLOR_STYLE = 9010,
+    PALETTE = 9010,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FILL_STYLE = 9011;
+     * @generated from protobuf enum value: NODE_TYPE_COLOR_STYLE = 9020;
      */
-    FILL_STYLE = 9011,
+    COLOR_STYLE = 9020,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FONT_STYLE = 9012;
+     * @generated from protobuf enum value: NODE_TYPE_FILL_STYLE = 9021;
      */
-    FONT_STYLE = 9012,
+    FILL_STYLE = 9021,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_BORDER_STYLE = 9013;
+     * @generated from protobuf enum value: NODE_TYPE_FONT_STYLE = 9022;
      */
-    BORDER_STYLE = 9013,
+    FONT_STYLE = 9022,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SHADOW_STYLE = 9014;
+     * @generated from protobuf enum value: NODE_TYPE_BORDER_STYLE = 9023;
      */
-    SHADOW_STYLE = 9014,
+    BORDER_STYLE = 9023,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_GRADIENT_STYLE = 9015;
+     * @generated from protobuf enum value: NODE_TYPE_SHADOW_STYLE = 9024;
      */
-    GRADIENT_STYLE = 9015,
+    SHADOW_STYLE = 9024,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TRANSITION_STYLE = 9016;
+     * @generated from protobuf enum value: NODE_TYPE_GRADIENT_STYLE = 9025;
      */
-    TRANSITION_STYLE = 9016,
+    GRADIENT_STYLE = 9025,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_EFFECT_STYLE = 9017;
+     * @generated from protobuf enum value: NODE_TYPE_TRANSITION_STYLE = 9026;
      */
-    EFFECT_STYLE = 9017
+    TRANSITION_STYLE = 9026,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_EFFECT_STYLE = 9027;
+     */
+    EFFECT_STYLE = 9027
 }
 /**
  * A Type of Notification Event.
@@ -14388,10 +14391,6 @@ export enum ShadowType {
      */
     STYLE = 2,
     /**
-     * @generated from protobuf enum value: SHADOW_TYPE_FIELD = 3;
-     */
-    FIELD = 3,
-    /**
      * @generated from protobuf enum value: SHADOW_TYPE_BOX = 10;
      */
     BOX = 10,
@@ -15071,45 +15070,6 @@ export enum TextTransform {
     CAPITALIZE = 4
 }
 /**
- * A color in the theme.
- *
- * @generated from protobuf enum symbol.destack.ThemeColor
- */
-export enum ThemeColor {
-    /**
-     * @generated from protobuf enum value: THEME_COLOR_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: THEME_COLOR_PRIMARY = 50;
-     */
-    PRIMARY = 50,
-    /**
-     * @generated from protobuf enum value: THEME_COLOR_SECONDARY = 51;
-     */
-    SECONDARY = 51,
-    /**
-     * @generated from protobuf enum value: THEME_COLOR_ACCENT = 52;
-     */
-    ACCENT = 52,
-    /**
-     * @generated from protobuf enum value: THEME_COLOR_MUTED = 53;
-     */
-    MUTED = 53,
-    /**
-     * @generated from protobuf enum value: THEME_COLOR_SUCCESS = 54;
-     */
-    SUCCESS = 54,
-    /**
-     * @generated from protobuf enum value: THEME_COLOR_WARNING = 55;
-     */
-    WARNING = 55,
-    /**
-     * @generated from protobuf enum value: THEME_COLOR_ERROR = 56;
-     */
-    ERROR = 56
-}
-/**
  * @generated from protobuf enum symbol.destack.ThreadStatus
  */
 export enum ThreadStatus {
@@ -15381,10 +15341,6 @@ export enum TransitionType {
      * @generated from protobuf enum value: TRANSITION_TYPE_STYLE = 2;
      */
     STYLE = 2,
-    /**
-     * @generated from protobuf enum value: TRANSITION_TYPE_FIELD = 3;
-     */
-    FIELD = 3,
     /**
      * @generated from protobuf enum value: TRANSITION_TYPE_TWEEN = 10;
      */
@@ -16768,7 +16724,6 @@ class BorderStyleData$Type extends MessageType<BorderStyleData> {
             { no: 19, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.destack.BorderType", BorderType, "BORDER_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "color", kind: "message", T: () => ColorData },
             { no: 51, name: "width", kind: "message", T: () => InsetsData }
         ]);
@@ -16828,9 +16783,6 @@ class BorderStyleData$Type extends MessageType<BorderStyleData> {
                 case /* string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional symbol.destack.NodeReferenceData style_ptr */ 41:
-                    message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
-                    break;
                 case /* optional symbol.destack.ColorData color */ 50:
                     message.color = ColorData.internalBinaryRead(reader, reader.uint32(), options, message.color);
                     break;
@@ -16888,9 +16840,6 @@ class BorderStyleData$Type extends MessageType<BorderStyleData> {
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.destack.NodeReferenceData style_ptr = 41; */
-        if (message.stylePtr)
-            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.destack.ColorData color = 50; */
         if (message.color)
             ColorData.internalBinaryWrite(message.color, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
@@ -17879,7 +17828,6 @@ class ColorStyleData$Type extends MessageType<ColorStyleData> {
             { no: 19, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.destack.ColorType", ColorType, "COLOR_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 42, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "hue", kind: "enum", opt: true, T: () => ["symbol.destack.ColorHue", ColorHue, "COLOR_HUE_"] },
             { no: 51, name: "shade", kind: "enum", opt: true, T: () => ["symbol.destack.ColorShade", ColorShade, "COLOR_SHADE_"] },
             { no: 52, name: "x", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
@@ -17943,9 +17891,6 @@ class ColorStyleData$Type extends MessageType<ColorStyleData> {
                     break;
                 case /* string name */ 31:
                     message.name = reader.string();
-                    break;
-                case /* optional symbol.destack.NodeReferenceData style_ptr */ 42:
-                    message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
                     break;
                 case /* optional symbol.destack.ColorHue hue */ 50:
                     message.hue = reader.int32();
@@ -18019,9 +17964,6 @@ class ColorStyleData$Type extends MessageType<ColorStyleData> {
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.destack.NodeReferenceData style_ptr = 42; */
-        if (message.stylePtr)
-            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.destack.ColorHue hue = 50; */
         if (message.hue !== undefined)
             writer.tag(50, WireType.Varint).int32(message.hue);
@@ -20782,7 +20724,6 @@ class EffectStyleData$Type extends MessageType<EffectStyleData> {
             { no: 19, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.destack.EffectType", EffectType, "EFFECT_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "opacity", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 51, name: "offset", kind: "message", T: () => Vector2Data },
             { no: 52, name: "scale", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
@@ -20853,9 +20794,6 @@ class EffectStyleData$Type extends MessageType<EffectStyleData> {
                     break;
                 case /* string name */ 31:
                     message.name = reader.string();
-                    break;
-                case /* optional symbol.destack.NodeReferenceData style_ptr */ 41:
-                    message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
                     break;
                 case /* optional double opacity */ 50:
                     message.opacity = reader.double();
@@ -20950,9 +20888,6 @@ class EffectStyleData$Type extends MessageType<EffectStyleData> {
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.destack.NodeReferenceData style_ptr = 41; */
-        if (message.stylePtr)
-            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* optional double opacity = 50; */
         if (message.opacity !== undefined)
             writer.tag(50, WireType.Bit64).double(message.opacity);
@@ -22457,7 +22392,6 @@ class FillStyleData$Type extends MessageType<FillStyleData> {
             { no: 19, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.destack.FillType", FillType, "FILL_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 42, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "color", kind: "message", T: () => ColorData },
             { no: 51, name: "gradient", kind: "message", T: () => GradientData },
             { no: 52, name: "image_ptr", kind: "message", T: () => NodeReferenceData },
@@ -22519,9 +22453,6 @@ class FillStyleData$Type extends MessageType<FillStyleData> {
                     break;
                 case /* string name */ 31:
                     message.name = reader.string();
-                    break;
-                case /* optional symbol.destack.NodeReferenceData style_ptr */ 42:
-                    message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
                     break;
                 case /* optional symbol.destack.ColorData color */ 50:
                     message.color = ColorData.internalBinaryRead(reader, reader.uint32(), options, message.color);
@@ -22589,9 +22520,6 @@ class FillStyleData$Type extends MessageType<FillStyleData> {
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.destack.NodeReferenceData style_ptr = 42; */
-        if (message.stylePtr)
-            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.destack.ColorData color = 50; */
         if (message.color)
             ColorData.internalBinaryWrite(message.color, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
@@ -23033,7 +22961,6 @@ class FontStyleData$Type extends MessageType<FontStyleData> {
             { no: 19, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.destack.FontType", FontType, "FONT_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "weight", kind: "enum", opt: true, T: () => ["symbol.destack.FontWeight", FontWeight, "FONT_WEIGHT_"] },
             { no: 51, name: "color", kind: "message", T: () => FillData },
             { no: 52, name: "size", kind: "enum", opt: true, T: () => ["symbol.destack.FontSize", FontSize, "FONT_SIZE_"] },
@@ -23098,9 +23025,6 @@ class FontStyleData$Type extends MessageType<FontStyleData> {
                     break;
                 case /* string name */ 31:
                     message.name = reader.string();
-                    break;
-                case /* optional symbol.destack.NodeReferenceData style_ptr */ 41:
-                    message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
                     break;
                 case /* optional symbol.destack.FontWeight weight */ 50:
                     message.weight = reader.int32();
@@ -23177,9 +23101,6 @@ class FontStyleData$Type extends MessageType<FontStyleData> {
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.destack.NodeReferenceData style_ptr = 41; */
-        if (message.stylePtr)
-            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.destack.FontWeight weight = 50; */
         if (message.weight !== undefined)
             writer.tag(50, WireType.Varint).int32(message.weight);
@@ -24334,7 +24255,6 @@ class GradientStyleData$Type extends MessageType<GradientStyleData> {
             { no: 19, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.destack.GradientType", GradientType, "GRADIENT_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 40, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "angle", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 51, name: "stops", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => GradientStopData },
             { no: 52, name: "center_anchor", kind: "message", T: () => Axis2Data },
@@ -24396,9 +24316,6 @@ class GradientStyleData$Type extends MessageType<GradientStyleData> {
                     break;
                 case /* string name */ 31:
                     message.name = reader.string();
-                    break;
-                case /* optional symbol.destack.NodeReferenceData style_ptr */ 40:
-                    message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
                     break;
                 case /* optional double angle */ 50:
                     message.angle = reader.double();
@@ -24463,9 +24380,6 @@ class GradientStyleData$Type extends MessageType<GradientStyleData> {
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.destack.NodeReferenceData style_ptr = 40; */
-        if (message.stylePtr)
-            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
         /* optional double angle = 50; */
         if (message.angle !== undefined)
             writer.tag(50, WireType.Bit64).double(message.angle);
@@ -28890,6 +28804,133 @@ class OriginData$Type extends MessageType<OriginData> {
  */
 export const OriginData = new OriginData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class PaletteData$Type extends MessageType<PaletteData> {
+    constructor() {
+        super("symbol.destack.PaletteData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 10, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 11, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
+            { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 19, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 34, name: "icon", kind: "message", T: () => IconData }
+        ]);
+    }
+    create(value?: PartialMessage<PaletteData>): PaletteData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.orderKey = "";
+        message.name = "";
+        if (value !== undefined)
+            reflectionMergePartial<PaletteData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PaletteData): PaletteData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.NodeType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceData parent_ptr */ 4:
+                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceData space_ptr */ 5:
+                    message.spacePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 10:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* optional symbol.destack.NodeReferenceData created_by_ptr */ 11:
+                    message.createdByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* google.protobuf.Timestamp updated_at */ 12:
+                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
+                    break;
+                case /* optional symbol.destack.NodeReferenceData updated_by_ptr */ 13:
+                    message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 15:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* string order_key */ 19:
+                    message.orderKey = reader.string();
+                    break;
+                case /* string name */ 31:
+                    message.name = reader.string();
+                    break;
+                case /* optional symbol.destack.IconData icon */ 34:
+                    message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: PaletteData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.NodeType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbol.destack.NodeReferenceData parent_ptr = 4; */
+        if (message.parentPtr)
+            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceData space_ptr = 5; */
+        if (message.spacePtr)
+            NodeReferenceData.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp created_at = 10; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceData created_by_ptr = 11; */
+        if (message.createdByPtr)
+            NodeReferenceData.internalBinaryWrite(message.createdByPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp updated_at = 12; */
+        if (message.updatedAt)
+            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceData updated_by_ptr = 13; */
+        if (message.updatedByPtr)
+            NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 15; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* string order_key = 19; */
+        if (message.orderKey !== "")
+            writer.tag(19, WireType.LengthDelimited).string(message.orderKey);
+        /* string name = 31; */
+        if (message.name !== "")
+            writer.tag(31, WireType.LengthDelimited).string(message.name);
+        /* optional symbol.destack.IconData icon = 34; */
+        if (message.icon)
+            IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.PaletteData
+ */
+export const PaletteData = new PaletteData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class PermissionData$Type extends MessageType<PermissionData> {
     constructor() {
         super("symbol.destack.PermissionData", [
@@ -32944,7 +32985,6 @@ class ShadowStyleData$Type extends MessageType<ShadowStyleData> {
             { no: 19, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.destack.ShadowType", ShadowType, "SHADOW_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "color", kind: "message", T: () => ColorData },
             { no: 51, name: "position", kind: "enum", T: () => ["symbol.destack.ShadowPosition", ShadowPosition, "SHADOW_POSITION_"] },
             { no: 52, name: "offset", kind: "message", T: () => Axis2Data },
@@ -33008,9 +33048,6 @@ class ShadowStyleData$Type extends MessageType<ShadowStyleData> {
                     break;
                 case /* string name */ 31:
                     message.name = reader.string();
-                    break;
-                case /* optional symbol.destack.NodeReferenceData style_ptr */ 41:
-                    message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
                     break;
                 case /* optional symbol.destack.ColorData color */ 50:
                     message.color = ColorData.internalBinaryRead(reader, reader.uint32(), options, message.color);
@@ -33081,9 +33118,6 @@ class ShadowStyleData$Type extends MessageType<ShadowStyleData> {
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.destack.NodeReferenceData style_ptr = 41; */
-        if (message.stylePtr)
-            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.destack.ColorData color = 50; */
         if (message.color)
             ColorData.internalBinaryWrite(message.color, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
@@ -35257,8 +35291,7 @@ class ThemeData$Type extends MessageType<ThemeData> {
             { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 19, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 50, name: "colors", kind: "map", K: 5 /*ScalarType.INT32*/, V: { kind: "message", T: () => ColorData } }
+            { no: 34, name: "icon", kind: "message", T: () => IconData }
         ]);
     }
     create(value?: PartialMessage<ThemeData>): ThemeData {
@@ -35267,7 +35300,6 @@ class ThemeData$Type extends MessageType<ThemeData> {
         message.id = "";
         message.orderKey = "";
         message.name = "";
-        message.colors = {};
         if (value !== undefined)
             reflectionMergePartial<ThemeData>(this, message, value);
         return message;
@@ -35313,9 +35345,6 @@ class ThemeData$Type extends MessageType<ThemeData> {
                 case /* optional symbol.destack.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* map<int32, symbol.destack.ColorData> colors */ 50:
-                    this.binaryReadMap50(message.colors, reader, options);
-                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -35326,22 +35355,6 @@ class ThemeData$Type extends MessageType<ThemeData> {
             }
         }
         return message;
-    }
-    private binaryReadMap50(map: ThemeData["colors"], reader: IBinaryReader, options: BinaryReadOptions): void {
-        let len = reader.uint32(), end = reader.pos + len, key: keyof ThemeData["colors"] | undefined, val: ThemeData["colors"][any] | undefined;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case 1:
-                    key = reader.int32();
-                    break;
-                case 2:
-                    val = ColorData.internalBinaryRead(reader, reader.uint32(), options);
-                    break;
-                default: throw new globalThis.Error("unknown map entry field for field symbol.destack.ThemeData.colors");
-            }
-        }
-        map[key ?? 0] = val ?? ColorData.create();
     }
     internalBinaryWrite(message: ThemeData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.NodeType metatype = 1; */
@@ -35380,13 +35393,6 @@ class ThemeData$Type extends MessageType<ThemeData> {
         /* optional symbol.destack.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* map<int32, symbol.destack.ColorData> colors = 50; */
-        for (let k of globalThis.Object.keys(message.colors)) {
-            writer.tag(50, WireType.LengthDelimited).fork().tag(1, WireType.Varint).int32(parseInt(k));
-            writer.tag(2, WireType.LengthDelimited).fork();
-            ColorData.internalBinaryWrite(message.colors[k as any], writer, options);
-            writer.join().join();
-        }
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -36324,7 +36330,6 @@ class TransitionStyleData$Type extends MessageType<TransitionStyleData> {
             { no: 19, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.destack.TransitionType", TransitionType, "TRANSITION_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 41, name: "style_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "delay", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 51, name: "duration", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 52, name: "ease", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 1 /*ScalarType.DOUBLE*/ },
@@ -36390,9 +36395,6 @@ class TransitionStyleData$Type extends MessageType<TransitionStyleData> {
                     break;
                 case /* string name */ 31:
                     message.name = reader.string();
-                    break;
-                case /* optional symbol.destack.NodeReferenceData style_ptr */ 41:
-                    message.stylePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.stylePtr);
                     break;
                 case /* optional double delay */ 50:
                     message.delay = reader.double();
@@ -36473,9 +36475,6 @@ class TransitionStyleData$Type extends MessageType<TransitionStyleData> {
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.destack.NodeReferenceData style_ptr = 41; */
-        if (message.stylePtr)
-            NodeReferenceData.internalBinaryWrite(message.stylePtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* optional double delay = 50; */
         if (message.delay !== undefined)
             writer.tag(50, WireType.Bit64).double(message.delay);
@@ -38071,14 +38070,15 @@ class SomeNodeData$Type extends MessageType<SomeNodeData> {
             { no: 8612, name: "arrow_shape", kind: "message", oneof: "node", T: () => ArrowShapeData },
             { no: 8613, name: "annotation_shape", kind: "message", oneof: "node", T: () => AnnotationShapeData },
             { no: 9000, name: "theme", kind: "message", oneof: "node", T: () => ThemeData },
-            { no: 9010, name: "color_style", kind: "message", oneof: "node", T: () => ColorStyleData },
-            { no: 9011, name: "fill_style", kind: "message", oneof: "node", T: () => FillStyleData },
-            { no: 9012, name: "font_style", kind: "message", oneof: "node", T: () => FontStyleData },
-            { no: 9013, name: "border_style", kind: "message", oneof: "node", T: () => BorderStyleData },
-            { no: 9014, name: "shadow_style", kind: "message", oneof: "node", T: () => ShadowStyleData },
-            { no: 9015, name: "gradient_style", kind: "message", oneof: "node", T: () => GradientStyleData },
-            { no: 9016, name: "transition_style", kind: "message", oneof: "node", T: () => TransitionStyleData },
-            { no: 9017, name: "effect_style", kind: "message", oneof: "node", T: () => EffectStyleData }
+            { no: 9010, name: "palette", kind: "message", oneof: "node", T: () => PaletteData },
+            { no: 9020, name: "color_style", kind: "message", oneof: "node", T: () => ColorStyleData },
+            { no: 9021, name: "fill_style", kind: "message", oneof: "node", T: () => FillStyleData },
+            { no: 9022, name: "font_style", kind: "message", oneof: "node", T: () => FontStyleData },
+            { no: 9023, name: "border_style", kind: "message", oneof: "node", T: () => BorderStyleData },
+            { no: 9024, name: "shadow_style", kind: "message", oneof: "node", T: () => ShadowStyleData },
+            { no: 9025, name: "gradient_style", kind: "message", oneof: "node", T: () => GradientStyleData },
+            { no: 9026, name: "transition_style", kind: "message", oneof: "node", T: () => TransitionStyleData },
+            { no: 9027, name: "effect_style", kind: "message", oneof: "node", T: () => EffectStyleData }
         ]);
     }
     create(value?: PartialMessage<SomeNodeData>): SomeNodeData {
@@ -38615,49 +38615,55 @@ class SomeNodeData$Type extends MessageType<SomeNodeData> {
                         theme: ThemeData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).theme)
                     };
                     break;
-                case /* symbol.destack.ColorStyleData color_style */ 9010:
+                case /* symbol.destack.PaletteData palette */ 9010:
+                    message.node = {
+                        oneofKind: "palette",
+                        palette: PaletteData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).palette)
+                    };
+                    break;
+                case /* symbol.destack.ColorStyleData color_style */ 9020:
                     message.node = {
                         oneofKind: "colorStyle",
                         colorStyle: ColorStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).colorStyle)
                     };
                     break;
-                case /* symbol.destack.FillStyleData fill_style */ 9011:
+                case /* symbol.destack.FillStyleData fill_style */ 9021:
                     message.node = {
                         oneofKind: "fillStyle",
                         fillStyle: FillStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).fillStyle)
                     };
                     break;
-                case /* symbol.destack.FontStyleData font_style */ 9012:
+                case /* symbol.destack.FontStyleData font_style */ 9022:
                     message.node = {
                         oneofKind: "fontStyle",
                         fontStyle: FontStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).fontStyle)
                     };
                     break;
-                case /* symbol.destack.BorderStyleData border_style */ 9013:
+                case /* symbol.destack.BorderStyleData border_style */ 9023:
                     message.node = {
                         oneofKind: "borderStyle",
                         borderStyle: BorderStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).borderStyle)
                     };
                     break;
-                case /* symbol.destack.ShadowStyleData shadow_style */ 9014:
+                case /* symbol.destack.ShadowStyleData shadow_style */ 9024:
                     message.node = {
                         oneofKind: "shadowStyle",
                         shadowStyle: ShadowStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).shadowStyle)
                     };
                     break;
-                case /* symbol.destack.GradientStyleData gradient_style */ 9015:
+                case /* symbol.destack.GradientStyleData gradient_style */ 9025:
                     message.node = {
                         oneofKind: "gradientStyle",
                         gradientStyle: GradientStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).gradientStyle)
                     };
                     break;
-                case /* symbol.destack.TransitionStyleData transition_style */ 9016:
+                case /* symbol.destack.TransitionStyleData transition_style */ 9026:
                     message.node = {
                         oneofKind: "transitionStyle",
                         transitionStyle: TransitionStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).transitionStyle)
                     };
                     break;
-                case /* symbol.destack.EffectStyleData effect_style */ 9017:
+                case /* symbol.destack.EffectStyleData effect_style */ 9027:
                     message.node = {
                         oneofKind: "effectStyle",
                         effectStyle: EffectStyleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).effectStyle)
@@ -38936,30 +38942,33 @@ class SomeNodeData$Type extends MessageType<SomeNodeData> {
         /* symbol.destack.ThemeData theme = 9000; */
         if (message.node.oneofKind === "theme")
             ThemeData.internalBinaryWrite(message.node.theme, writer.tag(9000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ColorStyleData color_style = 9010; */
+        /* symbol.destack.PaletteData palette = 9010; */
+        if (message.node.oneofKind === "palette")
+            PaletteData.internalBinaryWrite(message.node.palette, writer.tag(9010, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ColorStyleData color_style = 9020; */
         if (message.node.oneofKind === "colorStyle")
-            ColorStyleData.internalBinaryWrite(message.node.colorStyle, writer.tag(9010, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FillStyleData fill_style = 9011; */
+            ColorStyleData.internalBinaryWrite(message.node.colorStyle, writer.tag(9020, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FillStyleData fill_style = 9021; */
         if (message.node.oneofKind === "fillStyle")
-            FillStyleData.internalBinaryWrite(message.node.fillStyle, writer.tag(9011, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FontStyleData font_style = 9012; */
+            FillStyleData.internalBinaryWrite(message.node.fillStyle, writer.tag(9021, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FontStyleData font_style = 9022; */
         if (message.node.oneofKind === "fontStyle")
-            FontStyleData.internalBinaryWrite(message.node.fontStyle, writer.tag(9012, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.BorderStyleData border_style = 9013; */
+            FontStyleData.internalBinaryWrite(message.node.fontStyle, writer.tag(9022, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.BorderStyleData border_style = 9023; */
         if (message.node.oneofKind === "borderStyle")
-            BorderStyleData.internalBinaryWrite(message.node.borderStyle, writer.tag(9013, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ShadowStyleData shadow_style = 9014; */
+            BorderStyleData.internalBinaryWrite(message.node.borderStyle, writer.tag(9023, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ShadowStyleData shadow_style = 9024; */
         if (message.node.oneofKind === "shadowStyle")
-            ShadowStyleData.internalBinaryWrite(message.node.shadowStyle, writer.tag(9014, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.GradientStyleData gradient_style = 9015; */
+            ShadowStyleData.internalBinaryWrite(message.node.shadowStyle, writer.tag(9024, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.GradientStyleData gradient_style = 9025; */
         if (message.node.oneofKind === "gradientStyle")
-            GradientStyleData.internalBinaryWrite(message.node.gradientStyle, writer.tag(9015, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TransitionStyleData transition_style = 9016; */
+            GradientStyleData.internalBinaryWrite(message.node.gradientStyle, writer.tag(9025, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TransitionStyleData transition_style = 9026; */
         if (message.node.oneofKind === "transitionStyle")
-            TransitionStyleData.internalBinaryWrite(message.node.transitionStyle, writer.tag(9016, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EffectStyleData effect_style = 9017; */
+            TransitionStyleData.internalBinaryWrite(message.node.transitionStyle, writer.tag(9026, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EffectStyleData effect_style = 9027; */
         if (message.node.oneofKind === "effectStyle")
-            EffectStyleData.internalBinaryWrite(message.node.effectStyle, writer.tag(9017, WireType.LengthDelimited).fork(), options).join();
+            EffectStyleData.internalBinaryWrite(message.node.effectStyle, writer.tag(9027, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -38978,7 +38987,7 @@ export const SomeNodeData = new SomeNodeData$Type();
 //
 
 // Any...
-export type AnyNodeData = CustomEntityDefinitionData | CustomEntityData | CustomEnumDefinitionData | EditEventData | CustomEventDefinitionData | CustomEventData | FieldData | GaugeMetricData | GaugeMeasurementData | CounterMetricData | CounterMeasurementData | HistogramMetricData | HistogramMeasurementData | OptionData | CustomStructDefinitionData | EntitlementEventData | EntitlementData | InviteEventData | InviteData | MembershipEventData | MembershipData | PermissionData | RoleEventData | RoleData | SanctionEventData | SanctionData | CustomViewDefinitionData | CustomViewData | FrameViewData | LabelViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | WizardViewData | ThreadViewData | AnnotationShapeData | ArrowShapeData | CanvasData | LineShapeData | PlaneShapeData | FileData | LinkData | EnvironmentData | FolderData | TagData | TaggingData | DatabaseData | MachineData | ActionData | EventCursorData | ScreenCursorData | ThreadCursorData | RouteData | ScriptData | ServiceData | TimerEventData | TimerData | TriggerEventData | TriggerData | InterruptionData | LogData | RunEventData | RunData | SpanData | LayerData | SceneEventData | SceneData | WindowData | FollowData | MessageData | NotificationEventData | NotificationData | ReactionData | StarData | ThreadData | AgentData | ClientData | FriendshipData | FriendshipInviteEventData | FriendshipInviteData | HandleData | OrganizationData | SpaceData | TeamData | UserData | ColorStyleData | BorderStyleData | TransitionStyleData | EffectStyleData | GradientStyleData | FillStyleData | FontStyleData | ShadowStyleData | ThemeData
+export type AnyNodeData = CustomEntityDefinitionData | CustomEntityData | CustomEnumDefinitionData | EditEventData | CustomEventDefinitionData | CustomEventData | FieldData | GaugeMetricData | GaugeMeasurementData | CounterMetricData | CounterMeasurementData | HistogramMetricData | HistogramMeasurementData | OptionData | CustomStructDefinitionData | EntitlementEventData | EntitlementData | InviteEventData | InviteData | MembershipEventData | MembershipData | PermissionData | RoleEventData | RoleData | SanctionEventData | SanctionData | CustomViewDefinitionData | CustomViewData | FrameViewData | LabelViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | WizardViewData | ThreadViewData | AnnotationShapeData | ArrowShapeData | CanvasData | LineShapeData | PlaneShapeData | FileData | LinkData | EnvironmentData | FolderData | TagData | TaggingData | DatabaseData | MachineData | ActionData | EventCursorData | ScreenCursorData | ThreadCursorData | RouteData | ScriptData | ServiceData | TimerEventData | TimerData | TriggerEventData | TriggerData | InterruptionData | LogData | RunEventData | RunData | SpanData | LayerData | SceneEventData | SceneData | WindowData | FollowData | MessageData | NotificationEventData | NotificationData | ReactionData | StarData | ThreadData | AgentData | ClientData | FriendshipData | FriendshipInviteEventData | FriendshipInviteData | HandleData | OrganizationData | SpaceData | TeamData | UserData | ColorStyleData | BorderStyleData | TransitionStyleData | EffectStyleData | GradientStyleData | FillStyleData | FontStyleData | PaletteData | ShadowStyleData | ThemeData
 export type AnyStructData = ScopeData | RelationReferenceData | AttributeReferenceData | PropertyReferenceData | NodeReferenceData | EditData | ChangeData | ChangeResultData | ErrorData | StringConstraintData | NumberConstraintData | CollectionConstraintData | NodeConstraintData | TypeData | ValueData | FunctionData | ConditionData | AggregationData | ExpressionData | SortData | SelectData | JoinData | QueryData | HistogramData | QueryResultData | QueryResultGroupData | QueryUpdateData | SelectionData | IconData | PropertyDefinitionData | TraitDefinitionData | NodeDefinitionData | StructDefinitionData | EnumDefinitionData | EnumOptionDefinitionData | PermissionDefinitionData | TextSpanData | TextLineData | TextData | LengthData | PositionData | DimensionData | InsetsData | CornersData | Axis2Data | Axis3Data | Vector2Data | Vector3Data | Vector4Data | Vector2iData | Vector3iData | Vector4iData | GridData | GridSpanData | CellInfoData | DatabaseInfoData | ScheduleData | OriginData | ColorData | BorderData | TransitionData | EffectData | GradientStopData | GradientData | FillData | FontData | ShadowData
 
     

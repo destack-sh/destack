@@ -29,7 +29,6 @@ if TYPE_CHECKING:
 @builtin_enum(EnumType.FONT_TYPE)
 class FontType(Enum):
     STYLE = 2
-    FIELD = 3
     SERIF = 10
     SANS = 11
     MONO = 12
@@ -91,7 +90,6 @@ class FontBase(BuiltinObjectMutable):
     """A text style value."""
 
     type: FontType = property_(30, default=FontType.SANS, is_repr=True)
-    style: Optional["FontStyle"] = property_(41, is_repr=True)
     weight: Optional[FontWeight] = property_(50, default=FontWeight.NORMAL, is_repr=True)
     color: Optional[Fill] = property_(51, is_repr=True)
     size: Optional[FontSize] = property_(52, default=FontSize.BASE, is_repr=True)
@@ -106,7 +104,7 @@ class FontBase(BuiltinObjectMutable):
 class Font(FontBase, StructMutable):
     """A font value."""
 
-    pass
+    style: Optional["FontStyle"] = property_(41, is_repr=True)
 
 
 @builtin_node(NodeType.FONT_STYLE)

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional, assert_never
+from typing import TYPE_CHECKING, Optional, Union, assert_never
 
 from destack.language.core import (
     BuiltinObjectMutable,
@@ -13,13 +13,14 @@ from destack.language.core import (
     builtin_struct,
     object_,
     property_,
+    property_parent_,
 )
 from destack.pb2 import ColorStyleData
 
 from .style import Style
 
 if TYPE_CHECKING:
-    pass
+    from destack.language import Palette, Scene, Theme, View
 
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -79,24 +80,39 @@ class ColorShade(Enum):
     S950 = 950
 
 
+@builtin_enum(EnumType.COLOR_INTENT)
+class ColorIntent(Enum):
+    """Built-in color intents."""
+
+    PRIMARY = 1
+    SECONDARY = 2
+    NEUTRAL = 3
+    SUCCESS = 10
+    INFO = 11
+    WARNING = 12
+    ERROR = 13
+
+
 @object_()
 class ColorBase(BuiltinObjectMutable):
     """A color value (x, y, z, alpha in 0-1)."""
 
     type: ColorType = property_(30, is_repr=True)
-    style: Optional["ColorStyle"] = property_(42, is_repr=True)
 
     hue: Optional[ColorHue] = property_(50, is_repr=True)
     shade: Optional[ColorShade] = property_(51, is_repr=True)
-    x: Optional[float] = property_(52, is_repr=True)
-    y: Optional[float] = property_(53, is_repr=True)
-    z: Optional[float] = property_(54, is_repr=True)
-    alpha: Optional[float] = property_(55, is_repr=True)
+    intent: Optional[ColorIntent] = property_(52, is_repr=True)
+    x: Optional[float] = property_(55, is_repr=True)
+    y: Optional[float] = property_(56, is_repr=True)
+    z: Optional[float] = property_(57, is_repr=True)
+    alpha: Optional[float] = property_(58, is_repr=True)
 
 
 @builtin_struct(StructType.COLOR)
 class Color(ColorBase, StructMutable):
     """A color value."""
+
+    style: Optional["ColorStyle"] = property_(42, is_repr=True)
 
     @staticmethod
     def from_hex(hex: str) -> "Color":
@@ -116,6 +132,9 @@ class ColorStyle(
 ):
     """A color style, with an optional dark variant."""
 
+    parent: Union["Scene", "View", "Theme", "Palette", None] = property_parent_(
+        node_is_customizable=True
+    )
     dark: Color | None = property_(60)
 
     @staticmethod
@@ -124,7 +143,6 @@ class ColorStyle(
             type=color.type,
             hue=color.hue,
             shade=color.shade,
-            style=color.style,
             x=color.x,
             y=color.y,
             z=color.z,

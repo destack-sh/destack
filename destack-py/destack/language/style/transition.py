@@ -30,7 +30,6 @@ class TransitionType(Enum):
     """Built-in transition types."""
 
     STYLE = 2
-    FIELD = 3
     TWEEN = 10
     SPRING = 11
 
@@ -46,7 +45,6 @@ class SpringType(Enum):
 @object_()
 class TransitionBase(BuiltinObjectMutable):
     type: TransitionType = property_(30, default=TransitionType.TWEEN, is_repr=True)
-    style: Optional["TransitionStyle"] = property_(41, is_repr=True)
     delay: float | None = property_(50, is_repr=True)
     duration: float | None = property_(51, is_repr=True)
     ease: list[float] = property_(52, is_repr=True)
@@ -61,7 +59,7 @@ class TransitionBase(BuiltinObjectMutable):
 class Transition(TransitionBase, StructMutable):
     """A transition value."""
 
-    pass
+    style: Optional["TransitionStyle"] = property_(41, is_repr=True)
 
 
 @builtin_node(NodeType.TRANSITION_STYLE)
