@@ -730,10 +730,7 @@ class Entity(IsTracked):
     An Entity is a versioned Node in primary relational storage (OLTP).
     """
 
-    # nocheckin: support Entity variants/branching (use id+variant as primary key?)
-    #  (IsBranch trait and Node.variant_id for Forks/Branches/Variants/Templates/.....?)
-    #  (of course, also ideally want to use this for optimistic changes,
-    #   like in-memory position/text/whatever updates periodically stored to the primary)
+    # nocheckin: support Entity variants/branching (use id+snapshot as primary key [nulls unique])
 
     snapshot: Optional["Snapshot"] = property_(4, can_write=None)
     template: Optional["Node"] = property_(5, can_write=None, node_is_customizable=False)

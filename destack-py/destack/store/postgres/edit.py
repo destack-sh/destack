@@ -25,15 +25,16 @@ tracer = trace.get_tracer(__name__)
 logger = structlog.get_logger(__name__)
 
 
-@tracer.start_as_current_span("database.execute_change")
+@tracer.start_as_current_span("postgres.execute_change")
 async def execute_change(
     conn: asyncpg.Connection, context: PostgresContext, change: Change
 ) -> tuple[Sequence[Edit], Sequence[Edit]]:
     """Execute the Change."""
     assert change.edits, f"no Edits in {change!r}"
 
-    cascaded_edits: list[Edit] = []
     edits = _optimize_change(context, change.edits)
+    cascaded_edits: list[Edit] = []
+    applied_edits: list[Edit] = []
 
     current_table = context.get_relation(edits[0].node_ptr)
     current_edit_type = edits[0].type
@@ -41,7 +42,7 @@ async def execute_change(
     for edit in edits:
         edit_table = context.get_relation(edit.node_ptr)
         if edit_table is not current_table or edit.type != current_edit_type:
-            _, batch_cascaded_edits = await _execute_data_edit(
+            batch_applied_edits, batch_cascaded_edits = await _execute_data_edit(
                 conn=conn,
                 context=context,
                 change=change,
@@ -49,6 +50,7 @@ async def execute_change(
                 edit_type=current_edit_type,
                 edits=current_batch,
             )
+            applied_edits.extend(batch_applied_edits)
             cascaded_edits.extend(batch_cascaded_edits)
             schema_edits = context.apply(tuple(current_batch) + tuple(batch_cascaded_edits))
             if schema_edits:
@@ -61,7 +63,7 @@ async def execute_change(
         current_batch.append(edit)
 
     if current_batch:
-        _, batch_cascaded_edits = await _execute_data_edit(
+        batch_applied_edits, batch_cascaded_edits = await _execute_data_edit(
             conn=conn,
             context=context,
             change=change,
@@ -69,16 +71,17 @@ async def execute_change(
             edit_type=current_edit_type,
             edits=current_batch,
         )
+        applied_edits.extend(batch_applied_edits)
         cascaded_edits.extend(batch_cascaded_edits)
         schema_edits = context.apply(tuple(current_batch) + tuple(batch_cascaded_edits))
         if schema_edits:
             await _execute_schema_edits(conn=conn, context=context, edits=schema_edits)
 
-    logger.debug("database.execute_change", change=change, span="current")
-    return change.edits, cascaded_edits
+    logger.debug("postgres.execute_change", change=change, span="current")
+    return applied_edits, cascaded_edits
 
 
-@tracer.start_as_current_span("database.optimize_change")
+@tracer.start_as_current_span("postgres.optimize_change")
 def _optimize_change(context: PostgresContext, edits: Sequence[Edit]) -> list[Edit]:
     """
     Optimize the Change/Edits *while retaining semantic equivalence*.
@@ -113,7 +116,7 @@ def _optimize_change(context: PostgresContext, edits: Sequence[Edit]) -> list[Ed
     return optimized_edits
 
 
-@tracer.start_as_current_span("database.execute_cascade")
+@tracer.start_as_current_span("postgres.execute_cascade")
 async def _execute_cascade(
     conn: asyncpg.Connection,
     context: PostgresContext,
@@ -124,7 +127,7 @@ async def _execute_cascade(
     raise NotImplementedError
 
 
-@tracer.start_as_current_span("database.execute_schema_edits")
+@tracer.start_as_current_span("postgres.execute_schema_edits")
 async def _execute_schema_edits(
     conn: asyncpg.Connection,
     context: PostgresContext,
@@ -134,14 +137,14 @@ async def _execute_schema_edits(
     pass  # :PostgresSchemaEdits
 
 
-@tracer.start_as_current_span("database.execute_data_edit")
+@tracer.start_as_current_span("postgres.execute_data_edit")
 async def _execute_data_edit(
     conn: asyncpg.Connection,
     context: PostgresContext,
     change: Change,
     table: PostgresTable,
     edit_type: EditType,
-    edits: list[Edit],
+    edits: Sequence[Edit],
 ) -> tuple[Sequence[Edit], Sequence[Edit]]:
     """
     Execute the Edits to the data (data only, no schema).
@@ -175,7 +178,7 @@ SET {", ".join(f'"{col.name}" = EXCLUDED."{col.name}"' for col in override_colum
             values_packed.append(row_values_packed)
         await conn.executemany(stmt, values_packed)
         logger.debug(
-            f"database.{edit_type.name.lower()}",
+            f"postgres.{edit_type.name.lower()}",
             change=change,
             edits=len(edits),
             stmt=stmt,
@@ -239,7 +242,7 @@ WHERE id = ${param_i}
 
         await conn.executemany(stmt, values_packed)
         logger.debug(
-            "database.update",
+            "postgres.update",
             change=change,
             edits=len(edits),
             stmt=stmt,
@@ -271,7 +274,7 @@ WHERE id = ${len(update_template) + 1}
             values_packed.append(row_values)
         await conn.executemany(stmt, values_packed)
         logger.debug(
-            "database.move",
+            "postgres.move",
             change=change,
             edits=len(edits),
             stmt=stmt,
@@ -323,7 +326,7 @@ WHERE id = $1
 """
             await conn.executemany(stmt, [(node_id, at_packed) for node_id in table_node_ids])
             logger.debug(
-                f"database.{edit_type.name.lower()}",
+                f"postgres.{edit_type.name.lower()}",
                 change=change,
                 edits=len(edits),
                 cascaded_edits=len(cascaded_edits),
@@ -359,7 +362,7 @@ WHERE id = $1
 """
             await conn.executemany(stmt, table_node_ids)
             logger.debug(
-                "database.erase",
+                "postgres.erase",
                 change=change,
                 edits=len(edits),
                 cascaded_edits=len(cascaded_edits),

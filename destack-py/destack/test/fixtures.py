@@ -8,6 +8,7 @@ import pytest
 import structlog
 from opentelemetry import trace
 
+from destack.store import MemoryStore
 from destack.test.conftest import _setup_test_env
 
 # ruff: noqa: E402
@@ -150,7 +151,9 @@ def postgres_store(omni_postgres_database: DatabaseInfo) -> PostgresStore:
 
 @pytest.fixture  # :PytestAsyncContext
 async def session_async(postgres_store: PostgresStore) -> AsyncGenerator[Session, None]:
-    session = Session(store=postgres_store)
+    # nocheckin: properly split Postgres/Memory/.. Stores somehow in tests
+    memory_store = MemoryStore(types=tuple(StoreType))
+    session = Session(store=memory_store)
     await session.open()
     yield session
     await session.close()

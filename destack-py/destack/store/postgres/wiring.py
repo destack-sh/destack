@@ -336,7 +336,7 @@ def unpack_node_row(table: PostgresTable, row: asyncpg.Record) -> tuple[Value, N
 #
 
 
-def pack_column_scalar(type: "Type | Field", value: Json) -> Any:
+def _pack_column_scalar(type: "Type | Field", value: Json) -> Any:
     assert type.scalar_type != ScalarType.NODE_REFERENCE, f"unhandled node ref: {type!r}"
     if type.scalar_type == ScalarType.PRIMITIVE:
         if type.primitive_type == PrimitiveType.BYTES:
@@ -366,9 +366,9 @@ def pack_column_scalar(type: "Type | Field", value: Json) -> Any:
 def pack_column_flat(type: "Type | Field", value: Json) -> Any:
     """Pack a dynamic column value into a single column value."""
     if type.cardinality == TypeCardinality.SCALAR:
-        return pack_column_scalar(type, value)
+        return _pack_column_scalar(type, value)
     elif type.cardinality == TypeCardinality.LIST:
-        return [pack_column_scalar(type, v) for v in value]
+        return [_pack_column_scalar(type, v) for v in value]
     elif type.cardinality == TypeCardinality.MAP:
         return orjson.dumps(value).decode()  # keep json
     else:
@@ -401,17 +401,17 @@ def pack_column_wide(
                     uuid.UUID(value["35"]) if value is not None and value.get("35") else None
                 )
         else:
-            value_packed = pack_column_scalar(type, value) if value is not None else None
+            value_packed = _pack_column_scalar(type, value) if value is not None else None
             column_out[column_name] = value_packed
     elif type.cardinality == TypeCardinality.LIST:
-        column_out[column_name] = [pack_column_scalar(type, v) for v in value or ()]
+        column_out[column_name] = [_pack_column_scalar(type, v) for v in value or ()]
     elif type.cardinality == TypeCardinality.MAP:
         column_out[column_name] = orjson.dumps(value or EMPTY_DICT).decode()  # keep json
     else:
         assert_never(type.cardinality)
 
 
-def unpack_column_scalar(type: "Type | Field", value: Any) -> Json:
+def _unpack_column_scalar(type: "Type | Field", value: Any) -> Json:
     assert type.scalar_type != ScalarType.NODE_REFERENCE, f"unhandled node ref: {type!r}"
     if type.scalar_type == ScalarType.PRIMITIVE:
         if type.primitive_type == PrimitiveType.BYTES:
@@ -440,9 +440,9 @@ def unpack_column_scalar(type: "Type | Field", value: Any) -> Json:
 
 def unpack_column(type: "Type | Field", value: Any) -> Json:
     if type.cardinality == TypeCardinality.SCALAR:
-        return unpack_column_scalar(type, value)
+        return _unpack_column_scalar(type, value)
     elif type.cardinality == TypeCardinality.LIST:
-        return [unpack_column_scalar(type, v) for v in value]
+        return [_unpack_column_scalar(type, v) for v in value]
     elif type.cardinality == TypeCardinality.MAP:
         return orjson.loads(value)  # keep json
     else:

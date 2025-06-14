@@ -107,8 +107,8 @@ class NodePermission(Enum):
     REMOVE = 12, "Archive, Delete, Erase"
 
 
-@builtin_enum(EnumType.NODE_IDENTITY_TYPE)
-class NodeIdentityType(Enum):
+@builtin_enum(EnumType.INSTANCE_TYPE)
+class InstanceType(Enum):
     PARTIAL = 1, "Partial"
     FULL = 2, "Full"
 
@@ -127,7 +127,7 @@ class Node[NodeDataT: AnyNodeData](NodeBase[NodeDataT]):
     parent: Optional["Node"] = property_parent_(node_is_customizable=True)
     # Entity.snapshot: 4
     # Entity.template: 5
-    # Entity.identity_type: 6
+    # Entity.instance_type: 6
     # Spatial.space: 7
     # Node.store_type: 8
     if TYPE_CHECKING:
