@@ -17,7 +17,7 @@ from opentelemetry import trace
 from destack.language.registry import (
     NODE_CLASS_BY_TYPE,
     NODE_TYPE_BY_CLASS,
-    ORDER_GROUPS_BY_NODE_TYPE,
+    ORDER_GROUP_BY_NODE_TYPE,
 )
 from destack.pb2 import AnyNodeData
 from destack.utils.fractional import get_order_key
@@ -236,7 +236,7 @@ class Node[NodeDataT: AnyNodeData](NodeBase[NodeDataT]):
         )
 
         # assign order
-        if (order_group := ORDER_GROUPS_BY_NODE_TYPE.get(child.metatype)) is not None:
+        if (order_group := ORDER_GROUP_BY_NODE_TYPE.get(child.metatype)) is not None:
             existing_nodes = self._graph.get_children(self, node_type=order_group)
             if existing_nodes:
                 order_key = get_order_key(getattr(existing_nodes[-1], "order_key", None), None)

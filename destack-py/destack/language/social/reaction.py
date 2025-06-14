@@ -1,9 +1,9 @@
 from typing import TYPE_CHECKING, Union
 
 from destack.language.core import (
+    Entity,
     Global,
     IndexIn,
-    Instance,
     IsDeletable,
     IsOwnable,
     IsReactable,
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 class Reaction(
     Global,
     Spatial,
-    Instance,
+    Entity,
     IsReactable,
     IsDeletable,
     IsOwnable,

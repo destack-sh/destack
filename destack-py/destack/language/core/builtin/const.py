@@ -892,7 +892,6 @@ class TraitType(Enum):
     ANALYTIC = 12, "Analytic", "Is an Analytic", "fas fa-chart-line"
     INDEXED = 13, "Indexed", "Is indexed", "fas fa-search"
     # type
-    INSTANCE = 20, "Instance", "Is an Instance", "fas fa-puzzle-piece"
     RESOURCE = 21, "Resource", "Is a Resource", "fas fa-server"
     EVENT = 22, "Event", "Is an Event", "fas fa-bolt"
     CUSTOM_NODE_DEFINITION = (
@@ -940,6 +939,7 @@ class TraitType(Enum):
     RUNNABLE = 3001, "Runnable", "Can be run", "fas fa-play"
     SCRIPTABLE = 3002, "Scriptable", "Can be scripted", "fas fa-code"
     SOURCEABLE = 3003, "Sourcable", "Can be defined in a Script", "fas fa-code"
+    # PAUSEABLE?
     CURSOR = 3012, "Cursor", "Is a Cursor", "fas fa-mouse-pointer"
 
     # test [3500-4000]

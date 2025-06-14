@@ -65,12 +65,16 @@ if TYPE_CHECKING:
 #  - Is (e.g., IsTaggable, IsOwnable): the trait ascribes some behavior
 #
 
+# traits you must have at least one of
 AT_LEAST_ONE_TRAITS = (
     (TraitType.GLOBAL, TraitType.SPATIAL),
     (TraitType.ENTITY, TraitType.PARTICLE, TraitType.ANALYTIC, TraitType.INDEXED),
 )
+# traits you can have at most one of
 AT_MOST_ONE_TRAITS = ((TraitType.ENTITY, TraitType.PARTICLE),)
+# traits where every descendant must have the trait
 INFECTIOUS_TRAITS = (TraitType.ARCHIVABLE, TraitType.DELETABLE)
+# traits where all matching nodes are ordered together
 INTER_ORDER_TRAITS = (TraitType.VIEW, TraitType.STYLE)
 
 
@@ -776,13 +780,6 @@ class Indexed(IsTracked):
     pass
 
 
-@builtin_trait(TraitType.INSTANCE)
-class Instance(Entity):
-    """
-    An Entity that can be instanced from a template (of the same Entity type).
-    """
-
-
 @builtin_trait(TraitType.RESOURCE)
 class Resource(Entity):
     """
@@ -796,7 +793,7 @@ class Resource(Entity):
 
 
 @builtin_trait(TraitType.METRIC)
-class Metric(Instance, IsSourceable, IsCustomNodeDefinition):
+class Metric(Entity, IsSourceable, IsCustomNodeDefinition):
     """An Entity that represents a Metric."""
 
     pass

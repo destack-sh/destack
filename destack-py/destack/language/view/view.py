@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING, Optional, Union
 
 from destack.language.core import (
+    Entity,
     HasName,
-    Instance,
     IsDeletable,
     IsOrdered,
     IsScriptable,
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 @builtin_trait(TraitType.VIEW)
 class View(
     Spatial,
-    Instance,
+    Entity,
     HasName,
     IsVisual,
     IsOrdered,

@@ -41,7 +41,7 @@ NODE_CLASS_BY_TYPE: dict[NodeType, type["Node"]] = {}
 NODE_TYPE_BY_CLASS: dict[type["Node"], NodeType] = {}
 NODE_TYPES_BY_MAIN_STORE_TYPE: dict[StoreType, tuple[NodeType, ...]] = {}
 
-ORDER_GROUPS_BY_NODE_TYPE: dict[NodeType, TraitType | NodeType] = {}
+ORDER_GROUP_BY_NODE_TYPE: dict[NodeType, TraitType | NodeType] = {}
 
 TRAIT_CLASS_BY_TRAIT: dict[TraitType, type["BuiltinObjectBase"]] = {}
 TRAIT_TYPE_BY_CLASS: dict[type["Trait"], TraitType] = {}
@@ -127,7 +127,8 @@ def _complete_setup():
             node_types_by_trait[trait].append(node_cls.metatype)
     for trait, node_types in node_types_by_trait.items():
         NODE_TYPES_BY_TRAIT_TYPE[trait] = tuple(node_types)
-    for trait_type in TRAIT_TYPE_BY_CLASS.values():
+    for trait_type in TraitType:
+        assert trait_type in TRAIT_CLASS_BY_TRAIT, f"missing trait type: {trait_type!r}"
         if trait_type not in NODE_TYPES_BY_TRAIT_TYPE:
             NODE_TYPES_BY_TRAIT_TYPE[trait_type] = ()
 
@@ -137,10 +138,10 @@ def _complete_setup():
     for trait_type in INTER_ORDER_TRAITS:
         order_group = NODE_TYPES_BY_TRAIT_TYPE[trait_type]
         for node_type in order_group:
-            ORDER_GROUPS_BY_NODE_TYPE[node_type] = trait_type
+            ORDER_GROUP_BY_NODE_TYPE[node_type] = trait_type
     for node_type in NODE_TYPES_BY_TRAIT_TYPE[TraitType.ORDERED]:
-        if node_type not in ORDER_GROUPS_BY_NODE_TYPE:
-            ORDER_GROUPS_BY_NODE_TYPE[node_type] = node_type
+        if node_type not in ORDER_GROUP_BY_NODE_TYPE:
+            ORDER_GROUP_BY_NODE_TYPE[node_type] = node_type
 
     # index parent types
     for node_cls in NODE_CLASS_BY_TYPE.values():

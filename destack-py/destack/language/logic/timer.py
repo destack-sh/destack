@@ -1,11 +1,11 @@
 from typing import TYPE_CHECKING
 
 from destack.language.core import (
+    Entity,
     Enum,
     EnumType,
     Event,
     HasName,
-    Instance,
     Node,
     NodeType,
     Spatial,
@@ -52,7 +52,7 @@ class TimerType(Enum):
 @builtin_node(NodeType.TIMER)
 class Timer(
     Spatial,
-    Instance,
+    Entity,
     HasName,
     Node[TimerData],
 ):

@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING, Union
 
 from destack.language.core import (
+    Entity,
     HasName,
-    Instance,
     IsDeletable,
     IsOrdered,
     IsTaggable,
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 @builtin_trait(TraitType.STYLE)
 class Style(
     Spatial,
-    Instance,
+    Entity,
     HasName,
     IsVisual,
     IsOrdered,

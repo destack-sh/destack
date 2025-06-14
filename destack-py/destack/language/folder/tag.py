@@ -1,9 +1,9 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
+    Entity,
     HasIcon,
     HasName,
-    Instance,
     IsDeletable,
     IsOrdered,
     IsTaggable,
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.TAG)
 class Tag(
     Spatial,
-    Instance,
+    Entity,
     LikeTag,
     HasName,
     HasIcon,
@@ -42,7 +42,7 @@ class Tag(
 @builtin_node(NodeType.TAGGING)
 class Tagging(
     Spatial,
-    Instance,
+    Entity,
     IsTaggable,
     IsOrdered,
     IsDeletable,

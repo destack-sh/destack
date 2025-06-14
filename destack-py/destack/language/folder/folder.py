@@ -1,13 +1,13 @@
 from typing import TYPE_CHECKING, Optional, Union
 
 from destack.language.core import (
+    Entity,
     Enum,
     EnumType,
     HasIcon,
     HasName,
     HasSlug,
     IndexIn,
-    Instance,
     IsDeletable,
     IsFollowable,
     IsJoinable,
@@ -47,7 +47,7 @@ class FolderType(Enum):
 )
 class Folder(
     Spatial,
-    Instance,
+    Entity,
     HasIcon,
     HasSlug,
     HasName,

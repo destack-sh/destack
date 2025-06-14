@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING, Union
 
 from destack.language.core import (
+    Entity,
     HasName,
-    Instance,
     IsActionable,
     IsDeletable,
     IsExtensible,
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.SCRIPT)
 class Script(
     Spatial,
-    Instance,
+    Entity,
     HasName,
     IsOrdered,
     IsActionable,

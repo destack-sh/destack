@@ -1,11 +1,11 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
+    Entity,
     Enum,
     EnumType,
     Event,
     Global,
-    Instance,
     IsDeletable,
     IsJoinable,
     IsOwnable,
@@ -63,7 +63,7 @@ class MembershipPermission(Enum):
 class Membership(
     Global,
     Spatial,
-    Instance,
+    Entity,
     LikeMembership,
     IsOwnable,
     IsDeletable,
