@@ -3,7 +3,6 @@ import pytest
 from destack.utils.fractional import BASE_62_DIGITS, get_order_key
 
 
-# noinspection Assert
 @pytest.mark.parametrize(
     "test_case",
     [

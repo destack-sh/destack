@@ -30,7 +30,9 @@ bitarray==2.9.2
 black==24.10.0
     # via -r destack-py/destack/requirements/system.in
 boto3==1.35.58
-    # via -r destack-py/destack/requirements/system.in
+    # via
+    #   -r destack-py/destack/requirements/system.in
+    #   mypy-boto3
 boto3-stubs==1.38.32
     # via types-boto3
 botocore==1.35.58
@@ -151,6 +153,8 @@ multidict==6.4.4
     #   aiohttp
     #   grpclib
     #   yarl
+mypy-boto3==1.38.0
+    # via -r destack-py/destack/requirements/dev.in
 mypy-extensions==1.1.0
     # via black
 nodeenv==1.9.1
@@ -206,6 +210,8 @@ pluggy==1.6.0
 posthog==4.0.1
     # via -r destack-py/destack/requirements/system.in
 pre-commit==3.3.3
+    # via -r destack-py/destack/requirements/dev.in
+prompt-toolkit==3.0.51
     # via -r destack-py/destack/requirements/dev.in
 propcache==0.3.1
     # via
@@ -355,6 +361,8 @@ virtualenv==20.31.2
     # via pre-commit
 watchdog==3.0.0
     # via -r destack-py/destack/requirements/dev.in
+wcwidth==0.2.13
+    # via prompt-toolkit
 websocket-client==1.8.0
     # via kubernetes
 wheel==0.45.1

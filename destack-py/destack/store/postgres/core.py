@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, Any, ClassVar, Self, Union, cast
 from more_itertools import first
 
 from destack.language import (
-    CustomEntityDefinition,
     Edit,
     Field,
     IndexIn,
@@ -40,7 +39,7 @@ class PostgresSchema:
         return f"extensions={len(self.extensions)}, tables={len(self.tables)}"
 
     def __repr__(self):
-        return f"<Schema {self}>"
+        return f"<{self.__class__.__name__} {self}>"
 
     def walk(self):
         yield from self.extensions
@@ -443,7 +442,6 @@ class PostgresTable(PostgresTableObject):
     constraints: tuple[PostgresConstraint, ...] = ()
     _columns_by_name: dict[str, PostgresColumn] = dataclasses.field(init=False)
     _primary_key: PostgresColumn | None = dataclasses.field(init=False)
-    _table: Union["CustomEntityDefinition", None] = None  # type: ignore
 
     def __post_init__(self):
         for object in chain(self.columns, self.indexes, self.constraints):

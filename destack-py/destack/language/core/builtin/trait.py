@@ -655,6 +655,13 @@ class IsOwnable(Trait):
         owned_by_ptr: Optional[NodeReference] = None
 
 
+@builtin_trait(TraitType.SETTINGS)
+class IsSettings(Trait):
+    """A Node that defines Settings."""
+
+    pass
+
+
 @builtin_enum(EnumType.JOINABLE_PERMISSION)
 class JoinablePermission(Enum):
     """A Permission for a Joinable."""

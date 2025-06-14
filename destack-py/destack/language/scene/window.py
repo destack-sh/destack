@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from destack.language.core import (
     Entity,
@@ -11,7 +11,6 @@ from destack.language.core import (
     IsVisual,
     Node,
     NodeType,
-    Selection,
     Spatial,
     StringFormat,
     builtin_enum,
@@ -21,7 +20,7 @@ from destack.language.core import (
 from destack.pb2 import WindowData
 
 if TYPE_CHECKING:
-    from destack.language import Thread
+    pass
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -45,22 +44,10 @@ class Window(
     Node[WindowData],
 ):
     """
-    A Window for someone to interact with a Space.
+    A Window for someone to interact with a Space via Scenes.
     """
 
     type: WindowType = property_(30)
     name: str | None = property_(31, format=StringFormat.NAME)
 
-    selection: Optional[Selection] = property_(
-        70,
-        default=None,
-        description="The current selection of the Window.",
-    )
-    focus: Optional[Node] = property_(71, default=None, description="The current main focus.")
-    inspection: Optional[Node] = property_(
-        72, default=None, description="The current inspected Node."
-    )
-    container: Optional[Node] = property_(
-        73, default=None, description="The current 'root' container Node."
-    )
-    thread: Optional["Thread"] = property_(75, default=None, description="The current Thread.")
+    pass
