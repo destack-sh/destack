@@ -3,13 +3,12 @@ from typing import TYPE_CHECKING, Union
 from destack.pb2 import OptionData
 
 from ..builtin import (
-    Entity,
     HasIcon,
     HasName,
+    Instance,
     IsDeletable,
     IsSourceable,
     IsTaggable,
-    IsTemplatable,
     Node,
     NodeType,
     Spatial,
@@ -26,11 +25,10 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.OPTION)
 class Option(
     Spatial,
-    Entity,
+    Instance,
     HasName,
     HasIcon,
     IsTaggable,
-    IsTemplatable,
     IsDeletable,
     IsSourceable,
     Node[OptionData],

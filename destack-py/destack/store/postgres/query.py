@@ -805,7 +805,7 @@ async def _execute_subquery(
         # collect/walk
         parents_ptr: dict[UUID, NodeReference] = {}
         for node_value in result.nodes:
-            if (parent_ptr_value := node_value.value.get("4")) is not None:
+            if (parent_ptr_value := node_value.value.get("3")) is not None:
                 parent_id = fastuuid.UUID(parent_ptr_value["32"])
                 if parent_id in parents_ptr:
                     continue

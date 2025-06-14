@@ -543,7 +543,7 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
         if self.scalar_type == ScalarType.NODE_REFERENCE and self.edge_type is None:
             self.edge_type = EdgeType.REGULAR
         # node templates always point to their own type
-        if self.edge_type == EdgeType.TEMPLATE and object_type is not None:
+        if self.name == "template" and object_type is not None:
             self.node_types = (NodeType(object_type),)
         # references get a _ptr property (which is wired/stored)
         if (
@@ -649,7 +649,7 @@ def property_(
 def property_parent_(*, node_is_customizable: bool) -> Any:
     """The parent of a node, must be of one of the given types."""
     return Property(
-        id=4,  # NOTE: never change this id!
+        id=3,  # NOTE: never change this id!
         edge_type=EdgeType.PARENT,
         default=None,
         is_wired=True,

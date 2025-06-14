@@ -3,14 +3,13 @@ from typing import TYPE_CHECKING
 from destack.pb2 import CustomEnumDefinitionData
 
 from ..builtin import (
-    Entity,
     HasIcon,
     HasName,
+    Instance,
     IsDeletable,
     IsExtensible,
     IsSourceable,
     IsTaggable,
-    IsTemplatable,
     Node,
     NodeType,
     Spatial,
@@ -26,11 +25,10 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.CUSTOM_ENUM_DEFINITION)
 class CustomEnumDefinition(
     Spatial,
-    Entity,
+    Instance,
     HasName,
     HasIcon,
     IsTaggable,
-    IsTemplatable,
     IsDeletable,
     IsSourceable,
     IsExtensible,

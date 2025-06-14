@@ -1,13 +1,12 @@
 from typing import TYPE_CHECKING, Union
 
 from destack.language.core import (
-    Entity,
     Global,
     IndexIn,
+    Instance,
     IsDeletable,
     IsOwnable,
     IsSubject,
-    IsTemplatable,
     Node,
     NodeType,
     Spatial,
@@ -30,10 +29,9 @@ if TYPE_CHECKING:
 class Star(
     Global,
     Spatial,
+    Instance,
     IsDeletable,
-    IsTemplatable,
     IsOwnable,
-    Entity,
     Node[StarData],
 ):
     """A Star is a relationship between a Subject and a Starred Node."""

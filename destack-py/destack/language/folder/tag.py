@@ -1,13 +1,12 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
-    Entity,
     HasIcon,
     HasName,
+    Instance,
     IsDeletable,
     IsOrdered,
     IsTaggable,
-    IsTemplatable,
     LikeTag,
     Node,
     NodeType,
@@ -27,12 +26,11 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.TAG)
 class Tag(
     Spatial,
-    Entity,
+    Instance,
     LikeTag,
     HasName,
     HasIcon,
     IsOrdered,
-    IsTemplatable,
     IsDeletable,
     Node[TagData],
 ):
@@ -44,9 +42,9 @@ class Tag(
 @builtin_node(NodeType.TAGGING)
 class Tagging(
     Spatial,
-    Entity,
+    Instance,
+    IsTaggable,
     IsOrdered,
-    IsTemplatable,
     IsDeletable,
     Node[TaggingData],
 ):

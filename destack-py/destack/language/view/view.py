@@ -1,13 +1,12 @@
 from typing import TYPE_CHECKING, Optional, Union
 
 from destack.language.core import (
-    Entity,
     HasName,
+    Instance,
     IsDeletable,
     IsOrdered,
     IsScriptable,
     IsTaggable,
-    IsTemplatable,
     IsVisual,
     Spatial,
     TraitType,
@@ -25,13 +24,12 @@ if TYPE_CHECKING:
 @builtin_trait(TraitType.VIEW)
 class View(
     Spatial,
-    Entity,
+    Instance,
     HasName,
     IsVisual,
     IsOrdered,
     IsTaggable,
     IsScriptable,
-    IsTemplatable,
     IsDeletable,
 ):
     """A View is a graphical interface."""

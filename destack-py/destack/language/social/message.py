@@ -6,12 +6,11 @@ from fastuuid import UUID
 
 from destack.language.core import (
     UNSET,
-    Entity,
+    Instance,
     IsDeletable,
     IsOwnable,
     IsReactable,
     IsTaggable,
-    IsTemplatable,
     Node,
     NodeType,
     Spatial,
@@ -34,13 +33,12 @@ logger = structlog.get_logger(__name__)
 
 @builtin_node(NodeType.MESSAGE)
 class Message(
-    Entity,
+    Spatial,
+    Instance,
     IsOwnable,
     IsDeletable,
     IsTaggable,
     IsReactable,
-    IsTemplatable,
-    Spatial,
     Node[MessageData],
 ):
     """

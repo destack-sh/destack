@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import (
     TYPE_CHECKING,
-    Any,
     ClassVar,
     Optional,
     Self,
@@ -25,7 +24,6 @@ from destack.utils.fractional import INTEGER_ZERO
 
 from .const import (
     UNSET,
-    EdgeType,
     Enum,
     EnumType,
     NodeType,
@@ -35,12 +33,7 @@ from .const import (
     builtin_enum,
 )
 from .object import BuiltinObjectMutable, _process_object_cls
-from .property import (
-    _PROPERTY_SPECIFIERS,
-    Property,
-    property_,
-    property_parent_,
-)
+from .property import _PROPERTY_SPECIFIERS, Property, property_, property_parent_
 
 if TYPE_CHECKING:
     from destack.language import (
@@ -54,6 +47,7 @@ if TYPE_CHECKING:
         NodeReference,
         Query,
         Script,
+        Snapshot,
         Sort,
         Space,
         Value,
@@ -401,8 +395,8 @@ class Trait(Node if TYPE_CHECKING else NodeBase):
     metatype: ClassVar[TraitType]
 
     # 1-9: node identity
-    #  (repeat common Node properties here so trait RelationReferences can reference them,
-    #   since Trait doesn't inherit from Node directly for circularity reasons)
+    #  (repeat common Node properties here so Trait RelationReferences can reference them,
+    #   since Trait doesn't actually inherit from Node for circularity reasons)
     id: UUID = property_(2, is_managed=True, is_eq=False, can_write=None)
     parent: Optional["Node"] = property_parent_(node_is_customizable=True)
     if TYPE_CHECKING:
@@ -535,32 +529,6 @@ class IsDeletable(Trait):
         """Restore this deleted Node from the trash."""
         assert self.deleted_at, f"{self!r} is not deleted"
         self._session.restore(self)
-
-
-@builtin_trait(TraitType.TEMPLATABLE)
-class IsTemplatable(Trait):
-    """A Node that can become a template (we can create Nodes derived from 'templates')."""
-
-    template: Optional["Node"] = property_(16, edge_type=EdgeType.TEMPLATE)
-    if TYPE_CHECKING:
-        template_id: Optional[UUID] = None
-        template_ptr: Optional["NodeReference"] = None
-    # instance_of/overlay_of?
-
-    def instance(
-        self,
-        recursive: bool = True,
-        detach: bool = True,
-        _map: bool | dict[UUID, "Node"] = True,
-        _is_nested: bool = False,
-        **kwargs: Any,
-    ) -> Self:
-        """
-        Creates a new instance of this Node.
-        Similar to Node.clone, but sets the original Nodes as the template source.
-        """
-
-        raise NotImplementedError
 
 
 @builtin_trait(TraitType.CUSTOM_NODE_DEFINITION)
@@ -750,7 +718,7 @@ class Spatial(Trait):
     """A Node in a Space."""
 
     parent: Optional["Space"] = property_parent_(node_is_customizable=False)
-    space: "Space | None" = property_(5)
+    space: "Space | None" = property_(7)
     if TYPE_CHECKING:
         space_id: Optional[UUID] = None
         space_ptr: Optional[NodeReference] = None
@@ -758,47 +726,71 @@ class Spatial(Trait):
 
 @builtin_trait(TraitType.ENTITY)
 class Entity(IsTracked):
-    """An Entity is a Node in primary relational storage (OLTP)."""
+    """
+    An Entity is a versioned Node in primary relational storage (OLTP).
+    """
 
     # nocheckin: support Entity variants/branching (use id+variant as primary key?)
-    #  (or maybe for some subset of Entities? IsBranchable?)
-    #  (or are templating/instancing and time-based instancing two different 'axis' (space/time?))
-    #  (partial Node / partial Graph -> full Node / partial Graph -> full Node / full Graph)
-    #  (also for templates? (templates just being full Node / full Graph variants?))
-    #  (idea: 'materialized' base frames and Edit streams so we don't need a copy for each edit?)
-    #  (or maybe support it for all Nodes to support staging Changes but only expose it for Entities?)
     #  (IsBranch trait and Node.variant_id for Forks/Branches/Variants/Templates/.....?)
-    #  (variant_id, VariantNodeProxy, ...?)
     #  (of course, also ideally want to use this for optimistic changes,
     #   like in-memory position/text/whatever updates periodically stored to the primary)
+
+    snapshot: Optional["Snapshot"] = property_(4, can_write=None)
+    template: Optional["Node"] = property_(5, can_write=None, node_is_customizable=False)
+    if TYPE_CHECKING:
+        snapshot_id: Optional[UUID] = None
+        snapshot_ptr: Optional["NodeReference"] = None
+        template_id: Optional[UUID] = None
+        template_ptr: Optional["NodeReference"] = None
+    # identity through time:
+    # "time" (same Node.id): Branch, Snapshot
+    # "space" (different Node.id): Variant, Instance
+    # override types:
+    #  - partial node, partial graph
+    #  - full node, partial graph
+    #  - full node, full graph
     pass
 
 
 @builtin_trait(TraitType.PARTICLE)
 class Particle(IsTracked):
-    """A Particle is a Node in primary document storage (OLTP, high volume)."""
+    """
+    A Particle is a forward-only Node in primary document storage (OLTP, high volume).
+    """
 
     pass
 
 
 @builtin_trait(TraitType.ANALYTIC)
 class Analytic(IsTracked):
-    """An Analytic is stored in primary or secondary warehouse storage (OLAP, bulk)."""
+    """
+    An Analytic is a read-only Node in primary or secondary warehouse storage (OLAP, bulk).
+    """
 
     pass
 
 
 @builtin_trait(TraitType.INDEXED)
 class Indexed(IsTracked):
-    """A Node that is indexed in secondary search storage (OLTP)."""
+    """
+    A Node that is indexed in secondary search storage (OLTP).
+    """
 
     pass
+
+
+@builtin_trait(TraitType.INSTANCE)
+class Instance(Entity):
+    """
+    An Entity that can be instanced from a template (of the same Entity type).
+    """
 
 
 @builtin_trait(TraitType.RESOURCE)
 class Resource(Entity):
     """
-    A Resource represents an external asset, and may be managed by some provisioner.
+    A Resource represents an external asset.
+    The lifecycle of a Resource may be managed by some provisioner.
     """
 
     parent: Optional["Folder"] = property_parent_(node_is_customizable=False)
@@ -807,22 +799,25 @@ class Resource(Entity):
 
 
 @builtin_trait(TraitType.METRIC)
-class Metric(Entity, IsSourceable, IsCustomNodeDefinition):
-    """A Node that represents a Metric."""
+class Metric(Instance, IsSourceable, IsCustomNodeDefinition):
+    """An Entity that represents a Metric."""
 
     pass
 
 
 @builtin_trait(TraitType.MEASUREMENT)
-class Measurement(IsCustomNode, Analytic):
-    """A Node that represents a Measurement."""
+class Measurement(Analytic, IsCustomNode):
+    """An Analytic that represents a Measurement."""
 
     definition: "Metric" = property_(17)
 
 
 @builtin_trait(TraitType.EVENT, pretend_frozen=True)
 class Event[N: Node = Node](Spatial, Particle, Indexed, Analytic, IsFrozen):
-    """A Node that represents an Event. Events always belong to a specific Space."""
+    """
+    An Event is a Node that represents an Event.
+    Events always belong to a specific Space.
+    """
 
     node: Optional["Node"] = property_(35, description="The Node this Event is about.")
     if TYPE_CHECKING:

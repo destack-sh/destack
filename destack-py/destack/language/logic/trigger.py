@@ -3,11 +3,11 @@ from typing import TYPE_CHECKING, Optional
 from fastuuid import UUID
 
 from destack.language.core import (
-    Entity,
     Enum,
     EnumType,
     Event,
     HasName,
+    Instance,
     IsRunnable,
     Node,
     NodeType,
@@ -54,7 +54,7 @@ class TriggerType(Enum):
 @builtin_node(NodeType.TRIGGER)
 class Trigger(
     Spatial,
-    Entity,
+    Instance,
     HasName,
     Node[TriggerData],
 ):

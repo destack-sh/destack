@@ -107,6 +107,12 @@ class NodePermission(Enum):
     REMOVE = 12, "Archive, Delete, Erase"
 
 
+@builtin_enum(EnumType.NODE_IDENTITY_TYPE)
+class NodeIdentityType(Enum):
+    PARTIAL = 1, "Partial"
+    FULL = 2, "Full"
+
+
 @builtin_node(node_type=None, root_type=None)
 class Node[NodeDataT: AnyNodeData](NodeBase[NodeDataT]):
     """
@@ -118,14 +124,16 @@ class Node[NodeDataT: AnyNodeData](NodeBase[NodeDataT]):
     # 1-9: node identity
     # Node.metatype: 1
     id: UUID = property_(2, is_managed=True, is_eq=False, can_write=RoleType.SYSTEM)
-    # Node.variant_id: 3?
     parent: Optional["Node"] = property_parent_(node_is_customizable=True)
+    # Entity.snapshot: 4
+    # Entity.template: 5
+    # Entity.identity_type: 6
+    # Spatial.space: 7
+    # Node.store_type: 8
     if TYPE_CHECKING:
         parent_type: NodeType | None = None
         parent_id: Optional[UUID] = None
         parent_ptr: Optional[NodeReference] = None
-    # Spatial.space: 5
-    # Node.store: 6/7?
 
     _session: "Session" = property_runtime_()
     _supergraph: "Supergraph" = property_runtime_()

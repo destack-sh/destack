@@ -26,6 +26,7 @@ from .runtime import *  # noqa: F403
 from .scene import *  # noqa: F403
 from .social import *  # noqa: F403
 from .space import *  # noqa: F403
+from .spacetime import *  # noqa: F403
 from .style import *  # noqa: F403
 from .view import *  # noqa: F403
 

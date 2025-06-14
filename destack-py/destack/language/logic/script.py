@@ -1,15 +1,14 @@
 from typing import TYPE_CHECKING, Union
 
 from destack.language.core import (
-    Entity,
     HasName,
+    Instance,
     IsActionable,
     IsDeletable,
     IsExtensible,
     IsOrdered,
     IsRunnable,
     IsScriptable,
-    IsTemplatable,
     Node,
     NodeType,
     Spatial,
@@ -28,13 +27,12 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.SCRIPT)
 class Script(
     Spatial,
-    Entity,
+    Instance,
     HasName,
     IsOrdered,
     IsActionable,
     IsDeletable,
     IsRunnable,
-    IsTemplatable,
     IsExtensible,
     Node[ScriptData],
 ):

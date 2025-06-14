@@ -1,13 +1,12 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
-    Entity,
     HasName,
+    Instance,
     IsDeletable,
     IsOrdered,
     IsOwnable,
     IsTaggable,
-    IsTemplatable,
     Node,
     NodeType,
     Spatial,
@@ -26,13 +25,12 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.ROUTE)
 class Route(
     Spatial,
-    Entity,
+    Instance,
     HasName,
     IsDeletable,
     IsOrdered,
     IsOwnable,
     IsTaggable,
-    IsTemplatable,
     Node[RouteData],
 ):
     """A Route is a path to a Scene."""

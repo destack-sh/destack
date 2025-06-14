@@ -3,14 +3,13 @@ from typing import TYPE_CHECKING
 from destack.pb2 import CustomStructDefinitionData
 
 from ..builtin import (
-    Entity,
     HasIcon,
     HasName,
+    Instance,
     IsDeletable,
     IsExtensible,
     IsSourceable,
     IsTaggable,
-    IsTemplatable,
     Node,
     NodeType,
     Spatial,
@@ -26,11 +25,10 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.CUSTOM_STRUCT_DEFINITION)
 class CustomStructDefinition(
     Spatial,
-    Entity,
+    Instance,
     HasName,
     HasIcon,
     IsTaggable,
-    IsTemplatable,
     IsDeletable,
     IsSourceable,
     IsExtensible,

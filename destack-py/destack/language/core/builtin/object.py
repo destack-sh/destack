@@ -1070,11 +1070,7 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
                     f"{cls.__name__}:property_property:{prop.name}",
                 )
             # computed node property
-            elif prop.edge_type in (
-                EdgeType.PARENT,
-                EdgeType.REGULAR,
-                EdgeType.TEMPLATE,
-            ):
+            elif prop.edge_type in (EdgeType.PARENT, EdgeType.REGULAR):
                 node_property_str = _generate_node_property_impl(prop)
                 exec_(node_property_str, {}, cls_dict, f"{cls.__name__}:node_property:{prop.name}")
             # computed _x node reference properties (e.g., parent_id, node_ck, node_type, ...)
