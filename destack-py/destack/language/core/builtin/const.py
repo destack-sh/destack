@@ -399,6 +399,7 @@ class EnumType(Enum):
     WINDOW_TYPE = 9000
     SCENE_EVENT_TYPE = 9011
     LAYER_TYPE = 9020
+    VARIANT_TYPE = 9030
 
     # interaction [9500-10000]
     MODE_TYPE = 9500
@@ -466,6 +467,7 @@ class EnumType(Enum):
     RELATION_TYPE = 50010
     ATTRIBUTE_TYPE = 50011
     PROPERTY_REFERENCE_TYPE = 50012
+    NODE_IDENTITY_TYPE = 50013
     STORE_ZONE = 50020
     STORE_TYPE = 50021
     STORE_IMPLEMENTATION = 50022
@@ -494,7 +496,7 @@ class StructType(Enum):
     # folder [1000-1500]
     # ...
 
-    # history [1500-2000]
+    # spacetime [1500-2000]
     # ...
 
     # entity [2000-2500]
@@ -680,9 +682,11 @@ class NodeType(Enum):
     TAG = 1010, "Tag", "Tag", "fas fa-tag"
     TAGGING = 1011, "Tagging", "Tagging", "fas fa-tag"
 
-    # history [1500-2000]
-    # HISTORY, SNAPSHOT/SAVEPOINT, OVERLAY, ...
-    # BRANCH, FORK, ...
+    # spacetime [1500-2000]
+    SNAPSHOT = 1500, "Snapshot", "Snapshot", "fas fa-save"
+    BRANCH = 1510, "Branch", "Branch", "fas fa-code-branch"
+    # HISTORY, REPLAY, ...
+    # FORK, ...
 
     # entity [2000-2500]
     CUSTOM_ENTITY_DEFINITION = (
@@ -807,6 +811,7 @@ class NodeType(Enum):
     SCENE = 9010, "Scene", "Scene of an Application", "fas fa-masks-theater"
     SCENE_EVENT = 9011, "Scene Event", "Scene Event", "fas fa-masks-theater"
     LAYER = 9020, "Layer", "Layer of a Scene", "fas fa-layer-group"
+    VARIANT = 9030, "Variant", "Variant of a Scene", "fas fa-shapes"
     # VIEWPORT, OVERLAY, WIDGET, MENU, ...
 
     # interaction [9500-10000]
@@ -887,6 +892,7 @@ class TraitType(Enum):
     ANALYTIC = 12, "Analytic", "Is an Analytic", "fas fa-chart-line"
     INDEXED = 13, "Indexed", "Is indexed", "fas fa-search"
     # type
+    INSTANCE = 20, "Instance", "Is an Instance", "fas fa-puzzle-piece"
     RESOURCE = 21, "Resource", "Is a Resource", "fas fa-server"
     EVENT = 22, "Event", "Is an Event", "fas fa-bolt"
     CUSTOM_NODE_DEFINITION = (
@@ -901,7 +907,6 @@ class TraitType(Enum):
     TRACKED = 51, "Tracked", "Is tracked", "fas fa-clock"
     ARCHIVABLE = 52, "Archivable", "Can be archived", "fas fa-box-archive"
     DELETABLE = 53, "Deletable", "Can be deleted", "fas fa-trash"
-    TEMPLATABLE = 54, "Templatable", "Is templatable", "fas fa-puzzle-piece"
     EXTENSIBLE = 55, "Extensible", "Is extensible", "fas fa-expand"
     ORDERED = 56, "Ordered", "Is ordered", "fas fa-sort"
     # attribute
@@ -921,7 +926,7 @@ class TraitType(Enum):
     TAGGABLE = 1000, "Taggable", "Can be tagged", "fas fa-tag"
     TAG = 1001, "Tag", "Is a Tag", "fas fa-tag"
 
-    # history [1500-2000]
+    # spacetime [1500-2000]
     # ...
 
     # entity [2000-2500]
@@ -1255,7 +1260,6 @@ REGION_BY_SLUG = {r.slug: r for r in Region}
 class EdgeType(Enum):
     PARENT = 1
     REGULAR = 5
-    TEMPLATE = 6
 
     @property
     def is_node_tree(self):

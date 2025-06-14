@@ -1,13 +1,13 @@
 from typing import TYPE_CHECKING, Union
 
 from destack.language.core import (
-    Entity,
     Global,
     IndexIn,
+    Instance,
     IsDeletable,
     IsOwnable,
+    IsReactable,
     IsSubject,
-    IsTemplatable,
     Node,
     NodeType,
     Spatial,
@@ -28,10 +28,10 @@ if TYPE_CHECKING:
     index=(IndexIn(columns=("parent_id", "owned_by_id", "content"), is_unique=True),),
 )
 class Reaction(
-    Entity,
     Global,
     Spatial,
-    IsTemplatable,
+    Instance,
+    IsReactable,
     IsDeletable,
     IsOwnable,
     Node[ReactionData],

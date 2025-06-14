@@ -3,16 +3,15 @@ from typing import TYPE_CHECKING, Optional
 from fastuuid import UUID
 
 from destack.language.core import (
-    Entity,
     HasIcon,
     HasName,
     HasSlug,
+    Instance,
     IsDeletable,
     IsFollowable,
     IsOwner,
     IsScriptable,
     IsSubject,
-    IsTemplatable,
     Node,
     NodeType,
     Spatial,
@@ -31,14 +30,13 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.AGENT)
 class Agent(
     Spatial,
-    Entity,
+    Instance,
     HasName,
     HasIcon,
     HasSlug,
     IsOwner,
     IsFollowable,
     IsScriptable,
-    IsTemplatable,
     IsDeletable,
     IsSubject,
     Node[AgentData],

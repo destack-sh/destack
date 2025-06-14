@@ -6,8 +6,8 @@ from fastuuid import UUID
 from destack.pb2 import CustomEntityData, CustomEntityDefinitionData
 
 from ..builtin import (
-    Entity,
     HasName,
+    Instance,
     IsActionable,
     IsCustomNode,
     IsCustomNodeDefinition,
@@ -17,7 +17,6 @@ from ..builtin import (
     IsScriptable,
     IsSourceable,
     IsTaggable,
-    IsTemplatable,
     Node,
     NodeType,
     Spatial,
@@ -39,11 +38,10 @@ logger = structlog.get_logger(__name__)
 @builtin_node(NodeType.CUSTOM_ENTITY_DEFINITION)
 class CustomEntityDefinition(
     Spatial,
-    Entity,
+    Instance,
     HasName,
     IsCustomNodeDefinition,
     IsTaggable,
-    IsTemplatable,
     IsOwnable,
     IsDeletable,
     IsScriptable,
@@ -64,11 +62,9 @@ class CustomEntityDefinition(
 @builtin_node(NodeType.CUSTOM_ENTITY)
 class CustomEntity(
     Spatial,
-    Entity,
-    IsTaggable,
+    Instance,
     IsExtensible,
     IsDeletable,
-    IsTemplatable,
     IsCustomNode,
     Node[CustomEntityData],
 ):

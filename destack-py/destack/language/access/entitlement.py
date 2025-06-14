@@ -5,10 +5,10 @@ from fastuuid import UUID
 
 from destack.language.core import (
     UNSET,
-    Entity,
     Enum,
     EnumType,
     Event,
+    Instance,
     IsDeletable,
     IsJoinable,
     IsSubject,
@@ -58,7 +58,7 @@ class EntitlementType(Enum):
 @builtin_node(NodeType.ENTITLEMENT)
 class Entitlement(
     Spatial,
-    Entity,
+    Instance,
     IsDeletable,
     Node[EntitlementData],
 ):

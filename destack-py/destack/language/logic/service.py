@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING
 
 from destack.language.core import (
-    Entity,
     HasName,
+    Instance,
     IsActionable,
     IsDeletable,
     IsExtensible,
@@ -11,7 +11,6 @@ from destack.language.core import (
     IsScriptable,
     IsSourceable,
     IsTaggable,
-    IsTemplatable,
     Node,
     NodeType,
     Spatial,
@@ -29,13 +28,12 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.SERVICE)
 class Service(
     Spatial,
-    Entity,
+    Instance,
     HasName,
     IsActionable,
     IsDeletable,
     IsOwnable,
     IsTaggable,
-    IsTemplatable,
     IsRunnable,
     IsScriptable,
     IsSourceable,

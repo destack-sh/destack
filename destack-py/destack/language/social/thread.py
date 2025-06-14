@@ -1,15 +1,14 @@
 from typing import TYPE_CHECKING, Union
 
 from destack.language.core import (
-    Entity,
     Enum,
     EnumType,
     HasName,
+    Instance,
     IsDeletable,
     IsJoinable,
     IsOwnable,
     IsTaggable,
-    IsTemplatable,
     Node,
     NodeType,
     Spatial,
@@ -34,14 +33,13 @@ class ThreadStatus(Enum):
 
 @builtin_node(NodeType.THREAD)
 class Thread(
+    Spatial,
+    Instance,
     HasName,
-    Entity,
     IsTaggable,
     IsDeletable,
     IsJoinable,
-    IsTemplatable,
     IsOwnable,
-    Spatial,
     Node[ThreadData],
 ):
     """

@@ -1,10 +1,10 @@
 from typing import TYPE_CHECKING
 
 from destack.language.core import (
-    Entity,
     Enum,
     EnumType,
     Event,
+    Instance,
     IsOwnable,
     Node,
     NodeType,
@@ -57,8 +57,8 @@ class NotificationEvent(
 @builtin_node(NodeType.NOTIFICATION)
 class Notification(
     Spatial,
+    Instance,
     IsOwnable,
-    Entity,
     Node[NotificationData],
 ):
     """A Notification is a message about something."""

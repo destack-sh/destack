@@ -75,6 +75,7 @@ from .relation import (
     attribute_ref,
     relation_ref,
 )
+from .spacetime import Branch, Snapshot
 from .struct import CustomStructDefinition
 from .text import (
     Text,
@@ -150,6 +151,7 @@ __all__ = [
     "AttributeType",
     "Axis2",
     "Axis3",
+    "Branch",
     "Change",
     "ChangeResult",
     "ChangeStatus",
@@ -227,6 +229,7 @@ __all__ = [
     "Scope",
     "Select",
     "Selection",
+    "Snapshot",
     "Sort",
     "SortMode",
     "SortType",
