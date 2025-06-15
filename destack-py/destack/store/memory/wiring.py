@@ -1,14 +1,13 @@
-from typing import Any
-
-from destack.language import Field, Json, NodeReference, Type, Value
+from destack.language import NodeReference, ScalarType, Type, TypeCardinality, Value
 from destack.utils.uuid import UUID
 
 from .core import MemoryRow, MemoryTable
 
 
 def pack_node_row(table: MemoryTable, value: Value) -> MemoryRow:
+    """Pack a Value into a MemoryRow."""
     value_packed = value.value
-    id = value_packed["2"]
+    id = UUID(value_packed["2"])
     ptr = NodeReference(
         node_type=table.node_type,
         id=UUID(value_packed["2"]),
@@ -30,12 +29,10 @@ def pack_node_row(table: MemoryTable, value: Value) -> MemoryRow:
 
 
 def unpack_node_row(table: MemoryTable, row: MemoryRow) -> Value:
-    raise NotImplementedError
-
-
-def pack_column(type: "Type | Field", value: Json) -> Any:
-    raise NotImplementedError
-
-
-def unpack_column(type: "Type | Field", value: Any) -> Json:
-    raise NotImplementedError
+    """Unpack a MemoryRow to a Value."""
+    type_info = Type(
+        cardinality=TypeCardinality.SCALAR,
+        scalar_type=ScalarType.NODE_VALUE,
+        node_type=row.metatype,
+    )
+    return Value(type=type_info, value=row.value)

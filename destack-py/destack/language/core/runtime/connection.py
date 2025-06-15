@@ -12,13 +12,12 @@ if TYPE_CHECKING:
     from destack.language import Store, Value
 
 
-class QueryContainer[RootT: "Trait | Node" = Node]:
+class QueryContainer[NodeT: "Trait | Node" = Node]:
     """
     A container for some QueryResult.
-    NOTE: 'root' refers to the root relation of the Query, not necessarily the roots of the Graph.
     """
 
-    __slots__ = ("connection", "discriminator", "query", "result", "roots", "subcontainers", "type")
+    __slots__ = ("connection", "discriminator", "nodes", "query", "result", "subcontainers", "type")
 
     def __init__(
         self,
@@ -32,7 +31,7 @@ class QueryContainer[RootT: "Trait | Node" = Node]:
         self.type: QueryType = type
         self.query: Query = query
         self.result: QueryResultBase | None = result
-        self.roots: list[RootT] = []
+        self.nodes: list[NodeT] = []
         self.discriminator: Any | None = discriminator
         self.subcontainers: list[QueryContainer] = []
 
@@ -64,7 +63,7 @@ class QueryContainer[RootT: "Trait | Node" = Node]:
                 _connection=self.connection,
             )
             assert isinstance(node, Node), f"expected Node, got {node!r} in {self!r}"
-            self.roots.append(node)  # type: ignore
+            self.nodes.append(node)  # type: ignore
 
         if isinstance(result, QueryResult):
             # subgroups
@@ -87,29 +86,29 @@ class QueryContainer[RootT: "Trait | Node" = Node]:
                 self.subcontainers.append(subcontainer)
                 subcontainer._add_result(subresult, subquery)
 
-    def to_one_or_none(self) -> Optional[RootT]:
-        """Get the root Node (if any)."""
+    def to_one_or_none(self) -> Optional[NodeT]:
+        """Get the main Node (if any)."""
         assert self.type == QueryType.NODE, f"not a node Query: {self.query!r}"
         assert self.result is not None, f"no result for {self!r}"
-        assert len(self.roots) <= 1, (
-            f"expected 0-1 root, got {len(self.roots)} in {self!r}: {self.roots!r}"
+        assert len(self.nodes) <= 1, (
+            f"expected 0-1 root, got {len(self.nodes)} in {self!r}: {self.nodes!r}"
         )
-        return self.roots[0] if self.roots else None
+        return self.nodes[0] if self.nodes else None
 
-    def to_one(self) -> RootT:
-        """Get the root Node (error if none)."""
+    def to_one(self) -> NodeT:
+        """Get the main Node (error if none)."""
         assert self.type == QueryType.NODE, f"not a node query: {self.query!r}"
         assert self.result is not None, f"no result for {self!r}"
-        assert len(self.roots) == 1, (
-            f"expected 1 root, got {len(self.roots)} in {self!r}: {self.roots!r}"
+        assert len(self.nodes) == 1, (
+            f"expected 1 root, got {len(self.nodes)} in {self!r}: {self.nodes!r}"
         )
-        return self.roots[0]
+        return self.nodes[0]
 
-    def to_list(self) -> list[RootT]:
-        """Get the list of roots."""
+    def to_list(self) -> list[NodeT]:
+        """Get the list of main Nodes."""
         assert self.type == QueryType.NODE, f"not a node Query: {self.query!r}"
         assert self.result is not None, f"no result for {self!r}"
-        return self.roots
+        return self.nodes
 
     def to_count(self) -> int:
         """Get the count."""
@@ -145,7 +144,7 @@ class QueryContainer[RootT: "Trait | Node" = Node]:
         return scalar_by_group
 
     def to_list_by_group(self) -> Mapping[Any, list[Node]]:
-        """Get the list of roots by group."""
+        """Get the list of main Nodes by group."""
         assert self.type == QueryType.GROUPED_NODE, f"not a grouped node Query: {self.query!r}"
         assert isinstance(self.result, QueryResult), f"no group result for {self!r}"
         list_by_group: dict[Any, list[Node]] = {}
@@ -164,7 +163,7 @@ class QueryContainer[RootT: "Trait | Node" = Node]:
         raise KeyError(f"no subresult for {key!r} in {self!r}")
 
 
-class QueryConnection[RootT: "Trait | Node"](QueryContainer[RootT]):
+class QueryConnection[NodeT: "Trait | Node"](QueryContainer[NodeT]):
     """
     A connection to a Query and its result.
     """
@@ -172,9 +171,9 @@ class QueryConnection[RootT: "Trait | Node"](QueryContainer[RootT]):
     __slots__ = (
         "graph",
         "lock",
+        "nodes",
         "query",
         "result",
-        "roots",
         "session",
         "store",
     )
