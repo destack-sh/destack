@@ -25,6 +25,7 @@
       "args": ["--collect-only"],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
+      "justMyCode": true,
       "env": {
         "PYTEST_ADDOPTS": "--no-cov",
       },

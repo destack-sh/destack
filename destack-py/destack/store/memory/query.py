@@ -18,21 +18,23 @@ from destack.language import (
     FunctionType,
     JoinType,
     NodeReference,
+    PrimitiveType,
     Query,
     QueryResult,
     QueryResultGroup,
     QueryType,
     RelationReference,
     RelationType,
+    ScalarType,
     Select,
     Sort,
     SortType,
+    TypeCardinality,
     Value,
     attribute_ref,
     to_value,
 )
 from destack.language import expression as to_expression
-from destack.language.registry import NODE_CLASS_BY_TYPE
 
 from .core import MemoryContext, MemoryRow, MemoryTable
 
@@ -45,7 +47,7 @@ MAX_RECURSION_DEPTH = 100
 def _unpack_node_row_value(table: MemoryTable, row: MemoryRow) -> Value:
     """unpack a MemoryRow to a Value since unpack_node_row is not implemented."""
     # return the raw value object with proper type info
-    from destack.language import ScalarType, Type, TypeCardinality
+    from destack.language import Type, TypeCardinality
 
     assert row.metatype is not None, f"no metatype for {row!r}"
     # create type info for the node
@@ -291,27 +293,35 @@ def _evaluate_aggregation(
 
 def _is_id_condition(condition: Condition) -> tuple[bool, Sequence[UUID]]:
     """Check if condition is id = value or id IN values and return the value(s)."""
-    if condition.type == ConditionalType.EQUALS or condition.type == ConditionalType.IN:
-        if (
-            (left := condition.left) is not None
-            and left.type == ExpressionType.ATTRIBUTE
-            and (attribute := left.attribute) is not None
-            and attribute.type == AttributeType.PROPERTY
-            and (prop_ptr := attribute.prop_ptr) is not None
-            and prop_ptr.id == 2
-            and (right := condition.right) is not None
-            and right.type == ExpressionType.LITERAL
-        ):
-            assert right.literal is not None, f"no literal for {right!r}"
-            ids = right.literal.value.unpack()
-            if isinstance(ids, UUID):
-                ids = (ids,)
-            return True, ids
+    if (
+        (condition.type == ConditionalType.EQUALS or condition.type == ConditionalType.IN)
+        and (left := condition.left) is not None
+        and left.type == ExpressionType.ATTRIBUTE
+        and (attribute := left.attribute) is not None
+        and attribute.type == AttributeType.PROPERTY
+        and (prop_ptr := attribute.prop_ptr) is not None
+        and prop_ptr.id == 2
+        and (right := condition.right) is not None
+        and right.type == ExpressionType.LITERAL
+    ):
+        assert right.literal is not None, f"no literal for {right!r}"
+        if right.literal.type.cardinality == TypeCardinality.SCALAR:
+            if right.literal.type.primitive_type == PrimitiveType.UUID:
+                ids = (right.literal.unpack(),)
+            else:
+                ids = (right.literal.unpack().id,)
+        else:
+            if right.literal.type.primitive_type == PrimitiveType.UUID:
+                ids = right.literal.unpack()
+            else:
+                ids = [ptr.id for ptr in right.literal.unpack()]
+        return True, ids
+
     return False, ()
 
 
-@tracer.start_as_current_span("memory.walk")
-def _walk(
+@tracer.start_as_current_span("memory.walk_node")
+def _walk_node(
     context: MemoryContext,
     relation: RelationReference,
     roots_ptr: Sequence[NodeReference],
@@ -320,96 +330,80 @@ def _walk(
     depth: int,
     where: Condition | None,
 ) -> list[NodeReference]:
-    """Walk the in-memory graph from root nodes."""
+    """Get the cascaded Nodes for a query."""
+
     if depth <= 0 or depth > MAX_RECURSION_DEPTH:
         return []
 
+    # collect all nodes found during traversal
+    found_nodes: dict[UUID, NodeReference] = {}
+
     # handle multi-relations
-    if relation.type == RelationType.TRAIT:
-        # expand trait relations to all implementing node types
-        relations = context.resolve_relation(relation)
+    relations = context.resolve_relation(relation)
+
+    # parent walk
+    if direction == EdgeDirection.PARENT:
+        # start with root nodes and walk up
+        current_node_ids = {ptr.id for ptr in roots_ptr}
+        current_depth = 0
+        while current_depth < depth:
+            if not current_node_ids:
+                break
+
+            next_node_ids: set[UUID] = set()
+
+            # check each relation table
+            for rel in relations:
+                table = context.get_relation(rel)
+
+                # find parents of current nodes
+                for node_id in current_node_ids:
+                    if (row := table.rows.get(node_id)) is not None:
+                        if (parent_ptr := row.parent_ptr) is not None:
+                            if (parent_id := parent_ptr.id) not in found_nodes:
+                                if where is None or _evaluate_condition(context, where, row):
+                                    found_nodes[parent_id] = parent_ptr
+                                    next_node_ids.add(parent_id)
+
+            current_node_ids = next_node_ids
+            current_depth += 1
+
+    # child walk
+    elif direction == EdgeDirection.CHILD:
+        # start with root parents and walk down
+        current_depth = 0
+        current_parent_ids = {ptr.id for ptr in roots_parents_ptr}
+
+        while current_depth < depth:
+            if not current_parent_ids:
+                break
+
+            next_parent_ids: set[UUID] = set()
+            # check each relation table
+            for rel in relations:
+                table = context.get_relation(rel)
+
+                # find children of current parents
+                for parent_id in current_parent_ids:
+                    if (children := table.rows_by_parent_id.get(parent_id)) is not None:
+                        for row in children:
+                            # apply where filter if present
+                            if where is None or _evaluate_condition(context, where, row):
+                                if row.id not in found_nodes:
+                                    found_nodes[row.id] = row.ptr
+                                    next_parent_ids.add(row.id)
+
+            current_parent_ids = next_parent_ids
+            current_depth += 1
+
+    # side walk
+    elif direction == EdgeDirection.SIDE:
+        raise NotImplementedError(f"cannot walk {relation!r} in direction: {direction!r}")
+
     else:
-        relations = [relation]
+        assert_never(direction)
 
-    # track visited nodes to avoid cycles
-    visited: set[str] = set()
-    result_ptrs: list[NodeReference] = []
-
-    # collect all node ids we're starting from
-    root_ids: set[str] = {str(ptr.id) for ptr in roots_ptr}
-    root_parent_ids: set[str] = {str(ptr.id) for ptr in roots_parents_ptr}
-
-    current_level_ptrs: list[NodeReference] = list(roots_ptr)
-    current_depth = 0
-
-    while current_depth < depth and current_level_ptrs:
-        next_level_ptrs: list[NodeReference] = []
-
-        for rel in relations:
-            table = context.get_relation(rel)
-
-            if direction == EdgeDirection.CHILD:
-                # Use rows_by_parent_id for efficient child lookup
-                for ptr in current_level_ptrs:
-                    if ptr.id in table.rows_by_parent_id:
-                        for row in table.rows_by_parent_id[ptr.id]:
-                            row_id_str = str(row.ptr.id)
-                            if row_id_str not in visited and (
-                                where is None or _evaluate_condition(context, where, row)
-                            ):
-                                visited.add(row_id_str)
-                                next_level_ptrs.append(row.ptr)
-                                result_ptrs.append(row.ptr)
-
-            elif direction == EdgeDirection.PARENT:
-                # Use direct table.rows lookup for efficient parent access
-                for ptr in current_level_ptrs:
-                    if ptr.id in table.rows:
-                        row = table.rows[ptr.id]
-                        if row.parent_ptr:
-                            parent_id_str = str(row.parent_ptr.id)
-                            if parent_id_str not in visited:
-                                # Find parent row in appropriate table
-                                parent_found = False
-                                for parent_rel in relations:
-                                    parent_table = context.get_relation(parent_rel)
-                                    if row.parent_ptr.id in parent_table.rows:
-                                        parent_row = parent_table.rows[row.parent_ptr.id]
-                                        if where is None or _evaluate_condition(
-                                            context, where, parent_row
-                                        ):
-                                            visited.add(parent_id_str)
-                                            next_level_ptrs.append(parent_row.ptr)
-                                            result_ptrs.append(parent_row.ptr)
-                                            parent_found = True
-                                            break
-
-                                if not parent_found and row.parent_ptr.node_type:
-                                    # parent might be in a different table not covered by current relations
-                                    parent_ref = NodeReference(
-                                        node_type=row.parent_ptr.node_type,
-                                        id=row.parent_ptr.id,
-                                    )
-                                    parent_table = context.get_relation(parent_ref)
-                                    if row.parent_ptr.id in parent_table.rows:
-                                        parent_row = parent_table.rows[row.parent_ptr.id]
-                                        if where is None or _evaluate_condition(
-                                            context, where, parent_row
-                                        ):
-                                            visited.add(parent_id_str)
-                                            next_level_ptrs.append(parent_row.ptr)
-                                            result_ptrs.append(parent_row.ptr)
-
-            elif direction == EdgeDirection.SIDE:
-                raise NotImplementedError(f"side edges not implemented: {direction!r}")
-
-            else:
-                assert_never(direction)
-
-        current_level_ptrs = next_level_ptrs
-        current_depth += 1
-
-    return result_ptrs
+    return list(found_nodes.values())
 
 
 @tracer.start_as_current_span("memory.query_scalar")
@@ -503,7 +497,7 @@ def _query_grouped_node(
 
     table = context.get_relation(relation)
 
-    # Short-circuit for id-based queries
+    # filter
     if where is not None:
         is_id_query, id_values = _is_id_condition(where)
         if is_id_query:
@@ -591,20 +585,15 @@ def _query_node(
 
     table = context.get_relation(relation)
 
-    # Short-circuit for id-based queries
+    # filter
     if where is not None:
         is_id_query, id_values = _is_id_condition(where)
         if is_id_query:
             filtered_rows: list[MemoryRow] = []
-            if isinstance(id_values, (list, tuple)):
-                for id_val in id_values:
-                    if id_val in table.rows:
-                        filtered_rows.append(table.rows[id_val])
-            else:
-                if id_values in table.rows:
-                    filtered_rows.append(table.rows[id_values])
+            for id_val in id_values:
+                if (row := table.rows.get(id_val)) is not None:
+                    filtered_rows.append(row)
         else:
-            # Filter rows based on where condition
             filtered_rows = []
             for row in table.rows.values():
                 if _evaluate_condition(context, where, row):
@@ -612,17 +601,15 @@ def _query_node(
     else:
         filtered_rows = list(table.rows.values())
 
-    # Sort if needed
+    # sort
     if sort:
         filtered_rows = _evaluate_sort(context, sort, filtered_rows)
-
-    # Apply limit/offset
     if offset:
         filtered_rows = filtered_rows[offset:]
     if limit:
         filtered_rows = filtered_rows[:limit]
 
-    # Convert to Values
+    # convert to values
     values: list[Value] = []
     ptrs: list[NodeReference] = []
     for row in filtered_rows:
@@ -637,84 +624,88 @@ def _query_clause(
     context: MemoryContext, query: Query, where: Condition | None
 ) -> tuple[QueryResult, Sequence[NodeReference]]:
     """Execute the specific Query "clause" (ignoring subqueries) against in-memory data."""
-    result = QueryResult(id=query.id, type=query.type)
-    nodes_ptr: list[NodeReference] = []
-
-    # Combine query where with additional where
-    combined_where = query.where
+    # combine wheres
     if where is not None:
-        if combined_where is not None:
-            from destack.language import Condition, ConditionalType, expression
+        combined_where = where if query.where is None else query.where & where
+    else:
+        combined_where = query.where
 
-            combined_where = Condition(
-                type=ConditionalType.AND, left=expression(combined_where), right=expression(where)
-            )
-        else:
-            combined_where = where
+    result: QueryResult
+    nodes_ptr: list[NodeReference]
 
-    if query.type == QueryType.SCALAR:
+    # node
+    if query.type == QueryType.NODE:
+        nodes, nodes_ptr = _query_node(
+            context=context,
+            relation=query.relation,
+            select=query.select,
+            where=combined_where,
+            sort=query.sort,
+            limit=query.limit,
+            offset=query.offset,
+        )
+        result = QueryResult(id=query.id, type=query.type, nodes=nodes)
+
+    # scalar
+    elif query.type == QueryType.SCALAR:
         assert query.aggregation is not None, f"no aggregation for scalar query: {query!r}"
-        scalar_result = _query_scalar(context, query.relation, query.aggregation, combined_where)
-        result.scalar = scalar_result
-        result.exists = scalar_result.value is not None
+        scalar_result = _query_scalar(
+            context=context,
+            relation=query.relation,
+            aggregation=query.aggregation,
+            where=combined_where,
+        )
+        nodes_ptr = []
+        result = QueryResult(id=query.id, type=query.type, scalar=scalar_result)
 
+    # grouped node
+    elif query.type == QueryType.GROUPED_NODE:
+        assert query.group_by, f"no group_by for grouped node query: {query!r}"
+        groups_value = _query_grouped_node(
+            context=context,
+            relation=query.relation,
+            select=query.select,
+            where=combined_where,
+            having=query.having,
+            sort=query.sort,
+            group_by=query.group_by,
+            limit=query.limit,
+            offset=query.offset,
+        )
+        nodes_ptr = []
+        groups: list[QueryResultGroup] = []
+        for group_discriminator, group_nodes, group_nodes_ptrs in groups_value:
+            group = QueryResultGroup(
+                type=QueryType.NODE,
+                discriminator=group_discriminator,
+                nodes=group_nodes,
+            )
+            groups.append(group)
+            nodes_ptr.extend(group_nodes_ptrs)
+        result = QueryResult(id=query.id, type=query.type, groups=groups)
+
+    # grouped scalar
     elif query.type == QueryType.GROUPED_SCALAR:
         assert query.aggregation is not None, f"no aggregation for grouped scalar query: {query!r}"
         assert query.group_by, f"no group_by for grouped scalar query: {query!r}"
-        grouped_results = _query_grouped_scalar(
-            context, query.relation, query.aggregation, combined_where, query.having, query.group_by
+        groups_value = _query_grouped_scalar(
+            context=context,
+            relation=query.relation,
+            aggregation=query.aggregation,
+            where=combined_where,
+            having=query.having,
+            group_by=query.group_by,
         )
-
-        result.groups = []
-        for discriminator, scalar_val in grouped_results:
+        nodes_ptr = []
+        groups: list[QueryResultGroup] = []
+        for group_discriminator, group_scalar_val in groups_value:
             group = QueryResultGroup(
                 type=QueryType.SCALAR,
-                discriminator=discriminator,
-                scalar=scalar_val,
-                exists=scalar_val.value is not None,
+                discriminator=group_discriminator,
+                scalar=group_scalar_val,
             )
-            result.groups.append(group)
-
-    elif query.type == QueryType.GROUPED_NODE:
-        assert query.group_by, f"no group_by for grouped node query: {query!r}"
-        grouped_results = _query_grouped_node(
-            context,
-            query.relation,
-            query.select,
-            combined_where,
-            query.having,
-            query.sort,
-            query.group_by,
-            query.limit,
-            query.offset,
-        )
-
-        result.groups = []
-        for discriminator, values, ptrs in grouped_results:
-            group = QueryResultGroup(
-                type=QueryType.NODE,
-                discriminator=discriminator,
-                nodes=values,
-                count=len(values),
-                exists=len(values) > 0,
-            )
-            result.groups.append(group)
-            nodes_ptr.extend(ptrs)
-
-    elif query.type == QueryType.NODE:
-        values, ptrs = _query_node(
-            context,
-            query.relation,
-            query.select,
-            combined_where,
-            query.sort,
-            query.limit,
-            query.offset,
-        )
-        result.nodes = values
-        result.count = len(values)
-        result.exists = len(values) > 0
-        nodes_ptr = list(ptrs)
+            groups.append(group)
+        result = QueryResult(id=query.id, type=query.type, groups=groups)
 
     else:
         assert_never(query.type)
@@ -737,7 +728,7 @@ def _execute_subquery(
 
     # parent join
     if subquery.join.type == JoinType.PARENT:
-        # collect parent pointers from result nodes
+        # collect/walk
         parents_ptr: dict[Any, NodeReference] = {}
         for node_value in result.nodes:
             if (parent_ptr_value := node_value.value.get("3")) is not None:
@@ -748,9 +739,8 @@ def _execute_subquery(
                 parents_ptr[parent_ptr.id] = parent_ptr
         if not parents_ptr:
             return None  # nothing to query here
-
         if subquery.join.recursive:
-            expanded_nodes_ptr = _walk(
+            expanded_nodes_ptr = _walk_node(
                 context=context,
                 relation=subquery.relation,
                 roots_ptr=list(parents_ptr.values()),
@@ -759,7 +749,6 @@ def _execute_subquery(
                 depth=subquery.join.depth or MAX_RECURSION_DEPTH,
                 where=subquery.where,
             )
-
             subquery_where = Condition(
                 type=ConditionalType.IN,
                 left=to_expression(
@@ -777,13 +766,16 @@ def _execute_subquery(
             )
 
         # execute subquery
-        subresult, _ = _query_clause(context, subquery, subquery_where)
+        subresult = execute_query(context=context, query=subquery, where=subquery_where)
         return subresult
 
     # child join
     elif subquery.join.type == JoinType.CHILD:
+        # collect/walk
+        if not nodes_ptr:
+            return None  # nothing to query here
         if subquery.join.recursive:
-            expanded_nodes_ptr = _walk(
+            expanded_nodes_ptr = _walk_node(
                 context=context,
                 relation=subquery.relation,
                 roots_ptr=[],
@@ -792,7 +784,6 @@ def _execute_subquery(
                 depth=subquery.join.depth or MAX_RECURSION_DEPTH,
                 where=subquery.where,
             )
-
             subquery_where = Condition(
                 type=ConditionalType.IN,
                 left=to_expression(
@@ -801,31 +792,12 @@ def _execute_subquery(
                 right=to_expression(to_value([n.id for n in expanded_nodes_ptr])),
             )
         else:
-            # Filter subquery to children of the main query nodes
-            # Get parent property for the subquery relation
-            assert subquery.relation.node_type is not None, (
-                f"no node type for {subquery.relation!r}"
-            )
-            subquery_node_cls = NODE_CLASS_BY_TYPE[subquery.relation.node_type]
-            parent_prop = subquery_node_cls.__parent_property__
-
-            parent_condition = Condition(
-                type=ConditionalType.IN,
-                left=to_expression(attribute_ref(parent_prop)),
-                right=to_expression(to_value([ptr.id for ptr in nodes_ptr])),
+            subquery_where = subquery.relation.resolve_property_or_error("parent").in_(
+                *(n.id for n in nodes_ptr),
             )
 
-            if subquery.where is not None:
-                subquery_where = Condition(
-                    type=ConditionalType.AND,
-                    left=to_expression(subquery.where),
-                    right=to_expression(parent_condition),
-                )
-            else:
-                subquery_where = parent_condition
-
-        # Execute the subquery
-        subresult, _ = _query_clause(context, subquery, subquery_where)
+        # execute subquery
+        subresult = execute_query(context=context, query=subquery, where=subquery_where)
         return subresult
 
     # left join
@@ -841,11 +813,11 @@ def execute_query(
     context: MemoryContext, query: Query, where: Condition | None = None
 ) -> QueryResult:
     """Execute the Query (and any subqueries) against in-memory data."""
-    # Execute main query
+    # execute main query
     result, nodes_ptr = _query_clause(context, query, where)
 
-    # Execute subqueries
-    subresults = []
+    # execute subqueries
+    subresults: list[QueryResult] = []
     for subquery in query.subqueries:
         subresult = _execute_subquery(context, result, nodes_ptr, subquery)
         if subresult is not None:
