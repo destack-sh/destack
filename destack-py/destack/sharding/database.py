@@ -18,19 +18,19 @@ class DatabaseProvider(abc.ABC):
 
     @abc.abstractmethod
     async def resolve(
-        self, region: Region, cell_name: str, external_name: str
+        self, region: Region, galaxy_name: str, external_name: str
     ) -> "DatabaseInfo | None":
         """Gets the Database for the given region (error if none)."""
         ...
 
     async def resolve_or_error(
-        self, region: Region, cell_name: str, external_name: str
+        self, region: Region, galaxy_name: str, external_name: str
     ) -> "DatabaseInfo":
         """Gets the Database for the given region (error if none)."""
-        database_info = await self.resolve(region, cell_name, external_name)
+        database_info = await self.resolve(region, galaxy_name, external_name)
         if database_info is None:
             raise LookupError(
-                f'no Database for "{region.slug}/{cell_name}/{external_name}" in {self!r}'
+                f'no Database for "{region.slug}/{galaxy_name}/{external_name}" in {self!r}'
             )
         return database_info
 
@@ -65,7 +65,7 @@ class StaticDatabaseProvider(DatabaseProvider):
             type=base_database.type,
             tenancy=Tenancy.SHARED,
             region=base_database.region,
-            cell_name=base_database.cell_name,
+            galaxy_name=base_database.galaxy_name,
             external_name=base_database.external_name,
             custom_schema_name=destack_schema_name,
             connection_url=base_database.connection_url,
@@ -74,12 +74,12 @@ class StaticDatabaseProvider(DatabaseProvider):
 
     @override
     async def resolve(
-        self, region: Region, cell_name: str, external_name: str
+        self, region: Region, galaxy_name: str, external_name: str
     ) -> "DatabaseInfo | None":
         for database in self.databases:
             if (
                 database.region == region
-                and database.cell_name == cell_name
+                and database.galaxy_name == galaxy_name
                 and database.external_name == external_name
             ):
                 return database
@@ -89,8 +89,8 @@ class StaticDatabaseProvider(DatabaseProvider):
     def parse(cls, provider_str: str) -> "StaticDatabaseProvider":
         """
         Parse a map string like:
-        'eu-zurich/cell_1/external_name_a=postgresql://user:pass@host/db'
-        'eu-zurich/cell_1/external_name_a=postgresql://user:pass@host/db;eu-zurich/cell_2/external_name_b=postgresql://user:pass@host/db'
+        'eu-zurich/galaxy_1/external_name_a=postgresql://user:pass@host/db'
+        'eu-zurich/galaxy_1/external_name_a=postgresql://user:pass@host/db;eu-zurich/galaxy_2/external_name_b=postgresql://user:pass@host/db'
         """
         from destack.language import DatabaseInfo
 
@@ -108,12 +108,12 @@ class StaticDatabaseProvider(DatabaseProvider):
                 type = DatabaseType.POSTGRES
             else:
                 raise ValueError(f"unknown database: {database_url}")
-            region_name, cell_name, external_name = location_part.split("/")
+            region_name, galaxy_name, external_name = location_part.split("/")
             region = REGION_BY_SLUG[region_name]
             database_info = DatabaseInfo(
                 type=type,
                 region=region,
-                cell_name=cell_name,
+                galaxy_name=galaxy_name,
                 external_name=external_name,
                 connection_url=database_url,
             )

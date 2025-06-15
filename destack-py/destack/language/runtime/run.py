@@ -38,7 +38,7 @@ class RunStatus(Enum):
     PAUSED = 21, "Paused", "Paused manually", "fas fa-circle-pause"
     YIELDED = 23, "Yielded", "Yielded to someone", "fas fa-circle-pause"
     # terminal
-    CANCELLED = 51, "Cancelled", "Cancelled before running", "fas fa-circle-xmark"
+    CANGALAXYED = 51, "Cangalaxyed", "Cangalaxyed before running", "fas fa-circle-xmark"
     ABORTED = 52, "Aborted", "Aborted while running", "fas fa-circle-xmark"
     FAILED = 53, "Failed", "Failed due to an error", "fas fa-circle-xmark"
     COMPLETED = 54, "Completed", "Completed successfully", "fas fa-circle-check"
@@ -65,7 +65,7 @@ class RunStatus(Enum):
 
     @property
     def is_bad(self) -> bool:
-        return self in (RunStatus.FAILED, RunStatus.ABORTED, RunStatus.CANCELLED)
+        return self in (RunStatus.FAILED, RunStatus.ABORTED, RunStatus.CANGALAXYED)
 
 
 @builtin_enum(EnumType.RUN_EVENT_TYPE)
@@ -79,7 +79,7 @@ class RunEventType(Enum):
     REQUESTED_RESUME = 22, "Requested Resume", "Requested to resume", "fas fa-circle-pause"
     RESUMED = 23, "Resumed", "Resumed manually", "fas fa-circle-pause"
     REQUESTED_CANCEL = 50, "Requested Cancel", "Requested to cancel", "fas fa-circle-xmark"
-    CANCELLED = 51, "Cancelled", "Cancelled before running", "fas fa-circle-xmark"
+    CANGALAXYED = 51, "Cangalaxyed", "Cangalaxyed before running", "fas fa-circle-xmark"
     ABORTED = 52, "Aborted", "Aborted while running", "fas fa-circle-xmark"
     FAILED = 53, "Failed", "Failed due to an error", "fas fa-circle-xmark"
     COMPLETED = 54, "Completed", "Completed successfully", "fas fa-circle-check"

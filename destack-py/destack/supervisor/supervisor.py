@@ -39,7 +39,7 @@ from destack.proto import (
     SignupUserResponse,
     SupervisorBase,
 )
-from destack.sharding import CellProvider, DatabaseProvider
+from destack.sharding import DatabaseProvider, GalaxyProvider
 from destack.store import PostgresStore, SplitStore
 from destack.utils.func import generate_access_token, generate_salt
 from destack.utils.oracle import Oracle
@@ -61,7 +61,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
         network: Network,
         oracle: Oracle,
         global_database: DatabaseInfo,
-        cell_provider: CellProvider,
+        galaxy_provider: GalaxyProvider,
         database_provider: DatabaseProvider,
         on_error: Callable[[BaseException], None] | None = None,
     ):
@@ -74,7 +74,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
             on_error=on_error,
         )
         self.global_database = global_database
-        self.cell_provider = cell_provider
+        self.galaxy_provider = galaxy_provider
         self.database_provider = database_provider
 
     def __str__(self):
@@ -164,14 +164,14 @@ class SupervisorService(ServiceBase, SupervisorBase):
         await session.commit()
 
         # provision Destack
-        cell = await self.cell_provider.acquire(region, space)
+        galaxy = await self.galaxy_provider.acquire(region, space)
         main_database = await self.database_provider.acquire(region, space)
         database = Database(
             type=main_database.type,
             tenancy=main_database.tenancy,
             name="Main Database",
             region=region,
-            cell_name=cell.name,
+            galaxy_name=galaxy.name,
             external_name=main_database.external_name,
             custom_schema_name=main_database.custom_schema_name,
         )

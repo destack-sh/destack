@@ -547,7 +547,7 @@ class StructType(Enum):
 
     # infra [7500-8000]
     DATABASE_INFO = 7501
-    CELL_INFO = 7601
+    GALAXY_INFO = 7601
 
     # intelligence [8000-8500]
     # ...
@@ -794,7 +794,7 @@ class NodeType(Enum):
     # infra [7500-8000]
     DATABASE = 7500, "Database", "Database for Postgres data", "fas fa-database"
     # SEARCH/INDEX, VAULT, CACHE, S3, ...
-    # CELL = 5010, "Cell", "Cell", "fas fa-cell"
+    # GALAXY = 5010, "Galaxy", "Galaxy", "fas fa-galaxy"
     MACHINE = 7600, "Machine", "Machine for ephemeral computing", "fas fa-machine-classic"
     # HOST, ENDPOINT, DEPLOYMENT, NETWORK, AUTOSCALER, ...
 

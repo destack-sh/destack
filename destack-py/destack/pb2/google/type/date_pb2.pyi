@@ -1,4 +1,3 @@
-
 # type: ignore
 # ruff: noqa
 
@@ -6,8 +5,6 @@ from typing import TYPE_CHECKING, Union, AsyncIterator, Mapping
 
 if TYPE_CHECKING:
     from destack.language import Session, Session, IsSubject, Client
-
-
 
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -23,4 +20,6 @@ class Date(_message.Message):
     year: int
     month: int
     day: int
-    def __init__(self, year: _Optional[int] = ..., month: _Optional[int] = ..., day: _Optional[int] = ...) -> None: ...
+    def __init__(
+        self, year: _Optional[int] = ..., month: _Optional[int] = ..., day: _Optional[int] = ...
+    ) -> None: ...

@@ -44,8 +44,8 @@ async def apply(
     region: Optional["Region"] = typer.Option(  # noqa: B008
         default=REGION, help="the region to migrate [default=current]", parser=parse_region
     ),
-    cell_name: Optional[str] = typer.Option(
-        default=None, help="the cell to migrate, global otherwise"
+    galaxy_name: Optional[str] = typer.Option(
+        default=None, help="the galaxy to migrate, global otherwise"
     ),
     external_name: Optional[str] = typer.Option(
         default=None, help="the external name to migrate, global otherwise"
@@ -63,10 +63,10 @@ async def apply(
         global_database = get_global_database_from_env()
         databases = [global_database]
     elif store_type == StoreType.SPATIAL_ENTITY:
-        assert cell_name, "cell_name is required for spatial stores"
+        assert galaxy_name, "galaxy_name is required for spatial stores"
         assert external_name, "external_name is required for spatial stores"
         spatial_database = await DATABASE_PROVIDER.resolve_or_error(
-            region or REGION, cell_name, external_name
+            region or REGION, galaxy_name, external_name
         )
         databases = [spatial_database]
     else:

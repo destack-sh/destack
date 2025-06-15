@@ -1,4 +1,3 @@
-
 # type: ignore
 # ruff: noqa
 
@@ -6,8 +5,6 @@ from typing import TYPE_CHECKING, Union, AsyncIterator, Mapping
 
 if TYPE_CHECKING:
     from destack.language import Session, Session, IsSubject, Client
-
-
 
 from . import language_pb2 as _language_pb2
 from google.protobuf import descriptor_pb2 as _descriptor_pb2
@@ -23,6 +20,7 @@ class ServiceKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     UNSPECIFIED: _ClassVar[ServiceKind]
     INTERNAL: _ClassVar[ServiceKind]
     PUBLIC: _ClassVar[ServiceKind]
+
 UNSPECIFIED: ServiceKind
 INTERNAL: ServiceKind
 PUBLIC: ServiceKind
@@ -41,4 +39,10 @@ class RpcMetadata(_message.Message):
     client_id: str
     client_nonce: str
     client_access_token: str
-    def __init__(self, client_type: _Optional[_Union[_language_pb2.ClientType, str]] = ..., client_id: _Optional[str] = ..., client_nonce: _Optional[str] = ..., client_access_token: _Optional[str] = ...) -> None: ...
+    def __init__(
+        self,
+        client_type: _Optional[_Union[_language_pb2.ClientType, str]] = ...,
+        client_id: _Optional[str] = ...,
+        client_nonce: _Optional[str] = ...,
+        client_access_token: _Optional[str] = ...,
+    ) -> None: ...

@@ -1,8 +1,8 @@
 from destack.language import DatabaseInfo, DatabaseType, Region
 from destack.utils.env import get_from_env
 
-from .cell import StaticCellProvider
 from .database import StaticDatabaseProvider
+from .galaxy import StaticGalaxyProvider
 
 
 def get_global_database_from_env() -> DatabaseInfo:
@@ -25,10 +25,10 @@ def get_database_provider_from_env() -> StaticDatabaseProvider:
 DATABASE_PROVIDER = get_database_provider_from_env()
 
 
-def get_cell_provider_from_env() -> StaticCellProvider:
-    """Parses the CELL_MAP from the environment."""
-    cell_map_str = get_from_env("CELL_MAP", description="Cell map for sharding")
-    return StaticCellProvider.parse(cell_map_str)
+def get_galaxy_provider_from_env() -> StaticGalaxyProvider:
+    """Parses the GALAXY_MAP from the environment."""
+    galaxy_map_str = get_from_env("GALAXY_MAP", description="Galaxy map for sharding")
+    return StaticGalaxyProvider.parse(galaxy_map_str)
 
 
-CELL_PROVIDER = get_cell_provider_from_env()
+GALAXY_PROVIDER = get_galaxy_provider_from_env()

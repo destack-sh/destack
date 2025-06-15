@@ -51,7 +51,7 @@ def get_database(name: str) -> DatabaseInfo:
     database = DatabaseInfo(
         type=DatabaseType.POSTGRES,
         region=REGION,
-        cell_name="test-0",
+        galaxy_name="test-0",
         external_name=name,
         tenancy=Tenancy.DEDICATED,
         connection_url=connection_url,

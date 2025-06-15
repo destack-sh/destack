@@ -93,8 +93,8 @@ async def system(
     """Serve both the HostRouter and the Supervisor."""
     from destack.host import HostRouterService
     from destack.sharding import (
-        CELL_PROVIDER,
         DATABASE_PROVIDER,
+        GALAXY_PROVIDER,
         get_global_database_from_env,
     )
     from destack.supervisor import SupervisorService
@@ -106,7 +106,7 @@ async def system(
         network=network,
         oracle=REAL_ORACLE,
         global_database=global_database,
-        cell_provider=CELL_PROVIDER,
+        galaxy_provider=GALAXY_PROVIDER,
         database_provider=DATABASE_PROVIDER,
         on_error=capture_exception,
     )
@@ -116,7 +116,7 @@ async def system(
         global_database=global_database,
         network=network,
         oracle=REAL_ORACLE,
-        cell_provider=CELL_PROVIDER,
+        galaxy_provider=GALAXY_PROVIDER,
         database_provider=DATABASE_PROVIDER,
         on_error=capture_exception,
     )
@@ -128,7 +128,7 @@ async def system(
 @async_to_sync
 async def supervisor(host: str, port: int, watch: bool = False, no_check: bool = False):
     """Serve the Supervisor."""
-    from destack.sharding import CELL_PROVIDER, DATABASE_PROVIDER, get_global_database_from_env
+    from destack.sharding import DATABASE_PROVIDER, GALAXY_PROVIDER, get_global_database_from_env
     from destack.supervisor import SupervisorService
 
     global_database = get_global_database_from_env()
@@ -138,7 +138,7 @@ async def supervisor(host: str, port: int, watch: bool = False, no_check: bool =
         global_database=global_database,
         network=network,
         oracle=REAL_ORACLE,
-        cell_provider=CELL_PROVIDER,
+        galaxy_provider=GALAXY_PROVIDER,
         database_provider=DATABASE_PROVIDER,
         on_error=capture_exception,
     )
@@ -150,14 +150,14 @@ async def supervisor(host: str, port: int, watch: bool = False, no_check: bool =
 async def host(host: str, port: int, watch: bool = False, no_check: bool = False):
     """Serve the HostRouter."""
     from destack.host import HostRouterService
-    from destack.sharding import CELL_PROVIDER, DATABASE_PROVIDER, get_global_database_from_env
+    from destack.sharding import DATABASE_PROVIDER, GALAXY_PROVIDER, get_global_database_from_env
 
     global_database = get_global_database_from_env()
     network = RealNetwork()
     host_router = HostRouterService(
         id="host-router",
         global_database=global_database,
-        cell_provider=CELL_PROVIDER,
+        galaxy_provider=GALAXY_PROVIDER,
         database_provider=DATABASE_PROVIDER,
         network=network,
         oracle=REAL_ORACLE,

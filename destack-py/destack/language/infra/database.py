@@ -40,7 +40,7 @@ class DatabaseType(Enum):
 class DatabaseBase(BuiltinObjectMutable):
     type: DatabaseType = property_(30, can_write=RoleType.SYSTEM, is_repr=True)
     region: Region = property_(50, can_write=RoleType.SYSTEM, is_repr=True)
-    cell_name: str | None = property_(51, can_write=RoleType.SYSTEM, is_repr=True)
+    galaxy_name: str | None = property_(51, can_write=RoleType.SYSTEM, is_repr=True)
     external_name: str = property_(
         52, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM, is_repr=True
     )
@@ -54,7 +54,7 @@ class DatabaseBase(BuiltinObjectMutable):
         return DatabaseInfo(
             type=self.type,
             region=self.region,
-            cell_name=self.cell_name,
+            galaxy_name=self.galaxy_name,
             external_name=self.external_name,
             custom_schema_name=self.custom_schema_name,
             tenancy=self.tenancy,
