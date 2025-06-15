@@ -22,7 +22,7 @@ tracer = trace.get_tracer(__name__)
 logger = structlog.get_logger(__name__)
 
 
-@tracer.start_as_current_span("postgres.execute_change")
+@tracer.start_as_current_span("memory.execute_change")
 def execute_change(
     database: MemoryDatabase, context: MemoryContext, change: Change
 ) -> tuple[Sequence[Edit], Sequence[Edit]]:
@@ -58,12 +58,11 @@ def execute_change(
     return applied_edits, cascaded_edits
 
 
-@tracer.start_as_current_span("postgres.optimize_change")
+@tracer.start_as_current_span("memory.optimize_change")
 def _optimize_change(context: MemoryContext, edits: Sequence[Edit]) -> list[Edit]:
     """
     Optimize the Change/Edits *while retaining semantic equivalence*.
     Reorder and batch non-interfering Edits to minimize roundtrips.
-    NOTE: very similar to Postgres's _optimize_change, but with a different key.
     """
 
     optimized_edits: list[Edit] = []
@@ -94,7 +93,7 @@ def _optimize_change(context: MemoryContext, edits: Sequence[Edit]) -> list[Edit
     return optimized_edits
 
 
-@tracer.start_as_current_span("postgres.execute_cascade")
+@tracer.start_as_current_span("memory.execute_cascade")
 def _execute_cascade(
     database: MemoryDatabase,
     context: MemoryContext,
@@ -105,7 +104,7 @@ def _execute_cascade(
     raise NotImplementedError
 
 
-@tracer.start_as_current_span("postgres.execute_schema_edits")
+@tracer.start_as_current_span("memory.execute_schema_edits")
 def _execute_schema_edits(
     database: MemoryDatabase,
     context: MemoryContext,
@@ -115,7 +114,7 @@ def _execute_schema_edits(
     raise NotImplementedError
 
 
-@tracer.start_as_current_span("postgres.execute_data_edit")
+@tracer.start_as_current_span("memory.execute_data_edit")
 def _execute_data_edit(
     database: MemoryDatabase,
     context: MemoryContext,
@@ -238,7 +237,10 @@ def _execute_data_edit(
         # delete rows
         for node_ptr in cascaded_node_ptrs:
             node_table = context.get_relation(node_ptr)
-            node_table.rows.pop(node_ptr.id, None)
+            row = node_table.rows.pop(node_ptr.id, None)
+            if row is not None and row.parent_ptr is not None:
+                parent_table = context.get_relation(row.parent_ptr)
+                parent_table.rows_by_parent_id[row.parent_ptr.id].remove(row)
 
         return edits, cascaded_edits
 
