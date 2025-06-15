@@ -149,10 +149,28 @@ def postgres_store(omni_postgres_database: DatabaseInfo) -> PostgresStore:
     return PostgresStore(database=omni_postgres_database, types=tuple(StoreType))
 
 
+@pytest.fixture
+async def postgres_session_async(postgres_store: PostgresStore) -> AsyncGenerator[Session, None]:
+    session = Session(store=postgres_store)
+    await session.open()
+    yield session
+    await session.close()
+
+
+@pytest.fixture
+def postgres_session(postgres_session_async: Session):
+    token = ACTIVE_SESSION.set(postgres_session_async)
+    yield postgres_session_async
+    ACTIVE_SESSION.reset(token)
+
+
+@pytest.fixture
+def memory_store() -> MemoryStore:
+    return MemoryStore(types=tuple(StoreType))
+
+
 @pytest.fixture  # :PytestAsyncContext
-async def session_async(postgres_store: PostgresStore) -> AsyncGenerator[Session, None]:
-    # nocheckin: properly split Postgres/Memory/.. Stores somehow in tests
-    memory_store = MemoryStore(types=tuple(StoreType))
+async def memory_session_async(memory_store: MemoryStore) -> AsyncGenerator[Session, None]:
     session = Session(store=memory_store)
     await session.open()
     yield session
@@ -160,9 +178,17 @@ async def session_async(postgres_store: PostgresStore) -> AsyncGenerator[Session
 
 
 @pytest.fixture
-def session(session_async: Session):
-    token = ACTIVE_SESSION.set(session_async)
-    yield session_async
+def memory_session(memory_session_async: Session):
+    token = ACTIVE_SESSION.set(memory_session_async)
+    yield memory_session_async
+    ACTIVE_SESSION.reset(token)
+
+
+@pytest.fixture
+def session(memory_session_async: Session):
+    """Default Session is in-memory."""
+    token = ACTIVE_SESSION.set(memory_session_async)
+    yield memory_session_async
     ACTIVE_SESSION.reset(token)
 
 

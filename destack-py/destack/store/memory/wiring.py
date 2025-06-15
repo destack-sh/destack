@@ -12,7 +12,7 @@ def pack_node_row(table: MemoryTable, value: Value) -> MemoryRow:
         node_type=table.node_type,
         id=UUID(value_packed["2"]),
         definition_id=UUID(value_packed["17"]["32"]) if "17" in value_packed else None,
-        space_id=UUID(value_packed["7"]["33"]) if "7" in value_packed else None,
+        space_id=UUID(value_packed["7"]["32"]) if "7" in value_packed else None,
     )
     parent_ptr = value_packed.get("3")
     if parent_ptr is not None:

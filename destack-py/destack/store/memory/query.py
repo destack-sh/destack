@@ -392,7 +392,7 @@ def _query_scalar(
     aggregation: Aggregation,
     where: Condition | None,
 ) -> Value:
-    """Execute a scalar Query against in-memory data."""
+    """Execute a scalar Query."""
     # handle multi-relations
     if relation.type == RelationType.TRAIT:
         relations = context.resolve_relation(relation)
@@ -423,7 +423,7 @@ def _query_grouped_scalar(
     having: Condition | None,
     group_by: Sequence[Expression],
 ) -> list[tuple[Value, Value]]:
-    """Execute a grouped scalar Query against in-memory data."""
+    """Execute a grouped scalar Query."""
     if relation.type == RelationType.TRAIT:
         raise NotImplementedError("grouped scalar queries not supported for trait relations")
 
@@ -470,7 +470,7 @@ def _query_grouped_node(
     limit: int | None,
     offset: int | None,
 ) -> list[tuple[Value, list[Value], list[NodeReference]]]:
-    """Execute a grouped node Query against in-memory data."""
+    """Execute a grouped node Query."""
     if relation.type == RelationType.TRAIT:
         raise NotImplementedError("grouped node queries not supported for trait relations")
 
@@ -539,7 +539,7 @@ def _query_node(
     limit: int | None,
     offset: int | None,
 ) -> tuple[list[Value], list[NodeReference]]:
-    """Execute a node Query against in-memory data."""
+    """Execute a node Query."""
     # handle multi-relations
     if relation.type == RelationType.TRAIT:
         # fan out trait relations
@@ -602,7 +602,7 @@ def _query_node(
 def _query_clause(
     context: MemoryContext, query: Query, where: Condition | None
 ) -> tuple[QueryResult, Sequence[NodeReference]]:
-    """Execute the specific Query "clause" (ignoring subqueries) against in-memory data."""
+    """Execute the specific Query "clause" (ignoring subqueries)."""
     # combine wheres
     if where is not None:
         combined_where = where if query.where is None else query.where & where
@@ -702,7 +702,7 @@ def _execute_subquery(
     nodes_ptr: Sequence[NodeReference],
     subquery: Query,
 ) -> QueryResult | None:
-    """Execute a subquery to a main Query against in-memory data."""
+    """Execute a subquery to a main Query."""
     if not nodes_ptr:
         return None
 
@@ -786,7 +786,8 @@ def _execute_subquery(
 def execute_query(
     context: MemoryContext, query: Query, where: Condition | None = None
 ) -> QueryResult:
-    """Execute the Query (and any subqueries) against in-memory data."""
+    """Execute the Query (and any subqueries)."""
+
     # execute main query
     result, nodes_ptr = _query_clause(context, query, where)
 
