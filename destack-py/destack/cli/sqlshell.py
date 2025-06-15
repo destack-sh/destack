@@ -23,7 +23,7 @@ logger = structlog.get_logger(__name__)
 async def sqlshell(
     store_type: Annotated[StoreType, typer.Option(parser=parse_store_type)],
     region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,
-    cell_name: Optional[str] = None,
+    galaxy_name: Optional[str] = None,
     external_id: Optional[str] = None,
     space: Optional[str] = None,
 ):  # type: ignore
@@ -34,9 +34,9 @@ async def sqlshell(
     if store_type == StoreType.GLOBAL_ENTITY:
         database = get_global_database_from_env()
     elif store_type == StoreType.SPATIAL_ENTITY:
-        assert cell_name is not None, "cell_name is required for main store_type"
+        assert galaxy_name is not None, "galaxy_name is required for main store_type"
         assert external_id is not None, "external_id is required for main store_type"
-        database = await DATABASE_PROVIDER.resolve_or_error(region, cell_name, external_id)
+        database = await DATABASE_PROVIDER.resolve_or_error(region, galaxy_name, external_id)
     else:
         raise ValueError(f"invalid store_type: {store_type!r}")
 

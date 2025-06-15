@@ -79,7 +79,7 @@ class Space(
 
     # infra
     region: Region = property_(50, can_write=RoleType.SYSTEM)
-    cell_name: str | None = property_(51, can_write=RoleType.SYSTEM)  # -> Cell?
+    galaxy_name: str | None = property_(51, can_write=RoleType.SYSTEM)  # -> Galaxy?
     database: Optional["Database"] = property_(
         55, node_space_from="self", can_write=RoleType.SYSTEM
     )

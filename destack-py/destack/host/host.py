@@ -36,7 +36,7 @@ from destack.pb2 import (
     UploadFilesResponse,
 )
 from destack.proto import Network, ServiceBase
-from destack.sharding import CellProvider, DatabaseProvider
+from destack.sharding import DatabaseProvider, GalaxyProvider
 from destack.store import PostgresStore
 from destack.utils.env import ENV, get_from_env
 from destack.utils.oracle import Oracle
@@ -71,7 +71,7 @@ class HostService(ServiceBase, HostBase):
         network: Network,
         oracle: Oracle,
         global_database: DatabaseInfo,
-        cell_provider: CellProvider,
+        galaxy_provider: GalaxyProvider,
         database_provider: DatabaseProvider,
         on_error: Callable[[BaseException], None] | None,
     ):
@@ -91,7 +91,7 @@ class HostService(ServiceBase, HostBase):
         )
         self.spatial_postgres_store: PostgresStore | None = None
         self.store: LiveStore = ...  # type: ignore nocheckin: LiveStore
-        self.cell_provider = cell_provider
+        self.galaxy_provider = galaxy_provider
         self.database_provider = database_provider
 
     def __str__(self):

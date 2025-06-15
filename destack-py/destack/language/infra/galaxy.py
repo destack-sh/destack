@@ -13,8 +13,8 @@ from destack.language.core import (
 
 
 @object_()
-class CellBase(BuiltinObjectMutable):
-    """A Cell is a logical grouping of hosts."""
+class GalaxyBase(BuiltinObjectMutable):
+    """A Galaxy is a logical grouping of hosts."""
 
     # infra
     region: Region = property_(50, can_write=RoleType.SYSTEM, is_repr=True)
@@ -22,9 +22,9 @@ class CellBase(BuiltinObjectMutable):
     host: str = property_(52, can_write=RoleType.SYSTEM, is_repr=True)
 
 
-@builtin_struct(StructType.CELL_INFO)
-class CellInfo(CellBase, StructMutable):
+@builtin_struct(StructType.GALAXY_INFO)
+class GalaxyInfo(GalaxyBase, StructMutable):
     pass
 
 
-# TODO :Infra: map Cells into actual Cell Nodes?
+# TODO :Infra: map Galaxys into actual Galaxy Nodes?

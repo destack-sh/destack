@@ -12,7 +12,7 @@ from destack.proto import (
     SupervisorClient,
     pack_rpc_headers,
 )
-from destack.sharding import CELL_PROVIDER, DATABASE_PROVIDER
+from destack.sharding import DATABASE_PROVIDER, GALAXY_PROVIDER
 from destack.test.fixtures import raises_grpc_error
 from destack.test.simulation.core import SimulatedChannel
 from destack.utils.oracle import REAL_ORACLE
@@ -29,7 +29,7 @@ async def supervisor_service(
         global_database=global_postgres_database,
         network=NullNetwork(),
         oracle=REAL_ORACLE,
-        cell_provider=CELL_PROVIDER,
+        galaxy_provider=GALAXY_PROVIDER,
         database_provider=DATABASE_PROVIDER,
     )
     await supervisor_service.start()

@@ -31,7 +31,7 @@ from destack.proto import (
     ServiceBase,
     ServiceKind,
 )
-from destack.sharding import CellProvider, DatabaseProvider
+from destack.sharding import DatabaseProvider, GalaxyProvider
 from destack.utils.env import get_from_env
 from destack.utils.oracle import Oracle
 from destack.utils.telemetry import set_baggage
@@ -64,7 +64,7 @@ class HostRouterService(ServiceBase, HostBase):
         network: Network,
         oracle: Oracle,
         global_database: DatabaseInfo,
-        cell_provider: CellProvider,
+        galaxy_provider: GalaxyProvider,
         database_provider: DatabaseProvider,
         on_error: Callable[[BaseException], None] | None,
     ):
@@ -79,7 +79,7 @@ class HostRouterService(ServiceBase, HostBase):
         self.hosts: dict[UUID, HostService] = {}
         self.hosts_lock = asyncio.Lock()
         self.global_database = global_database
-        self.cell_provider = cell_provider
+        self.galaxy_provider = galaxy_provider
         self.database_provider = database_provider
 
     def __str__(self):
@@ -105,7 +105,7 @@ class HostRouterService(ServiceBase, HostBase):
             network=self.network,
             oracle=self.oracle,
             global_database=self.global_database,
-            cell_provider=self.cell_provider,
+            galaxy_provider=self.galaxy_provider,
             database_provider=self.database_provider,
             on_error=self.on_error,
         )

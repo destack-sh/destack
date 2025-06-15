@@ -42,7 +42,7 @@ class CursorStatus(Enum):
     # inactive
     IDLE = 30, "Idle", "Idle", "fas fa-snooze"
     # terminal
-    CANCELLED = 50, "Cancelled", "Cancelled", "fas fa-times"
+    CANGALAXYED = 50, "Cangalaxyed", "Cangalaxyed", "fas fa-times"
     COMPLETED = 53, "Completed", "Completed", "fas fa-check"
 
 
