@@ -25,6 +25,7 @@ from .const import (
     UNSET,
     Enum,
     EnumType,
+    InstanceMode,
     NodeType,
     ResourceStatus,
     RoleType,
@@ -149,16 +150,13 @@ class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
     __ancestor_types__: ClassVar[tuple[NodeType, ...]] = ()
     __descendant_types__: ClassVar[tuple[NodeType, ...]] = ()
 
-    # 10-29: node tracking
-    # IsTracked.created_at/created_by/updated_at/updated_by: 10-13
-    # IsArchivable.archived_at: 14
-    # IsDeletable.deleted_at: 15
-    # IsTemplatable.template: 16
-    # IsCustomNode.definition: 17
-    # IsExtensible.value: 18
-    # IsOrdered.order_key: 19
-    # IsTaggable.: 20/21
-    # IsOwnable.owned_by: 22
+    # 15-29: node tracking
+    # IsTracked.created_at/created_by/updated_at/updated_by: 15-18
+    # IsArchivable.archived_at: 19
+    # IsDeletable.deleted_at: 20
+    # IsExtensible.value: 21
+    # IsOrdered.order_key: 22
+    # IsOwnable.owned_by: 25
     # ...managed_by/controlled_by?
 
     # 30+ for general properties
@@ -448,9 +446,9 @@ class HasIcon(Trait):
 class IsTracked(Trait):
     """A Node that is "tracked" on create/update."""
 
-    created_at: datetime = property_(10, is_managed=True, is_eq=False, can_write=RoleType.SYSTEM)
+    created_at: datetime = property_(15, is_managed=True, is_eq=False, can_write=RoleType.SYSTEM)
     created_by: Optional["IsSubject"] = property_(
-        11,
+        16,
         default=None,
         is_managed=True,
         is_eq=False,
@@ -458,9 +456,9 @@ class IsTracked(Trait):
         node_is_customizable=False,
         can_write=RoleType.SYSTEM,
     )
-    updated_at: datetime = property_(12, is_managed=True, is_eq=False, can_write=RoleType.SYSTEM)
+    updated_at: datetime = property_(17, is_managed=True, is_eq=False, can_write=RoleType.SYSTEM)
     updated_by: Optional["IsSubject"] = property_(
-        13,
+        18,
         default=None,
         is_managed=True,
         is_eq=False,
@@ -500,7 +498,7 @@ class IsFrozen(Trait):
 class IsArchivable(Trait):
     """A Node that can be archived."""
 
-    archived_at: Optional[datetime] = property_(14, is_managed=True, is_eq=False)
+    archived_at: Optional[datetime] = property_(19, is_managed=True, is_eq=False)
 
     @property
     def is_archived(self) -> bool:
@@ -521,7 +519,7 @@ class IsArchivable(Trait):
 class IsDeletable(Trait):
     """A Node that can be deleted."""
 
-    deleted_at: Optional[datetime] = property_(15, is_managed=True, is_eq=False)
+    deleted_at: Optional[datetime] = property_(20, is_managed=True, is_eq=False)
 
     def delete(self):
         """Delete this Node."""
@@ -545,7 +543,7 @@ class IsCustomNodeDefinition(Trait):
 class IsCustomNode(Trait):
     """A Node that is asome Custom Node."""
 
-    definition: "IsCustomNodeDefinition" = property_(17)
+    definition: "IsCustomNodeDefinition" = property_(6)
     if TYPE_CHECKING:
         definition_id: Optional[UUID] = None
         definition_ptr: Optional[NodeReference] = None
@@ -555,14 +553,14 @@ class IsCustomNode(Trait):
 class IsExtensible(Trait):
     """A Node that can be extended with custom Values (one Value per Field)."""
 
-    value: dict[UUID, "Value"] = property_(18)
+    value: dict[UUID, "Value"] = property_(21)
 
 
 @builtin_trait(TraitType.ORDERED)
 class IsOrdered(Trait):
     """A Node that can be ordered."""
 
-    order_key: str = property_(19, is_eq=False, default=INTEGER_ZERO)
+    order_key: str = property_(22, is_eq=False, default=INTEGER_ZERO)
 
 
 @builtin_trait(TraitType.REACTABLE)
@@ -619,7 +617,7 @@ class IsActionable(Trait):
 class IsOwnable(Trait):
     """A Node that can be owned by another Node."""
 
-    owned_by: Optional["IsOwner"] = property_(22, is_repr=True)
+    owned_by: Optional["IsOwner"] = property_(25, is_repr=True)
     if TYPE_CHECKING:
         owned_by_id: Optional[UUID] = None
         owned_by_type: Optional[NodeType] = None
@@ -721,7 +719,7 @@ class Spatial(Trait):
     """A Node in a Space."""
 
     parent: Optional["Space"] = property_parent_(node_is_customizable=False)
-    space: "Space | None" = property_(7)
+    space: "Space | None" = property_(5)
     if TYPE_CHECKING:
         space_id: Optional[UUID] = None
         space_ptr: Optional[NodeReference] = None
@@ -734,24 +732,48 @@ class Entity(IsTracked):
     """
 
     # nocheckin: support Entity branching & variants
-    # identity through time:
-    # "time" (same Node.id): Branch, Snapshot
-    # "space" (different Node.id): Variant, Instance
-    # override types / instancing modes:
-    #  - partial node, partial graph
-    #  - full node, partial graph
-    #  - full node, full graph
-    # there are two pairs of ids (root container, base pointer):
+    # primary key: (id, snapshot_id)
+    # two pairs of ids (root container, base pointer):
     #  - time: (snapshot_id, snapshot_base_id)
     #  - space: (template_root_id, instance_base_id)
-    # primary key: (id, snapshot_id)
-    snapshot: Optional["Snapshot"] = property_(4, can_write=None)
-    template: Optional["Node"] = property_(5, can_write=None, node_is_customizable=False)
+    # when merging: time before space (id+snapshot_id over template)
+    # snapshot and template properties must be READ ONLY (no write)
+    instance_mode: InstanceMode = property_(7, default=InstanceMode.FULL_GRAPH)
+    snapshot: Optional["Snapshot"] = property_(
+        8,
+        can_write=None,
+        node_space_from="self",
+        description="The Snapshot this Entity is part of.",
+    )
+    snapshot_base: Optional["Snapshot"] = property_(
+        9,
+        can_write=None,
+        node_is_customizable=False,
+        node_space_from="self",
+        description="The Snapshot this Entity instance is based on.",
+    )
+    instance_root: Optional["Node"] = property_(
+        10,
+        can_write=None,
+        node_is_customizable=False,
+        description="The (root) Entity in this Entity's instance tree.",
+    )
+    template_base: Optional["Node"] = property_(
+        11,
+        can_write=None,
+        node_is_customizable=False,
+        description="The template this Entity instance is based on.",
+    )
+    # Entity.set_properties/set_fields: 12-13
     if TYPE_CHECKING:
         snapshot_id: Optional[UUID] = None
         snapshot_ptr: Optional["NodeReference"] = None
-        template_id: Optional[UUID] = None
-        template_ptr: Optional["NodeReference"] = None
+        snapshot_base_id: Optional[UUID] = None
+        snapshot_base_ptr: Optional["NodeReference"] = None
+        instance_root_id: Optional[UUID] = None
+        instance_root_ptr: Optional["NodeReference"] = None
+        template_base_id: Optional[UUID] = None
+        template_base_ptr: Optional["NodeReference"] = None
 
 
 @builtin_trait(TraitType.PARTICLE)
@@ -804,7 +826,7 @@ class Metric(Entity, IsSourceable, IsCustomNodeDefinition):
 class Measurement(Analytic, IsCustomNode):
     """An Analytic that represents a Measurement."""
 
-    definition: "Metric" = property_(17)
+    definition: "Metric" = property_(6)
 
 
 @builtin_trait(TraitType.EVENT, pretend_frozen=True)

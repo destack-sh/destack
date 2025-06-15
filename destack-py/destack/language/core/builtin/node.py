@@ -7,7 +7,6 @@ from typing import (
     Self,
     cast,
     dataclass_transform,
-    override,
 )
 
 import structlog
@@ -23,7 +22,7 @@ from destack.utils.fractional import get_order_key
 from destack.utils.func import get_superclasses
 from destack.utils.uuid import UUID
 
-from .const import Enum, EnumType, NodeType, RoleType, TraitType, builtin_enum
+from .const import NodeType, RoleType, TraitType
 from .object import _process_object_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
@@ -97,22 +96,6 @@ def builtin_node(
 _object_set = object.__setattr__
 
 
-@builtin_enum(EnumType.NODE_PERMISSION)
-class NodePermission(Enum):
-    # read
-    READ = 1, "Read"
-    # write
-    ADD = 10, "Create, Upsert, Unarchive, Restore"
-    UPDATE = 11, "Update"
-    REMOVE = 12, "Archive, Delete, Erase"
-
-
-@builtin_enum(EnumType.INSTANCE_TYPE)
-class InstanceType(Enum):
-    PARTIAL = 1, "Partial"
-    FULL = 2, "Full"
-
-
 @builtin_node(node_type=None, root_type=None)
 class Node[NodeDataT: AnyNodeData](NodeBase[NodeDataT]):
     """
@@ -121,15 +104,17 @@ class Node[NodeDataT: AnyNodeData](NodeBase[NodeDataT]):
 
     metatype: ClassVar[NodeType]
 
-    # 1-9: node identity
+    # 1-14: node identity
     # Node.metatype: 1
     id: UUID = property_(2, is_managed=True, is_eq=False, can_write=RoleType.SYSTEM)
     parent: Optional["Node"] = property_parent_(node_is_customizable=True)
-    # Entity.snapshot: 4
-    # Entity.template: 5
-    # Entity.instance_type: 6
-    # Spatial.space: 7
-    # Node.store_type: 8
+    # Node.store_type: 4
+    # Spatial.space: 5
+    # IsCustomNode.definition: 6
+    # Entity.instance_mode: 7
+    # Entity.snapshot/template: 8-11
+    # Entity.set_properties: 12
+    # Entity.set_fields: 13
     if TYPE_CHECKING:
         parent_type: NodeType | None = None
         parent_id: Optional[UUID] = None
@@ -144,20 +129,6 @@ class Node[NodeDataT: AnyNodeData](NodeBase[NodeDataT]):
     _is_new: bool = property_runtime_(default=False)
     _is_attached: bool = property_runtime_(default=False)
     _dirty: dict[str, Any] | None = property_runtime_(default=None)
-
-    @override
-    def clone(
-        self,
-        *,
-        reset: bool = True,
-        recursive: bool = True,
-        detach: bool = False,
-        _map: bool | dict[UUID, "Node"] = True,
-        _ignore_definition: bool = False,
-        _is_nested: bool = False,
-        **kwargs,
-    ) -> Self:
-        raise NotImplementedError  # generate
 
     def __eq__(self, other: Any):
         """Equals the Node's identity."""

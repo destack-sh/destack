@@ -34,6 +34,8 @@ from .const import (
     Enum,
     EnumType,
     EnvironmentType,
+    InstanceMode,
+    NodePermission,
     NodeType,
     OperatingSystem,
     PlatformType,
@@ -58,7 +60,7 @@ from .const import (
     get_active_session,
     repr_enums,
 )
-from .node import IndexIn, Node, NodePermission, builtin_node
+from .node import IndexIn, Node, builtin_node
 from .object import (
     BuiltinObjectBase,
     BuiltinObjectFrozen,
@@ -171,6 +173,7 @@ __all__ = [
     "HasSlug",
     "IndexIn",
     "Indexed",
+    "InstanceMode",
     "IntoType",
     "IsActionable",
     "IsArchivable",

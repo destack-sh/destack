@@ -39,6 +39,6 @@ class Reaction(
     """A Reaction is a relationship between a Subject and a Reaction Node."""
 
     parent: Union["IsReactable", None] = property_parent_(node_is_customizable=True)
-    owned_by: "IsSubject" = property_(22)
+    owned_by: "IsSubject" = property_(25)
 
     content: str = property_(40, is_repr=True)

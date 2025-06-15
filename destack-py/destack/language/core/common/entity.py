@@ -76,7 +76,7 @@ class CustomEntity(
         node_is_customizable=True
     )
     definition: "CustomEntityDefinition" = property_(
-        17,
+        6,
         description="The CustomEntityDefinition this CustomEntity is an instance of.",
     )
     if TYPE_CHECKING:

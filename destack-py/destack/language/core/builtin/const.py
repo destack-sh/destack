@@ -37,7 +37,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.06.15.0"
+VERSION = "2025.06.15.1"
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
 BEGINNING_OF_TIME = datetime.fromisoformat("1970-01-01T00:00:00+00:00")
@@ -467,7 +467,7 @@ class EnumType(Enum):
     RELATION_TYPE = 50010
     ATTRIBUTE_TYPE = 50011
     PROPERTY_REFERENCE_TYPE = 50012
-    INSTANCE_TYPE = 50013
+    INSTANCE_MODE = 50013
     STORE_ZONE = 50020
     STORE_TYPE = 50021
     STORE_IMPLEMENTATION = 50022
@@ -1078,6 +1078,23 @@ class EnvironmentType(Enum):
     TEST = 5, "Test", "Active in test", "fas fa-flask"
     STAGING = 7, "Staging", "Active in staging", "fas fa-globe"
     PRODUCTION = 10, "Production", "Active in production", "fas fa-globe"
+
+
+@builtin_enum(EnumType.NODE_PERMISSION)
+class NodePermission(Enum):
+    # read
+    READ = 1, "Read"
+    # write
+    ADD = 10, "Create, Upsert, Unarchive, Restore"
+    UPDATE = 11, "Update"
+    REMOVE = 12, "Archive, Delete, Erase"
+
+
+@builtin_enum(EnumType.INSTANCE_MODE)
+class InstanceMode(Enum):
+    PARTIAL_NODE = 1, "Partial Node"
+    PARTIAL_GRAPH = 2, "Full Node, Partial Graph"
+    FULL_GRAPH = 3, "Full"
 
 
 @builtin_enum(EnumType.MODE_TYPE)

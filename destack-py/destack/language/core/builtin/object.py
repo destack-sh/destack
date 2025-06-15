@@ -1187,26 +1187,6 @@ class BuiltinObjectBase[ObjectDataT: AnyObjectData]:
         """Hash of content properties."""
         raise NotImplementedError  # generated
 
-    def _clone_kwargs(self, reset: bool = True):
-        """Clone kwargs for a new instance."""
-        raise NotImplementedError
-
-    def clone(self, *, reset: bool = True, **kwargs) -> Self:
-        """
-        Create a clone of this object and its descendants (structs/nodes) with the same content.
-        """
-        copy_kwargs = self._clone_kwargs(reset=reset)
-        copy_kwargs.update(kwargs)
-        return self.__class__(**copy_kwargs)
-
-    def replace_references(
-        self,
-        new_node_by_id: Mapping[UUID, "Node"],
-        exclude: Collection[EdgeType],
-    ):
-        """Replaces Node references with new Nodes. Missing Nodes are kept as is."""
-        raise NotImplementedError  # generated
-
     def __bool__(self):
         return True  # support truthy checks for objects
 

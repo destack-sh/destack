@@ -41,7 +41,7 @@ class GaugeMeasurement(
 ):
     """A Gauge Measurement."""
 
-    definition: "GaugeMetric" = property_(17)
+    definition: "GaugeMetric" = property_(6)
 
 
 @builtin_node(NodeType.COUNTER_METRIC)
@@ -64,7 +64,7 @@ class CounterMeasurement(
 ):
     """A Counter Measurement."""
 
-    definition: "CounterMetric" = property_(17)
+    definition: "CounterMetric" = property_(6)
 
 
 @builtin_node(NodeType.HISTOGRAM_METRIC)
@@ -87,4 +87,4 @@ class HistogramMeasurement(
 ):
     """A Histogram Measurement."""
 
-    definition: "HistogramMetric" = property_(17)
+    definition: "HistogramMetric" = property_(6)

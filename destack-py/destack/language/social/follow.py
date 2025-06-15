@@ -39,4 +39,4 @@ class Follow(
     """A Follow is a relationship between a Subject and a Followred Node."""
 
     parent: Union["IsFollowable", None] = property_parent_(node_is_customizable=True)
-    owned_by: "IsSubject" = property_(22)
+    owned_by: "IsSubject" = property_(25)
