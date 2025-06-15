@@ -3,7 +3,6 @@ from collections.abc import Sequence
 from typing import Any, assert_never
 
 import asyncpg
-import fastuuid
 import structlog
 from opentelemetry import trace
 
@@ -804,7 +803,7 @@ async def _execute_subquery(
         parents_ptr: dict[UUID, NodeReference] = {}
         for node_value in result.nodes:
             if (parent_ptr_value := node_value.value.get("3")) is not None:
-                parent_id = fastuuid.UUID(parent_ptr_value["32"])
+                parent_id = UUID(parent_ptr_value["32"])
                 if parent_id in parents_ptr:
                     continue
                 parent_ptr = NodeReference.from_value(parent_ptr_value)

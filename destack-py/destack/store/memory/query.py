@@ -36,27 +36,13 @@ from destack.language import (
 from destack.language import expression as to_expression
 from destack.utils.uuid import UUID
 
-from .core import MemoryContext, MemoryRow, MemoryTable
+from .core import MemoryContext, MemoryRow
+from .wiring import unpack_node_row
 
 tracer = trace.get_tracer(__name__)
 logger = structlog.get_logger(__name__)
 
 MAX_RECURSION_DEPTH = 100
-
-
-def _unpack_node_row_value(table: MemoryTable, row: MemoryRow) -> Value:
-    """unpack a MemoryRow to a Value since unpack_node_row is not implemented."""
-    # return the raw value object with proper type info
-    from destack.language import Type, TypeCardinality
-
-    assert row.metatype is not None, f"no metatype for {row!r}"
-    # create type info for the node
-    type_info = Type(
-        cardinality=TypeCardinality.SCALAR,
-        scalar_type=ScalarType.NODE_VALUE,
-        node_type=row.metatype,
-    )
-    return Value(type=type_info, value=row.value)
 
 
 def _evaluate_expression(context: MemoryContext, expression: Expression, row: MemoryRow) -> Any:
@@ -336,38 +322,30 @@ def _walk_node(
 ) -> list[NodeReference]:
     """Get the cascaded Nodes for a query."""
 
-    if depth <= 0 or depth > MAX_RECURSION_DEPTH:
-        return []
-
-    # collect all nodes found during traversal
-    found_nodes: dict[UUID, NodeReference] = {}
-
-    # handle multi-relations
+    nodes_by_id: dict[UUID, NodeReference] = {ptr.id: ptr for ptr in roots_ptr}
     relations = context.resolve_relation(relation)
 
     # parent walk
     if direction == EdgeDirection.PARENT:
         # start with root nodes and walk up
-        current_node_ids = {ptr.id for ptr in roots_ptr}
         current_depth = 0
+        current_node_ids: set[UUID] = {ptr.id for ptr in roots_ptr}
         while current_depth < depth:
             if not current_node_ids:
                 break
 
             next_node_ids: set[UUID] = set()
-
-            # check each relation table
             for rel in relations:
                 table = context.get_relation(rel)
-
-                # find parents of current nodes
                 for node_id in current_node_ids:
-                    if (row := table.rows.get(node_id)) is not None:
-                        if (parent_ptr := row.parent_ptr) is not None:
-                            if (parent_id := parent_ptr.id) not in found_nodes:
-                                if where is None or _evaluate_condition(context, where, row):
-                                    found_nodes[parent_id] = parent_ptr
-                                    next_node_ids.add(parent_id)
+                    if (
+                        (row := table.rows.get(node_id)) is not None
+                        and (parent_ptr := row.parent_ptr) is not None
+                        and (parent_id := parent_ptr.id) not in nodes_by_id
+                        and (where is None or _evaluate_condition(context, where, row))
+                    ):
+                        nodes_by_id[parent_id] = parent_ptr
+                        next_node_ids.add(parent_id)
 
             current_node_ids = next_node_ids
             current_depth += 1
@@ -376,26 +354,23 @@ def _walk_node(
     elif direction == EdgeDirection.CHILD:
         # start with root parents and walk down
         current_depth = 0
-        current_parent_ids = {ptr.id for ptr in roots_parents_ptr}
+        current_parent_ids: set[UUID] = {ptr.id for ptr in roots_parents_ptr}
 
         while current_depth < depth:
             if not current_parent_ids:
                 break
 
             next_parent_ids: set[UUID] = set()
-            # check each relation table
             for rel in relations:
                 table = context.get_relation(rel)
-
-                # find children of current parents
                 for parent_id in current_parent_ids:
-                    if (children := table.rows_by_parent_id.get(parent_id)) is not None:
+                    if children := table.rows_by_parent_id.get(parent_id):
                         for row in children:
-                            # apply where filter if present
-                            if where is None or _evaluate_condition(context, where, row):
-                                if row.id not in found_nodes:
-                                    found_nodes[row.id] = row.ptr
-                                    next_parent_ids.add(row.id)
+                            if (where is None or _evaluate_condition(context, where, row)) and (
+                                node_id := row.id
+                            ) not in nodes_by_id:
+                                nodes_by_id[node_id] = row.ptr
+                                next_parent_ids.add(node_id)
 
             current_parent_ids = next_parent_ids
             current_depth += 1
@@ -407,7 +382,7 @@ def _walk_node(
     else:
         assert_never(direction)
 
-    return list(found_nodes.values())
+    return list(nodes_by_id.values())
 
 
 @tracer.start_as_current_span("memory.query_scalar")
@@ -546,7 +521,7 @@ def _query_grouped_node(
         values: list[Value] = []
         ptrs: list[NodeReference] = []
         for row in group_rows:
-            values.append(_unpack_node_row_value(table, row))
+            values.append(unpack_node_row(table, row))
             ptrs.append(row.ptr)
         discriminator = group_key[0] if group_key else None
         results.append((to_value(discriminator), values, ptrs))
@@ -617,7 +592,7 @@ def _query_node(
     values: list[Value] = []
     ptrs: list[NodeReference] = []
     for row in filtered_rows:
-        values.append(_unpack_node_row_value(table, row))
+        values.append(unpack_node_row(table, row))
         ptrs.append(row.ptr)
 
     return values, ptrs
@@ -721,7 +696,6 @@ def _query_clause(
     return result, nodes_ptr
 
 
-@tracer.start_as_current_span("memory.execute_subquery")
 def _execute_subquery(
     context: MemoryContext,
     result: QueryResult,
@@ -737,10 +711,10 @@ def _execute_subquery(
     # parent join
     if subquery.join.type == JoinType.PARENT:
         # collect/walk
-        parents_ptr: dict[Any, NodeReference] = {}
+        parents_ptr: dict[UUID, NodeReference] = {}
         for node_value in result.nodes:
             if (parent_ptr_value := node_value.value.get("3")) is not None:
-                parent_id = parent_ptr_value["32"]
+                parent_id = UUID(parent_ptr_value["32"])
                 if parent_id in parents_ptr:
                     continue
                 parent_ptr = NodeReference.from_value(parent_ptr_value)
@@ -752,25 +726,17 @@ def _execute_subquery(
                 context=context,
                 relation=subquery.relation,
                 roots_ptr=list(parents_ptr.values()),
-                roots_parents_ptr=[],
+                roots_parents_ptr=(),
                 direction=EdgeDirection.PARENT,
                 depth=subquery.join.depth or MAX_RECURSION_DEPTH,
                 where=subquery.where,
             )
-            subquery_where = Condition(
-                type=ConditionalType.IN,
-                left=to_expression(
-                    attribute_ref(subquery.relation.resolve_property_or_error("id"))
-                ),
-                right=to_expression(to_value([n.id for n in expanded_nodes_ptr])),
+            subquery_where = subquery.relation.resolve_property_or_error("id").in_(
+                *(n.id for n in expanded_nodes_ptr)
             )
         else:
-            subquery_where = Condition(
-                type=ConditionalType.IN,
-                left=to_expression(
-                    attribute_ref(subquery.relation.resolve_property_or_error("id"))
-                ),
-                right=to_expression(to_value(list(parents_ptr.keys()))),
+            subquery_where = subquery.relation.resolve_property_or_error("id").in_(
+                *parents_ptr.keys()
             )
 
         # execute subquery

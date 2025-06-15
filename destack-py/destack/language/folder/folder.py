@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 class FolderType(Enum):
     SYSTEM = 1, "Root", "The root folder of a Space", "fas fa-home"
     HOME = 2, "Home", "The home folder of a Space", "fas fa-home"
-    GENERIC = 3, "Generic", "A generic folder", "fas fa-folder-open"
+    GENERAL = 3, "General", "A general folder", "fas fa-folder-open"
     MODULE = 4, "Module", "A module", "fas fa-box-open"
     APP = 5, "App", "An app folder", "fas fa-folder"
     # SERVICE, PLUGIN, WIDGET, TEMPLATE, LIBRARY, ...
@@ -63,6 +63,6 @@ class Folder(
     """A Folder is a sub-space of a Space."""
 
     parent: Union["Space", "Folder", None] = property_parent_(node_is_customizable=False)
-    type: FolderType = property_(30, is_repr=True, default=FolderType.GENERIC)
+    type: FolderType = property_(30, is_repr=True, default=FolderType.GENERAL)
 
     main_scene: Optional["Scene"] = property_(41)

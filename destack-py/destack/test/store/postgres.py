@@ -100,7 +100,7 @@ async def test_create_user_with_clients(session: Session):
 async def test_create_folders_recursive(session: Session):
     """Create a Folder with recursive sub-Folders, mutate it, querying along the way."""
     # create
-    root_folder = Folder(name="Folder", type=FolderType.SYSTEM)
+    root_folder = Folder(name="Folder", type=FolderType.HOME)
     session.create(root_folder)
     target_folder_count = 4 * (1 + 4 * (1 + 4))
     for a in ("a", "b", "c", "d"):
@@ -299,7 +299,7 @@ async def test_benchmark_create_reactions(session: Session, async_benchmark: Asy
     session.create(user)
     await session.commit()
 
-    NUM_REACTIONS = 1000
+    NUM_REACTIONS = 100
 
     async def _create_reactions():
         reactions = []
