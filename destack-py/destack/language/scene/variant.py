@@ -32,7 +32,14 @@ if TYPE_CHECKING:
 class VariantType(Enum):
     DYNAMIC = 1, "Dynamic", "Dynamic Variant (controlled by other logic)", "fas fa-shapes"
     BREAKPOINT = 2, "Breakpoint", "Breakpoint Variant", "fas fa-shapes"
+    PLATFORM = 3, "Platform", "Platform Variant", "fas fa-linux"
     # DARK, STATE, ...
+
+
+@builtin_enum(EnumType.VARIANT_STATE_TYPE)
+class VariantStateType(Enum):
+    LOADING = 10, "Loading", "Loading Variant", "fas fa-shapes"
+    ERROR = 11, "Error", "Error Variant", "fas fa-shapes"
 
 
 @builtin_node(NodeType.VARIANT)

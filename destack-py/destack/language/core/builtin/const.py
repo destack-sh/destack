@@ -37,7 +37,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.06.14.0"
+VERSION = "2025.06.15.0"
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
 BEGINNING_OF_TIME = datetime.fromisoformat("1970-01-01T00:00:00+00:00")
@@ -399,6 +399,7 @@ class EnumType(Enum):
     SCENE_EVENT_TYPE = 9011
     LAYER_TYPE = 9020
     VARIANT_TYPE = 9030
+    VARIANT_STATE_TYPE = 9031
 
     # interaction [9500-10000]
     MODE_TYPE = 9500

@@ -1,6 +1,6 @@
 from .layer import Layer, LayerType
 from .scene import Scene
-from .variant import Variant, VariantType
+from .variant import Variant, VariantStateType, VariantType
 from .window import Window, WindowType
 
 __all__ = [
@@ -8,6 +8,7 @@ __all__ = [
     "LayerType",
     "Scene",
     "Variant",
+    "VariantStateType",
     "VariantType",
     "Window",
     "WindowType",
