@@ -3,8 +3,9 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 import structlog
-from fastuuid import UUID
 from opentelemetry import trace
+
+from destack.utils.uuid import UUID
 
 from ..builtin import (
     UNSET,

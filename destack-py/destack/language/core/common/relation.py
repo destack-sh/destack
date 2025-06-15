@@ -6,7 +6,6 @@ from typing import (
 )
 
 import structlog
-from fastuuid import UUID
 from opentelemetry import trace
 
 from destack.language.registry import (
@@ -15,6 +14,7 @@ from destack.language.registry import (
     TRAIT_CLASS_BY_TRAIT,
 )
 from destack.pb2 import NodeReferenceData, PropertyReferenceData, ScopeData
+from destack.utils.uuid import UUID
 
 from ..builtin import (
     BuiltinObjectBase,

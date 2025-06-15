@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Any, Optional, Union, assert_never, cast
 
-from fastuuid import UUID
+from destack.utils.uuid import UUID
 
 from ..builtin import (
     BuiltinObjectMutable,

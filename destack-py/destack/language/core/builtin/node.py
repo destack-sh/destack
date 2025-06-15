@@ -11,7 +11,6 @@ from typing import (
 )
 
 import structlog
-from fastuuid import UUID
 from opentelemetry import trace
 
 from destack.language.registry import (
@@ -22,6 +21,7 @@ from destack.language.registry import (
 from destack.pb2 import AnyNodeData
 from destack.utils.fractional import get_order_key
 from destack.utils.func import get_superclasses
+from destack.utils.uuid import UUID
 
 from .const import Enum, EnumType, NodeType, RoleType, TraitType, builtin_enum
 from .object import _process_object_cls

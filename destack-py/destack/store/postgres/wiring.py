@@ -6,7 +6,6 @@ from datetime import date, datetime, time, timedelta
 from typing import Any, Callable, assert_never
 
 import asyncpg
-import fastuuid
 import orjson
 import pytz
 
@@ -32,6 +31,7 @@ from destack.language import (
 from destack.language.registry import NODE_CLASS_BY_TYPE
 from destack.utils.code import exec_
 from destack.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
+from destack.utils.uuid import UUID
 
 from .core import PostgresTable
 
@@ -327,7 +327,7 @@ def unpack_node_row(table: PostgresTable, row: asyncpg.Record) -> tuple[Value, N
         cardinality=TypeCardinality.SCALAR, scalar_type=ScalarType.NODE_VALUE, node_type=node_type
     )
     value = Value(type=type, value=node_value)
-    node_ptr = NodeReference(node_type=node_type, id=fastuuid.UUID(node_value["2"]))
+    node_ptr = NodeReference(node_type=node_type, id=UUID(node_value["2"]))
     return value, node_ptr
 
 

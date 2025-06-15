@@ -1,9 +1,9 @@
 from typing import TYPE_CHECKING, Optional, Union
 
 import structlog
-from fastuuid import UUID
 
 from destack.pb2 import CustomEntityData, CustomEntityDefinitionData
+from destack.utils.uuid import UUID
 
 from ..builtin import (
     Entity,

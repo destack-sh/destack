@@ -6,8 +6,6 @@ from collections.abc import Mapping
 from itertools import chain
 from typing import Any, Callable, assert_never
 
-from fastuuid import UUID
-
 from destack.language import (
     Aliasing,
     BuiltinObjectBase,
@@ -24,6 +22,7 @@ from destack.language.registry import (
     STRUCT_CLASS_BY_TYPE,
 )
 from destack.utils.code import format_code
+from destack.utils.uuid import UUID
 
 
 def _render_test(func: Callable[[Any, Any], Mapping[str, Any]]):

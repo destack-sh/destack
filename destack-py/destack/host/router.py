@@ -5,7 +5,6 @@ from typing import Callable, override
 
 import grpclib.server
 import structlog
-from fastuuid import UUID
 from google.protobuf.message import Message as ProtoMessage
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
@@ -36,6 +35,7 @@ from destack.sharding import CellProvider, DatabaseProvider
 from destack.utils.env import get_from_env
 from destack.utils.oracle import Oracle
 from destack.utils.telemetry import set_baggage
+from destack.utils.uuid import UUID
 
 from .host import HostService
 

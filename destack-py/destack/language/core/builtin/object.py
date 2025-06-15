@@ -19,7 +19,6 @@ from typing import (
 
 import structlog
 from bitarray import bitarray
-from fastuuid import UUID, uuid4
 from opentelemetry import trace
 
 from destack.pb2 import AnyObjectData
@@ -27,6 +26,7 @@ from destack.utils.code import exec_, format_code
 from destack.utils.env import IS_DEV, IS_TEST
 from destack.utils.frozen import frozendict, frozenlist
 from destack.utils.func import dualmethod, get_superclasses
+from destack.utils.uuid import UUID, uuid4
 
 from .const import (
     ACTIVE_SESSION,

@@ -2,8 +2,6 @@ from collections import defaultdict
 from collections.abc import Sequence
 from typing import Any, assert_never
 
-from fastuuid import UUID
-
 from destack.language import (
     CustomEntityDefinition,
     Edit,
@@ -17,6 +15,7 @@ from destack.language.registry import (
     NODE_TYPES_BY_TRAIT_TYPE,
     RELATION_REF_BY_CLASS,
 )
+from destack.utils.uuid import UUID
 
 
 class MemoryDatabase:

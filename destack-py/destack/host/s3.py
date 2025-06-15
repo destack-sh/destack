@@ -6,7 +6,7 @@ import botocore.config
 from destack.utils.env import get_from_env
 
 if TYPE_CHECKING:
-    from mypy_boto3_s3 import S3Client
+    from mypy_boto3_s3 import S3Client  # type: ignore
 else:
     S3Client = Any
 

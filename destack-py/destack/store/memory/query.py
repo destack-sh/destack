@@ -2,7 +2,6 @@ from collections.abc import Sequence
 from typing import Any, assert_never
 
 import structlog
-from fastuuid import UUID
 from opentelemetry import trace
 
 from destack.language import (
@@ -35,6 +34,7 @@ from destack.language import (
     to_value,
 )
 from destack.language import expression as to_expression
+from destack.utils.uuid import UUID
 
 from .core import MemoryContext, MemoryRow, MemoryTable
 
@@ -661,6 +661,10 @@ def _query_clause(
         )
         nodes_ptr = []
         result = QueryResult(id=query.id, type=query.type, scalar=scalar_result)
+        if query.aggregation.type == AggregationType.EXISTS:
+            result.exists = scalar_result.unpack(bool)
+        elif query.aggregation.type == AggregationType.COUNT:
+            result.count = scalar_result.unpack(int)
 
     # grouped node
     elif query.type == QueryType.GROUPED_NODE:

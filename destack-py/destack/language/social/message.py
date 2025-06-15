@@ -2,7 +2,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Union
 
 import structlog
-from fastuuid import UUID
 
 from destack.language.core import (
     UNSET,
@@ -22,6 +21,7 @@ from destack.language.core import (
     to_text,
 )
 from destack.pb2 import MessageData
+from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
     from destack.language import NodeReference, Thread

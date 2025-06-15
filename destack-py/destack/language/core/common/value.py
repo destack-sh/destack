@@ -4,7 +4,6 @@ from datetime import date, datetime, time, timedelta
 from typing import TYPE_CHECKING, Any, assert_never, cast
 
 import structlog
-from fastuuid import UUID
 from opentelemetry import trace
 
 from destack.language.registry import (
@@ -15,6 +14,7 @@ from destack.language.registry import (
 )
 from destack.pb2 import ValueData
 from destack.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
+from destack.utils.uuid import UUID
 
 from ..builtin import (
     IntoType,

@@ -15,12 +15,12 @@ from typing import (
 )
 
 from bitarray import bitarray
-from fastuuid import UUID, uuid4, uuid5
 from more_itertools import first
 
 from destack.utils.env import IS_TEST, get_from_env
 from destack.utils.frozen import frozendict
 from destack.utils.string import Casing, to_casing
+from destack.utils.uuid import UUID, uuid4
 
 if TYPE_CHECKING:
     from destack.language import (
@@ -38,7 +38,6 @@ class _Unset:
 
 # forever constants
 VERSION = "2025.06.14.0"
-UUID_NAMESPACE = uuid5(UUID(int=0), b"destack")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
 BEGINNING_OF_TIME = datetime.fromisoformat("1970-01-01T00:00:00+00:00")

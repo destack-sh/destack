@@ -1,12 +1,11 @@
 from typing import TYPE_CHECKING
 
-from fastuuid import UUID
-
 from destack.pb2 import (
     CustomEventData,
     CustomEventDefinitionData,
     EditEventData,
 )
+from destack.utils.uuid import UUID
 
 from ..builtin import (
     UNSET,

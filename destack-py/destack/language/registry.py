@@ -2,11 +2,10 @@ from collections import defaultdict
 from itertools import chain
 from typing import TYPE_CHECKING, Any, assert_never
 
-from fastuuid import UUID
-
 from destack import pb2
 from destack.utils.code import exec_
 from destack.utils.env import IS_DEV, IS_TEST
+from destack.utils.uuid import UUID
 
 from .core.builtin.const import (
     _ENUM_CLASS_BY_TYPE,

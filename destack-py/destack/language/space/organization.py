@@ -1,7 +1,5 @@
 from typing import TYPE_CHECKING, Optional
 
-from fastuuid import UUID
-
 from destack.language.core import (
     Entity,
     Enum,
@@ -21,6 +19,7 @@ from destack.language.core import (
     property_,
 )
 from destack.pb2 import OrganizationData
+from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
     from destack.language import Handle, Space

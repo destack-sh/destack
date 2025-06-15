@@ -1,8 +1,7 @@
 from typing import Any
 
-from fastuuid import UUID
-
 from destack.language import Field, Json, NodeReference, Type, Value
+from destack.utils.uuid import UUID
 
 from .core import MemoryRow, MemoryTable
 

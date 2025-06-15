@@ -1,8 +1,6 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Union
 
-from fastuuid import UUID
-
 from destack.language.core import (
     UNSET,
     Entity,
@@ -22,6 +20,7 @@ from destack.language.core import (
     property_parent_,
 )
 from destack.pb2 import EntitlementData, EntitlementEventData
+from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
     pass
