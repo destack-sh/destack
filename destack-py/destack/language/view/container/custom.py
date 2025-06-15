@@ -31,6 +31,6 @@ class CustomView(
     Node[CustomViewData],
 ):
     definition: "CustomViewDefinition" = property_(
-        17,
+        6,
         description="The CustomViewDefinition this CustomView is an instance of.",
     )

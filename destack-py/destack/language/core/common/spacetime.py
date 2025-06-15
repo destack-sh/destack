@@ -12,6 +12,7 @@ from ..builtin import (
     NodeType,
     Spatial,
     builtin_node,
+    property_,
     property_parent_,
 )
 
@@ -49,3 +50,5 @@ class Branch(
     """A Branch is a version of a Snapshot."""
 
     parent: Optional["Space"] = property_parent_(node_is_customizable=False)
+
+    head: Optional["Snapshot"] = property_(40)

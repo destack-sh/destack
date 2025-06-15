@@ -67,4 +67,4 @@ class FriendshipInvite(
 ):
     """An invite to be friends with another User."""
 
-    owned_by: "IsSubject" = property_(22, is_repr=True)
+    owned_by: "IsSubject" = property_(25, is_repr=True)
