@@ -63,14 +63,21 @@ def _evaluate_expression(context: MemoryContext, expression: Expression, row: Me
     """Evaluate an Expression against in-memory row data."""
     if expression.type == ExpressionType.LITERAL:
         assert expression.literal is not None, f"no literal for {expression!r}"
-        return expression.literal.value
+        if expression.literal.type.scalar_type == ScalarType.NODE_REFERENCE:
+            return expression.literal.value["32"] if expression.literal.value is not None else None
+        else:
+            return expression.literal.value
     elif expression.type == ExpressionType.ATTRIBUTE:
         assert expression.attribute is not None, f"no attribute for {expression!r}"
         attr = expression.attribute
         if attr.type == AttributeType.PROPERTY:
-            assert attr.prop_ptr is not None, f"no property for {attr!r}"
-            prop_key = str(attr.prop_ptr.id)
-            return row.value.get(prop_key)
+            prop = attr.prop
+            assert prop is not None, f"no property for {attr!r}"
+            if prop.scalar_type == ScalarType.NODE_REFERENCE:
+                node_ptr_packed = row.value.get(str(prop.id))
+                return node_ptr_packed["32"] if node_ptr_packed is not None else None
+            else:
+                return row.value.get(str(prop.id))
         else:
             raise NotImplementedError(f"unsupported attribute type: {attr.type}")
     elif expression.type == ExpressionType.CONDITION:
@@ -198,7 +205,7 @@ def _evaluate_sort(
         return rows
 
     def sort_key(row: MemoryRow) -> tuple:
-        key_values = []
+        key_values: list[Any] = []
         for s in sort:
             val = _evaluate_expression(context, s.by, row)
             # Handle None values by putting them at the end
@@ -206,12 +213,9 @@ def _evaluate_sort(
             key_values.append(val)
         return tuple(key_values)
 
-    # Sort with reverse=True for descending sorts
-    reverse_flags = [s.type == SortType.DESCENDING for s in sort]
-
-    # For multiple sort criteria, we need to handle each level
-    sorted_rows = sorted(rows, key=sort_key, reverse=all(reverse_flags))
-    return sorted_rows
+    reverse_flags = tuple(s.type == SortType.DESCENDING for s in sort)
+    rows.sort(key=sort_key, reverse=all(reverse_flags))
+    return rows
 
 
 def _evaluate_function(context: MemoryContext, function: Function, row: MemoryRow) -> Any:
