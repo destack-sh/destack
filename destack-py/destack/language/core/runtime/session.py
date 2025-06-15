@@ -7,10 +7,10 @@ from typing import (
 )
 
 import structlog
-from fastuuid import UUID
 from opentelemetry import trace
 
 from destack.utils.oracle import REAL_ORACLE, Oracle
+from destack.utils.uuid import UUID
 
 from ..builtin import ACTIVE_SESSION, EnvironmentType, IsSubject, Node, TypeCardinality
 from ..common import (

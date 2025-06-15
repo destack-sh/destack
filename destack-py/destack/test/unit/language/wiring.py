@@ -1,6 +1,5 @@
 import json
 
-from fastuuid import uuid4
 from hypothesis import HealthCheck, given, settings
 
 from destack.language import (
@@ -19,6 +18,7 @@ from destack.language import (
 from destack.proto import AnyObjectData
 from destack.test.strategies import builtin_objects, examples
 from destack.test.unit.conftest import BUILTIN_OBJECTS
+from destack.utils.uuid import uuid4
 
 
 def test_roundtrip_node_reference():

@@ -6,7 +6,6 @@ from urllib.parse import urlparse
 import cachetools
 import grpclib
 import grpclib.client
-from fastuuid import UUID
 from grpclib.client import Channel
 
 from destack import pb2
@@ -14,6 +13,7 @@ from destack.pb2 import RpcMetadata
 from destack.proto.wiring import pack_rpc_headers
 from destack.utils.env import get_from_env
 from destack.utils.telemetry import collect_propagation_context
+from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
     from destack.language import ClientType

@@ -5,7 +5,6 @@ from typing import Any, assert_never
 import asyncpg
 import fastuuid
 import structlog
-from fastuuid import UUID
 from opentelemetry import trace
 
 from destack.language import (
@@ -33,6 +32,7 @@ from destack.language import (
     Value,
     to_value,
 )
+from destack.utils.uuid import UUID
 
 from .core import PostgresContext
 from .map import DESTACK_CUSTOM_FIELD_PREFIX
@@ -267,8 +267,8 @@ async def _walk_node(
 ) -> list[NodeReference]:
     """Get the cascaded Nodes for a query."""
 
-    roots_ids: list[UUID] = [n.id for n in roots_ptr]
-    roots_parents_ids: list[UUID] = [n.id for n in roots_parents_ptr]
+    roots_ids: list[uuid.UUID] = [n.id for n in roots_ptr]
+    roots_parents_ids: list[uuid.UUID] = [n.id for n in roots_parents_ptr]
     arguments: list[Any] = [roots_ids, roots_parents_ids, depth]
     where_sql = _compile_condition(context, arguments, where) if where is not None else "TRUE"
 
@@ -324,7 +324,7 @@ FROM tree;
             result_nodes_ptr: list[NodeReference] = []
             for row in result_rows:
                 node_type = NodeType(int(row["node_type"]))
-                node_ptr = NodeReference(node_type=node_type, id=fastuuid.UUID(str(row["id"])))
+                node_ptr = NodeReference(node_type=node_type, id=UUID(str(row["id"])))
                 result_nodes_ptr.append(node_ptr)
             return result_nodes_ptr
         else:
@@ -354,9 +354,7 @@ FROM    tree;
             result_rows = await conn.fetch(stmt, *arguments)
             result_nodes_ptr: list[NodeReference] = []
             for row in result_rows:
-                node_ptr = NodeReference(
-                    node_type=table.node_type, id=fastuuid.UUID(str(row["id"]))
-                )
+                node_ptr = NodeReference(node_type=table.node_type, id=UUID(str(row["id"])))
                 result_nodes_ptr.append(node_ptr)
             return result_nodes_ptr
 
@@ -411,7 +409,7 @@ FROM tree;
         result_nodes_ptr: list[NodeReference] = []
         for row in result_rows:
             node_type = NodeType(int(row["node_type"]))
-            node_ptr = NodeReference(node_type=node_type, id=fastuuid.UUID(str(row["id"])))
+            node_ptr = NodeReference(node_type=node_type, id=UUID(str(row["id"])))
             result_nodes_ptr.append(node_ptr)
         return result_nodes_ptr
 
@@ -575,7 +573,7 @@ async def _query_grouped_node(
     for row in group_rows:
         group_values = row[:group_by_count]
         discriminator = group_values[0] if group_by_count == 1 else tuple(group_values)
-        group_ids = [fastuuid.UUID(str(id)) for id in row[group_by_count]]  # ARRAY_AGG result
+        group_ids = [UUID(str(id)) for id in row[group_by_count]]  # ARRAY_AGG result
         nodes_id_by_discriminator[discriminator] = group_ids
         nodes_id.extend(group_ids)
 

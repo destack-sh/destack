@@ -20,9 +20,9 @@ from typing import (
 
 import regex
 import structlog
-from fastuuid import UUID
 
 from destack.utils.base58 import base58_encode
+from destack.utils.uuid import UUID
 
 logger = structlog.get_logger(__name__)
 

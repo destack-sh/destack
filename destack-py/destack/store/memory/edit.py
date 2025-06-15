@@ -3,7 +3,6 @@ from collections.abc import Sequence
 from typing import assert_never
 
 import structlog
-from fastuuid import UUID
 from opentelemetry import trace
 
 from destack.language import (
@@ -15,6 +14,7 @@ from destack.language import (
     NodeType,
 )
 from destack.language.core.common.edit import EditOperation
+from destack.utils.uuid import UUID
 
 from .core import MemoryContext, MemoryDatabase, MemoryTable
 

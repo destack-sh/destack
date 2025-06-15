@@ -11,8 +11,6 @@ from typing import (
     dataclass_transform,
 )
 
-from fastuuid import UUID
-
 from destack.language.registry import (
     NODE_TYPES_BY_TRAIT_TYPE,
     RELATION_REF_BY_CLASS,
@@ -21,6 +19,7 @@ from destack.language.registry import (
 )
 from destack.pb2 import AnyObjectData
 from destack.utils.fractional import INTEGER_ZERO
+from destack.utils.uuid import UUID
 
 from .const import (
     UNSET,
@@ -734,8 +733,18 @@ class Entity(IsTracked):
     An Entity is a versioned Node in primary relational storage (OLTP).
     """
 
-    # nocheckin: support Entity variants/branching (use id+snapshot as primary key [nulls unique])
-
+    # nocheckin: support Entity branching & variants
+    # identity through time:
+    # "time" (same Node.id): Branch, Snapshot
+    # "space" (different Node.id): Variant, Instance
+    # override types / instancing modes:
+    #  - partial node, partial graph
+    #  - full node, partial graph
+    #  - full node, full graph
+    # there are two pairs of ids (root container, base pointer):
+    #  - time: (snapshot_id, snapshot_base_id)
+    #  - space: (template_root_id, instance_base_id)
+    # primary key: (id, snapshot_id)
     snapshot: Optional["Snapshot"] = property_(4, can_write=None)
     template: Optional["Node"] = property_(5, can_write=None, node_is_customizable=False)
     if TYPE_CHECKING:
@@ -743,14 +752,6 @@ class Entity(IsTracked):
         snapshot_ptr: Optional["NodeReference"] = None
         template_id: Optional[UUID] = None
         template_ptr: Optional["NodeReference"] = None
-    # identity through time:
-    # "time" (same Node.id): Branch, Snapshot
-    # "space" (different Node.id): Variant, Instance
-    # override types:
-    #  - partial node, partial graph
-    #  - full node, partial graph
-    #  - full node, full graph
-    pass
 
 
 @builtin_trait(TraitType.PARTICLE)

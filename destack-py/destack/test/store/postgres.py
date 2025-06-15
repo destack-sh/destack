@@ -1,5 +1,4 @@
 import pytest
-from fastuuid import uuid4
 from hypothesis import HealthCheck, given, settings
 from pytest_async_benchmark.plugin import AsyncBenchmarkFixture
 
@@ -28,6 +27,7 @@ from destack.language import (
 )
 from destack.test.strategies import examples, nodes
 from destack.test.unit.conftest import NODES
+from destack.utils.uuid import uuid4
 
 
 @given(node=nodes)
@@ -202,7 +202,7 @@ async def test_create_scene_with_heterogeneous_views(session: Session):
     ).execute()
     scene_unpacked = scene_tree.graph.get_roots(View)
     assert len(scene_unpacked) == 1
-    assert scene_unpacked[0].equals(root_view)
+    assert scene_unpacked[0].equals(scene)
 
 
 async def test_create_star(session: Session):

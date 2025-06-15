@@ -8,7 +8,6 @@ from typing import (
 )
 
 import structlog
-from fastuuid import UUID
 from opentelemetry import trace
 
 from destack.language.registry import (
@@ -19,6 +18,7 @@ from destack.language.registry import (
     TRAIT_TYPE_BY_CLASS,
 )
 from destack.utils.fractional import INTEGER_MAX, INTEGER_ZERO
+from destack.utils.uuid import UUID
 
 from ..builtin import EMPTY_LIST, UNSET, NodeType, TraitType
 

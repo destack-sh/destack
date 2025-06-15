@@ -2,7 +2,7 @@ import asyncio
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, Optional
 
-from fastuuid import UUID
+from destack.utils.uuid import UUID
 
 from ..builtin import Node, Trait
 from ..common import Query, QueryResult, QueryResultBase, QueryType

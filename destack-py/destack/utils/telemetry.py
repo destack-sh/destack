@@ -5,7 +5,6 @@ from time import time_ns
 from typing import Any, Optional, cast
 
 import structlog
-from fastuuid import UUID, uuid4
 from opentelemetry import baggage, context, metrics, trace
 from opentelemetry.baggage.propagation import W3CBaggagePropagator
 from opentelemetry.sdk.metrics import MeterProvider
@@ -21,6 +20,8 @@ from opentelemetry.sdk.trace import Span, TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from posthog import Posthog
+
+from destack.utils.uuid import UUID, uuid4
 
 from .env import ENV, IS_DEV, IS_TEST, get_from_env, get_from_env_maybe
 from .log import setup_logging

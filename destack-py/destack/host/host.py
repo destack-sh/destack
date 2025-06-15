@@ -2,7 +2,6 @@ from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING, Any, Callable, override
 
 import structlog
-from fastuuid import UUID
 from opentelemetry import trace
 
 from destack.language import (
@@ -41,6 +40,7 @@ from destack.sharding import CellProvider, DatabaseProvider
 from destack.store import PostgresStore
 from destack.utils.env import ENV, get_from_env
 from destack.utils.oracle import Oracle
+from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
     pass

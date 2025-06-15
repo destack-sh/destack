@@ -12276,9 +12276,9 @@ export enum EnumType {
      */
     PROPERTY_REFERENCE_TYPE = 50012,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_NODE_IDENTITY_TYPE = 50013;
+     * @generated from protobuf enum value: ENUM_TYPE_INSTANCE_TYPE = 50013;
      */
-    NODE_IDENTITY_TYPE = 50013,
+    INSTANCE_TYPE = 50013,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_STORE_ZONE = 50020;
      */
@@ -13278,6 +13278,23 @@ export enum IconType {
     FILE_URL = 11
 }
 /**
+ * @generated from protobuf enum symbol.destack.InstanceType
+ */
+export enum InstanceType {
+    /**
+     * @generated from protobuf enum value: INSTANCE_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: INSTANCE_TYPE_PARTIAL = 1;
+     */
+    PARTIAL = 1,
+    /**
+     * @generated from protobuf enum value: INSTANCE_TYPE_FULL = 2;
+     */
+    FULL = 2
+}
+/**
  * @generated from protobuf enum symbol.destack.InterruptionResponse
  */
 export enum InterruptionResponse {
@@ -13720,23 +13737,6 @@ export enum Month {
      * @generated from protobuf enum value: MONTH_DECEMBER = 12;
      */
     DECEMBER = 12
-}
-/**
- * @generated from protobuf enum symbol.destack.NodeIdentityType
- */
-export enum NodeIdentityType {
-    /**
-     * @generated from protobuf enum value: NODE_IDENTITY_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: NODE_IDENTITY_TYPE_PARTIAL = 1;
-     */
-    PARTIAL = 1,
-    /**
-     * @generated from protobuf enum value: NODE_IDENTITY_TYPE_FULL = 2;
-     */
-    FULL = 2
 }
 /**
  * @generated from protobuf enum symbol.destack.NodePermission
@@ -15919,10 +15919,6 @@ export enum TraitType {
      * @generated from protobuf enum value: TRAIT_TYPE_INDEXED = 13;
      */
     INDEXED = 13,
-    /**
-     * @generated from protobuf enum value: TRAIT_TYPE_INSTANCE = 20;
-     */
-    INSTANCE = 20,
     /**
      * @generated from protobuf enum value: TRAIT_TYPE_RESOURCE = 21;
      */

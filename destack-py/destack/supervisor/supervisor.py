@@ -1,7 +1,6 @@
 from typing import Callable, override
 
 import structlog
-from fastuuid import UUID
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
@@ -44,6 +43,7 @@ from destack.sharding import CellProvider, DatabaseProvider
 from destack.store import PostgresStore, SplitStore
 from destack.utils.func import generate_access_token, generate_salt
 from destack.utils.oracle import Oracle
+from destack.utils.uuid import UUID
 
 from .access import ACCESS_TOKEN_LENGTH, SALT_LENGTH, check_password, hash_password
 

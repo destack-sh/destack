@@ -3,7 +3,6 @@ from typing import ClassVar, Self, assert_never, override
 
 import asyncpg
 import structlog
-from fastuuid import UUID
 from opentelemetry import trace
 
 from destack.language import (
@@ -29,6 +28,7 @@ from destack.language.registry import (
     NODE_TYPES_BY_TRAIT_TYPE,
     RELATION_REF_BY_CLASS,
 )
+from destack.utils.uuid import UUID
 
 from .client import pg_connection
 from .core import PostgresContext, PostgresTable

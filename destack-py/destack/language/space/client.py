@@ -1,8 +1,6 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
-from fastuuid import UUID
-
 from destack.language.core import (
     ClientType,
     Entity,
@@ -21,6 +19,7 @@ from destack.language.core import (
     property_parent_,
 )
 from destack.pb2 import ClientData, OriginData
+from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
     from destack.language import Cursor, Machine, User

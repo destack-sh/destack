@@ -13,10 +13,10 @@ from typing import (
 
 import regex
 import structlog
-from fastuuid import UUID
 from opentelemetry import trace
 
 from destack.utils.code import format_code
+from destack.utils.uuid import UUID
 
 from ..builtin import (
     NODE_TYPES,
