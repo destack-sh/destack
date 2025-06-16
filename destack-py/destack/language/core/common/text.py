@@ -7,11 +7,11 @@ import regex
 from destack.utils.uuid import UUID
 
 from ..builtin import (
-    BuiltinObjectBase,
+    BuiltinObjectFrozen,
     Enum,
     EnumType,
     Node,
-    StructMutable,
+    StructFrozen,
     StructType,
     builtin_enum,
     builtin_struct,
@@ -20,20 +20,16 @@ from ..builtin import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import Aliasing, ColorHue, NodeReference
+    from destack.language import Aliasing, NodeReference
 
 
-@object_()
-class TextOptionsBase(BuiltinObjectBase):
-    color: Optional["ColorHue"] = property_(50)
-    background_color: Optional["ColorHue"] = property_(51)
+@object_(frozen=True)
+class TextOptionsBase(BuiltinObjectFrozen):
     is_bold: Optional[bool] = property_(60)
     is_italic: Optional[bool] = property_(61)
     is_strikethrough: Optional[bool] = property_(62)
     is_underline: Optional[bool] = property_(63)
     is_code: Optional[bool] = property_(64)
-    is_spoiler: Optional[bool] = property_(65)
-    language: Optional[str] = property_(70)
 
     def _to_option_kwargs(self):
         kwargs = {}
@@ -42,32 +38,6 @@ class TextOptionsBase(BuiltinObjectBase):
             if value is not None:
                 kwargs[prop.name] = value
         return kwargs
-
-
-@builtin_enum(EnumType.TEXT_LINE_TYPE)
-class TextLineType(Enum):  # :TextLineType
-    # basic
-    PARAGRAPH = 1, "Paragraph", "Plain paragraph", "fas fa-align-left"
-    # heading
-    HEADING_1 = 10, "Heading 1", "Very big heading", "fas fa-heading"
-    HEADING_2 = 11, "Heading 2", "Big heading", "fas fa-heading"
-    HEADING_3 = 12, "Heading 3", "Medium heading", "fas fa-heading"
-    HEADING_4 = 13, "Heading 4", "Small heading", "fas fa-heading"
-    # highlight
-    CALLOUT = 20, "Callout", "Callout", "fas fa-circle-exclamation"
-    QUOTE = 21, "Quote", "Quote", "fas fa-quote-left"
-    # list
-    LIST_UNORDERED = 30, "Unorderd list", "Unorderd list", "fas fa-list-ul"
-    LIST_ORDERED = 31, "Numbered list", "Numbered list", "fas fa-list-ol"
-    # divider
-    DIVIDER = 40, "Horizontal line", "Horizontal line", "fas fa-horizontal-rule"
-    # code
-    CODE = 50, "Code", "Code", "fas fa-code"
-    # table
-    # ...
-    # reference
-    # LINK, EMBED, ...
-    NODE = 1000
 
 
 @builtin_enum(EnumType.TEXT_SPAN_TYPE)
@@ -80,8 +50,8 @@ class TextSpanType(Enum):
     EQUATION = 20, "TeX equation"
 
 
-@builtin_struct(StructType.TEXT_SPAN)
-class TextSpan(TextOptionsBase, StructMutable):
+@builtin_struct(StructType.TEXT_SPAN, frozen=True)
+class TextSpan(TextOptionsBase, StructFrozen):
     """A span of text with optional formatting"""
 
     type: TextSpanType = property_(30, default=TextSpanType.TEXT)
@@ -97,20 +67,16 @@ class TextSpan(TextOptionsBase, StructMutable):
         return TextSpan(type=TextSpanType.HARD_BREAK)
 
 
-@builtin_struct(StructType.TEXT_LINE)
-class TextLine(TextOptionsBase, StructMutable):
+@builtin_struct(StructType.TEXT, frozen=True)
+class Text(TextOptionsBase, StructFrozen):
     """
-    A single line of text; may contain inline TextSpans, or hold a TextTable or such.
+    Rich Text; a single paragraph composed of TextSpans with inline formatting.
     """
 
-    type: TextLineType = property_(30, default=TextLineType.PARAGRAPH, is_repr=True)
     spans: list[TextSpan] = property_(33)
-    content: Optional[str] = property_(34)
 
     def __contains__(self, item: str | Node) -> bool:
         if isinstance(item, str):
-            if (content := self.content) and item in content:
-                return True
             for span in self.spans:
                 if (content := span.content) and item in content:
                     return True
@@ -123,11 +89,11 @@ class TextLine(TextOptionsBase, StructMutable):
         return False
 
     def to_markdown(self) -> str:
-        """Render the TextLine as markdown."""
-        return text_line_to_markdown(self)
+        """Render the Text as markdown."""
+        return text_to_markdown(self)
 
     def to_plain(self, max_characters: Optional[int] = None) -> str:
-        """Render the TextLine as plain text without any formatting or markdown."""
+        """Render the Text as plain text without any formatting or markdown."""
         text_parts: list[str] = []
         if max_characters is not None:
             current_length = 0
@@ -151,87 +117,16 @@ class TextLine(TextOptionsBase, StructMutable):
 
     @property
     def is_empty(self) -> bool:
-        if self.content:
-            return False
         for span in self.spans:  # noqa: SIM110
             if span.type != TextSpanType.TEXT or span.content:
                 return False
         return True
 
     @staticmethod
-    def paragraph(text: str) -> "TextLine":
-        return TextLine(type=TextLineType.PARAGRAPH, spans=_parse_inline(text))
+    def paragraph(text: str) -> "Text":
+        return Text(spans=_parse_inline(text))
 
     plain = paragraph
-
-    @staticmethod
-    def code(text: str) -> "TextLine":
-        return TextLine(type=TextLineType.CODE, content=text)
-
-    @staticmethod
-    def heading(level: int, text: str) -> "TextLine":
-        if level == 1:
-            return TextLine(type=TextLineType.HEADING_1, spans=_parse_inline(text))
-        elif level == 2:
-            return TextLine(type=TextLineType.HEADING_2, spans=_parse_inline(text))
-        elif level == 3:
-            return TextLine(type=TextLineType.HEADING_3, spans=_parse_inline(text))
-        elif level == 4:
-            return TextLine(type=TextLineType.HEADING_4, spans=_parse_inline(text))
-        else:
-            raise ValueError(f"invalid heading level: {level} (must be 1-4)")
-
-    @staticmethod
-    def callout(text: str) -> "TextLine":
-        return TextLine(type=TextLineType.CALLOUT, spans=_parse_inline(text))
-
-    @staticmethod
-    def quote(text: str) -> "TextLine":
-        return TextLine(type=TextLineType.QUOTE, spans=_parse_inline(text))
-
-    @staticmethod
-    def list_bullet(text: str) -> "TextLine":
-        return TextLine(type=TextLineType.LIST_UNORDERED, spans=_parse_inline(text))
-
-    @staticmethod
-    def list_numbered(text: str) -> "TextLine":
-        return TextLine(type=TextLineType.LIST_ORDERED, spans=_parse_inline(text))
-
-    @staticmethod
-    def divider() -> "TextLine":
-        return TextLine(type=TextLineType.DIVIDER)
-
-
-@builtin_struct(StructType.TEXT)
-class Text(StructMutable):
-    """
-    Rich Text; composed of TextLines with many markdown+ goodies.
-    """
-
-    lines: list[TextLine] = property_(32)
-
-    def __contains__(self, item: str | Node) -> bool:
-        return any(item in line for line in self.lines)
-
-    def to_markdown(self) -> str:
-        """Render the Text as markdown."""
-        return text_to_markdown(self)
-
-    def to_plain(self, max_characters: Optional[int] = None) -> str:
-        """Render the Text as plain text without any formatting or markdown."""
-        if max_characters is not None:
-            current_length = 0
-            text_parts: list[str] = []
-            for line in self.lines:
-                text_parts.append(line.to_plain(max_characters - current_length))
-                current_length += len(text_parts[-1])
-                if current_length >= max_characters:
-                    break
-        else:
-            text_parts: list[str] = []
-            for line in self.lines:
-                text_parts.append(line.to_plain())
-        return "".join(text_parts)
 
     @staticmethod
     def from_markdown(markdown: str) -> "Text":
@@ -240,18 +135,14 @@ class Text(StructMutable):
     to_string = to_markdown
 
     @staticmethod
-    def plain(text: str) -> "Text":
-        return Text(lines=[TextLine.paragraph(line) for line in text.splitlines()])
+    def plain_text(text: str) -> "Text":
+        return Text(spans=[TextSpan(content=text)])
 
-    from_string = plain
-
-    @staticmethod
-    def code(code: str) -> "Text":
-        return Text(lines=[TextLine.code(code)])
+    from_string = plain_text
 
     @staticmethod
     def empty() -> "Text":
-        return Text(lines=[])
+        return Text(spans=[])
 
 
 #
@@ -265,27 +156,12 @@ MARKER_TO_FLAG = {
     "__": "is_bold",
     "~~": "is_strikethrough",
     "<u>": "is_underline",
-    "||": "is_spoiler",
     "`": "is_code",
 }
 
 
-def _parse_color(color: str) -> "ColorHue":
-    """
-    Parse a color from a string.
-    """
-    from destack.language import ColorHue
-
-    try:
-        return ColorHue[color.upper()]
-    except KeyError as e:
-        raise ValueError(
-            f"invalid color: {color} (must be one of {', '.join(ColorHue.__members__.keys())})"
-        ) from e
-
-
 _MARKER_PATTERN = regex.compile(
-    r"(\$\$|\*\*|~~|`|<u>|<\/u>|<br>|\|\||\*|\[\^[a-zA-Z0-9]+\]|\[[^[\]]+\]|\[\/[^[\]]+\]|\[@[a-zA-Z0-9_]+\])"
+    r"(\$\$|\*\*|~~|`|<u>|<\/u>|<br>|\[\^[a-zA-Z0-9]+\]|\[[^[\]]+\]|\[@[a-zA-Z0-9_]+\])"
 )
 _LINK_PATTERN = regex.compile(
     r"(?:https?://)?(?:www\.)?(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?::\d{1,5})?(?:/\S*)?"
@@ -365,13 +241,6 @@ def _parse_inline_raw(
         if marker == "<br>":
             spans.append(TextSpan.hard_break())
             continue
-        # closing color marker (if unexpected, treat as literal)
-        if marker.startswith("[/") and marker.endswith("]"):
-            if end_marker is not None and marker == end_marker:
-                return spans, pos
-            else:
-                spans.append(TextSpan(content=marker, **base))
-                continue
         # inline equation marker: $$...$$
         if marker == "$$":
             inner, pos = _parse_inline_raw(
@@ -397,8 +266,8 @@ def _parse_inline_raw(
             )
             spans.append(mention_span)
             continue
-        # opening marker: could be a citation, link, or a color marker
-        if marker.startswith("[") and marker.endswith("]") and not marker.startswith("[/"):
+        # opening marker: could be a citation or link
+        if marker.startswith("[") and marker.endswith("]"):
             if marker.startswith("[^"):
                 # citation markers
                 citation_content = marker[2:-1]
@@ -432,20 +301,8 @@ def _parse_inline_raw(
                 )
                 continue
             else:
-                # try to parse as a color, but handle invalid colors gracefully
-                color_name = marker[1:-1]
-                try:
-                    color = _parse_color(color_name)
-                    closing = f"[/{color_name}]"
-                    inner, pos = _parse_inline_raw(
-                        text, pos, end_marker=closing, base=base.copy(), aliasing=aliasing
-                    )
-                    for sp in inner:
-                        sp.color = color
-                    spans.extend(inner)
-                except ValueError:
-                    # If not a valid color, treat it as literal text
-                    spans.append(TextSpan(content=marker, **base))
+                # treat as literal text
+                spans.append(TextSpan(content=marker, **base))
                 continue
         # symmetric markers
         if marker in MARKER_TO_FLAG:
@@ -501,7 +358,17 @@ def _merge_spans(spans: list[TextSpan]) -> list[TextSpan]:
             and merged[-1].type == TextSpanType.TEXT
             and _span_format_key(merged[-1]) == _span_format_key(sp)
         ):
-            merged[-1].content = (merged[-1].content or "") + (sp.content or "")
+            content = (merged[-1].content or "") + (sp.content or "")
+            new_span = TextSpan(
+                type=TextSpanType.TEXT,
+                content=content,
+                is_bold=merged[-1].is_bold,
+                is_italic=merged[-1].is_italic,
+                is_strikethrough=merged[-1].is_strikethrough,
+                is_underline=merged[-1].is_underline,
+                is_code=merged[-1].is_code,
+            )
+            merged[-1] = new_span
         else:
             merged.append(sp)
     return merged
@@ -517,98 +384,12 @@ def _span_format_key(span: TextSpan) -> tuple:
         span.is_strikethrough,
         span.is_underline,
         span.is_code,
-        span.is_spoiler,
-        span.color,
-        span.background_color,
     )
-
-
-def markdown_line_to_line(line: str, aliasing: "Aliasing | None" = None) -> TextLine:
-    """
-    Parse a markdown line into a TextLine.
-    """
-    from destack.language import ColorHue, get_active_aliasing
-
-    # aliasing
-    if aliasing is None:
-        aliasing = get_active_aliasing()
-
-    # parse
-    line_color = None
-    stripped = line.strip()
-    m = regex.match(r"^\[([a-zA-Z]+)\](.*)\[\/\1\]\s*$", stripped)
-    if m:
-        line_color = m.group(1)
-        content = m.group(2).strip()
-    else:
-        content = line
-    ttype = TextLineType.PARAGRAPH
-    content_stripped = content.lstrip()
-    if content_stripped.startswith("#"):
-        count = 0
-        for ch in content_stripped:
-            if ch == "#":
-                count += 1
-            else:
-                break
-        if 1 <= count <= 4 and content_stripped[count : count + 1] == " ":
-            if count == 1:
-                ttype = TextLineType.HEADING_1
-            elif count == 2:
-                ttype = TextLineType.HEADING_2
-            elif count == 3:
-                ttype = TextLineType.HEADING_3
-            elif count == 4:
-                ttype = TextLineType.HEADING_4
-            content = content_stripped[count + 1 :]
-    elif content_stripped.startswith("! "):
-        ttype = TextLineType.CALLOUT
-        content = content_stripped[2:]
-    elif content_stripped.startswith("> "):
-        ttype = TextLineType.QUOTE
-        content = content_stripped[2:]
-    elif content_stripped.startswith("- "):
-        ttype = TextLineType.LIST_UNORDERED
-        content = content_stripped[2:]
-    elif regex.match(r"^\d+\.\s", content_stripped):
-        ttype = TextLineType.LIST_ORDERED
-        content = regex.sub(r"^\d+\.\s", "", content_stripped)
-    elif content_stripped == "---" or content_stripped == "--":
-        ttype = TextLineType.DIVIDER
-        content = ""
-    spans = _parse_inline(content, aliasing)
-    line_obj = TextLine(type=ttype, spans=spans)
-    if line_color:
-        line_obj.color = ColorHue[line_color]
-    return line_obj
-
-
-def _parse_code(lines: list[str], start: int) -> tuple[TextLine, int]:
-    """
-    Parse a code line.
-    """
-    i = start + 1
-
-    # language
-    opening_line = lines[start].strip()
-    language_match = regex.match(r"^```([a-zA-Z0-9+#.]+)?", opening_line)
-    if language_match and language_match.group(1):
-        _ = language_match.group(1).strip()
-
-    # code
-    code_lines = []
-    while i < len(lines) and not lines[i].startswith("```"):
-        code_lines.append(lines[i])
-        i += 1
-    content = "\n".join(code_lines)
-    i += 1  # skip closing ```
-
-    return TextLine(type=TextLineType.CODE, content=content), i
 
 
 def markdown_to_text(markdown: str, aliasing: "Aliasing | None" = None) -> Text:
     """
-    Parse markdown as Text.
+    Parse markdown as a single paragraph Text.
     """
     from destack.language import get_active_aliasing
 
@@ -620,49 +401,26 @@ def markdown_to_text(markdown: str, aliasing: "Aliasing | None" = None) -> Text:
     if aliasing is None:
         aliasing = get_active_aliasing()
 
-    # parse
-    markdown = textwrap.dedent(markdown)
-    lines_str = markdown.splitlines()
-    lines: list[TextLine] = []
-    i = 0
-    while i < len(lines_str):
-        line = lines_str[i]
-        if line.strip() == "":
-            i += 1
-            continue
-        if line.startswith("```"):
-            tl, i = _parse_code(lines_str, i)
-            lines.append(tl)
-        elif line.lstrip().startswith("> "):
-            # join multi-line quote blocks
-            quote_content = []
-            while i < len(lines_str) and lines_str[i].lstrip().startswith("> "):
-                # extract content after the '> ' prefix
-                content = lines_str[i].lstrip()[2:]
-                quote_content.append(content)
-                i += 1
-            combined_content = "\n".join(quote_content)
-            spans = _parse_inline(combined_content, aliasing)
-            lines.append(TextLine(type=TextLineType.QUOTE, spans=spans))
-        else:
-            tl = markdown_line_to_line(line, aliasing)
-            lines.append(tl)
-            i += 1
-    return Text(lines=lines)
+    # parse as single line, ignoring line prefixes and multi-line constructs
+    markdown = textwrap.dedent(markdown).strip()
+    # Remove line breaks to treat as single paragraph
+    markdown = " ".join(line.strip() for line in markdown.splitlines() if line.strip())
+
+    spans = _parse_inline(markdown, aliasing)
+    return Text(spans=spans)
 
 
 #
 # Rendering
 #
 
-MARKER_ORDER = ["is_spoiler", "is_italic", "is_bold", "is_strikethrough", "is_underline", "is_code"]
+MARKER_ORDER = ["is_italic", "is_bold", "is_strikethrough", "is_underline", "is_code"]
 MARKER_OPEN = {
     "is_italic": "*",
     "is_bold": "**",
     "is_strikethrough": "~~",
     "is_underline": "<u>",
     "is_code": "`",
-    "is_spoiler": "||",
 }
 MARKER_CLOSE = {
     "is_italic": "*",
@@ -670,7 +428,6 @@ MARKER_CLOSE = {
     "is_strikethrough": "~~",
     "is_underline": "</u>",
     "is_code": "`",
-    "is_spoiler": "||",
 }
 
 
@@ -686,13 +443,6 @@ def _get_span_options(span: TextSpan) -> Sequence[str]:
     ):
         return ()
     return tuple(flag for flag in MARKER_ORDER if getattr(span, flag))
-
-
-def _render_color(color: "ColorHue") -> str:
-    """
-    Render a ColorType as a string.
-    """
-    return color.name.lower()
 
 
 def _render_inline_raw(spans: Sequence[TextSpan], aliasing: "Aliasing | None" = None) -> str:
@@ -758,36 +508,9 @@ def _render_inline_raw(spans: Sequence[TextSpan], aliasing: "Aliasing | None" = 
     return "".join(result)
 
 
-def _render_inline(spans: Sequence[TextSpan], aliasing: "Aliasing | None" = None) -> str:
+def text_to_markdown(text: Text, aliasing: "Aliasing | None" = None) -> str:
     """
-    Group consecutive spans with the same color so that the outer color marker is rendered only once.
-    """
-    grouped: list[tuple[ColorHue | None, list[TextSpan]]] = []
-    current_color = None
-    current_group: list[TextSpan] = []
-    for span in spans:
-        if span.color == current_color:
-            current_group.append(span)
-        else:
-            if current_group:
-                grouped.append((current_color, current_group))
-            current_color = span.color
-            current_group = [span]
-    if current_group:
-        grouped.append((current_color, current_group))
-    parts = []
-    for color, group in grouped:
-        inner = _render_inline_raw(group, aliasing)
-        if color:
-            parts.append(f"[{_render_color(color)}]{inner}[/{_render_color(color)}]")
-        else:
-            parts.append(inner)
-    return "".join(parts)
-
-
-def text_line_to_markdown(line: TextLine, aliasing: "Aliasing | None" = None) -> str:
-    """
-    Render a single TextLine as markdown.
+    Render a Text object as markdown.
     """
     from destack.language import get_active_aliasing
 
@@ -795,74 +518,20 @@ def text_line_to_markdown(line: TextLine, aliasing: "Aliasing | None" = None) ->
     if aliasing is None:
         aliasing = get_active_aliasing()
 
-    # render
-    if line.type == TextLineType.DIVIDER:
-        return "---"
-    elif line.type == TextLineType.CODE:
-        if line.language:
-            return f"```{line.language}\n" + (line.content or "") + "\n```"
-        else:
-            return "```\n" + (line.content or "") + "\n```"
-    else:
-        prefix = ""
-        if line.type == TextLineType.HEADING_1:
-            prefix = "# "
-        elif line.type == TextLineType.HEADING_2:
-            prefix = "## "
-        elif line.type == TextLineType.HEADING_3:
-            prefix = "### "
-        elif line.type == TextLineType.HEADING_4:
-            prefix = "#### "
-        elif line.type == TextLineType.CALLOUT:
-            prefix = "! "
-        elif line.type == TextLineType.QUOTE:
-            prefix = "> "
-        elif line.type == TextLineType.LIST_UNORDERED:
-            prefix = "- "
-        elif line.type == TextLineType.LIST_ORDERED:
-            prefix = "1. "
-        content = _render_inline(line.spans, aliasing)
-
-        # emit multi-line quotes by adding "> " prefix to each line
-        if line.type == TextLineType.QUOTE and "\n" in content:
-            lines = content.split("\n")
-            content = "\n".join(f"{prefix}{line}" for line in lines)
-            prefix = ""
-
-        if line.color:
-            content = f"[{_render_color(line.color)}]{content}[/{_render_color(line.color)}]"
-        return prefix + content
-
-
-def text_to_markdown(text: Text, aliasing: "Aliasing | None" = None) -> str:
-    """
-    Render a Text object as markdown.
-    """
-    return "\n".join(text_line_to_markdown(line, aliasing) for line in text.lines)
+    return _render_inline_raw(text.spans, aliasing)
 
 
 TextIn = Text | str
-TextLineIn = TextLine | str
 
 
-def text(text: TextIn, aliasing: "Aliasing | None" = None) -> Text:
+def text(text_input: TextIn, aliasing: "Aliasing | None" = None) -> Text:
     """Parse markdown as Text."""
-    if isinstance(text, str):
-        return markdown_to_text(text, aliasing=aliasing)
+    if isinstance(text_input, str):
+        return markdown_to_text(text_input, aliasing=aliasing)
     else:
-        assert isinstance(text, Text), f"expected Text, got {text!r}"
-        return text
-
-
-def text_line(text: TextLineIn, aliasing: "Aliasing | None" = None) -> TextLine:
-    """Parse markdown as TextLine."""
-    if isinstance(text, str):
-        return markdown_line_to_line(text, aliasing=aliasing)
-    else:
-        assert isinstance(text, TextLine), f"expected TextLine, got {text!r}"
-        return text
+        assert isinstance(text_input, Text), f"expected Text, got {text_input!r}"
+        return text_input
 
 
 to_text = text
-to_text_line = text_line
-title = to_text_line
+title = text

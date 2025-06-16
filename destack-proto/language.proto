@@ -336,8 +336,7 @@ enum EnumType {
   ENUM_TYPE_ENTITLEMENT_TYPE = 550;
   ENUM_TYPE_ENTITLEMENT_EVENT_TYPE = 551;
   ENUM_TYPE_FOLDER_TYPE = 1000;
-  ENUM_TYPE_TEXT_LINE_TYPE = 2521;
-  ENUM_TYPE_TEXT_SPAN_TYPE = 2522;
+  ENUM_TYPE_TEXT_SPAN_TYPE = 2521;
   ENUM_TYPE_FILE_RETENTION_MODE = 2540;
   ENUM_TYPE_FILE_SOURCE = 2541;
   ENUM_TYPE_FILE_TYPE = 2542;
@@ -1380,9 +1379,8 @@ enum StructType {
   STRUCT_TYPE_STRING_CONSTRAINT = 2503;
   STRUCT_TYPE_COLLECTION_CONSTRAINT = 2504;
   STRUCT_TYPE_NODE_CONSTRAINT = 2505;
-  STRUCT_TYPE_TEXT = 2521;
-  STRUCT_TYPE_TEXT_LINE = 2522;
-  STRUCT_TYPE_TEXT_SPAN = 2523;
+  STRUCT_TYPE_TEXT = 2520;
+  STRUCT_TYPE_TEXT_SPAN = 2521;
   STRUCT_TYPE_ICON = 2531;
   STRUCT_TYPE_SELECTION = 2571;
   STRUCT_TYPE_SCHEDULE = 3001;
@@ -1462,22 +1460,6 @@ enum TextDecoration {
   TEXT_DECORATION_NONE = 1;
   TEXT_DECORATION_UNDERLINE = 2;
   TEXT_DECORATION_STRIKETHROUGH = 3;
-}
-
-enum TextLineType {
-  TEXT_LINE_TYPE_UNSPECIFIED = 0;
-  TEXT_LINE_TYPE_PARAGRAPH = 1;
-  TEXT_LINE_TYPE_HEADING_1 = 10;
-  TEXT_LINE_TYPE_HEADING_2 = 11;
-  TEXT_LINE_TYPE_HEADING_3 = 12;
-  TEXT_LINE_TYPE_HEADING_4 = 13;
-  TEXT_LINE_TYPE_CALLOUT = 20;
-  TEXT_LINE_TYPE_QUOTE = 21;
-  TEXT_LINE_TYPE_LIST_UNORDERED = 30;
-  TEXT_LINE_TYPE_LIST_ORDERED = 31;
-  TEXT_LINE_TYPE_DIVIDER = 40;
-  TEXT_LINE_TYPE_CODE = 50;
-  TEXT_LINE_TYPE_NODE = 1000;
 }
 
 enum TextSpanType {
@@ -4315,23 +4297,12 @@ message TeamData {
 
 message TextData {
   StructType metatype = 1;
-  repeated TextLineData lines = 32;
-}
-
-message TextLineData {
-  StructType metatype = 1;
-  TextLineType type = 30;
   repeated TextSpanData spans = 33;
-  optional string content = 34;
-  optional ColorHue color = 50;
-  optional ColorHue background_color = 51;
   optional bool is_bold = 60;
   optional bool is_italic = 61;
   optional bool is_strikethrough = 62;
   optional bool is_underline = 63;
   optional bool is_code = 64;
-  optional bool is_spoiler = 65;
-  optional string language = 70;
 }
 
 message TextSpanData {
@@ -4340,15 +4311,11 @@ message TextSpanData {
   optional string content = 33;
   optional NodeReferenceData node_ptr = 34;
   optional string url = 35;
-  optional ColorHue color = 50;
-  optional ColorHue background_color = 51;
   optional bool is_bold = 60;
   optional bool is_italic = 61;
   optional bool is_strikethrough = 62;
   optional bool is_underline = 63;
   optional bool is_code = 64;
-  optional bool is_spoiler = 65;
-  optional string language = 70;
 }
 
 // A (rich) text view.

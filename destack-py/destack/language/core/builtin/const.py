@@ -199,8 +199,7 @@ class EnumType(Enum):
     # ...
 
     # data [2500-3000]
-    TEXT_LINE_TYPE = 2521
-    TEXT_SPAN_TYPE = 2522
+    TEXT_SPAN_TYPE = 2521
     FILE_RETENTION_MODE = 2540
     FILE_SOURCE = 2541
     FILE_TYPE = 2542
@@ -399,9 +398,8 @@ class StructType(Enum):
     STRING_CONSTRAINT = 2503
     COLLECTION_CONSTRAINT = 2504
     NODE_CONSTRAINT = 2505
-    TEXT = 2521, None, None, "fas fa-text"
-    TEXT_LINE = 2522, None, None, "fas fa-text"
-    TEXT_SPAN = 2523, None, None, "fas fa-text"
+    TEXT = 2520, None, None, "fas fa-text"
+    TEXT_SPAN = 2521, None, None, "fas fa-text"
     ICON = 2531
     SELECTION = 2571
     # SCHEMA, UNION, TAG, ...
