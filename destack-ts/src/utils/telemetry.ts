@@ -1,4 +1,3 @@
-import { IS_DEV } from "@/utils/globals";
 import { log } from "@/utils/log";
 import posthog from "posthog-js";
 

@@ -1,4 +1,3 @@
-import { pretendReadonly } from "@/utils/ref";
 import { ref } from "vue";
 
 export const VERSION = "2025.06.16.1";
@@ -14,5 +13,4 @@ export const DISCORD_URL = import.meta.env.VITE_DISCORD_URL || "https://discord.
 export const GRPC_KEEPALIVE_INTERVAL_SECONDS = 60;
 export const IP_API_KEY = IP_API_KEY_B64 ? atob(IP_API_KEY_B64) : null;
 export const IS_DEV = ENV == null || ENV == "dev";
-export const IS_DEVELOPER_MODE = pretendReadonly(ref(IS_DEV)); // hoisted for safe importing
 export const TELEMETRY = !IS_DEV;

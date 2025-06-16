@@ -2,7 +2,7 @@
  * Simple logging with our log levels (trace, debug, info, warn, error)
  */
 
-import { LogLevel } from "@/proto/wire";
+import { LogLevel } from "destack-ts";
 import { IS_DEV, IS_DEVELOPER_MODE } from "@/utils/globals";
 
 const CONSOLE_METHOD_MAP: Record<LogLevel, keyof typeof console> = {

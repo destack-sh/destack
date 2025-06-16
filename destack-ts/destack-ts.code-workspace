@@ -1,7 +1,7 @@
 {
     "folders": [
         {
-            "path": ".",
+            "path": "../",
         },
     ],
     "settings": {
@@ -10,18 +10,10 @@
         "search.searchOnTypeDebouncePeriod": 201,
         "css.lint.unknownAtRules": "ignore",
         "prettier.vueIndentScriptAndStyle": false,
-        "github.copilot.chat.temporalContext.enabled": true,
-        "github.copilot.chat.search.semanticTextResults": true,
         "window.zoomLevel": -0.5,
     },
     "launch": {
         "configurations": [
-            {
-                "type": "chrome",
-                "name": "http://localhost:5173",
-                "request": "launch",
-                "url": "http://localhost:5173",
-            },
         ],
     },
 }
