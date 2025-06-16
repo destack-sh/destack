@@ -385,6 +385,75 @@ def _walk_node(
     return list(nodes_by_id.values())
 
 
+@tracer.start_as_current_span("memory.query_node")
+def _query_node(
+    context: MemoryContext,
+    relation: RelationReference,
+    select: Select | None,
+    where: Condition | None,
+    sort: Sequence[Sort] | None,
+    limit: int | None,
+    offset: int | None,
+) -> tuple[list[Value], list[NodeReference]]:
+    """Execute a node Query."""
+    # handle multi-relations
+    if relation.type == RelationType.TRAIT:
+        # fan out trait relations
+        if limit is not None or offset is not None:
+            raise NotImplementedError(f"cannot limit/offset for multi relation: {relation!r}")
+        relations = context.resolve_relation(relation)
+        all_values: list[Value] = []
+        all_ptrs: list[NodeReference] = []
+        for rel in relations:
+            values, ptrs = _query_node(
+                context=context,
+                relation=rel,
+                select=select,
+                where=where,
+                sort=sort,
+                limit=limit,
+                offset=offset,
+            )
+            all_values.extend(values)
+            all_ptrs.extend(ptrs)
+        return all_values, all_ptrs
+
+    table = context.get_relation(relation)
+
+    # filter
+    if where is not None:
+        is_id_query, id_values = _is_id_condition(where)
+        if is_id_query:
+            filtered_rows: list[MemoryRow] = []
+            for id_val in id_values:
+                if (row := table.rows.get(id_val)) is not None:
+                    filtered_rows.append(row)
+        else:
+            filtered_rows = []
+            for row in table.rows.values():
+                if _evaluate_condition(context, where, row):
+                    filtered_rows.append(row)
+    else:
+        filtered_rows = list(table.rows.values())
+
+    # sort
+    if sort:
+        filtered_rows = _evaluate_sort(context, sort, filtered_rows)
+    if offset:
+        filtered_rows = filtered_rows[offset:]
+    if limit:
+        filtered_rows = filtered_rows[:limit]
+
+    # convert to values
+    values: list[Value] = []
+    ptrs: list[NodeReference] = []
+    for row in filtered_rows:
+        values.append(unpack_node_row(table, row))
+        ptrs.append(row.ptr)
+
+    return values, ptrs
+
+
 @tracer.start_as_current_span("memory.query_scalar")
 def _query_scalar(
     context: MemoryContext,
@@ -409,53 +478,16 @@ def _query_scalar(
             if where is None or _evaluate_condition(context, where, row):
                 filtered_rows.append(row)
 
-    # apply aggregation
-    result = _evaluate_aggregation(context, aggregation, filtered_rows)
-    return to_value(result)
-
-
-@tracer.start_as_current_span("memory.query_grouped_scalar")
-def _query_grouped_scalar(
-    context: MemoryContext,
-    relation: RelationReference,
-    aggregation: Aggregation,
-    where: Condition | None,
-    having: Condition | None,
-    group_by: Sequence[Expression],
-) -> list[tuple[Value, Value]]:
-    """Execute a grouped scalar Query."""
-    if relation.type == RelationType.TRAIT:
-        raise NotImplementedError("grouped scalar queries not supported for trait relations")
-
-    table = context.get_relation(relation)
-
-    # filter rows based on where condition
-    filtered_rows: list[MemoryRow] = []
-    for row in table.rows.values():
-        if where is None or _evaluate_condition(context, where, row):
-            filtered_rows.append(row)
-
-    # group rows by group_by expressions
-    groups: dict[tuple, list[MemoryRow]] = {}
-    for row in filtered_rows:
-        group_key = tuple(_evaluate_expression(context, expr, row) for expr in group_by)
-        if group_key not in groups:
-            groups[group_key] = []
-        groups[group_key].append(row)
-
-    # apply having filter and aggregation to each group
-    results: list[tuple[Value, Value]] = []
-    for group_key, group_rows in groups.items():
-        if having is not None and group_rows:
-            if not _evaluate_condition(context, having, group_rows[0]):
-                continue
-
-        agg_result = _evaluate_aggregation(context, aggregation, group_rows)
-        # Use first element of group key as discriminator (simplified)
-        discriminator = group_key[0] if group_key else None
-        results.append((to_value(discriminator), to_value(agg_result)))
-
-    return results
+    # execute
+    scalar = _evaluate_aggregation(context, aggregation, filtered_rows)
+    scalar_value = to_value(scalar)
+    logger.debug(
+        "memory.query_scalar",
+        relation=relation,
+        scalar=scalar_value,
+        span="current",
+    )
+    return scalar_value
 
 
 @tracer.start_as_current_span("memory.query_grouped_node")
@@ -526,76 +558,65 @@ def _query_grouped_node(
         discriminator = group_key[0] if group_key else None
         results.append((to_value(discriminator), values, ptrs))
 
+    logger.debug(
+        "memory.query_grouped_node",
+        relation=relation,
+        groups=len(results),
+        total_nodes=len(filtered_rows),
+        span="current",
+    )
     return results
 
 
-@tracer.start_as_current_span("memory.query_node")
-def _query_node(
+@tracer.start_as_current_span("memory.query_grouped_scalar")
+def _query_grouped_scalar(
     context: MemoryContext,
     relation: RelationReference,
-    select: Select | None,
+    aggregation: Aggregation,
     where: Condition | None,
-    sort: Sequence[Sort] | None,
-    limit: int | None,
-    offset: int | None,
-) -> tuple[list[Value], list[NodeReference]]:
-    """Execute a node Query."""
-    # handle multi-relations
+    having: Condition | None,
+    group_by: Sequence[Expression],
+) -> list[tuple[Value, Value]]:
+    """Execute a grouped scalar Query."""
     if relation.type == RelationType.TRAIT:
-        # fan out trait relations
-        if limit is not None or offset is not None:
-            raise NotImplementedError(f"cannot limit/offset for multi relation: {relation!r}")
-        relations = context.resolve_relation(relation)
-        all_values: list[Value] = []
-        all_ptrs: list[NodeReference] = []
-        for rel in relations:
-            values, ptrs = _query_node(
-                context=context,
-                relation=rel,
-                select=select,
-                where=where,
-                sort=sort,
-                limit=limit,
-                offset=offset,
-            )
-            all_values.extend(values)
-            all_ptrs.extend(ptrs)
-        return all_values, all_ptrs
+        raise NotImplementedError("grouped scalar queries not supported for trait relations")
 
     table = context.get_relation(relation)
 
-    # filter
-    if where is not None:
-        is_id_query, id_values = _is_id_condition(where)
-        if is_id_query:
-            filtered_rows: list[MemoryRow] = []
-            for id_val in id_values:
-                if (row := table.rows.get(id_val)) is not None:
-                    filtered_rows.append(row)
-        else:
-            filtered_rows = []
-            for row in table.rows.values():
-                if _evaluate_condition(context, where, row):
-                    filtered_rows.append(row)
-    else:
-        filtered_rows = list(table.rows.values())
+    # filter rows based on where condition
+    filtered_nodes: list[MemoryRow] = []
+    for row in table.rows.values():
+        if where is None or _evaluate_condition(context, where, row):
+            filtered_nodes.append(row)
 
-    # sort
-    if sort:
-        filtered_rows = _evaluate_sort(context, sort, filtered_rows)
-    if offset:
-        filtered_rows = filtered_rows[offset:]
-    if limit:
-        filtered_rows = filtered_rows[:limit]
+    # group rows by group_by expressions
+    groups: dict[tuple, list[MemoryRow]] = {}
+    for row in filtered_nodes:
+        group_key = tuple(_evaluate_expression(context, expr, row) for expr in group_by)
+        if group_key not in groups:
+            groups[group_key] = []
+        groups[group_key].append(row)
 
-    # convert to values
-    values: list[Value] = []
-    ptrs: list[NodeReference] = []
-    for row in filtered_rows:
-        values.append(unpack_node_row(table, row))
-        ptrs.append(row.ptr)
+    # apply having filter and aggregation to each group
+    results: list[tuple[Value, Value]] = []
+    for group_key, group_rows in groups.items():
+        if having is not None and group_rows:
+            if not _evaluate_condition(context, having, group_rows[0]):
+                continue
 
-    return values, ptrs
+        agg_result = _evaluate_aggregation(context, aggregation, group_rows)
+        # Use first element of group key as discriminator (simplified)
+        discriminator = group_key[0] if group_key else None
+        results.append((to_value(discriminator), to_value(agg_result)))
+
+    logger.debug(
+        "memory.query_grouped_scalar",
+        relation=relation,
+        groups=len(results),
+        total_nodes=len(filtered_nodes),
+        span="current",
+    )
+    return results
 
 
 @tracer.start_as_current_span("memory.query_clause")
@@ -603,6 +624,7 @@ def _query_clause(
     context: MemoryContext, query: Query, where: Condition | None
 ) -> tuple[QueryResult, Sequence[NodeReference]]:
     """Execute the specific Query "clause" (ignoring subqueries)."""
+
     # combine wheres
     if where is not None:
         combined_where = where if query.where is None else query.where & where
@@ -693,6 +715,13 @@ def _query_clause(
     else:
         assert_never(query.type)
 
+    logger.debug(
+        "memory.query_clause",
+        query=query,
+        result=result,
+        nodes=len(nodes_ptr),
+        span="current",
+    )
     return result, nodes_ptr
 
 

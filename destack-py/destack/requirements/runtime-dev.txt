@@ -264,6 +264,7 @@ pytest==8.4.0
     #   pytest-benchmark
     #   pytest-cov
     #   pytest-env
+    #   pytest-lazy-fixtures
     #   pytest-mock
     #   pytest-xdist
 pytest-async-benchmark==0.2.0
@@ -275,6 +276,8 @@ pytest-benchmark==5.1.0
 pytest-cov==5.0.0
     # via -r destack-py/destack/requirements/dev.in
 pytest-env==1.1.5
+    # via -r destack-py/destack/requirements/dev.in
+pytest-lazy-fixtures==1.1.4
     # via -r destack-py/destack/requirements/dev.in
 pytest-mock==3.14.0
     # via -r destack-py/destack/requirements/dev.in
