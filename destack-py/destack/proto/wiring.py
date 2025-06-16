@@ -318,8 +318,8 @@ def _generate_unpack_scalar(prop: "Property | IntoType", value_expr: str) -> str
         raise RuntimeError(f"node_value cannot be wired directly: {prop!r}")
     elif prop.scalar_type == ScalarType.STRUCT:
         assert prop.struct_type is not None
-        struct_cls_name = prop.struct_type.camel_name
-        return f"{struct_cls_name}.__unpack_proto__({value_expr}, _supergraph=_supergraph)"
+        struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
+        return f"{struct_cls.__name__}.__unpack_proto__({value_expr}, _supergraph=_supergraph)"
     else:
         assert_never(prop.scalar_type)
 

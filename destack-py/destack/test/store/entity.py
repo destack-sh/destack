@@ -40,7 +40,7 @@ ENTITY_SESSIONS = (lf("memory_session"), lf("postgres_session"))
 async def test_roundtrip_create_node(node: Node, session: Session):
     assert session.store is not None, f"no store in session: {session!r}"
     if node.metatype == NodeType.CUSTOM_ENTITY or node.metatype not in session.store.node_types:
-        return
+        return  # ignore custom/excluded nodes
 
     session.upsert(node)
     await session.commit()
