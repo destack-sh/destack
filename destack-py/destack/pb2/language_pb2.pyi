@@ -334,7 +334,6 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_ENTITLEMENT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_ENTITLEMENT_EVENT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_FOLDER_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_TEXT_LINE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_TEXT_SPAN_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_FILE_RETENTION_MODE: _ClassVar[EnumType]
     ENUM_TYPE_FILE_SOURCE: _ClassVar[EnumType]
@@ -1345,7 +1344,6 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_COLLECTION_CONSTRAINT: _ClassVar[StructType]
     STRUCT_TYPE_NODE_CONSTRAINT: _ClassVar[StructType]
     STRUCT_TYPE_TEXT: _ClassVar[StructType]
-    STRUCT_TYPE_TEXT_LINE: _ClassVar[StructType]
     STRUCT_TYPE_TEXT_SPAN: _ClassVar[StructType]
     STRUCT_TYPE_ICON: _ClassVar[StructType]
     STRUCT_TYPE_SELECTION: _ClassVar[StructType]
@@ -1426,22 +1424,6 @@ class TextDecoration(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TEXT_DECORATION_NONE: _ClassVar[TextDecoration]
     TEXT_DECORATION_UNDERLINE: _ClassVar[TextDecoration]
     TEXT_DECORATION_STRIKETHROUGH: _ClassVar[TextDecoration]
-
-class TextLineType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    TEXT_LINE_TYPE_UNSPECIFIED: _ClassVar[TextLineType]
-    TEXT_LINE_TYPE_PARAGRAPH: _ClassVar[TextLineType]
-    TEXT_LINE_TYPE_HEADING_1: _ClassVar[TextLineType]
-    TEXT_LINE_TYPE_HEADING_2: _ClassVar[TextLineType]
-    TEXT_LINE_TYPE_HEADING_3: _ClassVar[TextLineType]
-    TEXT_LINE_TYPE_HEADING_4: _ClassVar[TextLineType]
-    TEXT_LINE_TYPE_CALLOUT: _ClassVar[TextLineType]
-    TEXT_LINE_TYPE_QUOTE: _ClassVar[TextLineType]
-    TEXT_LINE_TYPE_LIST_UNORDERED: _ClassVar[TextLineType]
-    TEXT_LINE_TYPE_LIST_ORDERED: _ClassVar[TextLineType]
-    TEXT_LINE_TYPE_DIVIDER: _ClassVar[TextLineType]
-    TEXT_LINE_TYPE_CODE: _ClassVar[TextLineType]
-    TEXT_LINE_TYPE_NODE: _ClassVar[TextLineType]
 
 class TextSpanType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1814,7 +1796,6 @@ ENUM_TYPE_SANCTION_EVENT_TYPE: EnumType
 ENUM_TYPE_ENTITLEMENT_TYPE: EnumType
 ENUM_TYPE_ENTITLEMENT_EVENT_TYPE: EnumType
 ENUM_TYPE_FOLDER_TYPE: EnumType
-ENUM_TYPE_TEXT_LINE_TYPE: EnumType
 ENUM_TYPE_TEXT_SPAN_TYPE: EnumType
 ENUM_TYPE_FILE_RETENTION_MODE: EnumType
 ENUM_TYPE_FILE_SOURCE: EnumType
@@ -2576,7 +2557,6 @@ STRUCT_TYPE_STRING_CONSTRAINT: StructType
 STRUCT_TYPE_COLLECTION_CONSTRAINT: StructType
 STRUCT_TYPE_NODE_CONSTRAINT: StructType
 STRUCT_TYPE_TEXT: StructType
-STRUCT_TYPE_TEXT_LINE: StructType
 STRUCT_TYPE_TEXT_SPAN: StructType
 STRUCT_TYPE_ICON: StructType
 STRUCT_TYPE_SELECTION: StructType
@@ -2648,19 +2628,6 @@ TEXT_DECORATION_UNSPECIFIED: TextDecoration
 TEXT_DECORATION_NONE: TextDecoration
 TEXT_DECORATION_UNDERLINE: TextDecoration
 TEXT_DECORATION_STRIKETHROUGH: TextDecoration
-TEXT_LINE_TYPE_UNSPECIFIED: TextLineType
-TEXT_LINE_TYPE_PARAGRAPH: TextLineType
-TEXT_LINE_TYPE_HEADING_1: TextLineType
-TEXT_LINE_TYPE_HEADING_2: TextLineType
-TEXT_LINE_TYPE_HEADING_3: TextLineType
-TEXT_LINE_TYPE_HEADING_4: TextLineType
-TEXT_LINE_TYPE_CALLOUT: TextLineType
-TEXT_LINE_TYPE_QUOTE: TextLineType
-TEXT_LINE_TYPE_LIST_UNORDERED: TextLineType
-TEXT_LINE_TYPE_LIST_ORDERED: TextLineType
-TEXT_LINE_TYPE_DIVIDER: TextLineType
-TEXT_LINE_TYPE_CODE: TextLineType
-TEXT_LINE_TYPE_NODE: TextLineType
 TEXT_SPAN_TYPE_UNSPECIFIED: TextSpanType
 TEXT_SPAN_TYPE_TEXT: TextSpanType
 TEXT_SPAN_TYPE_HARD_BREAK: TextSpanType
@@ -7806,74 +7773,46 @@ class TeamData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., materialization: _Optional[_Union[MaterializationType, str]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., base_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., instance_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., name: _Optional[str] = ..., slug: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ...) -> None: ...
 
 class TextData(_message.Message):
-    __slots__ = ("metatype", "lines")
+    __slots__ = ("metatype", "spans", "is_bold", "is_italic", "is_strikethrough", "is_underline", "is_code")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
-    LINES_FIELD_NUMBER: _ClassVar[int]
-    metatype: StructType
-    lines: _containers.RepeatedCompositeFieldContainer[TextLineData]
-    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., lines: _Optional[_Iterable[_Union[TextLineData, _Mapping]]] = ...) -> None: ...
-
-class TextLineData(_message.Message):
-    __slots__ = ("metatype", "type", "spans", "content", "color", "background_color", "is_bold", "is_italic", "is_strikethrough", "is_underline", "is_code", "is_spoiler", "language")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
     SPANS_FIELD_NUMBER: _ClassVar[int]
-    CONTENT_FIELD_NUMBER: _ClassVar[int]
-    COLOR_FIELD_NUMBER: _ClassVar[int]
-    BACKGROUND_COLOR_FIELD_NUMBER: _ClassVar[int]
     IS_BOLD_FIELD_NUMBER: _ClassVar[int]
     IS_ITALIC_FIELD_NUMBER: _ClassVar[int]
     IS_STRIKETHROUGH_FIELD_NUMBER: _ClassVar[int]
     IS_UNDERLINE_FIELD_NUMBER: _ClassVar[int]
     IS_CODE_FIELD_NUMBER: _ClassVar[int]
-    IS_SPOILER_FIELD_NUMBER: _ClassVar[int]
-    LANGUAGE_FIELD_NUMBER: _ClassVar[int]
     metatype: StructType
-    type: TextLineType
     spans: _containers.RepeatedCompositeFieldContainer[TextSpanData]
-    content: str
-    color: ColorHue
-    background_color: ColorHue
     is_bold: bool
     is_italic: bool
     is_strikethrough: bool
     is_underline: bool
     is_code: bool
-    is_spoiler: bool
-    language: str
-    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., type: _Optional[_Union[TextLineType, str]] = ..., spans: _Optional[_Iterable[_Union[TextSpanData, _Mapping]]] = ..., content: _Optional[str] = ..., color: _Optional[_Union[ColorHue, str]] = ..., background_color: _Optional[_Union[ColorHue, str]] = ..., is_bold: bool = ..., is_italic: bool = ..., is_strikethrough: bool = ..., is_underline: bool = ..., is_code: bool = ..., is_spoiler: bool = ..., language: _Optional[str] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., spans: _Optional[_Iterable[_Union[TextSpanData, _Mapping]]] = ..., is_bold: bool = ..., is_italic: bool = ..., is_strikethrough: bool = ..., is_underline: bool = ..., is_code: bool = ...) -> None: ...
 
 class TextSpanData(_message.Message):
-    __slots__ = ("metatype", "type", "content", "node_ptr", "url", "color", "background_color", "is_bold", "is_italic", "is_strikethrough", "is_underline", "is_code", "is_spoiler", "language")
+    __slots__ = ("metatype", "type", "content", "node_ptr", "url", "is_bold", "is_italic", "is_strikethrough", "is_underline", "is_code")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     CONTENT_FIELD_NUMBER: _ClassVar[int]
     NODE_PTR_FIELD_NUMBER: _ClassVar[int]
     URL_FIELD_NUMBER: _ClassVar[int]
-    COLOR_FIELD_NUMBER: _ClassVar[int]
-    BACKGROUND_COLOR_FIELD_NUMBER: _ClassVar[int]
     IS_BOLD_FIELD_NUMBER: _ClassVar[int]
     IS_ITALIC_FIELD_NUMBER: _ClassVar[int]
     IS_STRIKETHROUGH_FIELD_NUMBER: _ClassVar[int]
     IS_UNDERLINE_FIELD_NUMBER: _ClassVar[int]
     IS_CODE_FIELD_NUMBER: _ClassVar[int]
-    IS_SPOILER_FIELD_NUMBER: _ClassVar[int]
-    LANGUAGE_FIELD_NUMBER: _ClassVar[int]
     metatype: StructType
     type: TextSpanType
     content: str
     node_ptr: NodeReferenceData
     url: str
-    color: ColorHue
-    background_color: ColorHue
     is_bold: bool
     is_italic: bool
     is_strikethrough: bool
     is_underline: bool
     is_code: bool
-    is_spoiler: bool
-    language: str
-    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., type: _Optional[_Union[TextSpanType, str]] = ..., content: _Optional[str] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., url: _Optional[str] = ..., color: _Optional[_Union[ColorHue, str]] = ..., background_color: _Optional[_Union[ColorHue, str]] = ..., is_bold: bool = ..., is_italic: bool = ..., is_strikethrough: bool = ..., is_underline: bool = ..., is_code: bool = ..., is_spoiler: bool = ..., language: _Optional[str] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[StructType, str]] = ..., type: _Optional[_Union[TextSpanType, str]] = ..., content: _Optional[str] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., url: _Optional[str] = ..., is_bold: bool = ..., is_italic: bool = ..., is_strikethrough: bool = ..., is_underline: bool = ..., is_code: bool = ...) -> None: ...
 
 class TextViewData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "materialization", "snapshot_ptr", "base_ptr", "instance_ptr", "template_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "order_key", "name", "position", "width", "height", "min_width", "min_height", "max_width", "max_height", "align", "is_visible", "opacity", "user_select", "font", "color", "text", "script_ptr")

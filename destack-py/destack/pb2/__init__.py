@@ -159,7 +159,6 @@ AnyStructData = Union[
     EnumOptionDefinitionData,
     PermissionDefinitionData,
     TextSpanData,
-    TextLineData,
     TextData,
     LengthData,
     PositionData,

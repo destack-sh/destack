@@ -9612,38 +9612,9 @@ export interface TextData {
      */
     metatype: StructType;
     /**
-     * @generated from protobuf field: repeated symbol.destack.TextLineData lines = 32;
-     */
-    lines: TextLineData[];
-}
-/**
- * @generated from protobuf message symbol.destack.TextLineData
- */
-export interface TextLineData {
-    /**
-     * @generated from protobuf field: symbol.destack.StructType metatype = 1;
-     */
-    metatype: StructType;
-    /**
-     * @generated from protobuf field: symbol.destack.TextLineType type = 30;
-     */
-    type: TextLineType;
-    /**
      * @generated from protobuf field: repeated symbol.destack.TextSpanData spans = 33;
      */
     spans: TextSpanData[];
-    /**
-     * @generated from protobuf field: optional string content = 34;
-     */
-    content?: string;
-    /**
-     * @generated from protobuf field: optional symbol.destack.ColorHue color = 50;
-     */
-    color?: ColorHue;
-    /**
-     * @generated from protobuf field: optional symbol.destack.ColorHue background_color = 51;
-     */
-    backgroundColor?: ColorHue;
     /**
      * @generated from protobuf field: optional bool is_bold = 60;
      */
@@ -9664,14 +9635,6 @@ export interface TextLineData {
      * @generated from protobuf field: optional bool is_code = 64;
      */
     isCode?: boolean;
-    /**
-     * @generated from protobuf field: optional bool is_spoiler = 65;
-     */
-    isSpoiler?: boolean;
-    /**
-     * @generated from protobuf field: optional string language = 70;
-     */
-    language?: string;
 }
 /**
  * @generated from protobuf message symbol.destack.TextSpanData
@@ -9698,14 +9661,6 @@ export interface TextSpanData {
      */
     url?: string;
     /**
-     * @generated from protobuf field: optional symbol.destack.ColorHue color = 50;
-     */
-    color?: ColorHue;
-    /**
-     * @generated from protobuf field: optional symbol.destack.ColorHue background_color = 51;
-     */
-    backgroundColor?: ColorHue;
-    /**
      * @generated from protobuf field: optional bool is_bold = 60;
      */
     isBold?: boolean;
@@ -9725,14 +9680,6 @@ export interface TextSpanData {
      * @generated from protobuf field: optional bool is_code = 64;
      */
     isCode?: boolean;
-    /**
-     * @generated from protobuf field: optional bool is_spoiler = 65;
-     */
-    isSpoiler?: boolean;
-    /**
-     * @generated from protobuf field: optional string language = 70;
-     */
-    language?: string;
 }
 /**
  * A (rich) text view.
@@ -12903,13 +12850,9 @@ export enum EnumType {
      */
     FOLDER_TYPE = 1000,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TEXT_LINE_TYPE = 2521;
+     * @generated from protobuf enum value: ENUM_TYPE_TEXT_SPAN_TYPE = 2521;
      */
-    TEXT_LINE_TYPE = 2521,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_TEXT_SPAN_TYPE = 2522;
-     */
-    TEXT_SPAN_TYPE = 2522,
+    TEXT_SPAN_TYPE = 2521,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_FILE_RETENTION_MODE = 2540;
      */
@@ -16430,17 +16373,13 @@ export enum StructType {
      */
     NODE_CONSTRAINT = 2505,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TEXT = 2521;
+     * @generated from protobuf enum value: STRUCT_TYPE_TEXT = 2520;
      */
-    TEXT = 2521,
+    TEXT = 2520,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_LINE = 2522;
+     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_SPAN = 2521;
      */
-    TEXT_LINE = 2522,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_SPAN = 2523;
-     */
-    TEXT_SPAN = 2523,
+    TEXT_SPAN = 2521,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_ICON = 2531;
      */
@@ -16736,63 +16675,6 @@ export enum TextDecoration {
      * @generated from protobuf enum value: TEXT_DECORATION_STRIKETHROUGH = 3;
      */
     STRIKETHROUGH = 3
-}
-/**
- * @generated from protobuf enum symbol.destack.TextLineType
- */
-export enum TextLineType {
-    /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_PARAGRAPH = 1;
-     */
-    PARAGRAPH = 1,
-    /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_HEADING_1 = 10;
-     */
-    HEADING_1 = 10,
-    /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_HEADING_2 = 11;
-     */
-    HEADING_2 = 11,
-    /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_HEADING_3 = 12;
-     */
-    HEADING_3 = 12,
-    /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_HEADING_4 = 13;
-     */
-    HEADING_4 = 13,
-    /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_CALLOUT = 20;
-     */
-    CALLOUT = 20,
-    /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_QUOTE = 21;
-     */
-    QUOTE = 21,
-    /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_LIST_UNORDERED = 30;
-     */
-    LIST_UNORDERED = 30,
-    /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_LIST_ORDERED = 31;
-     */
-    LIST_ORDERED = 31,
-    /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_DIVIDER = 40;
-     */
-    DIVIDER = 40,
-    /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_CODE = 50;
-     */
-    CODE = 50,
-    /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_NODE = 1000;
-     */
-    NODE = 1000
 }
 /**
  * @generated from protobuf enum symbol.destack.TextSpanType
@@ -39037,13 +38919,18 @@ class TextData$Type extends MessageType<TextData> {
     constructor() {
         super("symbol.destack.TextData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructType", StructType, "STRUCT_TYPE_"] },
-            { no: 32, name: "lines", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => TextLineData }
+            { no: 33, name: "spans", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => TextSpanData },
+            { no: 60, name: "is_bold", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 61, name: "is_italic", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 62, name: "is_strikethrough", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 63, name: "is_underline", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 64, name: "is_code", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<TextData>): TextData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.lines = [];
+        message.spans = [];
         if (value !== undefined)
             reflectionMergePartial<TextData>(this, message, value);
         return message;
@@ -39056,87 +38943,8 @@ class TextData$Type extends MessageType<TextData> {
                 case /* symbol.destack.StructType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* repeated symbol.destack.TextLineData lines */ 32:
-                    message.lines.push(TextLineData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: TextData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.destack.StructType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* repeated symbol.destack.TextLineData lines = 32; */
-        for (let i = 0; i < message.lines.length; i++)
-            TextLineData.internalBinaryWrite(message.lines[i], writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.destack.TextData
- */
-export const TextData = new TextData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class TextLineData$Type extends MessageType<TextLineData> {
-    constructor() {
-        super("symbol.destack.TextLineData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructType", StructType, "STRUCT_TYPE_"] },
-            { no: 30, name: "type", kind: "enum", T: () => ["symbol.destack.TextLineType", TextLineType, "TEXT_LINE_TYPE_"] },
-            { no: 33, name: "spans", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => TextSpanData },
-            { no: 34, name: "content", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 50, name: "color", kind: "enum", opt: true, T: () => ["symbol.destack.ColorHue", ColorHue, "COLOR_HUE_"] },
-            { no: 51, name: "background_color", kind: "enum", opt: true, T: () => ["symbol.destack.ColorHue", ColorHue, "COLOR_HUE_"] },
-            { no: 60, name: "is_bold", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 61, name: "is_italic", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 62, name: "is_strikethrough", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 63, name: "is_underline", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 64, name: "is_code", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 65, name: "is_spoiler", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 70, name: "language", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
-        ]);
-    }
-    create(value?: PartialMessage<TextLineData>): TextLineData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.type = 0;
-        message.spans = [];
-        if (value !== undefined)
-            reflectionMergePartial<TextLineData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: TextLineData): TextLineData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.destack.StructType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* symbol.destack.TextLineType type */ 30:
-                    message.type = reader.int32();
-                    break;
                 case /* repeated symbol.destack.TextSpanData spans */ 33:
                     message.spans.push(TextSpanData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* optional string content */ 34:
-                    message.content = reader.string();
-                    break;
-                case /* optional symbol.destack.ColorHue color */ 50:
-                    message.color = reader.int32();
-                    break;
-                case /* optional symbol.destack.ColorHue background_color */ 51:
-                    message.backgroundColor = reader.int32();
                     break;
                 case /* optional bool is_bold */ 60:
                     message.isBold = reader.bool();
@@ -39153,12 +38961,6 @@ class TextLineData$Type extends MessageType<TextLineData> {
                 case /* optional bool is_code */ 64:
                     message.isCode = reader.bool();
                     break;
-                case /* optional bool is_spoiler */ 65:
-                    message.isSpoiler = reader.bool();
-                    break;
-                case /* optional string language */ 70:
-                    message.language = reader.string();
-                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -39170,25 +38972,13 @@ class TextLineData$Type extends MessageType<TextLineData> {
         }
         return message;
     }
-    internalBinaryWrite(message: TextLineData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: TextData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.StructType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbol.destack.TextLineType type = 30; */
-        if (message.type !== 0)
-            writer.tag(30, WireType.Varint).int32(message.type);
         /* repeated symbol.destack.TextSpanData spans = 33; */
         for (let i = 0; i < message.spans.length; i++)
             TextSpanData.internalBinaryWrite(message.spans[i], writer.tag(33, WireType.LengthDelimited).fork(), options).join();
-        /* optional string content = 34; */
-        if (message.content !== undefined)
-            writer.tag(34, WireType.LengthDelimited).string(message.content);
-        /* optional symbol.destack.ColorHue color = 50; */
-        if (message.color !== undefined)
-            writer.tag(50, WireType.Varint).int32(message.color);
-        /* optional symbol.destack.ColorHue background_color = 51; */
-        if (message.backgroundColor !== undefined)
-            writer.tag(51, WireType.Varint).int32(message.backgroundColor);
         /* optional bool is_bold = 60; */
         if (message.isBold !== undefined)
             writer.tag(60, WireType.Varint).bool(message.isBold);
@@ -39204,12 +38994,6 @@ class TextLineData$Type extends MessageType<TextLineData> {
         /* optional bool is_code = 64; */
         if (message.isCode !== undefined)
             writer.tag(64, WireType.Varint).bool(message.isCode);
-        /* optional bool is_spoiler = 65; */
-        if (message.isSpoiler !== undefined)
-            writer.tag(65, WireType.Varint).bool(message.isSpoiler);
-        /* optional string language = 70; */
-        if (message.language !== undefined)
-            writer.tag(70, WireType.LengthDelimited).string(message.language);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -39217,9 +39001,9 @@ class TextLineData$Type extends MessageType<TextLineData> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbol.destack.TextLineData
+ * @generated MessageType for protobuf message symbol.destack.TextData
  */
-export const TextLineData = new TextLineData$Type();
+export const TextData = new TextData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class TextSpanData$Type extends MessageType<TextSpanData> {
     constructor() {
@@ -39229,15 +39013,11 @@ class TextSpanData$Type extends MessageType<TextSpanData> {
             { no: 33, name: "content", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 35, name: "url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 50, name: "color", kind: "enum", opt: true, T: () => ["symbol.destack.ColorHue", ColorHue, "COLOR_HUE_"] },
-            { no: 51, name: "background_color", kind: "enum", opt: true, T: () => ["symbol.destack.ColorHue", ColorHue, "COLOR_HUE_"] },
             { no: 60, name: "is_bold", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 61, name: "is_italic", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 62, name: "is_strikethrough", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 63, name: "is_underline", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 64, name: "is_code", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 65, name: "is_spoiler", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 70, name: "language", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 64, name: "is_code", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<TextSpanData>): TextSpanData {
@@ -39268,12 +39048,6 @@ class TextSpanData$Type extends MessageType<TextSpanData> {
                 case /* optional string url */ 35:
                     message.url = reader.string();
                     break;
-                case /* optional symbol.destack.ColorHue color */ 50:
-                    message.color = reader.int32();
-                    break;
-                case /* optional symbol.destack.ColorHue background_color */ 51:
-                    message.backgroundColor = reader.int32();
-                    break;
                 case /* optional bool is_bold */ 60:
                     message.isBold = reader.bool();
                     break;
@@ -39288,12 +39062,6 @@ class TextSpanData$Type extends MessageType<TextSpanData> {
                     break;
                 case /* optional bool is_code */ 64:
                     message.isCode = reader.bool();
-                    break;
-                case /* optional bool is_spoiler */ 65:
-                    message.isSpoiler = reader.bool();
-                    break;
-                case /* optional string language */ 70:
-                    message.language = reader.string();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -39322,12 +39090,6 @@ class TextSpanData$Type extends MessageType<TextSpanData> {
         /* optional string url = 35; */
         if (message.url !== undefined)
             writer.tag(35, WireType.LengthDelimited).string(message.url);
-        /* optional symbol.destack.ColorHue color = 50; */
-        if (message.color !== undefined)
-            writer.tag(50, WireType.Varint).int32(message.color);
-        /* optional symbol.destack.ColorHue background_color = 51; */
-        if (message.backgroundColor !== undefined)
-            writer.tag(51, WireType.Varint).int32(message.backgroundColor);
         /* optional bool is_bold = 60; */
         if (message.isBold !== undefined)
             writer.tag(60, WireType.Varint).bool(message.isBold);
@@ -39343,12 +39105,6 @@ class TextSpanData$Type extends MessageType<TextSpanData> {
         /* optional bool is_code = 64; */
         if (message.isCode !== undefined)
             writer.tag(64, WireType.Varint).bool(message.isCode);
-        /* optional bool is_spoiler = 65; */
-        if (message.isSpoiler !== undefined)
-            writer.tag(65, WireType.Varint).bool(message.isSpoiler);
-        /* optional string language = 70; */
-        if (message.language !== undefined)
-            writer.tag(70, WireType.LengthDelimited).string(message.language);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -43857,6 +43613,6 @@ export const SomeNodeData = new SomeNodeData$Type();
 
 // Any...
 export type AnyNodeData = CustomEntityDefinitionData | CustomEntityData | CustomEnumDefinitionData | EditEventData | CustomEventDefinitionData | CustomEventData | FieldData | GaugeMetricData | GaugeMeasurementData | CounterMetricData | CounterMeasurementData | HistogramMetricData | HistogramMeasurementData | OptionData | SnapshotData | BranchData | CustomStructDefinitionData | EntitlementEventData | EntitlementData | InviteEventData | InviteData | MembershipEventData | MembershipData | PermissionData | RoleEventData | RoleData | SanctionEventData | SanctionData | CustomViewDefinitionData | CustomViewData | FrameViewData | LabelViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | WizardViewData | ThreadViewData | AnnotationShapeData | ArrowShapeData | CanvasData | LineShapeData | PlaneShapeData | FileData | LinkData | EnvironmentData | FolderData | TagData | TaggingData | DatabaseData | MachineData | ActionData | EventCursorData | ScreenCursorData | ThreadCursorData | RouteData | ScriptData | ServiceData | TimerEventData | TimerData | TriggerEventData | TriggerData | InterruptionData | LogData | RunEventData | RunData | SpanData | LayerData | SceneEventData | SceneData | VariantData | WindowData | FollowData | MessageData | NotificationEventData | NotificationData | ReactionData | StarData | ThreadData | AgentData | ClientData | FriendshipData | FriendshipInviteEventData | FriendshipInviteData | HandleData | OrganizationData | SpaceData | TeamData | UserData | ColorStyleData | BorderStyleData | TransitionStyleData | EffectStyleData | GradientStyleData | FillStyleData | FontStyleData | PaletteData | ShadowStyleData | ThemeData
-export type AnyStructData = ScopeData | RelationReferenceData | AttributeReferenceData | PropertyReferenceData | NodeReferenceData | EditData | ChangeData | ChangeResultData | ErrorData | StringConstraintData | NumberConstraintData | CollectionConstraintData | NodeConstraintData | TypeData | ValueData | FunctionData | ConditionData | AggregationData | ExpressionData | SortData | SelectData | JoinData | QueryData | HistogramData | QueryResultData | QueryResultGroupData | QueryUpdateData | SelectionData | IconData | PropertyDefinitionData | TraitDefinitionData | NodeDefinitionData | StructDefinitionData | EnumDefinitionData | EnumOptionDefinitionData | PermissionDefinitionData | TextSpanData | TextLineData | TextData | LengthData | PositionData | DimensionData | InsetsData | CornersData | Axis2Data | Axis3Data | Vector2Data | Vector3Data | Vector4Data | Vector2iData | Vector3iData | Vector4iData | GridData | GridSpanData | DatabaseInfoData | GalaxyInfoData | ScheduleData | OriginData | ColorData | BorderData | TransitionData | EffectData | GradientStopData | GradientData | FillData | FontData | ShadowData
+export type AnyStructData = ScopeData | RelationReferenceData | AttributeReferenceData | PropertyReferenceData | NodeReferenceData | EditData | ChangeData | ChangeResultData | ErrorData | StringConstraintData | NumberConstraintData | CollectionConstraintData | NodeConstraintData | TypeData | ValueData | FunctionData | ConditionData | AggregationData | ExpressionData | SortData | SelectData | JoinData | QueryData | HistogramData | QueryResultData | QueryResultGroupData | QueryUpdateData | SelectionData | IconData | PropertyDefinitionData | TraitDefinitionData | NodeDefinitionData | StructDefinitionData | EnumDefinitionData | EnumOptionDefinitionData | PermissionDefinitionData | TextSpanData | TextData | LengthData | PositionData | DimensionData | InsetsData | CornersData | Axis2Data | Axis3Data | Vector2Data | Vector3Data | Vector4Data | Vector2iData | Vector3iData | Vector4iData | GridData | GridSpanData | DatabaseInfoData | GalaxyInfoData | ScheduleData | OriginData | ColorData | BorderData | TransitionData | EffectData | GradientStopData | GradientData | FillData | FontData | ShadowData
 
     
