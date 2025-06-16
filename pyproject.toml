@@ -1,8 +1,7 @@
-
 [project]
 name = "destack"
 version = "2025.06.16.1"
-description = "Destack monorepo"
+description = "Destack Python"
 authors = [{ name = "Symbol Industries", email = "hello@symbol.industries" }]
 
 [tool.uv]
