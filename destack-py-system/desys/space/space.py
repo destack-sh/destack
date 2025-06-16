@@ -35,11 +35,12 @@ from destack.pb2 import (
     UploadFilesResponse,
 )
 from destack.proto import Network, ServiceBase
-from destack.sharding import DatabaseProvider, GalaxyProvider
-from destack.store import BufferedStore, PostgresStore
+from destack.store import BufferedStore
 from destack.utils.env import ENV, get_from_env
 from destack.utils.oracle import Oracle
 from destack.utils.uuid import UUID
+from desys.sharding import DatabaseProvider, GalaxyProvider
+from desys.store import PostgresStore
 
 if TYPE_CHECKING:
     pass

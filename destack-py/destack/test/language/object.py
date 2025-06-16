@@ -2,7 +2,7 @@ from hypothesis import HealthCheck, given, settings
 
 from destack.language import BuiltinObjectBase, Session, Thread
 from destack.pb2 import AnyObjectData
-from destack.test.conftest import BUILTIN_OBJECTS
+from destack.test.fixtures import BUILTIN_OBJECTS
 from destack.test.strategies import builtin_objects, examples
 
 
