@@ -1,5 +1,5 @@
 repos:
-  # Python
+  # python
   - repo: local
     hooks:
       # lint
@@ -10,7 +10,7 @@ repos:
         language_version: python3.13
         additional_dependencies:
           - ruff==0.11.12
-        exclude: ^destack/(migrations|proto)
+        exclude: ^destack-py/destack/pb2
         types: [ python ]
         args: [ check, --fix ]
       # format
@@ -24,12 +24,32 @@ repos:
         types: [ python ]
         args: [ format ]
 
-  # General
+  # general
+  # conventional commit
   - repo: https://github.com/compilerla/conventional-pre-commit
-    rev: v1.2.0
+    rev: v4.2.0
     hooks:
       - id: conventional-pre-commit
         stages: [ commit-msg ]
+        args: 
+          - --force-scope
+          - --verbose
+          - --scopes
+          - all,language,py,py-system,py-runtime,py-web,ts,ts-web,infra,proto,scripts
+          - feat
+          - fix
+          - chore
+          - test
+          - docs
+          - refactor
+          - perf
+          - build
+          - ci
+          - style
+          - revert
+          - chore
+          - infra
+          - dev
   - repo: https://github.com/flotothemoon/pygrep-hooks
     rev: v1.10.0
     hooks:
