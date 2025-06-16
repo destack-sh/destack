@@ -10,40 +10,41 @@ import type { DownloadFilesResponse } from "./host";
 import type { DownloadFilesRequest } from "./host";
 import type { UploadFilesResponse } from "./host";
 import type { UploadFilesRequest } from "./host";
-import type { CommitResponse } from "./host";
-import type { CommitRequest } from "./host";
 import type { SubscribeResponse } from "./host";
 import type { SubscribeRequest } from "./host";
 import type { ServerStreamingCall } from "@protobuf-ts/runtime-rpc";
+import type { CommitResponse } from "./host";
+import type { CommitRequest } from "./host";
 import { stackIntercept } from "@protobuf-ts/runtime-rpc";
 import type { QueryResponse } from "./host";
 import type { QueryRequest } from "./host";
 import type { UnaryCall } from "@protobuf-ts/runtime-rpc";
 import type { RpcOptions } from "@protobuf-ts/runtime-rpc";
 /**
- * A Host provides the operating system of a Destack.
+ * A Host provides the operating system of a Space.
  *
  * @generated from protobuf service symbol.destack.Host
  */
 export interface IHostClient {
     /**
-     * Query the Supergraph.
+     * NOTE :Architecture: maybe separate methods for non-Entity commits? (Event/Analytic/... upserts?)
+     * Query the Space.
      *
      * @generated from protobuf rpc: Query(symbol.destack.QueryRequest) returns (symbol.destack.QueryResponse);
      */
     query(input: QueryRequest, options?: OperationOptions): UnaryCall<QueryRequest, QueryResponse>;
     /**
-     * Subscribe to updates from the Supergraph.
-     *
-     * @generated from protobuf rpc: Subscribe(symbol.destack.SubscribeRequest) returns (stream symbol.destack.SubscribeResponse);
-     */
-    subscribe(input: SubscribeRequest, options?: OperationOptions): ServerStreamingCall<SubscribeRequest, SubscribeResponse>;
-    /**
-     * Commit Changes to the Supergraph.
+     * Commit Changes to the Space.
      *
      * @generated from protobuf rpc: Commit(symbol.destack.CommitRequest) returns (symbol.destack.CommitResponse);
      */
     commit(input: CommitRequest, options?: OperationOptions): UnaryCall<CommitRequest, CommitResponse>;
+    /**
+     * Subscribe to updates from the Space.
+     *
+     * @generated from protobuf rpc: Subscribe(symbol.destack.SubscribeRequest) returns (stream symbol.destack.SubscribeResponse);
+     */
+    subscribe(input: SubscribeRequest, options?: OperationOptions): ServerStreamingCall<SubscribeRequest, SubscribeResponse>;
     /**
      * 'Upload' some files (get URLs to upload them to).
      *
@@ -58,7 +59,7 @@ export interface IHostClient {
     downloadFiles(input: DownloadFilesRequest, options?: OperationOptions): UnaryCall<DownloadFilesRequest, DownloadFilesResponse>;
 }
 /**
- * A Host provides the operating system of a Destack.
+ * A Host provides the operating system of a Space.
  *
  * @generated from protobuf service symbol.destack.Host
  */
@@ -69,7 +70,8 @@ export class HostClient implements IHostClient, ServiceInfo {
     constructor(private readonly _transport: RpcTransport) {
     }
     /**
-     * Query the Supergraph.
+     * NOTE :Architecture: maybe separate methods for non-Entity commits? (Event/Analytic/... upserts?)
+     * Query the Space.
      *
      * @generated from protobuf rpc: Query(symbol.destack.QueryRequest) returns (symbol.destack.QueryResponse);
      */
@@ -78,22 +80,22 @@ export class HostClient implements IHostClient, ServiceInfo {
         return stackIntercept<QueryRequest, QueryResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Subscribe to updates from the Supergraph.
-     *
-     * @generated from protobuf rpc: Subscribe(symbol.destack.SubscribeRequest) returns (stream symbol.destack.SubscribeResponse);
-     */
-    subscribe(input: SubscribeRequest, options?: OperationOptions): ServerStreamingCall<SubscribeRequest, SubscribeResponse> {
-        const method = this.methods[1], opt = this._transport.mergeOptions(options);
-        return stackIntercept<SubscribeRequest, SubscribeResponse>("serverStreaming", this._transport, method, opt, input);
-    }
-    /**
-     * Commit Changes to the Supergraph.
+     * Commit Changes to the Space.
      *
      * @generated from protobuf rpc: Commit(symbol.destack.CommitRequest) returns (symbol.destack.CommitResponse);
      */
     commit(input: CommitRequest, options?: OperationOptions): UnaryCall<CommitRequest, CommitResponse> {
-        const method = this.methods[2], opt = this._transport.mergeOptions(options);
+        const method = this.methods[1], opt = this._transport.mergeOptions(options);
         return stackIntercept<CommitRequest, CommitResponse>("unary", this._transport, method, opt, input);
+    }
+    /**
+     * Subscribe to updates from the Space.
+     *
+     * @generated from protobuf rpc: Subscribe(symbol.destack.SubscribeRequest) returns (stream symbol.destack.SubscribeResponse);
+     */
+    subscribe(input: SubscribeRequest, options?: OperationOptions): ServerStreamingCall<SubscribeRequest, SubscribeResponse> {
+        const method = this.methods[2], opt = this._transport.mergeOptions(options);
+        return stackIntercept<SubscribeRequest, SubscribeResponse>("serverStreaming", this._transport, method, opt, input);
     }
     /**
      * 'Upload' some files (get URLs to upload them to).

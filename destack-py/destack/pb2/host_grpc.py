@@ -38,17 +38,6 @@ class HostBase(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def subscribe(
-        self,
-        request: "host_pb2.SubscribeRequest",
-        session: "Session",
-        subject: "IsSubject | None",
-        client: "Client | None",
-        metadata: "RpcMetadata",
-    ) -> AsyncIterator["host_pb2.SubscribeResponse"]:
-        pass
-
-    @abc.abstractmethod
     async def commit(
         self,
         request: "host_pb2.CommitRequest",
@@ -57,6 +46,17 @@ class HostBase(abc.ABC):
         client: "Client | None",
         metadata: "RpcMetadata",
     ) -> "host_pb2.CommitResponse":
+        pass
+
+    @abc.abstractmethod
+    def subscribe(
+        self,
+        request: "host_pb2.SubscribeRequest",
+        session: "Session",
+        subject: "IsSubject | None",
+        client: "Client | None",
+        metadata: "RpcMetadata",
+    ) -> AsyncIterator["host_pb2.SubscribeResponse"]:
         pass
 
     @abc.abstractmethod
@@ -89,17 +89,17 @@ class HostBase(abc.ABC):
                 host_pb2.QueryRequest,
                 host_pb2.QueryResponse,
             ),
-            "/symbol.destack.Host/Subscribe": grpclib.const.Handler(
-                self.subscribe,
-                grpclib.const.Cardinality.UNARY_STREAM,
-                host_pb2.SubscribeRequest,
-                host_pb2.SubscribeResponse,
-            ),
             "/symbol.destack.Host/Commit": grpclib.const.Handler(
                 self.commit,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 host_pb2.CommitRequest,
                 host_pb2.CommitResponse,
+            ),
+            "/symbol.destack.Host/Subscribe": grpclib.const.Handler(
+                self.subscribe,
+                grpclib.const.Cardinality.UNARY_STREAM,
+                host_pb2.SubscribeRequest,
+                host_pb2.SubscribeResponse,
             ),
             "/symbol.destack.Host/UploadFiles": grpclib.const.Handler(
                 self.upload_files,
@@ -124,17 +124,17 @@ class HostClient:
             host_pb2.QueryRequest,
             host_pb2.QueryResponse,
         )
-        self.subscribe = grpclib.client.UnaryStreamMethod(
-            channel,
-            "/symbol.destack.Host/Subscribe",
-            host_pb2.SubscribeRequest,
-            host_pb2.SubscribeResponse,
-        )
         self.commit = grpclib.client.UnaryUnaryMethod(
             channel,
             "/symbol.destack.Host/Commit",
             host_pb2.CommitRequest,
             host_pb2.CommitResponse,
+        )
+        self.subscribe = grpclib.client.UnaryStreamMethod(
+            channel,
+            "/symbol.destack.Host/Subscribe",
+            host_pb2.SubscribeRequest,
+            host_pb2.SubscribeResponse,
         )
         self.upload_files = grpclib.client.UnaryUnaryMethod(
             channel,

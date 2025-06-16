@@ -25,7 +25,7 @@ from .const import (
     UNSET,
     Enum,
     EnumType,
-    InstanceMode,
+    MaterializationType,
     NodeType,
     ResourceStatus,
     RoleType,
@@ -737,31 +737,31 @@ class Entity(IsTracked):
     # nocheckin: support Entity branching & variants
     # primary key: (id, snapshot_id)
     # two pairs of ids (root container, base pointer):
-    #  - time: (snapshot_id, snapshot_base_id)
-    #  - space: (template_root_id, instance_base_id)
+    #  - time: (snapshot_id, base_id)
+    #  - space: (instance_id, template_id)
     # when merging: time before space (id+snapshot_id over template)
     # snapshot and template properties must be READ ONLY (no write)
-    instance_mode: InstanceMode = property_(7, default=InstanceMode.FULL_GRAPH)
+    materialization: MaterializationType = property_(7, default=MaterializationType.FULL_GRAPH)
     snapshot: Optional["Snapshot"] = property_(
         8,
         can_write=None,
         node_space_from="self",
         description="The Snapshot this Entity is part of.",
     )
-    snapshot_base: Optional["Snapshot"] = property_(
+    base: Optional["Snapshot"] = property_(
         9,
         can_write=None,
         node_is_customizable=False,
         node_space_from="self",
         description="The Snapshot this Entity's snapshot is based on.",
     )
-    instance_root: Optional["Node"] = property_(
+    instance: Optional["Entity"] = property_(
         10,
         can_write=None,
         node_is_customizable=False,
         description="The (root) Entity in this Entity's instance tree.",
     )
-    template_base: Optional["Node"] = property_(
+    template: Optional["Entity"] = property_(
         11,
         can_write=None,
         node_is_customizable=False,
@@ -771,12 +771,12 @@ class Entity(IsTracked):
     if TYPE_CHECKING:
         snapshot_id: Optional[UUID] = None
         snapshot_ptr: Optional["NodeReference"] = None
-        snapshot_base_id: Optional[UUID] = None
-        snapshot_base_ptr: Optional["NodeReference"] = None
-        instance_root_id: Optional[UUID] = None
-        instance_root_ptr: Optional["NodeReference"] = None
-        template_base_id: Optional[UUID] = None
-        template_base_ptr: Optional["NodeReference"] = None
+        base_id: Optional[UUID] = None
+        base_ptr: Optional["NodeReference"] = None
+        instance_id: Optional[UUID] = None
+        instance_ptr: Optional["NodeReference"] = None
+        template_id: Optional[UUID] = None
+        template_ptr: Optional["NodeReference"] = None
 
 
 @builtin_trait(TraitType.PARTICLE)

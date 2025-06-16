@@ -4,7 +4,7 @@ aiodocker==0.22.2
     # via -r destack-py/destack/requirements/system.in
 aiohappyeyeballs==2.6.1
     # via aiohttp
-aiohttp==3.12.11
+aiohttp==3.12.13
     # via
     #   aiodocker
     #   elasticsearch
@@ -23,6 +23,8 @@ attrs==25.3.0
     # via aiohttp
 backoff==2.2.1
     # via posthog
+base58==2.1.1
+    # via -r destack-py/destack/requirements/base.in
 bitarray==2.9.2
     # via -r destack-py/destack/requirements/base.in
 black==24.10.0
@@ -40,7 +42,7 @@ cachetools==5.3.3
     #   google-auth
 cassandra-driver==3.29.2
     # via -r destack-py/destack/requirements/system.in
-certifi==2025.4.26
+certifi==2025.6.15
     # via
     #   clickhouse-connect
     #   elastic-transport
@@ -74,7 +76,7 @@ elasticsearch==9.0.1
     # via -r destack-py/destack/requirements/system.in
 fastuuid==0.12.0
     # via -r destack-py/destack/requirements/system.in
-frozenlist==1.6.2
+frozenlist==1.7.0
     # via
     #   aiohttp
     #   aiosignal
@@ -166,7 +168,7 @@ platformdirs==4.3.8
     # via black
 posthog==4.0.1
     # via -r destack-py/destack/requirements/system.in
-propcache==0.3.1
+propcache==0.3.2
     # via
     #   aiohttp
     #   yarl
@@ -186,15 +188,12 @@ pygments==2.19.1
     # via rich
 python-dateutil==2.9.0.post0
     # via
-    #   -r destack-py/destack/requirements/base.in
     #   botocore
     #   croniter
     #   elasticsearch
     #   kubernetes
     #   kubernetes-asyncio
     #   posthog
-python-dotenv==1.1.0
-    # via -r destack-py/destack/requirements/base.in
 pytz==2024.1
     # via
     #   -r destack-py/destack/requirements/base.in
@@ -207,7 +206,7 @@ redis==4.5.4
     # via -r destack-py/destack/requirements/system.in
 regex==2024.11.6
     # via -r destack-py/destack/requirements/base.in
-requests==2.32.3
+requests==2.32.4
     # via
     #   docker
     #   kubernetes
@@ -267,9 +266,9 @@ websocket-client==1.8.0
     # via kubernetes
 wrapt==1.17.2
     # via deprecated
-yarl==1.20.0
+yarl==1.20.1
     # via aiohttp
-zipp==3.22.0
+zipp==3.23.0
     # via importlib-metadata
 zstandard==0.23.0
     # via clickhouse-connect

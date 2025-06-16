@@ -1,29 +1,9 @@
 /* eslint-disable no-console */
 import "./assets/index.css";
-import "./assets/prosemirror.css";
 
-import { startTransactionRotation as startTransactionBuffers } from "@/language/core/transaction";
-import { RESOURCE_COMMANDS } from "@/language/resource/resource";
-import { sendRemoteKeepAlives } from "@/system/connection";
-import { DEBUG_COMMANDS } from "@/system/debug";
-import { HISTORY_COMMANDS } from "@/system/edit";
-import { watchCommands } from "@/ui/command";
 import { keytrap } from "@/ui/keymap";
-import { HOVER_MENU_DIRECTIVE, MENU_DIRECTIVE } from "@/ui/popover";
-import { toaster } from "@/ui/toast";
-import { EVENT_OUTSIDE_DIRECTIVE, HOVER_DIRECTIVE, TOOLTIP_DIRECTIVE } from "@/ui/tooltip";
-import {
-  COMMIT,
-  ENV,
-  GRPC_KEEPALIVE_INTERVAL_SECONDS,
-  IS_DEV,
-  SUPERVISOR_URL,
-  TELEMETRY,
-  VERSION,
-} from "@/utils/globals";
+import { COMMIT, ENV, IS_DEV, SUPERVISOR_URL, TELEMETRY, VERSION } from "@/utils/globals";
 import { onUnhandledError } from "@/utils/telemetry";
-import { registerViewComponents } from "@/views/registry";
-import "highlight.js/styles/github.min.css";
 import posthog from "posthog-js";
 import { createApp } from "vue";
 import Space from "./Space.vue";
@@ -69,22 +49,9 @@ async function init() {
   // setup vue stuff
   app.config.errorHandler = (err, instance, info) => onUnhandledError(err);
   window.onerror = (err) => onUnhandledError(err);
-  app.directive("tooltip", TOOLTIP_DIRECTIVE);
-  app.directive("menu", MENU_DIRECTIVE);
-  app.directive("hovermenu", HOVER_MENU_DIRECTIVE);
-  app.directive("hover", HOVER_DIRECTIVE);
-  app.directive("outside", EVENT_OUTSIDE_DIRECTIVE);
 
   // setup our own stuff
-  await registerViewComponents();
-  toaster.run();
   keytrap.track(document);
-  startTransactionBuffers();
-  setInterval(sendRemoteKeepAlives, GRPC_KEEPALIVE_INTERVAL_SECONDS * 1000);
-  watchCommands();
-  // (register commands that might not be imported directly)
-  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-  [HISTORY_COMMANDS, DEBUG_COMMANDS, RESOURCE_COMMANDS];
 
   app.mount("#app");
 }
