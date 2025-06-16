@@ -1,5 +1,3 @@
-import { nextTick } from "vue";
-
 export function roundToStep(value: number, step: number): number {
   return Math.round(value / step) * step;
 }
@@ -34,11 +32,6 @@ export function copy<T>(obj: T): T {
 }
 
 export type FilterPrefix<T, Prefix extends string> = T extends `${Prefix}${string}` ? T : never;
-
-export function nowOrNextTick(delay: boolean | undefined, fn: () => void) {
-  if (delay) nextTick(() => fn());
-  else fn();
-}
 
 export function reverseRecord<T extends PropertyKey, U extends PropertyKey>(input: Partial<Record<T, U>>) {
   return Object.fromEntries(Object.entries(input).map(([key, value]) => [value, key])) as Record<U, T>;
@@ -101,20 +94,6 @@ export function decodeB64VLQ(value: string): number {
     shift += 6;
   }
   return result;
-}
-
-export function onEveryTick(fn: () => void) {
-  let running = true;
-  function tick() {
-    if (running) {
-      fn();
-      nextTick(tick);
-    }
-  }
-  tick();
-  return () => {
-    running = false;
-  };
 }
 
 /**
@@ -218,4 +197,4 @@ export function groupByScalar<T, K extends string | number>(
     result[key] = item;
   }
   return result;
-}
+} 

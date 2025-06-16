@@ -2,8 +2,7 @@
 import "./assets/index.css";
 
 import { keytrap } from "@/ui/keymap";
-import { COMMIT, ENV, IS_DEV, SUPERVISOR_URL, TELEMETRY, VERSION } from "@/utils/globals";
-import { onUnhandledError } from "@/utils/telemetry";
+import { ENV, IS_DEV, SUPERVISOR_URL, TELEMETRY, VERSION } from "./utils/globals";
 import posthog from "posthog-js";
 import { createApp } from "vue";
 import Space from "./Space.vue";
@@ -38,17 +37,12 @@ async function init() {
   console.group(`%csystem`, "color:yellow");
   console.info(`%cENV: ${ENV ?? "<unknown>"} (${IS_DEV ? "DEV MODE" : "PROD MODE"})`, "color:yellow");
   console.info(`%cVERSION: ${VERSION}`, "color:yellow");
-  console.info(`%cCOMMIT: ${COMMIT ?? "<unknown>"}`, "color:yellow");
   console.info(`%cSUPERVISOR_URL: ${SUPERVISOR_URL}`, "color:yellow");
   console.groupEnd();
 
   // prevent opening files that are dragged over the window
   window.addEventListener("dragover", (e) => e.preventDefault(), false);
   window.addEventListener("drop", (e) => e.preventDefault(), false);
-
-  // setup vue stuff
-  app.config.errorHandler = (err, instance, info) => onUnhandledError(err);
-  window.onerror = (err) => onUnhandledError(err);
 
   // setup our own stuff
   keytrap.track(document);
