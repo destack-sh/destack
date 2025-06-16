@@ -18,7 +18,7 @@ resource "acme_certificate" "main_website" {
   subject_alternative_names = [
     "*.${local.main_website}",
     "*.host.${local.main_website}",
-    "*.supervisor.${local.main_website}"
+    "*.destack.${local.main_website}"
   ]
 
   dns_challenge {

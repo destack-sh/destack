@@ -5,18 +5,16 @@ from typing import TYPE_CHECKING, Union
 VERSION = "2025.06.16.0"
 
 # import from all generated files
-from .runtime_pb2 import *
 from .health_pb2 import *
 from .common_pb2 import *
 from .common_grpc import *
 from .language_grpc import *
-from .runtime_grpc import *
-from .supervisor_grpc import *
-from .host_grpc import *
+from .destack_grpc import *
+from .space_grpc import *
 from .health_grpc import *
 from .language_pb2 import *
-from .supervisor_pb2 import *
-from .host_pb2 import *
+from .destack_pb2 import *
+from .space_pb2 import *
 from .google.type.date_pb2 import *
 from .google.type.timeofday_pb2 import *
 from .google.type.datetime_pb2 import *

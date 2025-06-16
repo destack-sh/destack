@@ -62,7 +62,7 @@ message DownloadFilesResponse {
 }
 
 // A Host provides the operating system of a Space.
-service Host {
+service Space {
   option (kind) = PUBLIC; // :ServiceKind
   
   // NOTE :Architecture: maybe separate methods for non-Entity commits? (Event/Analytic/... upserts?)

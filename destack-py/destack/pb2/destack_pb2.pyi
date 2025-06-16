@@ -114,7 +114,7 @@ class CreateOrganizationResponse(_message.Message):
     epoch: int
     def __init__(self, organization: _Optional[_Union[_language_pb2.OrganizationData, _Mapping]] = ..., epoch: _Optional[int] = ...) -> None: ...
 
-class ResolveHostsRequest(_message.Message):
+class ResolveSpacesRequest(_message.Message):
     __slots__ = ("spaces",)
     class SpaceKey(_message.Message):
         __slots__ = ("id", "slug")
@@ -124,12 +124,12 @@ class ResolveHostsRequest(_message.Message):
         slug: str
         def __init__(self, id: _Optional[str] = ..., slug: _Optional[str] = ...) -> None: ...
     SPACES_FIELD_NUMBER: _ClassVar[int]
-    spaces: _containers.RepeatedCompositeFieldContainer[ResolveHostsRequest.SpaceKey]
-    def __init__(self, spaces: _Optional[_Iterable[_Union[ResolveHostsRequest.SpaceKey, _Mapping]]] = ...) -> None: ...
+    spaces: _containers.RepeatedCompositeFieldContainer[ResolveSpacesRequest.SpaceKey]
+    def __init__(self, spaces: _Optional[_Iterable[_Union[ResolveSpacesRequest.SpaceKey, _Mapping]]] = ...) -> None: ...
 
-class ResolveHostsResponse(_message.Message):
-    __slots__ = ("hosts",)
-    class HostInfo(_message.Message):
+class ResolveSpacesResponse(_message.Message):
+    __slots__ = ("spaces",)
+    class SpaceInfo(_message.Message):
         __slots__ = ("domain", "grpc_port", "grpc_web_port", "ssl", "space")
         DOMAIN_FIELD_NUMBER: _ClassVar[int]
         GRPC_PORT_FIELD_NUMBER: _ClassVar[int]
@@ -142,6 +142,6 @@ class ResolveHostsResponse(_message.Message):
         ssl: bool
         space: _language_pb2.NodeReferenceData
         def __init__(self, domain: _Optional[str] = ..., grpc_port: _Optional[int] = ..., grpc_web_port: _Optional[int] = ..., ssl: bool = ..., space: _Optional[_Union[_language_pb2.NodeReferenceData, _Mapping]] = ...) -> None: ...
-    HOSTS_FIELD_NUMBER: _ClassVar[int]
-    hosts: _containers.RepeatedCompositeFieldContainer[ResolveHostsResponse.HostInfo]
-    def __init__(self, hosts: _Optional[_Iterable[_Union[ResolveHostsResponse.HostInfo, _Mapping]]] = ...) -> None: ...
+    SPACES_FIELD_NUMBER: _ClassVar[int]
+    spaces: _containers.RepeatedCompositeFieldContainer[ResolveSpacesResponse.SpaceInfo]
+    def __init__(self, spaces: _Optional[_Iterable[_Union[ResolveSpacesResponse.SpaceInfo, _Mapping]]] = ...) -> None: ...

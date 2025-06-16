@@ -59,15 +59,6 @@
       "justMyCode": true
     },
     {
-      "name": "destack.schema",
-      "type": "debugpy",
-      "request": "launch",
-      "cwd": "${workspaceFolder}",
-      "program": "${workspaceFolder}/destack-py/main.py",
-      "args": ["instruct", "schema"],
-      "justMyCode": true
-    },
-    {
       "name": "destack.bootstrap",
       "type": "debugpy",
       "request": "launch",
@@ -108,7 +99,7 @@
         "ENVIRONMENT": "dev",
         "PYTHONUNBUFFERED": "1",
         "SERVICE_NAME": "destack-machine-runtime",
-        "SUPERVISOR_URL": "http://localhost:60061",
+        "DESTACK_URL": "http://localhost:60061",
       },
       "console": "integratedTerminal",
       "justMyCode": true,
@@ -125,7 +116,7 @@
         "ENVIRONMENT": "dev",
         "PYTHONUNBUFFERED": "1",
         "SERVICE_NAME": "destack-machine-desktop",
-        "SUPERVISOR_URL": "http://localhost:60061",
+        "DESTACK_URL": "http://localhost:60061",
       },
       "console": "integratedTerminal",
       "justMyCode": true,

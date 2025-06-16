@@ -26,18 +26,18 @@ from destack.pb2 import RpcMetadata
 from destack.proto import (
     ChangeUserPasswordRequest,
     ChangeUserPasswordResponse,
+    DestackBase,
     LoginUserRequest,
     LoginUserResponse,
     LogoutUserRequest,
     LogoutUserResponse,
     Network,
-    ResolveHostsRequest,
-    ResolveHostsResponse,
+    ResolveSpacesRequest,
+    ResolveSpacesResponse,
     ServiceBase,
     ServiceKind,
     SignupUserRequest,
     SignupUserResponse,
-    SupervisorBase,
 )
 from destack.sharding import DatabaseProvider, GalaxyProvider
 from destack.store import BufferedStore, PostgresStore
@@ -51,9 +51,9 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-class SupervisorService(ServiceBase, SupervisorBase):
+class DestackService(ServiceBase, DestackBase):
     kind = ServiceKind.PUBLIC  # :ServiceKind
-    name = "supervisor"
+    name = "destack"
 
     def __init__(
         self,
@@ -194,7 +194,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
         user.status = UserStatus.ACTIVE
         await session.commit()
 
-        logger.info("supervisor.signup_user", user=user, client=client, span="current")
+        logger.info("destack.signup_user", user=user, client=client, span="current")
         return SignupUserResponse(
             user=user.to_proto(),
             client=client.to_proto(),
@@ -224,7 +224,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
         subject.password_hash = hash_password(request.new_password, subject.password_salt)
         await session.commit()
 
-        logger.info("supervisor.change_user_password", user=subject, span="current")
+        logger.info("destack.change_user_password", user=subject, span="current")
         return ChangeUserPasswordResponse(user=subject.to_proto())
 
     @override
@@ -262,7 +262,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
 
         await session.commit()
 
-        logger.info("supervisor.login_user", user=user, client=client, span="current")
+        logger.info("destack.login_user", user=user, client=client, span="current")
         return LoginUserResponse(
             user=user.to_proto(),
             client=client.to_proto(),
@@ -301,16 +301,16 @@ class SupervisorService(ServiceBase, SupervisorBase):
             client.seen_at = self.oracle.utc()
         await session.commit()
 
-        logger.info("supervisor.logout_user", user=subject, clients=clients, span="current")
+        logger.info("destack.logout_user", user=subject, clients=clients, span="current")
         return LogoutUserResponse()
 
     @override
-    async def resolve_hosts(
+    async def resolve_spaces(
         self,
-        request: "ResolveHostsRequest",
+        request: "ResolveSpacesRequest",
         session: Session,
         subject: IsSubject | None,
         client: Client | None,
         metadata: RpcMetadata,
-    ) -> "ResolveHostsResponse":
+    ) -> "ResolveSpacesResponse":
         raise NotImplementedError

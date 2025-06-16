@@ -184,16 +184,16 @@ module "region_aws_eu_frankfurt" {
   grafana_cloud_token = var.grafana_cloud_token
 }
 
-# TODO :Infra!: handle multiple supervisor regions/urls? (especially for write access) :MultiRegion
-#  (Supervisor only has DB access to global + its own region, so it can't create Destackes in other regions!;
-#   therefore we have to select supervisor somewhere in the destack-ts client?)
+# TODO :Infra!: handle multiple destack regions/urls? (especially for write access) :MultiRegion
+#  (Destack only has DB access to global + its own region, so it can't create Destackes in other regions!;
+#   therefore we have to select destack somewhere in the destack-ts client?)
 
-# point 'supervisor.<domain>' to the supervisor ingress
-resource "cloudflare_record" "supervisor" {
+# point 'destack.<domain>' to the destack ingress
+resource "cloudflare_record" "destack" {
   zone_id         = data.cloudflare_zone.main_website.id
-  name            = "supervisor"
+  name            = "destack"
   type            = "CNAME"
-  content         = module.region_aws_eu_frankfurt.supervisor_hostname
+  content         = module.region_aws_eu_frankfurt.destack_hostname
   ttl             = 300
   proxied         = false
   allow_overwrite = true

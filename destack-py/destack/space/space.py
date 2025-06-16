@@ -24,11 +24,11 @@ from destack.pb2 import (
     CommitResponse,
     DownloadFilesRequest,
     DownloadFilesResponse,
-    HostBase,
     QueryRequest,
     QueryResponse,
     RpcMetadata,
     ServiceKind,
+    SpaceBase,
     SubscribeRequest,
     SubscribeResponse,
     UploadFilesRequest,
@@ -55,13 +55,13 @@ FILE_DOWNLOAD_URL_EXPIRY = get_from_env(
 )
 
 
-class HostService(ServiceBase, HostBase):
+class SpaceService(ServiceBase, SpaceBase):
     """
-    Host for a Space. There is only one Host per Space.
+    Service for a Space. There is only one Space per Space.
     """
 
     kind = ServiceKind.PUBLIC  # :ServiceKind
-    name = "host"
+    name = "space"
 
     def __init__(
         self,

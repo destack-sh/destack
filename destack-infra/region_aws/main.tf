@@ -26,7 +26,7 @@ terraform {
 locals {
   prefix         = "destack-${var.env}-${var.cloud}-${var.region}"
   otlp_endpoint  = "http://otel-collector.monitoring.svc.cluster.local:4317"
-  supervisor_url = "http://${local.prefix}-supervisor.default.svc.cluster.local:60061"
+  destack_url = "http://${local.prefix}-destack.default.svc.cluster.local:60061"
   aws_region_by_destack_region = {
     "eu-zurich"    = "eu-central-2"
     "eu-frankfurt" = "eu-central-1"

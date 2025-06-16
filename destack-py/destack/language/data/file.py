@@ -518,7 +518,7 @@ class File(
     #
 
     async def upload(self) -> "File":
-        """Uploads the file to the host (if not already uploaded)."""
+        """Uploads the file to the space (if not already uploaded)."""
         raise NotImplementedError
 
     @overload
@@ -673,7 +673,7 @@ class File(
 async def upload_file_batch(
     files: list[File], file_contents: list[bytes], session: "Session | None" = None
 ):
-    """Uploads the given Files to their Host."""
+    """Uploads the given Files to their Space."""
     raise NotImplementedError
 
 
@@ -684,7 +684,7 @@ async def download_file_batch(
     include_content: bool | Collection[File],
     session: "Session | None" = None,
 ) -> list[File]:
-    """Downloads the given Files from their Host."""
+    """Downloads the given Files from their Space."""
     raise NotImplementedError
 
 

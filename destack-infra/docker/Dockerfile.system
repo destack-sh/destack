@@ -55,7 +55,7 @@ RUN find /home/destack-system/destack/ -type f -name 'test_*.py' -delete
 # startup script
 RUN cat <<'EOF' > /start.sh
 #!/bin/sh
-su destack-system -s /bin/bash -m -c "python3 /home/destack-system/destack.py serve supervisor 0.0.0.0 5432"
+su destack-system -s /bin/bash -m -c "python3 /home/destack-system/destack.py serve destack 0.0.0.0 5432"
 EOF
 RUN chmod +x /start.sh
 

@@ -29,7 +29,7 @@ variable "region" {
 
 variable "is_primary" {
   type        = bool
-  description = "Whether this is the primary region (with the supervisor)"
+  description = "Whether this is the primary region (with the destack)"
 }
 
 variable "cell_provider" {
