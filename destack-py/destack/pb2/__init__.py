@@ -9,11 +9,11 @@ from .health_pb2 import *
 from .common_pb2 import *
 from .common_grpc import *
 from .language_grpc import *
-from .destack_grpc import *
+from .universe_grpc import *
 from .space_grpc import *
 from .health_grpc import *
 from .language_pb2 import *
-from .destack_pb2 import *
+from .universe_pb2 import *
 from .space_pb2 import *
 from .google.type.date_pb2 import *
 from .google.type.timeofday_pb2 import *

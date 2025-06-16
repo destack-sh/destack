@@ -1052,7 +1052,8 @@ class PlaneShapeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class PlatformType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     PLATFORM_TYPE_UNSPECIFIED: _ClassVar[PlatformType]
-    PLATFORM_TYPE_SERVER: _ClassVar[PlatformType]
+    PLATFORM_TYPE_SYSTEM: _ClassVar[PlatformType]
+    PLATFORM_TYPE_RUNTIME: _ClassVar[PlatformType]
     PLATFORM_TYPE_WEB: _ClassVar[PlatformType]
 
 class PositionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -2378,7 +2379,8 @@ PLANE_SHAPE_TYPE_CIRCLE: PlaneShapeType
 PLANE_SHAPE_TYPE_ELLIPSE: PlaneShapeType
 PLANE_SHAPE_TYPE_POLYGON: PlaneShapeType
 PLATFORM_TYPE_UNSPECIFIED: PlatformType
-PLATFORM_TYPE_SERVER: PlatformType
+PLATFORM_TYPE_SYSTEM: PlatformType
+PLATFORM_TYPE_RUNTIME: PlatformType
 PLATFORM_TYPE_WEB: PlatformType
 POSITION_TYPE_UNSPECIFIED: PositionType
 POSITION_TYPE_RELATIVE: PositionType

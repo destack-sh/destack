@@ -1,8 +1,17 @@
+
 [project]
-name = "destack-py"
+name = "destack"
 version = "2025.06.16.0"
-description = "Destack SDK for Python"
+description = "Destack monorepo"
 authors = [{ name = "Symbol Industries", email = "hello@symbol.industries" }]
+
+[tool.uv]
+workspace = { members = [
+	"destack-py",
+	"destack-py-system",
+	"destack-py-runtime",
+	"destack-py-web",
+] }
 
 [tool.ruff]
 line-length = 100
@@ -56,15 +65,25 @@ ignore = [
 	# non lowercase variable in function
 	"N806",
 ]
+
 [tool.ruff.lint.isort]
-known-first-party = ["destack", "destack-py"]
+known-first-party = ["destack", "destack-py", "desys", "derun", "deweb"]
 
 [tool.pyright]
-include = ["destack-py/destack"]
-exclude = ["^destack-py/destack/migrations", "^destack-py/venv*"]
+include = [
+	"destack-py/destack",
+	"destack-py-system/destack_system",
+	"destack-py-runtime/destack_runtime",
+	"destack-py-web/destack_web",
+]
 ignore = ["^destack-py/destack/migrations", "^destack-py/venv*"]
 venv = "destack-py/venv"
-extraPaths = ["destack-py"]
+extraPaths = [
+	"destack-py",
+	"destack-py-system",
+	"destack-py-runtime",
+	"destack-py-web",
+]
 strictDictionaryInference = true
 strictListInference = true
 strictTupleInference = true
@@ -87,9 +106,6 @@ reportUnnecessaryComparison = false
 reportUnnecessaryCast = false
 reportConstantRedefinition = false
 
-[tool.coverage.run]
-omit = ["destack-py/destack/migrations/*", "destack-py/destack/test/*"]
-
 [tool.pytest_env]
 ENVIRONMENT = "test"
 
@@ -106,7 +122,5 @@ addopts = [
 	'--strict-markers',
 	'--hypothesis-show-statistics',
 ]
-markers = [
-	"hypothesis: test uses hypothesis",
-]
+markers = ["hypothesis: test uses hypothesis"]
 filterwarnings = ["ignore::DeprecationWarning", "ignore::UserWarning"]
