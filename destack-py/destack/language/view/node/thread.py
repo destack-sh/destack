@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import Node, NodeType, Text, builtin_node, property_
-from destack.pb2 import ThreadData
+from destack.proto import ThreadData
 
 from .node import NodeView
 

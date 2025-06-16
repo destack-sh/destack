@@ -17,7 +17,7 @@ from destack.language.registry import (
     TRAIT_CLASS_BY_TRAIT,
     TRAIT_TYPE_BY_CLASS,
 )
-from destack.pb2 import AnyObjectData
+from destack.proto import AnyObjectData
 from destack.utils.fractional import INTEGER_ZERO
 from destack.utils.uuid import UUID
 

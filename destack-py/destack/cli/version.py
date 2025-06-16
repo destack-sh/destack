@@ -37,17 +37,23 @@ def bump(revision: int | None = typer.Option(None)):
     new_version = today.strftime("%Y.%m.%d") + "." + str(revision)
     logger.info("version.bump", current_version=current_version, new_version=new_version)
 
-    # write version to 'version', Python files and TS files
-    Path("version").write_text(new_version)
-    for path in (
+    # check that version is in all files first
+    files_to_update = (
         "pyproject.toml",
         "destack-py/destack/language/core/builtin/const.py",
-        "destack-py/destack/pb2/__init__.py",
+        "destack-py/destack/proto/__init__.py",
         "destack-ts/package.json",
-        "destack-ts/src/utils/globals.ts",
-    ):
+        "destack-ts-web/src/utils/globals.ts",
+    )
+    
+    for path in files_to_update:
         original_text = Path(path).read_text()
         if current_version not in original_text:
             raise ValueError(f"{current_version} not found in {path}")
+    
+    # write version to 'version' file and update all other files
+    Path("version").write_text(new_version)
+    for path in files_to_update:
+        original_text = Path(path).read_text()
         updated_text = original_text.replace(current_version, new_version)
         Path(path).write_text(updated_text)

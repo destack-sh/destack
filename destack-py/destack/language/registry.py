@@ -2,7 +2,7 @@ from collections import defaultdict
 from itertools import chain
 from typing import TYPE_CHECKING, Any, assert_never
 
-from destack import pb2
+from destack import proto
 from destack.utils.code import exec_
 from destack.utils.env import IS_DEV, IS_TEST
 from destack.utils.uuid import UUID
@@ -196,9 +196,9 @@ def _complete_setup():
 
     # generate pack/unpack methods
     from destack.language.core.common.value import generate_pack_value_impl
-    from destack.proto.wiring import generate_pack_proto_impl
+    from destack.grpc.wiring import generate_pack_proto_impl
 
-    builtin_class_by_name: dict[str, Any] = {**pb2.__dict__, "UUID": UUID}
+    builtin_class_by_name: dict[str, Any] = {**proto.__dict__, "UUID": UUID}
     builtin_class_by_name.update(
         {
             cls.__name__: cls

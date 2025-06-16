@@ -13,7 +13,7 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.pb2 import NotificationData, NotificationEventData
+from destack.proto import NotificationData, NotificationEventData
 
 if TYPE_CHECKING:
     from destack.language import Text

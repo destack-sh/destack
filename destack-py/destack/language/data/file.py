@@ -32,7 +32,7 @@ from destack.language.core import (
     property_,
     property_runtime_,
 )
-from destack.pb2 import FileData
+from destack.proto import FileData
 from destack.utils.env import get_from_env
 from destack.utils.func import group_by
 

@@ -18,7 +18,7 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.pb2 import LinkData
+from destack.proto import LinkData
 
 if TYPE_CHECKING:
     pass

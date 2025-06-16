@@ -16,7 +16,7 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.pb2 import TriggerData, TriggerEventData
+from destack.proto import TriggerData, TriggerEventData
 from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:

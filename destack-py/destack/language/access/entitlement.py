@@ -19,7 +19,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.pb2 import EntitlementData, EntitlementEventData
+from destack.proto import EntitlementData, EntitlementEventData
 from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:

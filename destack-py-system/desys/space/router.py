@@ -11,7 +11,7 @@ from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
 from destack.language import Client, DatabaseInfo, IsSubject, Session
-from destack.pb2 import (
+from destack.proto import (
     CommitRequest,
     CommitResponse,
     DownloadFilesRequest,
@@ -23,7 +23,7 @@ from destack.pb2 import (
     UploadFilesRequest,
     UploadFilesResponse,
 )
-from destack.proto import (
+from destack.grpc import (
     Network,
     RpcMetadata,
     ScopeData,

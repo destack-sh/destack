@@ -10,7 +10,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.pb2 import HandleData
+from destack.proto import HandleData
 
 if TYPE_CHECKING:
     from destack.language import Space

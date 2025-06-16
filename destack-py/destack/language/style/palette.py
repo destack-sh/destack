@@ -14,7 +14,7 @@ from destack.language.core import (
     builtin_node,
     property_parent_,
 )
-from destack.pb2 import PaletteData
+from destack.proto import PaletteData
 
 if TYPE_CHECKING:
     from destack.language import Canvas, Scene, Theme

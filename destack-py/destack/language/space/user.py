@@ -20,7 +20,7 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.pb2 import UserData
+from destack.proto import UserData
 from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:

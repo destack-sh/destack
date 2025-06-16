@@ -13,7 +13,7 @@ from destack.language.core import (
     Spatial,
     builtin_node,
 )
-from destack.pb2 import ThemeData
+from destack.proto import ThemeData
 
 if TYPE_CHECKING:
     pass

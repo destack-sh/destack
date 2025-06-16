@@ -13,7 +13,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.pb2 import SceneData, SceneEventData
+from destack.proto import SceneData, SceneEventData
 
 from ..view import ContainerView
 

@@ -13,7 +13,7 @@ from destack.language.registry import (
     STRUCT_CLASS_BY_TYPE,
     TRAIT_CLASS_BY_TRAIT,
 )
-from destack.pb2 import NodeReferenceData, PropertyReferenceData, ScopeData
+from destack.proto import NodeReferenceData, PropertyReferenceData, ScopeData
 from destack.utils.uuid import UUID
 
 from ..builtin import (

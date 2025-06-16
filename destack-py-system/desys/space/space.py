@@ -19,7 +19,7 @@ from destack.language import (
     Space,
     StoreType,
 )
-from destack.pb2 import (
+from destack.proto import (
     CommitRequest,
     CommitResponse,
     DownloadFilesRequest,
@@ -34,7 +34,7 @@ from destack.pb2 import (
     UploadFilesRequest,
     UploadFilesResponse,
 )
-from destack.proto import Network, ServiceBase
+from destack.grpc import Network, ServiceBase
 from destack.store import BufferedStore
 from destack.utils.env import ENV, get_from_env
 from destack.utils.oracle import Oracle

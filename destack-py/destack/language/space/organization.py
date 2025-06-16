@@ -18,7 +18,7 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.pb2 import OrganizationData
+from destack.proto import OrganizationData
 from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:

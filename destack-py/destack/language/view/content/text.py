@@ -6,7 +6,7 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.pb2 import TextViewData
+from destack.proto import TextViewData
 
 from .content import ContentView
 

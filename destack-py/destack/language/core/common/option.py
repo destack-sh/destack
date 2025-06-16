@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Union
 
-from destack.pb2 import OptionData
+from destack.proto import OptionData
 
 from ..builtin import (
     Entity,

@@ -9,7 +9,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.pb2 import CustomViewData, CustomViewDefinitionData
+from destack.proto import CustomViewData, CustomViewDefinitionData
 
 from .container import ContainerView
 

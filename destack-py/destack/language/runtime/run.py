@@ -18,7 +18,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.pb2 import RunData, RunEventData
+from destack.proto import RunData, RunEventData
 from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:

@@ -12,7 +12,7 @@ from destack.language.registry import (
     STRUCT_CLASS_BY_TYPE,
     get_builtin_type,
 )
-from destack.pb2 import ValueData
+from destack.proto import ValueData
 from destack.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 from destack.utils.uuid import UUID
 

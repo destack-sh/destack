@@ -13,7 +13,7 @@ from destack.language.core import (
     builtin_node,
     property_parent_,
 )
-from destack.pb2 import TeamData
+from destack.proto import TeamData
 
 if TYPE_CHECKING:
     from destack.language import Organization

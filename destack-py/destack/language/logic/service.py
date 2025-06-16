@@ -16,7 +16,7 @@ from destack.language.core import (
     Spatial,
     builtin_node,
 )
-from destack.pb2 import ServiceData
+from destack.proto import ServiceData
 
 if TYPE_CHECKING:
     pass

@@ -23,7 +23,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.pb2 import FolderData
+from destack.proto import FolderData
 
 if TYPE_CHECKING:
     from destack.language import Scene, Space

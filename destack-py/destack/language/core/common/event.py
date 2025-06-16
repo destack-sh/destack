@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from destack.pb2 import (
+from destack.proto import (
     CustomEventData,
     CustomEventDefinitionData,
     EditEventData,

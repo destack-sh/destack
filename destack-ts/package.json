@@ -1,6 +1,6 @@
 {
   "name": "destack-ts",
-  "version": "2025.06.16.1",
+  "version": "2025.06.16.5",
   "private": false,
   "type": "module",
   "main": "dist/index.js",

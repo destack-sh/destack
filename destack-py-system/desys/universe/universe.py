@@ -22,8 +22,8 @@ from destack.language import (
     User,
     UserStatus,
 )
-from destack.pb2 import RpcMetadata
-from destack.proto import (
+from destack.proto import RpcMetadata
+from destack.grpc import (
     ChangeUserPasswordRequest,
     ChangeUserPasswordResponse,
     LoginUserRequest,

@@ -1,5 +1,5 @@
 from destack.language.core import Node, NodeType, Text, builtin_node, property_
-from destack.pb2 import AnnotationShapeData
+from destack.proto import AnnotationShapeData
 
 from ..view import ContainerView
 from .shape import IsShape

@@ -12,7 +12,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.pb2 import LayerData
+from destack.proto import LayerData
 
 from ..view import ContainerView
 

@@ -15,7 +15,7 @@ from google.protobuf.struct_pb2 import Value as ProtoValue
 from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 
-from destack import pb2
+from destack import proto
 from destack.language.core import (
     BuiltinObjectBase,
     IntoType,
@@ -26,7 +26,7 @@ from destack.language.core import (
     TypeCardinality,
 )
 from destack.language.registry import STRUCT_CLASS_BY_TYPE, get_builtin_type
-from destack.pb2 import AnyNodeData, RpcMetadata
+from destack.proto import AnyNodeData, RpcMetadata
 from destack.utils.string import Casing, to_casing
 
 if TYPE_CHECKING:
@@ -348,15 +348,15 @@ def unpack_proto_duration(duration: Duration) -> timedelta:
     return timedelta(seconds=duration.seconds, microseconds=duration.nanos // 1000)
 
 
-def wrap_some_node(node: AnyNodeData) -> pb2.SomeNodeData:
+def wrap_some_node(node: AnyNodeData) -> proto.SomeNodeData:
     """Wraps a concrete node type into a generic node message."""
-    wrapper = pb2.SomeNodeData()
+    wrapper = proto.SomeNodeData()
     field_name = to_casing(cast(str, NodeType(node.metatype).name), Casing.SNAKE)
     getattr(wrapper, field_name).CopyFrom(node)
     return wrapper
 
 
-def unwrap_some_node(node: pb2.SomeNodeData) -> AnyNodeData:
+def unwrap_some_node(node: proto.SomeNodeData) -> AnyNodeData:
     """Unwraps a generic node type into a concrete node type."""
     node_key = node.WhichOneof("node")
     assert node_key is not None, f"node not set in {node!r}"
@@ -420,7 +420,7 @@ def unpack_rpc_headers(headers: Mapping) -> RpcMetadata:
     # flat encoding with prefixy, messages as base64 :RpcMetadataEncoding
     metadata = RpcMetadata()
     if headers.get("x-destack-2"):
-        metadata.client_type = cast(pb2.ClientType, int(headers["x-destack-2"]))
+        metadata.client_type = cast(proto.ClientType, int(headers["x-destack-2"]))
     if headers.get("x-destack-3"):
         metadata.client_id = headers.get("x-destack-3")  # type: ignore
     if headers.get("x-destack-4"):

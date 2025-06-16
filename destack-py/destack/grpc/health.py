@@ -7,7 +7,7 @@ from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
 from destack.language import Client, IsSubject, Session
-from destack.pb2 import (
+from destack.proto import (
     HealthBase,
     HealthCheckRequest,
     HealthCheckResponse,

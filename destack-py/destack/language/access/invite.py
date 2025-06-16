@@ -18,7 +18,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.pb2 import InviteData, InviteEventData
+from destack.proto import InviteData, InviteEventData
 
 if TYPE_CHECKING:
     from destack.language import Role, RoleType
