@@ -298,8 +298,8 @@ def _generate_unpack_value_scalar(prop: "Property | IntoType", value_expr: str) 
         return f"{enum_type_name}(int({value_expr}))"
     elif prop.scalar_type == ScalarType.STRUCT:
         assert prop.struct_type is not None, f"no struct type for {prop!r}"
-        struct_cls_name = prop.struct_type.camel_name
-        return f"{struct_cls_name}.from_value({value_expr})"
+        struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
+        return f"{struct_cls.__name__}.from_value({value_expr})"
     elif prop.scalar_type == ScalarType.NODE_REFERENCE:
         return f"NodeReference.from_value({value_expr})"
     elif prop.scalar_type == ScalarType.NODE_VALUE:
