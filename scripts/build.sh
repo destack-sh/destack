@@ -16,7 +16,7 @@ VERSION=$(cat version)
 # (we need to 'set' them explicitly or they will be removed by vite during the build)
 VITE_COMMIT="VITE_COMMIT" \
   VITE_ENVIRONMENT="VITE_ENVIRONMENT" \
-  VITE_SUPERVISOR_URL="VITE_SUPERVISOR_URL" \
+  VITE_DESTACK_URL="VITE_DESTACK_URL" \
   VITE_IP_API_KEY="VITE_IP_API_KEY" \
   bun run --cwd destack-ts build
 # posthog sourcemaps

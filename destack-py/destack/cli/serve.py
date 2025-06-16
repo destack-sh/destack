@@ -85,77 +85,36 @@ async def _do_serve(
 
 @app.command()
 @async_to_sync
-async def system(
-    host: str,
-    port: int,
-    watch: bool = False,
-):
-    """Serve both the HostRouter and the Supervisor."""
-    from destack.host import HostRouterService
-    from destack.sharding import (
-        DATABASE_PROVIDER,
-        GALAXY_PROVIDER,
-        get_global_database_from_env,
-    )
-    from destack.supervisor import SupervisorService
-
-    global_database = get_global_database_from_env()
-    network = RealNetwork()
-    host_router = HostRouterService(
-        id="host-router",
-        network=network,
-        oracle=REAL_ORACLE,
-        global_database=global_database,
-        galaxy_provider=GALAXY_PROVIDER,
-        database_provider=DATABASE_PROVIDER,
-        on_error=capture_exception,
-    )
-    services: list[ServiceBase] = [host_router]
-    supervisor = SupervisorService(
-        id="supervisor",
-        global_database=global_database,
-        network=network,
-        oracle=REAL_ORACLE,
-        galaxy_provider=GALAXY_PROVIDER,
-        database_provider=DATABASE_PROVIDER,
-        on_error=capture_exception,
-    )
-    services.append(supervisor)
-    await _do_serve(handlers=services, network=network, host=host, port=port, watch=watch)
-
-
-@app.command()
-@async_to_sync
-async def supervisor(host: str, port: int, watch: bool = False, no_check: bool = False):
-    """Serve the Supervisor."""
-    from destack.sharding import DATABASE_PROVIDER, GALAXY_PROVIDER, get_global_database_from_env
-    from destack.supervisor import SupervisorService
-
-    global_database = get_global_database_from_env()
-    network = RealNetwork()
-    supervisor = SupervisorService(
-        id="supervisor",
-        global_database=global_database,
-        network=network,
-        oracle=REAL_ORACLE,
-        galaxy_provider=GALAXY_PROVIDER,
-        database_provider=DATABASE_PROVIDER,
-        on_error=capture_exception,
-    )
-    await _do_serve(handlers=[supervisor], network=network, host=host, port=port, watch=watch)
-
-
-@app.command()
-@async_to_sync
-async def host(host: str, port: int, watch: bool = False, no_check: bool = False):
-    """Serve the HostRouter."""
-    from destack.host import HostRouterService
+async def destack(host: str, port: int, watch: bool = False, no_check: bool = False):
+    """Serve the Destack."""
+    from destack.destack import DestackService
     from destack.sharding import DATABASE_PROVIDER, GALAXY_PROVIDER, get_global_database_from_env
 
     global_database = get_global_database_from_env()
     network = RealNetwork()
-    host_router = HostRouterService(
-        id="host-router",
+    destack = DestackService(
+        id="destack",
+        global_database=global_database,
+        network=network,
+        oracle=REAL_ORACLE,
+        galaxy_provider=GALAXY_PROVIDER,
+        database_provider=DATABASE_PROVIDER,
+        on_error=capture_exception,
+    )
+    await _do_serve(handlers=[destack], network=network, host=host, port=port, watch=watch)
+
+
+@app.command()
+@async_to_sync
+async def space(host: str, port: int, watch: bool = False, no_check: bool = False):
+    """Serve the SpaceRouter."""
+    from destack.sharding import DATABASE_PROVIDER, GALAXY_PROVIDER, get_global_database_from_env
+    from destack.space import SpaceRouterService
+
+    global_database = get_global_database_from_env()
+    network = RealNetwork()
+    space_router = SpaceRouterService(
+        id="space-router",
         global_database=global_database,
         galaxy_provider=GALAXY_PROVIDER,
         database_provider=DATABASE_PROVIDER,
@@ -163,7 +122,7 @@ async def host(host: str, port: int, watch: bool = False, no_check: bool = False
         oracle=REAL_ORACLE,
         on_error=capture_exception,
     )
-    await _do_serve(handlers=[host_router], network=network, host=host, port=port, watch=watch)
+    await _do_serve(handlers=[space_router], network=network, host=host, port=port, watch=watch)
 
 
 @app.command()

@@ -89,8 +89,8 @@ class StaticDatabaseProvider(DatabaseProvider):
     def parse(cls, provider_str: str) -> "StaticDatabaseProvider":
         """
         Parse a map string like:
-        'eu-zurich/galaxy_1/external_name_a=postgresql://user:pass@host/db'
-        'eu-zurich/galaxy_1/external_name_a=postgresql://user:pass@host/db;eu-zurich/galaxy_2/external_name_b=postgresql://user:pass@host/db'
+        'eu-zurich/galaxy_1/external_name_a=postgresql://user:pass@space/db'
+        'eu-zurich/galaxy_1/external_name_a=postgresql://user:pass@space/db;eu-zurich/galaxy_2/external_name_b=postgresql://user:pass@space/db'
         """
         from destack.language import DatabaseInfo
 

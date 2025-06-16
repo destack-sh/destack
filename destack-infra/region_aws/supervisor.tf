@@ -1,10 +1,10 @@
 # 
-# Supervisor
+# Destack
 # 
 
 locals {
-  supervisor_env_vars = {
-    SERVICE_NAME  = "destack-supervisor"
+  destack_env_vars = {
+    SERVICE_NAME  = "destack-destack"
     ENVIRONMENT   = var.env
     CLOUD         = var.cloud
     REGION        = var.region
@@ -15,7 +15,7 @@ locals {
     LOG_MODE      = "JSON"
     USE_WAITLIST  = 1
 
-    SUPERVISOR_URL = local.supervisor_url
+    DESTACK_URL = local.destack_url
     HOST_MAP = join(",", flatten([
       for k, v in var.cell_provider : [
         format("%s=%s", k, v)
@@ -28,7 +28,7 @@ locals {
     MACHINE_GRPC_PORT             = 5432
     MACHINE_VNC_PORT              = 6080
   }
-  supervisor_secret_env_vars = {
+  destack_secret_env_vars = {
     "${kubernetes_secret.db_secret.metadata[0].name}" = [
       "GLOBAL_DATABASE_URL",
       "REGIONAL_PG_MAP"
@@ -39,7 +39,7 @@ locals {
       "POSTHOG_TOKEN",
       "POSTHOG_HOST",
     ]
-    "${kubernetes_secret.supervisor_s3_secret.metadata[0].name}" = [
+    "${kubernetes_secret.destack_s3_secret.metadata[0].name}" = [
       "S3_REGION",
       "S3_ENDPOINT",
       "S3_ACCESS_KEY",
@@ -48,27 +48,27 @@ locals {
   }
 }
 
-# supervisor s3 access
-resource "kubernetes_secret" "supervisor_s3_secret" {
+# destack s3 access
+resource "kubernetes_secret" "destack_s3_secret" {
   metadata {
-    name = "${local.prefix}-supervisor-s3-credentials"
+    name = "${local.prefix}-destack-s3-credentials"
   }
 
   data = {
     S3_REGION     = aws_s3_bucket.destack_files.region
     S3_ENDPOINT   = "https://s3.${aws_s3_bucket.destack_files.region}.amazonaws.com"
-    S3_ACCESS_KEY = aws_iam_access_key.supervisor.id
-    S3_SECRET_KEY = aws_iam_access_key.supervisor.secret
+    S3_ACCESS_KEY = aws_iam_access_key.destack.id
+    S3_SECRET_KEY = aws_iam_access_key.destack.secret
   }
 }
 
 # s3 access (to everything)
-resource "aws_iam_user" "supervisor" {
-  name = "destack-${var.env}-${var.region}-supervisor"
+resource "aws_iam_user" "destack" {
+  name = "destack-${var.env}-${var.region}-destack"
 }
-resource "aws_iam_policy" "supervisor_s3" {
-  name        = "destack-${var.env}-${var.region}-supervisor-s3"
-  description = "Allow access to S3 buckets for supervisor"
+resource "aws_iam_policy" "destack_s3" {
+  name        = "destack-${var.env}-${var.region}-destack-s3"
+  description = "Allow access to S3 buckets for destack"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -89,21 +89,21 @@ resource "aws_iam_policy" "supervisor_s3" {
     ]
   })
 }
-resource "aws_iam_user_policy_attachment" "supervisor_s3" {
-  user       = aws_iam_user.supervisor.name
-  policy_arn = aws_iam_policy.supervisor_s3.arn
+resource "aws_iam_user_policy_attachment" "destack_s3" {
+  user       = aws_iam_user.destack.name
+  policy_arn = aws_iam_policy.destack_s3.arn
 }
-resource "aws_iam_access_key" "supervisor" {
-  user = aws_iam_user.supervisor.name
+resource "aws_iam_access_key" "destack" {
+  user = aws_iam_user.destack.name
 }
 
-# Supervisor deployment
-resource "kubernetes_deployment" "supervisor" {
+# Destack deployment
+resource "kubernetes_deployment" "destack" {
   metadata {
-    name      = "${local.prefix}-supervisor"
+    name      = "${local.prefix}-destack"
     namespace = "default"
     labels = {
-      app     = "destack-supervisor"
+      app     = "destack-destack"
       env     = var.env
       cloud   = var.cloud
       region  = var.region
@@ -116,7 +116,7 @@ resource "kubernetes_deployment" "supervisor" {
 
     selector {
       match_labels = {
-        app    = "destack-supervisor"
+        app    = "destack-destack"
         env    = var.env
         cloud  = var.cloud
         region = var.region
@@ -126,7 +126,7 @@ resource "kubernetes_deployment" "supervisor" {
     template {
       metadata {
         labels = {
-          app     = "destack-supervisor"
+          app     = "destack-destack"
           env     = var.env
           cloud   = var.cloud
           region  = var.region
@@ -140,10 +140,10 @@ resource "kubernetes_deployment" "supervisor" {
       spec {
         # init container
         init_container {
-          name    = "supervisor-init"
+          name    = "destack-init"
           image   = "ghcr.io/symbolx/destack-system:${var.destack_version}"
           command = ["/bin/sh", "-c"]
-          # NOTE: migrating & bootstrapping in supervisor is scary if :MultiRegion
+          # NOTE: migrating & bootstrapping in destack is scary if :MultiRegion
           args = [
             <<-EOT
               set -e
@@ -154,7 +154,7 @@ resource "kubernetes_deployment" "supervisor" {
           ]
 
           dynamic "env" {
-            for_each = local.supervisor_env_vars
+            for_each = local.destack_env_vars
             content {
               name  = env.key
               value = env.value
@@ -162,7 +162,7 @@ resource "kubernetes_deployment" "supervisor" {
           }
           dynamic "env" {
             for_each = flatten([
-              for secret_name, env_vars in local.supervisor_secret_env_vars : [
+              for secret_name, env_vars in local.destack_secret_env_vars : [
                 for env_var in env_vars : {
                   name   = env_var
                   secret = secret_name
@@ -183,7 +183,7 @@ resource "kubernetes_deployment" "supervisor" {
 
         # main container
         container {
-          name  = "supervisor"
+          name  = "destack"
           image = "ghcr.io/symbolx/destack-system:${var.destack_version}"
 
           port {
@@ -192,7 +192,7 @@ resource "kubernetes_deployment" "supervisor" {
           }
 
           dynamic "env" {
-            for_each = local.supervisor_env_vars
+            for_each = local.destack_env_vars
             content {
               name  = env.key
               value = env.value
@@ -200,7 +200,7 @@ resource "kubernetes_deployment" "supervisor" {
           }
           dynamic "env" {
             for_each = flatten([
-              for secret_name, env_vars in local.supervisor_secret_env_vars : [
+              for secret_name, env_vars in local.destack_secret_env_vars : [
                 for env_var in env_vars : {
                   name   = env_var
                   secret = secret_name
@@ -218,7 +218,7 @@ resource "kubernetes_deployment" "supervisor" {
             }
           }
 
-          command = ["python", "destack.py", "serve", "supervisor", "0.0.0.0", "60061"]
+          command = ["python", "destack.py", "serve", "destack", "0.0.0.0", "60061"]
 
           resources {
             requests = {
@@ -236,15 +236,15 @@ resource "kubernetes_deployment" "supervisor" {
   }
 }
 
-# Supervisor service
-resource "kubernetes_service" "supervisor" {
+# Destack service
+resource "kubernetes_service" "destack" {
   metadata {
-    name = "${local.prefix}-supervisor"
+    name = "${local.prefix}-destack"
   }
 
   spec {
     selector = {
-      app = "destack-supervisor"
+      app = "destack-destack"
     }
 
     port {
@@ -263,9 +263,9 @@ resource "kubernetes_service" "supervisor" {
 
 
 # Envoy ConfigMap
-resource "kubernetes_config_map" "supervisor_envoy_config" {
+resource "kubernetes_config_map" "destack_envoy_config" {
   metadata {
-    name = "${local.prefix}-supervisor-envoy-config"
+    name = "${local.prefix}-destack-envoy-config"
   }
 
   data = {
@@ -291,7 +291,7 @@ resource "kubernetes_config_map" "supervisor_envoy_config" {
                       routes:
                       - match: { prefix: "/" }
                         route:
-                          cluster: supervisor_service
+                          cluster: destack_service
                           timeout: 0s
                           max_stream_duration:
                             grpc_timeout_header_max: 0s
@@ -348,7 +348,7 @@ resource "kubernetes_config_map" "supervisor_envoy_config" {
                     routes:
                     - match: { prefix: "/" }
                       route:
-                        cluster: supervisor_service
+                        cluster: destack_service
                         timeout: 0s
                 http_filters:
                 - name: envoy.filters.http.router
@@ -372,7 +372,7 @@ resource "kubernetes_config_map" "supervisor_envoy_config" {
                       private_key:
                         filename: /etc/envoy/tls/tls.key
         clusters:
-          - name: supervisor_service
+          - name: destack_service
             connect_timeout: 0.25s
             type: logical_dns
             http2_protocol_options: {}
@@ -384,18 +384,18 @@ resource "kubernetes_config_map" "supervisor_envoy_config" {
                     - endpoint:
                         address:
                           socket_address:
-                            address: ${local.prefix}-supervisor
+                            address: ${local.prefix}-destack
                             port_value: 60061
     EOT
   }
 }
 
 # Envoy Deployment
-resource "kubernetes_deployment" "supervisor_proxy" {
+resource "kubernetes_deployment" "destack_proxy" {
   metadata {
-    name = "${local.prefix}-supervisor-proxy"
+    name = "${local.prefix}-destack-proxy"
     labels = {
-      app     = "destack-supervisor-proxy"
+      app     = "destack-destack-proxy"
       env     = var.env
       cloud   = var.cloud
       region  = var.region
@@ -408,7 +408,7 @@ resource "kubernetes_deployment" "supervisor_proxy" {
 
     selector {
       match_labels = {
-        app    = "destack-supervisor-proxy"
+        app    = "destack-destack-proxy"
         env    = var.env
         cloud  = var.cloud
         region = var.region
@@ -418,7 +418,7 @@ resource "kubernetes_deployment" "supervisor_proxy" {
     template {
       metadata {
         labels = {
-          app     = "destack-supervisor-proxy"
+          app     = "destack-destack-proxy"
           env     = var.env
           cloud   = var.cloud
           region  = var.region
@@ -454,7 +454,7 @@ resource "kubernetes_deployment" "supervisor_proxy" {
         volume {
           name = "envoy-config"
           config_map {
-            name = kubernetes_config_map.supervisor_envoy_config.metadata[0].name
+            name = kubernetes_config_map.destack_envoy_config.metadata[0].name
           }
         }
 
@@ -478,9 +478,9 @@ resource "kubernetes_deployment" "supervisor_proxy" {
 }
 
 # Envoy Service
-resource "kubernetes_service" "supervisor_proxy" {
+resource "kubernetes_service" "destack_proxy" {
   metadata {
-    name = "${local.prefix}-supervisor-proxy"
+    name = "${local.prefix}-destack-proxy"
     annotations = {
       "service.beta.kubernetes.io/aws-load-balancer-type"                            = "nlb"
       "service.beta.kubernetes.io/aws-load-balancer-nlb-target-type"                 = "ip"
@@ -497,7 +497,7 @@ resource "kubernetes_service" "supervisor_proxy" {
 
   spec {
     selector = {
-      app = "destack-supervisor-proxy"
+      app = "destack-destack-proxy"
     }
 
     port {
@@ -516,25 +516,25 @@ resource "kubernetes_service" "supervisor_proxy" {
   }
 }
 
-data "kubernetes_service" "supervisor_proxy" {
+data "kubernetes_service" "destack_proxy" {
   metadata {
-    name = kubernetes_service.supervisor_proxy.metadata[0].name
+    name = kubernetes_service.destack_proxy.metadata[0].name
   }
 
-  depends_on = [kubernetes_service.supervisor_proxy]
+  depends_on = [kubernetes_service.destack_proxy]
 }
 
-output "supervisor_hostname" {
-  value       = data.kubernetes_service.supervisor_proxy.status.0.load_balancer.0.ingress.0.hostname
-  description = "The public hostname of the Supervisor service (ingress)"
+output "destack_hostname" {
+  value       = data.kubernetes_service.destack_proxy.status.0.load_balancer.0.ingress.0.hostname
+  description = "The public hostname of the Destack service (ingress)"
 }
 
-# point 'supervisor' for this region to the supervisor ingress
-resource "cloudflare_record" "supervisor" {
+# point 'destack' for this region to the destack ingress
+resource "cloudflare_record" "destack" {
   zone_id         = var.web_zone_id
-  name            = "${var.cloud}-${var.region}.supervisor"
+  name            = "${var.cloud}-${var.region}.destack"
   type            = "CNAME"
-  content         = data.kubernetes_service.supervisor_proxy.status.0.load_balancer.0.ingress.0.hostname
+  content         = data.kubernetes_service.destack_proxy.status.0.load_balancer.0.ingress.0.hostname
   ttl             = 300
   proxied         = false
   allow_overwrite = true

@@ -14,7 +14,7 @@ async function init() {
   // telemetry
   if (TELEMETRY) {
     posthog.init("phc_d8mi3OMdtKSVA8kzHbBoKtYU3ZsMQakAiLpuOn3W9ma", {
-      api_host: "https://e.heydestack.com",
+      api_host: "https://e.destack.app",
       ui_host: "https://eu.posthog.com",
       enable_recording_console_log: true,
       autocapture: true,

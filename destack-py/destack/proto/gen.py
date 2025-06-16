@@ -23,9 +23,8 @@ TARGET_TS_DIR = "destack-ts/src/proto/wire"
 EXTRA_PROTO_PY_FILES = (
     "destack-proto/common.proto",
     "destack-proto/health.proto",
-    "destack-proto/supervisor.proto",
-    "destack-proto/host.proto",
-    "destack-proto/runtime.proto",
+    "destack-proto/destack.proto",
+    "destack-proto/space.proto",
     "destack-proto/google/type/date.proto",
     "destack-proto/google/type/datetime.proto",
     "destack-proto/google/type/timeofday.proto",
@@ -33,8 +32,8 @@ EXTRA_PROTO_PY_FILES = (
 EXTRA_PROTO_TS_FILES = (
     "destack-proto/common.proto",
     "destack-proto/health.proto",
-    "destack-proto/supervisor.proto",
-    "destack-proto/host.proto",
+    "destack-proto/destack.proto",
+    "destack-proto/space.proto",
     "destack-proto/web.proto",
     "destack-proto/google/type/date.proto",
     "destack-proto/google/type/datetime.proto",
@@ -62,7 +61,7 @@ def _gen_proto_schema() -> str:
     return proto.to_proto_source()
 
 
-_PUBLIC_SERVICES = ("Graph", "Supervisor", "Host")  # :ServiceKind
+_PUBLIC_SERVICES = ("Graph", "Destack", "Space")  # :ServiceKind
 
 
 def _render_js_value(value: Any) -> str:
@@ -171,18 +170,16 @@ from typing import TYPE_CHECKING, Union
 VERSION = '{VERSION}'
 
 # import from all generated files
-from .runtime_pb2 import *
 from .health_pb2 import *
 from .common_pb2 import *
 from .common_grpc import *
 from .language_grpc import *
-from .runtime_grpc import *
-from .supervisor_grpc import *
-from .host_grpc import *
+from .destack_grpc import *
+from .space_grpc import *
 from .health_grpc import *
 from .language_pb2 import *
-from .supervisor_pb2 import *
-from .host_pb2 import *
+from .destack_pb2 import *
+from .space_pb2 import *
 from .google.type.date_pb2 import *
 from .google.type.timeofday_pb2 import *
 from .google.type.datetime_pb2 import *
@@ -276,10 +273,10 @@ export type AnyStructData = {" | ".join(cls.__name__ + "Data" for cls in STRUCT_
 export * from './destack-proto/common';
 export * from './destack-proto/language';
 export * from './destack-proto/web';
-export * from './destack-proto/supervisor';
-export * from './destack-proto/supervisor.client';
-export * from './destack-proto/host';
-export * from './destack-proto/host.client';
+export * from './destack-proto/destack';
+export * from './destack-proto/destack.client';
+export * from './destack-proto/space';
+export * from './destack-proto/space.client';
 export * from './destack-proto/health';
 export * from './destack-proto/health.client';
 export * from './destack-proto/google/type/date';

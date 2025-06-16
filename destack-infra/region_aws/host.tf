@@ -18,7 +18,7 @@ locals {
     KUBERNETES_MACHINE_APP_LABEL = "destack-machine"
     KUBERNETES_IMAGE_PULL_SECRET  = kubernetes_secret.image_pull_secret.metadata[0].name
 
-    SUPERVISOR_URL = local.supervisor_url
+    DESTACK_URL = local.destack_url
     HOST_MAP = join(",", flatten([
       for k, v in var.cell_provider : [
         format("%s=%s", k, v)

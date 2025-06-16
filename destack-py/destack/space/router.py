@@ -24,12 +24,12 @@ from destack.pb2 import (
     UploadFilesResponse,
 )
 from destack.proto import (
-    HostBase,
     Network,
     RpcMetadata,
     ScopeData,
     ServiceBase,
     ServiceKind,
+    SpaceBase,
 )
 from destack.sharding import DatabaseProvider, GalaxyProvider
 from destack.utils.env import get_from_env
@@ -37,7 +37,7 @@ from destack.utils.oracle import Oracle
 from destack.utils.telemetry import set_baggage
 from destack.utils.uuid import UUID
 
-from .host import HostService
+from .space import SpaceService
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -50,13 +50,13 @@ S3_PRESIGNED_URL_EXPIRY = get_from_env(
 )
 
 
-class HostRouterService(ServiceBase, HostBase):
+class SpaceRouterService(ServiceBase, SpaceBase):
     """
-    Multiplexes requests per Destack to a Host using gRPC metadata ('destack-id').
+    Multiplexes requests per Destack to a Space using gRPC metadata ('destack-id').
     """
 
     kind = ServiceKind.PUBLIC  # :ServiceKind
-    name = "host_router"
+    name = "space_router"
 
     def __init__(
         self,
@@ -76,8 +76,8 @@ class HostRouterService(ServiceBase, HostBase):
             oracle=oracle,
             on_error=on_error,
         )
-        self.hosts: dict[UUID, HostService] = {}
-        self.hosts_lock = asyncio.Lock()
+        self.spaces: dict[UUID, SpaceService] = {}
+        self.spaces_lock = asyncio.Lock()
         self.global_database = global_database
         self.galaxy_provider = galaxy_provider
         self.database_provider = database_provider
@@ -89,18 +89,18 @@ class HostRouterService(ServiceBase, HostBase):
         await super().start()
 
     def stop(self) -> None:
-        for host in self.hosts.values():
-            host.stop()
+        for space in self.spaces.values():
+            space.stop()
 
     async def wait_stopped(self) -> None:
-        await asyncio.gather(*[host.wait_stopped() for host in self.hosts.values()])
+        await asyncio.gather(*[space.wait_stopped() for space in self.spaces.values()])
 
-    async def _start_host(self, space_id: UUID) -> "HostService":
-        """Starts a Host for the given Destack."""
-        existing_host = self.hosts.get(space_id)
-        assert existing_host is None, f"already have Host for {space_id}: {existing_host!r}"
-        host = HostService(
-            id=f"host-{space_id}",
+    async def _start_space(self, space_id: UUID) -> "SpaceService":
+        """Starts a Space for the given Destack."""
+        existing_space = self.spaces.get(space_id)
+        assert existing_space is None, f"already have Space for {space_id}: {existing_space!r}"
+        space = SpaceService(
+            id=f"space-{space_id}",
             space_id=space_id,
             network=self.network,
             oracle=self.oracle,
@@ -109,12 +109,12 @@ class HostRouterService(ServiceBase, HostBase):
             database_provider=self.database_provider,
             on_error=self.on_error,
         )
-        await host.start()
-        self.hosts[space_id] = host
-        return host
+        await space.start()
+        self.spaces[space_id] = space
+        return space
 
-    async def _get_host(self, request: ProtoMessage) -> "HostService":
-        """Gets or starts a running Host for the given Destack"""
+    async def _get_space(self, request: ProtoMessage) -> "SpaceService":
+        """Gets or starts a running Space for the given Destack"""
 
         # get request's destack id
         scope: ScopeData | None = getattr(request, "scope")
@@ -124,14 +124,14 @@ class HostRouterService(ServiceBase, HostBase):
         if space_id is None:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "missing destack scope id")
 
-        # get host
-        host = self.hosts.get(space_id)
-        if host is None:
-            async with self.hosts_lock:
-                host = self.hosts.get(space_id)
-                if host is None:
-                    host = await self._start_host(space_id)
-        return host
+        # get space
+        space = self.spaces.get(space_id)
+        if space is None:
+            async with self.spaces_lock:
+                space = self.spaces.get(space_id)
+                if space is None:
+                    space = await self._start_space(space_id)
+        return space
 
     @override
     def _wrap_rpc_func(
@@ -143,9 +143,9 @@ class HostRouterService(ServiceBase, HostBase):
 
             @functools.wraps(func)
             async def _multiplexed_unary_rpc(request: ProtoMessage, metadata: RpcMetadata) -> None:
-                host = await self._get_host(request)
-                set_baggage(**host.get_service_baggage())
-                return await getattr(host, method_name)(request, metadata)
+                space = await self._get_space(request)
+                set_baggage(**space.get_service_baggage())
+                return await getattr(space, method_name)(request, metadata)
 
             return _multiplexed_unary_rpc
 
@@ -153,9 +153,9 @@ class HostRouterService(ServiceBase, HostBase):
 
             @functools.wraps(func)
             async def _multiplexed_unary_stream_rpc(request: ProtoMessage, metadata: RpcMetadata):
-                host = await self._get_host(request)
-                set_baggage(**host.get_service_baggage())
-                async for response in getattr(host, method_name)(request, metadata):
+                space = await self._get_space(request)
+                set_baggage(**space.get_service_baggage())
+                async for response in getattr(space, method_name)(request, metadata):
                     yield response
 
             return _multiplexed_unary_stream_rpc

@@ -62,7 +62,7 @@ message CreateOrganizationResponse {
   uint64 epoch = 2;
 }
 
-message ResolveHostsRequest {
+message ResolveSpacesRequest {
   message SpaceKey {
     oneof space {
       string id = 1;
@@ -71,19 +71,19 @@ message ResolveHostsRequest {
   }
   repeated SpaceKey spaces = 1;
 }
-message ResolveHostsResponse {
-  message HostInfo {
+message ResolveSpacesResponse {
+  message SpaceInfo {
     string domain = 1;
     int32 grpc_port = 2;
     int32 grpc_web_port = 3;
     bool ssl = 4;
     NodeReferenceData space = 5;
   }
-  repeated HostInfo hosts = 1;
+  repeated SpaceInfo spaces = 1;
 }
 
 // Control plane: create & manage the global stuff like Destackes, Users, etc..
-service Supervisor {
+service Destack {
   option (kind) = PUBLIC; // :ServiceKind
 
   // Create User.
@@ -95,6 +95,6 @@ service Supervisor {
   // Logout User with the current or other owned Clients.
   rpc LogoutUser(LogoutUserRequest) returns (LogoutUserResponse);
 
-  // Gets Space host information.
-  rpc ResolveHosts(ResolveHostsRequest) returns (ResolveHostsResponse);
+  // Gets Space space information.
+  rpc ResolveSpaces(ResolveSpacesRequest) returns (ResolveSpacesResponse);
 }

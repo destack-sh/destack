@@ -20,9 +20,9 @@ logger = structlog.get_logger(__name__)
 async def bootstrap(
     region: Annotated[Region, typer.Option(parser=parse_region)], upsert: bool = False
 ):
+    from destack.destack import create_system_destackes
     from destack.sharding import get_global_database_from_env
     from destack.store import PostgresStore
-    from destack.supervisor import create_system_destackes
 
     global_database = get_global_database_from_env()
     store = PostgresStore(database=global_database, types=(StoreType.GLOBAL_ENTITY,))

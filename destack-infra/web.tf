@@ -52,7 +52,7 @@ locals {
   web_variables = {
     "VITE_COMMIT"         = data.external.git.result.sha
     "VITE_ENVIRONMENT"    = var.env
-    "VITE_SUPERVISOR_URL" = "supervisor.${local.main_website}"
+    "VITE_DESTACK_URL" = "destack.${local.main_website}"
     "VITE_IP_API_KEY"     = base64encode(var.ip_api_key)
   }
   web_variables_subs   = [for k, v in local.web_variables : { regex = "\"${k}\"", sub = "\"${v}\"" }]
