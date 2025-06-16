@@ -1,8 +1,0 @@
-{
-  "name": "destack-js",
-  "version": "0.0.0",
-  "description": "Destack is a personal software platform. JavaScript SDK coming soon.",
-  "main": "index.js",
-  "keywords": ["destack", "sdk"],
-  "author": "Symbol Industries <florian@symbol.industries>"
-}

@@ -998,6 +998,7 @@ GROUP BY
             column = PostgresColumn(
                 name=row["column_name"],
                 type=primitive_type,
+                prop=None,  # type: ignore # nocheckin: handle postgres reflection node_type/prop
                 is_primary_key="PRIMARY KEY" in constraint_types,
                 is_foreign_key_to=is_foreign_key_to,
                 on_delete=cascade_action,
@@ -1126,6 +1127,7 @@ WHERE
     for table_name in tables_names:
         table = PostgresTable(
             name=table_name,
+            node_type=None,  # type: ignore (see above)
             columns=tuple(columns_by_table.get(table_name, [])),
             indexes=tuple(indexes_by_table.get(table_name, [])),
             constraints=tuple(constraints_by_table.get(table_name, [])),
