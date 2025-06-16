@@ -40,14 +40,17 @@ class Store(abc.ABC):
 
     @abc.abstractmethod
     async def query(self, query: "Query") -> "QueryResult":
-        """Query the Store."""
+        """
+        Query the Store.
+        Returns a QueryResult.
+        """
         ...
 
     @abc.abstractmethod
     async def commit(self, changes: Sequence["Change"]) -> Sequence["ChangeResult"]:
         """
-        Commit the Changes as individual transactions.
-        Returns the ChangeResults.
+        Commit the Changes as individual transactions (every Change is atomic by itself).
+        Returns the ChangeResults per Change.
         """
         ...
 
@@ -65,17 +68,17 @@ class LiveStore(Store, abc.ABC):
 
 class OptimisticStore(LiveStore, abc.ABC):
     """
-    A Store that can optimistically apply Changes.
-    To commit any Changes (incl. staged), pass the Changes to Store.commit.
-    To unstage any Changes without committing, just call Store.unstage.
+    A Store that can stage Changes optimistically.
+    To commit Changes (incl. staged), pass these Changes to Store.commit as usual.
+    To remove Changes without committing, call Store.unstage.
     """
 
     @abc.abstractmethod
     async def stage(self, changes: Sequence["Change"]) -> None:
-        """Stage Changes locally. Idempotent for Changes by id."""
+        """Stage Changes locally."""
         ...
 
     @abc.abstractmethod
     async def unstage(self, changes: Sequence["Change"]) -> None:
-        """Unstage Changes locally. Idempotent for Changes by id."""
+        """Unstage Changes locally."""
         ...

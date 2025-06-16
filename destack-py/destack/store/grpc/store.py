@@ -4,8 +4,8 @@ from typing import override
 from destack.language import Change, ChangeResult, LiveStore, Query, QueryResult, QueryUpdate
 
 
-class RemoteGRPCStore(LiveStore):
-    """A store that fetches data from a remote source via gRPC."""
+class GrpcStore(LiveStore):
+    """A Store that fetches data from a remote source via gRPC."""
 
     @override
     async def query(self, query: Query) -> QueryResult:

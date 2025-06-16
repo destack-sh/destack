@@ -476,6 +476,7 @@ class EnumType(Enum):
     EDIT_TYPE = 50050
     EDIT_OPERATION = 50051
     CHANGE_STATUS = 50052
+    CHANGE_DEBOUNCE = 50053
     NODE_PERMISSION = 50100
     JOINABLE_PERMISSION = 50101
 
@@ -1040,9 +1041,9 @@ class StoreType(Enum):
 
 @builtin_enum(EnumType.STORE_IMPLEMENTATION)
 class StoreImplementation(Enum):
-    POSTGRES = 1
+    MEMORY = 1
+    POSTGRES = 10
     # CASSANDRA, ELASTICSEARCH, REDIS, ...
-    MEMORY = 10
 
 
 @builtin_enum(EnumType.RUNTIME_TYPE)

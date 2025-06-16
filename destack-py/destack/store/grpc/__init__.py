@@ -1,3 +1,3 @@
-from .store import RemoteGRPCStore
+from .store import GrpcStore
 
-__all__ = ["RemoteGRPCStore"]
+__all__ = ["GrpcStore"]

@@ -1,0 +1,73 @@
+from collections.abc import AsyncIterator, Sequence
+from typing import ClassVar, override
+
+from destack.language import (
+    Change,
+    ChangeResult,
+    OptimisticStore,
+    Query,
+    QueryResult,
+    QueryUpdate,
+    Store,
+    StoreImplementation,
+    StoreType,
+)
+from destack.store.memory import MemoryStore
+
+# nocheckin: proper split committing/querying (keep store_type in Node & NodeReference instances?)
+#  (including live/in-memory overrides)
+
+
+class BufferedStore(OptimisticStore):
+    """
+    Route Queries and commits to underlying Stores, buffer certain Changes in memory.
+    Does not support atomic Changes across Stores (yet).
+    """
+
+    implementation: ClassVar[StoreImplementation | None] = None  # no single implementation
+
+    def __init__(self, *stores: Store):
+        # implementation
+        self.stores: tuple[Store, ...] = stores
+        self.store_by_type: dict[StoreType, Store] = {}
+        for store in stores:
+            for store_type in store.types:
+                if store_type in self.store_by_type:
+                    raise ValueError(
+                        f"already have a {store_type.name} Store: {self.store_by_type[store_type]!r} != {store!r}"
+                    )
+                self.store_by_type[store_type] = store
+
+        # buffer
+        self.buffer: MemoryStore = MemoryStore(types=tuple(self.store_by_type.keys()))
+
+    def __str__(self):
+        content_parts: list[str] = []
+        for store_type, store in self.store_by_type.items():
+            content_parts.append(f"{store_type.name}={store!s}")
+        return ", ".join(content_parts)
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {self!s}>"
+
+    @override
+    async def query(self, query: Query) -> QueryResult:
+        result = await self.buffer.query(query)
+        return result
+
+    @override
+    async def commit(self, changes: Sequence[Change]) -> Sequence[ChangeResult]:
+        results = await self.buffer.commit(changes)
+        return results
+
+    @override
+    async def subscribe(self, query: Query) -> AsyncIterator[QueryUpdate]:
+        raise NotImplementedError
+
+    @override
+    async def stage(self, changes: Sequence[Change]) -> None:
+        pass
+
+    @override
+    async def unstage(self, changes: Sequence[Change]) -> None:
+        pass
