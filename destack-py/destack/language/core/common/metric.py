@@ -1,4 +1,4 @@
-from destack.pb2 import (
+from destack.proto import (
     CounterMeasurementData,
     CounterMetricData,
     GaugeMeasurementData,

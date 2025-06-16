@@ -23,8 +23,8 @@ from grpclib.client import ServiceMethod
 from opentelemetry import trace
 
 from destack.language import EMPTY_DICT, Client, DestackError, IsSubject, Session
-from destack.pb2 import RpcMetadata, ServiceKind
-from destack.proto.wiring import unpack_rpc_headers
+from destack.proto import RpcMetadata, ServiceKind
+from destack.grpc.wiring import unpack_rpc_headers
 from destack.utils.env import IS_DEV, IS_TEST
 from destack.utils.oracle import Oracle
 from destack.utils.string import Casing, to_casing

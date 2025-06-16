@@ -14,7 +14,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.pb2 import LogData
+from destack.proto import LogData
 
 if TYPE_CHECKING:
     from destack.language import Space

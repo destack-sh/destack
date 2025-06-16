@@ -1,6 +1,6 @@
 import { ref } from "vue";
 
-export const VERSION = "2025.06.16.1";
+export const VERSION = "2025.06.16.5";
 
 // global environment variables :DestackWebEnv
 export const COMMIT = import.meta.env.VITE_COMMIT;

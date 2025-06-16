@@ -17,7 +17,7 @@ from destack.language.core import (
     object_,
     property_,
 )
-from destack.pb2 import EffectStyleData
+from destack.proto import EffectStyleData
 
 from .style import Style
 from .transition import Transition

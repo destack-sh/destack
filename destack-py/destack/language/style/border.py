@@ -15,7 +15,7 @@ from destack.language.core import (
     object_,
     property_,
 )
-from destack.pb2 import BorderStyleData
+from destack.proto import BorderStyleData
 
 from .color import Color
 from .style import Style

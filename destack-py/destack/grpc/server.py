@@ -8,9 +8,9 @@ import structlog
 from grpclib._typing import IServable
 from opentelemetry import trace
 
-from destack.proto.health import HealthService
-from destack.proto.network import Network
-from destack.proto.service import ServiceBase
+from destack.grpc.health import HealthService
+from destack.grpc.network import Network
+from destack.grpc.service import ServiceBase
 from destack.utils.oracle import Oracle
 from destack.utils.telemetry import export_now
 

@@ -20,7 +20,7 @@ from destack.language.core import (
     property_parent_,
     to_text,
 )
-from destack.pb2 import MessageData
+from destack.proto import MessageData
 from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:

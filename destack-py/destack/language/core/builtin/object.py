@@ -21,7 +21,7 @@ import structlog
 from bitarray import bitarray
 from opentelemetry import trace
 
-from destack.pb2 import AnyObjectData
+from destack.proto import AnyObjectData
 from destack.utils.code import exec_, format_code
 from destack.utils.env import IS_DEV, IS_TEST
 from destack.utils.frozen import frozendict, frozenlist

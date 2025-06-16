@@ -13,7 +13,7 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.pb2 import TimerData, TimerEventData
+from destack.proto import TimerData, TimerEventData
 
 from .schedule import Schedule
 

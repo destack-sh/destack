@@ -8,7 +8,7 @@ import structlog
 import typer
 
 from destack.cli.utils import async_to_sync
-from destack.proto import GrpcServer, Network, RealNetwork, ServiceBase
+from destack.grpc import GrpcServer, Network, RealNetwork, ServiceBase
 from destack.utils.env import ENV, IS_DEV
 from destack.utils.oracle import REAL_ORACLE
 from destack.utils.telemetry import capture_exception

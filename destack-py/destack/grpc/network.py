@@ -8,9 +8,9 @@ import grpclib
 import grpclib.client
 from grpclib.client import Channel
 
-from destack import pb2
-from destack.pb2 import RpcMetadata
-from destack.proto.wiring import pack_rpc_headers
+from destack import proto
+from destack.proto import RpcMetadata
+from destack.grpc.wiring import pack_rpc_headers
 from destack.utils.env import get_from_env
 from destack.utils.telemetry import collect_propagation_context
 from destack.utils.uuid import UUID
@@ -60,7 +60,7 @@ def get_rpc_metadata(
 ):
     """Gets the gRPRpcMetadatafor a client."""
     rpc_metadata = RpcMetadata(
-        client_type=cast(pb2.ClientType, client_type),
+        client_type=cast(proto.ClientType, client_type),
         client_id=str(client_id),
         client_nonce=str(client_nonce) if client_nonce is not None else None,
         client_access_token=str(client_access_token),

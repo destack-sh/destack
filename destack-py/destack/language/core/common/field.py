@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Optional, Union
 
-from destack.pb2 import FieldData
+from destack.proto import FieldData
 
 from ..builtin import (
     CascadeAction,

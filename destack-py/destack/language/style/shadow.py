@@ -15,7 +15,7 @@ from destack.language.core import (
     object_,
     property_,
 )
-from destack.pb2 import ShadowStyleData
+from destack.proto import ShadowStyleData
 
 from .color import Color
 from .style import Style

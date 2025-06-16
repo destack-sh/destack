@@ -16,7 +16,7 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.pb2 import FriendshipData, FriendshipInviteData, FriendshipInviteEventData
+from destack.proto import FriendshipData, FriendshipInviteData, FriendshipInviteEventData
 
 if TYPE_CHECKING:
     from destack.language import User

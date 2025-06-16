@@ -15,7 +15,7 @@ from destack.language import (
     UserStatus,
     join,
 )
-from destack.proto import AnyObjectData
+from destack.grpc import AnyObjectData
 from destack.test.fixtures import BUILTIN_OBJECTS
 from destack.test.strategies import builtin_objects, examples
 from destack.utils.uuid import uuid4

@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Optional, Union
 
-from destack.pb2 import BranchData, SnapshotData
+from destack.proto import BranchData, SnapshotData
 
 from ..builtin import (
     Entity,

@@ -14,7 +14,7 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.pb2 import MachineData
+from destack.proto import MachineData
 from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:

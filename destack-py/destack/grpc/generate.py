@@ -16,8 +16,8 @@ from destack.utils.string import Casing, to_casing
 from .map import generate_proto_schema
 
 LANGUAGE_PROTO = "destack-proto/language.proto"
-TEMP_PY_DIR = "destack-py/destack/pb2.tmp"
-TARGET_PY_DIR = "destack-py/destack/pb2"
+TEMP_PY_DIR = "destack-py/destack/proto.tmp"
+TARGET_PY_DIR = "destack-py/destack/proto"
 TEMP_TS_DIR = "destack-ts/src/proto/wire.tmp"
 TARGET_TS_DIR = "destack-ts/src/proto/wire"
 EXTRA_PROTO_PY_FILES = (

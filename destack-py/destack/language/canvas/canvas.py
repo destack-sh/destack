@@ -9,7 +9,7 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.pb2 import CanvasData
+from destack.proto import CanvasData
 
 from ..view import ContainerView
 

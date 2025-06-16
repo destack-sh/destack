@@ -10,7 +10,7 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.pb2 import LineShapeData
+from destack.proto import LineShapeData
 
 from ..view import ContentView
 from .shape import IsShape

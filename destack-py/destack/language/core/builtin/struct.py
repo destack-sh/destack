@@ -11,7 +11,7 @@ import structlog
 from opentelemetry import trace
 
 from destack.language.registry import STRUCT_CLASS_BY_TYPE, STRUCT_TYPE_BY_CLASS
-from destack.pb2 import AnyStructData
+from destack.proto import AnyStructData
 
 from .const import StructType
 from .object import BuiltinObjectBase, BuiltinObjectFrozen, BuiltinObjectMutable, object_

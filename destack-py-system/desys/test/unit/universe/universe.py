@@ -1,9 +1,9 @@
 import pytest
 from grpclib import Status as GRPCStatus
 
-from destack import pb2
+from destack import proto
 from destack.language import Client, ClientType, DatabaseInfo, Session
-from destack.proto import (
+from destack.grpc import (
     LoginUserRequest,
     LogoutUserRequest,
     NullNetwork,
@@ -67,7 +67,7 @@ async def test_user_registration(destack: UniverseClient):
         email=user_email,
         client=client_in,
         password="Password123!",
-        region=pb2.Region.REGION_ZURICH,
+        region=proto.Region.REGION_ZURICH,
     )
     signup_rep = await destack.signup_user(signup_req)
     assert signup_rep.user.slug == user_slug

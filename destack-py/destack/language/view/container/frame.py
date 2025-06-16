@@ -1,5 +1,5 @@
 from destack.language.core import Node, NodeType, builtin_node
-from destack.pb2 import FrameViewData
+from destack.proto import FrameViewData
 
 from .container import ContainerView
 

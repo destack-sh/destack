@@ -11,7 +11,7 @@ logger = structlog.get_logger(__name__)
 @app.command()
 def gen():
     """Generate all the derived things."""
-    from destack.proto.generate import _gen_proto, _gen_proto_schema
+    from destack.grpc.generate import _gen_proto, _gen_proto_schema
 
     # proto
     start = REAL_ORACLE.time_ns()

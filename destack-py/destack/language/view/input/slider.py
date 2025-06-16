@@ -1,7 +1,7 @@
 from typing import Optional
 
 from destack.language.core import Node, NodeType, builtin_node, property_
-from destack.pb2 import SliderInputViewData
+from destack.proto import SliderInputViewData
 
 from .input import InputView
 

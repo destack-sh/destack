@@ -8,7 +8,7 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.pb2 import ArrowShapeData
+from destack.proto import ArrowShapeData
 
 from ..view import ContentView
 from .shape import IsShape

@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from destack.pb2 import CustomEnumDefinitionData
+from destack.proto import CustomEnumDefinitionData
 
 from ..builtin import (
     Entity,

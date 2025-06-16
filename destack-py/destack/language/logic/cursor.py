@@ -16,7 +16,7 @@ from destack.language.core import (
     builtin_trait,
     property_,
 )
-from destack.pb2 import EventCursorData, ScreenCursorData, ThreadCursorData
+from destack.proto import EventCursorData, ScreenCursorData, ThreadCursorData
 
 if TYPE_CHECKING:
     pass

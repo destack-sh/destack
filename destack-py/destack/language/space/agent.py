@@ -17,7 +17,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.pb2 import AgentData
+from destack.proto import AgentData
 from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:

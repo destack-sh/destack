@@ -1,5 +1,5 @@
 from destack.language.core import Node, NodeType, builtin_node
-from destack.pb2 import LabelViewData
+from destack.proto import LabelViewData
 
 from .container import ContainerView
 

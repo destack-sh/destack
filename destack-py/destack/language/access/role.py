@@ -22,7 +22,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.pb2 import RoleData, RoleEventData
+from destack.proto import RoleData, RoleEventData
 
 # pyright: reportIncompatibleVariableOverride=false
 

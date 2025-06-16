@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from destack.pb2 import CustomStructDefinitionData
+from destack.proto import CustomStructDefinitionData
 
 from ..builtin import (
     Entity,

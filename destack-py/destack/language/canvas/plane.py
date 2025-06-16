@@ -8,7 +8,7 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.pb2 import PlaneShapeData
+from destack.proto import PlaneShapeData
 
 from ..view import ContainerView
 from .shape import IsShape

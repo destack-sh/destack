@@ -1,5 +1,5 @@
 from destack.language.core import Node, NodeType, builtin_node
-from destack.pb2 import WizardViewData
+from destack.proto import WizardViewData
 
 from .internal import InternalView
 

@@ -15,7 +15,7 @@ from destack.language.core import (
     object_,
     property_,
 )
-from destack.pb2 import FontStyleData
+from destack.proto import FontStyleData
 
 from .fill import Fill
 from .style import Style

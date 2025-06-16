@@ -17,7 +17,7 @@ from destack.language.core import (
     object_,
     property_,
 )
-from destack.pb2 import GradientStyleData
+from destack.proto import GradientStyleData
 
 from .color import Color
 from .style import Style

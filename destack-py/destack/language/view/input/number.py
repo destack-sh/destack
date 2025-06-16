@@ -1,7 +1,7 @@
 from typing import Optional
 
 from destack.language.core import Node, NodeType, builtin_node, property_
-from destack.pb2 import NumberInputViewData
+from destack.proto import NumberInputViewData
 
 from .input import InputView
 
