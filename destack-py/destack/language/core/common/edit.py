@@ -109,6 +109,23 @@ class Edit(StructFrozen):
     )
 
 
+@builtin_enum(EnumType.CHANGE_STATUS)
+class ChangeStatus(Enum):
+    """The status of a Change."""
+
+    # PENDING?
+    COMPLETED = 10, "Completed", "The Change was applied"
+    FAILED = 12, "Failed", "Could not apply the Change."
+    REJECTED = 13, "Rejected", "Insufficient access."
+
+
+@builtin_enum(EnumType.CHANGE_DEBOUNCE)
+class ChangeDebounce(Enum):
+    """How to debounce the Change. Only available for certain Changes."""
+
+    LAZY = 10, "Lazy", "Lazy debounce the Change."
+
+
 @builtin_struct(StructType.CHANGE, frozen=True)
 class Change(StructFrozen):
     """A Change is an atomic sequence of Edits."""
@@ -121,17 +138,9 @@ class Change(StructFrozen):
     )
     created_by: "IsSubject | None" = property_(33, is_managed=True, is_repr=True)
     origin: "Origin | None" = property_(34, is_managed=True, is_repr=True)
+    debounce: "ChangeDebounce | None" = property_(35, is_managed=True, is_repr=True)
 
     edits: list[Edit] = property_(40)
-
-
-@builtin_enum(EnumType.CHANGE_STATUS)
-class ChangeStatus(Enum):
-    """The status of a Change."""
-
-    # PENDING?
-    COMPLETED = 2
-    FAILED = 3
 
 
 @builtin_struct(StructType.CHANGE_RESULT, frozen=True)
@@ -152,6 +161,7 @@ class ChangeResult(StructFrozen):
         description="The time the ChangeResult was created.",
         default_factory=DefaultFactory.NOW,
     )
+    debounce: "ChangeDebounce | None" = property_(35, is_managed=True, is_repr=True)
     status: ChangeStatus = property_(40, is_repr=True)
     edits: list[Edit] = property_(41, description="The applied Edits (may differ).")
     cascaded_edits: list[Edit] = property_(

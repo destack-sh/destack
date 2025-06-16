@@ -11,7 +11,6 @@ from destack.language import (
     Database,
     DatabaseInfo,
     IsSubject,
-    LiveStore,
     NodeReference,
     NodeType,
     Query,
@@ -37,7 +36,7 @@ from destack.pb2 import (
 )
 from destack.proto import Network, ServiceBase
 from destack.sharding import DatabaseProvider, GalaxyProvider
-from destack.store import PostgresStore
+from destack.store import BufferedStore, PostgresStore
 from destack.utils.env import ENV, get_from_env
 from destack.utils.oracle import Oracle
 from destack.utils.uuid import UUID
@@ -90,7 +89,7 @@ class HostService(ServiceBase, HostBase):
             database=global_database, types=(StoreType.GLOBAL_ENTITY,)
         )
         self.spatial_postgres_store: PostgresStore | None = None
-        self.store: LiveStore = ...  # type: ignore nocheckin: LiveStore
+        self.store: BufferedStore | None = None
         self.galaxy_provider = galaxy_provider
         self.database_provider = database_provider
 
@@ -116,6 +115,9 @@ class HostService(ServiceBase, HostBase):
                 self.spatial_postgres_store = PostgresStore(
                     database=database.to_info(), types=(StoreType.SPATIAL_ENTITY,)
                 )
+                self.store = BufferedStore(self.global_postgres_store, self.spatial_postgres_store)
+            else:
+                self.store = BufferedStore(self.global_postgres_store)
 
     def stop(self) -> None:
         super().stop()
@@ -142,8 +144,10 @@ class HostService(ServiceBase, HostBase):
         client: Client | None,
         metadata: RpcMetadata,
     ) -> QueryResponse:
+        assert self.store is not None, f"no store ready in {self!r}"
         query = Query.from_proto(request.query)
         query.validate()
+        # query = transform_query(query, subject, client)
         query_result = await self.store.query(query)
         return QueryResponse(result=query_result.to_proto())
 
@@ -156,6 +160,7 @@ class HostService(ServiceBase, HostBase):
         client: Client | None,
         metadata: RpcMetadata,
     ) -> AsyncIterator[SubscribeResponse]:
+        assert self.store is not None, f"no store ready in {self!r}"
         query = Query.from_proto(request.query)
         query.validate()
         async for update in await self.store.subscribe(query):
@@ -170,10 +175,11 @@ class HostService(ServiceBase, HostBase):
         client: Client | None,
         metadata: RpcMetadata,
     ) -> CommitResponse:
+        assert self.store is not None, f"no store ready in {self!r}"
         changes = [Change.from_proto(change) for change in request.changes]
         approved_changes: list[Change] = []
         for _ in changes:
-            pass  # nocheckin: access control (approve/reject changes)
+            pass  # nocheckin: access control (approve/reject changes, also for query)
         results = await self.store.commit(approved_changes)
         return CommitResponse(results=[result.to_proto() for result in results])
 

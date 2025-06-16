@@ -40,7 +40,7 @@ from destack.proto import (
     SupervisorBase,
 )
 from destack.sharding import DatabaseProvider, GalaxyProvider
-from destack.store import PostgresStore, SplitStore
+from destack.store import BufferedStore, PostgresStore
 from destack.utils.func import generate_access_token, generate_salt
 from destack.utils.oracle import Oracle
 from destack.utils.uuid import UUID
@@ -176,7 +176,7 @@ class SupervisorService(ServiceBase, SupervisorBase):
             custom_schema_name=spatial_database.custom_schema_name,
         )
         space.database = database
-        session.store = SplitStore(
+        session.store = BufferedStore(
             PostgresStore(database=self.global_database, types=(StoreType.GLOBAL_ENTITY,)),
             PostgresStore(database=spatial_database, types=(StoreType.SPATIAL_ENTITY,)),
         )
