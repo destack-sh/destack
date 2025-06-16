@@ -30,7 +30,7 @@ def test_text_mentions(session: Session):
     assert my_text.lines[0].spans[3] == TextSpan(
         type=TextSpanType.MENTION, content="Folder2", node=Folder2
     )
-    assert text_to_markdown(my_text, aliasing) == "Hello it's a [@Page1] and [@Page2]"
+    assert text_to_markdown(my_text, aliasing) == "Hello it's a [@Folder1] and [@Folder2]"
 
 
 def test_text_prefix():
