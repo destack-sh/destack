@@ -1,0 +1,4 @@
+[project]
+name = "destack-py-system"
+version = "2025.06.16.0"
+authors = [{ name = "Symbol Industries", email = "hello@symbol.industries" }]

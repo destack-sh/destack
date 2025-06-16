@@ -291,7 +291,7 @@ resource "kubernetes_config_map" "destack_envoy_config" {
                       routes:
                       - match: { prefix: "/" }
                         route:
-                          cluster: destack_service
+                          cluster: universe_service
                           timeout: 0s
                           max_stream_duration:
                             grpc_timeout_header_max: 0s
@@ -348,7 +348,7 @@ resource "kubernetes_config_map" "destack_envoy_config" {
                     routes:
                     - match: { prefix: "/" }
                       route:
-                        cluster: destack_service
+                        cluster: universe_service
                         timeout: 0s
                 http_filters:
                 - name: envoy.filters.http.router
@@ -372,7 +372,7 @@ resource "kubernetes_config_map" "destack_envoy_config" {
                       private_key:
                         filename: /etc/envoy/tls/tls.key
         clusters:
-          - name: destack_service
+          - name: universe_service
             connect_timeout: 0.25s
             type: logical_dns
             http2_protocol_options: {}

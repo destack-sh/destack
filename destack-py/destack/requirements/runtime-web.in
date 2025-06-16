@@ -1,5 +1,0 @@
-# Run ./scripts/update-requirements.sh to update downstream requirements
-
--r base.in
-
-black==24.10.0

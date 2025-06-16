@@ -9,8 +9,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Optional,
-    TypeVar,
-    Union,
     cast,
 )
 
@@ -132,29 +130,6 @@ class Enum(enum.IntEnum):
             _MAX_ID_BY_ENUM[cls] = max(v.id for v in cls)
         return _MAX_ID_BY_ENUM[cls]
 
-    @classmethod
-    def get_min_ord(cls) -> int:
-        """Get the minimum ord."""
-        return 0
-
-    @classmethod
-    def get_max_ord(cls) -> int:
-        """Get the maximum ord."""
-        return len(cls)
-
-
-BuiltinEnumOrUnion = Union[Enum, Union[Enum, Any]]
-EnumT = TypeVar("EnumT", bound=Enum)
-_ENUM_MEMBERS_BY_ORD: dict[type[Enum], list[Enum]] = {}
-
-
-def _get_enum_members_by_ord(enum_cls: type[Enum]) -> list[Enum]:
-    if enum_cls not in _ENUM_MEMBERS_BY_ORD:
-        _ENUM_MEMBERS_BY_ORD[enum_cls] = list(enum_cls.__members__.values())
-    return _ENUM_MEMBERS_BY_ORD[enum_cls]
-
-
-# noinspection PyPep8Naming
 
 # NOTE: we have the enum registry here to avoid circular imports
 _ENUM_CLASS_BY_TYPE: dict["EnumType", type[Enum]] = {}
@@ -977,7 +952,8 @@ class RuntimeType(Enum):
 
 @builtin_enum(EnumType.PLATFORM_TYPE)
 class PlatformType(Enum):
-    SERVER = 1
+    SYSTEM = 1
+    RUNTIME = 2
     WEB = 10
     # MOBILE, DESKTOP, ...
     # EMAIL?

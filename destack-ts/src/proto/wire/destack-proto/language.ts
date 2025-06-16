@@ -15450,9 +15450,13 @@ export enum PlatformType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: PLATFORM_TYPE_SERVER = 1;
+     * @generated from protobuf enum value: PLATFORM_TYPE_SYSTEM = 1;
      */
-    SERVER = 1,
+    SYSTEM = 1,
+    /**
+     * @generated from protobuf enum value: PLATFORM_TYPE_RUNTIME = 2;
+     */
+    RUNTIME = 2,
     /**
      * @generated from protobuf enum value: PLATFORM_TYPE_WEB = 10;
      */
