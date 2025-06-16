@@ -3,8 +3,7 @@
     "target": "esnext",
     "module": "esnext",
     "strict": true,
-    "jsx": "preserve",
-    "jsxImportSource": "vue",
+    "jsx": "react-jsx",
     "moduleResolution": "node",
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -14,12 +13,12 @@
     "useDefineForClassFields": true,
     "sourceMap": true,
     "baseUrl": ".",
-    "types": ["vite/client", "@types/novnc__novnc"],
+    "types": ["vite/client"],
     "paths": {
       "@/*": ["src/*"]
     },
     "lib": ["esnext", "dom", "dom.iterable", "scripthost"]
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue", "tests/**/*.ts", "tests/**/*.tsx", "../destack-ts/src/utils/telemetry.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts", "tests/**/*.tsx", "../destack-ts/src/utils/telemetry.ts"],
   "exclude": ["node_modules"]
 }
