@@ -4,12 +4,11 @@ import "./assets/index.css";
 import { keytrap } from "@/ui/keymap";
 import { ENV, IS_DEV, SUPERVISOR_URL, TELEMETRY, VERSION } from "./utils/globals";
 import posthog from "posthog-js";
-import { createApp } from "vue";
-import Space from "./Space.vue";
+import React from "react";
+import ReactDOM from "react-dom/client";
+import Space from "./Space";
 
 async function init() {
-  const app = createApp(Space);
-
   // telemetry
   if (TELEMETRY) {
     posthog.init("phc_d8mi3OMdtKSVA8kzHbBoKtYU3ZsMQakAiLpuOn3W9ma", {
@@ -47,7 +46,12 @@ async function init() {
   // setup our own stuff
   keytrap.track(document);
 
-  app.mount("#app");
+  const root = ReactDOM.createRoot(document.getElementById("app")!);
+  root.render(
+    <React.StrictMode>
+      <Space />
+    </React.StrictMode>
+  );
 }
 
 init();
