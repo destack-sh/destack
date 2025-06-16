@@ -77,7 +77,7 @@ async def execute_change(
         if schema_edits:
             await _execute_schema_edits(conn=conn, context=context, edits=schema_edits)
 
-    logger.debug("postgres.execute_change", change=change, span="current")
+    logger.trace("postgres.execute_change", change=change, span="current")
     return applied_edits, cascaded_edits
 
 
@@ -177,7 +177,7 @@ SET {", ".join(f'"{col.name}" = EXCLUDED."{col.name}"' for col in override_colum
             row_values_packed = pack_node_row(table, edit.value)
             values_packed.append(row_values_packed)
         await conn.executemany(stmt, values_packed)
-        logger.debug(
+        logger.trace(
             f"postgres.{edit_type.name.lower()}",
             change=change,
             edits=len(edits),
@@ -241,7 +241,7 @@ WHERE id = ${param_i}
             values_packed.append(tuple(update_row))
 
         await conn.executemany(stmt, values_packed)
-        logger.debug(
+        logger.trace(
             "postgres.update",
             change=change,
             edits=len(edits),
@@ -273,7 +273,7 @@ WHERE id = ${len(update_template) + 1}
             row_values = (*update.values(), edit.node_ptr.id)
             values_packed.append(row_values)
         await conn.executemany(stmt, values_packed)
-        logger.debug(
+        logger.trace(
             "postgres.move",
             change=change,
             edits=len(edits),
@@ -325,7 +325,7 @@ SET {update_stmt}
 WHERE id = $1
 """
             await conn.executemany(stmt, [(node_id, at_packed) for node_id in table_node_ids])
-            logger.debug(
+            logger.trace(
                 f"postgres.{edit_type.name.lower()}",
                 change=change,
                 edits=len(edits),
@@ -361,7 +361,7 @@ DELETE FROM {table_name}
 WHERE id = $1
 """
             await conn.executemany(stmt, table_node_ids)
-            logger.debug(
+            logger.trace(
                 "postgres.erase",
                 change=change,
                 edits=len(edits),

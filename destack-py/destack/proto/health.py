@@ -58,7 +58,6 @@ class HealthService(ServiceBase, HealthBase):
     ) -> HealthCheckResponse:
         # NOTE :Robustness :Monitoring: check health properly
         response = HealthCheckResponse(status=HealthCheckResponse.ServingStatus.SERVING)
-        logger.trace("health.check", service=self, span="current")
         return response
 
     @override

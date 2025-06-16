@@ -1,6 +1,9 @@
 from collections.abc import Sequence
 from typing import ClassVar, override
 
+import opentelemetry.trace as trace
+import structlog
+
 from destack.language import (
     Change,
     ChangeResult,
@@ -15,6 +18,9 @@ from destack.language import (
 from .core import MemoryContext, MemoryDatabase
 from .edit import execute_change
 from .query import execute_query
+
+tracer = trace.get_tracer(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class MemoryStore(Store):
@@ -35,13 +41,30 @@ class MemoryStore(Store):
         return f"<MemoryStore {self!s}>"
 
     @override
+    @tracer.start_as_current_span("memory.query")
+    async def query(self, query: Query) -> QueryResult:
+        result = execute_query(self.context, query)
+        logger.debug("memory.query", query=query, result=result, span="current")
+        return result
+
+    @override
+    @tracer.start_as_current_span("memory.commit")
     async def commit(self, changes: Sequence[Change]) -> Sequence[ChangeResult]:
         results: list[ChangeResult] = []
         for change in changes:
-            execute_change(self.database, self.context, change)
-            results.append(ChangeResult(id=change.id, status=ChangeStatus.COMPLETED))
+            edits, cascaded_edits = execute_change(self.database, self.context, change)
+            result = ChangeResult(
+                id=change.id,
+                status=ChangeStatus.COMPLETED,
+                edits=list(edits),
+                cascaded_edits=list(cascaded_edits),
+            )
+            results.append(result)
+            logger.trace(
+                "memory.commit.change",
+                change=change,
+                result=result,
+                span="current",
+            )
+        logger.debug("memory.commit", changes=changes, results=results, span="current")
         return results
-
-    @override
-    async def query(self, query: Query) -> QueryResult:
-        return execute_query(self.context, query)
