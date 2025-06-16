@@ -17,7 +17,6 @@ from ..builtin import (
     Property,
     StructFrozen,
     StructType,
-    bittuple,
     builtin_enum,
     builtin_struct,
     property_,
@@ -44,7 +43,7 @@ class EditType(Enum):
     ERASE = 9
 
 
-CASCADING_EDIT_TYPES: bittuple[EditType] = bittuple(
+CASCADING_EDIT_TYPES: tuple[EditType, ...] = (
     EditType.ARCHIVE,
     EditType.UNARCHIVE,
     EditType.DELETE,

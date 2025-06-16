@@ -2,7 +2,7 @@ import contextvars
 import enum
 import functools
 import typing
-from collections.abc import Collection, Iterable
+from collections.abc import Iterable
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from typing import (
@@ -14,7 +14,6 @@ from typing import (
     cast,
 )
 
-from bitarray import bitarray
 from more_itertools import first
 
 from destack.utils.env import IS_TEST, get_from_env
@@ -177,90 +176,6 @@ def builtin_enum(enum_type: "EnumType"):
         return cls
 
     return register_enum
-
-
-class bittuple(typing.Generic[EnumT], Collection[EnumT]):  # noqa: N801
-    """
-    Tuple with a bitarray for fast membership check.
-    We accept only BuiltinEnum instances because we use its ordinals for a compact bitarray.
-    """
-
-    def __init__(self, *items: EnumT, enum_cls: type[EnumT] | Union[EnumT, Any] | None = None):
-        if len(items) == 1 and isinstance(items[0], Collection):
-            items = items[0] if type(items[0]) is tuple else tuple(items[0])
-        self.tuple = items
-        if enum_cls is None:
-            assert len(items) > 0, "enum_cls or args is required"
-            enum_cls = items[0].__class__
-        assert isinstance(enum_cls, type) and issubclass(enum_cls, Enum), (
-            f"invalid bittuple {enum_cls}: {items}"
-        )
-        self.enum_cls = enum_cls
-        self.bits = bitarray(enum_cls.get_max_ord() + 1)
-        for arg in items:
-            self.bits[arg.ord] = True
-
-    def __bool__(self):
-        return bool(self.tuple)
-
-    def has(self, item: EnumT) -> bool:
-        """Checks whether the item is of the correct type and is in the tuple."""
-        assert isinstance(item, self.enum_cls), f"want {self.enum_cls}, got {item!r} ({type(item)})"
-        return bool(self.bits[item.ord])
-
-    def __contains__(self, item: Any) -> bool:
-        if type(item) is int:
-            item = self.enum_cls(item)
-        assert type(item) is self.enum_cls, f"want {self.enum_cls}, got {item!r} ({type(item)})"
-        return bool(self.bits[item.ord])
-
-    def __and__(self, other: "bittuple[EnumT]") -> "bittuple[EnumT]":
-        assert type(other) is bittuple, f"invalid type: {type(other)}"
-        assert self.enum_cls == other.enum_cls, (
-            f"invalid enum_cls: {self.enum_cls} != {other.enum_cls}"
-        )
-        combined = self.bits & other.bits
-        ordered_members = _get_enum_members_by_ord(self.enum_cls)
-        items = tuple(ordered_members[o] for o in combined.search(True))
-        return bittuple(items, enum_cls=self.enum_cls)  # type: ignore
-
-    def __or__(self, other: "bittuple[EnumT]") -> "bittuple[EnumT]":
-        assert type(other) is bittuple, f"invalid type: {type(other)}"
-        assert self.enum_cls == other.enum_cls, (
-            f"invalid enum_cls: {self.enum_cls} != {other.enum_cls}"
-        )
-        combined = self.bits | other.bits
-        ordered_members = _get_enum_members_by_ord(self.enum_cls)
-        items = tuple(ordered_members[o] for o in combined.search(True))
-        return bittuple(items, enum_cls=self.enum_cls)  # type: ignore
-
-    def __sub__(self, other: "bittuple[EnumT]") -> "bittuple[EnumT]":
-        assert type(other) is bittuple, f"invalid type: {type(other)}"
-        assert self.enum_cls == other.enum_cls, (
-            f"invalid enum_cls: {self.enum_cls} != {other.enum_cls}"
-        )
-        combined = self.bits & ~other.bits
-        ordered_members = _get_enum_members_by_ord(self.enum_cls)
-        items = tuple(ordered_members[o] for o in combined.search(True))
-        return bittuple(items, enum_cls=self.enum_cls)  # type: ignore
-
-    def __iter__(self):
-        return iter(self.tuple)
-
-    def __len__(self):
-        return len(self.tuple)
-
-    def __repr__(self):
-        return f"{self.__class__.__name__}({self.tuple})"
-
-    def __str__(self):
-        return f"{self.__class__.__name__}({self.tuple})"
-
-    @staticmethod
-    def from_ord(enum_cls: type[EnumT], ords: bitarray) -> "bittuple[EnumT]":
-        ordered_members = _get_enum_members_by_ord(enum_cls)
-        items = tuple(ordered_members[o] for o in ords.search(True))
-        return bittuple(items, enum_cls=enum_cls)  # type: ignore
 
 
 #
@@ -1019,6 +934,12 @@ class TraitType(Enum):
     # ...
 
 
+ENUM_TYPES: tuple[EnumType, ...] = tuple(EnumType)
+NODE_TYPES: tuple[NodeType, ...] = tuple(NodeType)
+STRUCT_TYPES: tuple[StructType, ...] = tuple(StructType)
+TRAIT_TYPES: tuple[TraitType, ...] = tuple(TraitType)
+
+
 @builtin_enum(EnumType.STORE_ZONE)
 class StoreZone(Enum):
     GLOBAL = 1
@@ -1116,11 +1037,6 @@ class ToolType(Enum):
     INSPECT = 10
     ANNOTATE = 11
     # ...
-
-
-ENUM_TYPES: bittuple[EnumType] = bittuple(*EnumType)
-NODE_TYPES = bittuple(*NodeType)
-STRUCT_TYPES: bittuple[StructType] = bittuple(*StructType)
 
 
 @builtin_enum(EnumType.CLOUD)

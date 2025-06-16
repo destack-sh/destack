@@ -96,7 +96,7 @@ def _resolve_node_types(class_name: str) -> tuple[NodeType | TraitType, ...] | N
     if node_type := NodeType.__members__.get(class_name.upper()):
         return (node_type,)
     if class_name == "Node":
-        return NODE_TYPES.tuple
+        return NODE_TYPES
     return None
 
 
