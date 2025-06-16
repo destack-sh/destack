@@ -1,7 +1,5 @@
 import linecache
 
-import black
-
 
 def exec_(code: str, globals: dict, locals: dict, filename: str) -> None:
     """
@@ -25,6 +23,8 @@ def format_code(code: str, suppress_error: bool = False, line_length: int = 100)
      (unfortunately ruff doesn't have a nice API for this yet, so we would need to use a subprocess?)
     """
     try:
+        import black
+
         return black.format_str(code, mode=black.FileMode(line_length=line_length))
     except Exception as e:
         if suppress_error:

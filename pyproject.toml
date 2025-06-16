@@ -1,7 +1,7 @@
 
 [project]
 name = "destack"
-version = "2025.06.16.0"
+version = "2025.06.16.1"
 description = "Destack monorepo"
 authors = [{ name = "Symbol Industries", email = "hello@symbol.industries" }]
 
@@ -67,23 +67,13 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["destack", "destack-py", "desys", "derun", "deweb"]
+known-first-party = ["destack-py", "destack", "desys", "derun", "deweb"]
 
 [tool.pyright]
-include = [
-	"destack-py/destack",
-	"destack-py-system/destack_system",
-	"destack-py-runtime/destack_runtime",
-	"destack-py-web/destack_web",
-]
-ignore = ["^destack-py/destack/migrations", "^destack-py/venv*"]
+include = ["destack-py/destack", "destack-py-system/desys"]
+ignore = ["^destack-py/venv*"]
 venv = "destack-py/venv"
-extraPaths = [
-	"destack-py",
-	"destack-py-system",
-	"destack-py-runtime",
-	"destack-py-web",
-]
+extraPaths = ["destack-py", "destack-py-system"]
 strictDictionaryInference = true
 strictListInference = true
 strictTupleInference = true
@@ -113,6 +103,7 @@ ENVIRONMENT = "test"
 asyncio_mode = "auto"
 python_files = "test/**/*.py test/*.py"
 python_classes = "!TestProfile"
+pythonpath = ["destack-py", "destack-py-system"]
 log_cli = true
 addopts = [
 	'-rP',

@@ -26,8 +26,8 @@ from destack.language import (
     View,
     join,
 )
+from destack.test.fixtures import NODES
 from destack.test.strategies import examples, nodes
-from destack.test.unit.conftest import NODES
 from destack.utils.uuid import uuid4
 
 ENTITY_SESSIONS = (lf("memory_session"), lf("postgres_session"))

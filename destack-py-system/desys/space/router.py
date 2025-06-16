@@ -31,11 +31,11 @@ from destack.proto import (
     ServiceKind,
     SpaceBase,
 )
-from destack.sharding import DatabaseProvider, GalaxyProvider
 from destack.utils.env import get_from_env
 from destack.utils.oracle import Oracle
 from destack.utils.telemetry import set_baggage
 from destack.utils.uuid import UUID
+from desys.sharding import DatabaseProvider, GalaxyProvider
 
 from .space import SpaceService
 
