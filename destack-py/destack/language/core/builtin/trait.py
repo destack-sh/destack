@@ -536,7 +536,10 @@ class IsDeletable(Trait):
 class IsCustomNodeDefinition(Trait):
     """A Node that defines a Custom Node type."""
 
-    pass
+    prototype: Optional["IsCustomNode"] = property_(
+        6,
+        description="A custom Node Definition's prototype is the default template new CustomNode instances are based on.",
+    )
 
 
 @builtin_trait(TraitType.CUSTOM_NODE)

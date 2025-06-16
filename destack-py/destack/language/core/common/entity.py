@@ -56,6 +56,10 @@ class CustomEntityDefinition(
 
     # type?
     parent: Optional["Folder"] = property_parent_(node_is_customizable=False)
+    prototype: Optional["CustomEntity"] = property_(
+        6,
+        description="A custom Entity's prototype is the default template new CustomEntity instances are based on.",
+    )
     traits: list[TraitType] = property_(40)
 
 
