@@ -28,6 +28,10 @@ class SplitStore(Store):
         self.store_by_type: dict[StoreType, Store] = {}
         for store in stores:
             for type in store.types:
+                if type in self.store_by_type:
+                    raise ValueError(
+                        f"already have a Store for type {type.name}: {self.store_by_type[type]!r} != {store!r}"
+                    )
                 self.store_by_type[type] = store
 
     def __str__(self):

@@ -153,8 +153,10 @@ class ChangeResult(StructFrozen):
         default_factory=DefaultFactory.NOW,
     )
     status: ChangeStatus = property_(40, is_repr=True)
-    edits: list[Edit] = property_(41)
-    cascaded_edits: list[Edit] = property_(42)
+    edits: list[Edit] = property_(41, description="The applied Edits (may differ).")
+    cascaded_edits: list[Edit] = property_(
+        42, description="The Edits cascaded from the applied Edits."
+    )
 
 
 def edit_node(node: Node, edit: Edit) -> None:

@@ -23,9 +23,7 @@ from destack.utils.string import Casing, to_casing
 from destack.utils.uuid import UUID, uuid4
 
 if TYPE_CHECKING:
-    from destack.language import (
-        Session,
-    )
+    from destack.language import Session
 
 
 class _Unset:
@@ -763,7 +761,7 @@ class NodeType(Enum):
 
     # product [5000-5500]
     # SETTINGS, ...
-    # RECORDING/REPLAY, SURVEY, ...
+    # VISIT, RECORDING/REPLAY, SURVEY, ...
     # ONBOARDING, TOUR, FUNNEL, COHORT, JOURNEY, ..
     # FEATURE, FEATURE_FLAG, FEATURE_GATE, ...
     # SEGMENT, EXPERIMENT, ...
@@ -817,7 +815,8 @@ class NodeType(Enum):
 
     # interaction [9500-10000]
     # COMMAND, MODE, TOOL, SHORTCUT/KEYBINDING, ...
-    # CAMERA, GESTURE, MICROPHONE, ...
+    # GESTURE, ...
+    # CAMERA, SPEAKER, MICROPHONE, ...
 
     # container views [10000-10200]
     CUSTOM_VIEW_DEFINITION = (
@@ -827,11 +826,11 @@ class NodeType(Enum):
         "fas fa-table",
     )
     CUSTOM_VIEW = 10001, "Custom View", "Custom View", "fas fa-table"
-    FRAME_VIEW = 10010, "Frame View", "Fixed Container", "fas fa-frame"
-    LABEL_VIEW = 10020, "Label View", "Label Container", "fas fa-font-case"
-    # FORM_VIEW, MENU_VIEW, ...
-    SPLIT_VIEW = 10030, "Split View", "Split Container", "fas fa-columns"
     # SLOT_DEFINITION_VIEW, SLOT_VIEW, ...
+    FRAME_VIEW = 10020, "Frame View", "Fixed Container", "fas fa-frame"
+    LABEL_VIEW = 10030, "Label View", "Label Container", "fas fa-font-case"
+    # FORM_VIEW, MENU_VIEW, ...
+    SPLIT_VIEW = 10040, "Split View", "Split Container", "fas fa-columns"
     # TAB_VIEW, ...
     # DRAWER_VIEW, SPLIT_DRAWER_VIEW, GRID/GRID_ELEMENT_VIEW, ...
 
@@ -859,7 +858,7 @@ class NodeType(Enum):
     # BITMAP, ...
 
     # animation [11500-12000]
-    # ANIMATION, TRACK, KEYFRAME, FRAME, ...
+    # ANIMATION, TRACK, KEYFRAME, ...
     # SOUND, ...
 
     # style [12000-12500]
@@ -1055,9 +1054,9 @@ class RuntimeType(Enum):
 @builtin_enum(EnumType.PLATFORM_TYPE)
 class PlatformType(Enum):
     SERVER = 1
-    WEB = 2
-    # MOBILE = 3
-    # DESKTOP = 4
+    WEB = 10
+    # MOBILE, DESKTOP, ...
+    # EMAIL?
 
 
 @builtin_enum(EnumType.OPERATING_SYSTEM)

@@ -173,7 +173,7 @@ class HostService(ServiceBase, HostBase):
         changes = [Change.from_proto(change) for change in request.changes]
         approved_changes: list[Change] = []
         for _ in changes:
-            pass  # nocheckin: validate & approve/reject changes
+            pass  # nocheckin: access control (approve/reject changes)
         results = await self.store.commit(approved_changes)
         return CommitResponse(results=[result.to_proto() for result in results])
 

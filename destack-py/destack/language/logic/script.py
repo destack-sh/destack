@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Union
 from destack.language.core import (
     Entity,
     HasName,
-    IsActionable,
     IsDeletable,
     IsExtensible,
     IsOrdered,
@@ -30,7 +29,6 @@ class Script(
     Entity,
     HasName,
     IsOrdered,
-    IsActionable,
     IsDeletable,
     IsRunnable,
     IsExtensible,
