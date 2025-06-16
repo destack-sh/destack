@@ -482,7 +482,7 @@ async def _query_node(
             value, ptr = unpack_node_row(table, row)
             nodes_value.append(value)
             nodes_ptr.append(ptr)
-        logger.debug("postgres.query_node", stmt=stmt, nodes=len(nodes_value), span="current")
+        logger.trace("postgres.query_node", stmt=stmt, nodes=len(nodes_value), span="current")
 
         return nodes_value, nodes_ptr
 
@@ -521,7 +521,7 @@ async def _query_scalar(
         scalar_value = to_value(0 if aggregation.type == AggregationType.COUNT else 0.0)
     else:
         scalar_value = to_value(scalar_row[0])
-    logger.debug(
+    logger.trace(
         "postgres.query_scalar",
         stmt=stmt,
         relation=relation,
@@ -616,7 +616,7 @@ async def _query_grouped_node(
             group_nodes_ptr.append(ptr)
         results.append((group_discriminator, group_nodes_value, group_nodes_ptr))
 
-    logger.debug(
+    logger.trace(
         "postgres.query_grouped_node",
         relation=relation,
         groups=len(results),
@@ -660,7 +660,7 @@ async def _query_grouped_scalar(
 
     # execute
     rows: list[asyncpg.Record] = await conn.fetch(stmt, *arguments)
-    logger.debug("postgres.query_grouped_scalar", stmt=stmt, rows=len(rows), span="current")
+    logger.trace("postgres.query_grouped_scalar", stmt=stmt, rows=len(rows), span="current")
     results: list[tuple[Value, Value]] = []
     for row in rows:
         # first columns are group_by values, last column is aggregation result
@@ -681,7 +681,7 @@ async def _query_grouped_scalar(
             scalar_result = to_value(scalar_value)
         results.append((group_discriminator, scalar_result))
 
-    logger.debug(
+    logger.trace(
         "postgres.query_grouped_scalar",
         relation=relation,
         groups=len(results),
@@ -790,7 +790,7 @@ async def _query_clause(
     else:
         assert_never(query.type)
 
-    logger.debug(
+    logger.trace(
         "postgres.query_clause",
         query=query,
         result=result,
@@ -915,7 +915,7 @@ async def execute_query(
             subresults.append(subresult)
     result.subresults = subresults
 
-    logger.debug(
+    logger.trace(
         "postgres.query",
         query=query,
         result=result,

@@ -55,7 +55,7 @@ def execute_change(
         applied_edits.extend(batch_applied_edits)
         cascaded_edits.extend(batch_cascaded_edits)
 
-    logger.debug("memory.execute_change", change=change, span="current")
+    logger.trace("memory.execute_change", change=change, span="current")
     return applied_edits, cascaded_edits
 
 
@@ -148,7 +148,7 @@ def _execute_data_edit(
                     parent_table = context.get_relation(row.parent_ptr)
                     parent_table.rows_by_parent_id[row.parent_ptr.id].append(row)
 
-        logger.debug(
+        logger.trace(
             f"memory.{edit_type.name.lower()}",
             change=change,
             edits=len(edits),
@@ -173,7 +173,7 @@ def _execute_data_edit(
                 else:
                     raise RuntimeError(f"unsupported operation: {edit!r}")
 
-        logger.debug(
+        logger.trace(
             f"memory.{edit_type.name.lower()}",
             change=change,
             edits=len(edits),
@@ -201,7 +201,7 @@ def _execute_data_edit(
                     parent_table = context.get_relation(row.parent_ptr)
                     parent_table.rows_by_parent_id[row.parent_ptr.id].append(row)
 
-        logger.debug(
+        logger.trace(
             f"memory.{edit_type.name.lower()}",
             change=change,
             edits=len(edits),
@@ -241,7 +241,7 @@ def _execute_data_edit(
                 elif edit_type == EditType.RESTORE:
                     row.value.pop("15", None)
 
-        logger.debug(
+        logger.trace(
             f"memory.{edit_type.name.lower()}",
             change=change,
             edits=len(edits),
@@ -270,7 +270,7 @@ def _execute_data_edit(
                 parent_table = context.get_relation(row.parent_ptr)
                 parent_table.rows_by_parent_id[row.parent_ptr.id].remove(row)
 
-        logger.debug(
+        logger.trace(
             f"memory.{edit_type.name.lower()}",
             change=change,
             edits=len(edits),

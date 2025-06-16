@@ -55,7 +55,7 @@ def async_to_sync(func=None):
 def run_shell_sync(cmd: str, check=True, **kwargs):
     """Executes a shell command in a subprocess."""
     cwd = os.getcwd()
-    logger.trace("shell", cmd=cmd, cwd=cwd, check=check, **kwargs)
+    logger.debug("shell", cmd=cmd, cwd=cwd, check=check, **kwargs)
     subprocess.run(cmd, shell=True, check=check, **kwargs)
 
 

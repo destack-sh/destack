@@ -266,7 +266,7 @@ async def _do_migrate(
                 migration.applied_at = oracle.utc()
             else:
                 migration.applied_at = None
-            logger.trace(
+            logger.debug(
                 "migration.apply", conn=conn, migration=migration, database=database, span="current"
             )
 
@@ -1132,6 +1132,6 @@ WHERE
         )
         tables.append(table)
 
-    logger.trace("postgres.introspect", conn=conn, tables=tables, span="current")
+    logger.debug("postgres.introspect", conn=conn, tables=tables, span="current")
 
     return PostgresSchema(extensions=extensions, tables=tuple(tables))

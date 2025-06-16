@@ -97,7 +97,7 @@ class PostgresStore(Store):
                 try:
                     async with conn.transaction():
                         edits, cascaded_edits = await execute_change(conn, local_context, change)
-                        logger.debug(
+                        logger.trace(
                             "postgres.commit.change",
                             change=change,
                             edits=len(edits),

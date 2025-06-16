@@ -481,7 +481,7 @@ def _query_scalar(
     # execute
     scalar = _evaluate_aggregation(context, aggregation, filtered_rows)
     scalar_value = to_value(scalar)
-    logger.debug(
+    logger.trace(
         "memory.query_scalar",
         relation=relation,
         scalar=scalar_value,
@@ -558,7 +558,7 @@ def _query_grouped_node(
         discriminator = group_key[0] if group_key else None
         results.append((to_value(discriminator), values, ptrs))
 
-    logger.debug(
+    logger.trace(
         "memory.query_grouped_node",
         relation=relation,
         groups=len(results),
@@ -609,7 +609,7 @@ def _query_grouped_scalar(
         discriminator = group_key[0] if group_key else None
         results.append((to_value(discriminator), to_value(agg_result)))
 
-    logger.debug(
+    logger.trace(
         "memory.query_grouped_scalar",
         relation=relation,
         groups=len(results),
@@ -715,7 +715,7 @@ def _query_clause(
     else:
         assert_never(query.type)
 
-    logger.debug(
+    logger.trace(
         "memory.query_clause",
         query=query,
         result=result,
@@ -828,7 +828,7 @@ def execute_query(
             subresults.append(subresult)
     result.subresults = subresults
 
-    logger.debug(
+    logger.trace(
         "memory.query",
         query=query,
         result=result,
