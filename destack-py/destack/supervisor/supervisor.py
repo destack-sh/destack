@@ -165,20 +165,20 @@ class SupervisorService(ServiceBase, SupervisorBase):
 
         # provision Destack
         galaxy = await self.galaxy_provider.acquire(region, space)
-        main_database = await self.database_provider.acquire(region, space)
+        spatial_database = await self.database_provider.acquire(region, space)
         database = Database(
-            type=main_database.type,
-            tenancy=main_database.tenancy,
-            name="Main Database",
+            type=spatial_database.type,
+            tenancy=spatial_database.tenancy,
+            name="Spatial Database",
             region=region,
             galaxy_name=galaxy.name,
-            external_name=main_database.external_name,
-            custom_schema_name=main_database.custom_schema_name,
+            external_name=spatial_database.external_name,
+            custom_schema_name=spatial_database.custom_schema_name,
         )
         space.database = database
         session.store = SplitStore(
             PostgresStore(database=self.global_database, types=(StoreType.GLOBAL_ENTITY,)),
-            PostgresStore(database=main_database, types=(StoreType.SPATIAL_ENTITY,)),
+            PostgresStore(database=spatial_database, types=(StoreType.SPATIAL_ENTITY,)),
         )
         await session.stage()
 

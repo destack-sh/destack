@@ -192,9 +192,12 @@ class Session:
             node._is_new = False
         elif node._dirty is not None:
             # turn dirty properties into Edits (basic SET/CLEAR operations)
+            node_ptr = node.to_ref()
             for prop_name, prop_old_value in node._dirty.items():
                 prop = node.__properties__[prop_name]
+                prop_ptr = prop.to_ref()
 
+                # undo
                 if prop_old_value is None or (
                     prop.cardinality != TypeCardinality.SCALAR and not prop_old_value
                 ):
@@ -204,6 +207,7 @@ class Session:
                     undo_operation = EditOperation.SET
                     old_value = to_value(prop_old_value, prop.type)
 
+                # do
                 prop_new_value = getattr(node, prop_name)
                 if prop_new_value is None or (
                     prop.cardinality != TypeCardinality.SCALAR and not prop_new_value
@@ -214,8 +218,6 @@ class Session:
                     operation = EditOperation.SET
                     new_value = to_value(prop_new_value, prop.type)
 
-                node_ptr = node.to_ref()
-                prop_ptr = prop.to_ref()
                 undo_edit = Edit(
                     type=EditType.UPDATE,
                     node_ptr=node_ptr,
@@ -233,7 +235,7 @@ class Session:
                 )
                 self.edits.append(edit)
 
-    def _flush(self):
+    def flush(self):
         """Turn pending updates into Edits, and Edits into Changes."""
         # flush dirty Nodes
         if self.dirty:
@@ -249,7 +251,7 @@ class Session:
     async def stage(self):
         """Stage pending Edits. Also stages pending Changes in the Store if possible."""
         assert self.store is not None, f"{self!r} has no Store"
-        self._flush()
+        self.flush()
         if isinstance(self.store, OptimisticStore):
             await self.store.stage(self.changes)
 
@@ -258,7 +260,7 @@ class Session:
         Commits all Changes/Edits. Returns applied Changes.
         """
         assert self.store is not None, f"{self!r} has no Store"
-        self._flush()
+        self.flush()
         results = await self.store.commit(self.changes)
         if any(result.status != ChangeStatus.COMPLETED for result in results):
             changes_by_id: dict[UUID, Change] = {change.id: change for change in self.changes}

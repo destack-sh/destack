@@ -568,21 +568,21 @@ class IsOrdered(Trait):
 
 @builtin_trait(TraitType.REACTABLE)
 class IsReactable(Trait):
-    """A Node that can be reacted to."""
+    """A Node that can be reacted to (with Reactions)."""
 
     pass
 
 
 @builtin_trait(TraitType.STARABLE)
 class IsStarable(Trait):
-    """A Node that can be starred."""
+    """A Node that can be starred (with Stars)."""
 
     pass
 
 
 @builtin_trait(TraitType.FOLLOWABLE)
 class IsFollowable(Trait):
-    """A Node that can be followed."""
+    """A Node that can be followed (with Follows)."""
 
     pass
 
@@ -604,7 +604,7 @@ class IsScriptable(Trait):
 
 @builtin_trait(TraitType.RUNNABLE)
 class IsRunnable(Trait):
-    """A Node that can be run (at runtime, in a Run)."""
+    """A Node that can be run (with Runs)."""
 
     pass
 
@@ -753,7 +753,7 @@ class Entity(IsTracked):
         can_write=None,
         node_is_customizable=False,
         node_space_from="self",
-        description="The Snapshot this Entity instance is based on.",
+        description="The Snapshot this Entity's snapshot is based on.",
     )
     instance_root: Optional["Node"] = property_(
         10,

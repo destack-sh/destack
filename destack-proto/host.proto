@@ -61,16 +61,17 @@ message DownloadFilesResponse {
   repeated DownloadHandle handles = 1; // handles for each valid file download
 }
 
-// A Host provides the operating system of a Destack.
+// A Host provides the operating system of a Space.
 service Host {
   option (kind) = PUBLIC; // :ServiceKind
   
-  // Query the Supergraph.
+  // Query the Space.
   rpc Query(QueryRequest) returns (QueryResponse);
-  // Subscribe to updates from the Supergraph.
+  // Subscribe to updates from the Space.
   rpc Subscribe(SubscribeRequest) returns (stream SubscribeResponse);
-  // Commit Changes to the Supergraph.
+  // Commit Changes to the Space.
   rpc Commit(CommitRequest) returns (CommitResponse);
+  // NOTE :Architecture: maybe separate methods for non-Entity commits? (Event/... upserts?)
 
   // 'Upload' some files (get URLs to upload them to).
   rpc UploadFiles(UploadFilesRequest) returns (UploadFilesResponse);

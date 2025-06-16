@@ -141,7 +141,7 @@ class Node[NodeDataT: AnyNodeData](NodeBase[NodeDataT]):
     __hash__ = hash  # type: ignore
 
     def _do_set(self, key: str, value: Any):
-        """Set a property on this Node."""
+        """Set a Property on this Node."""
         prop = self.__tracked_properties__.get(key)
         if prop is not None and not self._is_new:
             old_value = getattr(self, key)

@@ -1,5 +1,5 @@
 import asyncio
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Optional
 
 from destack.utils.uuid import UUID
@@ -104,7 +104,7 @@ class QueryContainer[NodeT: "Trait | Node" = Node]:
         )
         return self.nodes[0]
 
-    def to_list(self) -> list[NodeT]:
+    def to_list(self) -> Sequence[NodeT]:
         """Get the list of main Nodes."""
         assert self.type == QueryType.NODE, f"not a node Query: {self.query!r}"
         assert self.result is not None, f"no result for {self!r}"
@@ -143,11 +143,11 @@ class QueryContainer[NodeT: "Trait | Node" = Node]:
             scalar_by_group[discriminator] = subcontainer.to_scalar()
         return scalar_by_group
 
-    def to_list_by_group(self) -> Mapping[Any, list[Node]]:
+    def to_list_by_group(self) -> Mapping[Any, Sequence[Node]]:
         """Get the list of main Nodes by group."""
         assert self.type == QueryType.GROUPED_NODE, f"not a grouped node Query: {self.query!r}"
         assert isinstance(self.result, QueryResult), f"no group result for {self!r}"
-        list_by_group: dict[Any, list[Node]] = {}
+        list_by_group: dict[Any, Sequence[Node]] = {}
         for subcontainer in self.subcontainers:
             if subcontainer.discriminator is None:
                 continue
