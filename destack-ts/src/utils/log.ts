@@ -2,66 +2,66 @@
  * Simple logging with our log levels (trace, debug, info, warn, error)
  */
 
-import { Severity } from "@/proto/wire";
+import { LogLevel } from "@/proto/wire";
 import { IS_DEV, IS_DEVELOPER_MODE } from "@/utils/globals";
 
-const CONSOLE_METHOD_MAP: Record<Severity, keyof typeof console> = {
-  [Severity.UNSPECIFIED]: "log",
-  [Severity.TRACE]: "debug",
-  [Severity.DEBUG]: "debug",
-  [Severity.INFO]: "info",
-  [Severity.WARNING]: "warn",
-  [Severity.ERROR]: "error",
-  [Severity.PANIC]: "error",
+const CONSOLE_METHOD_MAP: Record<LogLevel, keyof typeof console> = {
+  [LogLevel.UNSPECIFIED]: "log",
+  [LogLevel.TRACE]: "debug",
+  [LogLevel.DEBUG]: "debug",
+  [LogLevel.INFO]: "info",
+  [LogLevel.WARNING]: "warn",
+  [LogLevel.ERROR]: "error",
+  [LogLevel.PANIC]: "error",
 };
 
-const LOG_LEVEL_INDEX: Record<Severity, number> = {
-  [Severity.UNSPECIFIED]: 0,
-  [Severity.TRACE]: 1,
-  [Severity.DEBUG]: 2,
-  [Severity.INFO]: 3,
-  [Severity.WARNING]: 4,
-  [Severity.ERROR]: 5,
-  [Severity.PANIC]: 6,
+const LOG_LEVEL_INDEX: Record<LogLevel, number> = {
+  [LogLevel.UNSPECIFIED]: 0,
+  [LogLevel.TRACE]: 1,
+  [LogLevel.DEBUG]: 2,
+  [LogLevel.INFO]: 3,
+  [LogLevel.WARNING]: 4,
+  [LogLevel.ERROR]: 5,
+  [LogLevel.PANIC]: 6,
 };
 
 export class Logger {
   public static globalInstance: Logger;
 
-  log(level: Severity, ...args: any[]) {
-    const minLevel = IS_DEVELOPER_MODE.value ? Severity.TRACE : Severity.INFO;
+  log(level: LogLevel, ...args: any[]) {
+    const minLevel = IS_DEVELOPER_MODE.value ? LogLevel.TRACE : LogLevel.INFO;
     if (LOG_LEVEL_INDEX[level] < LOG_LEVEL_INDEX[minLevel]) return;
 
     const method = CONSOLE_METHOD_MAP[level];
-    const levelName = Severity[level].toLowerCase();
+    const levelName = LogLevel[level].toLowerCase();
     (console as any)[method](`[${levelName}]`, ...args);
   }
 
   trace(...args: any[]) {
     if (IS_DEV) {
       // trace info is only available in developer builds
-      this.log(Severity.TRACE, ...args);
+      this.log(LogLevel.TRACE, ...args);
     }
   }
 
   debug(...args: any[]) {
-    this.log(Severity.DEBUG, ...args);
+    this.log(LogLevel.DEBUG, ...args);
   }
 
   info(...args: any[]) {
-    this.log(Severity.INFO, ...args);
+    this.log(LogLevel.INFO, ...args);
   }
 
   warn(...args: any[]) {
-    this.log(Severity.WARNING, ...args);
+    this.log(LogLevel.WARNING, ...args);
   }
 
   error(...args: any[]) {
-    this.log(Severity.ERROR, ...args);
+    this.log(LogLevel.ERROR, ...args);
   }
 
   panic(...args: any[]) {
-    this.log(Severity.PANIC, ...args);
+    this.log(LogLevel.PANIC, ...args);
   }
 }
 

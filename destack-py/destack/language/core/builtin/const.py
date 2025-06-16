@@ -351,6 +351,7 @@ class EnumType(Enum):
     INTERRUPTION_TYPE = 4020
     INTERRUPTION_STATUS = 4021
     INTERRUPTION_RESPONSE = 4022
+    LOG_LEVEL = 4100
     # ...
 
     # deployment [4500-5000]
@@ -465,7 +466,7 @@ class EnumType(Enum):
     RELATION_TYPE = 50010
     ATTRIBUTE_TYPE = 50011
     PROPERTY_REFERENCE_TYPE = 50012
-    INSTANCE_MODE = 50013
+    MATERIALIZATION_TYPE = 50013
     STORE_ZONE = 50020
     STORE_TYPE = 50021
     STORE_IMPLEMENTATION = 50022
@@ -1092,8 +1093,8 @@ class NodePermission(Enum):
     REMOVE = 12, "Archive, Delete, Erase"
 
 
-@builtin_enum(EnumType.INSTANCE_MODE)
-class InstanceMode(Enum):
+@builtin_enum(EnumType.MATERIALIZATION_TYPE)
+class MaterializationType(Enum):
     PARTIAL_NODE = 1, "Partial Node"
     PARTIAL_GRAPH = 2, "Full Node, Partial Graph"
     FULL_GRAPH = 3, "Full"

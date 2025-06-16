@@ -108,10 +108,10 @@ class Node[NodeDataT: AnyNodeData](NodeBase[NodeDataT]):
     # Node.metatype: 1
     id: UUID = property_(2, is_managed=True, is_eq=False, can_write=RoleType.SYSTEM)
     parent: Optional["Node"] = property_parent_(node_is_customizable=True)
-    # Node.store_type: 4
+    # Node.store: 4
     # Spatial.space: 5
     # IsCustomNode.definition: 6
-    # Entity.instance_mode: 7
+    # Entity.materialization: 7
     # Entity.snapshot/template: 8-11
     # Entity.set_properties: 12
     # Entity.set_fields: 13

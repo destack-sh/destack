@@ -33,18 +33,6 @@ class QueryResponse(_message.Message):
     result: _language_pb2.QueryResultData
     def __init__(self, result: _Optional[_Union[_language_pb2.QueryResultData, _Mapping]] = ...) -> None: ...
 
-class SubscribeRequest(_message.Message):
-    __slots__ = ("query",)
-    QUERY_FIELD_NUMBER: _ClassVar[int]
-    query: _language_pb2.QueryData
-    def __init__(self, query: _Optional[_Union[_language_pb2.QueryData, _Mapping]] = ...) -> None: ...
-
-class SubscribeResponse(_message.Message):
-    __slots__ = ("update",)
-    UPDATE_FIELD_NUMBER: _ClassVar[int]
-    update: _language_pb2.QueryUpdateData
-    def __init__(self, update: _Optional[_Union[_language_pb2.QueryUpdateData, _Mapping]] = ...) -> None: ...
-
 class CommitRequest(_message.Message):
     __slots__ = ("scope", "changes")
     SCOPE_FIELD_NUMBER: _ClassVar[int]
@@ -60,6 +48,18 @@ class CommitResponse(_message.Message):
     epoch: int
     results: _containers.RepeatedCompositeFieldContainer[_language_pb2.ChangeResultData]
     def __init__(self, epoch: _Optional[int] = ..., results: _Optional[_Iterable[_Union[_language_pb2.ChangeResultData, _Mapping]]] = ...) -> None: ...
+
+class SubscribeRequest(_message.Message):
+    __slots__ = ("query",)
+    QUERY_FIELD_NUMBER: _ClassVar[int]
+    query: _language_pb2.QueryData
+    def __init__(self, query: _Optional[_Union[_language_pb2.QueryData, _Mapping]] = ...) -> None: ...
+
+class SubscribeResponse(_message.Message):
+    __slots__ = ("update",)
+    UPDATE_FIELD_NUMBER: _ClassVar[int]
+    update: _language_pb2.QueryUpdateData
+    def __init__(self, update: _Optional[_Union[_language_pb2.QueryUpdateData, _Mapping]] = ...) -> None: ...
 
 class UploadFilesRequest(_message.Message):
     __slots__ = ("scope", "files")

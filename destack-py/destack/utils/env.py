@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Optional, cast
 
 import cachetools
-import dotenv
 
 
 class Env(StrEnum):
@@ -92,6 +91,12 @@ def setup_env():
     global _setup_env
     if _setup_env:
         return
+
+    try:
+        import dotenv
+    except ImportError:
+        return
+
     _setup_env = True
 
     if ENV == Env.PROD:

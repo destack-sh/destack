@@ -4,7 +4,7 @@ aiodocker==0.22.2
     # via -r destack-py/destack/requirements/system.in
 aiohappyeyeballs==2.6.1
     # via aiohttp
-aiohttp==3.12.11
+aiohttp==3.12.13
     # via
     #   aiodocker
     #   elasticsearch
@@ -25,6 +25,8 @@ attrs==25.3.0
     #   hypothesis
 backoff==2.2.1
     # via posthog
+base58==2.1.1
+    # via -r destack-py/destack/requirements/base.in
 bitarray==2.9.2
     # via -r destack-py/destack/requirements/base.in
 black==24.10.0
@@ -33,7 +35,7 @@ boto3==1.35.58
     # via
     #   -r destack-py/destack/requirements/system.in
     #   mypy-boto3
-boto3-stubs==1.38.32
+boto3-stubs==1.38.36
     # via types-boto3
 botocore==1.35.58
     # via
@@ -50,7 +52,7 @@ cachetools==5.3.3
     #   google-auth
 cassandra-driver==3.29.2
     # via -r destack-py/destack/requirements/system.in
-certifi==2025.4.26
+certifi==2025.6.15
     # via
     #   clickhouse-connect
     #   elastic-transport
@@ -70,7 +72,7 @@ click==8.2.1
     #   uvicorn
 clickhouse-connect==0.8.17
     # via -r destack-py/destack/requirements/system.in
-coverage==7.8.2
+coverage==7.9.1
     # via pytest-cov
 croniter==1.4.1
     # via -r destack-py/destack/requirements/system.in
@@ -93,9 +95,9 @@ execnet==2.1.1
     # via pytest-xdist
 fastuuid==0.12.0
     # via -r destack-py/destack/requirements/system.in
-filelock==3.15.4
+filelock==3.18.0
     # via virtualenv
-frozenlist==1.6.2
+frozenlist==1.7.0
     # via
     #   aiohttp
     #   aiosignal
@@ -213,7 +215,7 @@ pre-commit==3.3.3
     # via -r destack-py/destack/requirements/dev.in
 prompt-toolkit==3.0.51
     # via -r destack-py/destack/requirements/dev.in
-propcache==0.3.1
+propcache==0.3.2
     # via
     #   aiohttp
     #   yarl
@@ -268,7 +270,6 @@ pytest-xdist==3.6.1
     # via -r destack-py/destack/requirements/dev.in
 python-dateutil==2.9.0.post0
     # via
-    #   -r destack-py/destack/requirements/base.in
     #   botocore
     #   croniter
     #   elasticsearch
@@ -276,7 +277,7 @@ python-dateutil==2.9.0.post0
     #   kubernetes-asyncio
     #   posthog
 python-dotenv==1.1.0
-    # via -r destack-py/destack/requirements/base.in
+    # via -r destack-py/destack/requirements/dev.in
 pytz==2024.1
     # via
     #   -r destack-py/destack/requirements/base.in
@@ -290,7 +291,7 @@ redis==4.5.4
     # via -r destack-py/destack/requirements/system.in
 regex==2024.11.6
     # via -r destack-py/destack/requirements/base.in
-requests==2.32.3
+requests==2.32.4
     # via
     #   docker
     #   kubernetes
@@ -372,9 +373,9 @@ wheel==0.45.1
     # via pip-tools
 wrapt==1.17.2
     # via deprecated
-yarl==1.20.0
+yarl==1.20.1
     # via aiohttp
-zipp==3.22.0
+zipp==3.23.0
     # via importlib-metadata
 zstandard==0.23.0
     # via clickhouse-connect

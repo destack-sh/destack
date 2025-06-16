@@ -16,9 +16,9 @@ import { MessageType } from "@protobuf-ts/runtime";
 import { NodeReferenceData } from "./language";
 import { Struct } from "../google/protobuf/struct";
 import { FileData } from "./language";
+import { QueryUpdateData } from "./language";
 import { ChangeResultData } from "./language";
 import { ChangeData } from "./language";
-import { QueryUpdateData } from "./language";
 import { QueryResultData } from "./language";
 import { QueryData } from "./language";
 import { ScopeData } from "./language";
@@ -49,26 +49,6 @@ export interface QueryResponse {
     result?: QueryResultData;
 }
 /**
- * @generated from protobuf message symbol.destack.SubscribeRequest
- */
-export interface SubscribeRequest {
-    /**
-     * @generated from protobuf field: symbol.destack.QueryData query = 1;
-     */
-    query?: QueryData;
-}
-/**
- * @generated from protobuf message symbol.destack.SubscribeResponse
- */
-export interface SubscribeResponse {
-    /**
-     * The result of the Query.
-     *
-     * @generated from protobuf field: symbol.destack.QueryUpdateData update = 1;
-     */
-    update?: QueryUpdateData;
-}
-/**
  * @generated from protobuf message symbol.destack.CommitRequest
  */
 export interface CommitRequest {
@@ -93,6 +73,26 @@ export interface CommitResponse {
      * @generated from protobuf field: repeated symbol.destack.ChangeResultData results = 4;
      */
     results: ChangeResultData[];
+}
+/**
+ * @generated from protobuf message symbol.destack.SubscribeRequest
+ */
+export interface SubscribeRequest {
+    /**
+     * @generated from protobuf field: symbol.destack.QueryData query = 1;
+     */
+    query?: QueryData;
+}
+/**
+ * @generated from protobuf message symbol.destack.SubscribeResponse
+ */
+export interface SubscribeResponse {
+    /**
+     * The result of the Query.
+     *
+     * @generated from protobuf field: symbol.destack.QueryUpdateData update = 1;
+     */
+    update?: QueryUpdateData;
 }
 /**
  * @generated from protobuf message symbol.destack.UploadFilesRequest
@@ -272,98 +272,6 @@ class QueryResponse$Type extends MessageType<QueryResponse> {
  */
 export const QueryResponse = new QueryResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class SubscribeRequest$Type extends MessageType<SubscribeRequest> {
-    constructor() {
-        super("symbol.destack.SubscribeRequest", [
-            { no: 1, name: "query", kind: "message", T: () => QueryData }
-        ]);
-    }
-    create(value?: PartialMessage<SubscribeRequest>): SubscribeRequest {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<SubscribeRequest>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SubscribeRequest): SubscribeRequest {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.destack.QueryData query */ 1:
-                    message.query = QueryData.internalBinaryRead(reader, reader.uint32(), options, message.query);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: SubscribeRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.destack.QueryData query = 1; */
-        if (message.query)
-            QueryData.internalBinaryWrite(message.query, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.destack.SubscribeRequest
- */
-export const SubscribeRequest = new SubscribeRequest$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class SubscribeResponse$Type extends MessageType<SubscribeResponse> {
-    constructor() {
-        super("symbol.destack.SubscribeResponse", [
-            { no: 1, name: "update", kind: "message", T: () => QueryUpdateData }
-        ]);
-    }
-    create(value?: PartialMessage<SubscribeResponse>): SubscribeResponse {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<SubscribeResponse>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SubscribeResponse): SubscribeResponse {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.destack.QueryUpdateData update */ 1:
-                    message.update = QueryUpdateData.internalBinaryRead(reader, reader.uint32(), options, message.update);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: SubscribeResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.destack.QueryUpdateData update = 1; */
-        if (message.update)
-            QueryUpdateData.internalBinaryWrite(message.update, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.destack.SubscribeResponse
- */
-export const SubscribeResponse = new SubscribeResponse$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class CommitRequest$Type extends MessageType<CommitRequest> {
     constructor() {
         super("symbol.destack.CommitRequest", [
@@ -472,6 +380,98 @@ class CommitResponse$Type extends MessageType<CommitResponse> {
  * @generated MessageType for protobuf message symbol.destack.CommitResponse
  */
 export const CommitResponse = new CommitResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class SubscribeRequest$Type extends MessageType<SubscribeRequest> {
+    constructor() {
+        super("symbol.destack.SubscribeRequest", [
+            { no: 1, name: "query", kind: "message", T: () => QueryData }
+        ]);
+    }
+    create(value?: PartialMessage<SubscribeRequest>): SubscribeRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<SubscribeRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SubscribeRequest): SubscribeRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.QueryData query */ 1:
+                    message.query = QueryData.internalBinaryRead(reader, reader.uint32(), options, message.query);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: SubscribeRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.QueryData query = 1; */
+        if (message.query)
+            QueryData.internalBinaryWrite(message.query, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.SubscribeRequest
+ */
+export const SubscribeRequest = new SubscribeRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class SubscribeResponse$Type extends MessageType<SubscribeResponse> {
+    constructor() {
+        super("symbol.destack.SubscribeResponse", [
+            { no: 1, name: "update", kind: "message", T: () => QueryUpdateData }
+        ]);
+    }
+    create(value?: PartialMessage<SubscribeResponse>): SubscribeResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<SubscribeResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SubscribeResponse): SubscribeResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.QueryUpdateData update */ 1:
+                    message.update = QueryUpdateData.internalBinaryRead(reader, reader.uint32(), options, message.update);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: SubscribeResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.QueryUpdateData update = 1; */
+        if (message.update)
+            QueryUpdateData.internalBinaryWrite(message.update, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.SubscribeResponse
+ */
+export const SubscribeResponse = new SubscribeResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class UploadFilesRequest$Type extends MessageType<UploadFilesRequest> {
     constructor() {
@@ -802,8 +802,8 @@ export const DownloadFilesResponse_DownloadHandle = new DownloadFilesResponse_Do
  */
 export const Host = new ServiceType("symbol.destack.Host", [
     { name: "Query", options: {}, I: QueryRequest, O: QueryResponse },
-    { name: "Subscribe", serverStreaming: true, options: {}, I: SubscribeRequest, O: SubscribeResponse },
     { name: "Commit", options: {}, I: CommitRequest, O: CommitResponse },
+    { name: "Subscribe", serverStreaming: true, options: {}, I: SubscribeRequest, O: SubscribeResponse },
     { name: "UploadFiles", options: {}, I: UploadFilesRequest, O: UploadFilesResponse },
     { name: "DownloadFiles", options: {}, I: DownloadFilesRequest, O: DownloadFilesResponse }
 ], { "symbol.destack.kind": "PUBLIC" });
