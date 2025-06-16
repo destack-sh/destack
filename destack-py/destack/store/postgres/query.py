@@ -515,13 +515,20 @@ async def _query_scalar(
 
     # execute
     scalar_row: asyncpg.Record | None = await conn.fetchrow(stmt, *arguments)
-    logger.debug("postgres.query_scalar", stmt=stmt, scalar_row=scalar_row, span="current")
     if aggregation.type == AggregationType.EXISTS:
-        return to_value(scalar_row is not None)
+        scalar_value = to_value(scalar_row is not None)
     elif scalar_row is None:
-        return to_value(0 if aggregation.type == AggregationType.COUNT else 0.0)
+        scalar_value = to_value(0 if aggregation.type == AggregationType.COUNT else 0.0)
     else:
-        return to_value(scalar_row[0])
+        scalar_value = to_value(scalar_row[0])
+    logger.debug(
+        "postgres.query_scalar",
+        stmt=stmt,
+        relation=relation,
+        scalar_value=scalar_value,
+        span="current",
+    )
+    return scalar_value
 
 
 @tracer.start_as_current_span("postgres.query_grouped_node")
@@ -611,6 +618,7 @@ async def _query_grouped_node(
 
     logger.debug(
         "postgres.query_grouped_node",
+        relation=relation,
         groups=len(results),
         total_nodes=len(node_rows),
         span="current",
@@ -672,7 +680,13 @@ async def _query_grouped_scalar(
         else:
             scalar_result = to_value(scalar_value)
         results.append((group_discriminator, scalar_result))
-    logger.debug("postgres.query_grouped_scalar", stmt=stmt, results=len(results), span="current")
+
+    logger.debug(
+        "postgres.query_grouped_scalar",
+        relation=relation,
+        groups=len(results),
+        span="current",
+    )
     return results
 
 

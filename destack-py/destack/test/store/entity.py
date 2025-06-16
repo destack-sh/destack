@@ -1,6 +1,7 @@
 import pytest
 from hypothesis import HealthCheck, given, settings
 from pytest_async_benchmark.plugin import AsyncBenchmarkFixture
+from pytest_lazy_fixtures import lf
 
 from destack.language import (
     Client,
@@ -29,10 +30,10 @@ from destack.test.strategies import examples, nodes
 from destack.test.unit.conftest import NODES
 from destack.utils.uuid import uuid4
 
-ENTITY_SESSIONS = ("memory_session", "postgres_session")
+ENTITY_SESSIONS = (lf("memory_session"), lf("postgres_session"))
 
 
-@pytest.mark.parametrize("session", ENTITY_SESSIONS, indirect=True)
+@pytest.mark.parametrize("session", ENTITY_SESSIONS)
 @given(node=nodes)
 @examples([{"node": node} for node in NODES])
 @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
@@ -48,8 +49,8 @@ async def test_roundtrip_create_node(node: Node, session: Session):
     assert node.equals(node_unpacked)
 
 
-@pytest.mark.parametrize("session", ENTITY_SESSIONS, indirect=True)
-async def test_create_user_with_clients(session: Session):
+@pytest.mark.parametrize("_session", ENTITY_SESSIONS)
+async def test_create_user_with_clients(_session: Session):
     """Create and update a User with Clients, querying along the way."""
     # create user
     user = User(
@@ -58,12 +59,12 @@ async def test_create_user_with_clients(session: Session):
         slug="floof",
         space_ptr=NodeReference(node_type=NodeType.SPACE, id=uuid4()),
     )
-    session.create(user)
-    await session.commit()
+    _session.create(user)
+    await _session.commit()
     # update user
     user.name = "Fluff"
     user.slug = "flotothemoon"
-    await session.commit()
+    await _session.commit()
     # query user by id
     user_unpacked = await User.get(where=User.property("id").eq(user.id)).execute_one()
     assert user.equals(user_unpacked)
@@ -77,7 +78,7 @@ async def test_create_user_with_clients(session: Session):
     client_a = Client(type=ClientType.WEB, name="Client A")
     client_b = Client(type=ClientType.WEB, name="Client B")
     user.add_children(client_a, client_b)
-    await session.commit()
+    await _session.commit()
     # query clients
     clients = await Client.search(sort=[Client.property("name").descending()]).execute_list()
     assert clients == [client_b, client_a]
@@ -101,7 +102,7 @@ async def test_create_user_with_clients(session: Session):
     assert clients_unpacked == [client_a, client_b]
 
 
-@pytest.mark.parametrize("session", ENTITY_SESSIONS, indirect=True)
+@pytest.mark.parametrize("session", ENTITY_SESSIONS)
 async def test_create_folders_recursive(session: Session):
     """Create a Folder with recursive sub-Folders, mutate it, querying along the way."""
     # create
@@ -155,7 +156,7 @@ async def test_create_folders_recursive(session: Session):
         assert folders_unpacked[0].equals(root_folder)
 
 
-@pytest.mark.parametrize("session", ENTITY_SESSIONS, indirect=True)
+@pytest.mark.parametrize("session", ENTITY_SESSIONS)
 async def test_create_scene_with_heterogeneous_views(session: Session):
     """Create a Scene with heterogeneous Views, mutate it, querying along the way."""
     # create
@@ -211,7 +212,7 @@ async def test_create_scene_with_heterogeneous_views(session: Session):
     assert scene_unpacked[0].equals(scene)
 
 
-@pytest.mark.parametrize("session", ENTITY_SESSIONS, indirect=True)
+@pytest.mark.parametrize("session", ENTITY_SESSIONS)
 async def test_create_star(session: Session):
     """Create Stars and query them."""
 
@@ -297,7 +298,7 @@ async def test_create_reaction_groups(session: Session):
         assert {str(r.id) for r in reactions} == {str(r.id) for r in reactions_unpacked}
 
 
-@pytest.mark.parametrize("session", ENTITY_SESSIONS, indirect=True)
+@pytest.mark.parametrize("session", ENTITY_SESSIONS)
 @pytest.mark.benchmark
 async def test_benchmark_create_reactions(session: Session, async_benchmark: AsyncBenchmarkFixture):
     """Benchmark creating reactions without parent."""
