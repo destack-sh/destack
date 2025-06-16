@@ -187,7 +187,7 @@ enum CursorStatus {
   CURSOR_STATUS_THINKING = 13;
   CURSOR_STATUS_WAITING = 15;
   CURSOR_STATUS_IDLE = 30;
-  CURSOR_STATUS_CANCELLED = 50;
+  CURSOR_STATUS_CANGALAXYED = 50;
   CURSOR_STATUS_COMPLETED = 53;
 }
 
@@ -727,7 +727,7 @@ enum InterruptionResponse {
 enum InterruptionStatus {
   INTERRUPTION_STATUS_UNSPECIFIED = 0;
   INTERRUPTION_STATUS_OPEN = 10;
-  INTERRUPTION_STATUS_CANCELLED = 30;
+  INTERRUPTION_STATUS_CANGALAXYED = 30;
   INTERRUPTION_STATUS_COMPLETED = 33;
 }
 
@@ -826,9 +826,10 @@ enum MembershipPermission {
 enum ModeType {
   MODE_TYPE_UNSPECIFIED = 0;
   MODE_TYPE_EDIT = 1;
-  MODE_TYPE_INSPECT = 2;
-  MODE_TYPE_PREVIEW = 3;
-  MODE_TYPE_USE = 4;
+  MODE_TYPE_DEBUG = 2;
+  MODE_TYPE_INSPECT = 3;
+  MODE_TYPE_PREVIEW = 4;
+  MODE_TYPE_USE = 5;
 }
 
 enum ModelDeveloper {
@@ -1205,7 +1206,7 @@ enum RunEventType {
   RUN_EVENT_TYPE_REQUESTED_RESUME = 22;
   RUN_EVENT_TYPE_RESUMED = 23;
   RUN_EVENT_TYPE_REQUESTED_CANCEL = 50;
-  RUN_EVENT_TYPE_CANCELLED = 51;
+  RUN_EVENT_TYPE_CANGALAXYED = 51;
   RUN_EVENT_TYPE_ABORTED = 52;
   RUN_EVENT_TYPE_FAILED = 53;
   RUN_EVENT_TYPE_COMPLETED = 54;
@@ -1217,7 +1218,7 @@ enum RunStatus {
   RUN_STATUS_RUNNING = 10;
   RUN_STATUS_PAUSED = 21;
   RUN_STATUS_YIELDED = 23;
-  RUN_STATUS_CANCELLED = 51;
+  RUN_STATUS_CANGALAXYED = 51;
   RUN_STATUS_ABORTED = 52;
   RUN_STATUS_FAILED = 53;
   RUN_STATUS_COMPLETED = 54;
@@ -1367,7 +1368,7 @@ enum StructType {
   STRUCT_TYPE_SCHEDULE = 3001;
   STRUCT_TYPE_ERROR = 4001;
   STRUCT_TYPE_DATABASE_INFO = 7501;
-  STRUCT_TYPE_CELL_INFO = 7601;
+  STRUCT_TYPE_GALAXY_INFO = 7601;
   STRUCT_TYPE_COLOR = 12011;
   STRUCT_TYPE_SHADOW = 12012;
   STRUCT_TYPE_BORDER = 12013;
@@ -1507,7 +1508,9 @@ enum TimerType {
 enum ToolType {
   TOOL_TYPE_UNSPECIFIED = 0;
   TOOL_TYPE_SELECT = 1;
-  TOOL_TYPE_INSPECT = 2;
+  TOOL_TYPE_DRAG = 2;
+  TOOL_TYPE_INSPECT = 10;
+  TOOL_TYPE_ANNOTATE = 11;
 }
 
 enum TraitType {
@@ -1879,13 +1882,6 @@ message CanvasData {
   optional NodeReferenceData script_ptr = 200;
 }
 
-message CellInfoData {
-  StructType metatype = 1;
-  Region region = 50;
-  string name = 51;
-  string host = 52;
-}
-
 message ChangeData {
   StructType metatype = 1;
   string id = 2;
@@ -2018,6 +2014,7 @@ message CounterMetricData {
   string id = 2;
   optional NodeReferenceData parent_ptr = 3;
   optional NodeReferenceData space_ptr = 5;
+  optional NodeReferenceData prototype_ptr = 6;
   InstanceMode instance_mode = 7;
   optional NodeReferenceData snapshot_ptr = 8;
   optional NodeReferenceData snapshot_base_ptr = 9;
@@ -2059,6 +2056,7 @@ message CustomEntityDefinitionData {
   string id = 2;
   optional NodeReferenceData parent_ptr = 3;
   optional NodeReferenceData space_ptr = 5;
+  optional NodeReferenceData prototype_ptr = 6;
   InstanceMode instance_mode = 7;
   optional NodeReferenceData snapshot_ptr = 8;
   optional NodeReferenceData snapshot_base_ptr = 9;
@@ -2211,6 +2209,7 @@ message CustomViewDefinitionData {
   string id = 2;
   optional NodeReferenceData parent_ptr = 3;
   optional NodeReferenceData space_ptr = 5;
+  optional NodeReferenceData prototype_ptr = 6;
   InstanceMode instance_mode = 7;
   optional NodeReferenceData snapshot_ptr = 8;
   optional NodeReferenceData snapshot_base_ptr = 9;
@@ -2273,7 +2272,7 @@ message DatabaseData {
   ResourceStatus status = 40;
   optional google.protobuf.Timestamp target_status = 41;
   Region region = 50;
-  optional string cell_name = 51;
+  optional string galaxy_name = 51;
   string external_name = 52;
   optional string custom_schema_name = 53;
   Tenancy tenancy = 55;
@@ -2284,7 +2283,7 @@ message DatabaseInfoData {
   StructType metatype = 1;
   DatabaseType type = 30;
   Region region = 50;
-  optional string cell_name = 51;
+  optional string galaxy_name = 51;
   string external_name = 52;
   optional string custom_schema_name = 53;
   Tenancy tenancy = 55;
@@ -2803,6 +2802,13 @@ message FunctionData {
   optional ExpressionData right = 32;
 }
 
+message GalaxyInfoData {
+  StructType metatype = 1;
+  Region region = 50;
+  string name = 51;
+  string host = 52;
+}
+
 // A Gauge Measurement.
 message GaugeMeasurementData {
   NodeType metatype = 1;
@@ -2822,6 +2828,7 @@ message GaugeMetricData {
   string id = 2;
   optional NodeReferenceData parent_ptr = 3;
   optional NodeReferenceData space_ptr = 5;
+  optional NodeReferenceData prototype_ptr = 6;
   InstanceMode instance_mode = 7;
   optional NodeReferenceData snapshot_ptr = 8;
   optional NodeReferenceData snapshot_base_ptr = 9;
@@ -2933,6 +2940,7 @@ message HistogramMetricData {
   string id = 2;
   optional NodeReferenceData parent_ptr = 3;
   optional NodeReferenceData space_ptr = 5;
+  optional NodeReferenceData prototype_ptr = 6;
   InstanceMode instance_mode = 7;
   optional NodeReferenceData snapshot_ptr = 8;
   optional NodeReferenceData snapshot_base_ptr = 9;
@@ -4121,7 +4129,7 @@ message SpaceData {
   optional NodeReferenceData system_folder_ptr = 42;
   optional NodeReferenceData home_folder_ptr = 43;
   Region region = 50;
-  optional string cell_name = 51;
+  optional string galaxy_name = 51;
   optional NodeReferenceData database_ptr = 55;
 }
 

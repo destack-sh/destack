@@ -969,27 +969,6 @@ export interface CanvasData {
     scriptPtr?: NodeReferenceData;
 }
 /**
- * @generated from protobuf message symbol.destack.CellInfoData
- */
-export interface CellInfoData {
-    /**
-     * @generated from protobuf field: symbol.destack.StructType metatype = 1;
-     */
-    metatype: StructType;
-    /**
-     * @generated from protobuf field: symbol.destack.Region region = 50;
-     */
-    region: Region;
-    /**
-     * @generated from protobuf field: string name = 51;
-     */
-    name: string;
-    /**
-     * @generated from protobuf field: string host = 52;
-     */
-    host: string;
-}
-/**
  * @generated from protobuf message symbol.destack.ChangeData
  */
 export interface ChangeData {
@@ -1447,6 +1426,10 @@ export interface CounterMetricData {
      */
     spacePtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceData prototype_ptr = 6;
+     */
+    prototypePtr?: NodeReferenceData;
+    /**
      * @generated from protobuf field: symbol.destack.InstanceMode instance_mode = 7;
      */
     instanceMode: InstanceMode;
@@ -1591,6 +1574,10 @@ export interface CustomEntityDefinitionData {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceData space_ptr = 5;
      */
     spacePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceData prototype_ptr = 6;
+     */
+    prototypePtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: symbol.destack.InstanceMode instance_mode = 7;
      */
@@ -2154,6 +2141,10 @@ export interface CustomViewDefinitionData {
      */
     spacePtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceData prototype_ptr = 6;
+     */
+    prototypePtr?: NodeReferenceData;
+    /**
      * @generated from protobuf field: symbol.destack.InstanceMode instance_mode = 7;
      */
     instanceMode: InstanceMode;
@@ -2395,9 +2386,9 @@ export interface DatabaseData {
      */
     region: Region;
     /**
-     * @generated from protobuf field: optional string cell_name = 51;
+     * @generated from protobuf field: optional string galaxy_name = 51;
      */
-    cellName?: string;
+    galaxyName?: string;
     /**
      * @generated from protobuf field: string external_name = 52;
      */
@@ -2432,9 +2423,9 @@ export interface DatabaseInfoData {
      */
     region: Region;
     /**
-     * @generated from protobuf field: optional string cell_name = 51;
+     * @generated from protobuf field: optional string galaxy_name = 51;
      */
-    cellName?: string;
+    galaxyName?: string;
     /**
      * @generated from protobuf field: string external_name = 52;
      */
@@ -4291,6 +4282,27 @@ export interface FunctionData {
     right?: ExpressionData;
 }
 /**
+ * @generated from protobuf message symbol.destack.GalaxyInfoData
+ */
+export interface GalaxyInfoData {
+    /**
+     * @generated from protobuf field: symbol.destack.StructType metatype = 1;
+     */
+    metatype: StructType;
+    /**
+     * @generated from protobuf field: symbol.destack.Region region = 50;
+     */
+    region: Region;
+    /**
+     * @generated from protobuf field: string name = 51;
+     */
+    name: string;
+    /**
+     * @generated from protobuf field: string host = 52;
+     */
+    host: string;
+}
+/**
  * A Gauge Measurement.
  *
  * @generated from protobuf message symbol.destack.GaugeMeasurementData
@@ -4355,6 +4367,10 @@ export interface GaugeMetricData {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceData space_ptr = 5;
      */
     spacePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceData prototype_ptr = 6;
+     */
+    prototypePtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: symbol.destack.InstanceMode instance_mode = 7;
      */
@@ -4728,6 +4744,10 @@ export interface HistogramMetricData {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceData space_ptr = 5;
      */
     spacePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceData prototype_ptr = 6;
+     */
+    prototypePtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: symbol.destack.InstanceMode instance_mode = 7;
      */
@@ -9001,9 +9021,9 @@ export interface SpaceData {
      */
     region: Region;
     /**
-     * @generated from protobuf field: optional string cell_name = 51;
+     * @generated from protobuf field: optional string galaxy_name = 51;
      */
-    cellName?: string;
+    galaxyName?: string;
     /**
      * @generated from protobuf field: optional symbol.destack.NodeReferenceData database_ptr = 55;
      */
@@ -12394,9 +12414,9 @@ export enum CursorStatus {
      */
     IDLE = 30,
     /**
-     * @generated from protobuf enum value: CURSOR_STATUS_CANCELLED = 50;
+     * @generated from protobuf enum value: CURSOR_STATUS_CANGALAXYED = 50;
      */
-    CANCELLED = 50,
+    CANGALAXYED = 50,
     /**
      * @generated from protobuf enum value: CURSOR_STATUS_COMPLETED = 53;
      */
@@ -14284,9 +14304,9 @@ export enum InterruptionStatus {
      */
     OPEN = 10,
     /**
-     * @generated from protobuf enum value: INTERRUPTION_STATUS_CANCELLED = 30;
+     * @generated from protobuf enum value: INTERRUPTION_STATUS_CANGALAXYED = 30;
      */
-    CANCELLED = 30,
+    CANGALAXYED = 30,
     /**
      * @generated from protobuf enum value: INTERRUPTION_STATUS_COMPLETED = 33;
      */
@@ -14575,17 +14595,21 @@ export enum ModeType {
      */
     EDIT = 1,
     /**
-     * @generated from protobuf enum value: MODE_TYPE_INSPECT = 2;
+     * @generated from protobuf enum value: MODE_TYPE_DEBUG = 2;
      */
-    INSPECT = 2,
+    DEBUG = 2,
     /**
-     * @generated from protobuf enum value: MODE_TYPE_PREVIEW = 3;
+     * @generated from protobuf enum value: MODE_TYPE_INSPECT = 3;
      */
-    PREVIEW = 3,
+    INSPECT = 3,
     /**
-     * @generated from protobuf enum value: MODE_TYPE_USE = 4;
+     * @generated from protobuf enum value: MODE_TYPE_PREVIEW = 4;
      */
-    USE = 4
+    PREVIEW = 4,
+    /**
+     * @generated from protobuf enum value: MODE_TYPE_USE = 5;
+     */
+    USE = 5
 }
 /**
  * @generated from protobuf enum symbol.destack.ModelDeveloper
@@ -15858,9 +15882,9 @@ export enum RunEventType {
      */
     REQUESTED_CANCEL = 50,
     /**
-     * @generated from protobuf enum value: RUN_EVENT_TYPE_CANCELLED = 51;
+     * @generated from protobuf enum value: RUN_EVENT_TYPE_CANGALAXYED = 51;
      */
-    CANCELLED = 51,
+    CANGALAXYED = 51,
     /**
      * @generated from protobuf enum value: RUN_EVENT_TYPE_ABORTED = 52;
      */
@@ -15899,9 +15923,9 @@ export enum RunStatus {
      */
     YIELDED = 23,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_CANCELLED = 51;
+     * @generated from protobuf enum value: RUN_STATUS_CANGALAXYED = 51;
      */
-    CANCELLED = 51,
+    CANGALAXYED = 51,
     /**
      * @generated from protobuf enum value: RUN_STATUS_ABORTED = 52;
      */
@@ -16362,9 +16386,9 @@ export enum StructType {
      */
     DATABASE_INFO = 7501,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CELL_INFO = 7601;
+     * @generated from protobuf enum value: STRUCT_TYPE_GALAXY_INFO = 7601;
      */
-    CELL_INFO = 7601,
+    GALAXY_INFO = 7601,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_COLOR = 12011;
      */
@@ -16843,9 +16867,17 @@ export enum ToolType {
      */
     SELECT = 1,
     /**
-     * @generated from protobuf enum value: TOOL_TYPE_INSPECT = 2;
+     * @generated from protobuf enum value: TOOL_TYPE_DRAG = 2;
      */
-    INSPECT = 2
+    DRAG = 2,
+    /**
+     * @generated from protobuf enum value: TOOL_TYPE_INSPECT = 10;
+     */
+    INSPECT = 10,
+    /**
+     * @generated from protobuf enum value: TOOL_TYPE_ANNOTATE = 11;
+     */
+    ANNOTATE = 11
 }
 /**
  * @generated from protobuf enum symbol.destack.TraitType
@@ -19311,77 +19343,6 @@ class CanvasData$Type extends MessageType<CanvasData> {
  */
 export const CanvasData = new CanvasData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class CellInfoData$Type extends MessageType<CellInfoData> {
-    constructor() {
-        super("symbol.destack.CellInfoData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructType", StructType, "STRUCT_TYPE_"] },
-            { no: 50, name: "region", kind: "enum", T: () => ["symbol.destack.Region", Region, "REGION_"] },
-            { no: 51, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 52, name: "host", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
-        ]);
-    }
-    create(value?: PartialMessage<CellInfoData>): CellInfoData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.region = 0;
-        message.name = "";
-        message.host = "";
-        if (value !== undefined)
-            reflectionMergePartial<CellInfoData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CellInfoData): CellInfoData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.destack.StructType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* symbol.destack.Region region */ 50:
-                    message.region = reader.int32();
-                    break;
-                case /* string name */ 51:
-                    message.name = reader.string();
-                    break;
-                case /* string host */ 52:
-                    message.host = reader.string();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: CellInfoData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.destack.StructType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbol.destack.Region region = 50; */
-        if (message.region !== 0)
-            writer.tag(50, WireType.Varint).int32(message.region);
-        /* string name = 51; */
-        if (message.name !== "")
-            writer.tag(51, WireType.LengthDelimited).string(message.name);
-        /* string host = 52; */
-        if (message.host !== "")
-            writer.tag(52, WireType.LengthDelimited).string(message.host);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.destack.CellInfoData
- */
-export const CellInfoData = new CellInfoData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class ChangeData$Type extends MessageType<ChangeData> {
     constructor() {
         super("symbol.destack.ChangeData", [
@@ -20439,6 +20400,7 @@ class CounterMetricData$Type extends MessageType<CounterMetricData> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 6, name: "prototype_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 7, name: "instance_mode", kind: "enum", T: () => ["symbol.destack.InstanceMode", InstanceMode, "INSTANCE_MODE_"] },
             { no: 8, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 9, name: "snapshot_base_ptr", kind: "message", T: () => NodeReferenceData },
@@ -20480,6 +20442,9 @@ class CounterMetricData$Type extends MessageType<CounterMetricData> {
                     break;
                 case /* optional symbol.destack.NodeReferenceData space_ptr */ 5:
                     message.spacePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceData prototype_ptr */ 6:
+                    message.prototypePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.prototypePtr);
                     break;
                 case /* symbol.destack.InstanceMode instance_mode */ 7:
                     message.instanceMode = reader.int32();
@@ -20541,6 +20506,9 @@ class CounterMetricData$Type extends MessageType<CounterMetricData> {
         /* optional symbol.destack.NodeReferenceData space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceData.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceData prototype_ptr = 6; */
+        if (message.prototypePtr)
+            NodeReferenceData.internalBinaryWrite(message.prototypePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.InstanceMode instance_mode = 7; */
         if (message.instanceMode !== 0)
             writer.tag(7, WireType.Varint).int32(message.instanceMode);
@@ -20770,6 +20738,7 @@ class CustomEntityDefinitionData$Type extends MessageType<CustomEntityDefinition
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 6, name: "prototype_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 7, name: "instance_mode", kind: "enum", T: () => ["symbol.destack.InstanceMode", InstanceMode, "INSTANCE_MODE_"] },
             { no: 8, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 9, name: "snapshot_base_ptr", kind: "message", T: () => NodeReferenceData },
@@ -20816,6 +20785,9 @@ class CustomEntityDefinitionData$Type extends MessageType<CustomEntityDefinition
                     break;
                 case /* optional symbol.destack.NodeReferenceData space_ptr */ 5:
                     message.spacePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceData prototype_ptr */ 6:
+                    message.prototypePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.prototypePtr);
                     break;
                 case /* symbol.destack.InstanceMode instance_mode */ 7:
                     message.instanceMode = reader.int32();
@@ -20893,6 +20865,9 @@ class CustomEntityDefinitionData$Type extends MessageType<CustomEntityDefinition
         /* optional symbol.destack.NodeReferenceData space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceData.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceData prototype_ptr = 6; */
+        if (message.prototypePtr)
+            NodeReferenceData.internalBinaryWrite(message.prototypePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.InstanceMode instance_mode = 7; */
         if (message.instanceMode !== 0)
             writer.tag(7, WireType.Varint).int32(message.instanceMode);
@@ -22006,6 +21981,7 @@ class CustomViewDefinitionData$Type extends MessageType<CustomViewDefinitionData
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 6, name: "prototype_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 7, name: "instance_mode", kind: "enum", T: () => ["symbol.destack.InstanceMode", InstanceMode, "INSTANCE_MODE_"] },
             { no: 8, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 9, name: "snapshot_base_ptr", kind: "message", T: () => NodeReferenceData },
@@ -22076,6 +22052,9 @@ class CustomViewDefinitionData$Type extends MessageType<CustomViewDefinitionData
                     break;
                 case /* optional symbol.destack.NodeReferenceData space_ptr */ 5:
                     message.spacePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceData prototype_ptr */ 6:
+                    message.prototypePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.prototypePtr);
                     break;
                 case /* symbol.destack.InstanceMode instance_mode */ 7:
                     message.instanceMode = reader.int32();
@@ -22237,6 +22216,9 @@ class CustomViewDefinitionData$Type extends MessageType<CustomViewDefinitionData
         /* optional symbol.destack.NodeReferenceData space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceData.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceData prototype_ptr = 6; */
+        if (message.prototypePtr)
+            NodeReferenceData.internalBinaryWrite(message.prototypePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.InstanceMode instance_mode = 7; */
         if (message.instanceMode !== 0)
             writer.tag(7, WireType.Varint).int32(message.instanceMode);
@@ -22393,7 +22375,7 @@ class DatabaseData$Type extends MessageType<DatabaseData> {
             { no: 40, name: "status", kind: "enum", T: () => ["symbol.destack.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
             { no: 41, name: "target_status", kind: "message", T: () => Timestamp },
             { no: 50, name: "region", kind: "enum", T: () => ["symbol.destack.Region", Region, "REGION_"] },
-            { no: 51, name: "cell_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 51, name: "galaxy_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 52, name: "external_name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 53, name: "custom_schema_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 55, name: "tenancy", kind: "enum", T: () => ["symbol.destack.Tenancy", Tenancy, "TENANCY_"] },
@@ -22474,8 +22456,8 @@ class DatabaseData$Type extends MessageType<DatabaseData> {
                 case /* symbol.destack.Region region */ 50:
                     message.region = reader.int32();
                     break;
-                case /* optional string cell_name */ 51:
-                    message.cellName = reader.string();
+                case /* optional string galaxy_name */ 51:
+                    message.galaxyName = reader.string();
                     break;
                 case /* string external_name */ 52:
                     message.externalName = reader.string();
@@ -22555,9 +22537,9 @@ class DatabaseData$Type extends MessageType<DatabaseData> {
         /* symbol.destack.Region region = 50; */
         if (message.region !== 0)
             writer.tag(50, WireType.Varint).int32(message.region);
-        /* optional string cell_name = 51; */
-        if (message.cellName !== undefined)
-            writer.tag(51, WireType.LengthDelimited).string(message.cellName);
+        /* optional string galaxy_name = 51; */
+        if (message.galaxyName !== undefined)
+            writer.tag(51, WireType.LengthDelimited).string(message.galaxyName);
         /* string external_name = 52; */
         if (message.externalName !== "")
             writer.tag(52, WireType.LengthDelimited).string(message.externalName);
@@ -22587,7 +22569,7 @@ class DatabaseInfoData$Type extends MessageType<DatabaseInfoData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructType", StructType, "STRUCT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.destack.DatabaseType", DatabaseType, "DATABASE_TYPE_"] },
             { no: 50, name: "region", kind: "enum", T: () => ["symbol.destack.Region", Region, "REGION_"] },
-            { no: 51, name: "cell_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 51, name: "galaxy_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 52, name: "external_name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 53, name: "custom_schema_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 55, name: "tenancy", kind: "enum", T: () => ["symbol.destack.Tenancy", Tenancy, "TENANCY_"] },
@@ -22619,8 +22601,8 @@ class DatabaseInfoData$Type extends MessageType<DatabaseInfoData> {
                 case /* symbol.destack.Region region */ 50:
                     message.region = reader.int32();
                     break;
-                case /* optional string cell_name */ 51:
-                    message.cellName = reader.string();
+                case /* optional string galaxy_name */ 51:
+                    message.galaxyName = reader.string();
                     break;
                 case /* string external_name */ 52:
                     message.externalName = reader.string();
@@ -22655,9 +22637,9 @@ class DatabaseInfoData$Type extends MessageType<DatabaseInfoData> {
         /* symbol.destack.Region region = 50; */
         if (message.region !== 0)
             writer.tag(50, WireType.Varint).int32(message.region);
-        /* optional string cell_name = 51; */
-        if (message.cellName !== undefined)
-            writer.tag(51, WireType.LengthDelimited).string(message.cellName);
+        /* optional string galaxy_name = 51; */
+        if (message.galaxyName !== undefined)
+            writer.tag(51, WireType.LengthDelimited).string(message.galaxyName);
         /* string external_name = 52; */
         if (message.externalName !== "")
             writer.tag(52, WireType.LengthDelimited).string(message.externalName);
@@ -26751,6 +26733,77 @@ class FunctionData$Type extends MessageType<FunctionData> {
  */
 export const FunctionData = new FunctionData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class GalaxyInfoData$Type extends MessageType<GalaxyInfoData> {
+    constructor() {
+        super("symbol.destack.GalaxyInfoData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructType", StructType, "STRUCT_TYPE_"] },
+            { no: 50, name: "region", kind: "enum", T: () => ["symbol.destack.Region", Region, "REGION_"] },
+            { no: 51, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 52, name: "host", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<GalaxyInfoData>): GalaxyInfoData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.region = 0;
+        message.name = "";
+        message.host = "";
+        if (value !== undefined)
+            reflectionMergePartial<GalaxyInfoData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GalaxyInfoData): GalaxyInfoData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.StructType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* symbol.destack.Region region */ 50:
+                    message.region = reader.int32();
+                    break;
+                case /* string name */ 51:
+                    message.name = reader.string();
+                    break;
+                case /* string host */ 52:
+                    message.host = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: GalaxyInfoData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.StructType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* symbol.destack.Region region = 50; */
+        if (message.region !== 0)
+            writer.tag(50, WireType.Varint).int32(message.region);
+        /* string name = 51; */
+        if (message.name !== "")
+            writer.tag(51, WireType.LengthDelimited).string(message.name);
+        /* string host = 52; */
+        if (message.host !== "")
+            writer.tag(52, WireType.LengthDelimited).string(message.host);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.GalaxyInfoData
+ */
+export const GalaxyInfoData = new GalaxyInfoData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class GaugeMeasurementData$Type extends MessageType<GaugeMeasurementData> {
     constructor() {
         super("symbol.destack.GaugeMeasurementData", [
@@ -26862,6 +26915,7 @@ class GaugeMetricData$Type extends MessageType<GaugeMetricData> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 6, name: "prototype_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 7, name: "instance_mode", kind: "enum", T: () => ["symbol.destack.InstanceMode", InstanceMode, "INSTANCE_MODE_"] },
             { no: 8, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 9, name: "snapshot_base_ptr", kind: "message", T: () => NodeReferenceData },
@@ -26903,6 +26957,9 @@ class GaugeMetricData$Type extends MessageType<GaugeMetricData> {
                     break;
                 case /* optional symbol.destack.NodeReferenceData space_ptr */ 5:
                     message.spacePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceData prototype_ptr */ 6:
+                    message.prototypePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.prototypePtr);
                     break;
                 case /* symbol.destack.InstanceMode instance_mode */ 7:
                     message.instanceMode = reader.int32();
@@ -26964,6 +27021,9 @@ class GaugeMetricData$Type extends MessageType<GaugeMetricData> {
         /* optional symbol.destack.NodeReferenceData space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceData.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceData prototype_ptr = 6; */
+        if (message.prototypePtr)
+            NodeReferenceData.internalBinaryWrite(message.prototypePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.InstanceMode instance_mode = 7; */
         if (message.instanceMode !== 0)
             writer.tag(7, WireType.Varint).int32(message.instanceMode);
@@ -27813,6 +27873,7 @@ class HistogramMetricData$Type extends MessageType<HistogramMetricData> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 6, name: "prototype_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 7, name: "instance_mode", kind: "enum", T: () => ["symbol.destack.InstanceMode", InstanceMode, "INSTANCE_MODE_"] },
             { no: 8, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 9, name: "snapshot_base_ptr", kind: "message", T: () => NodeReferenceData },
@@ -27854,6 +27915,9 @@ class HistogramMetricData$Type extends MessageType<HistogramMetricData> {
                     break;
                 case /* optional symbol.destack.NodeReferenceData space_ptr */ 5:
                     message.spacePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceData prototype_ptr */ 6:
+                    message.prototypePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.prototypePtr);
                     break;
                 case /* symbol.destack.InstanceMode instance_mode */ 7:
                     message.instanceMode = reader.int32();
@@ -27915,6 +27979,9 @@ class HistogramMetricData$Type extends MessageType<HistogramMetricData> {
         /* optional symbol.destack.NodeReferenceData space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceData.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceData prototype_ptr = 6; */
+        if (message.prototypePtr)
+            NodeReferenceData.internalBinaryWrite(message.prototypePtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.InstanceMode instance_mode = 7; */
         if (message.instanceMode !== 0)
             writer.tag(7, WireType.Varint).int32(message.instanceMode);
@@ -37428,7 +37495,7 @@ class SpaceData$Type extends MessageType<SpaceData> {
             { no: 42, name: "system_folder_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 43, name: "home_folder_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "region", kind: "enum", T: () => ["symbol.destack.Region", Region, "REGION_"] },
-            { no: 51, name: "cell_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 51, name: "galaxy_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 55, name: "database_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
@@ -37516,8 +37583,8 @@ class SpaceData$Type extends MessageType<SpaceData> {
                 case /* symbol.destack.Region region */ 50:
                     message.region = reader.int32();
                     break;
-                case /* optional string cell_name */ 51:
-                    message.cellName = reader.string();
+                case /* optional string galaxy_name */ 51:
+                    message.galaxyName = reader.string();
                     break;
                 case /* optional symbol.destack.NodeReferenceData database_ptr */ 55:
                     message.databasePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.databasePtr);
@@ -37600,9 +37667,9 @@ class SpaceData$Type extends MessageType<SpaceData> {
         /* symbol.destack.Region region = 50; */
         if (message.region !== 0)
             writer.tag(50, WireType.Varint).int32(message.region);
-        /* optional string cell_name = 51; */
-        if (message.cellName !== undefined)
-            writer.tag(51, WireType.LengthDelimited).string(message.cellName);
+        /* optional string galaxy_name = 51; */
+        if (message.galaxyName !== undefined)
+            writer.tag(51, WireType.LengthDelimited).string(message.galaxyName);
         /* optional symbol.destack.NodeReferenceData database_ptr = 55; */
         if (message.databasePtr)
             NodeReferenceData.internalBinaryWrite(message.databasePtr, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
@@ -43692,6 +43759,6 @@ export const SomeNodeData = new SomeNodeData$Type();
 
 // Any...
 export type AnyNodeData = CustomEntityDefinitionData | CustomEntityData | CustomEnumDefinitionData | EditEventData | CustomEventDefinitionData | CustomEventData | FieldData | GaugeMetricData | GaugeMeasurementData | CounterMetricData | CounterMeasurementData | HistogramMetricData | HistogramMeasurementData | OptionData | SnapshotData | BranchData | CustomStructDefinitionData | EntitlementEventData | EntitlementData | InviteEventData | InviteData | MembershipEventData | MembershipData | PermissionData | RoleEventData | RoleData | SanctionEventData | SanctionData | CustomViewDefinitionData | CustomViewData | FrameViewData | LabelViewData | SplitViewData | TextViewData | NumberInputViewData | SliderInputViewData | WizardViewData | ThreadViewData | AnnotationShapeData | ArrowShapeData | CanvasData | LineShapeData | PlaneShapeData | FileData | LinkData | EnvironmentData | FolderData | TagData | TaggingData | DatabaseData | MachineData | ActionData | EventCursorData | ScreenCursorData | ThreadCursorData | RouteData | ScriptData | ServiceData | TimerEventData | TimerData | TriggerEventData | TriggerData | InterruptionData | LogData | RunEventData | RunData | SpanData | LayerData | SceneEventData | SceneData | VariantData | WindowData | FollowData | MessageData | NotificationEventData | NotificationData | ReactionData | StarData | ThreadData | AgentData | ClientData | FriendshipData | FriendshipInviteEventData | FriendshipInviteData | HandleData | OrganizationData | SpaceData | TeamData | UserData | ColorStyleData | BorderStyleData | TransitionStyleData | EffectStyleData | GradientStyleData | FillStyleData | FontStyleData | PaletteData | ShadowStyleData | ThemeData
-export type AnyStructData = ScopeData | RelationReferenceData | AttributeReferenceData | PropertyReferenceData | NodeReferenceData | EditData | ChangeData | ChangeResultData | ErrorData | StringConstraintData | NumberConstraintData | CollectionConstraintData | NodeConstraintData | TypeData | ValueData | FunctionData | ConditionData | AggregationData | ExpressionData | SortData | SelectData | JoinData | QueryData | HistogramData | QueryResultData | QueryResultGroupData | QueryUpdateData | SelectionData | IconData | PropertyDefinitionData | TraitDefinitionData | NodeDefinitionData | StructDefinitionData | EnumDefinitionData | EnumOptionDefinitionData | PermissionDefinitionData | TextSpanData | TextLineData | TextData | LengthData | PositionData | DimensionData | InsetsData | CornersData | Axis2Data | Axis3Data | Vector2Data | Vector3Data | Vector4Data | Vector2iData | Vector3iData | Vector4iData | GridData | GridSpanData | CellInfoData | DatabaseInfoData | ScheduleData | OriginData | ColorData | BorderData | TransitionData | EffectData | GradientStopData | GradientData | FillData | FontData | ShadowData
+export type AnyStructData = ScopeData | RelationReferenceData | AttributeReferenceData | PropertyReferenceData | NodeReferenceData | EditData | ChangeData | ChangeResultData | ErrorData | StringConstraintData | NumberConstraintData | CollectionConstraintData | NodeConstraintData | TypeData | ValueData | FunctionData | ConditionData | AggregationData | ExpressionData | SortData | SelectData | JoinData | QueryData | HistogramData | QueryResultData | QueryResultGroupData | QueryUpdateData | SelectionData | IconData | PropertyDefinitionData | TraitDefinitionData | NodeDefinitionData | StructDefinitionData | EnumDefinitionData | EnumOptionDefinitionData | PermissionDefinitionData | TextSpanData | TextLineData | TextData | LengthData | PositionData | DimensionData | InsetsData | CornersData | Axis2Data | Axis3Data | Vector2Data | Vector3Data | Vector4Data | Vector2iData | Vector3iData | Vector4iData | GridData | GridSpanData | DatabaseInfoData | GalaxyInfoData | ScheduleData | OriginData | ColorData | BorderData | TransitionData | EffectData | GradientStopData | GradientData | FillData | FontData | ShadowData
 
     

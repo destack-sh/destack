@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2025.06.15.1"
+VERSION = "2025.06.16.0"
 
 # import from all generated files
 from .runtime_pb2 import *
@@ -178,8 +178,8 @@ AnyStructData = Union[
     Vector4iData,
     GridData,
     GridSpanData,
-    CellInfoData,
     DatabaseInfoData,
+    GalaxyInfoData,
     ScheduleData,
     OriginData,
     ColorData,

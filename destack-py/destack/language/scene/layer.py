@@ -17,7 +17,7 @@ from destack.pb2 import LayerData
 from ..view import ContainerView
 
 if TYPE_CHECKING:
-    from destack.language import Scene
+    from destack.language import Canvas, Scene
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -40,5 +40,5 @@ class Layer(
 ):
     """A Layer is a named container for Views."""
 
-    parent: Union["Scene", None] = property_parent_(node_is_customizable=True)
+    parent: Union["Scene", "Canvas", None] = property_parent_(node_is_customizable=True)
     type: LayerType = property_(30, default=LayerType.GENERAL)

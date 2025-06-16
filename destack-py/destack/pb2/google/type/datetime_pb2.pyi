@@ -1,3 +1,4 @@
+
 # type: ignore
 # ruff: noqa
 
@@ -6,30 +7,17 @@ from typing import TYPE_CHECKING, Union, AsyncIterator, Mapping
 if TYPE_CHECKING:
     from destack.language import Session, Session, IsSubject, Client
 
+
+
 from google.protobuf import duration_pb2 as _duration_pb2
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from typing import (
-    ClassVar as _ClassVar,
-    Mapping as _Mapping,
-    Optional as _Optional,
-    Union as _Union,
-)
+from typing import ClassVar as _ClassVar, Mapping as _Mapping, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class DateTime(_message.Message):
-    __slots__ = (
-        "year",
-        "month",
-        "day",
-        "hours",
-        "minutes",
-        "seconds",
-        "nanos",
-        "utc_offset",
-        "time_zone",
-    )
+    __slots__ = ("year", "month", "day", "hours", "minutes", "seconds", "nanos", "utc_offset", "time_zone")
     YEAR_FIELD_NUMBER: _ClassVar[int]
     MONTH_FIELD_NUMBER: _ClassVar[int]
     DAY_FIELD_NUMBER: _ClassVar[int]
@@ -48,18 +36,7 @@ class DateTime(_message.Message):
     nanos: int
     utc_offset: _duration_pb2.Duration
     time_zone: TimeZone
-    def __init__(
-        self,
-        year: _Optional[int] = ...,
-        month: _Optional[int] = ...,
-        day: _Optional[int] = ...,
-        hours: _Optional[int] = ...,
-        minutes: _Optional[int] = ...,
-        seconds: _Optional[int] = ...,
-        nanos: _Optional[int] = ...,
-        utc_offset: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...,
-        time_zone: _Optional[_Union[TimeZone, _Mapping]] = ...,
-    ) -> None: ...
+    def __init__(self, year: _Optional[int] = ..., month: _Optional[int] = ..., day: _Optional[int] = ..., hours: _Optional[int] = ..., minutes: _Optional[int] = ..., seconds: _Optional[int] = ..., nanos: _Optional[int] = ..., utc_offset: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., time_zone: _Optional[_Union[TimeZone, _Mapping]] = ...) -> None: ...
 
 class TimeZone(_message.Message):
     __slots__ = ("id", "version")

@@ -1,3 +1,4 @@
+
 # type: ignore
 # ruff: noqa
 
@@ -5,6 +6,8 @@ from typing import TYPE_CHECKING, Union, AsyncIterator, Mapping
 
 if TYPE_CHECKING:
     from destack.language import Session, Session, IsSubject, Client
+
+
 
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -27,13 +30,10 @@ class HealthCheckResponse(_message.Message):
         SERVING: _ClassVar[HealthCheckResponse.ServingStatus]
         NOT_SERVING: _ClassVar[HealthCheckResponse.ServingStatus]
         SERVICE_UNKNOWN: _ClassVar[HealthCheckResponse.ServingStatus]
-
     UNKNOWN: HealthCheckResponse.ServingStatus
     SERVING: HealthCheckResponse.ServingStatus
     NOT_SERVING: HealthCheckResponse.ServingStatus
     SERVICE_UNKNOWN: HealthCheckResponse.ServingStatus
     STATUS_FIELD_NUMBER: _ClassVar[int]
     status: HealthCheckResponse.ServingStatus
-    def __init__(
-        self, status: _Optional[_Union[HealthCheckResponse.ServingStatus, str]] = ...
-    ) -> None: ...
+    def __init__(self, status: _Optional[_Union[HealthCheckResponse.ServingStatus, str]] = ...) -> None: ...
