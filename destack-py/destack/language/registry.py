@@ -7,17 +7,16 @@ from destack.utils.code import exec_
 from destack.utils.env import IS_DEV, IS_TEST
 from destack.utils.uuid import UUID
 
-from .core.builtin.const import (
-    _ENUM_CLASS_BY_TYPE,
-    _ENUM_TYPE_BY_CLASS,
+from .core.builtin.common import (
     ENUM_TYPES,
-    UNSET,
     EnumType,
     NodeType,
     StoreType,
     StructType,
     TraitType,
 )
+from .core.builtin.const import UNSET
+from .core.builtin.enum import _ENUM_CLASS_BY_TYPE, _ENUM_TYPE_BY_CLASS
 
 if TYPE_CHECKING:
     from destack.language import (
@@ -195,8 +194,8 @@ def _complete_setup():
             prop.finalize(metatype)
 
     # generate pack/unpack methods
-    from destack.language.core.common.value import generate_pack_value_impl
     from destack.grpc.wiring import generate_pack_proto_impl
+    from destack.language.core.common.value import generate_pack_value_impl
 
     builtin_class_by_name: dict[str, Any] = {**proto.__dict__, "UUID": UUID}
     builtin_class_by_name.update(

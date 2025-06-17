@@ -45,12 +45,12 @@ def bump(revision: int | None = typer.Option(None)):
         "destack-ts/package.json",
         "destack-ts-web/src/utils/globals.ts",
     )
-    
+
     for path in files_to_update:
         original_text = Path(path).read_text()
         if current_version not in original_text:
             raise ValueError(f"{current_version} not found in {path}")
-    
+
     # write version to 'version' file and update all other files
     Path("version").write_text(new_version)
     for path in files_to_update:

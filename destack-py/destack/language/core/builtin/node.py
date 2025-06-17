@@ -9,9 +9,6 @@ from typing import (
     dataclass_transform,
 )
 
-import structlog
-from opentelemetry import trace
-
 from destack.language.registry import (
     NODE_CLASS_BY_TYPE,
     NODE_TYPE_BY_CLASS,
@@ -22,7 +19,7 @@ from destack.utils.fractional import get_order_key
 from destack.utils.func import get_superclasses
 from destack.utils.uuid import UUID
 
-from .const import NodeType, RoleType, TraitType
+from .common import NodeType, RoleType, TraitType
 from .object import _process_object_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
@@ -37,9 +34,6 @@ if TYPE_CHECKING:
     from destack.language import Graph, NodeReference, QueryConnection, Session, Supergraph
 
 # pyright: reportIncompatibleVariableOverride=false
-
-logger = structlog.get_logger(__name__)
-tracer = trace.get_tracer(__name__)
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)

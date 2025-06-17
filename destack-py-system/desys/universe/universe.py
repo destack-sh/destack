@@ -5,6 +5,22 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
+from destack.grpc import (
+    ChangeUserPasswordRequest,
+    ChangeUserPasswordResponse,
+    LoginUserRequest,
+    LoginUserResponse,
+    LogoutUserRequest,
+    LogoutUserResponse,
+    Network,
+    ResolveSpacesRequest,
+    ResolveSpacesResponse,
+    ServiceBase,
+    ServiceKind,
+    SignupUserRequest,
+    SignupUserResponse,
+    UniverseBase,
+)
 from destack.language import (
     Client,
     Database,
@@ -23,22 +39,6 @@ from destack.language import (
     UserStatus,
 )
 from destack.proto import RpcMetadata
-from destack.grpc import (
-    ChangeUserPasswordRequest,
-    ChangeUserPasswordResponse,
-    LoginUserRequest,
-    LoginUserResponse,
-    LogoutUserRequest,
-    LogoutUserResponse,
-    Network,
-    ResolveSpacesRequest,
-    ResolveSpacesResponse,
-    ServiceBase,
-    ServiceKind,
-    SignupUserRequest,
-    SignupUserResponse,
-    UniverseBase,
-)
 from destack.store import BufferedStore
 from destack.utils.func import generate_access_token, generate_salt
 from destack.utils.oracle import Oracle

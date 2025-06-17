@@ -27,11 +27,7 @@ from destack.utils.frozen import frozendict, frozenlist
 from destack.utils.func import dualmethod, get_superclasses
 from destack.utils.uuid import UUID, uuid4
 
-from .const import (
-    ACTIVE_SESSION,
-    EMPTY_DICT,
-    REGION,
-    UNSET,
+from .common import (
     DefaultFactory,
     EdgeType,
     EnumType,
@@ -42,6 +38,7 @@ from .const import (
     TraitType,
     TypeCardinality,
 )
+from .const import ACTIVE_SESSION, EMPTY_DICT, REGION, UNSET
 from .property import _PROPERTY_SPECIFIERS, IntoType, Property, property_runtime_
 
 if TYPE_CHECKING:

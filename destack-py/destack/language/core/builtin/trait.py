@@ -21,8 +21,7 @@ from destack.proto import AnyObjectProto
 from destack.utils.fractional import INTEGER_ZERO
 from destack.utils.uuid import UUID
 
-from .const import (
-    UNSET,
+from .common import (
     Enum,
     EnumType,
     MaterializationType,
@@ -32,6 +31,7 @@ from .const import (
     TraitType,
     builtin_enum,
 )
+from .const import UNSET
 from .object import BuiltinObjectMutable, _process_object_cls
 from .property import _PROPERTY_SPECIFIERS, Property, property_, property_parent_
 
