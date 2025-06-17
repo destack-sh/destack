@@ -7,17 +7,14 @@ export enum PyodideWorkerStatus {
   ERROR = "ERROR",
 }
 
-// Request types sent to the worker
 export type PyodideRequest = 
   | { type: 'init' }
   | { type: 'run'; data: { code: string } };
 
-// Response types received from the worker
 export type PyodideResponse = 
   | { type: 'status'; message: PyodideWorkerStatus }
   | { type: 'result'; result: string | null; stdout: string; duration: number }
   | { type: 'error'; message: string; duration: number };
-
 
 export function usePyodideWorker(): {
   status: PyodideWorkerStatus;
