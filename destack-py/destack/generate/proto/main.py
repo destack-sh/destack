@@ -1,8 +1,10 @@
 from collections.abc import Collection, Sequence
 from itertools import chain
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 from destack.language import (
+    NODE_TYPES,
     BuiltinObjectBase,
     Enum,
     EnumType,
@@ -21,14 +23,15 @@ from destack.language.registry import (
 )
 from destack.utils.string import Casing, to_casing
 
+from ..core import LANGUAGE_PROTO
 from .core import (
     ProtoEnum,
     ProtoEnumValue,
     ProtoField,
     ProtoFieldType,
     ProtoMessage,
+    ProtoObject,
     ProtoSchema,
-    ProtoThing,
 )
 
 if TYPE_CHECKING:
@@ -59,7 +62,7 @@ PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, ProtoFieldType] = {
 
 
 def _map_property_to_proto_field(
-    prop: "Property", cache: dict[type[BuiltinObjectBase] | type[Enum], ProtoThing]
+    prop: "Property", cache: dict[type[BuiltinObjectBase] | type[Enum], ProtoObject]
 ) -> ProtoField:
     assert prop.id == 1 or prop.is_wired, f"not a wired property: {prop!r}"
     assert isinstance(prop.id, int), f"invalid id: {prop!r}"
@@ -144,7 +147,7 @@ def _map_property_to_proto_field(
 
 def _map_builtin_object_to_proto_message(
     cls: type[BuiltinObjectBase],
-    cache: dict[type[BuiltinObjectBase] | type[Enum], ProtoThing],
+    cache: dict[type[BuiltinObjectBase] | type[Enum], ProtoObject],
     alias: str | None = None,
     properties: Sequence["Property"] | None = None,
 ) -> ProtoMessage:
@@ -190,9 +193,9 @@ def _map_builtin_enum_to_proto_enum(
 
 def _map_object_type_to_proto(
     destack_cls: type[BuiltinObjectBase] | type[Enum],
-    cache: dict[type[BuiltinObjectBase] | type[Enum], ProtoThing],
+    cache: dict[type[BuiltinObjectBase] | type[Enum], ProtoObject],
     alias: str | None = None,
-) -> ProtoThing:
+) -> ProtoObject:
     """Maps a Destack type to a Proto type. If not yet mapped, adds it to the cache."""
     from destack.language import BuiltinObjectBase
 
@@ -208,14 +211,14 @@ def _map_object_type_to_proto(
     return ret
 
 
-def generate_proto_schema(
+def _generate_proto_schema(
     name: str,
     unions: dict[str, tuple[str, Collection[EnumType | NodeType | StructType]]],
     extras: list[ProtoEnum | ProtoMessage],
     postfix: str,
 ) -> ProtoSchema:
     # walk all destack types to populate the cache
-    cache: dict[type[BuiltinObjectBase] | type[Enum], ProtoThing] = {}
+    cache: dict[type[BuiltinObjectBase] | type[Enum], ProtoObject] = {}
     for destack_cls in chain(
         NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values(), ENUM_CLASS_BY_TYPE.values()
     ):
@@ -255,3 +258,13 @@ def generate_proto_schema(
                 proto_type.name += postfix
 
     return ProtoSchema.from_types(name, proto_types)
+
+
+def generate():
+    proto_schema = _generate_proto_schema(
+        name="symbol.destack",
+        unions={"SomeNode": ("node", NODE_TYPES)},
+        extras=[],
+        postfix="Proto",
+    )
+    Path(LANGUAGE_PROTO).write_text(proto_schema.to_proto_source())

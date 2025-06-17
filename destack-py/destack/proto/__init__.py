@@ -158,6 +158,7 @@ AnyStructProto = Union[
     EnumDefinitionProto,
     EnumOptionDefinitionProto,
     PermissionDefinitionProto,
+    ConstantDefinitionProto,
     TextSpanProto,
     TextProto,
     LengthProto,

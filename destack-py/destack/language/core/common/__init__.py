@@ -14,6 +14,7 @@ from .event import CustomEvent, CustomEventDefinition, EditEvent
 from .field import Field, FieldType
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
 from .meta import (
+    ConstantDefinition,
     EnumDefinition,
     EnumOptionDefinition,
     NodeDefinition,
@@ -152,6 +153,7 @@ __all__ = [
     "CollectionConstraint",
     "Condition",
     "ConditionalType",
+    "ConstantDefinition",
     "Constraint",
     "Corners",
     "CounterMeasurement",

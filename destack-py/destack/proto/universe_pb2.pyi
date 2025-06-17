@@ -1,3 +1,4 @@
+
 # type: ignore
 # ruff: noqa
 
@@ -6,18 +7,14 @@ from typing import TYPE_CHECKING, Union, AsyncIterator, Mapping
 if TYPE_CHECKING:
     from destack.language import Session, Session, IsSubject, Client
 
+
+
 from . import common_pb2 as _common_pb2
 from . import language_pb2 as _language_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from typing import (
-    ClassVar as _ClassVar,
-    Iterable as _Iterable,
-    Mapping as _Mapping,
-    Optional as _Optional,
-    Union as _Union,
-)
+from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Mapping, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
@@ -35,15 +32,7 @@ class SignupUserRequest(_message.Message):
     password: str
     region: _language_pb2.RegionProto
     client: _language_pb2.ClientProto
-    def __init__(
-        self,
-        slug: _Optional[str] = ...,
-        name: _Optional[str] = ...,
-        email: _Optional[str] = ...,
-        password: _Optional[str] = ...,
-        region: _Optional[_Union[_language_pb2.RegionProto, str]] = ...,
-        client: _Optional[_Union[_language_pb2.ClientProto, _Mapping]] = ...,
-    ) -> None: ...
+    def __init__(self, slug: _Optional[str] = ..., name: _Optional[str] = ..., email: _Optional[str] = ..., password: _Optional[str] = ..., region: _Optional[_Union[_language_pb2.RegionProto, str]] = ..., client: _Optional[_Union[_language_pb2.ClientProto, _Mapping]] = ...) -> None: ...
 
 class SignupUserResponse(_message.Message):
     __slots__ = ("user", "client", "space", "access_token")
@@ -55,13 +44,7 @@ class SignupUserResponse(_message.Message):
     client: _language_pb2.ClientProto
     space: _language_pb2.SpaceProto
     access_token: str
-    def __init__(
-        self,
-        user: _Optional[_Union[_language_pb2.UserProto, _Mapping]] = ...,
-        client: _Optional[_Union[_language_pb2.ClientProto, _Mapping]] = ...,
-        space: _Optional[_Union[_language_pb2.SpaceProto, _Mapping]] = ...,
-        access_token: _Optional[str] = ...,
-    ) -> None: ...
+    def __init__(self, user: _Optional[_Union[_language_pb2.UserProto, _Mapping]] = ..., client: _Optional[_Union[_language_pb2.ClientProto, _Mapping]] = ..., space: _Optional[_Union[_language_pb2.SpaceProto, _Mapping]] = ..., access_token: _Optional[str] = ...) -> None: ...
 
 class ChangeUserPasswordRequest(_message.Message):
     __slots__ = ("old_password", "new_password")
@@ -69,9 +52,7 @@ class ChangeUserPasswordRequest(_message.Message):
     NEW_PASSWORD_FIELD_NUMBER: _ClassVar[int]
     old_password: str
     new_password: str
-    def __init__(
-        self, old_password: _Optional[str] = ..., new_password: _Optional[str] = ...
-    ) -> None: ...
+    def __init__(self, old_password: _Optional[str] = ..., new_password: _Optional[str] = ...) -> None: ...
 
 class ChangeUserPasswordResponse(_message.Message):
     __slots__ = ("user", "client", "epoch")
@@ -81,12 +62,7 @@ class ChangeUserPasswordResponse(_message.Message):
     user: _language_pb2.UserProto
     client: _language_pb2.ClientProto
     epoch: int
-    def __init__(
-        self,
-        user: _Optional[_Union[_language_pb2.UserProto, _Mapping]] = ...,
-        client: _Optional[_Union[_language_pb2.ClientProto, _Mapping]] = ...,
-        epoch: _Optional[int] = ...,
-    ) -> None: ...
+    def __init__(self, user: _Optional[_Union[_language_pb2.UserProto, _Mapping]] = ..., client: _Optional[_Union[_language_pb2.ClientProto, _Mapping]] = ..., epoch: _Optional[int] = ...) -> None: ...
 
 class LoginUserRequest(_message.Message):
     __slots__ = ("id", "slug", "email", "password", "client")
@@ -100,14 +76,7 @@ class LoginUserRequest(_message.Message):
     email: str
     password: str
     client: _language_pb2.ClientProto
-    def __init__(
-        self,
-        id: _Optional[str] = ...,
-        slug: _Optional[str] = ...,
-        email: _Optional[str] = ...,
-        password: _Optional[str] = ...,
-        client: _Optional[_Union[_language_pb2.ClientProto, _Mapping]] = ...,
-    ) -> None: ...
+    def __init__(self, id: _Optional[str] = ..., slug: _Optional[str] = ..., email: _Optional[str] = ..., password: _Optional[str] = ..., client: _Optional[_Union[_language_pb2.ClientProto, _Mapping]] = ...) -> None: ...
 
 class LoginUserResponse(_message.Message):
     __slots__ = ("user", "client", "access_token")
@@ -117,12 +86,7 @@ class LoginUserResponse(_message.Message):
     user: _language_pb2.UserProto
     client: _language_pb2.ClientProto
     access_token: str
-    def __init__(
-        self,
-        user: _Optional[_Union[_language_pb2.UserProto, _Mapping]] = ...,
-        client: _Optional[_Union[_language_pb2.ClientProto, _Mapping]] = ...,
-        access_token: _Optional[str] = ...,
-    ) -> None: ...
+    def __init__(self, user: _Optional[_Union[_language_pb2.UserProto, _Mapping]] = ..., client: _Optional[_Union[_language_pb2.ClientProto, _Mapping]] = ..., access_token: _Optional[str] = ...) -> None: ...
 
 class LogoutUserRequest(_message.Message):
     __slots__ = ("clients", "logout_all")
@@ -130,11 +94,7 @@ class LogoutUserRequest(_message.Message):
     LOGOUT_ALL_FIELD_NUMBER: _ClassVar[int]
     clients: _containers.RepeatedCompositeFieldContainer[_language_pb2.NodeReferenceProto]
     logout_all: bool
-    def __init__(
-        self,
-        clients: _Optional[_Iterable[_Union[_language_pb2.NodeReferenceProto, _Mapping]]] = ...,
-        logout_all: bool = ...,
-    ) -> None: ...
+    def __init__(self, clients: _Optional[_Iterable[_Union[_language_pb2.NodeReferenceProto, _Mapping]]] = ..., logout_all: bool = ...) -> None: ...
 
 class LogoutUserResponse(_message.Message):
     __slots__ = ()
@@ -144,9 +104,7 @@ class CreateOrganizationRequest(_message.Message):
     __slots__ = ("organization",)
     ORGANIZATION_FIELD_NUMBER: _ClassVar[int]
     organization: _language_pb2.OrganizationProto
-    def __init__(
-        self, organization: _Optional[_Union[_language_pb2.OrganizationProto, _Mapping]] = ...
-    ) -> None: ...
+    def __init__(self, organization: _Optional[_Union[_language_pb2.OrganizationProto, _Mapping]] = ...) -> None: ...
 
 class CreateOrganizationResponse(_message.Message):
     __slots__ = ("organization", "epoch")
@@ -154,11 +112,7 @@ class CreateOrganizationResponse(_message.Message):
     EPOCH_FIELD_NUMBER: _ClassVar[int]
     organization: _language_pb2.OrganizationProto
     epoch: int
-    def __init__(
-        self,
-        organization: _Optional[_Union[_language_pb2.OrganizationProto, _Mapping]] = ...,
-        epoch: _Optional[int] = ...,
-    ) -> None: ...
+    def __init__(self, organization: _Optional[_Union[_language_pb2.OrganizationProto, _Mapping]] = ..., epoch: _Optional[int] = ...) -> None: ...
 
 class ResolveSpacesRequest(_message.Message):
     __slots__ = ("spaces",)
@@ -169,12 +123,9 @@ class ResolveSpacesRequest(_message.Message):
         id: str
         slug: str
         def __init__(self, id: _Optional[str] = ..., slug: _Optional[str] = ...) -> None: ...
-
     SPACES_FIELD_NUMBER: _ClassVar[int]
     spaces: _containers.RepeatedCompositeFieldContainer[ResolveSpacesRequest.SpaceKey]
-    def __init__(
-        self, spaces: _Optional[_Iterable[_Union[ResolveSpacesRequest.SpaceKey, _Mapping]]] = ...
-    ) -> None: ...
+    def __init__(self, spaces: _Optional[_Iterable[_Union[ResolveSpacesRequest.SpaceKey, _Mapping]]] = ...) -> None: ...
 
 class ResolveSpacesResponse(_message.Message):
     __slots__ = ("spaces",)
@@ -190,17 +141,7 @@ class ResolveSpacesResponse(_message.Message):
         grpc_web_port: int
         ssl: bool
         space: _language_pb2.NodeReferenceProto
-        def __init__(
-            self,
-            domain: _Optional[str] = ...,
-            grpc_port: _Optional[int] = ...,
-            grpc_web_port: _Optional[int] = ...,
-            ssl: bool = ...,
-            space: _Optional[_Union[_language_pb2.NodeReferenceProto, _Mapping]] = ...,
-        ) -> None: ...
-
+        def __init__(self, domain: _Optional[str] = ..., grpc_port: _Optional[int] = ..., grpc_web_port: _Optional[int] = ..., ssl: bool = ..., space: _Optional[_Union[_language_pb2.NodeReferenceProto, _Mapping]] = ...) -> None: ...
     SPACES_FIELD_NUMBER: _ClassVar[int]
     spaces: _containers.RepeatedCompositeFieldContainer[ResolveSpacesResponse.SpaceInfo]
-    def __init__(
-        self, spaces: _Optional[_Iterable[_Union[ResolveSpacesResponse.SpaceInfo, _Mapping]]] = ...
-    ) -> None: ...
+    def __init__(self, spaces: _Optional[_Iterable[_Union[ResolveSpacesResponse.SpaceInfo, _Mapping]]] = ...) -> None: ...
