@@ -1340,6 +1340,27 @@ export interface ConditionProto {
     right?: ExpressionProto;
 }
 /**
+ * @generated from protobuf message symbol.destack.ConstantDefinitionProto
+ */
+export interface ConstantDefinitionProto {
+    /**
+     * @generated from protobuf field: symbol.destack.StructTypeProto metatype = 1
+     */
+    metatype: StructTypeProto;
+    /**
+     * @generated from protobuf field: string name = 31
+     */
+    name: string;
+    /**
+     * @generated from protobuf field: string path = 35
+     */
+    path: string;
+    /**
+     * @generated from protobuf field: symbol.destack.ValueProto value = 40
+     */
+    value?: ValueProto;
+}
+/**
  * @generated from protobuf message symbol.destack.CornersProto
  */
 export interface CornersProto {
@@ -16513,6 +16534,10 @@ export enum StructTypeProto {
      */
     STRUCT_TYPE_PERMISSION_DEFINITION = 50010,
     /**
+     * @generated from protobuf enum value: STRUCT_TYPE_CONSTANT_DEFINITION = 50011;
+     */
+    STRUCT_TYPE_CONSTANT_DEFINITION = 50011,
+    /**
      * @generated from protobuf enum value: STRUCT_TYPE_EDIT = 50020;
      */
     STRUCT_TYPE_EDIT = 50020,
@@ -20178,6 +20203,76 @@ class ConditionProto$Type extends MessageType<ConditionProto> {
  * @generated MessageType for protobuf message symbol.destack.ConditionProto
  */
 export const ConditionProto = new ConditionProto$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ConstantDefinitionProto$Type extends MessageType<ConstantDefinitionProto> {
+    constructor() {
+        super("symbol.destack.ConstantDefinitionProto", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
+            { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 35, name: "path", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 40, name: "value", kind: "message", T: () => ValueProto }
+        ]);
+    }
+    create(value?: PartialMessage<ConstantDefinitionProto>): ConstantDefinitionProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.name = "";
+        message.path = "";
+        if (value !== undefined)
+            reflectionMergePartial<ConstantDefinitionProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ConstantDefinitionProto): ConstantDefinitionProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.StructTypeProto metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string name */ 31:
+                    message.name = reader.string();
+                    break;
+                case /* string path */ 35:
+                    message.path = reader.string();
+                    break;
+                case /* symbol.destack.ValueProto value */ 40:
+                    message.value = ValueProto.internalBinaryRead(reader, reader.uint32(), options, message.value);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ConstantDefinitionProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.StructTypeProto metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string name = 31; */
+        if (message.name !== "")
+            writer.tag(31, WireType.LengthDelimited).string(message.name);
+        /* string path = 35; */
+        if (message.path !== "")
+            writer.tag(35, WireType.LengthDelimited).string(message.path);
+        /* symbol.destack.ValueProto value = 40; */
+        if (message.value)
+            ValueProto.internalBinaryWrite(message.value, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.ConstantDefinitionProto
+ */
+export const ConstantDefinitionProto = new ConstantDefinitionProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CornersProto$Type extends MessageType<CornersProto> {
     constructor() {
@@ -43613,6 +43708,6 @@ export const SomeNodeProto = new SomeNodeProto$Type();
 
 // Any...
 export type AnyNodeProto = CustomEntityDefinitionProto | CustomEntityProto | CustomEnumDefinitionProto | EditEventProto | CustomEventDefinitionProto | CustomEventProto | FieldProto | GaugeMetricProto | GaugeMeasurementProto | CounterMetricProto | CounterMeasurementProto | HistogramMetricProto | HistogramMeasurementProto | OptionProto | SnapshotProto | BranchProto | CustomStructDefinitionProto | EntitlementEventProto | EntitlementProto | InviteEventProto | InviteProto | MembershipEventProto | MembershipProto | PermissionProto | RoleEventProto | RoleProto | SanctionEventProto | SanctionProto | CustomViewDefinitionProto | CustomViewProto | FrameViewProto | LabelViewProto | SplitViewProto | TextViewProto | NumberInputViewProto | SliderInputViewProto | WizardViewProto | ThreadViewProto | AnnotationShapeProto | ArrowShapeProto | CanvasProto | LineShapeProto | PlaneShapeProto | FileProto | LinkProto | EnvironmentProto | FolderProto | TagProto | TaggingProto | DatabaseProto | MachineProto | ActionProto | EventCursorProto | ScreenCursorProto | ThreadCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerProto | TriggerEventProto | TriggerProto | InterruptionProto | LogProto | RunEventProto | RunProto | SpanProto | LayerProto | SceneEventProto | SceneProto | VariantProto | WindowProto | FollowProto | MessageProto | NotificationEventProto | NotificationProto | ReactionProto | StarProto | ThreadProto | AgentProto | ClientProto | FriendshipProto | FriendshipInviteEventProto | FriendshipInviteProto | HandleProto | OrganizationProto | SpaceProto | TeamProto | UserProto | ColorStyleProto | BorderStyleProto | TransitionStyleProto | EffectStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | PaletteProto | ShadowStyleProto | ThemeProto
-export type AnyStructProto = ScopeProto | RelationReferenceProto | AttributeReferenceProto | PropertyReferenceProto | NodeReferenceProto | EditProto | ChangeProto | ChangeResultProto | ErrorProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | SelectionProto | IconProto | PropertyDefinitionProto | TraitDefinitionProto | NodeDefinitionProto | StructDefinitionProto | EnumDefinitionProto | EnumOptionDefinitionProto | PermissionDefinitionProto | TextSpanProto | TextProto | LengthProto | PositionProto | DimensionProto | InsetsProto | CornersProto | Axis2Proto | Axis3Proto | Vector2Proto | Vector3Proto | Vector4Proto | Vector2iProto | Vector3iProto | Vector4iProto | GridProto | GridSpanProto | DatabaseInfoProto | GalaxyInfoProto | ScheduleProto | OriginProto | ColorProto | BorderProto | TransitionProto | EffectProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto
+export type AnyStructProto = ScopeProto | RelationReferenceProto | AttributeReferenceProto | PropertyReferenceProto | NodeReferenceProto | EditProto | ChangeProto | ChangeResultProto | ErrorProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | SelectionProto | IconProto | PropertyDefinitionProto | TraitDefinitionProto | NodeDefinitionProto | StructDefinitionProto | EnumDefinitionProto | EnumOptionDefinitionProto | PermissionDefinitionProto | ConstantDefinitionProto | TextSpanProto | TextProto | LengthProto | PositionProto | DimensionProto | InsetsProto | CornersProto | Axis2Proto | Axis3Proto | Vector2Proto | Vector3Proto | Vector4Proto | Vector2iProto | Vector3iProto | Vector4iProto | GridProto | GridSpanProto | DatabaseInfoProto | GalaxyInfoProto | ScheduleProto | OriginProto | ColorProto | BorderProto | TransitionProto | EffectProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto
 
     

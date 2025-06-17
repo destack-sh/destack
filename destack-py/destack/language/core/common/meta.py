@@ -248,3 +248,12 @@ class PermissionDefinition(StructFrozen):
     name: str = property_(31)
     node_type: NodeType = property_(32)
     icon: "Icon | None" = property_(34)
+
+
+@builtin_struct(StructType.CONSTANT_DEFINITION, frozen=True)
+class ConstantDefinition(StructFrozen):
+    """Definition of a builtin Constant."""
+
+    name: str = property_(31)
+    path: str = property_(35)
+    value: "Value" = property_(40)

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Literal, Union
 
 
-class ProtoThing:
+class ProtoObject:
     """Proto thing."""
 
     def to_proto_source(self) -> str:
@@ -15,7 +15,7 @@ class ProtoThing:
 
 
 @dataclass
-class ProtoSchema(ProtoThing):
+class ProtoSchema(ProtoObject):
     """Proto file."""
 
     name: str
@@ -53,7 +53,7 @@ def _to_multi_line_comment(comment: str) -> str:
 
 
 @dataclass
-class ProtoMessage(ProtoThing):
+class ProtoMessage(ProtoObject):
     """Proto message."""
 
     name: str
@@ -106,7 +106,7 @@ class ProtoFieldType(enum.StrEnum):
 
 
 @dataclass
-class ProtoEnum(ProtoThing):
+class ProtoEnum(ProtoObject):
     """Proto enum."""
 
     name: str
@@ -128,7 +128,7 @@ class ProtoEnum(ProtoThing):
 
 
 @dataclass
-class ProtoEnumValue(ProtoThing):
+class ProtoEnumValue(ProtoObject):
     """Proto enum value."""
 
     id: int
@@ -140,7 +140,7 @@ class ProtoEnumValue(ProtoThing):
 
 
 @dataclass
-class ProtoField(ProtoThing):
+class ProtoField(ProtoObject):
     id: int | None
     name: str
     type: ProtoFieldType | ProtoEnum | ProtoMessage | str

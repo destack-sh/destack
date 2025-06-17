@@ -1414,6 +1414,7 @@ enum StructTypeProto {
   STRUCT_TYPE_ENUM_DEFINITION = 50008;
   STRUCT_TYPE_ENUM_OPTION_DEFINITION = 50009;
   STRUCT_TYPE_PERMISSION_DEFINITION = 50010;
+  STRUCT_TYPE_CONSTANT_DEFINITION = 50011;
   STRUCT_TYPE_EDIT = 50020;
   STRUCT_TYPE_CHANGE = 50021;
   STRUCT_TYPE_CHANGE_RESULT = 50022;
@@ -1988,6 +1989,13 @@ message ConditionProto {
   ConditionalTypeProto type = 30;
   ExpressionProto left = 31;
   optional ExpressionProto right = 32;
+}
+
+message ConstantDefinitionProto {
+  StructTypeProto metatype = 1;
+  string name = 31;
+  string path = 35;
+  ValueProto value = 40;
 }
 
 message CornersProto {

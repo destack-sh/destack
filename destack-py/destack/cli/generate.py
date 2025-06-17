@@ -9,15 +9,7 @@ logger = structlog.get_logger(__name__)
 @app.command()
 def generate():
     """Generate all the derived things."""
-    from destack.grpc import build_proto, generate_proto_schema
-    from destack.language import NODE_TYPES
+    from destack.generate import generate as generate_all
 
-    # proto
-    proto_schema = generate_proto_schema(
-        name="symbol.destack",
-        unions={"SomeNode": ("node", NODE_TYPES)},
-        extras=[],
-        postfix="Proto",
-    )
-    build_proto(proto_schema)
+    generate_all()
     logger.info("destack.generate")
