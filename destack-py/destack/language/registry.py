@@ -30,6 +30,7 @@ if TYPE_CHECKING:
         StructBase,
         StructDefinition,
         Trait,
+        TraitDefinition,
     )
 
 ENUM_CLASS_BY_TYPE = _ENUM_CLASS_BY_TYPE  # re-exported to avoid circular imports
@@ -51,6 +52,7 @@ STRUCT_TYPE_BY_CLASS: dict[type["StructBase"], StructType] = {}
 RELATION_REF_BY_CLASS: dict[type["NodeBase"], "RelationReference"] = {}
 ENUM_DEFINITION_BY_TYPE: dict[EnumType, "EnumDefinition"] = {}
 STRUCT_DEFINITION_BY_TYPE: dict[StructType, "StructDefinition"] = {}
+TRAIT_DEFINITION_BY_TYPE: dict[TraitType, "TraitDefinition"] = {}
 NODE_DEFINITION_BY_TYPE: dict[NodeType, "NodeDefinition"] = {}
 
 DESCENDANT_NODE_TYPES_BY_TYPE: dict[NodeType, tuple[NodeType, ...]] = {}
@@ -253,6 +255,9 @@ def _complete_setup():
     # generate meta info
     from destack.language.core import EnumDefinition, NodeDefinition, StructDefinition
 
+    for trait_type in TRAIT_CLASS_BY_TRAIT:
+        trait_definition = TRAIT_DEFINITION_BY_TYPE[trait_type]
+        TRAIT_DEFINITION_BY_TYPE[trait_type] = trait_definition
     for node_cls in NODE_CLASS_BY_TYPE.values():
         node_definition = NodeDefinition.from_node(node_cls)
         NODE_DEFINITION_BY_TYPE[node_cls.metatype] = node_definition

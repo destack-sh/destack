@@ -1,7 +1,15 @@
+from collections.abc import Sequence
+from enum import StrEnum
+
 from .core import *  # noqa: F403
 
 
-def generate():
+class GenerationScope(StrEnum):
+    PROTO = "proto"
+    LANGUAGE = "language"
+
+
+def generate(scopes: Sequence[GenerationScope] = (GenerationScope.PROTO, GenerationScope.LANGUAGE)):
     """Generate all the derived things."""
     from .proto import generate_proto
     from .python import (
@@ -18,10 +26,12 @@ def generate():
     )
 
     # proto
-    generate_proto()
-    generate_python_proto()
-    generate_typescript_proto()
+    if GenerationScope.PROTO in scopes:
+        generate_proto()
+        generate_python_proto()
+        generate_typescript_proto()
 
     # language
-    generate_python_language()
-    generate_typescript_language()
+    if GenerationScope.LANGUAGE in scopes:
+        generate_python_language()
+        generate_typescript_language()

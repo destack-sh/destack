@@ -41,12 +41,30 @@
       "justMyCode": true
     },
     {
-      "name": "destack.gen",
+      "name": "destack.generate",
       "type": "debugpy",
       "request": "launch",
       "cwd": "${workspaceFolder}",
       "program": "${workspaceFolder}/destack-py/main.py",
-      "args": ["gen"],
+      "args": ["generate"],
+      "justMyCode": true
+    },
+    {
+      "name": "destack.generate.proto",
+      "type": "debugpy",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "program": "${workspaceFolder}/destack-py/main.py",
+      "args": ["generate", "--only", "proto"],
+      "justMyCode": true
+    },
+    {
+      "name": "destack.generate.language",
+      "type": "debugpy",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "program": "${workspaceFolder}/destack-py/main.py",
+      "args": ["generate", "--only", "language"],
       "justMyCode": true
     },
     {
