@@ -599,7 +599,7 @@ class IsSourceable(IsOrdered):
 class IsScriptable(Trait):
     """A Node that can be scripted."""
 
-    script: Optional["Script"] = property_(200)
+    script: Optional["Script"] = property_(200, description="The main / root Script of this Node.")
 
 
 @builtin_trait(TraitType.RUNNABLE)
