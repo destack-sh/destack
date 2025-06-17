@@ -42,8 +42,6 @@ if TYPE_CHECKING:
 # We map and walk at the same type for simplicity (using the cache)
 #
 
-VARIABLE_PROPERTY_OFFSET = 17000
-
 PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, ProtoFieldType] = {
     PrimitiveType.BOOLEAN: ProtoFieldType.BOOL,
     PrimitiveType.INT16: ProtoFieldType.INT32,
