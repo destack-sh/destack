@@ -31,7 +31,7 @@ tracer = trace.get_tracer(__name__)
 
 class Graph(abc.ABC):
     """
-    A Graph is a collection of Nodes in a Session.
+    A Graph is a collection of Nodes.
     """
 
     __slots__ = ("supergraph",)
@@ -59,12 +59,12 @@ class Graph(abc.ABC):
 
     @abc.abstractmethod
     def get(self, id: UUID) -> Optional["Node"]:
-        """Gets a node by id"""
+        """Gets a Node by id"""
         raise NotImplementedError
 
     @final
     def get_or_error(self, id: UUID) -> "Node":
-        """Gets a node by id, raising an error if not found"""
+        """Gets a Node by id, raising an error if not found"""
         node = self.get(id)
         if node is None:
             raise KeyError(f"node {id!r} not found in {self!r}")
