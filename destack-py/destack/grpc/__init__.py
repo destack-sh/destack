@@ -1,4 +1,5 @@
 from ..proto import *  # noqa: F403
+from .build import build_proto
 from .core import (
     ProtoEnum,
     ProtoEnumValue,
@@ -44,6 +45,7 @@ __all__ = [
     "ProtoThing",
     "RealNetwork",
     "ServiceBase",
+    "build_proto",
     "dockerify_url",
     "generate_proto_schema",
     "get_rpc_headers",

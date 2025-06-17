@@ -1,8 +1,6 @@
 import structlog
 import typer
 
-from destack.utils.oracle import REAL_ORACLE
-
 app = typer.Typer()
 logger = structlog.get_logger(__name__)
 
@@ -11,10 +9,15 @@ logger = structlog.get_logger(__name__)
 @app.command()
 def generate():
     """Generate all the derived things."""
-    from destack.grpc.generate import _gen_proto, _gen_proto_schema
+    from destack.grpc import build_proto, generate_proto_schema
+    from destack.language import NODE_TYPES
 
     # proto
-    start = REAL_ORACLE.time_ns()
-    schema_str = _gen_proto_schema()
-    _gen_proto(schema_str)
-    logger.info("proto.gen", duration=REAL_ORACLE.time_ns() - start)
+    proto_schema = generate_proto_schema(
+        name="symbol.destack",
+        unions={"SomeNode": ("node", NODE_TYPES)},
+        extras=[],
+        message_postfix="Data",
+    )
+    build_proto(proto_schema)
+    logger.info("destack.generate")

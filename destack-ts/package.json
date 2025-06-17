@@ -18,12 +18,14 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
+    "@preact/signals-core": "^1.10.0",
+    "@preact/signals-react": "^3.2.0",
     "@protobuf-ts/grpcweb-transport": "^2.9.4",
     "@protobuf-ts/runtime": "^2.9.4",
     "@protobuf-ts/runtime-rpc": "^2.9.4",
-    "@preact/signals-react": "^3.2.0",
     "grpc-web": "^1.5.0",
     "luxon": "^3.5.0",
+    "pyodide": "^0.27.7",
     "uuid": "^10.0.0"
   },
   "devDependencies": {
