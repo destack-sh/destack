@@ -173,8 +173,8 @@ from .google.type.timeofday_pb2 import *
 from .google.type.datetime_pb2 import *
 
 # extra utility types
-AnyNodeProto = Union[{", ".join([cls.__name__ + "Data" for cls in NODE_CLASS_BY_TYPE.values()])}]
-AnyStructProto = Union[{", ".join([cls.__name__ + "Data" for cls in STRUCT_CLASS_BY_TYPE.values()])}]
+AnyNodeProto = Union[{", ".join([cls.__name__ + "Proto" for cls in NODE_CLASS_BY_TYPE.values()])}]
+AnyStructProto = Union[{", ".join([cls.__name__ + "Proto" for cls in STRUCT_CLASS_BY_TYPE.values()])}]
 AnyObjectProto = AnyNodeProto | AnyStructProto
 """)
     on_apply.append(lambda: shutil.rmtree(TARGET_PY_DIR, ignore_errors=True))  # noqa: FURB113
@@ -245,8 +245,8 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
 //
 
 // Any...
-export type AnyNodeProto = {" | ".join(cls.__name__ + "Data" for cls in NODE_CLASS_BY_TYPE.values())}
-export type AnyStructProto = {" | ".join(cls.__name__ + "Data" for cls in STRUCT_CLASS_BY_TYPE.values())}
+export type AnyNodeProto = {" | ".join(cls.__name__ + "Proto" for cls in NODE_CLASS_BY_TYPE.values())}
+export type AnyStructProto = {" | ".join(cls.__name__ + "Proto" for cls in STRUCT_CLASS_BY_TYPE.values())}
 
     """
     lang_ts = Path(TEMP_TS_DIR + "/destack-proto/language.ts").read_text()

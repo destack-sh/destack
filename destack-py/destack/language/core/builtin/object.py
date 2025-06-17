@@ -1162,6 +1162,14 @@ class BuiltinObjectBase[ObjectProtoT: AnyObjectProto]:
 
     __slots__ = ()
 
+    @classmethod
+    def property(cls, name: str) -> Property:
+        """Get a Property by name."""
+        prop = cls.__properties__.get(name)
+        if prop is None:
+            raise ValueError(f"no property '{name}' in {cls.__name__}")
+        return prop
+
     def equals(
         self,
         other: Self | Any,
@@ -1184,7 +1192,7 @@ class BuiltinObjectBase[ObjectProtoT: AnyObjectProto]:
 
     @classmethod
     def __pack_proto__(cls, _object: Self) -> ObjectProtoT:
-        """Convert to wire format"""
+        """Convert to proto format"""
         raise NotImplementedError  # generated
 
     @classmethod
@@ -1196,12 +1204,12 @@ class BuiltinObjectBase[ObjectProtoT: AnyObjectProto]:
         _graph: "Graph | None" = None,
         _connection: "QueryConnection | None" = None,
     ) -> Self:
-        """Convert from wire format"""
+        """Convert from proto format"""
         raise NotImplementedError  # generated
 
     @final
     def to_proto(self) -> ObjectProtoT:
-        """Convert to wire format"""
+        """Convert to proto format"""
         raise NotImplementedError  # generated (usually = __pack_proto__)
 
     @classmethod
@@ -1213,7 +1221,7 @@ class BuiltinObjectBase[ObjectProtoT: AnyObjectProto]:
         _graph: "Graph | None" = None,
         _connection: "QueryConnection | None" = None,
     ) -> Self:
-        """Convert from wire format"""
+        """Convert from proto format"""
         raise NotImplementedError  # generated
 
     @classmethod
@@ -1249,14 +1257,6 @@ class BuiltinObjectBase[ObjectProtoT: AnyObjectProto]:
     ) -> Self:
         """Convert from value format"""
         raise NotImplementedError  # generated
-
-    @classmethod
-    def property(cls, name: str) -> Property:
-        """Get a Property by name."""
-        prop = cls.__properties__.get(name)
-        if prop is None:
-            raise ValueError(f"no property '{name}' in {cls.__name__}")
-        return prop
 
 
 @object_()
