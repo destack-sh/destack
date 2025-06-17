@@ -161,17 +161,17 @@ class Node[NodeProtoT: AnyNodeProto](NodeBase[NodeProtoT]):
         raise NotImplementedError  # generated
 
     def __to_ref__(self) -> "NodeReference":
-        """Gets a reference to this node. May be rich in subclasses."""
+        """Gets a reference to this Node."""
         raise NotImplementedError  # generated
 
     def to_ref(self) -> "NodeReference":
-        """Gets a reference to this node. May be rich in subclasses."""
+        """Gets a reference to this Node."""
         if self._ref is None:
             self._ref = self.__to_ref__()
         return self._ref
 
     def erase(self):
-        """Wipe this Node from this cosmos forever."""
+        """Erase this Node from this universe forever."""
         self._session.erase(self)
 
     def move_to(self, parent: "Node"):
@@ -273,20 +273,20 @@ class Node[NodeProtoT: AnyNodeProto](NodeBase[NodeProtoT]):
         """Gets the children of this Node."""
         return self._graph.get_children(self, node_type=node_type)
 
-    def get_child[N: Node = Node](self, node_type: NodeType | type[N], key: str) -> N | None:
-        """Gets a specific child of this Node."""
+    def get_child[N: Node = Node](self, node_type: NodeType | type[N], name: str) -> N | None:
+        """Gets a specific child of this Node by name."""
         if isinstance(node_type, type):
             node_type = node_type.metatype
         for child in self._graph.get_children(self, node_type=node_type):
-            if getattr(child, "name", None) == key:
+            if getattr(child, "name", None) == name:
                 return cast(N, child)
         return None
 
-    def child[N: Node = Node](self, node_type: NodeType | type[N], key: str) -> N:
-        """Gets a specific child of this Node, or raises an error if not found."""
-        child = self.get_child(node_type, key)
+    def child[N: Node = Node](self, node_type: NodeType | type[N], name: str) -> N:
+        """Gets a specific child of this Node by name, or raises an error if not found."""
+        child = self.get_child(node_type, name)
         if child is None:
-            raise LookupError(f"no child {key} of {self!r}")
+            raise LookupError(f"no child {name} of {self!r}")
         return cast(N, child)
 
     def get_descendants[N: Node = Node](
