@@ -1,5 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
-import { loadPyodide } from "pyodide";
+import React, { useEffect, useRef } from "react";
 
 import { EditorState } from "@codemirror/state";
 import { EditorView, keymap, lineNumbers, drawSelection, dropCursor, rectangularSelection } from "@codemirror/view";
@@ -11,16 +10,14 @@ import { foldKeymap } from "@codemirror/language";
 import { closeBracketsKeymap, completionKeymap } from "@codemirror/autocomplete";
 import { lintKeymap } from "@codemirror/lint";
 
+import { PyodideWorkerStatus, usePyodideWorker } from "./runtime/pyodide";
+import { formatDuration } from "../../destack-ts/src/utils/time";
+
 const Space: React.FC = () => {
   const editorContainerRef = useRef<HTMLDivElement | null>(null);
-  const editorViewRef = useRef<EditorView | null>(null);    // ← no React state
+  const editorViewRef = useRef<EditorView | null>(null);
 
-  const [pyodide, setPyodide] = useState<any>(null);
-  const [output, setOutput] = useState<string>("");
-
-  useEffect(() => {
-    loadPyodide().then(setPyodide);
-  }, []);
+  const { status, output, duration, isRunning, runCode } = usePyodideWorker();
 
   useEffect(() => {
     if (!editorContainerRef.current || editorViewRef.current) return; // already mounted
@@ -57,16 +54,11 @@ const Space: React.FC = () => {
     };
   }, []);
 
-  const runPython = async () => {
-    if (!pyodide || !editorViewRef.current) return;
+  const handleRunPython = () => {
+    if (status !== PyodideWorkerStatus.READY || !editorViewRef.current) return;
 
     const code = editorViewRef.current.state.doc.toString();
-    try {
-      const result = await pyodide.runPythonAsync(code);
-      setOutput(result ? String(result) : "");
-    } catch (err) {
-      setOutput(`Error: ${err}`);
-    }
+    runCode(code);
   };
 
   return (
@@ -74,17 +66,24 @@ const Space: React.FC = () => {
       <div className="mb-4">
         <div ref={editorContainerRef} className="border rounded min-h-[200px]" />
         <button
-          onClick={runPython}
-          disabled={!pyodide}
+          onClick={handleRunPython}
+          disabled={status !== PyodideWorkerStatus.READY || isRunning}
           className="mt-2 px-4 py-2 bg-blue-500 text-white rounded disabled:bg-gray-300"
         >
-          {pyodide ? "Run Python" : "Loading Pyodide..."}
+          {isRunning ? "Running..." : status === PyodideWorkerStatus.READY ? "Run" : status}
         </button>
       </div>
 
+      {duration != null && (
+        <span className="text-sm text-gray-600">
+          Executed in {formatDuration(duration, { format: "short", minUnit: "ms" })}
+        </span>
+      )}
       {output && (
         <div className="mt-4">
-          <h3 className="font-bold">Output:</h3>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-bold">Output:</h3>
+          </div>
           <pre className="bg-gray-100 p-2 rounded overflow-auto">{output}</pre>
         </div>
       )}
