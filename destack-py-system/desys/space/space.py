@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any, Callable, override
 import structlog
 from opentelemetry import trace
 
+from destack.grpc import Network, ServiceBase
 from destack.language import (
     CLOUD,
     Change,
@@ -34,7 +35,6 @@ from destack.proto import (
     UploadFilesRequest,
     UploadFilesResponse,
 )
-from destack.grpc import Network, ServiceBase
 from destack.store import BufferedStore
 from destack.utils.env import ENV, get_from_env
 from destack.utils.oracle import Oracle

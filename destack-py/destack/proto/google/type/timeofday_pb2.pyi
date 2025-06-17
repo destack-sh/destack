@@ -1,4 +1,3 @@
-
 # type: ignore
 # ruff: noqa
 
@@ -6,8 +5,6 @@ from typing import TYPE_CHECKING, Union, AsyncIterator, Mapping
 
 if TYPE_CHECKING:
     from destack.language import Session, Session, IsSubject, Client
-
-
 
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -25,4 +22,10 @@ class TimeOfDay(_message.Message):
     minutes: int
     seconds: int
     nanos: int
-    def __init__(self, hours: _Optional[int] = ..., minutes: _Optional[int] = ..., seconds: _Optional[int] = ..., nanos: _Optional[int] = ...) -> None: ...
+    def __init__(
+        self,
+        hours: _Optional[int] = ...,
+        minutes: _Optional[int] = ...,
+        seconds: _Optional[int] = ...,
+        nanos: _Optional[int] = ...,
+    ) -> None: ...

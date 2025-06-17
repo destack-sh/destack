@@ -20,11 +20,9 @@ from destack.language.registry import (
 from destack.utils.func import hash_stable
 from destack.utils.string import Casing, to_casing
 
-from .const import (
-    EMPTY_DICT,
+from .common import (
     NODE_TYPES,
     PRIMITIVE_TYPE_BY_PY_TYPE,
-    UNSET,
     CascadeAction,
     DefaultFactory,
     EdgeType,
@@ -37,6 +35,7 @@ from .const import (
     TraitType,
     TypeCardinality,
 )
+from .const import EMPTY_DICT, UNSET
 
 if TYPE_CHECKING:
     from destack.language import (

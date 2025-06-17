@@ -1,7 +1,5 @@
 from typing import TYPE_CHECKING, Optional, Union
 
-import structlog
-
 from destack.proto import CustomEntityDefinitionProto, CustomEntityProto
 from destack.utils.uuid import UUID
 
@@ -31,8 +29,6 @@ if TYPE_CHECKING:
     from destack.language import Folder
 
 # pyright: reportIncompatibleVariableOverride=false
-
-logger = structlog.get_logger(__name__)
 
 
 @builtin_node(NodeType.CUSTOM_ENTITY_DEFINITION)

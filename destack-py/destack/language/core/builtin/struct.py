@@ -13,7 +13,7 @@ from opentelemetry import trace
 from destack.language.registry import STRUCT_CLASS_BY_TYPE, STRUCT_TYPE_BY_CLASS
 from destack.proto import AnyStructProto
 
-from .const import StructType
+from .common import StructType
 from .object import BuiltinObjectBase, BuiltinObjectFrozen, BuiltinObjectMutable, object_
 from .property import _PROPERTY_SPECIFIERS, property_runtime_
 

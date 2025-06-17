@@ -1,4 +1,3 @@
-from collections.abc import Collection
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -24,7 +23,7 @@ from ..builtin import (
 from .relation import NodeReference, PropertyReference
 
 if TYPE_CHECKING:
-    from destack.language import Field, Graph, IsSubject, Origin, Value
+    from destack.language import Field, IsSubject, Origin, Value
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -166,13 +165,3 @@ class ChangeResult(StructFrozen):
     cascaded_edits: list[Edit] = property_(
         42, description="The Edits cascaded from the applied Edits."
     )
-
-
-def edit_node(node: Node, edit: Edit) -> None:
-    """Applies the Edit to the Node."""
-    raise NotImplementedError
-
-
-def edit_graph(graph: "Graph", edits: Collection[Edit]) -> None:
-    """Applies the Edits to the graph."""
-    raise NotImplementedError

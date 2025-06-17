@@ -5,9 +5,6 @@ from typing import (
     assert_never,
 )
 
-import structlog
-from opentelemetry import trace
-
 from destack.language.registry import (
     NODE_CLASS_BY_TYPE,
     STRUCT_CLASS_BY_TYPE,
@@ -38,8 +35,6 @@ if TYPE_CHECKING:
 
 # pyright: reportIncompatibleVariableOverride=false
 
-logger = structlog.get_logger(__name__)
-tracer = trace.get_tracer(__name__)
 type_ = type
 
 
