@@ -1,9 +1,93 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { loadPyodide } from "pyodide";
+
+import { EditorState } from "@codemirror/state";
+import { EditorView, keymap, lineNumbers, drawSelection, dropCursor, rectangularSelection } from "@codemirror/view";
+import { python } from "@codemirror/lang-python";
+import { syntaxHighlighting, defaultHighlightStyle, bracketMatching } from "@codemirror/language";
+import { defaultKeymap, historyKeymap } from "@codemirror/commands";
+import { searchKeymap } from "@codemirror/search";
+import { foldKeymap } from "@codemirror/language";
+import { closeBracketsKeymap, completionKeymap } from "@codemirror/autocomplete";
+import { lintKeymap } from "@codemirror/lint";
 
 const Space: React.FC = () => {
+  const editorContainerRef = useRef<HTMLDivElement | null>(null);
+  const editorViewRef = useRef<EditorView | null>(null);    // ← no React state
+
+  const [pyodide, setPyodide] = useState<any>(null);
+  const [output, setOutput] = useState<string>("");
+
+  useEffect(() => {
+    loadPyodide().then(setPyodide);
+  }, []);
+
+  useEffect(() => {
+    if (!editorContainerRef.current || editorViewRef.current) return; // already mounted
+
+    const state = EditorState.create({
+      doc: "# Python REPL\nprint('Hello, Python!')\n",
+      extensions: [
+        python(),
+        lineNumbers(),
+        dropCursor(),
+        EditorView.lineWrapping,
+        keymap.of([
+          ...defaultKeymap,
+          ...historyKeymap,
+          ...searchKeymap,
+          ...foldKeymap,
+          ...closeBracketsKeymap,
+          ...lintKeymap,
+          ...completionKeymap,
+        ]),
+        syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+        bracketMatching(),
+        rectangularSelection(),
+        drawSelection(),
+      ],
+    });
+
+    editorViewRef.current = new EditorView({ state, parent: editorContainerRef.current });
+
+    return () => {
+      editorViewRef.current?.destroy();
+      if (editorContainerRef.current) editorContainerRef.current.innerHTML = ""; // remove leftover DOM
+      editorViewRef.current = null;
+    };
+  }, []);
+
+  const runPython = async () => {
+    if (!pyodide || !editorViewRef.current) return;
+
+    const code = editorViewRef.current.state.doc.toString();
+    try {
+      const result = await pyodide.runPythonAsync(code);
+      setOutput(result ? String(result) : "");
+    } catch (err) {
+      setOutput(`Error: ${err}`);
+    }
+  };
+
   return (
-    <div>
-      <h1>Hello World!</h1>
+    <div className="p-4">
+      <div className="mb-4">
+        <div ref={editorContainerRef} className="border rounded min-h-[200px]" />
+        <button
+          onClick={runPython}
+          disabled={!pyodide}
+          className="mt-2 px-4 py-2 bg-blue-500 text-white rounded disabled:bg-gray-300"
+        >
+          {pyodide ? "Run Python" : "Loading Pyodide..."}
+        </button>
+      </div>
+
+      {output && (
+        <div className="mt-4">
+          <h3 className="font-bold">Output:</h3>
+          <pre className="bg-gray-100 p-2 rounded overflow-auto">{output}</pre>
+        </div>
+      )}
     </div>
   );
 };

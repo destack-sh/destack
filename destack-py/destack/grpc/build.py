@@ -9,11 +9,11 @@ import regex
 import structlog
 import typer
 
-from destack.language import NODE_TYPES, VERSION
+from destack.language import VERSION
 from destack.language.registry import NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 from destack.utils.string import Casing, to_casing
 
-from .map import generate_proto_schema
+from .core import ProtoSchema
 
 LANGUAGE_PROTO = "destack-proto/language.proto"
 TEMP_PY_DIR = "destack-py/destack/proto.tmp"
@@ -50,17 +50,6 @@ def run_shell_sync(cmd: str, check=True, **kwargs):
     subprocess.run(cmd, shell=True, check=check, **kwargs)
 
 
-def _gen_proto_schema() -> str:
-    """Generate the .proto schema (as a string) describing the current Destack types."""
-    proto = generate_proto_schema(
-        name="symbol.destack",
-        unions={"SomeNode": ("node", NODE_TYPES)},
-        extras=[],
-        message_postfix="Data",
-    )
-    return proto.to_proto_source()
-
-
 _PUBLIC_SERVICES = ("Universe", "Space")  # :ServiceKind
 
 
@@ -81,13 +70,13 @@ def _render_js_value(value: Any) -> str:
         raise RuntimeError(f"unexpected value: {value}")
 
 
-def _gen_proto(schema_str: str) -> None:
+def build_proto(schema: ProtoSchema) -> None:
     """Regenerate external artifacts from the proto schema."""
 
     on_apply = []
 
     # regenerate python & TS proto files
-    Path(LANGUAGE_PROTO).write_text(schema_str)
+    Path(LANGUAGE_PROTO).write_text(schema.to_proto_source())
 
     #
     # Python

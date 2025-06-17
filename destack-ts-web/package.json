@@ -26,6 +26,8 @@
     "@codemirror/state": "^6.5.2",
     "@codemirror/view": "^6.37.2",
     "@leeoniya/ufuzzy": "^1.0.18",
+    "@preact/signals-react": "^3.2.0",
+    "pyodide": "^0.27.7",
     "destack-ts": "link:destack-ts",
     "framer-motion": "^12.18.1",
     "posthog-js": "^1.246.1",
@@ -33,6 +35,7 @@
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
+    "@preact/signals-react-transform": "^0.5.2",
     "@tailwindcss/aspect-ratio": "^0.4.2",
     "@tailwindcss/container-queries": "^0.1.1",
     "@tailwindcss/postcss": "^4.1.10",
@@ -54,6 +57,7 @@
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.34.1",
     "vite": "^6.0.5",
+    "vite-plugin-static-copy": "^3.0.2",
     "vitest": "^3.2.3"
   }
-} 
+}
