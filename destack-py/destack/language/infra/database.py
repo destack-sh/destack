@@ -21,7 +21,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import DatabaseData
+from destack.proto import DatabaseProto
 
 if TYPE_CHECKING:
     from destack.language import Space
@@ -73,7 +73,7 @@ class Database(
     Resource,
     HasName,
     DatabaseBase,
-    Node[DatabaseData],
+    Node[DatabaseProto],
 ):
     """A primary storage Database of some flavor."""
 

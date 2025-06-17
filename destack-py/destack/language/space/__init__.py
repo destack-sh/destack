@@ -2,7 +2,7 @@ from .agent import Agent
 from .client import Client, Origin
 from .friendship import Friendship, FriendshipInvite
 from .handle import Handle
-from .organization import Organization, OrganizationData, OrganizationStatus
+from .organization import Organization, OrganizationProto, OrganizationStatus
 from .space import Space, SpaceStatus
 from .team import Team
 from .user import User, UserStatus
@@ -14,7 +14,7 @@ __all__ = [
     "FriendshipInvite",
     "Handle",
     "Organization",
-    "OrganizationData",
+    "OrganizationProto",
     "OrganizationStatus",
     "Origin",
     "Space",

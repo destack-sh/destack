@@ -13,7 +13,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import SceneData, SceneEventData
+from destack.proto import SceneEventProto, SceneProto
 
 from ..view import ContainerView
 
@@ -34,7 +34,7 @@ class SceneEventType(Enum):
 @builtin_node(NodeType.SCENE_EVENT)
 class SceneEvent(
     Event["Scene"],
-    Node[SceneEventData],
+    Node[SceneEventProto],
 ):
     """A Event regarding a Scene."""
 
@@ -47,7 +47,7 @@ class Scene(
     ContainerView,
     HasIcon,
     IsOwnable,
-    Node[SceneData],
+    Node[SceneProto],
 ):
     """A Scene is a container for a specific interaction point."""
 

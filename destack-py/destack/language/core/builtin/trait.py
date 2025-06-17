@@ -17,7 +17,7 @@ from destack.language.registry import (
     TRAIT_CLASS_BY_TRAIT,
     TRAIT_TYPE_BY_CLASS,
 )
-from destack.proto import AnyObjectData
+from destack.proto import AnyObjectProto
 from destack.utils.fractional import INTEGER_ZERO
 from destack.utils.uuid import UUID
 
@@ -130,7 +130,7 @@ def builtin_trait(
 
 
 @builtin_trait(trait_type=None)  # type: ignore
-class NodeBase[NodeDataT: AnyObjectData](BuiltinObjectMutable[NodeDataT]):
+class NodeBase[NodeProtoT: AnyObjectProto](BuiltinObjectMutable[NodeProtoT]):
     """A Node with Properties and a persistent identity."""
 
     metatype: ClassVar[TraitType | NodeType]

@@ -9,7 +9,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import CustomViewData, CustomViewDefinitionData
+from destack.proto import CustomViewDefinitionProto, CustomViewProto
 
 from .container import ContainerView
 
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 class CustomViewDefinition(
     ContainerView,
     IsCustomNodeDefinition,
-    Node[CustomViewDefinitionData],
+    Node[CustomViewDefinitionProto],
 ):
     """A definition for a custom View type."""
 
@@ -38,7 +38,7 @@ class CustomViewDefinition(
 class CustomView(
     ContainerView,
     IsCustomNode,
-    Node[CustomViewData],
+    Node[CustomViewProto],
 ):
     definition: "CustomViewDefinition" = property_(
         6,

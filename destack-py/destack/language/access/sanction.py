@@ -19,7 +19,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import SanctionData, SanctionEventData
+from destack.proto import SanctionEventProto, SanctionProto
 from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
@@ -41,7 +41,7 @@ class SanctionEventType(Enum):
 @builtin_node(NodeType.SANCTION_EVENT)
 class SanctionEvent(
     Event["Sanction"],
-    Node[SanctionEventData],
+    Node[SanctionEventProto],
 ):
     node: "Sanction" = property_(35)
 
@@ -59,7 +59,7 @@ class Sanction(
     Spatial,
     Entity,
     IsDeletable,
-    Node[SanctionData],
+    Node[SanctionProto],
 ):
     """A Sanction on some Subject."""
 

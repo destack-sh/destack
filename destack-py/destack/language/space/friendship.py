@@ -16,7 +16,7 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.proto import FriendshipData, FriendshipInviteData, FriendshipInviteEventData
+from destack.proto import FriendshipInviteEventProto, FriendshipInviteProto, FriendshipProto
 
 if TYPE_CHECKING:
     from destack.language import User
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 class Friendship(
     Global,
     Entity,
-    Node[FriendshipData],
+    Node[FriendshipProto],
 ):
     """A Friendship between two Users."""
 
@@ -49,7 +49,7 @@ class FriendshipInviteEventType(Enum):
 @builtin_node(NodeType.FRIENDSHIP_INVITE_EVENT)
 class FriendshipInviteEvent(
     Event["FriendshipInvite"],
-    Node[FriendshipInviteEventData],
+    Node[FriendshipInviteEventProto],
 ):
     """A Event regarding a Friendship Invite."""
 
@@ -63,7 +63,7 @@ class FriendshipInvite(
     Entity,
     LikeInvite,
     IsOwnable,
-    Node[FriendshipInviteData],
+    Node[FriendshipInviteProto],
 ):
     """An invite to be friends with another User."""
 

@@ -32,7 +32,7 @@ from destack.language.core import (
     property_,
     property_runtime_,
 )
-from destack.proto import FileData
+from destack.proto import FileProto
 from destack.utils.env import get_from_env
 from destack.utils.func import group_by
 
@@ -461,7 +461,7 @@ class File(
     Global,
     Resource,
     HasName,
-    Node[FileData],
+    Node[FileProto],
 ):
     """
     A File stored somewhere.

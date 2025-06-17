@@ -16,7 +16,7 @@ from destack.language.core import (
     builtin_trait,
     property_,
 )
-from destack.proto import EventCursorData, ScreenCursorData, ThreadCursorData
+from destack.proto import EventCursorProto, ScreenCursorProto, ThreadCursorProto
 
 if TYPE_CHECKING:
     pass
@@ -58,7 +58,7 @@ class Cursor(Spatial, Entity):
 class EventCursor(
     Cursor,
     IsOwnable,
-    Node[EventCursorData],
+    Node[EventCursorProto],
 ):
     """
     A EventCursor is a cursor for iterating over Events.
@@ -72,7 +72,7 @@ class EventCursor(
 class ScreenCursor(
     Cursor,
     IsOwnable,
-    Node[ScreenCursorData],
+    Node[ScreenCursorProto],
 ):
     """
     A ScreenCursor is a visual cursor corresponding to a pointing device on some screen.
@@ -86,7 +86,7 @@ class ScreenCursor(
 class ThreadCursor(
     Cursor,
     IsOwnable,
-    Node[ThreadCursorData],
+    Node[ThreadCursorProto],
 ):
     """
     A ThreadCursor is a cursor corresponding to a Thread.

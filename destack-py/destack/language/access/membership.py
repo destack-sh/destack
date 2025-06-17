@@ -19,7 +19,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import MembershipData, MembershipEventData
+from destack.proto import MembershipEventProto, MembershipProto
 
 if TYPE_CHECKING:
     from destack.language import Role, RoleType
@@ -40,7 +40,7 @@ class MembershipEventType(Enum):
 @builtin_node(NodeType.MEMBERSHIP_EVENT)
 class MembershipEvent(
     Event["Membership"],
-    Node[MembershipEventData],
+    Node[MembershipEventProto],
 ):
     """A Event regarding a Membership."""
 
@@ -67,7 +67,7 @@ class Membership(
     LikeMembership,
     IsOwnable,
     IsDeletable,
-    Node[MembershipData],
+    Node[MembershipProto],
 ):
     """A Membership of a Subject in a Joinable."""
 

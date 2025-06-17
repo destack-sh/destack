@@ -9,7 +9,7 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.proto import CanvasData
+from destack.proto import CanvasProto
 
 from ..view import ContainerView
 
@@ -28,7 +28,7 @@ class CanvasType(Enum):
 
 
 @builtin_node(NodeType.CANVAS, pretend_frozen=True)
-class Canvas(ContainerView, Node[CanvasData]):
+class Canvas(ContainerView, Node[CanvasProto]):
     """A Canvas is a container for only Shapes (other than that it's just a ContainerView)."""
 
     type: CanvasType = property_(30, default=CanvasType.SHAPE)

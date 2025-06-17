@@ -17,7 +17,7 @@ def generate():
         name="symbol.destack",
         unions={"SomeNode": ("node", NODE_TYPES)},
         extras=[],
-        message_postfix="Data",
+        postfix="Proto",
     )
     build_proto(proto_schema)
     logger.info("destack.generate")

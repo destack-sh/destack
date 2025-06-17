@@ -17,7 +17,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import AgentData
+from destack.proto import AgentProto
 from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
@@ -38,7 +38,7 @@ class Agent(
     IsScriptable,
     IsDeletable,
     IsSubject,
-    Node[AgentData],
+    Node[AgentProto],
 ):
     """An Agent is an identity for a bot."""
 

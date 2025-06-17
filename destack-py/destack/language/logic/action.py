@@ -19,7 +19,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import ActionData
+from destack.proto import ActionProto
 
 if TYPE_CHECKING:
     from destack.language import Text
@@ -47,7 +47,7 @@ class Action(
     IsExtensible,
     IsDeletable,
     IsRunnable,
-    Node[ActionData],
+    Node[ActionProto],
 ):
     """
     An implementation of a unit of work, usually expressed with Code or some tool.

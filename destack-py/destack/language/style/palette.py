@@ -14,7 +14,7 @@ from destack.language.core import (
     builtin_node,
     property_parent_,
 )
-from destack.proto import PaletteData
+from destack.proto import PaletteProto
 
 if TYPE_CHECKING:
     from destack.language import Canvas, Scene, Theme
@@ -32,7 +32,7 @@ class Palette(
     IsOrdered,
     IsTaggable,
     IsDeletable,
-    Node[PaletteData],
+    Node[PaletteProto],
 ):
     """A Palette with common ColorStyles."""
 

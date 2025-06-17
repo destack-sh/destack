@@ -13,7 +13,7 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.proto import TimerData, TimerEventData
+from destack.proto import TimerEventProto, TimerProto
 
 from .schedule import Schedule
 
@@ -35,7 +35,7 @@ class TimerEventType(Enum):
 @builtin_node(NodeType.TIMER_EVENT)
 class TimerEvent(
     Event["Timer"],
-    Node[TimerEventData],
+    Node[TimerEventProto],
 ):
     """A Event regarding a Timer."""
 
@@ -54,7 +54,7 @@ class Timer(
     Spatial,
     Entity,
     HasName,
-    Node[TimerData],
+    Node[TimerProto],
 ):
     """A Timer."""
 

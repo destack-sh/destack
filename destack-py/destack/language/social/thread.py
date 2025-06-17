@@ -17,7 +17,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import ThreadData
+from destack.proto import ThreadProto
 
 if TYPE_CHECKING:
     from destack.language import Folder
@@ -40,7 +40,7 @@ class Thread(
     IsDeletable,
     IsJoinable,
     IsOwnable,
-    Node[ThreadData],
+    Node[ThreadProto],
 ):
     """
     A Thread for communicating with Messages.

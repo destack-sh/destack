@@ -14,7 +14,7 @@ from destack.language.core import (
     object_,
     property_,
 )
-from destack.proto import TransitionStyleData
+from destack.proto import TransitionStyleProto
 
 from .style import Style
 
@@ -66,7 +66,7 @@ class Transition(TransitionBase, StructMutable):
 class TransitionStyle(
     Style,
     TransitionBase,
-    Node[TransitionStyleData],
+    Node[TransitionStyleProto],
 ):
     """A transition style."""
 

@@ -1,7 +1,7 @@
 from typing import Optional
 
 from destack.language.core import Node, NodeType, builtin_node, property_
-from destack.proto import SliderInputViewData
+from destack.proto import SliderInputViewProto
 
 from .input import InputView
 
@@ -11,7 +11,7 @@ from .input import InputView
 @builtin_node(NodeType.SLIDER_INPUT_VIEW)
 class SliderInputView(
     InputView,
-    Node[SliderInputViewData],
+    Node[SliderInputViewProto],
 ):
     """A slider input View."""
 

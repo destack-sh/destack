@@ -17,7 +17,7 @@ from destack.language.core import (
     object_,
     property_,
 )
-from destack.proto import EffectStyleData
+from destack.proto import EffectStyleProto
 
 from .style import Style
 from .transition import Transition
@@ -101,7 +101,7 @@ class Effect(EffectBase, StructMutable):
 class EffectStyle(
     Style,
     EffectBase,
-    Node[EffectStyleData],
+    Node[EffectStyleProto],
 ):
     """An effect style."""
 

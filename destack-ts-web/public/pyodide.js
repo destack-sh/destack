@@ -82,11 +82,7 @@ function sendError(message, duration) {
 async function initializePyodide() {
   try {
     sendStatus("INITIALIZING");
-    
-    // Import pyodide dynamically from assets (copied by Vite)
     const { loadPyodide } = await import('/assets/pyodide.mjs');
-    
-    sendStatus("INITIALIZING");
     pyodide = await loadPyodide({
       indexURL: "/assets/"
     });

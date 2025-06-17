@@ -14,7 +14,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import LogData
+from destack.proto import LogProto
 
 if TYPE_CHECKING:
     from destack.language import Space
@@ -37,7 +37,7 @@ class Log(
     Spatial,
     Analytic,
     IsFrozen,
-    Node[LogData],
+    Node[LogProto],
 ):
     """A Log message."""
 

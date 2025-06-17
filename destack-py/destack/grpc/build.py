@@ -34,7 +34,6 @@ EXTRA_PROTO_TS_FILES = (
     "destack-proto/health.proto",
     "destack-proto/universe.proto",
     "destack-proto/space.proto",
-    "destack-proto/web.proto",
     "destack-proto/google/type/date.proto",
     "destack-proto/google/type/datetime.proto",
     "destack-proto/google/type/timeofday.proto",
@@ -174,9 +173,9 @@ from .google.type.timeofday_pb2 import *
 from .google.type.datetime_pb2 import *
 
 # extra utility types
-AnyNodeData = Union[{", ".join([cls.__name__ + "Data" for cls in NODE_CLASS_BY_TYPE.values()])}]
-AnyStructData = Union[{", ".join([cls.__name__ + "Data" for cls in STRUCT_CLASS_BY_TYPE.values()])}]
-AnyObjectData = AnyNodeData | AnyStructData
+AnyNodeProto = Union[{", ".join([cls.__name__ + "Data" for cls in NODE_CLASS_BY_TYPE.values()])}]
+AnyStructProto = Union[{", ".join([cls.__name__ + "Data" for cls in STRUCT_CLASS_BY_TYPE.values()])}]
+AnyObjectProto = AnyNodeProto | AnyStructProto
 """)
     on_apply.append(lambda: shutil.rmtree(TARGET_PY_DIR, ignore_errors=True))  # noqa: FURB113
     on_apply.append(lambda: shutil.copytree(TEMP_PY_DIR, TARGET_PY_DIR))
@@ -246,8 +245,8 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
 //
 
 // Any...
-export type AnyNodeData = {" | ".join(cls.__name__ + "Data" for cls in NODE_CLASS_BY_TYPE.values())}
-export type AnyStructData = {" | ".join(cls.__name__ + "Data" for cls in STRUCT_CLASS_BY_TYPE.values())}
+export type AnyNodeProto = {" | ".join(cls.__name__ + "Data" for cls in NODE_CLASS_BY_TYPE.values())}
+export type AnyStructProto = {" | ".join(cls.__name__ + "Data" for cls in STRUCT_CLASS_BY_TYPE.values())}
 
     """
     lang_ts = Path(TEMP_TS_DIR + "/destack-proto/language.ts").read_text()
@@ -261,7 +260,6 @@ export type AnyStructData = {" | ".join(cls.__name__ + "Data" for cls in STRUCT_
 // re-export generated wire files
 export * from './destack-proto/common';
 export * from './destack-proto/language';
-export * from './destack-proto/web';
 export * from './destack-proto/universe';
 export * from './destack-proto/universe.client';
 export * from './destack-proto/space';

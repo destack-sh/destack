@@ -1,5 +1,5 @@
 from destack.language.core import Node, NodeType, builtin_node
-from destack.proto import FrameViewData
+from destack.proto import FrameViewProto
 
 from .container import ContainerView
 
@@ -9,6 +9,6 @@ from .container import ContainerView
 @builtin_node(NodeType.FRAME_VIEW)
 class FrameView(
     ContainerView,
-    Node[FrameViewData],
+    Node[FrameViewProto],
 ):
     """A frame container View."""

@@ -15,7 +15,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import TagData, TaggingData
+from destack.proto import TaggingProto, TagProto
 
 if TYPE_CHECKING:
     from destack.language import Folder
@@ -32,7 +32,7 @@ class Tag(
     HasIcon,
     IsOrdered,
     IsDeletable,
-    Node[TagData],
+    Node[TagProto],
 ):
     """A Tag to tag something."""
 
@@ -46,7 +46,7 @@ class Tagging(
     IsTaggable,
     IsOrdered,
     IsDeletable,
-    Node[TaggingData],
+    Node[TaggingProto],
 ):
     """A Tagging of a Node by a Tag."""
 

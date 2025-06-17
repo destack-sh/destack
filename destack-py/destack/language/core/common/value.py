@@ -12,7 +12,7 @@ from destack.language.registry import (
     STRUCT_CLASS_BY_TYPE,
     get_builtin_type,
 )
-from destack.proto import ValueData
+from destack.proto import ValueProto
 from destack.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 from destack.utils.uuid import UUID
 
@@ -46,7 +46,7 @@ type_ = type
 
 
 @builtin_struct(StructType.VALUE, frozen=True)
-class Value(StructFrozen[ValueData]):
+class Value(StructFrozen[ValueProto]):
     """A generic Value of any Type."""
 
     type: Type = property_(30, is_repr=True)

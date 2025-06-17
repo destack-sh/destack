@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Union
 
-from destack.proto import OptionData
+from destack.proto import OptionProto
 
 from ..builtin import (
     Entity,
@@ -31,7 +31,7 @@ class Option(
     IsTaggable,
     IsDeletable,
     IsSourceable,
-    Node[OptionData],
+    Node[OptionProto],
 ):
     parent: Union["CustomStructDefinition", "Field", None] = property_parent_(
         node_is_customizable=True

@@ -19,7 +19,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import EntitlementData, EntitlementEventData
+from destack.proto import EntitlementEventProto, EntitlementProto
 from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
@@ -41,7 +41,7 @@ class EntitlementEventType(Enum):
 @builtin_node(NodeType.ENTITLEMENT_EVENT)
 class EntitlementEvent(
     Event["Entitlement"],
-    Node[EntitlementEventData],
+    Node[EntitlementEventProto],
 ):
     node: "Entitlement" = property_(35)
 
@@ -59,7 +59,7 @@ class Entitlement(
     Spatial,
     Entity,
     IsDeletable,
-    Node[EntitlementData],
+    Node[EntitlementProto],
 ):
     """A Entitlement to some Subject."""
 

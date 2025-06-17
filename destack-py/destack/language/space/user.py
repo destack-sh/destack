@@ -20,7 +20,7 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.proto import UserData
+from destack.proto import UserProto
 from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
@@ -45,7 +45,7 @@ class User(
     IsOwner,
     IsFollowable,
     IsSubject,
-    Node[UserData],
+    Node[UserProto],
 ):
     """A User is a human using Destack."""
 

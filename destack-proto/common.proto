@@ -27,7 +27,7 @@ extend google.protobuf.FieldOptions {
 // NOTE :Monitoring: add request id to RPC metadata?
 message RpcMetadata {
   // Client
-  optional ClientType client_type = 2;
+  optional ClientTypeProto client_type = 2;
   optional string client_id = 3;
   optional string client_nonce = 4;
   optional string client_access_token = 5;

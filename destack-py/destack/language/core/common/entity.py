@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Optional, Union
 
 import structlog
 
-from destack.proto import CustomEntityData, CustomEntityDefinitionData
+from destack.proto import CustomEntityDefinitionProto, CustomEntityProto
 from destack.utils.uuid import UUID
 
 from ..builtin import (
@@ -47,7 +47,7 @@ class CustomEntityDefinition(
     IsScriptable,
     IsSourceable,
     IsActionable,
-    Node[CustomEntityDefinitionData],
+    Node[CustomEntityDefinitionProto],
 ):
     """
     A definition for a custom Entity type (instantiated in CustomEntities).
@@ -70,7 +70,7 @@ class CustomEntity(
     IsExtensible,
     IsDeletable,
     IsCustomNode,
-    Node[CustomEntityData],
+    Node[CustomEntityProto],
 ):
     """
     A CustomEntity is an instance of a CustomEntityDefinition.

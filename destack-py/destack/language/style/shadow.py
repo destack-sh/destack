@@ -15,7 +15,7 @@ from destack.language.core import (
     object_,
     property_,
 )
-from destack.proto import ShadowStyleData
+from destack.proto import ShadowStyleProto
 
 from .color import Color
 from .style import Style
@@ -65,7 +65,7 @@ class Shadow(ShadowBase, StructMutable):
 class ShadowStyle(
     Style,
     ShadowBase,
-    Node[ShadowStyleData],
+    Node[ShadowStyleProto],
 ):
     """A shadow style."""
 

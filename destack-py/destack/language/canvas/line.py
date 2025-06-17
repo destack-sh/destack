@@ -10,7 +10,7 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.proto import LineShapeData
+from destack.proto import LineShapeProto
 
 from ..view import ContentView
 from .shape import IsShape
@@ -29,7 +29,7 @@ class LineType(Enum):
 
 
 @builtin_node(NodeType.LINE_SHAPE, pretend_frozen=True)
-class LineShape(ContentView, IsShape, Node[LineShapeData]):
+class LineShape(ContentView, IsShape, Node[LineShapeProto]):
     """A LineShape is a shape that represents a line."""
 
     type: LineType = property_(30)

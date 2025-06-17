@@ -13,7 +13,7 @@ from destack.language.core import (
     Spatial,
     builtin_node,
 )
-from destack.proto import ThemeData
+from destack.proto import ThemeProto
 
 if TYPE_CHECKING:
     pass
@@ -31,6 +31,6 @@ class Theme(
     IsOrdered,
     IsTaggable,
     IsDeletable,
-    Node[ThemeData],
+    Node[ThemeProto],
 ):
     """A Theme with common Styles."""

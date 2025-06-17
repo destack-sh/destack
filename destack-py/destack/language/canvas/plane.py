@@ -8,7 +8,7 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.proto import PlaneShapeData
+from destack.proto import PlaneShapeProto
 
 from ..view import ContainerView
 from .shape import IsShape
@@ -26,5 +26,5 @@ class PlaneShapeType(Enum):
 
 
 @builtin_node(NodeType.PLANE_SHAPE, pretend_frozen=True)
-class PlaneShape(ContainerView, IsShape, Node[PlaneShapeData]):
+class PlaneShape(ContainerView, IsShape, Node[PlaneShapeProto]):
     points: list[Vector2] = property_(100)
