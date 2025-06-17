@@ -8,4 +8,4 @@ const Space: React.FC = () => {
   );
 };
 
-export default Space; 
+export default Space;

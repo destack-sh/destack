@@ -9,7 +9,7 @@ logger = structlog.get_logger(__name__)
 
 @app.callback(invoke_without_command=True)
 @app.command()
-def gen():
+def generate():
     """Generate all the derived things."""
     from destack.grpc.generate import _gen_proto, _gen_proto_schema
 
