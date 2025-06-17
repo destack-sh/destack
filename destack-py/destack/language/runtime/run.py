@@ -18,7 +18,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import RunData, RunEventData
+from destack.proto import RunEventProto, RunProto
 from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
@@ -88,7 +88,7 @@ class RunEventType(Enum):
 @builtin_node(NodeType.RUN_EVENT)
 class RunEvent(
     Event["Run"],
-    Node[RunEventData],
+    Node[RunEventProto],
 ):
     """A Event regarding a Run."""
 
@@ -108,7 +108,7 @@ class Run(
     Analytic,
     Indexed,
     IsExtensible,
-    Node[RunData],
+    Node[RunProto],
 ):
     """
     Run something somewhere, somehow.

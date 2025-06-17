@@ -10,6 +10,14 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
+from destack.grpc import (
+    Network,
+    RpcMetadata,
+    ScopeProto,
+    ServiceBase,
+    ServiceKind,
+    SpaceBase,
+)
 from destack.language import Client, DatabaseInfo, IsSubject, Session
 from destack.proto import (
     CommitRequest,
@@ -22,14 +30,6 @@ from destack.proto import (
     SubscribeResponse,
     UploadFilesRequest,
     UploadFilesResponse,
-)
-from destack.grpc import (
-    Network,
-    RpcMetadata,
-    ScopeData,
-    ServiceBase,
-    ServiceKind,
-    SpaceBase,
 )
 from destack.utils.env import get_from_env
 from destack.utils.oracle import Oracle
@@ -117,7 +117,7 @@ class SpaceRouterService(ServiceBase, SpaceBase):
         """Gets or starts a running Space for the given Destack"""
 
         # get request's destack id
-        scope: ScopeData | None = getattr(request, "scope")
+        scope: ScopeProto | None = getattr(request, "scope")
         if scope is None:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "missing scope")
         space_id = UUID(scope.space_id)

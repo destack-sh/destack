@@ -15,7 +15,7 @@ from destack.language.core import (
     object_,
     property_,
 )
-from destack.proto import FontStyleData
+from destack.proto import FontStyleProto
 
 from .fill import Fill
 from .style import Style
@@ -111,7 +111,7 @@ class Font(FontBase, StructMutable):
 class FontStyle(
     Style,
     FontBase,
-    Node[FontStyleData],
+    Node[FontStyleProto],
 ):
     """A font style."""
 

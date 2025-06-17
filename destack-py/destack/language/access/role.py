@@ -22,7 +22,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import RoleData, RoleEventData
+from destack.proto import RoleEventProto, RoleProto
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -38,7 +38,7 @@ class RoleEventType(Enum):
 @builtin_node(NodeType.ROLE_EVENT)
 class RoleEvent(
     Event["Role"],
-    Node[RoleEventData],
+    Node[RoleEventProto],
 ):
     """A Event regarding a Role."""
 
@@ -57,7 +57,7 @@ class Role(
     IsOwner,
     IsOrdered,
     IsDeletable,
-    Node[RoleData],
+    Node[RoleProto],
 ):
     """A Role for Subjects to take."""
 

@@ -13,7 +13,7 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.proto import NotificationData, NotificationEventData
+from destack.proto import NotificationEventProto, NotificationProto
 
 if TYPE_CHECKING:
     from destack.language import Text
@@ -46,7 +46,7 @@ class NotificationEventType(Enum):
 @builtin_node(NodeType.NOTIFICATION_EVENT)
 class NotificationEvent(
     Event["Notification"],
-    Node[NotificationEventData],
+    Node[NotificationEventProto],
 ):
     """A Event regarding a Notification."""
 
@@ -59,7 +59,7 @@ class Notification(
     Spatial,
     Entity,
     IsOwnable,
-    Node[NotificationData],
+    Node[NotificationProto],
 ):
     """A Notification is a message about something."""
 

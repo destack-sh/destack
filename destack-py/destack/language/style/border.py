@@ -15,7 +15,7 @@ from destack.language.core import (
     object_,
     property_,
 )
-from destack.proto import BorderStyleData
+from destack.proto import BorderStyleProto
 
 from .color import Color
 from .style import Style
@@ -56,7 +56,7 @@ class Border(BorderBase, StructMutable):
 class BorderStyle(
     Style,
     BorderBase,
-    Node[BorderStyleData],
+    Node[BorderStyleProto],
 ):
     """A border style."""
 

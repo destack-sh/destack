@@ -2,7 +2,7 @@ import base64
 import contextvars
 import inspect
 import textwrap
-from collections.abc import Collection, Mapping
+from collections.abc import Mapping
 from enum import Enum, IntEnum
 from sys import intern
 from typing import (
@@ -18,10 +18,9 @@ from typing import (
 )
 
 import structlog
-from bitarray import bitarray
 from opentelemetry import trace
 
-from destack.proto import AnyObjectData
+from destack.proto import AnyObjectProto
 from destack.utils.code import exec_, format_code
 from destack.utils.env import IS_DEV, IS_TEST
 from destack.utils.frozen import frozendict, frozenlist
@@ -1011,10 +1010,6 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
         if prop.ptr_prop:
             prop.ptr_prop.ord = i
     cls.__properties_id_in_order__ = tuple(cast(int, p.id) for p in cls.__properties_in_order__)
-    cls.__max_property_ord__ = len(cls.__properties_in_order__) - 1
-    cls.__properties_mask_set__ = bitarray(cls.__max_property_ord__ + 1)
-    cls.__properties_mask_set__.setall(True)
-    cls.__properties_mask_unset__ = bitarray(cls.__max_property_ord__ + 1)
 
     cls_dict = dict(cls.__dict__)
 
@@ -1145,7 +1140,7 @@ def object_[ObjectT: BuiltinObjectBase](
 _HANDLING_ATTRIBUTE_ERROR = contextvars.ContextVar("handling_attribute_error", default=False)
 
 
-class BuiltinObjectBase[ObjectDataT: AnyObjectData]:
+class BuiltinObjectBase[ObjectProtoT: AnyObjectProto]:
     """The base for all intrinsic objects like Structs and Nodes and all their derivatives."""
 
     __is_frozen__: ClassVar[bool] = False
@@ -1164,9 +1159,6 @@ class BuiltinObjectBase[ObjectDataT: AnyObjectData]:
 
     __properties_in_order__: ClassVar[tuple[Property, ...]]
     __properties_id_in_order__: ClassVar[tuple[int, ...]]
-    __max_property_ord__: ClassVar[int] = UNSET
-    __properties_mask_set__: ClassVar[bitarray] = UNSET
-    __properties_mask_unset__: ClassVar[bitarray] = UNSET
 
     __slots__ = ()
 
@@ -1191,14 +1183,14 @@ class BuiltinObjectBase[ObjectDataT: AnyObjectData]:
         return True  # support truthy checks for objects
 
     @classmethod
-    def __pack_proto__(cls, _object: Self) -> ObjectDataT:
+    def __pack_proto__(cls, _object: Self) -> ObjectProtoT:
         """Convert to wire format"""
         raise NotImplementedError  # generated
 
     @classmethod
     def __unpack_proto__(
         cls,
-        _object_data: ObjectDataT,
+        _object_data: ObjectProtoT,
         _session: "Session | None" = None,
         _supergraph: "Supergraph | None" = None,
         _graph: "Graph | None" = None,
@@ -1208,14 +1200,14 @@ class BuiltinObjectBase[ObjectDataT: AnyObjectData]:
         raise NotImplementedError  # generated
 
     @final
-    def to_proto(self) -> ObjectDataT:
+    def to_proto(self) -> ObjectProtoT:
         """Convert to wire format"""
         raise NotImplementedError  # generated (usually = __pack_proto__)
 
     @classmethod
     def from_proto(
         cls,
-        _object_data: ObjectDataT,
+        _object_data: ObjectProtoT,
         _session: "Session | None" = None,
         _supergraph: "Supergraph | None" = None,
         _graph: "Graph | None" = None,
@@ -1266,41 +1258,16 @@ class BuiltinObjectBase[ObjectDataT: AnyObjectData]:
             raise ValueError(f"no property '{name}' in {cls.__name__}")
         return prop
 
-    @classmethod
-    def _unmask_properties_ids(cls, mask: bitarray) -> tuple[int, ...]:
-        return tuple(cls.__properties_id_in_order__[i] for i in mask.search(True))
-
-    @classmethod
-    def _unmask_properties(cls, mask: bitarray) -> tuple[Property, ...]:
-        return tuple(cls.__properties_in_order__[i] for i in mask.search(True))
-
-    @classmethod
-    def _mask_properties(cls, properties: Collection[Property]) -> bitarray:
-        mask = bitarray(cls.__max_property_ord__ + 1)
-        for prop in properties:
-            assert prop.ord is not None, f"{prop!r} has no ordinal"
-            mask[prop.ord] = True
-        return mask
-
-    @classmethod
-    def _mask_properties_ids(cls, properties: Collection[int]) -> bitarray:
-        mask = bitarray(cls.__max_property_ord__ + 1)
-        for prop_id in properties:
-            prop = cls.__properties_by_id__[prop_id]
-            assert prop.ord is not None, f"{prop!r} has no ordinal"
-            mask[prop.ord] = True
-        return mask
-
 
 @object_()
-class BuiltinObjectMutable[ObjectDataT: AnyObjectData](BuiltinObjectBase[ObjectDataT]):
+class BuiltinObjectMutable[ObjectProtoT: AnyObjectProto](BuiltinObjectBase[ObjectProtoT]):
     """A mutable BuiltinObject."""
 
     _supergraph: "Supergraph | None" = property_runtime_()
 
 
 @object_(frozen=True)
-class BuiltinObjectFrozen[ObjectDataT: AnyObjectData](BuiltinObjectBase[ObjectDataT]):
+class BuiltinObjectFrozen[ObjectProtoT: AnyObjectProto](BuiltinObjectBase[ObjectProtoT]):
     """A frozen BuiltinObject."""
 
     _supergraph: "Supergraph | None" = property_runtime_()

@@ -17,7 +17,7 @@ from destack.language.registry import (
     NODE_TYPE_BY_CLASS,
     ORDER_GROUP_BY_NODE_TYPE,
 )
-from destack.proto import AnyNodeData
+from destack.proto import AnyNodeProto
 from destack.utils.fractional import get_order_key
 from destack.utils.func import get_superclasses
 from destack.utils.uuid import UUID
@@ -97,7 +97,7 @@ _object_set = object.__setattr__
 
 
 @builtin_node(node_type=None, root_type=None)
-class Node[NodeDataT: AnyNodeData](NodeBase[NodeDataT]):
+class Node[NodeProtoT: AnyNodeProto](NodeBase[NodeProtoT]):
     """
     A Node with Properties and a persistent identity.
     """

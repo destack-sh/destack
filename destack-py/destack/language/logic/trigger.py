@@ -16,7 +16,7 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.proto import TriggerData, TriggerEventData
+from destack.proto import TriggerEventProto, TriggerProto
 from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
@@ -37,7 +37,7 @@ class TriggerEventType(Enum):
 @builtin_node(NodeType.TRIGGER_EVENT)
 class TriggerEvent(
     Event["Trigger"],
-    Node[TriggerEventData],
+    Node[TriggerEventProto],
 ):
     """A Event regarding a Trigger."""
 
@@ -55,7 +55,7 @@ class Trigger(
     Spatial,
     Entity,
     HasName,
-    Node[TriggerData],
+    Node[TriggerProto],
 ):
     """A Trigger is a dynamic event to run something."""
 

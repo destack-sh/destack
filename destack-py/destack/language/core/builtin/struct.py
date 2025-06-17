@@ -11,7 +11,7 @@ import structlog
 from opentelemetry import trace
 
 from destack.language.registry import STRUCT_CLASS_BY_TYPE, STRUCT_TYPE_BY_CLASS
-from destack.proto import AnyStructData
+from destack.proto import AnyStructProto
 
 from .const import StructType
 from .object import BuiltinObjectBase, BuiltinObjectFrozen, BuiltinObjectMutable, object_
@@ -50,7 +50,7 @@ def builtin_struct[ObjectT: BuiltinObjectBase](struct_type: StructType, frozen: 
     return decorate
 
 
-class StructBase[StructDataT: AnyStructData](BuiltinObjectBase[StructDataT], abc.ABC):
+class StructBase[StructProtoT: AnyStructProto](BuiltinObjectBase[StructProtoT], abc.ABC):
     """A Struct is an ordered collection of Properties."""
 
     metatype: ClassVar[StructType]
@@ -68,8 +68,8 @@ class StructBase[StructDataT: AnyStructData](BuiltinObjectBase[StructDataT], abc
 
 
 @object_()
-class StructMutable[StructDataT: AnyStructData](
-    StructBase[StructDataT], BuiltinObjectMutable[StructDataT]
+class StructMutable[StructProtoT: AnyStructProto](
+    StructBase[StructProtoT], BuiltinObjectMutable[StructProtoT]
 ):
     """A mutable Struct."""
 
@@ -77,15 +77,15 @@ class StructMutable[StructDataT: AnyStructData](
 
 
 @object_(frozen=True)
-class StructFrozen[StructDataT: AnyStructData](
-    StructBase[StructDataT], BuiltinObjectFrozen[StructDataT]
+class StructFrozen[StructProtoT: AnyStructProto](
+    StructBase[StructProtoT], BuiltinObjectFrozen[StructProtoT]
 ):
     """A frozen Struct."""
 
     # cached for frozen Structs
     _hash: "int | None" = property_runtime_()
     _repr: "str | None" = property_runtime_()
-    _proto: "StructDataT | None" = property_runtime_()
+    _proto: "StructProtoT | None" = property_runtime_()
     _value: "Json | None" = property_runtime_()
 
     def _invalidate_frozen_cache(self) -> None:

@@ -14,7 +14,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import StarData
+from destack.proto import StarProto
 
 if TYPE_CHECKING:
     from destack.language import IsStarable
@@ -32,7 +32,7 @@ class Star(
     Entity,
     IsDeletable,
     IsOwnable,
-    Node[StarData],
+    Node[StarProto],
 ):
     """A Star is a relationship between a Subject and a Starred Node."""
 

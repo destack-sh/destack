@@ -18,7 +18,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import InterruptionData
+from destack.proto import InterruptionProto
 from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
@@ -63,7 +63,7 @@ class Interruption(
     Analytic,
     Indexed,
     IsExtensible,
-    Node[InterruptionData],
+    Node[InterruptionProto],
 ):
     """An Interruption in run of something."""
 

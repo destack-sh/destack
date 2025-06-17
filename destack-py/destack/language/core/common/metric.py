@@ -1,10 +1,10 @@
 from destack.proto import (
-    CounterMeasurementData,
-    CounterMetricData,
-    GaugeMeasurementData,
-    GaugeMetricData,
-    HistogramMeasurementData,
-    HistogramMetricData,
+    CounterMeasurementProto,
+    CounterMetricProto,
+    GaugeMeasurementProto,
+    GaugeMetricProto,
+    HistogramMeasurementProto,
+    HistogramMetricProto,
 )
 
 from ..builtin import (
@@ -26,7 +26,7 @@ class GaugeMetric(
     Spatial,
     Metric,
     HasName,
-    Node[GaugeMetricData],
+    Node[GaugeMetricProto],
 ):
     """A Gauge Metric."""
 
@@ -37,7 +37,7 @@ class GaugeMetric(
 class GaugeMeasurement(
     Spatial,
     Measurement,
-    Node[GaugeMeasurementData],
+    Node[GaugeMeasurementProto],
 ):
     """A Gauge Measurement."""
 
@@ -49,7 +49,7 @@ class CounterMetric(
     Spatial,
     Metric,
     HasName,
-    Node[CounterMetricData],
+    Node[CounterMetricProto],
 ):
     """A Counter Metric."""
 
@@ -60,7 +60,7 @@ class CounterMetric(
 class CounterMeasurement(
     Spatial,
     Measurement,
-    Node[CounterMeasurementData],
+    Node[CounterMeasurementProto],
 ):
     """A Counter Measurement."""
 
@@ -72,7 +72,7 @@ class HistogramMetric(
     Spatial,
     Metric,
     HasName,
-    Node[HistogramMetricData],
+    Node[HistogramMetricProto],
 ):
     """A Histogram Metric."""
 
@@ -83,7 +83,7 @@ class HistogramMetric(
 class HistogramMeasurement(
     Spatial,
     Measurement,
-    Node[HistogramMeasurementData],
+    Node[HistogramMeasurementProto],
 ):
     """A Histogram Measurement."""
 

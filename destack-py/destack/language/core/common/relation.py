@@ -13,7 +13,7 @@ from destack.language.registry import (
     STRUCT_CLASS_BY_TYPE,
     TRAIT_CLASS_BY_TRAIT,
 )
-from destack.proto import NodeReferenceData, PropertyReferenceData, ScopeData
+from destack.proto import NodeReferenceProto, PropertyReferenceProto, ScopeProto
 from destack.utils.uuid import UUID
 
 from ..builtin import (
@@ -44,7 +44,7 @@ type_ = type
 
 
 @builtin_struct(StructType.SCOPE, frozen=True)
-class Scope(StructFrozen[ScopeData]):
+class Scope(StructFrozen[ScopeProto]):
     """The scope in the Space graph."""
 
     region: Optional[Region] = property_(31, is_repr=True)
@@ -171,7 +171,7 @@ class PropertyReferenceType(Enum):
 
 
 @builtin_struct(StructType.PROPERTY_REFERENCE, frozen=True)
-class PropertyReference(StructFrozen[PropertyReferenceData]):
+class PropertyReference(StructFrozen[PropertyReferenceProto]):
     """
     A reference to a builtin object's Property.
     If type is unset, this refers to a base property in one of the base BuiltinObject types.
@@ -212,7 +212,7 @@ class PropertyReference(StructFrozen[PropertyReferenceData]):
 
 
 @builtin_struct(StructType.NODE_REFERENCE, frozen=True)
-class NodeReference(StructFrozen[NodeReferenceData]):
+class NodeReference(StructFrozen[NodeReferenceProto]):
     """
     A reference to a Node.
     """

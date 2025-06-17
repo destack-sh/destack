@@ -1,5 +1,5 @@
 from destack.language.core import Node, NodeType, builtin_node
-from destack.proto import SplitViewData
+from destack.proto import SplitViewProto
 
 from .container import ContainerView
 
@@ -9,6 +9,6 @@ from .container import ContainerView
 @builtin_node(NodeType.SPLIT_VIEW)
 class SplitView(
     ContainerView,
-    Node[SplitViewData],
+    Node[SplitViewProto],
 ):
     """A split container View."""

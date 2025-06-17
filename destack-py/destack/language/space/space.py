@@ -21,7 +21,7 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.proto import SpaceData
+from destack.proto import SpaceProto
 from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
@@ -52,7 +52,7 @@ class Space(
     IsOwnable,
     IsStarable,
     Spatial,
-    Node[SpaceData],
+    Node[SpaceProto],
 ):
     """
     A Space is the home of your personal software studio.

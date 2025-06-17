@@ -18,7 +18,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import InviteData, InviteEventData
+from destack.proto import InviteEventProto, InviteProto
 
 if TYPE_CHECKING:
     from destack.language import Role, RoleType
@@ -39,7 +39,7 @@ class InviteEventType(Enum):
 @builtin_node(NodeType.INVITE_EVENT)
 class InviteEvent(
     Event,
-    Node[InviteEventData],
+    Node[InviteEventProto],
 ):
     """A Event regarding an Invite."""
 
@@ -57,7 +57,7 @@ class Invite(
     Entity,
     IsOwnable,
     IsDeletable,
-    Node[InviteData],
+    Node[InviteProto],
 ):
     """An Invite to a Joinable."""
 

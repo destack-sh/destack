@@ -37,8 +37,8 @@ class RpcMetadata(_message.Message):
     CLIENT_ID_FIELD_NUMBER: _ClassVar[int]
     CLIENT_NONCE_FIELD_NUMBER: _ClassVar[int]
     CLIENT_ACCESS_TOKEN_FIELD_NUMBER: _ClassVar[int]
-    client_type: _language_pb2.ClientType
+    client_type: _language_pb2.ClientTypeProto
     client_id: str
     client_nonce: str
     client_access_token: str
-    def __init__(self, client_type: _Optional[_Union[_language_pb2.ClientType, str]] = ..., client_id: _Optional[str] = ..., client_nonce: _Optional[str] = ..., client_access_token: _Optional[str] = ...) -> None: ...
+    def __init__(self, client_type: _Optional[_Union[_language_pb2.ClientTypeProto, str]] = ..., client_id: _Optional[str] = ..., client_nonce: _Optional[str] = ..., client_access_token: _Optional[str] = ...) -> None: ...

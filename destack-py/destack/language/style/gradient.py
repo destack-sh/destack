@@ -17,7 +17,7 @@ from destack.language.core import (
     object_,
     property_,
 )
-from destack.proto import GradientStyleData
+from destack.proto import GradientStyleProto
 
 from .color import Color
 from .style import Style
@@ -62,7 +62,7 @@ class Gradient(GradientBase, StructMutable):
 class GradientStyle(
     Style,
     GradientBase,
-    Node[GradientStyleData],
+    Node[GradientStyleProto],
 ):
     """A gradient style."""
 

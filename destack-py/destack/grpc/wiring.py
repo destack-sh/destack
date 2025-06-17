@@ -26,7 +26,7 @@ from destack.language.core import (
     TypeCardinality,
 )
 from destack.language.registry import STRUCT_CLASS_BY_TYPE, get_builtin_type
-from destack.proto import AnyNodeData, RpcMetadata
+from destack.proto import AnyNodeProto, RpcMetadata
 from destack.utils.string import Casing, to_casing
 
 if TYPE_CHECKING:
@@ -47,25 +47,25 @@ def generate_pack_proto_impl(cls: type["BuiltinObjectBase"]) -> tuple[str, dict[
 
     if cls.__is_frozen__ and not cls.__is_node__:
         to_proto = """\
-def to_proto(self: "Self") -> "StructDataT":
+def to_proto(self: "Self") -> "StructProtoT":
     if self._proto is None:
         self._proto = self.__pack_proto__(self)
     return self._proto
 """
     else:
         to_proto = """\
-def to_proto(self: "Self") -> "StructDataT":
+def to_proto(self: "Self") -> "StructProtoT":
     return self.__pack_proto__(self)
 """
 
     proto_impl = f"""
 @classmethod
-def __pack_proto__(cls, _object: "Self") -> "{cls.__name__}Data":
+def __pack_proto__(cls, _object: "Self") -> "{cls.__name__}Proto":
 {pack_proto}
 
 @classmethod
 def __unpack_proto__(cls, 
-    _object_data: "{cls.__name__}Data",
+    _object_proto: "{cls.__name__}Proto",
     _session: "Session | None" = None,
     _graph: "Graph | None" = None,
     _supergraph: "Supergraph | None" = None,
@@ -94,7 +94,7 @@ def _generate_pack_proto(cls: type["BuiltinObjectBase"]) -> str:
     """Generate the BuiltinObject.__pack_proto__ method implementation."""
     metatype = get_builtin_type(cls)
     pack_method_parts: list[str] = []
-    pack_method_parts.append(f"_object_data = {cls.__name__}Data(metatype={metatype.value})")
+    pack_method_parts.append(f"_object_proto = {cls.__name__}Proto(metatype={metatype.value})")
 
     for prop in cls.__wired_properties__.values():
         if prop.name == "metatype":
@@ -103,7 +103,7 @@ def _generate_pack_proto(cls: type["BuiltinObjectBase"]) -> str:
         if pack_code:
             pack_method_parts.extend(pack_code)
 
-    pack_method_parts.append("return _object_data")
+    pack_method_parts.append("return _object_proto")
 
     return "\n".join(pack_method_parts)
 
@@ -124,9 +124,9 @@ def _generate_unpack_proto(cls: type["BuiltinObjectBase"]) -> str:
                 unpack_method_parts.extend(unpack_code)
                 unpack_assignments.append(f"{prop.name}=_unpacked_{prop.name}")
         else:
-            unpack_assignments.append(f"{prop.name}=_object_data.{prop.name}")
+            unpack_assignments.append(f"{prop.name}=_object_proto.{prop.name}")
     if cls.__is_frozen__ and not cls.__is_node__:
-        unpack_assignments.append("_proto=_object_data")
+        unpack_assignments.append("_proto=_object_proto")
 
     unpack_method_parts.append("return cls(")
     for assignment in unpack_assignments:
@@ -173,15 +173,15 @@ def _generate_pack_property(prop: "Property") -> list[str] | None:
             lines.append(f"if ({prop.name} := {obj_value}) is not None:")
             scalar_expr = _generate_pack_scalar(prop, prop.name)
             if _is_proto_primitive(prop):
-                lines.append(f"    _object_data.{prop.name} = {scalar_expr}")
+                lines.append(f"    _object_proto.{prop.name} = {scalar_expr}")
             else:
-                lines.append(f"    _object_data.{prop.name}.CopyFrom({scalar_expr})")
+                lines.append(f"    _object_proto.{prop.name}.CopyFrom({scalar_expr})")
         else:
             scalar_expr = _generate_pack_scalar(prop, obj_value)
             if _is_proto_primitive(prop):
-                lines.append(f"_object_data.{prop.name} = {scalar_expr}")
+                lines.append(f"_object_proto.{prop.name} = {scalar_expr}")
             else:
-                lines.append(f"_object_data.{prop.name}.CopyFrom({scalar_expr})")
+                lines.append(f"_object_proto.{prop.name}.CopyFrom({scalar_expr})")
     elif prop.cardinality == TypeCardinality.LIST:
         item_expr = _generate_pack_scalar(prop, "_item")
         if _is_proto_primitive(prop):
@@ -191,14 +191,14 @@ if {obj_value}:
     _packed_{prop.name} = []
     for _item in {obj_value}:
         _packed_{prop.name}.append({item_expr})
-    _object_data.{prop.name} = _packed_{prop.name}""".splitlines()
+    _object_proto.{prop.name} = _packed_{prop.name}""".splitlines()
             )
         else:
             lines.extend(
                 f"""\
 if {obj_value}:
     for _item in {obj_value}:
-        _object_data.{prop.name}.append({item_expr})""".splitlines()
+        _object_proto.{prop.name}.append({item_expr})""".splitlines()
             )
     elif prop.cardinality == TypeCardinality.MAP:
         lines.extend(
@@ -210,9 +210,9 @@ if {obj_value}:
         key_expr = _generate_pack_scalar(prop.key_type, "_key")
         value_expr = _generate_pack_scalar(prop, "_value")
         if _is_proto_primitive(prop):
-            lines.append(f"        _object_data.{prop.name}[{key_expr}] = {value_expr}")
+            lines.append(f"        _object_proto.{prop.name}[{key_expr}] = {value_expr}")
         else:
-            lines.append(f"        _object_data.{prop.name}[{key_expr}].CopyFrom({value_expr})")
+            lines.append(f"        _object_proto.{prop.name}[{key_expr}].CopyFrom({value_expr})")
     else:
         assert_never(prop.cardinality)
 
@@ -227,23 +227,23 @@ def _generate_unpack_property(prop: "Property") -> list[str] | None:
         if prop.is_required:
             return code
         else:
-            return f"{code} if _object_data.HasField('{prop.name}') else None"
+            return f"{code} if _object_proto.HasField('{prop.name}') else None"
 
     lines: list[str] = []
-    data_value = f"_object_data.{prop.name}"
+    proto_value = f"_object_proto.{prop.name}"
 
     if prop.cardinality == TypeCardinality.SCALAR:
         if prop.is_optional:
-            scalar_expr = _generate_unpack_scalar(prop, data_value)
+            scalar_expr = _generate_unpack_scalar(prop, proto_value)
             lines.append(f"_unpacked_{prop.name} = {_wrap_with_null_check(scalar_expr)}")
         else:
-            scalar_expr = _generate_unpack_scalar(prop, data_value)
+            scalar_expr = _generate_unpack_scalar(prop, proto_value)
             lines.append(f"_unpacked_{prop.name} = {scalar_expr}")
     elif prop.cardinality == TypeCardinality.LIST:
         lines.extend(
             f"""\
 _unpacked_{prop.name} = []
-for _item in {data_value}:""".splitlines()
+for _item in {proto_value}:""".splitlines()
         )
         item_expr = _generate_unpack_scalar(prop, "_item")
         lines.append(f"    _unpacked_{prop.name}.append({item_expr})")
@@ -251,7 +251,7 @@ for _item in {data_value}:""".splitlines()
         lines.extend(
             f"""\
 _unpacked_{prop.name} = {{}}
-for _key, _value in {data_value}.items():""".splitlines()
+for _key, _value in {proto_value}.items():""".splitlines()
         )
         assert prop.key_type is not None, f"no key_type for map: {prop!r}"
         key_expr = _generate_unpack_scalar(prop.key_type, "_key")
@@ -348,15 +348,15 @@ def unpack_proto_duration(duration: Duration) -> timedelta:
     return timedelta(seconds=duration.seconds, microseconds=duration.nanos // 1000)
 
 
-def wrap_some_node(node: AnyNodeData) -> proto.SomeNodeData:
+def wrap_some_node(node: AnyNodeProto) -> proto.SomeNodeProto:
     """Wraps a concrete node type into a generic node message."""
-    wrapper = proto.SomeNodeData()
+    wrapper = proto.SomeNodeProto()
     field_name = to_casing(cast(str, NodeType(node.metatype).name), Casing.SNAKE)
     getattr(wrapper, field_name).CopyFrom(node)
     return wrapper
 
 
-def unwrap_some_node(node: proto.SomeNodeData) -> AnyNodeData:
+def unwrap_some_node(node: proto.SomeNodeProto) -> AnyNodeProto:
     """Unwraps a generic node type into a concrete node type."""
     node_key = node.WhichOneof("node")
     assert node_key is not None, f"node not set in {node!r}"
@@ -420,7 +420,7 @@ def unpack_rpc_headers(headers: Mapping) -> RpcMetadata:
     # flat encoding with prefixy, messages as base64 :RpcMetadataEncoding
     metadata = RpcMetadata()
     if headers.get("x-destack-2"):
-        metadata.client_type = cast(proto.ClientType, int(headers["x-destack-2"]))
+        metadata.client_type = cast(proto.ClientTypeProto, int(headers["x-destack-2"]))
     if headers.get("x-destack-3"):
         metadata.client_id = headers.get("x-destack-3")  # type: ignore
     if headers.get("x-destack-4"):

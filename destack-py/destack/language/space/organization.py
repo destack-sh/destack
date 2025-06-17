@@ -18,7 +18,7 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.proto import OrganizationData
+from destack.proto import OrganizationProto
 from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
@@ -42,7 +42,7 @@ class Organization(
     HasName,
     IsOwner,
     IsJoinable,
-    Node[OrganizationData],
+    Node[OrganizationProto],
 ):
     """
     An Organization with Users and Teams.

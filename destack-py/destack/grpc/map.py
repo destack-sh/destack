@@ -69,7 +69,7 @@ def _map_property_to_proto_field(
         field = ProtoField(
             id=prop.id,
             name=prop.name,
-            type="NodeReferenceData",
+            type="NodeReferenceProto",
             optional=prop.is_optional,
             repeated=prop.cardinality == TypeCardinality.LIST,
         )
@@ -212,7 +212,7 @@ def generate_proto_schema(
     name: str,
     unions: dict[str, tuple[str, Collection[EnumType | NodeType | StructType]]],
     extras: list[ProtoEnum | ProtoMessage],
-    message_postfix: str,
+    postfix: str,
 ) -> ProtoSchema:
     # walk all destack types to populate the cache
     cache: dict[type[BuiltinObjectBase] | type[Enum], ProtoThing] = {}
@@ -249,9 +249,9 @@ def generate_proto_schema(
     proto_types.extend(extras)
 
     # apply postfix to messages
-    if message_postfix:
+    if postfix:
         for proto_type in proto_types:
-            if isinstance(proto_type, ProtoMessage) and proto_type not in extras:
-                proto_type.name += message_postfix
+            if proto_type not in extras:
+                proto_type.name += postfix
 
     return ProtoSchema.from_types(name, proto_types)

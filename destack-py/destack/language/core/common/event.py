@@ -1,9 +1,9 @@
 from typing import TYPE_CHECKING
 
 from destack.proto import (
-    CustomEventData,
-    CustomEventDefinitionData,
-    EditEventData,
+    CustomEventDefinitionProto,
+    CustomEventProto,
+    EditEventProto,
 )
 from destack.utils.uuid import UUID
 
@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 class EditEvent(
     Event,
     IsTaggable,
-    Node[EditEventData],
+    Node[EditEventProto],
 ):
     """A Event of an Edit. Only EditEvents of Entities are allowed."""
 
@@ -68,7 +68,7 @@ class CustomEventDefinition(
     Entity,
     HasName,
     IsSourceable,
-    Node[CustomEventDefinitionData],
+    Node[CustomEventDefinitionProto],
 ):
     """A CustomEventDefinition defines a kind of CustomEvent."""
 
@@ -78,7 +78,7 @@ class CustomEventDefinition(
 @builtin_node(NodeType.CUSTOM_EVENT, pretend_frozen=True)
 class CustomEvent(
     Event,
-    Node[CustomEventData],
+    Node[CustomEventProto],
 ):
     """An instance of a CustomEventDefinition."""
 

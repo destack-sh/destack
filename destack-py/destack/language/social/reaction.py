@@ -15,7 +15,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import ReactionData
+from destack.proto import ReactionProto
 
 if TYPE_CHECKING:
     from destack.language import IsReactable
@@ -34,7 +34,7 @@ class Reaction(
     IsReactable,
     IsDeletable,
     IsOwnable,
-    Node[ReactionData],
+    Node[ReactionProto],
 ):
     """A Reaction is a relationship between a Subject and a Reaction Node."""
 

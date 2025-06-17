@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Optional, Union
 
-from destack.proto import FieldData
+from destack.proto import FieldProto
 
 from ..builtin import (
     CascadeAction,
@@ -65,7 +65,7 @@ class Field(
     IsDeletable,
     IsSourceable,
     IntoQuery,
-    Node[FieldData],
+    Node[FieldProto],
 ):
     """
     A Field is a custom attribute of a CustomStructDefinition or an IsExtensible.

@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from destack.proto import CustomStructDefinitionData
+from destack.proto import CustomStructDefinitionProto
 
 from ..builtin import (
     Entity,
@@ -32,7 +32,7 @@ class CustomStructDefinition(
     IsDeletable,
     IsSourceable,
     IsExtensible,
-    Node[CustomStructDefinitionData],
+    Node[CustomStructDefinitionProto],
 ):
     """A CustomStructDefinition describes a custom Type with Fields."""
 

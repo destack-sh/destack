@@ -9,7 +9,7 @@ from destack.language.core import (
     builtin_node,
     property_parent_,
 )
-from destack.proto import SpanData
+from destack.proto import SpanProto
 
 if TYPE_CHECKING:
     from destack.language import Run
@@ -23,7 +23,7 @@ class Span(
     Spatial,
     Analytic,
     IsFrozen,
-    Node[SpanData],
+    Node[SpanProto],
 ):
     """
     A Span is a trace inside a Run.

@@ -12,7 +12,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import LayerData
+from destack.proto import LayerProto
 
 from ..view import ContainerView
 
@@ -36,7 +36,7 @@ class Layer(
     ContainerView,
     HasIcon,
     IsOwnable,
-    Node[LayerData],
+    Node[LayerProto],
 ):
     """A Layer is a named container for Views."""
 

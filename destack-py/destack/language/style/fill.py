@@ -14,7 +14,7 @@ from destack.language.core import (
     object_,
     property_,
 )
-from destack.proto import FillStyleData
+from destack.proto import FillStyleProto
 
 from .color import Color
 from .gradient import Gradient
@@ -87,7 +87,7 @@ class Fill(FillBase, StructMutable):
 class FillStyle(
     Style,
     FillBase,
-    Node[FillStyleData],
+    Node[FillStyleProto],
 ):
     """A fill style."""
 

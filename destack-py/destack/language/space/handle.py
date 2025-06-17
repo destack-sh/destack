@@ -10,7 +10,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import HandleData
+from destack.proto import HandleProto
 
 if TYPE_CHECKING:
     from destack.language import Space
@@ -23,7 +23,7 @@ class Handle(
     Global,
     Entity,
     HasSlug,
-    Node[HandleData],
+    Node[HandleProto],
 ):
     """A Destack @handle."""
 

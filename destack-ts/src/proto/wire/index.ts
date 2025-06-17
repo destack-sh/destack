@@ -4,7 +4,6 @@ import { groupByList } from '@/utils/functools';
 // re-export generated wire files
 export * from './destack-proto/common';
 export * from './destack-proto/language';
-export * from './destack-proto/web';
 export * from './destack-proto/universe';
 export * from './destack-proto/universe.client';
 export * from './destack-proto/space';

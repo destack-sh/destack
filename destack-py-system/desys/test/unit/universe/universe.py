@@ -2,7 +2,6 @@ import pytest
 from grpclib import Status as GRPCStatus
 
 from destack import proto
-from destack.language import Client, ClientType, DatabaseInfo, Session
 from destack.grpc import (
     LoginUserRequest,
     LogoutUserRequest,
@@ -12,6 +11,7 @@ from destack.grpc import (
     UniverseClient,
     pack_rpc_headers,
 )
+from destack.language import Client, ClientType, DatabaseInfo, Session
 from destack.test.fixtures import raises_grpc_error
 from destack.utils.oracle import REAL_ORACLE
 from desys.sharding import DATABASE_PROVIDER, GALAXY_PROVIDER
@@ -67,7 +67,7 @@ async def test_user_registration(destack: UniverseClient):
         email=user_email,
         client=client_in,
         password="Password123!",
-        region=proto.Region.REGION_ZURICH,
+        region=proto.RegionProto.REGION_ZURICH,
     )
     signup_rep = await destack.signup_user(signup_req)
     assert signup_rep.user.slug == user_slug

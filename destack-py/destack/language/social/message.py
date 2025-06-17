@@ -20,7 +20,7 @@ from destack.language.core import (
     property_parent_,
     to_text,
 )
-from destack.proto import MessageData
+from destack.proto import MessageProto
 from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
@@ -39,7 +39,7 @@ class Message(
     IsDeletable,
     IsTaggable,
     IsReactable,
-    Node[MessageData],
+    Node[MessageProto],
 ):
     """
     A Message about something (usually in a Thread or a Channel).

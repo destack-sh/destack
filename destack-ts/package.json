@@ -19,17 +19,13 @@
   },
   "dependencies": {
     "@preact/signals-core": "^1.10.0",
-    "@preact/signals-react": "^3.2.0",
-    "@protobuf-ts/grpcweb-transport": "^2.9.4",
-    "@protobuf-ts/runtime": "^2.9.4",
-    "@protobuf-ts/runtime-rpc": "^2.9.4",
-    "grpc-web": "^1.5.0",
+    "@protobuf-ts/runtime": "^2.11.0",
+    "@protobuf-ts/runtime-rpc": "^2.11.0",
     "luxon": "^3.5.0",
-    "pyodide": "^0.27.7",
     "uuid": "^10.0.0"
   },
   "devDependencies": {
-    "@protobuf-ts/plugin": "^2.9.4",
+    "@protobuf-ts/plugin": "^2.11.0",
     "@preact/signals-react-transform": "^0.5.2",
     "@types/luxon": "^3.4.2",
     "@types/uuid": "^10.0.0",

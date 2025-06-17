@@ -1,7 +1,7 @@
 from typing import Optional
 
 from destack.language.core import Node, NodeType, builtin_node, property_
-from destack.proto import NumberInputViewData
+from destack.proto import NumberInputViewProto
 
 from .input import InputView
 
@@ -11,7 +11,7 @@ from .input import InputView
 @builtin_node(NodeType.NUMBER_INPUT_VIEW)
 class NumberInputView(
     InputView,
-    Node[NumberInputViewData],
+    Node[NumberInputViewProto],
 ):
     """A general number input View."""
 

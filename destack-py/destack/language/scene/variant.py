@@ -18,7 +18,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import VariantData
+from destack.proto import VariantProto
 
 if TYPE_CHECKING:
     from destack.language import CustomViewDefinition, Layer, Scene
@@ -51,7 +51,7 @@ class Variant(
     HasIcon,
     IsOwnable,
     IsDeletable,
-    Node[VariantData],
+    Node[VariantProto],
 ):
     """A Variant is an alternative presentation of a visual."""
 
