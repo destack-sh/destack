@@ -21,23 +21,20 @@
     "@protobuf-ts/grpcweb-transport": "^2.9.4",
     "@protobuf-ts/runtime": "^2.9.4",
     "@protobuf-ts/runtime-rpc": "^2.9.4",
+    "@preact/signals-react": "^3.2.0",
     "grpc-web": "^1.5.0",
     "luxon": "^3.5.0",
-    "rrule": "^2.8.1",
     "uuid": "^10.0.0"
   },
   "devDependencies": {
-    "@fast-check/vitest": "^0.1.5",
     "@protobuf-ts/plugin": "^2.9.4",
-    "@tsconfig/node20": "^20.1.4",
+    "@preact/signals-react-transform": "^0.5.2",
     "@types/luxon": "^3.4.2",
-    "@types/node": "^22.13.1",
     "@types/uuid": "^10.0.0",
-    "eslint": "^9.19.0",
-    "fast-check": "^3.23.2",
-    "prettier": "^3.4.2",
-    "typescript": "~5.5.4",
-    "typescript-eslint": "^8.23.0",
-    "vitest": "^2.1.9"
+    "eslint": "^9.29.0",
+    "prettier": "^3.5.3",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.34.1",
+    "vitest": "^3.2.3"
   }
 }
