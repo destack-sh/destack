@@ -1,4 +1,4 @@
-import { Session, Spatial, Entity, Particle, Analytic, User, IsFrozen, NodeReference, BuiltinObject, IsOwnable, Agent, MaterializationType, IsTracked, Indexed, Event, Graph, LikeInvite, Struct, Supergraph, Global, QueryConnection, NodeType, Node, Space } from '@/language';
+import { Graph, MaterializationType, Spatial, StructFrozen, IsFrozen, Analytic, IsOwnable, Struct, EnumType, IsTracked, Entity, QueryConnection, NodeReference, Indexed, Node, LikeInvite, Particle, NodeType, Session, Agent, User, Space, StructType, Event, Supergraph, Global, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:31 ==== */
@@ -13,31 +13,31 @@ export enum FriendshipInviteEventType {
 /* ==== DESTACK_GENERATED_START:NODE:30 ==== */
 export class Friendship extends Node implements Global, Entity, IsTracked {
   readonly id: string;
-  get parent(): Node | null {
+  get parent(): Node | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Node | null;
+          return this._supergraph.get(nodePtr.id) as Node | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -90,9 +90,14 @@ export class Friendship extends Node implements Global, Entity, IsTracked {
   }
 
 
-  static create(): Friendship {
+  static create(options: {
+    userA: User | NodeReference,
+    userB: User | NodeReference
+  }): Friendship {
 
-    return new Friendship();
+    return new Friendship(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -123,47 +128,39 @@ export class Friendship extends Node implements Global, Entity, IsTracked {
 /* ==== DESTACK_GENERATED_START:NODE:32 ==== */
 export class FriendshipInviteEvent extends Node implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked {
   readonly id: string;
-  get parent(): Space | null {
+  get parent(): Space | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
-  }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
   }
   ;
   spacePtr: NodeReference | null
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -178,7 +175,7 @@ export class FriendshipInviteEvent extends Node implements Spatial, Particle, An
       return null;
   }
 
-  set node(value: FriendshipInvite | null) {
+  set node(value: FriendshipInvite) {
       if (value === null) {
           this.nodePtr = null;
       } else {
@@ -216,9 +213,14 @@ export class FriendshipInviteEvent extends Node implements Spatial, Particle, An
   }
 
 
-  static create(): FriendshipInviteEvent {
+  static create(options: {
+    type: FriendshipInviteEventType,
+    node: FriendshipInvite | NodeReference
+  }): FriendshipInviteEvent {
 
-    return new FriendshipInviteEvent();
+    return new FriendshipInviteEvent(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -259,31 +261,31 @@ export class FriendshipInviteEvent extends Node implements Spatial, Particle, An
 /* ==== DESTACK_GENERATED_START:NODE:31 ==== */
 export class FriendshipInvite extends Node implements Global, Entity, IsTracked, IsOwnable, LikeInvite {
   readonly id: string;
-  get parent(): Node | null {
+  get parent(): Node | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Node | null;
+          return this._supergraph.get(nodePtr.id) as Node | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -297,7 +299,7 @@ export class FriendshipInvite extends Node implements Global, Entity, IsTracked,
       return null;
   }
 
-  set ownedBy(value: Agent | User | null) {
+  set ownedBy(value: Agent | User) {
       if (value === null) {
           this.ownedByPtr = null;
       } else {
@@ -314,7 +316,7 @@ export class FriendshipInvite extends Node implements Global, Entity, IsTracked,
       return null;
   }
 
-  set member(value: Agent | User | null) {
+  set member(value: Agent | User) {
       if (value === null) {
           this.memberPtr = null;
       } else {
@@ -352,9 +354,14 @@ export class FriendshipInvite extends Node implements Global, Entity, IsTracked,
   }
 
 
-  static create(): FriendshipInvite {
+  static create(options: {
+    ownedBy: Agent | User | NodeReference,
+    member: Agent | User | NodeReference
+  }): FriendshipInvite {
 
-    return new FriendshipInvite();
+    return new FriendshipInvite(
+
+    );
   }
 
   equals(other: any): boolean {

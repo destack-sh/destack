@@ -1,4 +1,4 @@
-import { Session, Spatial, Particle, Analytic, User, NodeReference, BuiltinObject, Value, IsExtensible, Agent, Message, IsTracked, Indexed, Span, Run, Graph, Struct, Supergraph, Service, QueryConnection, NodeType, Script, Node, Space, Action } from '@/language';
+import { Graph, Spatial, StructFrozen, Analytic, Struct, EnumType, IsExtensible, Script, IsTracked, Message, QueryConnection, NodeReference, Indexed, Service, Node, Value, Action, Span, Particle, NodeType, Session, Run, Agent, Space, User, StructType, Supergraph, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:4020 ==== */
@@ -27,47 +27,39 @@ export enum InterruptionResponse {
 /* ==== DESTACK_GENERATED_START:NODE:4020 ==== */
 export class Interruption extends Node implements Spatial, Particle, Analytic, Indexed, IsTracked, IsExtensible {
   readonly id: string;
-  get parent(): Run | null {
+  get parent(): Run | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Run | null;
+          return this._supergraph.get(nodePtr.id) as Run | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
-  }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
   }
   ;
   spacePtr: NodeReference | null
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -75,10 +67,10 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
   updatedByPtr: NodeReference | null
   value: Map<string, Value>;
   type: InterruptionType;
-  get runnable(): Action | Script | Service | null {
+  get runnable(): Action | Script | Service | null | null {
       const nodePtr: NodeReference | null = this.runnablePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Action | Script | Service | null;
+          return this._supergraph.get(nodePtr.id) as Action | Script | Service | null | null;
       }
       return null;
   }
@@ -92,10 +84,10 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
   }
   ;
   runnablePtr: NodeReference | null
-  get span(): Span | null {
+  get span(): Span | null | null {
       const nodePtr: NodeReference | null = this.spanPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Span | null;
+          return this._supergraph.get(nodePtr.id) as Span | null | null;
       }
       return null;
   }
@@ -113,10 +105,10 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
   duration: Temporal.Duration | null;
   closedAt: Temporal.ZonedDateTime | null;
   response: InterruptionResponse | null;
-  get message(): Message | null {
+  get message(): Message | null | null {
       const nodePtr: NodeReference | null = this.messagePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Message | null;
+          return this._supergraph.get(nodePtr.id) as Message | null | null;
       }
       return null;
   }
@@ -173,9 +165,21 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
   }
 
 
-  static create(): Interruption {
+  static create(options: {
+    value?: Map<string, Value>,
+    type: InterruptionType,
+    runnable?: Action | Script | Service | NodeReference | null,
+    span?: Span | NodeReference | null,
+    status?: InterruptionStatus,
+    duration?: Temporal.Duration | null,
+    closedAt?: Temporal.ZonedDateTime | null,
+    response?: InterruptionResponse | null,
+    message?: Message | NodeReference | null
+  }): Interruption {
 
-    return new Interruption();
+    return new Interruption(
+
+    );
   }
 
   equals(other: any): boolean {

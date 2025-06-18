@@ -1,4 +1,4 @@
-import { Session, Spatial, Entity, IsDeletable, Color, CustomViewDefinition, CustomView, Canvas, Style, Layer, User, NodeReference, BuiltinObject, ArrowShape, Agent, MaterializationType, PlaneShape, IsTracked, Axis2, IsVisual, AnnotationShape, IsTaggable, Scene, Graph, SliderInputView, WizardView, FrameView, LabelView, LineShape, TextView, Struct, Theme, ThreadView, Supergraph, NumberInputView, QueryConnection, SplitView, NodeType, IsOrdered, Node, Space } from '@/language';
+import { PlaneShape, LabelView, Graph, IsTaggable, IsDeletable, ThreadView, MaterializationType, Spatial, StructFrozen, CustomViewDefinition, Struct, EnumType, IsTracked, Style, Entity, IsVisual, QueryConnection, NodeReference, Axis2, SplitView, Node, Scene, Layer, CustomView, FrameView, Theme, WizardView, AnnotationShape, IsOrdered, NodeType, Session, NumberInputView, ArrowShape, Space, Agent, User, LineShape, TextView, StructType, Canvas, Color, SliderInputView, Supergraph, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:12033 ==== */
@@ -11,7 +11,7 @@ export enum GradientType {
 /* ==== DESTACK_GENERATED_END:ENUM:12033 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12015 ==== */
-export class GradientStop extends BuiltinObject {
+export class GradientStop extends StructFrozen {
   readonly color: Color | null;
   readonly position: number;
 
@@ -26,9 +26,14 @@ export class GradientStop extends BuiltinObject {
   }
 
 
-  static create(): GradientStop {
+  static create(options: {
+    color?: Color | null,
+    position: number
+  }): GradientStop {
 
-    return new GradientStop();
+    return new GradientStop(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -46,7 +51,7 @@ export class GradientStop extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:12015 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12016 ==== */
-export class Gradient extends BuiltinObject {
+export class Gradient extends Struct {
   type: GradientType;
   get style(): GradientStyle | null {
       const nodePtr: NodeReference | null = this.stylePtr;
@@ -89,9 +94,17 @@ export class Gradient extends BuiltinObject {
   }
 
 
-  static create(): Gradient {
+  static create(options: {
+    type?: GradientType,
+    style?: GradientStyle | NodeReference | null,
+    angle?: number | null,
+    stops?: Array<GradientStop>,
+    centerAnchor?: Axis2 | null
+  }): Gradient {
 
-    return new Gradient();
+    return new Gradient(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -111,48 +124,40 @@ export class Gradient extends BuiltinObject {
 /* ==== DESTACK_GENERATED_START:NODE:12025 ==== */
 export class GradientStyle extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsTaggable, IsVisual, Style {
   readonly id: string;
-  get parent(): Scene | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | TextView | NumberInputView | SliderInputView | WizardView | ThreadView | AnnotationShape | ArrowShape | Canvas | LineShape | PlaneShape | Layer | Scene | Theme | null {
+  get parent(): Scene | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | TextView | NumberInputView | SliderInputView | WizardView | ThreadView | AnnotationShape | ArrowShape | Canvas | LineShape | PlaneShape | Layer | Scene | Theme | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Scene | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | TextView | NumberInputView | SliderInputView | WizardView | ThreadView | AnnotationShape | ArrowShape | Canvas | LineShape | PlaneShape | Layer | Scene | Theme | null;
+          return this._supergraph.get(nodePtr.id) as Scene | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | TextView | NumberInputView | SliderInputView | WizardView | ThreadView | AnnotationShape | ArrowShape | Canvas | LineShape | PlaneShape | Layer | Scene | Theme | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
-  }
   ;
   spacePtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -209,9 +214,18 @@ export class GradientStyle extends Node implements Spatial, Entity, IsTracked, I
   }
 
 
-  static create(): GradientStyle {
+  static create(options: {
+    type?: GradientType,
+    name: string,
+    angle?: number | null,
+    stops?: Array<GradientStop>,
+    centerAnchor?: Axis2 | null,
+    dark?: Gradient | null
+  }): GradientStyle {
 
-    return new GradientStyle();
+    return new GradientStyle(
+
+    );
   }
 
   equals(other: any): boolean {

@@ -1,51 +1,43 @@
-import { Session, ContainerView, Spatial, Direction, Entity, IsDeletable, Shadow, View, CustomViewDefinition, CustomView, Insets, Layer, Canvas, User, NodeReference, BuiltinObject, Value, Border, IsExtensible, Vector2, Agent, MaterializationType, PlaneShape, IsTracked, Dimension, Axis2, IsVisual, IsTaggable, Scene, Graph, IsScriptable, Axis3, Window, Fill, IsShape, FrameView, Distribute, LabelView, Position, Grid, Struct, Align, Text, Supergraph, QueryConnection, SplitView, NodeType, Layout, Corners, Script, IsOrdered, Node, Space, GridSpan } from '@/language';
+import { PlaneShape, LabelView, Graph, IsTaggable, IsShape, IsDeletable, Position, MaterializationType, Grid, Spatial, Text, StructFrozen, CustomViewDefinition, IsScriptable, Struct, GridSpan, EnumType, IsExtensible, Script, IsTracked, Entity, IsVisual, Vector2, Shadow, QueryConnection, NodeReference, Axis2, SplitView, Node, Value, Scene, Layer, CustomView, Align, FrameView, Fill, Dimension, Axis3, Distribute, Border, Layout, Direction, Corners, Insets, IsOrdered, NodeType, Session, View, ContainerView, Agent, Space, User, Window, StructType, Canvas, Supergraph, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:11013 ==== */
 export class AnnotationShape extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsExtensible, IsOrdered, IsTaggable, IsScriptable, IsVisual, View, ContainerView, IsShape {
   readonly id: string;
-  get parent(): Window | Scene | Layer | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | AnnotationShape | Canvas | PlaneShape | Layer | Scene | null {
+  get parent(): Window | Scene | Layer | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | AnnotationShape | Canvas | PlaneShape | Layer | Scene | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Window | Scene | Layer | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | AnnotationShape | Canvas | PlaneShape | Layer | Scene | null;
+          return this._supergraph.get(nodePtr.id) as Window | Scene | Layer | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | AnnotationShape | Canvas | PlaneShape | Layer | Scene | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
-  }
   ;
   spacePtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -82,10 +74,10 @@ export class AnnotationShape extends Node implements Spatial, Entity, IsTracked,
   border: Border | null;
   radius: Corners | null;
   text: Text | null;
-  get script(): Script | null {
+  get script(): Script | null | null {
       const nodePtr: NodeReference | null = this.scriptPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Script | null;
+          return this._supergraph.get(nodePtr.id) as Script | null | null;
       }
       return null;
   }
@@ -190,9 +182,42 @@ export class AnnotationShape extends Node implements Spatial, Entity, IsTracked,
   }
 
 
-  static create(): AnnotationShape {
+  static create(options: {
+    value?: Map<string, Value>,
+    name: string,
+    position?: Position | null,
+    width?: Dimension | null,
+    height?: Dimension | null,
+    minWidth?: Dimension | null,
+    minHeight?: Dimension | null,
+    maxWidth?: Dimension | null,
+    maxHeight?: Dimension | null,
+    layout?: Layout | null,
+    direction?: Direction | null,
+    distribute?: Distribute | null,
+    align?: Align | null,
+    gap?: Axis2 | null,
+    padding?: Insets | null,
+    grid?: Grid | null,
+    gridSpan?: GridSpan | null,
+    aspectRatio?: number | null,
+    isWrap?: boolean | null,
+    isVisible?: boolean | null,
+    opacity?: number | null,
+    fill?: Fill | null,
+    rotation?: Axis3 | null,
+    skew?: Vector2 | null,
+    scale?: number | null,
+    shadow?: Shadow | null,
+    border?: Border | null,
+    radius?: Corners | null,
+    text?: Text | null,
+    script?: Script | NodeReference | null
+  }): AnnotationShape {
 
-    return new AnnotationShape();
+    return new AnnotationShape(
+
+    );
   }
 
   equals(other: any): boolean {

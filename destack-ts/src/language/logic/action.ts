@@ -1,4 +1,4 @@
-import { Session, Spatial, Entity, IsSourceable, IsDeletable, User, NodeReference, BuiltinObject, Value, IsExtensible, Agent, MaterializationType, IsTracked, IsTaggable, CustomEntityDefinition, Graph, Struct, Text, Supergraph, Service, QueryConnection, NodeType, Script, IsRunnable, IsOrdered, Node, Space } from '@/language';
+import { Graph, IsTaggable, IsDeletable, MaterializationType, Spatial, Text, StructFrozen, Struct, EnumType, IsExtensible, Script, IsTracked, IsSourceable, Entity, QueryConnection, NodeReference, Service, Node, Value, IsRunnable, IsOrdered, NodeType, Session, Agent, Space, CustomEntityDefinition, User, StructType, Supergraph, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:3020 ==== */
@@ -10,48 +10,40 @@ export enum ActionCardinality {
 /* ==== DESTACK_GENERATED_START:NODE:3020 ==== */
 export class Action extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsExtensible, IsOrdered, IsTaggable, IsRunnable, IsSourceable {
   readonly id: string;
-  get parent(): CustomEntityDefinition | Service | null {
+  get parent(): CustomEntityDefinition | Service | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as CustomEntityDefinition | Service | null;
+          return this._supergraph.get(nodePtr.id) as CustomEntityDefinition | Service | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
-  }
   ;
   spacePtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -63,20 +55,12 @@ export class Action extends Node implements Spatial, Entity, IsTracked, IsDeleta
   name: string;
   cardinality: ActionCardinality;
   text: Text | null;
-  get source(): Script | null {
+  get source(): Script | null | null {
       const nodePtr: NodeReference | null = this.sourcePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Script | null;
+          return this._supergraph.get(nodePtr.id) as Script | null | null;
       }
       return null;
-  }
-
-  set source(value: Script | null) {
-      if (value === null) {
-          this.sourcePtr = null;
-      } else {
-          this.sourcePtr = value.toRef();
-      }
   }
   ;
   sourcePtr: NodeReference | null
@@ -121,9 +105,16 @@ export class Action extends Node implements Spatial, Entity, IsTracked, IsDeleta
   }
 
 
-  static create(): Action {
+  static create(options: {
+    value?: Map<string, Value>,
+    name: string,
+    cardinality?: ActionCardinality,
+    text?: Text | null
+  }): Action {
 
-    return new Action();
+    return new Action(
+
+    );
   }
 
   equals(other: any): boolean {

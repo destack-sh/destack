@@ -1,34 +1,34 @@
-import { BuiltinObject, Session, Global, Entity, Agent, MaterializationType, QueryConnection, NodeType, Icon, IsTracked, Supergraph, IsJoinable, IsOwner, Node, Struct, User, Graph, NodeReference } from '@/language';
+import { Graph, MaterializationType, StructFrozen, Struct, EnumType, IsTracked, Entity, QueryConnection, NodeReference, IsJoinable, Node, NodeType, Session, IsOwner, Agent, User, StructType, Icon, Supergraph, Global, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:50 ==== */
 export class Team extends Node implements Global, Entity, IsTracked, IsJoinable, IsOwner {
   readonly id: string;
-  get parent(): Node | null {
+  get parent(): Node | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Node | null;
+          return this._supergraph.get(nodePtr.id) as Node | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -68,9 +68,15 @@ export class Team extends Node implements Global, Entity, IsTracked, IsJoinable,
   }
 
 
-  static create(): Team {
+  static create(options: {
+    name: string,
+    slug?: string | null,
+    icon?: Icon | null
+  }): Team {
 
-    return new Team();
+    return new Team(
+
+    );
   }
 
   equals(other: any): boolean {

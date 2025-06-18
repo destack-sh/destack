@@ -1,4 +1,4 @@
-import { Session, ContainerView, Spatial, Direction, Entity, IsDeletable, Shadow, Organization, View, Insets, Canvas, User, NodeReference, BuiltinObject, IsOwnable, Value, Border, IsExtensible, Vector2, Agent, MaterializationType, IsTracked, Dimension, Axis2, IsVisual, IsTaggable, Scene, Graph, IsScriptable, Axis3, Fill, Role, Distribute, Icon, Position, Grid, Struct, Align, Supergraph, QueryConnection, NodeType, Layout, Corners, Team, Script, IsOrdered, Node, Space, GridSpan } from '@/language';
+import { Graph, IsTaggable, Team, IsDeletable, Position, Grid, MaterializationType, Spatial, StructFrozen, IsOwnable, IsScriptable, Struct, GridSpan, EnumType, IsExtensible, Script, IsTracked, Role, Entity, IsVisual, Vector2, Shadow, QueryConnection, NodeReference, Axis2, Node, Value, Scene, Align, Fill, Dimension, Axis3, Distribute, Border, Layout, Direction, Corners, Insets, IsOrdered, NodeType, Session, View, ContainerView, Agent, Space, User, Organization, StructType, Canvas, Icon, Supergraph, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:9020 ==== */
@@ -11,48 +11,40 @@ export enum LayerType {
 /* ==== DESTACK_GENERATED_START:NODE:9020 ==== */
 export class Layer extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsExtensible, IsOrdered, IsOwnable, IsTaggable, IsScriptable, IsVisual, View, ContainerView {
   readonly id: string;
-  get parent(): Scene | Canvas | null {
+  get parent(): Scene | Canvas | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Scene | Canvas | null;
+          return this._supergraph.get(nodePtr.id) as Scene | Canvas | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
-  }
   ;
   spacePtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -61,10 +53,10 @@ export class Layer extends Node implements Spatial, Entity, IsTracked, IsDeletab
   readonly deletedAt: Temporal.ZonedDateTime | null;
   value: Map<string, Value>;
   readonly orderKey: string;
-  get ownedBy(): Role | Agent | Organization | Team | User | null {
+  get ownedBy(): Role | Agent | Organization | Team | User | null | null {
       const nodePtr: NodeReference | null = this.ownedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Role | Agent | Organization | Team | User | null;
+          return this._supergraph.get(nodePtr.id) as Role | Agent | Organization | Team | User | null | null;
       }
       return null;
   }
@@ -107,10 +99,10 @@ export class Layer extends Node implements Spatial, Entity, IsTracked, IsDeletab
   shadow: Shadow | null;
   border: Border | null;
   radius: Corners | null;
-  get script(): Script | null {
+  get script(): Script | null | null {
       const nodePtr: NodeReference | null = this.scriptPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Script | null;
+          return this._supergraph.get(nodePtr.id) as Script | null | null;
       }
       return null;
   }
@@ -219,9 +211,44 @@ export class Layer extends Node implements Spatial, Entity, IsTracked, IsDeletab
   }
 
 
-  static create(): Layer {
+  static create(options: {
+    value?: Map<string, Value>,
+    ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
+    type?: LayerType,
+    name: string,
+    icon?: Icon | null,
+    position?: Position | null,
+    width?: Dimension | null,
+    height?: Dimension | null,
+    minWidth?: Dimension | null,
+    minHeight?: Dimension | null,
+    maxWidth?: Dimension | null,
+    maxHeight?: Dimension | null,
+    layout?: Layout | null,
+    direction?: Direction | null,
+    distribute?: Distribute | null,
+    align?: Align | null,
+    gap?: Axis2 | null,
+    padding?: Insets | null,
+    grid?: Grid | null,
+    gridSpan?: GridSpan | null,
+    aspectRatio?: number | null,
+    isWrap?: boolean | null,
+    isVisible?: boolean | null,
+    opacity?: number | null,
+    fill?: Fill | null,
+    rotation?: Axis3 | null,
+    skew?: Vector2 | null,
+    scale?: number | null,
+    shadow?: Shadow | null,
+    border?: Border | null,
+    radius?: Corners | null,
+    script?: Script | NodeReference | null
+  }): Layer {
 
-    return new Layer();
+    return new Layer(
+
+    );
   }
 
   equals(other: any): boolean {

@@ -53,7 +53,7 @@ class PropertyDefinition(StructFrozen):
     # meta
     is_required: bool | None = property_(50)
     is_unique: bool | None = property_(51)
-    default: Optional["Value"] = property_(55)
+    default_value: Optional["Value"] = property_(55)
     default_factory: Optional[DefaultFactory] = property_(56)
 
     # constraints
@@ -94,7 +94,7 @@ class PropertyDefinition(StructFrozen):
             key_type=type.key_type,
             is_required=type.is_required,
             is_unique=property.is_unique,
-            default=type.default,
+            default_value=type.default_value,
             default_factory=type.default_factory,
             collection_constraint=type.collection_constraint,
             string_constraint=type.string_constraint,

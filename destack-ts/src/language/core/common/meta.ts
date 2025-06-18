@@ -1,8 +1,8 @@
-import { Session, ScalarType, PrimitiveType, DefaultFactory, Node, EnumType, Type, NodeReference, BuiltinObject, Value, EdgeType, NodeConstraint, Graph, Icon, Struct, Supergraph, CollectionConstraint, TypeCardinality, CascadeAction, QueryConnection, NodeType, TraitType, StructType, StringConstraint, NumberConstraint } from '@/language';
+import { PrimitiveType, Graph, CollectionConstraint, StructFrozen, StringConstraint, Struct, EnumType, NumberConstraint, DefaultFactory, TraitType, ScalarType, CascadeAction, QueryConnection, NodeReference, Node, Value, Type, TypeCardinality, EdgeType, NodeType, Session, StructType, Icon, Supergraph, NodeConstraint, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50004 ==== */
-export class PropertyDefinition extends BuiltinObject {
+export class PropertyDefinition extends StructFrozen {
   readonly id: number;
   readonly name: string;
   readonly icon: Icon | null;
@@ -16,7 +16,7 @@ export class PropertyDefinition extends BuiltinObject {
   readonly keyType: Type | null;
   readonly isRequired: boolean | null;
   readonly isUnique: boolean | null;
-  readonly default: Value | null;
+  readonly defaultValue: Value | null;
   readonly defaultFactory: DefaultFactory | null;
   readonly collectionConstraint: CollectionConstraint | null;
   readonly stringConstraint: StringConstraint | null;
@@ -47,7 +47,7 @@ export class PropertyDefinition extends BuiltinObject {
     keyType: Type | null,
     isRequired: boolean | null,
     isUnique: boolean | null,
-    default: Value | null,
+    defaultValue: Value | null,
     defaultFactory: DefaultFactory | null,
     collectionConstraint: CollectionConstraint | null,
     stringConstraint: StringConstraint | null,
@@ -79,7 +79,7 @@ export class PropertyDefinition extends BuiltinObject {
     this.keyType = keyType;
     this.isRequired = isRequired;
     this.isUnique = isUnique;
-    this.default = default;
+    this.defaultValue = defaultValue;
     this.defaultFactory = defaultFactory;
     this.collectionConstraint = collectionConstraint;
     this.stringConstraint = stringConstraint;
@@ -98,9 +98,41 @@ export class PropertyDefinition extends BuiltinObject {
   }
 
 
-  static create(): PropertyDefinition {
+  static create(options: {
+    id: number,
+    name: string,
+    icon?: Icon | null,
+    description?: string | null,
+    cardinality?: TypeCardinality,
+    scalarType: ScalarType,
+    primitiveType?: PrimitiveType | null,
+    enumType?: EnumType | null,
+    nodeType?: NodeType | null,
+    structType?: StructType | null,
+    keyType?: Type | null,
+    isRequired?: boolean | null,
+    isUnique?: boolean | null,
+    defaultValue?: Value | null,
+    defaultFactory?: DefaultFactory | null,
+    collectionConstraint?: CollectionConstraint | null,
+    stringConstraint?: StringConstraint | null,
+    numberConstraint?: NumberConstraint | null,
+    nodeConstraint?: NodeConstraint | null,
+    nodeIsCustomizable: boolean,
+    edgeType?: EdgeType | null,
+    cascade?: CascadeAction | null,
+    isWired: boolean,
+    isStored: boolean,
+    isRepr: boolean,
+    isHash: boolean,
+    isEq: boolean,
+    isManaged: boolean,
+    isComputed: boolean
+  }): PropertyDefinition {
 
-    return new PropertyDefinition();
+    return new PropertyDefinition(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -118,7 +150,7 @@ export class PropertyDefinition extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:50004 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50005 ==== */
-export class TraitDefinition extends BuiltinObject {
+export class TraitDefinition extends StructFrozen {
   readonly id: number;
   readonly type: TraitType;
   readonly name: string;
@@ -151,9 +183,20 @@ export class TraitDefinition extends BuiltinObject {
   }
 
 
-  static create(): TraitDefinition {
+  static create(options: {
+    id: number,
+    type: TraitType,
+    name: string,
+    alias: string,
+    icon?: Icon | null,
+    description?: string | null,
+    properties?: Array<PropertyDefinition>,
+    traits?: Array<TraitType>
+  }): TraitDefinition {
 
-    return new TraitDefinition();
+    return new TraitDefinition(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -171,7 +214,7 @@ export class TraitDefinition extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:50005 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50006 ==== */
-export class NodeDefinition extends BuiltinObject {
+export class NodeDefinition extends StructFrozen {
   readonly id: number;
   readonly type: NodeType;
   readonly name: string;
@@ -201,9 +244,19 @@ export class NodeDefinition extends BuiltinObject {
   }
 
 
-  static create(): NodeDefinition {
+  static create(options: {
+    id: number,
+    type: NodeType,
+    name: string,
+    icon?: Icon | null,
+    description?: string | null,
+    properties?: Array<PropertyDefinition>,
+    traits?: Array<TraitType>
+  }): NodeDefinition {
 
-    return new NodeDefinition();
+    return new NodeDefinition(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -221,7 +274,7 @@ export class NodeDefinition extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:50006 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50007 ==== */
-export class StructDefinition extends BuiltinObject {
+export class StructDefinition extends StructFrozen {
   readonly id: number;
   readonly type: StructType;
   readonly name: string;
@@ -251,9 +304,19 @@ export class StructDefinition extends BuiltinObject {
   }
 
 
-  static create(): StructDefinition {
+  static create(options: {
+    id: number,
+    type: StructType,
+    name: string,
+    icon?: Icon | null,
+    description?: string | null,
+    properties?: Array<PropertyDefinition>,
+    isFrozen: boolean
+  }): StructDefinition {
 
-    return new StructDefinition();
+    return new StructDefinition(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -271,7 +334,7 @@ export class StructDefinition extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:50007 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50008 ==== */
-export class EnumDefinition extends BuiltinObject {
+export class EnumDefinition extends StructFrozen {
   readonly id: number;
   readonly type: EnumType;
   readonly name: string;
@@ -298,9 +361,18 @@ export class EnumDefinition extends BuiltinObject {
   }
 
 
-  static create(): EnumDefinition {
+  static create(options: {
+    id: number,
+    type: EnumType,
+    name: string,
+    icon?: Icon | null,
+    description?: string | null,
+    options?: Array<EnumOptionDefinition>
+  }): EnumDefinition {
 
-    return new EnumDefinition();
+    return new EnumDefinition(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -318,7 +390,7 @@ export class EnumDefinition extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:50008 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50009 ==== */
-export class EnumOptionDefinition extends BuiltinObject {
+export class EnumOptionDefinition extends StructFrozen {
   readonly id: number;
   readonly type: EnumType;
   readonly name: string;
@@ -342,9 +414,17 @@ export class EnumOptionDefinition extends BuiltinObject {
   }
 
 
-  static create(): EnumOptionDefinition {
+  static create(options: {
+    id: number,
+    type: EnumType,
+    name: string,
+    icon?: Icon | null,
+    description?: string | null
+  }): EnumOptionDefinition {
 
-    return new EnumOptionDefinition();
+    return new EnumOptionDefinition(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -362,7 +442,7 @@ export class EnumOptionDefinition extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:50009 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50010 ==== */
-export class PermissionDefinition extends BuiltinObject {
+export class PermissionDefinition extends StructFrozen {
   readonly id: number;
   readonly type: EnumType;
   readonly name: string;
@@ -386,9 +466,17 @@ export class PermissionDefinition extends BuiltinObject {
   }
 
 
-  static create(): PermissionDefinition {
+  static create(options: {
+    id: number,
+    type: EnumType,
+    name: string,
+    nodeType: NodeType,
+    icon?: Icon | null
+  }): PermissionDefinition {
 
-    return new PermissionDefinition();
+    return new PermissionDefinition(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -406,7 +494,7 @@ export class PermissionDefinition extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:50010 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50011 ==== */
-export class ConstantDefinition extends BuiltinObject {
+export class ConstantDefinition extends StructFrozen {
   readonly name: string;
   readonly path: string;
   readonly value: Value;
@@ -424,9 +512,15 @@ export class ConstantDefinition extends BuiltinObject {
   }
 
 
-  static create(): ConstantDefinition {
+  static create(options: {
+    name: string,
+    path: string,
+    value: Value
+  }): ConstantDefinition {
 
-    return new ConstantDefinition();
+    return new ConstantDefinition(
+
+    );
   }
 
   equals(other: any): boolean {

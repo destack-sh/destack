@@ -1,4 +1,4 @@
-import { BuiltinObject, Session, StructType, Region, QueryConnection, NodeType, TraitType, Supergraph, Node, Struct, Field, CustomEntityDefinition, Graph } from '@/language';
+import { Graph, Field, TraitType, Supergraph, Region, CustomEntityDefinition, StructFrozen, QueryConnection, StructType, NodeType, Session, Node, Struct, EnumType, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:50010 ==== */
@@ -25,7 +25,7 @@ export enum PropertyReferenceType {
 /* ==== DESTACK_GENERATED_END:ENUM:50012 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50000 ==== */
-export class Scope extends BuiltinObject {
+export class Scope extends StructFrozen {
   readonly region: Region | null;
   readonly spaceId: string | null;
 
@@ -40,9 +40,14 @@ export class Scope extends BuiltinObject {
   }
 
 
-  static create(): Scope {
+  static create(options: {
+    region?: Region | null,
+    spaceId?: string | null
+  }): Scope {
 
-    return new Scope();
+    return new Scope(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -60,7 +65,7 @@ export class Scope extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:50000 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50107 ==== */
-export class RelationReference extends BuiltinObject {
+export class RelationReference extends StructFrozen {
   readonly type: RelationType;
   readonly nodeType: NodeType | null;
   get definition(): CustomEntityDefinition | null {
@@ -92,9 +97,16 @@ export class RelationReference extends BuiltinObject {
   }
 
 
-  static create(): RelationReference {
+  static create(options: {
+    type: RelationType,
+    nodeType?: NodeType | null,
+    definition?: CustomEntityDefinition | NodeReference | null,
+    traitType?: TraitType | null
+  }): RelationReference {
 
-    return new RelationReference();
+    return new RelationReference(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -112,7 +124,7 @@ export class RelationReference extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:50107 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50108 ==== */
-export class AttributeReference extends BuiltinObject {
+export class AttributeReference extends StructFrozen {
   readonly type: AttributeType;
   readonly propPtr: PropertyReference | null;
   get field(): Field | null {
@@ -141,9 +153,15 @@ export class AttributeReference extends BuiltinObject {
   }
 
 
-  static create(): AttributeReference {
+  static create(options: {
+    type: AttributeType,
+    propPtr?: PropertyReference | null,
+    field?: Field | NodeReference | null
+  }): AttributeReference {
 
-    return new AttributeReference();
+    return new AttributeReference(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -161,7 +179,7 @@ export class AttributeReference extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:50108 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50003 ==== */
-export class PropertyReference extends BuiltinObject {
+export class PropertyReference extends StructFrozen {
   readonly type: PropertyReferenceType;
   readonly nodeType: NodeType | null;
   readonly traitType: TraitType | null;
@@ -185,9 +203,17 @@ export class PropertyReference extends BuiltinObject {
   }
 
 
-  static create(): PropertyReference {
+  static create(options: {
+    type: PropertyReferenceType,
+    nodeType?: NodeType | null,
+    traitType?: TraitType | null,
+    structType?: StructType | null,
+    id: number
+  }): PropertyReference {
 
-    return new PropertyReference();
+    return new PropertyReference(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -205,7 +231,7 @@ export class PropertyReference extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:50003 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50002 ==== */
-export class NodeReference extends BuiltinObject {
+export class NodeReference extends StructFrozen {
   readonly nodeType: NodeType;
   readonly id: string;
   readonly spaceId: string | null;
@@ -226,9 +252,16 @@ export class NodeReference extends BuiltinObject {
   }
 
 
-  static create(): NodeReference {
+  static create(options: {
+    nodeType: NodeType,
+    id: string,
+    spaceId?: string | null,
+    definitionId?: string | null
+  }): NodeReference {
 
-    return new NodeReference();
+    return new NodeReference(
+
+    );
   }
 
   equals(other: any): boolean {

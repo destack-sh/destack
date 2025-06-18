@@ -1,8 +1,8 @@
-import { BuiltinObject, Session, Region, QueryConnection, NodeType, Supergraph, Node, Struct, Graph, NodeReference } from '@/language';
+import { Graph, Supergraph, Region, StructFrozen, QueryConnection, StructType, NodeReference, NodeType, Session, Node, Struct, EnumType, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:STRUCT:7601 ==== */
-export class GalaxyInfo extends BuiltinObject {
+export class GalaxyInfo extends Struct {
   region: Region;
   name: string;
   host: string;
@@ -20,9 +20,15 @@ export class GalaxyInfo extends BuiltinObject {
   }
 
 
-  static create(): GalaxyInfo {
+  static create(options: {
+    region: Region,
+    name: string,
+    host: string
+  }): GalaxyInfo {
 
-    return new GalaxyInfo();
+    return new GalaxyInfo(
+
+    );
   }
 
   equals(other: any): boolean {

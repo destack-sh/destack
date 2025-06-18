@@ -1,4 +1,4 @@
-import { Session, Spatial, Entity, IsDeletable, Organization, CustomViewDefinition, Layer, User, NodeReference, BuiltinObject, IsOwnable, Agent, MaterializationType, IsTracked, Scene, Graph, Role, Icon, Struct, Supergraph, Length, QueryConnection, NodeType, Team, Node, Space } from '@/language';
+import { Graph, Team, IsDeletable, MaterializationType, Spatial, StructFrozen, CustomViewDefinition, IsOwnable, Struct, EnumType, IsTracked, Role, Entity, QueryConnection, NodeReference, Node, Scene, Layer, Length, NodeType, Session, Agent, Space, User, Organization, StructType, Icon, Supergraph, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:9030 ==== */
@@ -19,58 +19,50 @@ export enum VariantStateType {
 /* ==== DESTACK_GENERATED_START:NODE:9030 ==== */
 export class Variant extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOwnable {
   readonly id: string;
-  get parent(): Scene | Layer | CustomViewDefinition | null {
+  get parent(): Scene | Layer | CustomViewDefinition | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Scene | Layer | CustomViewDefinition | null;
+          return this._supergraph.get(nodePtr.id) as Scene | Layer | CustomViewDefinition | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
-  }
   ;
   spacePtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   updatedByPtr: NodeReference | null
   readonly deletedAt: Temporal.ZonedDateTime | null;
-  get ownedBy(): Role | Agent | Organization | Team | User | null {
+  get ownedBy(): Role | Agent | Organization | Team | User | null | null {
       const nodePtr: NodeReference | null = this.ownedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Role | Agent | Organization | Team | User | null;
+          return this._supergraph.get(nodePtr.id) as Role | Agent | Organization | Team | User | null | null;
       }
       return null;
   }
@@ -139,9 +131,21 @@ export class Variant extends Node implements Spatial, Entity, IsTracked, IsDelet
   }
 
 
-  static create(): Variant {
+  static create(options: {
+    ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
+    type: VariantType,
+    name: string,
+    slug?: string | null,
+    icon?: Icon | null,
+    maxWidth?: Length | null,
+    maxHeight?: Length | null,
+    minWidth?: Length | null,
+    minHeight?: Length | null
+  }): Variant {
 
-    return new Variant();
+    return new Variant(
+
+    );
   }
 
   equals(other: any): boolean {

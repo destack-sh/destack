@@ -1,34 +1,34 @@
-import { BuiltinObject, Session, Global, Entity, Agent, MaterializationType, QueryConnection, NodeType, IsTracked, Supergraph, Node, Space, Struct, User, Graph, NodeReference } from '@/language';
+import { Graph, MaterializationType, StructFrozen, Struct, EnumType, IsTracked, Entity, QueryConnection, NodeReference, Node, NodeType, Session, Agent, Space, User, StructType, Supergraph, Global, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:10 ==== */
 export class Handle extends Node implements Global, Entity, IsTracked {
   readonly id: string;
-  get parent(): Space | null {
+  get parent(): Space | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -62,9 +62,13 @@ export class Handle extends Node implements Global, Entity, IsTracked {
   }
 
 
-  static create(): Handle {
+  static create(options: {
+    slug: string
+  }): Handle {
 
-    return new Handle();
+    return new Handle(
+
+    );
   }
 
   equals(other: any): boolean {

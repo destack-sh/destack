@@ -1,50 +1,42 @@
-import { FriendshipInvite, HistogramMeasurement, CounterMeasurement, IsSourceable, InviteEvent, Organization, Environment, BorderStyle, Invite, Field, FillStyle, BuiltinObject, Branch, Agent, FontStyle, PlaneShape, Indexed, Event, AnnotationShape, Scene, SliderInputView, Role, Trigger, Theme, NotificationEvent, Route, ThreadView, SplitView, RoleEvent, Script, ScreenCursor, Action, Session, Entity, ShadowStyle, CustomView, Layer, IsFrozen, User, EditOperation, Handle, Timer, Star, MaterializationType, CustomEntityDefinition, Graph, CustomStructDefinition, HistogramMetric, WizardView, FrameView, LabelView, ThreadCursor, Database, Thread, Variant, TextView, RunEvent, GradientStyle, Log, QueryConnection, Node, Client, Reaction, Notification, EntitlementEvent, Particle, Friendship, EditType, SceneEvent, Canvas, GaugeMeasurement, Value, ArrowShape, Folder, TriggerEvent, Tagging, IsTracked, Tag, CustomEntity, Membership, Span, IsTaggable, Follow, Interruption, SanctionEvent, Entitlement, Service, Palette, NumberInputView, Team, File, IsOrdered, Permission, Link, Spatial, TransitionStyle, ColorStyle, MembershipEvent, Sanction, PropertyReference, CustomViewDefinition, Analytic, CounterMetric, Snapshot, CustomEnumDefinition, NodeReference, Message, Run, Window, Option, TimerEvent, LineShape, EffectStyle, Machine, Struct, Supergraph, GaugeMetric, NodeType, EventCursor, Space, FriendshipInviteEvent } from '@/language';
+import { PlaneShape, IsTaggable, GaugeMetric, EffectStyle, FontStyle, Machine, Interruption, HistogramMetric, Log, Tag, IsTracked, Database, Entity, IsSourceable, FriendshipInvite, NodeReference, Entitlement, Layer, Branch, BorderStyle, CounterMetric, Action, Particle, AnnotationShape, Session, FriendshipInviteEvent, NumberInputView, Trigger, ShadowStyle, Tagging, User, CustomEntityDefinition, SliderInputView, Snapshot, TransitionStyle, CustomViewDefinition, Struct, Handle, Friendship, ThreadCursor, Invite, ColorStyle, Role, Message, QueryConnection, ScreenCursor, Link, Value, CustomView, EditOperation, Span, WizardView, NodeType, TriggerEvent, CustomStructDefinition, TimerEvent, CustomEntity, Organization, SanctionEvent, Thread, LineShape, GaugeMeasurement, Palette, RunEvent, BuiltinObject, InviteEvent, Team, Membership, Permission, Spatial, IsFrozen, Option, Analytic, EnumType, Timer, Field, HistogramMeasurement, CustomEnumDefinition, Indexed, Service, Node, Scene, Notification, SceneEvent, Folder, MembershipEvent, GradientStyle, Run, Window, Canvas, Event, Variant, LabelView, Graph, ThreadView, MaterializationType, StructFrozen, CounterMeasurement, Sanction, Script, Environment, PropertyReference, Star, Reaction, SplitView, RoleEvent, FrameView, Theme, EntitlementEvent, NotificationEvent, EditType, Follow, File, IsOrdered, Client, Agent, Space, ArrowShape, TextView, StructType, Route, Supergraph, EventCursor, FillStyle } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:4202 ==== */
 export class EditEvent extends Node implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked, IsTaggable {
   readonly id: string;
-  get parent(): Space | null {
+  get parent(): Space | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
-  }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
   }
   ;
   spacePtr: NodeReference | null
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -60,7 +52,7 @@ export class EditEvent extends Node implements Spatial, Particle, Analytic, Inde
       return null;
   }
 
-  set node(value: Node | null) {
+  set node(value: Node) {
       if (value === null) {
           this.nodePtr = null;
       } else {
@@ -70,10 +62,10 @@ export class EditEvent extends Node implements Spatial, Particle, Analytic, Inde
   ;
   nodePtr: NodeReference
   propPtr: PropertyReference | null;
-  get field(): Field | null {
+  get field(): Field | null | null {
       const nodePtr: NodeReference | null = this.fieldPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Field | null;
+          return this._supergraph.get(nodePtr.id) as Field | null | null;
       }
       return null;
   }
@@ -128,9 +120,19 @@ export class EditEvent extends Node implements Spatial, Particle, Analytic, Inde
   }
 
 
-  static create(): EditEvent {
+  static create(options: {
+    type: EditType,
+    operation?: EditOperation | null,
+    node: Node | NodeReference,
+    propPtr?: PropertyReference | null,
+    field?: Field | NodeReference | null,
+    key?: Value | null,
+    value?: Value | null
+  }): EditEvent {
 
-    return new EditEvent();
+    return new EditEvent(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -171,48 +173,40 @@ export class EditEvent extends Node implements Spatial, Particle, Analytic, Inde
 /* ==== DESTACK_GENERATED_START:NODE:4200 ==== */
 export class CustomEventDefinition extends Node implements Spatial, Entity, IsTracked, IsOrdered, IsSourceable {
   readonly id: string;
-  get parent(): Space | null {
+  get parent(): Space | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
-  }
   ;
   spacePtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -220,20 +214,12 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, IsTr
   updatedByPtr: NodeReference | null
   readonly orderKey: string;
   name: string;
-  get source(): Script | null {
+  get source(): Script | null | null {
       const nodePtr: NodeReference | null = this.sourcePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Script | null;
+          return this._supergraph.get(nodePtr.id) as Script | null | null;
       }
       return null;
-  }
-
-  set source(value: Script | null) {
-      if (value === null) {
-          this.sourcePtr = null;
-      } else {
-          this.sourcePtr = value.toRef();
-      }
   }
   ;
   sourcePtr: NodeReference | null
@@ -270,9 +256,13 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, IsTr
   }
 
 
-  static create(): CustomEventDefinition {
+  static create(options: {
+    name: string
+  }): CustomEventDefinition {
 
-    return new CustomEventDefinition();
+    return new CustomEventDefinition(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -313,56 +303,48 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, IsTr
 /* ==== DESTACK_GENERATED_START:NODE:4201 ==== */
 export class CustomEvent extends Node implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked {
   readonly id: string;
-  get parent(): Space | null {
+  get parent(): Space | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
-  }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
   }
   ;
   spacePtr: NodeReference | null
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   updatedByPtr: NodeReference | null
-  get node(): Node | null {
+  get node(): Node | null | null {
       const nodePtr: NodeReference | null = this.nodePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Node | null;
+          return this._supergraph.get(nodePtr.id) as Node | null | null;
       }
       return null;
   }
@@ -384,7 +366,7 @@ export class CustomEvent extends Node implements Spatial, Particle, Analytic, In
       return null;
   }
 
-  set definition(value: CustomEventDefinition | null) {
+  set definition(value: CustomEventDefinition) {
       if (value === null) {
           this.definitionPtr = null;
       } else {
@@ -422,9 +404,14 @@ export class CustomEvent extends Node implements Spatial, Particle, Analytic, In
   }
 
 
-  static create(): CustomEvent {
+  static create(options: {
+    node?: Node | NodeReference | null,
+    definition: CustomEventDefinition | NodeReference
+  }): CustomEvent {
 
-    return new CustomEvent();
+    return new CustomEvent(
+
+    );
   }
 
   equals(other: any): boolean {

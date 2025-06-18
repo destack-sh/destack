@@ -1,4 +1,4 @@
-import { FriendshipInvite, HistogramMeasurement, CounterMeasurement, InviteEvent, Organization, Environment, BorderStyle, Invite, Field, FillStyle, BuiltinObject, Branch, Agent, FontStyle, PlaneShape, AnnotationShape, Scene, SliderInputView, Role, Trigger, Theme, NotificationEvent, Route, ThreadView, SplitView, RoleEvent, Script, ScreenCursor, Action, Session, ShadowStyle, CustomView, Layer, User, Handle, Timer, Star, CustomEntityDefinition, Graph, CustomStructDefinition, HistogramMetric, WizardView, FrameView, LabelView, ThreadCursor, Origin, Database, Thread, Variant, TextView, RunEvent, GradientStyle, Log, QueryConnection, Node, Client, Reaction, Notification, EntitlementEvent, Friendship, SceneEvent, Canvas, GaugeMeasurement, Value, ArrowShape, Folder, TriggerEvent, Tagging, Tag, CustomEntity, Membership, Span, Follow, Interruption, SanctionEvent, Entitlement, Service, Palette, NumberInputView, Team, File, Permission, Link, TransitionStyle, ColorStyle, MembershipEvent, Sanction, PropertyReference, CustomViewDefinition, CounterMetric, Snapshot, CustomEnumDefinition, NodeReference, Message, Space, Run, Window, Option, TimerEvent, CustomEventDefinition, LineShape, EffectStyle, Machine, Struct, Supergraph, CustomEvent, GaugeMetric, NodeType, EventCursor, EditEvent, FriendshipInviteEvent } from '@/language';
+import { PlaneShape, GaugeMetric, EffectStyle, FontStyle, Machine, Interruption, HistogramMetric, Log, Tag, Database, FriendshipInvite, NodeReference, Entitlement, Layer, Branch, BorderStyle, CounterMetric, Action, EditEvent, AnnotationShape, Session, FriendshipInviteEvent, NumberInputView, CustomEvent, Trigger, ShadowStyle, Tagging, User, CustomEntityDefinition, SliderInputView, Snapshot, TransitionStyle, CustomViewDefinition, Origin, Struct, Handle, Friendship, ThreadCursor, Invite, ColorStyle, Role, Message, QueryConnection, ScreenCursor, Link, Value, CustomView, Span, WizardView, NodeType, TriggerEvent, CustomStructDefinition, TimerEvent, CustomEntity, Organization, SanctionEvent, Thread, LineShape, GaugeMeasurement, Palette, RunEvent, BuiltinObject, InviteEvent, Team, Membership, Permission, Option, EnumType, Timer, Field, HistogramMeasurement, CustomEnumDefinition, Service, Node, Scene, CustomEventDefinition, Notification, SceneEvent, Folder, MembershipEvent, GradientStyle, Run, Window, Canvas, Variant, LabelView, Graph, ThreadView, StructFrozen, CounterMeasurement, Sanction, Script, Environment, PropertyReference, Star, Reaction, SplitView, RoleEvent, FrameView, Theme, EntitlementEvent, NotificationEvent, Follow, File, Client, Agent, Space, ArrowShape, TextView, StructType, Route, Supergraph, EventCursor, FillStyle } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:50050 ==== */
@@ -37,11 +37,11 @@ export enum ChangeDebounce {
 /* ==== DESTACK_GENERATED_END:ENUM:50053 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50020 ==== */
-export class Edit extends BuiltinObject {
+export class Edit extends StructFrozen {
   readonly id: string;
   readonly type: EditType;
   readonly operation: EditOperation | null;
-  get node(): Node | null {
+  get node(): Node {
       const nodePtr: NodeReference | null = this.nodePtr;
       if (nodePtr !== null) {
           if (this._supergraph === null) {
@@ -95,9 +95,20 @@ export class Edit extends BuiltinObject {
   }
 
 
-  static create(): Edit {
+  static create(options: {
+    type: EditType,
+    operation?: EditOperation | null,
+    node: Node | NodeReference,
+    propPtr?: PropertyReference | null,
+    field?: Field | NodeReference | null,
+    key?: Value | null,
+    value?: Value | null,
+    undo?: Edit | null
+  }): Edit {
 
-    return new Edit();
+    return new Edit(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -115,7 +126,7 @@ export class Edit extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:50020 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50021 ==== */
-export class Change extends BuiltinObject {
+export class Change extends StructFrozen {
   readonly id: string;
   readonly name: string | null;
   readonly createdAt: Temporal.ZonedDateTime;
@@ -156,9 +167,14 @@ export class Change extends BuiltinObject {
   }
 
 
-  static create(): Change {
+  static create(options: {
+    name?: string | null,
+    edits?: Array<Edit>
+  }): Change {
 
-    return new Change();
+    return new Change(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -176,7 +192,7 @@ export class Change extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:50021 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50022 ==== */
-export class ChangeResult extends BuiltinObject {
+export class ChangeResult extends StructFrozen {
   readonly id: string;
   readonly createdAt: Temporal.ZonedDateTime;
   readonly debounce: ChangeDebounce | null;
@@ -203,9 +219,15 @@ export class ChangeResult extends BuiltinObject {
   }
 
 
-  static create(): ChangeResult {
+  static create(options: {
+    status: ChangeStatus,
+    edits?: Array<Edit>,
+    cascadedEdits?: Array<Edit>
+  }): ChangeResult {
 
-    return new ChangeResult();
+    return new ChangeResult(
+
+    );
   }
 
   equals(other: any): boolean {

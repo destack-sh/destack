@@ -77,6 +77,8 @@ class CustomEntity(
     definition: "CustomEntityDefinition" = property_(
         6,
         description="The CustomEntityDefinition this CustomEntity is an instance of.",
+        is_managed=True,
+        can_write=None,
     )
     if TYPE_CHECKING:
         definition_ptr: Optional[NodeReference] = None

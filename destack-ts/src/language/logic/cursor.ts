@@ -1,4 +1,4 @@
-import { Session, Spatial, Entity, Organization, Vector2i, User, NodeReference, BuiltinObject, IsOwnable, Agent, MaterializationType, IsTracked, Graph, Role, Struct, Supergraph, QueryConnection, NodeType, Team, Node, Space } from '@/language';
+import { Graph, Team, MaterializationType, Spatial, StructFrozen, IsOwnable, Struct, EnumType, IsTracked, Role, Entity, QueryConnection, NodeReference, Vector2i, Node, NodeType, Session, Agent, Space, User, Organization, StructType, Supergraph, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:3100 ==== */
@@ -18,10 +18,9 @@ export enum CursorStatus {
 /* ==== DESTACK_GENERATED_START:TRAIT:3012 ==== */
 export interface Cursor {
   readonly id: string;
-  get space(): Space | null
-  set space(value: Space | null);
+  get space(): Space | null;
   spacePtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null;
   createdByPtr: NodeReference | null
@@ -36,57 +35,49 @@ export interface Cursor {
 /* ==== DESTACK_GENERATED_START:NODE:3100 ==== */
 export class EventCursor extends Node implements Spatial, Entity, IsTracked, IsOwnable, Cursor {
   readonly id: string;
-  get parent(): Space | null {
+  get parent(): Space | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
-  }
   ;
   spacePtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   updatedByPtr: NodeReference | null
-  get ownedBy(): Role | Agent | Organization | Team | User | null {
+  get ownedBy(): Role | Agent | Organization | Team | User | null | null {
       const nodePtr: NodeReference | null = this.ownedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Role | Agent | Organization | Team | User | null;
+          return this._supergraph.get(nodePtr.id) as Role | Agent | Organization | Team | User | null | null;
       }
       return null;
   }
@@ -135,9 +126,15 @@ export class EventCursor extends Node implements Spatial, Entity, IsTracked, IsO
   }
 
 
-  static create(): EventCursor {
+  static create(options: {
+    ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
+    status?: CursorStatus,
+    activeAt?: Temporal.ZonedDateTime | null
+  }): EventCursor {
 
-    return new EventCursor();
+    return new EventCursor(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -178,57 +175,49 @@ export class EventCursor extends Node implements Spatial, Entity, IsTracked, IsO
 /* ==== DESTACK_GENERATED_START:NODE:3101 ==== */
 export class ScreenCursor extends Node implements Spatial, Entity, IsTracked, IsOwnable, Cursor {
   readonly id: string;
-  get parent(): Space | null {
+  get parent(): Space | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
-  }
   ;
   spacePtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   updatedByPtr: NodeReference | null
-  get ownedBy(): Role | Agent | Organization | Team | User | null {
+  get ownedBy(): Role | Agent | Organization | Team | User | null | null {
       const nodePtr: NodeReference | null = this.ownedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Role | Agent | Organization | Team | User | null;
+          return this._supergraph.get(nodePtr.id) as Role | Agent | Organization | Team | User | null | null;
       }
       return null;
   }
@@ -280,9 +269,16 @@ export class ScreenCursor extends Node implements Spatial, Entity, IsTracked, Is
   }
 
 
-  static create(): ScreenCursor {
+  static create(options: {
+    ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
+    status?: CursorStatus,
+    activeAt?: Temporal.ZonedDateTime | null,
+    position?: Vector2i | null
+  }): ScreenCursor {
 
-    return new ScreenCursor();
+    return new ScreenCursor(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -323,57 +319,49 @@ export class ScreenCursor extends Node implements Spatial, Entity, IsTracked, Is
 /* ==== DESTACK_GENERATED_START:NODE:3102 ==== */
 export class ThreadCursor extends Node implements Spatial, Entity, IsTracked, IsOwnable, Cursor {
   readonly id: string;
-  get parent(): Space | null {
+  get parent(): Space | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
-  }
   ;
   spacePtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   updatedByPtr: NodeReference | null
-  get ownedBy(): Role | Agent | Organization | Team | User | null {
+  get ownedBy(): Role | Agent | Organization | Team | User | null | null {
       const nodePtr: NodeReference | null = this.ownedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Role | Agent | Organization | Team | User | null;
+          return this._supergraph.get(nodePtr.id) as Role | Agent | Organization | Team | User | null | null;
       }
       return null;
   }
@@ -422,9 +410,15 @@ export class ThreadCursor extends Node implements Spatial, Entity, IsTracked, Is
   }
 
 
-  static create(): ThreadCursor {
+  static create(options: {
+    ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
+    status?: CursorStatus,
+    activeAt?: Temporal.ZonedDateTime | null
+  }): ThreadCursor {
 
-    return new ThreadCursor();
+    return new ThreadCursor(
+
+    );
   }
 
   equals(other: any): boolean {

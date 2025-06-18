@@ -584,7 +584,7 @@ class IsFollowable(Trait):
 class IsSourceable(IsOrdered):
     """A Node that can be sourced from / defined by a Script."""
 
-    source: Optional["Script"] = property_(210)
+    source: Optional["Script"] = property_(210, is_managed=True)
     # token_range, ...
 
 
@@ -713,7 +713,7 @@ class Spatial(Trait):
     """A Node in a Space."""
 
     parent: Optional["Space"] = property_parent_(node_is_customizable=False)
-    space: "Space | None" = property_(5)
+    space: "Space | None" = property_(5, is_managed=True)
     if TYPE_CHECKING:
         space_ptr: Optional[NodeReference] = None
 
@@ -731,16 +731,20 @@ class Entity(IsTracked):
     #  - space: (instance_id, template_id)
     # when merging: time before space (id+snapshot_id over template)
     # snapshot and template properties must be READ ONLY (no write)
-    materialization: MaterializationType = property_(7, default=MaterializationType.FULL_GRAPH)
+    materialization: MaterializationType = property_(
+        7, is_managed=True, default=MaterializationType.FULL_GRAPH
+    )
     # snapshot: Optional["Snapshot"] = property_(
     #     8,
     #     can_write=None,
+    #     is_managed=True,
     #     node_space_from="self",
     #     description="The Snapshot this Entity is part of.",
     # )
     # base: Optional["Snapshot"] = property_(
     #     9,
     #     can_write=None,
+    #     is_managed=True,
     #     node_is_customizable=False,
     #     node_space_from="self",
     #     description="The Snapshot this Entity's snapshot is based on.",
@@ -748,12 +752,14 @@ class Entity(IsTracked):
     # instance: Optional["Entity"] = property_(
     #     10,
     #     can_write=None,
+    #     is_managed=True,
     #     node_is_customizable=False,
     #     description="The (root) Entity in this Entity's instance tree.",
     # )
     # template: Optional["Entity"] = property_(
     #     11,
     #     can_write=None,
+    #     is_managed=True,
     #     node_is_customizable=False,
     #     description="The template this Entity instance is based on.",
     # )
@@ -815,7 +821,7 @@ class Metric(Entity, IsSourceable, IsCustomNodeDefinition):
 class Measurement(Analytic, IsCustomNode):
     """An Analytic that represents a Measurement."""
 
-    definition: "Metric" = property_(6)
+    definition: "Metric" = property_(6, is_managed=True, can_write=None)
 
 
 @builtin_trait(TraitType.EVENT, pretend_frozen=True)

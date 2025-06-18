@@ -1,4 +1,4 @@
-import { Session, Spatial, Entity, IsDeletable, Organization, User, NodeReference, BuiltinObject, Agent, MaterializationType, Folder, IsTracked, Graph, Icon, Thread, Struct, Supergraph, QueryConnection, NodeType, Team, Node, Space } from '@/language';
+import { Graph, Team, IsDeletable, MaterializationType, Spatial, StructFrozen, Struct, EnumType, IsTracked, Entity, QueryConnection, NodeReference, Node, Folder, NodeType, Session, Agent, Organization, Space, User, Thread, StructType, Icon, Supergraph, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:530 ==== */
@@ -10,48 +10,40 @@ export enum PermissionType {
 /* ==== DESTACK_GENERATED_START:NODE:530 ==== */
 export class Permission extends Node implements Spatial, Entity, IsTracked, IsDeletable {
   readonly id: string;
-  get parent(): Folder | Thread | Organization | Space | Team | Folder | null {
+  get parent(): Folder | Thread | Organization | Space | Team | Folder | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Folder | Thread | Organization | Space | Team | Folder | null;
+          return this._supergraph.get(nodePtr.id) as Folder | Thread | Organization | Space | Team | Folder | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
-  }
   ;
   spacePtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -99,9 +91,16 @@ export class Permission extends Node implements Spatial, Entity, IsTracked, IsDe
   }
 
 
-  static create(): Permission {
+  static create(options: {
+    type: PermissionType,
+    name: string,
+    slug?: string | null,
+    icon?: Icon | null
+  }): Permission {
 
-    return new Permission();
+    return new Permission(
+
+    );
   }
 
   equals(other: any): boolean {

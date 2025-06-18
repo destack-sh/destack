@@ -1,4 +1,4 @@
-import { FriendshipInvite, HistogramMeasurement, CounterMeasurement, InviteEvent, Organization, Environment, BorderStyle, Invite, Field, FillStyle, BuiltinObject, Branch, Agent, FontStyle, PlaneShape, AnnotationShape, Scene, SliderInputView, Role, Icon, Trigger, Theme, NotificationEvent, Route, ThreadView, SplitView, RoleEvent, Script, ScreenCursor, Action, Session, ShadowStyle, CustomView, Layer, User, Handle, Timer, Star, MaterializationType, CustomEntityDefinition, Graph, CustomStructDefinition, HistogramMetric, WizardView, FrameView, LabelView, ThreadCursor, Database, Thread, Variant, TextView, RunEvent, GradientStyle, Log, QueryConnection, Node, Client, Reaction, Notification, EntitlementEvent, Friendship, SceneEvent, Canvas, GaugeMeasurement, Value, ArrowShape, Folder, TriggerEvent, Tagging, Tag, CustomEntity, Membership, Span, Follow, Interruption, SanctionEvent, Entitlement, ResourceStatus, Service, Palette, NumberInputView, Team, File, Permission, Link, TransitionStyle, ColorStyle, MembershipEvent, Sanction, CustomViewDefinition, CounterMetric, Snapshot, CustomEnumDefinition, NodeReference, Message, Space, Run, Window, Option, TimerEvent, CustomEventDefinition, LineShape, EffectStyle, Machine, Struct, Supergraph, CustomEvent, GaugeMetric, NodeType, EventCursor, EditEvent, FriendshipInviteEvent } from '@/language';
+import { PlaneShape, GaugeMetric, EffectStyle, FontStyle, Machine, Interruption, HistogramMetric, Log, Tag, Database, FriendshipInvite, NodeReference, Entitlement, Layer, Branch, BorderStyle, CounterMetric, Action, EditEvent, AnnotationShape, Session, FriendshipInviteEvent, NumberInputView, CustomEvent, Trigger, ShadowStyle, Tagging, User, CustomEntityDefinition, SliderInputView, Snapshot, TransitionStyle, CustomViewDefinition, Struct, Handle, Friendship, ThreadCursor, Invite, ColorStyle, Role, Message, QueryConnection, ScreenCursor, Link, Value, CustomView, Span, WizardView, NodeType, TriggerEvent, CustomStructDefinition, TimerEvent, CustomEntity, Organization, SanctionEvent, Thread, LineShape, GaugeMeasurement, Palette, RunEvent, BuiltinObject, InviteEvent, Team, Membership, Permission, Option, EnumType, Timer, Field, HistogramMeasurement, CustomEnumDefinition, Service, Node, Scene, CustomEventDefinition, Notification, SceneEvent, Folder, MembershipEvent, ResourceStatus, GradientStyle, Run, Window, Canvas, Variant, LabelView, Graph, ThreadView, MaterializationType, StructFrozen, CounterMeasurement, Sanction, Script, Environment, Star, Reaction, SplitView, RoleEvent, FrameView, Theme, EntitlementEvent, NotificationEvent, Follow, File, Client, Agent, Space, ArrowShape, TextView, StructType, Icon, Route, Supergraph, EventCursor, FillStyle } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:50101 ==== */
@@ -87,7 +87,7 @@ export interface IsCustomNodeDefinition {
 /* ==== DESTACK_GENERATED_START:TRAIT:24 ==== */
 export interface IsCustomNode {
   readonly id: string;
-  get definition(): CustomEntityDefinition | GaugeMetric | CounterMetric | HistogramMetric | CustomViewDefinition | null;
+  get definition(): CustomEntityDefinition | GaugeMetric | CounterMetric | HistogramMetric | CustomViewDefinition;
   definitionPtr: NodeReference
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:24 ==== */
@@ -128,8 +128,7 @@ export interface IsFollowable {
 export interface IsSourceable {
   readonly id: string;
   readonly orderKey: string;
-  get source(): Script | null
-  set source(value: Script | null);
+  get source(): Script | null;
   sourcePtr: NodeReference | null
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:3003 ==== */
@@ -197,8 +196,8 @@ export interface IsTaggable {
 /* ==== DESTACK_GENERATED_START:TRAIT:510 ==== */
 export interface LikeMembership {
   readonly id: string;
-  get member(): Agent | User | null
-  set member(value: Agent | User | null);
+  get member(): Agent | User
+  set member(value: Agent | User);
   memberPtr: NodeReference
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:510 ==== */
@@ -206,8 +205,8 @@ export interface LikeMembership {
 /* ==== DESTACK_GENERATED_START:TRAIT:511 ==== */
 export interface LikeInvite {
   readonly id: string;
-  get member(): Agent | User | null
-  set member(value: Agent | User | null);
+  get member(): Agent | User
+  set member(value: Agent | User);
   memberPtr: NodeReference
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:511 ==== */
@@ -233,8 +232,7 @@ export interface Global {
 /* ==== DESTACK_GENERATED_START:TRAIT:2 ==== */
 export interface Spatial {
   readonly id: string;
-  get space(): Space | null
-  set space(value: Space | null);
+  get space(): Space | null;
   spacePtr: NodeReference | null
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:2 ==== */
@@ -242,7 +240,7 @@ export interface Spatial {
 /* ==== DESTACK_GENERATED_START:TRAIT:10 ==== */
 export interface Entity {
   readonly id: string;
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null;
   createdByPtr: NodeReference | null
@@ -291,7 +289,7 @@ export interface Indexed {
 /* ==== DESTACK_GENERATED_START:TRAIT:21 ==== */
 export interface Resource {
   readonly id: string;
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null;
   createdByPtr: NodeReference | null
@@ -309,7 +307,7 @@ export interface Metric {
   get prototype(): CustomEntity | GaugeMeasurement | CounterMeasurement | HistogramMeasurement | CustomView | null
   set prototype(value: CustomEntity | GaugeMeasurement | CounterMeasurement | HistogramMeasurement | CustomView | null);
   prototypePtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null;
   createdByPtr: NodeReference | null
@@ -317,8 +315,7 @@ export interface Metric {
   get updatedBy(): Agent | User | null;
   updatedByPtr: NodeReference | null
   readonly orderKey: string;
-  get source(): Script | null
-  set source(value: Script | null);
+  get source(): Script | null;
   sourcePtr: NodeReference | null
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:4010 ==== */
@@ -326,8 +323,7 @@ export interface Metric {
 /* ==== DESTACK_GENERATED_START:TRAIT:4011 ==== */
 export interface Measurement {
   readonly id: string;
-  get definition(): GaugeMetric | CounterMetric | HistogramMetric | null
-  set definition(value: GaugeMetric | CounterMetric | HistogramMetric | null);
+  get definition(): GaugeMetric | CounterMetric | HistogramMetric;
   definitionPtr: NodeReference
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null;
@@ -341,8 +337,7 @@ export interface Measurement {
 /* ==== DESTACK_GENERATED_START:TRAIT:22 ==== */
 export interface Event {
   readonly id: string;
-  get space(): Space | null
-  set space(value: Space | null);
+  get space(): Space | null;
   spacePtr: NodeReference | null
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null;

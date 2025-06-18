@@ -1,39 +1,31 @@
-import { Session, ContainerView, Spatial, Direction, Entity, IsDeletable, Shadow, View, Insets, Layer, User, Canvas, NodeReference, BuiltinObject, Value, Border, IsExtensible, Vector2, Agent, MaterializationType, Folder, PlaneShape, Space, IsTracked, Dimension, Axis2, IsVisual, AnnotationShape, IsTaggable, Scene, Graph, IsScriptable, Axis3, Fill, Window, FrameView, Distribute, LabelView, IsCustomNode, Position, Grid, Struct, Align, Supergraph, QueryConnection, SplitView, NodeType, Layout, Corners, Script, IsOrdered, Node, IsCustomNodeDefinition, GridSpan } from '@/language';
+import { PlaneShape, IsCustomNode, LabelView, Graph, IsTaggable, IsDeletable, Position, Grid, MaterializationType, Spatial, StructFrozen, IsScriptable, Struct, GridSpan, EnumType, IsExtensible, Script, IsTracked, Entity, IsVisual, Vector2, Shadow, QueryConnection, NodeReference, Axis2, SplitView, Node, Value, Scene, Layer, Align, Fill, FrameView, Folder, Dimension, Distribute, Axis3, Border, Layout, Direction, Corners, Insets, AnnotationShape, IsOrdered, NodeType, Session, View, ContainerView, IsCustomNodeDefinition, Agent, Space, User, Window, StructType, Canvas, Supergraph, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:10000 ==== */
 export class CustomViewDefinition extends Node implements Spatial, Entity, IsCustomNodeDefinition, IsTracked, IsDeletable, IsExtensible, IsOrdered, IsTaggable, IsScriptable, IsVisual, View, ContainerView {
   readonly id: string;
-  get parent(): Folder | Scene | null {
+  get parent(): Folder | Scene | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Folder | Scene | null;
+          return this._supergraph.get(nodePtr.id) as Folder | Scene | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
-  }
   ;
   spacePtr: NodeReference | null
-  get prototype(): CustomView | null {
+  get prototype(): CustomView | null | null {
       const nodePtr: NodeReference | null = this.prototypePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as CustomView | null;
+          return this._supergraph.get(nodePtr.id) as CustomView | null | null;
       }
       return null;
   }
@@ -47,22 +39,22 @@ export class CustomViewDefinition extends Node implements Spatial, Entity, IsCus
   }
   ;
   prototypePtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -98,10 +90,10 @@ export class CustomViewDefinition extends Node implements Spatial, Entity, IsCus
   shadow: Shadow | null;
   border: Border | null;
   radius: Corners | null;
-  get script(): Script | null {
+  get script(): Script | null | null {
       const nodePtr: NodeReference | null = this.scriptPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Script | null;
+          return this._supergraph.get(nodePtr.id) as Script | null | null;
       }
       return null;
   }
@@ -206,9 +198,42 @@ export class CustomViewDefinition extends Node implements Spatial, Entity, IsCus
   }
 
 
-  static create(): CustomViewDefinition {
+  static create(options: {
+    prototype?: CustomView | NodeReference | null,
+    value?: Map<string, Value>,
+    name: string,
+    position?: Position | null,
+    width?: Dimension | null,
+    height?: Dimension | null,
+    minWidth?: Dimension | null,
+    minHeight?: Dimension | null,
+    maxWidth?: Dimension | null,
+    maxHeight?: Dimension | null,
+    layout?: Layout | null,
+    direction?: Direction | null,
+    distribute?: Distribute | null,
+    align?: Align | null,
+    gap?: Axis2 | null,
+    padding?: Insets | null,
+    grid?: Grid | null,
+    gridSpan?: GridSpan | null,
+    aspectRatio?: number | null,
+    isWrap?: boolean | null,
+    isVisible?: boolean | null,
+    opacity?: number | null,
+    fill?: Fill | null,
+    rotation?: Axis3 | null,
+    skew?: Vector2 | null,
+    scale?: number | null,
+    shadow?: Shadow | null,
+    border?: Border | null,
+    radius?: Corners | null,
+    script?: Script | NodeReference | null
+  }): CustomViewDefinition {
 
-    return new CustomViewDefinition();
+    return new CustomViewDefinition(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -249,29 +274,21 @@ export class CustomViewDefinition extends Node implements Spatial, Entity, IsCus
 /* ==== DESTACK_GENERATED_START:NODE:10001 ==== */
 export class CustomView extends Node implements Spatial, Entity, IsCustomNode, IsTracked, IsDeletable, IsExtensible, IsOrdered, IsTaggable, IsScriptable, IsVisual, View, ContainerView {
   readonly id: string;
-  get parent(): Window | Scene | Layer | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | AnnotationShape | Canvas | PlaneShape | Layer | Scene | null {
+  get parent(): Window | Scene | Layer | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | AnnotationShape | Canvas | PlaneShape | Layer | Scene | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Window | Scene | Layer | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | AnnotationShape | Canvas | PlaneShape | Layer | Scene | null;
+          return this._supergraph.get(nodePtr.id) as Window | Scene | Layer | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | AnnotationShape | Canvas | PlaneShape | Layer | Scene | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
-  }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
   }
   ;
   spacePtr: NodeReference | null
@@ -282,32 +299,24 @@ export class CustomView extends Node implements Spatial, Entity, IsCustomNode, I
       }
       return null;
   }
-
-  set definition(value: CustomViewDefinition | null) {
-      if (value === null) {
-          this.definitionPtr = null;
-      } else {
-          this.definitionPtr = value.toRef();
-      }
-  }
   ;
   definitionPtr: NodeReference
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -343,10 +352,10 @@ export class CustomView extends Node implements Spatial, Entity, IsCustomNode, I
   shadow: Shadow | null;
   border: Border | null;
   radius: Corners | null;
-  get script(): Script | null {
+  get script(): Script | null | null {
       const nodePtr: NodeReference | null = this.scriptPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Script | null;
+          return this._supergraph.get(nodePtr.id) as Script | null | null;
       }
       return null;
   }
@@ -451,9 +460,41 @@ export class CustomView extends Node implements Spatial, Entity, IsCustomNode, I
   }
 
 
-  static create(): CustomView {
+  static create(options: {
+    value?: Map<string, Value>,
+    name: string,
+    position?: Position | null,
+    width?: Dimension | null,
+    height?: Dimension | null,
+    minWidth?: Dimension | null,
+    minHeight?: Dimension | null,
+    maxWidth?: Dimension | null,
+    maxHeight?: Dimension | null,
+    layout?: Layout | null,
+    direction?: Direction | null,
+    distribute?: Distribute | null,
+    align?: Align | null,
+    gap?: Axis2 | null,
+    padding?: Insets | null,
+    grid?: Grid | null,
+    gridSpan?: GridSpan | null,
+    aspectRatio?: number | null,
+    isWrap?: boolean | null,
+    isVisible?: boolean | null,
+    opacity?: number | null,
+    fill?: Fill | null,
+    rotation?: Axis3 | null,
+    skew?: Vector2 | null,
+    scale?: number | null,
+    shadow?: Shadow | null,
+    border?: Border | null,
+    radius?: Corners | null,
+    script?: Script | NodeReference | null
+  }): CustomView {
 
-    return new CustomView();
+    return new CustomView(
+
+    );
   }
 
   equals(other: any): boolean {

@@ -1,51 +1,43 @@
-import { Session, Spatial, Entity, IsDeletable, IsOwner, User, NodeReference, BuiltinObject, MaterializationType, Folder, IsTracked, Graph, IsScriptable, ScreenCursor, IsSubject, IsFollowable, ThreadCursor, Icon, Struct, Supergraph, QueryConnection, NodeType, Script, EventCursor, Node, Space } from '@/language';
+import { Graph, IsFollowable, IsDeletable, MaterializationType, Spatial, StructFrozen, IsScriptable, Struct, EnumType, ThreadCursor, Script, IsTracked, Entity, QueryConnection, NodeReference, ScreenCursor, Node, IsSubject, Folder, NodeType, Session, IsOwner, Space, User, StructType, Icon, Supergraph, EventCursor, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:600 ==== */
 export class Agent extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsSubject, IsOwner, IsScriptable, IsFollowable {
   readonly id: string;
-  get parent(): Folder | null {
+  get parent(): Folder | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Folder | null;
+          return this._supergraph.get(nodePtr.id) as Folder | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
-  }
   ;
   spacePtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -55,10 +47,10 @@ export class Agent extends Node implements Spatial, Entity, IsTracked, IsDeletab
   name: string;
   slug: string;
   icon: Icon | null;
-  get cursor(): EventCursor | ScreenCursor | ThreadCursor | null {
+  get cursor(): EventCursor | ScreenCursor | ThreadCursor | null | null {
       const nodePtr: NodeReference | null = this.cursorPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as EventCursor | ScreenCursor | ThreadCursor | null;
+          return this._supergraph.get(nodePtr.id) as EventCursor | ScreenCursor | ThreadCursor | null | null;
       }
       return null;
   }
@@ -72,10 +64,10 @@ export class Agent extends Node implements Spatial, Entity, IsTracked, IsDeletab
   }
   ;
   cursorPtr: NodeReference | null
-  get script(): Script | null {
+  get script(): Script | null | null {
       const nodePtr: NodeReference | null = this.scriptPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Script | null;
+          return this._supergraph.get(nodePtr.id) as Script | null | null;
       }
       return null;
   }
@@ -128,9 +120,17 @@ export class Agent extends Node implements Spatial, Entity, IsTracked, IsDeletab
   }
 
 
-  static create(): Agent {
+  static create(options: {
+    name: string,
+    slug: string,
+    icon?: Icon | null,
+    cursor?: EventCursor | ScreenCursor | ThreadCursor | NodeReference | null,
+    script?: Script | NodeReference | null
+  }): Agent {
 
-    return new Agent();
+    return new Agent(
+
+    );
   }
 
   equals(other: any): boolean {

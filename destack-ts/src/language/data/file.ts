@@ -1,4 +1,4 @@
-import { Session, Spatial, Entity, User, NodeReference, BuiltinObject, Resource, Agent, MaterializationType, IsTracked, Graph, ResourceStatus, Struct, Supergraph, Global, QueryConnection, NodeType, Node, Space } from '@/language';
+import { Graph, MaterializationType, Spatial, StructFrozen, Struct, EnumType, IsTracked, Entity, QueryConnection, NodeReference, Node, NodeType, Session, ResourceStatus, Resource, Agent, Space, User, StructType, Supergraph, Global, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:2541 ==== */
@@ -126,48 +126,40 @@ export enum FileFormat {
 /* ==== DESTACK_GENERATED_START:NODE:2540 ==== */
 export class File extends Node implements Global, Spatial, Entity, Resource, IsTracked {
   readonly id: string;
-  get parent(): Space | null {
+  get parent(): Space | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
-  }
   ;
   spacePtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -263,9 +255,33 @@ export class File extends Node implements Global, Spatial, Entity, Resource, IsT
   }
 
 
-  static create(): File {
+  static create(options: {
+    type: FileType,
+    name: string,
+    status?: ResourceStatus,
+    targetStatus?: Temporal.ZonedDateTime | null,
+    source: FileSource,
+    mimeType?: string | null,
+    format?: FileFormat | null,
+    size?: number | null,
+    sha256?: string | null,
+    width?: number | null,
+    height?: number | null,
+    aspectRatio?: number | null,
+    codec?: string | null,
+    duration?: Temporal.Duration | null,
+    url?: string | null,
+    contentUrl?: string | null,
+    thumbnailUrl?: string | null,
+    faviconUrl?: string | null,
+    thumbnailWidth?: number | null,
+    thumbnailHeight?: number | null,
+    content?: Uint8Array | null
+  }): File {
 
-    return new File();
+    return new File(
+
+    );
   }
 
   equals(other: any): boolean {

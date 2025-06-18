@@ -1,51 +1,43 @@
-import { Session, Spatial, Entity, IsSourceable, IsDeletable, Field, User, NodeReference, BuiltinObject, Agent, MaterializationType, IsTracked, IsTaggable, CustomStructDefinition, Graph, Icon, Struct, Supergraph, QueryConnection, NodeType, Script, IsOrdered, Node, Space } from '@/language';
+import { Graph, IsTaggable, IsDeletable, MaterializationType, Spatial, StructFrozen, Struct, EnumType, Field, Script, IsTracked, IsSourceable, Entity, QueryConnection, NodeReference, Node, IsOrdered, NodeType, Session, CustomStructDefinition, Agent, Space, User, StructType, Icon, Supergraph, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:2530 ==== */
 export class Option extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsTaggable, IsSourceable {
   readonly id: string;
-  get parent(): CustomStructDefinition | Field | null {
+  get parent(): CustomStructDefinition | Field | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as CustomStructDefinition | Field | null;
+          return this._supergraph.get(nodePtr.id) as CustomStructDefinition | Field | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
-  }
   ;
   spacePtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -55,20 +47,12 @@ export class Option extends Node implements Spatial, Entity, IsTracked, IsDeleta
   readonly orderKey: string;
   name: string;
   icon: Icon | null;
-  get source(): Script | null {
+  get source(): Script | null | null {
       const nodePtr: NodeReference | null = this.sourcePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Script | null;
+          return this._supergraph.get(nodePtr.id) as Script | null | null;
       }
       return null;
-  }
-
-  set source(value: Script | null) {
-      if (value === null) {
-          this.sourcePtr = null;
-      } else {
-          this.sourcePtr = value.toRef();
-      }
   }
   ;
   sourcePtr: NodeReference | null
@@ -109,9 +93,14 @@ export class Option extends Node implements Spatial, Entity, IsTracked, IsDeleta
   }
 
 
-  static create(): Option {
+  static create(options: {
+    name: string,
+    icon?: Icon | null
+  }): Option {
 
-    return new Option();
+    return new Option(
+
+    );
   }
 
   equals(other: any): boolean {

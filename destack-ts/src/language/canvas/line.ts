@@ -1,4 +1,4 @@
-import { Session, Spatial, Entity, IsDeletable, Color, View, CustomViewDefinition, CustomView, Layer, Canvas, User, NodeReference, BuiltinObject, Vector2, Agent, MaterializationType, PlaneShape, IsTracked, Dimension, IsVisual, AnnotationShape, IsTaggable, Scene, Graph, IsScriptable, Window, IsShape, FrameView, LabelView, Position, Struct, Align, Supergraph, ContentView, QueryConnection, SplitView, NodeType, Script, IsOrdered, Node, Space } from '@/language';
+import { PlaneShape, LabelView, Graph, IsTaggable, IsShape, IsDeletable, Position, MaterializationType, Spatial, StructFrozen, CustomViewDefinition, IsScriptable, Struct, EnumType, Script, IsTracked, Entity, IsVisual, Vector2, QueryConnection, NodeReference, SplitView, Node, Scene, Layer, CustomView, Align, FrameView, Dimension, AnnotationShape, IsOrdered, NodeType, Session, View, ContentView, Agent, Space, User, Window, StructType, Canvas, Color, Supergraph, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:11010 ==== */
@@ -12,48 +12,40 @@ export enum LineType {
 /* ==== DESTACK_GENERATED_START:NODE:11010 ==== */
 export class LineShape extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsTaggable, IsScriptable, IsVisual, View, ContentView, IsShape {
   readonly id: string;
-  get parent(): Window | Scene | Layer | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | AnnotationShape | Canvas | PlaneShape | Layer | Scene | null {
+  get parent(): Window | Scene | Layer | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | AnnotationShape | Canvas | PlaneShape | Layer | Scene | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Window | Scene | Layer | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | AnnotationShape | Canvas | PlaneShape | Layer | Scene | null;
+          return this._supergraph.get(nodePtr.id) as Window | Scene | Layer | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | AnnotationShape | Canvas | PlaneShape | Layer | Scene | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
-  }
   ;
   spacePtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -75,10 +67,10 @@ export class LineShape extends Node implements Spatial, Entity, IsTracked, IsDel
   opacity: number | null;
   points: Array<Vector2>;
   color: Color | null;
-  get script(): Script | null {
+  get script(): Script | null | null {
       const nodePtr: NodeReference | null = this.scriptPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Script | null;
+          return this._supergraph.get(nodePtr.id) as Script | null | null;
       }
       return null;
   }
@@ -153,9 +145,27 @@ export class LineShape extends Node implements Spatial, Entity, IsTracked, IsDel
   }
 
 
-  static create(): LineShape {
+  static create(options: {
+    type: LineType,
+    name: string,
+    position?: Position | null,
+    width?: Dimension | null,
+    height?: Dimension | null,
+    minWidth?: Dimension | null,
+    minHeight?: Dimension | null,
+    maxWidth?: Dimension | null,
+    maxHeight?: Dimension | null,
+    align?: Align | null,
+    isVisible?: boolean | null,
+    opacity?: number | null,
+    points?: Array<Vector2>,
+    color?: Color | null,
+    script?: Script | NodeReference | null
+  }): LineShape {
 
-    return new LineShape();
+    return new LineShape(
+
+    );
   }
 
   equals(other: any): boolean {

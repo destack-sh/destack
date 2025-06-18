@@ -1,8 +1,8 @@
-import { BuiltinObject, Session, QueryConnection, NodeType, Supergraph, Node, Struct, Type, Graph, NodeReference } from '@/language';
+import { Graph, Type, Supergraph, StructFrozen, QueryConnection, StructType, NodeReference, NodeType, Session, Node, Struct, EnumType, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2500 ==== */
-export class Value extends BuiltinObject {
+export class Value extends StructFrozen {
   readonly type: Type;
   readonly value: any;
 
@@ -17,9 +17,14 @@ export class Value extends BuiltinObject {
   }
 
 
-  static create(): Value {
+  static create(options: {
+    type: Type,
+    value: any
+  }): Value {
 
-    return new Value();
+    return new Value(
+
+    );
   }
 
   equals(other: any): boolean {

@@ -1,4 +1,4 @@
-import { BuiltinObject, Session, QueryConnection, NodeType, Supergraph, Node, Struct, Graph, NodeReference } from '@/language';
+import { Graph, Supergraph, StructFrozen, QueryConnection, StructType, NodeReference, NodeType, Session, Node, Struct, EnumType, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:3051 ==== */
@@ -42,7 +42,7 @@ export enum ScheduleFrequency {
 /* ==== DESTACK_GENERATED_END:ENUM:3050 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:3001 ==== */
-export class Schedule extends BuiltinObject {
+export class Schedule extends Struct {
   frequency: ScheduleFrequency;
   interval: number;
   start: Temporal.ZonedDateTime | null;
@@ -99,9 +99,28 @@ export class Schedule extends BuiltinObject {
   }
 
 
-  static create(): Schedule {
+  static create(options: {
+    frequency: ScheduleFrequency,
+    interval?: number,
+    start?: Temporal.ZonedDateTime | null,
+    end?: Temporal.ZonedDateTime | null,
+    count?: number | null,
+    weekStart?: DayOfWeek | null,
+    bySetPos?: Array<number>,
+    byMonth?: Array<Month>,
+    byMonthDay?: Array<number>,
+    byYearDay?: Array<number>,
+    byEaster?: Array<number>,
+    byWeekNo?: Array<number>,
+    byWeekDay?: Array<DayOfWeek>,
+    byHour?: Array<number>,
+    byMinute?: Array<number>,
+    bySecond?: Array<number>
+  }): Schedule {
 
-    return new Schedule();
+    return new Schedule(
+
+    );
   }
 
   equals(other: any): boolean {

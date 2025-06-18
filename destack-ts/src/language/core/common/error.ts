@@ -1,4 +1,4 @@
-import { BuiltinObject, Session, QueryConnection, NodeType, Supergraph, Node, Struct, Graph, NodeReference } from '@/language';
+import { Graph, Supergraph, StructFrozen, QueryConnection, StructType, NodeReference, NodeType, Session, Node, Struct, EnumType, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:50041 ==== */
@@ -20,7 +20,7 @@ export enum ErrorType {
 /* ==== DESTACK_GENERATED_END:ENUM:50041 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:4001 ==== */
-export class Error extends BuiltinObject {
+export class Error extends StructFrozen {
   readonly type: ErrorType;
   readonly title: string | null;
   readonly text: string | null;
@@ -38,9 +38,15 @@ export class Error extends BuiltinObject {
   }
 
 
-  static create(): Error {
+  static create(options: {
+    type: ErrorType,
+    title?: string | null,
+    text?: string | null
+  }): Error {
 
-    return new Error();
+    return new Error(
+
+    );
   }
 
   equals(other: any): boolean {

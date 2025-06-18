@@ -1,4 +1,4 @@
-import { BuiltinObject, Session, QueryConnection, NodeType, Supergraph, Node, Struct, Graph, NodeReference } from '@/language';
+import { Graph, Supergraph, StructFrozen, QueryConnection, StructType, NodeReference, NodeType, Session, Node, Struct, EnumType, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:12038 ==== */
@@ -69,7 +69,7 @@ export enum DimensionType {
 /* ==== DESTACK_GENERATED_END:ENUM:12045 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12018 ==== */
-export class Length extends BuiltinObject {
+export class Length extends StructFrozen {
   readonly unit: LengthUnit;
   readonly value: number;
 
@@ -84,9 +84,14 @@ export class Length extends BuiltinObject {
   }
 
 
-  static create(): Length {
+  static create(options: {
+    unit: LengthUnit,
+    value: number
+  }): Length {
 
-    return new Length();
+    return new Length(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -104,7 +109,7 @@ export class Length extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:12018 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12020 ==== */
-export class Position extends BuiltinObject {
+export class Position extends StructFrozen {
   readonly type: PositionType;
   readonly top: Length | null;
   readonly left: Length | null;
@@ -128,9 +133,17 @@ export class Position extends BuiltinObject {
   }
 
 
-  static create(): Position {
+  static create(options: {
+    type: PositionType,
+    top?: Length | null,
+    left?: Length | null,
+    width?: Length | null,
+    height?: Length | null
+  }): Position {
 
-    return new Position();
+    return new Position(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -148,7 +161,7 @@ export class Position extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:12020 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12022 ==== */
-export class Dimension extends BuiltinObject {
+export class Dimension extends StructFrozen {
   readonly type: DimensionType;
   readonly unit: LengthUnit;
   readonly value: number;
@@ -166,9 +179,15 @@ export class Dimension extends BuiltinObject {
   }
 
 
-  static create(): Dimension {
+  static create(options: {
+    type: DimensionType,
+    unit: LengthUnit,
+    value: number
+  }): Dimension {
 
-    return new Dimension();
+    return new Dimension(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -186,7 +205,7 @@ export class Dimension extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:12022 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12030 ==== */
-export class Insets extends BuiltinObject {
+export class Insets extends StructFrozen {
   readonly base: number | null;
   readonly top: number | null;
   readonly left: number | null;
@@ -210,9 +229,17 @@ export class Insets extends BuiltinObject {
   }
 
 
-  static create(): Insets {
+  static create(options: {
+    base?: number | null,
+    top?: number | null,
+    left?: number | null,
+    right?: number | null,
+    bottom?: number | null
+  }): Insets {
 
-    return new Insets();
+    return new Insets(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -230,7 +257,7 @@ export class Insets extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:12030 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12032 ==== */
-export class Corners extends BuiltinObject {
+export class Corners extends StructFrozen {
   readonly base: number | null;
   readonly topLeft: number | null;
   readonly topRight: number | null;
@@ -254,9 +281,17 @@ export class Corners extends BuiltinObject {
   }
 
 
-  static create(): Corners {
+  static create(options: {
+    base?: number | null,
+    topLeft?: number | null,
+    topRight?: number | null,
+    bottomLeft?: number | null,
+    bottomRight?: number | null
+  }): Corners {
 
-    return new Corners();
+    return new Corners(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -274,7 +309,7 @@ export class Corners extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:12032 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50207 ==== */
-export class Axis2 extends BuiltinObject {
+export class Axis2 extends StructFrozen {
   readonly base: number | null;
   readonly x: number | null;
   readonly y: number | null;
@@ -292,9 +327,15 @@ export class Axis2 extends BuiltinObject {
   }
 
 
-  static create(): Axis2 {
+  static create(options: {
+    base?: number | null,
+    x?: number | null,
+    y?: number | null
+  }): Axis2 {
 
-    return new Axis2();
+    return new Axis2(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -312,7 +353,7 @@ export class Axis2 extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:50207 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50209 ==== */
-export class Axis3 extends BuiltinObject {
+export class Axis3 extends StructFrozen {
   readonly base: number | null;
   readonly x: number | null;
   readonly y: number | null;
@@ -333,9 +374,16 @@ export class Axis3 extends BuiltinObject {
   }
 
 
-  static create(): Axis3 {
+  static create(options: {
+    base?: number | null,
+    x?: number | null,
+    y?: number | null,
+    z?: number | null
+  }): Axis3 {
 
-    return new Axis3();
+    return new Axis3(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -353,7 +401,7 @@ export class Axis3 extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:50209 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50200 ==== */
-export class Vector2 extends BuiltinObject {
+export class Vector2 extends StructFrozen {
   readonly x: number;
   readonly y: number;
 
@@ -368,9 +416,14 @@ export class Vector2 extends BuiltinObject {
   }
 
 
-  static create(): Vector2 {
+  static create(options: {
+    x: number,
+    y: number
+  }): Vector2 {
 
-    return new Vector2();
+    return new Vector2(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -388,7 +441,7 @@ export class Vector2 extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:50200 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50201 ==== */
-export class Vector3 extends BuiltinObject {
+export class Vector3 extends StructFrozen {
   readonly x: number;
   readonly y: number;
   readonly z: number;
@@ -406,9 +459,15 @@ export class Vector3 extends BuiltinObject {
   }
 
 
-  static create(): Vector3 {
+  static create(options: {
+    x: number,
+    y: number,
+    z: number
+  }): Vector3 {
 
-    return new Vector3();
+    return new Vector3(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -426,7 +485,7 @@ export class Vector3 extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:50201 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50202 ==== */
-export class Vector4 extends BuiltinObject {
+export class Vector4 extends StructFrozen {
   readonly x: number;
   readonly y: number;
   readonly z: number;
@@ -447,9 +506,16 @@ export class Vector4 extends BuiltinObject {
   }
 
 
-  static create(): Vector4 {
+  static create(options: {
+    x: number,
+    y: number,
+    z: number,
+    w: number
+  }): Vector4 {
 
-    return new Vector4();
+    return new Vector4(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -467,7 +533,7 @@ export class Vector4 extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:50202 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50203 ==== */
-export class Vector2i extends BuiltinObject {
+export class Vector2i extends StructFrozen {
   readonly x: number;
   readonly y: number;
 
@@ -482,9 +548,14 @@ export class Vector2i extends BuiltinObject {
   }
 
 
-  static create(): Vector2i {
+  static create(options: {
+    x: number,
+    y: number
+  }): Vector2i {
 
-    return new Vector2i();
+    return new Vector2i(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -502,7 +573,7 @@ export class Vector2i extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:50203 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50204 ==== */
-export class Vector3i extends BuiltinObject {
+export class Vector3i extends StructFrozen {
   readonly x: number;
   readonly y: number;
   readonly z: number;
@@ -520,9 +591,15 @@ export class Vector3i extends BuiltinObject {
   }
 
 
-  static create(): Vector3i {
+  static create(options: {
+    x: number,
+    y: number,
+    z: number
+  }): Vector3i {
 
-    return new Vector3i();
+    return new Vector3i(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -540,7 +617,7 @@ export class Vector3i extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:50204 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50205 ==== */
-export class Vector4i extends BuiltinObject {
+export class Vector4i extends StructFrozen {
   readonly x: number;
   readonly y: number;
   readonly z: number;
@@ -561,9 +638,16 @@ export class Vector4i extends BuiltinObject {
   }
 
 
-  static create(): Vector4i {
+  static create(options: {
+    x: number,
+    y: number,
+    z: number,
+    w: number
+  }): Vector4i {
 
-    return new Vector4i();
+    return new Vector4i(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -581,7 +665,7 @@ export class Vector4i extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:50205 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12026 ==== */
-export class Grid extends BuiltinObject {
+export class Grid extends StructFrozen {
   readonly columns: number;
   readonly rows: number;
   readonly columnWidth: Dimension | null;
@@ -605,9 +689,17 @@ export class Grid extends BuiltinObject {
   }
 
 
-  static create(): Grid {
+  static create(options: {
+    columns: number,
+    rows: number,
+    columnWidth?: Dimension | null,
+    columnMinWidth?: Dimension | null,
+    rowHeight?: Dimension | null
+  }): Grid {
 
-    return new Grid();
+    return new Grid(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -625,7 +717,7 @@ export class Grid extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:12026 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12028 ==== */
-export class GridSpan extends BuiltinObject {
+export class GridSpan extends StructFrozen {
   readonly columns: number;
   readonly rows: number;
 
@@ -640,9 +732,14 @@ export class GridSpan extends BuiltinObject {
   }
 
 
-  static create(): GridSpan {
+  static create(options: {
+    columns: number,
+    rows: number
+  }): GridSpan {
 
-    return new GridSpan();
+    return new GridSpan(
+
+    );
   }
 
   equals(other: any): boolean {
