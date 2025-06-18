@@ -19,7 +19,6 @@ from destack.language.core import (
     property_parent_,
 )
 from destack.proto import InterruptionProto
-from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
     from destack.language import Message, Run, Span
@@ -74,8 +73,6 @@ class Interruption(
     span: Optional["Span"] = property_(37)
     if TYPE_CHECKING:
         runnable_ptr: Optional[NodeReference] = None
-        runnable_id: Optional[UUID] = None
-        span_id: Optional[UUID] = None
         span_ptr: Optional[NodeReference] = None
 
     # status

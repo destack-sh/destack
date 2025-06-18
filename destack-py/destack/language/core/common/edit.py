@@ -12,7 +12,6 @@ from ..builtin import (
     Enum,
     EnumType,
     Node,
-    NodeType,
     Property,
     StructFrozen,
     StructType,
@@ -93,10 +92,7 @@ class Edit(StructFrozen):
     field: "Field | None" = property_(34, is_repr=True)  # for IsExtensible.value
     key: "Value | None" = property_(35, is_repr=True)  # for map operations
     if TYPE_CHECKING:
-        node_id: UUID = UNSET
         node_ptr: NodeReference = UNSET
-        node_type: NodeType = UNSET
-        field_id: UUID | None = None
         field_ptr: NodeReference | None = None
         prop_ptr: PropertyReference | None = None
 

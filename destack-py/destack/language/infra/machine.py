@@ -15,7 +15,6 @@ from destack.language.core import (
     property_,
 )
 from destack.proto import MachineProto
-from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
     from destack.language import Client
@@ -56,7 +55,6 @@ class Machine(
     client: Optional["Client"] = property_(69, node_space_from="self")
     if TYPE_CHECKING:
         client_ptr: Optional[NodeReference] = None
-        client_id: Optional[UUID] = None
 
     cpu: float = property_(70, description="vCPU count", default=1.0, can_write=RoleType.SYSTEM)
     ram: float = property_(71, description="GB", default=1.0, can_write=RoleType.SYSTEM)

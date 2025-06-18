@@ -20,7 +20,6 @@ from destack.language.core import (
     property_parent_,
 )
 from destack.proto import EntitlementEventProto, EntitlementProto
-from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
     pass
@@ -69,5 +68,3 @@ class Entitlement(
     target: IsSubject = property_(41)
     if TYPE_CHECKING:
         target_ptr: NodeReference = UNSET
-        target_id: UUID = UNSET
-        target_type: NodeType = UNSET

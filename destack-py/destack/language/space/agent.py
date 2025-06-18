@@ -18,7 +18,6 @@ from destack.language.core import (
     property_parent_,
 )
 from destack.proto import AgentProto
-from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
     from destack.language import Cursor, Folder, NodeReference
@@ -48,5 +47,4 @@ class Agent(
 
     cursor: Optional["Cursor"] = property_(52, node_space_from="self")
     if TYPE_CHECKING:
-        cursor_id: Optional[UUID] = None
         cursor_ptr: Optional[NodeReference] = None

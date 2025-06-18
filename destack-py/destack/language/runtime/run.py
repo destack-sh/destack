@@ -19,7 +19,6 @@ from destack.language.core import (
     property_parent_,
 )
 from destack.proto import RunEventProto, RunProto
-from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
     from destack.language import Error, Interruption, NodeReference, Space
@@ -97,8 +96,6 @@ class RunEvent(
     target: Optional[IsRunnable] = property_(40)
     if TYPE_CHECKING:
         target_ptr: Optional[NodeReference] = None
-        target_id: Optional[UUID] = None
-        target_type: Optional[NodeType] = None
 
 
 @builtin_node(NodeType.RUN)
@@ -118,8 +115,6 @@ class Run(
     target: Optional[IsRunnable] = property_(40)
     if TYPE_CHECKING:
         target_ptr: Optional[NodeReference] = None
-        target_id: Optional[UUID] = None
-        target_type: Optional[NodeType] = None
     status: RunStatus = property_(41, is_repr=True)
     duration: Optional[timedelta] = property_(
         42,
@@ -147,4 +142,3 @@ class Run(
     )
     if TYPE_CHECKING:
         interruption_ptr: Optional[NodeReference] = None
-        interruption_id: Optional[UUID] = None

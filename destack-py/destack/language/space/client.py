@@ -43,9 +43,7 @@ class Client(
     machine: Optional["Machine"] = property_(36)
     user: Optional["User"] = property_(37)
     if TYPE_CHECKING:
-        machine_id: Optional[UUID] = None
         machine_ptr: Optional[NodeReference] = None
-        user_id: Optional[UUID] = None
         user_ptr: Optional[NodeReference] = None
 
     # status

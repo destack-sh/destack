@@ -5,7 +5,6 @@ from destack.proto import (
     CustomEventProto,
     EditEventProto,
 )
-from destack.utils.uuid import UUID
 
 from ..builtin import (
     UNSET,
@@ -51,10 +50,7 @@ class EditEvent(
     field: "Field | None" = property_(37, is_repr=True)  # for IsExtensible.value
     key: "Value | None" = property_(38, is_repr=True)  # for map operations
     if TYPE_CHECKING:
-        node_id: UUID = UNSET
         node_ptr: NodeReference = UNSET
-        node_type: NodeType = UNSET
-        field_id: UUID | None = None
         field_ptr: NodeReference | None = None
         property_ptr: PropertyReference | None = None
 

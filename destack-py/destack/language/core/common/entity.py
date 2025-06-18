@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Optional, Union
 
 from destack.proto import CustomEntityDefinitionProto, CustomEntityProto
-from destack.utils.uuid import UUID
 
 from ..builtin import (
     Entity,
@@ -80,5 +79,4 @@ class CustomEntity(
         description="The CustomEntityDefinition this CustomEntity is an instance of.",
     )
     if TYPE_CHECKING:
-        definition_id: Optional[UUID] = None
         definition_ptr: Optional[NodeReference] = None

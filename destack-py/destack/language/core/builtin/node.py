@@ -110,8 +110,6 @@ class Node[NodeProtoT: AnyNodeProto](NodeBase[NodeProtoT]):
     # Entity.set_properties: 12
     # Entity.set_fields: 13
     if TYPE_CHECKING:
-        parent_type: NodeType | None = None
-        parent_id: Optional[UUID] = None
         parent_ptr: Optional[NodeReference] = None
 
     _session: "Session" = property_runtime_()

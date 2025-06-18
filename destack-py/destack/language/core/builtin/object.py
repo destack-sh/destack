@@ -755,11 +755,11 @@ def _generate_node_property_impl(prop: Property) -> str:
 
     ptr_prop = prop.ptr_prop
     assert ptr_prop is not None, f"no wired prop for {prop!r}"
+    assert prop.cardinality == TypeCardinality.SCALAR, f"node properties must be scalar: {prop!r}"
     is_node = prop.component.__is_node__
 
-    if prop.cardinality == TypeCardinality.SCALAR:
-        if is_node:
-            getter = f"""\
+    if is_node:
+        getter = f"""\
 @property
 def {prop.name}(self: "BuiltinObjectBase") -> "Node | None":
     node_ptr: NodeReference | None = self.{ptr_prop.name}
@@ -768,8 +768,8 @@ def {prop.name}(self: "BuiltinObjectBase") -> "Node | None":
     else:
         return None
 """
-        else:
-            getter = f"""\
+    else:
+        getter = f"""\
 @property
 def {prop.name}(self: "BuiltinObjectBase") -> "Node | None":
     node_ptr: NodeReference | None = self.{ptr_prop.name}
@@ -781,8 +781,8 @@ def {prop.name}(self: "BuiltinObjectBase") -> "Node | None":
         return None
 """
 
-        if is_node:
-            setter = f"""\
+    if is_node:
+        setter = f"""\
 @{prop.name}.setter
 def {prop.name}(self: "BuiltinObjectBase", value: "Node | None"):
     if value is None:
@@ -790,8 +790,8 @@ def {prop.name}(self: "BuiltinObjectBase", value: "Node | None"):
     else:
         self._do_set("{ptr_prop.name}", value.to_ref())
 """
-        else:
-            setter = f"""\
+    else:
+        setter = f"""\
 @{prop.name}.setter
 def {prop.name}(self: "BuiltinObjectBase", value: "Node | None"):
     if value is None:
@@ -800,65 +800,7 @@ def {prop.name}(self: "BuiltinObjectBase", value: "Node | None"):
         self.{ptr_prop.name} = value.to_ref()
 """
 
-    elif prop.cardinality == TypeCardinality.LIST:
-        if is_node:
-            getter = f"""\
-@property
-def {prop.name}(self: "BuiltinObjectBase") -> tuple["Node", ...]:
-    node_ptrs: list[NodeReference] = self.{ptr_prop.name}
-    return tuple(self._supergraph.get(p.id) for p in node_ptrs)
-"""
-        else:
-            getter = f"""\
-@property
-def {prop.name}(self: "BuiltinObjectBase") -> tuple["Node", ...]:
-    node_ptrs: list[NodeReference] = self.{ptr_prop.name}
-    if self._supergraph is None:
-        return ()
-    return tuple(self._supergraph.get(p.id) for p in node_ptrs)
-"""
-
-        if is_node:
-            setter = f"""\
-@{prop.name}.setter
-def {prop.name}(self: "BuiltinObjectBase", nodes: list["Node"]):
-    self._do_set("{ptr_prop.name}", [n.to_ref() for n in nodes])
-"""
-        else:
-            setter = f"""\
-@{prop.name}.setter
-def {prop.name}(self: "BuiltinObjectBase", nodes: list["Node"]):
-    self.{ptr_prop.name} = [n.to_ref() for n in nodes]
-"""
-    else:
-        raise RuntimeError(f"unsupported cardinality: {prop.cardinality}")
-
     return getter + "\n\n" + setter
-
-
-def _generate_node_key_property_impl(obj_key: str, ptr_key: str, prop: Property) -> str:
-    """The computed get property from a specific attribute of a node pointer."""
-
-    ptr_prop = prop.ptr_prop
-    assert ptr_prop is not None, f"no wired prop for {prop!r}"
-
-    if prop.cardinality == TypeCardinality.SCALAR:
-        return f"""\
-@property
-def {prop.name}_{obj_key}(self: "BuiltinObjectBase") -> "Node | None":
-    node_ptr: NodeReference | None = self.{ptr_prop.name}
-    if node_ptr is not None:
-        return node_ptr.{ptr_key}
-    else:
-        return None
-"""
-    else:
-        return f"""\
-@property
-def {prop.name}_{obj_key}(self: "BuiltinObjectBase") -> tuple["Node", ...]:
-    node_ptrs: list[NodeReference] = self.{ptr_prop.name}
-    return tuple(node_ptr.{ptr_key} for node_ptr in node_ptrs)
-"""
 
 
 def _process_object_cls[ObjectT: BuiltinObjectBase](
@@ -1065,18 +1007,6 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
             elif prop.edge_type in (EdgeType.PARENT, EdgeType.REGULAR):
                 node_property_str = _generate_node_property_impl(prop)
                 exec_(node_property_str, {}, cls_dict, f"{cls.__name__}:node_property:{prop.name}")
-            # computed _x node reference properties (e.g., parent_id, node_ck, node_type, ...)
-            if prop.scalar_type == ScalarType.NODE_REFERENCE:
-                for obj_key, ptr_key in (("id", "id"), ("ck", "ck"), ("type", "node_type")):
-                    if obj_key == "type" and (not prop.node_types or len(prop.node_types) <= 1):
-                        continue  # no need for *_type if only one possible node type
-                    node_key_property_str = _generate_node_key_property_impl(obj_key, ptr_key, prop)
-                    exec_(
-                        node_key_property_str,
-                        {},
-                        cls_dict,
-                        f"{cls.__name__}:node_key_property:{prop.name}:{obj_key}",
-                    )
 
         # freeze
         if is_frozen:

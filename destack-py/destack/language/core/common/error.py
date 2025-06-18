@@ -4,7 +4,6 @@ from ..builtin import (
     DestackError,
     Enum,
     EnumType,
-    Node,
     StructFrozen,
     StructType,
     builtin_enum,
@@ -50,7 +49,6 @@ class Error(StructFrozen, DestackError):
     type: ErrorType = property_(30, is_repr=True)
     title: str | None = property_(32, is_repr=True)
     text: str | None = property_(33)
-    nodes: list["Node"] = property_(34)
 
     @property
     def is_retryable(self) -> bool:

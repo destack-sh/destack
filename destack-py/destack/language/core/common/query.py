@@ -257,19 +257,11 @@ def sort(sort: SortIn, type: SortType = SortType.ASCENDING) -> Sort:
 class Select(StructFrozen):
     """Select specific Attributes."""
 
-    properties: list["Property"] = property_(31, is_repr=True)
-    fields: list["Field"] = property_(32, is_repr=True)
+    attributes: list[AttributeReference] = property_(31, is_repr=True)
 
 
 def select(*attributes: "Property | Field") -> Select:
-    properties: list[Property] = []
-    fields: list[Field] = []
-    for attribute in attributes:
-        if isinstance(attribute, Property):
-            properties.append(attribute)
-        elif isinstance(attribute, Field):
-            fields.append(attribute)
-    return Select(properties=properties, fields=fields)
+    return Select(attributes=[attribute_ref(attribute) for attribute in attributes])
 
 
 #
@@ -548,4 +540,4 @@ class IntoQuery:
 class Selection(StructFrozen):
     """A selection of fields from a Node."""
 
-    nodes: list[Node] = property_(40)
+    # nodes: list[Node] = property_(40)

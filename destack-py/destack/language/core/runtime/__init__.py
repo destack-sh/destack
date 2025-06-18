@@ -1,5 +1,5 @@
 from .connection import QueryConnection, QueryContainer
-from .graph import Graph, PolyGraph, SingletonGraph, Supergraph
+from .graph import Graph, PolyGraph, SingletonGraph, Supergraph, get_node_types
 from .render import Aliasing, Renderer, RenderOptions, get_active_aliasing
 from .session import Session
 from .store import LiveStore, OptimisticStore, Store
@@ -19,4 +19,5 @@ __all__ = [
     "Store",
     "Supergraph",
     "get_active_aliasing",
+    "get_node_types",
 ]

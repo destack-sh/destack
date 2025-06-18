@@ -21,7 +21,6 @@ from destack.language.core import (
     to_text,
 )
 from destack.proto import MessageProto
-from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
     from destack.language import NodeReference, Thread
@@ -50,7 +49,6 @@ class Message(
     # platform? source?
     thread: Optional["Thread"] = property_(35, node_space_from="self")
     if TYPE_CHECKING:
-        thread_id: Optional[UUID] = None
         thread_ptr: Optional[NodeReference] = None
 
     # status
@@ -61,16 +59,13 @@ class Message(
     forwarded_from: Optional["Message"] = property_(51)
     if TYPE_CHECKING:
         reply_to_ptr: Optional[NodeReference] = None
-        reply_to_id: Optional[UUID] = None
         forwarded_from_ptr: Optional[NodeReference] = None
-        forwarded_from_id: Optional[UUID] = None
 
     # content
     text: Optional["Text"] = property_(61)
     node: Optional["Node"] = property_(62)
     if TYPE_CHECKING:
         node_ptr: Optional[NodeReference] = None
-        node_id: Optional[UUID] = None
 
     def edit(self, text: TextIn, nodes: list["Node"] = UNSET):
         """Edit the Message with new Text."""

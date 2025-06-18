@@ -11,7 +11,6 @@ import structlog
 from opentelemetry import trace
 
 from destack.language.registry import ENUM_TYPE_BY_CLASS
-from destack.utils.uuid import UUID
 
 from ..builtin import (
     PRIMITIVE_PY_TYPES,
@@ -130,7 +129,6 @@ class Type(StructFrozen):
     base_type: Optional["Node"] = property_(47, is_repr=True)
     key_type: Optional["Type"] = property_(48, is_repr=True)  # for maps
     if TYPE_CHECKING:
-        base_id: Optional[UUID] = None
         base_ptr: Optional["NodeReference"] = None
 
     # meta

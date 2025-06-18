@@ -68,7 +68,13 @@ class MemoryContext:
     def get_relation(self, relation: RelationReference | NodeReference) -> "MemoryTable":
         """Get the (single) Table for a node / relation. Doesn't work for multi-relations."""
         assert relation.node_type is not None, f"no node_type for {relation!r}"
-        table_key = (relation.node_type, relation.definition_id)
+        if isinstance(relation, NodeReference):
+            table_key = (relation.node_type, relation.definition_id)
+        else:
+            table_key = (
+                relation.node_type,
+                relation.definition_ptr.id if relation.definition_ptr else None,
+            )
         if table_key not in self.database.tables:
             self.database.tables[table_key] = MemoryTable(
                 database=self.database, metatype=relation.node_type, definition=None
