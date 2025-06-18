@@ -1,4 +1,4 @@
-import { FriendshipInvite, HistogramMeasurement, CounterMeasurement, InviteEvent, Organization, Environment, BorderStyle, EnumType, Invite, Field, FillStyle, BuiltinObject, Branch, Agent, FontStyle, PlaneShape, AnnotationShape, Scene, SliderInputView, Role, Trigger, Theme, NotificationEvent, Route, ThreadView, SplitView, TraitType, RoleEvent, Script, ScreenCursor, Action, Session, ShadowStyle, CustomView, Layer, User, Handle, Timer, Star, CustomEntityDefinition, Graph, CustomStructDefinition, HistogramMetric, WizardView, FrameView, LabelView, ThreadCursor, Database, Thread, Variant, TextView, RunEvent, GradientStyle, Log, TypeCardinality, QueryConnection, Node, Client, ScalarType, PrimitiveType, Reaction, Notification, EntitlementEvent, Friendship, SceneEvent, Canvas, GaugeMeasurement, Value, ArrowShape, Folder, TriggerEvent, Tagging, Tag, CustomEntity, Membership, Span, Follow, Interruption, SanctionEvent, Entitlement, Service, Palette, NumberInputView, Team, File, StructType, Permission, Link, TransitionStyle, DefaultFactory, ColorStyle, MembershipEvent, Sanction, CustomViewDefinition, CounterMetric, Snapshot, CustomEnumDefinition, NodeReference, Message, Space, Run, Window, Option, TimerEvent, CustomEventDefinition, LineShape, EffectStyle, Machine, Struct, Supergraph, CustomEvent, GaugeMetric, NodeType, EventCursor, EditEvent, FriendshipInviteEvent } from '@/language';
+import { PlaneShape, PrimitiveType, GaugeMetric, EffectStyle, FontStyle, Machine, Interruption, HistogramMetric, Log, Tag, Database, FriendshipInvite, NodeReference, Entitlement, Layer, Branch, BorderStyle, CounterMetric, Action, EditEvent, AnnotationShape, Session, FriendshipInviteEvent, NumberInputView, CustomEvent, Trigger, ShadowStyle, Tagging, User, CustomEntityDefinition, SliderInputView, Snapshot, TransitionStyle, CustomViewDefinition, Struct, Handle, Friendship, ThreadCursor, Invite, ColorStyle, TraitType, Role, DefaultFactory, Message, QueryConnection, ScreenCursor, Link, Value, CustomView, Span, WizardView, TypeCardinality, NodeType, TriggerEvent, CustomStructDefinition, TimerEvent, CustomEntity, Organization, SanctionEvent, Thread, LineShape, GaugeMeasurement, Palette, RunEvent, BuiltinObject, InviteEvent, Team, Membership, Permission, Option, EnumType, Timer, Field, ScalarType, HistogramMeasurement, CustomEnumDefinition, Service, Node, Scene, CustomEventDefinition, Notification, SceneEvent, Folder, MembershipEvent, GradientStyle, Run, Window, Canvas, Variant, LabelView, Graph, ThreadView, StructFrozen, CounterMeasurement, Sanction, Script, Environment, Star, Reaction, SplitView, RoleEvent, FrameView, Theme, EntitlementEvent, NotificationEvent, Follow, File, Client, Agent, Space, ArrowShape, TextView, StructType, Route, Supergraph, EventCursor, FillStyle } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:2570 ==== */
@@ -23,7 +23,7 @@ export enum NumberFormat {
 /* ==== DESTACK_GENERATED_END:ENUM:2571 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2503 ==== */
-export class StringConstraint extends BuiltinObject {
+export class StringConstraint extends StructFrozen {
   readonly format: StringFormat | null;
   readonly regex: string | null;
   readonly startsWith: string | null;
@@ -44,9 +44,16 @@ export class StringConstraint extends BuiltinObject {
   }
 
 
-  static create(): StringConstraint {
+  static create(options: {
+    format?: StringFormat | null,
+    regex?: string | null,
+    startsWith?: string | null,
+    endsWith?: string | null
+  }): StringConstraint {
 
-    return new StringConstraint();
+    return new StringConstraint(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -64,7 +71,7 @@ export class StringConstraint extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:2503 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2502 ==== */
-export class NumberConstraint extends BuiltinObject {
+export class NumberConstraint extends StructFrozen {
   readonly format: NumberFormat | null;
   readonly minValue: number | null;
   readonly maxValue: number | null;
@@ -91,9 +98,18 @@ export class NumberConstraint extends BuiltinObject {
   }
 
 
-  static create(): NumberConstraint {
+  static create(options: {
+    format?: NumberFormat | null,
+    minValue?: number | null,
+    maxValue?: number | null,
+    stepValue?: number | null,
+    precision?: number | null,
+    scale?: number | null
+  }): NumberConstraint {
 
-    return new NumberConstraint();
+    return new NumberConstraint(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -111,7 +127,7 @@ export class NumberConstraint extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:2502 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2504 ==== */
-export class CollectionConstraint extends BuiltinObject {
+export class CollectionConstraint extends StructFrozen {
   readonly minLength: number | null;
   readonly maxLength: number | null;
 
@@ -126,9 +142,14 @@ export class CollectionConstraint extends BuiltinObject {
   }
 
 
-  static create(): CollectionConstraint {
+  static create(options: {
+    minLength?: number | null,
+    maxLength?: number | null
+  }): CollectionConstraint {
 
-    return new CollectionConstraint();
+    return new CollectionConstraint(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -146,7 +167,7 @@ export class CollectionConstraint extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:2504 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2505 ==== */
-export class NodeConstraint extends BuiltinObject {
+export class NodeConstraint extends StructFrozen {
   readonly nodeTypes: Array<NodeType>;
   readonly nodeTraits: Array<TraitType>;
 
@@ -161,9 +182,14 @@ export class NodeConstraint extends BuiltinObject {
   }
 
 
-  static create(): NodeConstraint {
+  static create(options: {
+    nodeTypes?: Array<NodeType>,
+    nodeTraits?: Array<TraitType>
+  }): NodeConstraint {
 
-    return new NodeConstraint();
+    return new NodeConstraint(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -181,7 +207,7 @@ export class NodeConstraint extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:2505 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2501 ==== */
-export class Type extends BuiltinObject {
+export class Type extends StructFrozen {
   readonly cardinality: TypeCardinality;
   readonly scalarType: ScalarType;
   readonly primitiveType: PrimitiveType | null;
@@ -215,7 +241,7 @@ export class Type extends BuiltinObject {
   readonly keyType: Type | null;
   readonly isRequired: boolean | null;
   readonly isVariable: boolean | null;
-  readonly default: Value | null;
+  readonly defaultValue: Value | null;
   readonly defaultFactory: DefaultFactory | null;
   readonly collectionConstraint: CollectionConstraint | null;
   readonly stringConstraint: StringConstraint | null;
@@ -234,7 +260,7 @@ export class Type extends BuiltinObject {
     keyType: Type | null,
     isRequired: boolean | null,
     isVariable: boolean | null,
-    default: Value | null,
+    defaultValue: Value | null,
     defaultFactory: DefaultFactory | null,
     collectionConstraint: CollectionConstraint | null,
     stringConstraint: StringConstraint | null,
@@ -254,7 +280,7 @@ export class Type extends BuiltinObject {
     this.keyType = keyType;
     this.isRequired = isRequired;
     this.isVariable = isVariable;
-    this.default = default;
+    this.defaultValue = defaultValue;
     this.defaultFactory = defaultFactory;
     this.collectionConstraint = collectionConstraint;
     this.stringConstraint = stringConstraint;
@@ -263,9 +289,29 @@ export class Type extends BuiltinObject {
   }
 
 
-  static create(): Type {
+  static create(options: {
+    cardinality?: TypeCardinality,
+    scalarType: ScalarType,
+    primitiveType?: PrimitiveType | null,
+    enumType?: EnumType | null,
+    nodeType?: NodeType | null,
+    nodeDefinition?: CustomEntityDefinition | NodeReference | null,
+    structType?: StructType | null,
+    baseType?: Node | NodeReference | null,
+    keyType?: Type | null,
+    isRequired?: boolean | null,
+    isVariable?: boolean | null,
+    defaultValue?: Value | null,
+    defaultFactory?: DefaultFactory | null,
+    collectionConstraint?: CollectionConstraint | null,
+    stringConstraint?: StringConstraint | null,
+    numberConstraint?: NumberConstraint | null,
+    nodeConstraint?: NodeConstraint | null
+  }): Type {
 
-    return new Type();
+    return new Type(
+
+    );
   }
 
   equals(other: any): boolean {

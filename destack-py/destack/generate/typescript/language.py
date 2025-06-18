@@ -2,11 +2,12 @@ import re
 import textwrap
 from collections import defaultdict
 from pathlib import Path
-from typing import assert_never, cast
+from typing import Any, assert_never, cast
 
 from destack.language import (
     EMPTY_DICT,
     NODE_TYPES,
+    UNSET,
     BuiltinObjectBase,
     Enum,
     EnumDefinition,
@@ -15,6 +16,7 @@ from destack.language import (
     NodeBase,
     NodeDefinition,
     NodeType,
+    PrimitiveType,
     Property,
     RoleType,
     ScalarType,
@@ -114,6 +116,27 @@ def _generate_property_type(prop: Property, as_ptr: bool = True) -> str:
     return type_str
 
 
+def _generate_value(type: IntoType, value: Any) -> str:
+    """Generate a Typescript value literal."""
+    if type.scalar_type == ScalarType.PRIMITIVE:
+        if type.primitive_type == PrimitiveType.BOOLEAN:
+            return "true" if value else "false"
+        elif type.primitive_type in (
+            PrimitiveType.INT16,
+            PrimitiveType.INT32,
+            PrimitiveType.INT64,
+            PrimitiveType.FLOAT32,
+            PrimitiveType.FLOAT64,
+        ):
+            return str(value)
+        elif type.primitive_type == PrimitiveType.STRING:
+            return f'"{value}"'
+        else:
+            raise ValueError(f"unsupported primitive type: {type.primitive_type!r}")
+    else:
+        raise ValueError(f"unsupported value type: {type.scalar_type!r}")
+
+
 def _generate_property(
     prop: Property, *, is_readonly: bool, is_node: bool, is_interface: bool
 ) -> str:
@@ -130,13 +153,15 @@ def _generate_property(
         ptr_prop_name = f"{ts_name}Ptr"
         ptr_prop_str = f"{ptr_prop_name}: {ptr_type_str}"
         node_type_str = _generate_property_scalar_type(prop, as_ptr=False)
+        if prop.is_optional:
+            node_type_str = f"{node_type_str} | null"
 
         # node getter/setter
         if is_interface:
             # interface declaration
-            node_getter_str = f"get {ts_name}(): {node_type_str} | null"
+            node_getter_str = f"get {ts_name}(): {node_type_str}"
             if not is_readonly:
-                node_setter_str = f"set {ts_name}(value: {node_type_str} | null)"
+                node_setter_str = f"set {ts_name}(value: {node_type_str})"
                 node_prop_str = f"{node_getter_str}\n{node_setter_str}"
             else:
                 node_prop_str = node_getter_str
@@ -154,7 +179,7 @@ get {ts_name}(): {node_type_str} | null {{
 """
                 if not is_readonly:
                     node_setter_str = f"""\
-set {ts_name}(value: {node_type_str} | null) {{
+set {ts_name}(value: {node_type_str}) {{
     if (value === null) {{
         this.{ptr_prop_name} = null;
     }} else {{
@@ -168,7 +193,7 @@ set {ts_name}(value: {node_type_str} | null) {{
 
             else:
                 node_getter_str = f"""\
-get {ts_name}(): {node_type_str} | null {{
+get {ts_name}(): {node_type_str} {{
     const nodePtr: NodeReference | null = this.{ptr_prop_name};
     if (nodePtr !== null) {{
         if (this._supergraph === null) {{
@@ -181,7 +206,7 @@ get {ts_name}(): {node_type_str} | null {{
 """
                 if not is_readonly:
                     node_setter_str = f"""\
-set {ts_name}(value: {node_type_str} | null) {{
+set {ts_name}(value: {node_type_str}) {{
     if (value == null) {{
         this.{ptr_prop_name} = null;
     }} else {{
@@ -265,16 +290,56 @@ constructor(
     create_constructor_parts: list[str] = []
 
     # create main properties
-    ...
+    for prop in properties.values():
+        if prop.is_managed:
+            continue  # ignore
+
+        ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
+        is_required = (
+            prop.is_required
+            and prop.default is UNSET
+            and prop.default_factory is None
+            and prop.cardinality == TypeCardinality.SCALAR
+        )
+        if prop.scalar_type == ScalarType.NODE_REFERENCE:
+            # can be passed either as Node or NodeReference
+            node_type_str = _generate_property_scalar_type(prop, as_ptr=False)
+            ptr_type_str = _generate_property_scalar_type(prop, as_ptr=True)
+            type_str = f"{node_type_str} | {ptr_type_str}"
+            if prop.is_optional:
+                type_str = f"{type_str} | null"
+            create_constructor_parts.append(
+                f"{ts_name}: {ts_name} != null ? ({ts_name}.metatype == StructType.NODE_REFERENCE ? {ts_name} : {ts_name}.toRef()) : null"
+            )
+        else:
+            # can be passed as value
+            type_str = _generate_property_type(prop)
+            if prop.default is not UNSET and prop.default is not None:
+                create_body_parts.append(
+                    f"{ts_name}: {ts_name} ?? {_generate_value(prop, prop.default)};"
+                )
+            elif prop.default_factory is not None:
+                ...
+            else:
+                create_body_parts.append(f"{ts_name};")
+
+        if is_required:
+            create_header_parts.append(f"{ts_name}: {type_str}")
+        else:
+            create_header_parts.append(f"{ts_name}?: {type_str}")
 
     # assemble create
-    create_header_str = "\n".join(create_header_parts)
+    create_header_str = ",\n".join(create_header_parts)
     create_body_str = "\n".join(create_body_parts)
-    create_constructor_str = "\n".join(create_constructor_parts)
+    create_constructor_str = ",\n".join(create_constructor_parts)
     create_str = f"""\
-static create({create_header_str}): {cls.__name__} {{
+static create(options: {{
+{textwrap.indent(create_header_str, "  ")}
+}}): {cls.__name__} {{
 {textwrap.indent(create_body_str, "  ")}
-  return new {cls.__name__}({create_constructor_str});
+  return new {cls.__name__}(
+{textwrap.indent(create_constructor_str, "  ")}
+  );
 }}
 """
 
@@ -348,9 +413,9 @@ def _generate_path(cls: type[Node]) -> str:
     # Node._path_key
     if "slug" in cls.__properties__:
         if "name" in cls.__properties__:
-            path_key_str = "this.slug or this.name"
+            path_key_str = "this.slug ?? this.name"
         else:
-            path_key_str = f'this.slug or "{cls.__name__}[id={{this.id}}]"'
+            path_key_str = f'this.slug ?? "{cls.__name__}[id={{this.id}}]"'
     elif "name" in cls.__properties__:
         path_key_str = "this.name"
     elif "title" in cls.__properties__:
@@ -432,7 +497,7 @@ def _generate_struct(definition: StructDefinition) -> str:
     struct_parts.append(validate_str)
 
     struct_str = f"""\
-export class {definition.name} extends BuiltinObject {{
+export class {definition.name} extends {"StructFrozen" if definition.is_frozen else "Struct"} {{
 {textwrap.indent("\n\n".join(struct_parts), "  ")}
 }}"""
     return struct_str.strip()
@@ -633,19 +698,16 @@ def _generate_file(file: TypescriptFile) -> str:
 
         # extract names
         names: list[str] = []
-        if "{" in stripped and "}" in stripped:
-            # named imports
+        if "{" in stripped and "}" in stripped:  # named imports
             names_match = re.search(r"\{\s*([^}]+)\s*\}", stripped)
             if names_match:
                 names_str = names_match.group(1)
                 names = [name.strip() for name in names_str.split(",") if name.strip()]
-        elif " * as " in stripped:
-            # namespace import
+        elif " * as " in stripped:  # namespace import
             namespace_match = re.search(r"\*\s+as\s+(\w+)", stripped)
             if namespace_match:
                 names = [namespace_match.group(1)]
-        else:
-            # default import
+        else:  # default import
             default_match = re.search(r"import\s+(?:type\s+)?(\w+)", stripped)
             if default_match:
                 names = [default_match.group(1)]
@@ -742,11 +804,14 @@ def _generate_file(file: TypescriptFile) -> str:
     # add imports to the top (will be auto-merged by linter)
     inner_file_content = "\n\n".join(file_parts[1:])
     imports = {
+        "NodeType",
+        "StructType",
+        "EnumType",
         "BuiltinObject",
         "Struct",
+        "StructFrozen",
         "Node",
         "NodeReference",
-        "NodeType",
         "Graph",
         "Supergraph",
         "Session",
@@ -759,9 +824,8 @@ def _generate_file(file: TypescriptFile) -> str:
     if "Temporal" in inner_file_content and not any(
         "Temporal" in import_.content for import_ in import_block.imports
     ):
-        import_parts.append(
-            "import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively"
-        )
+        # until Temporal ships natively
+        import_parts.append("import { Temporal } from 'temporal-polyfill';")
     for import_ in import_block.imports:
         if not import_.path.startswith("@/language"):
             import_parts.append(import_.content)

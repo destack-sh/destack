@@ -189,7 +189,7 @@ class IntoType:
             node_type=None,
             struct_type=self.struct_type,
             is_required=self.is_required,
-            default=default,
+            default_value=default,
             default_factory=self.default_factory,
             key_type=self.key_type._to_type() if self.key_type else None,
             string_constraint=string_constraint,

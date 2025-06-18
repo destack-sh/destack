@@ -1,4 +1,4 @@
-import { BuiltinObject, Session, QueryConnection, NodeType, Color, Supergraph, File, Node, Struct, Graph, NodeReference } from '@/language';
+import { Graph, Supergraph, StructFrozen, File, QueryConnection, StructType, NodeReference, NodeType, Session, Node, Struct, Color, EnumType, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:2531 ==== */
@@ -12,7 +12,7 @@ export enum IconType {
 /* ==== DESTACK_GENERATED_END:ENUM:2531 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2531 ==== */
-export class Icon extends BuiltinObject {
+export class Icon extends StructFrozen {
   readonly type: IconType;
   readonly emoji: string | null;
   readonly faName: string | null;
@@ -53,9 +53,19 @@ export class Icon extends BuiltinObject {
   }
 
 
-  static create(): Icon {
+  static create(options: {
+    type?: IconType,
+    emoji?: string | null,
+    faName?: string | null,
+    vscName?: string | null,
+    file?: File | NodeReference | null,
+    fileUrl?: string | null,
+    color?: Color | null
+  }): Icon {
 
-    return new Icon();
+    return new Icon(
+
+    );
   }
 
   equals(other: any): boolean {

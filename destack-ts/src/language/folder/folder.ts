@@ -1,4 +1,4 @@
-import { Session, Spatial, Entity, IsDeletable, Organization, IsJoinable, User, NodeReference, BuiltinObject, IsOwnable, Agent, MaterializationType, IsTracked, IsStarable, IsTaggable, Scene, Graph, Role, IsFollowable, Icon, Struct, Supergraph, QueryConnection, NodeType, Team, IsOrdered, Node, Space } from '@/language';
+import { Graph, IsTaggable, IsStarable, IsDeletable, IsFollowable, Team, MaterializationType, Spatial, StructFrozen, IsOwnable, Struct, EnumType, IsTracked, Role, Entity, QueryConnection, NodeReference, IsJoinable, Node, Scene, IsOrdered, NodeType, Session, Agent, Space, User, Organization, StructType, Icon, Supergraph, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:1000 ==== */
@@ -14,48 +14,40 @@ export enum FolderType {
 /* ==== DESTACK_GENERATED_START:NODE:1000 ==== */
 export class Folder extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsOwnable, IsJoinable, IsTaggable, IsStarable, IsFollowable {
   readonly id: string;
-  get parent(): Space | Folder | null {
+  get parent(): Space | Folder | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | Folder | null;
+          return this._supergraph.get(nodePtr.id) as Space | Folder | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
-  }
   ;
   spacePtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -63,10 +55,10 @@ export class Folder extends Node implements Spatial, Entity, IsTracked, IsDeleta
   updatedByPtr: NodeReference | null
   readonly deletedAt: Temporal.ZonedDateTime | null;
   readonly orderKey: string;
-  get ownedBy(): Role | Agent | Organization | Team | User | null {
+  get ownedBy(): Role | Agent | Organization | Team | User | null | null {
       const nodePtr: NodeReference | null = this.ownedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Role | Agent | Organization | Team | User | null;
+          return this._supergraph.get(nodePtr.id) as Role | Agent | Organization | Team | User | null | null;
       }
       return null;
   }
@@ -84,10 +76,10 @@ export class Folder extends Node implements Spatial, Entity, IsTracked, IsDeleta
   name: string;
   slug: string | null;
   icon: Icon | null;
-  get mainScene(): Scene | null {
+  get mainScene(): Scene | null | null {
       const nodePtr: NodeReference | null = this.mainScenePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Scene | null;
+          return this._supergraph.get(nodePtr.id) as Scene | null | null;
       }
       return null;
   }
@@ -144,9 +136,18 @@ export class Folder extends Node implements Spatial, Entity, IsTracked, IsDeleta
   }
 
 
-  static create(): Folder {
+  static create(options: {
+    ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
+    type?: FolderType,
+    name: string,
+    slug?: string | null,
+    icon?: Icon | null,
+    mainScene?: Scene | NodeReference | null
+  }): Folder {
 
-    return new Folder();
+    return new Folder(
+
+    );
   }
 
   equals(other: any): boolean {

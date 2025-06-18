@@ -1,4 +1,4 @@
-import { BuiltinObject, Session, Value, QueryConnection, NodeType, RelationReference, AttributeReference, Supergraph, Node, Struct, Graph, NodeReference } from '@/language';
+import { Graph, RelationReference, Supergraph, StructFrozen, QueryConnection, StructType, NodeReference, NodeType, Session, Node, Struct, Value, AttributeReference, EnumType, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:108 ==== */
@@ -96,7 +96,7 @@ export enum QueryUpdateType {
 /* ==== DESTACK_GENERATED_END:ENUM:121 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50101 ==== */
-export class Function extends BuiltinObject {
+export class Function extends StructFrozen {
   readonly type: FunctionType;
   readonly left: Expression;
   readonly right: Expression | null;
@@ -114,9 +114,15 @@ export class Function extends BuiltinObject {
   }
 
 
-  static create(): Function {
+  static create(options: {
+    type: FunctionType,
+    left: Expression,
+    right?: Expression | null
+  }): Function {
 
-    return new Function();
+    return new Function(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -134,7 +140,7 @@ export class Function extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:50101 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50104 ==== */
-export class Condition extends BuiltinObject {
+export class Condition extends StructFrozen {
   readonly type: ConditionalType;
   readonly left: Expression;
   readonly right: Expression | null;
@@ -152,9 +158,15 @@ export class Condition extends BuiltinObject {
   }
 
 
-  static create(): Condition {
+  static create(options: {
+    type: ConditionalType,
+    left: Expression,
+    right?: Expression | null
+  }): Condition {
 
-    return new Condition();
+    return new Condition(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -172,7 +184,7 @@ export class Condition extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:50104 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50103 ==== */
-export class Aggregation extends BuiltinObject {
+export class Aggregation extends StructFrozen {
   readonly type: AggregationType;
   readonly expression: Expression | null;
 
@@ -187,9 +199,14 @@ export class Aggregation extends BuiltinObject {
   }
 
 
-  static create(): Aggregation {
+  static create(options: {
+    type: AggregationType,
+    expression?: Expression | null
+  }): Aggregation {
 
-    return new Aggregation();
+    return new Aggregation(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -207,7 +224,7 @@ export class Aggregation extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:50103 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50100 ==== */
-export class Expression extends BuiltinObject {
+export class Expression extends StructFrozen {
   readonly type: ExpressionType;
   readonly literal: Value | null;
   readonly attribute: AttributeReference | null;
@@ -234,9 +251,18 @@ export class Expression extends BuiltinObject {
   }
 
 
-  static create(): Expression {
+  static create(options: {
+    type: ExpressionType,
+    literal?: Value | null,
+    attribute?: AttributeReference | null,
+    condition?: Condition | null,
+    function?: Function | null,
+    aggregation?: Aggregation | null
+  }): Expression {
 
-    return new Expression();
+    return new Expression(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -254,7 +280,7 @@ export class Expression extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:50100 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50105 ==== */
-export class Sort extends BuiltinObject {
+export class Sort extends StructFrozen {
   readonly type: SortType;
   readonly by: Expression;
   readonly mode: SortMode | null;
@@ -272,9 +298,15 @@ export class Sort extends BuiltinObject {
   }
 
 
-  static create(): Sort {
+  static create(options: {
+    type: SortType,
+    by: Expression,
+    mode?: SortMode | null
+  }): Sort {
 
-    return new Sort();
+    return new Sort(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -292,7 +324,7 @@ export class Sort extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:50105 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50106 ==== */
-export class Select extends BuiltinObject {
+export class Select extends StructFrozen {
   readonly attributes: Array<AttributeReference>;
 
   constructor(
@@ -304,9 +336,13 @@ export class Select extends BuiltinObject {
   }
 
 
-  static create(): Select {
+  static create(options: {
+    attributes?: Array<AttributeReference>
+  }): Select {
 
-    return new Select();
+    return new Select(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -324,7 +360,7 @@ export class Select extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:50106 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50102 ==== */
-export class Join extends BuiltinObject {
+export class Join extends StructFrozen {
   readonly type: JoinType;
   readonly relation: RelationReference | null;
   readonly recursive: boolean;
@@ -348,9 +384,17 @@ export class Join extends BuiltinObject {
   }
 
 
-  static create(): Join {
+  static create(options: {
+    type: JoinType,
+    relation?: RelationReference | null,
+    recursive?: boolean,
+    depth?: number | null,
+    on?: Condition | null
+  }): Join {
 
-    return new Join();
+    return new Join(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -368,7 +412,7 @@ export class Join extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:50102 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50110 ==== */
-export class Query extends BuiltinObject {
+export class Query extends StructFrozen {
   readonly id: string;
   readonly type: QueryType;
   readonly name: string;
@@ -419,9 +463,26 @@ export class Query extends BuiltinObject {
   }
 
 
-  static create(): Query {
+  static create(options: {
+    id?: string,
+    type: QueryType,
+    name: string,
+    relation: RelationReference,
+    join?: Join | null,
+    select?: Select | null,
+    subqueries?: Array<Query>,
+    where?: Condition | null,
+    having?: Condition | null,
+    groupBy?: Array<Expression>,
+    aggregation?: Aggregation | null,
+    sort?: Array<Sort>,
+    limit?: number | null,
+    offset?: number | null
+  }): Query {
 
-    return new Query();
+    return new Query(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -439,7 +500,7 @@ export class Query extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:50110 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50114 ==== */
-export class Histogram extends BuiltinObject {
+export class Histogram extends StructFrozen {
   readonly buckets: Array<Value>;
   readonly counts: Array<number>;
 
@@ -454,9 +515,14 @@ export class Histogram extends BuiltinObject {
   }
 
 
-  static create(): Histogram {
+  static create(options: {
+    buckets?: Array<Value>,
+    counts?: Array<number>
+  }): Histogram {
 
-    return new Histogram();
+    return new Histogram(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -474,7 +540,7 @@ export class Histogram extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:50114 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50111 ==== */
-export class QueryResult extends BuiltinObject {
+export class QueryResult extends Struct {
   id: string;
   type: QueryType;
   groups: Array<QueryResultGroup>;
@@ -507,9 +573,20 @@ export class QueryResult extends BuiltinObject {
   }
 
 
-  static create(): QueryResult {
+  static create(options: {
+    id: string,
+    type: QueryType,
+    groups?: Array<QueryResultGroup>,
+    subresults?: Array<QueryResult>,
+    nodes?: Array<Value>,
+    count?: number | null,
+    exists?: boolean | null,
+    scalar?: Value | null
+  }): QueryResult {
 
-    return new QueryResult();
+    return new QueryResult(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -527,7 +604,7 @@ export class QueryResult extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:50111 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50112 ==== */
-export class QueryResultGroup extends BuiltinObject {
+export class QueryResultGroup extends Struct {
   type: QueryType;
   discriminator: Value;
   nodes: Array<Value>;
@@ -554,9 +631,18 @@ export class QueryResultGroup extends BuiltinObject {
   }
 
 
-  static create(): QueryResultGroup {
+  static create(options: {
+    type: QueryType,
+    discriminator: Value,
+    nodes?: Array<Value>,
+    count?: number | null,
+    exists?: boolean | null,
+    scalar?: Value | null
+  }): QueryResultGroup {
 
-    return new QueryResultGroup();
+    return new QueryResultGroup(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -574,7 +660,7 @@ export class QueryResultGroup extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:50112 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50113 ==== */
-export class QueryUpdate extends BuiltinObject {
+export class QueryUpdate extends StructFrozen {
   readonly type: QueryUpdateType;
   readonly result: QueryResult | null;
 
@@ -589,9 +675,14 @@ export class QueryUpdate extends BuiltinObject {
   }
 
 
-  static create(): QueryUpdate {
+  static create(options: {
+    type: QueryUpdateType,
+    result?: QueryResult | null
+  }): QueryUpdate {
 
-    return new QueryUpdate();
+    return new QueryUpdate(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -609,7 +700,7 @@ export class QueryUpdate extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:50113 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2571 ==== */
-export class Selection extends BuiltinObject {
+export class Selection extends StructFrozen {
 
 
   constructor(
@@ -620,9 +711,13 @@ export class Selection extends BuiltinObject {
   }
 
 
-  static create(): Selection {
+  static create(options: {
 
-    return new Selection();
+  }): Selection {
+
+    return new Selection(
+
+    );
   }
 
   equals(other: any): boolean {

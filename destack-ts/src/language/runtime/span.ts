@@ -1,50 +1,42 @@
-import { BuiltinObject, Session, User, Spatial, Agent, QueryConnection, NodeType, IsTracked, Run, Supergraph, Analytic, Node, Space, Struct, IsFrozen, Graph, NodeReference } from '@/language';
+import { Graph, Spatial, StructFrozen, IsFrozen, Analytic, Struct, EnumType, IsTracked, QueryConnection, NodeReference, Node, NodeType, Session, Run, Agent, Space, User, StructType, Supergraph, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:4010 ==== */
 export class Span extends Node implements Spatial, Analytic, IsFrozen, IsTracked {
   readonly id: string;
-  get parent(): Run | null {
+  get parent(): Run | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Run | null;
+          return this._supergraph.get(nodePtr.id) as Run | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
-  }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
   }
   ;
   spacePtr: NodeReference | null
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -75,9 +67,13 @@ export class Span extends Node implements Spatial, Analytic, IsFrozen, IsTracked
   }
 
 
-  static create(): Span {
+  static create(options: {
 
-    return new Span();
+  }): Span {
+
+    return new Span(
+
+    );
   }
 
   equals(other: any): boolean {

@@ -1,4 +1,4 @@
-import { Session, Spatial, Entity, IsDeletable, CustomViewDefinition, CustomView, Canvas, Style, Layer, User, NodeReference, BuiltinObject, ArrowShape, Agent, MaterializationType, PlaneShape, IsTracked, IsVisual, AnnotationShape, IsTaggable, Scene, Graph, Fill, SliderInputView, WizardView, FrameView, LabelView, LineShape, TextView, Struct, Theme, ThreadView, Supergraph, NumberInputView, Length, QueryConnection, SplitView, NodeType, IsOrdered, Node, Space } from '@/language';
+import { PlaneShape, LabelView, Graph, IsTaggable, IsDeletable, ThreadView, MaterializationType, Spatial, StructFrozen, CustomViewDefinition, Struct, EnumType, IsTracked, Style, Entity, IsVisual, QueryConnection, NodeReference, SplitView, Node, Scene, Layer, CustomView, Fill, FrameView, Theme, WizardView, Length, AnnotationShape, IsOrdered, NodeType, Session, NumberInputView, ArrowShape, Space, Agent, User, LineShape, TextView, StructType, Canvas, SliderInputView, Supergraph, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:12026 ==== */
@@ -67,7 +67,7 @@ export enum TextTransform {
 /* ==== DESTACK_GENERATED_END:ENUM:12029 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12014 ==== */
-export class Font extends BuiltinObject {
+export class Font extends Struct {
   type: FontType;
   get style(): FontStyle | null {
       const nodePtr: NodeReference | null = this.stylePtr;
@@ -125,9 +125,22 @@ export class Font extends BuiltinObject {
   }
 
 
-  static create(): Font {
+  static create(options: {
+    type?: FontType,
+    style?: FontStyle | NodeReference | null,
+    weight?: FontWeight | null,
+    color?: Fill | null,
+    size?: FontSize | null,
+    align?: TextAlign | null,
+    lineHeight?: Length | null,
+    letterSpacing?: Length | null,
+    decoration?: TextDecoration | null,
+    transform?: TextTransform | null
+  }): Font {
 
-    return new Font();
+    return new Font(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -147,48 +160,40 @@ export class Font extends BuiltinObject {
 /* ==== DESTACK_GENERATED_START:NODE:12022 ==== */
 export class FontStyle extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsTaggable, IsVisual, Style {
   readonly id: string;
-  get parent(): Scene | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | TextView | NumberInputView | SliderInputView | WizardView | ThreadView | AnnotationShape | ArrowShape | Canvas | LineShape | PlaneShape | Layer | Scene | Theme | null {
+  get parent(): Scene | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | TextView | NumberInputView | SliderInputView | WizardView | ThreadView | AnnotationShape | ArrowShape | Canvas | LineShape | PlaneShape | Layer | Scene | Theme | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Scene | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | TextView | NumberInputView | SliderInputView | WizardView | ThreadView | AnnotationShape | ArrowShape | Canvas | LineShape | PlaneShape | Layer | Scene | Theme | null;
+          return this._supergraph.get(nodePtr.id) as Scene | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | TextView | NumberInputView | SliderInputView | WizardView | ThreadView | AnnotationShape | ArrowShape | Canvas | LineShape | PlaneShape | Layer | Scene | Theme | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
-  }
   ;
   spacePtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -257,9 +262,22 @@ export class FontStyle extends Node implements Spatial, Entity, IsTracked, IsDel
   }
 
 
-  static create(): FontStyle {
+  static create(options: {
+    type?: FontType,
+    name: string,
+    weight?: FontWeight | null,
+    color?: Fill | null,
+    size?: FontSize | null,
+    align?: TextAlign | null,
+    lineHeight?: Length | null,
+    letterSpacing?: Length | null,
+    decoration?: TextDecoration | null,
+    transform?: TextTransform | null
+  }): FontStyle {
 
-    return new FontStyle();
+    return new FontStyle(
+
+    );
   }
 
   equals(other: any): boolean {

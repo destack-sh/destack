@@ -1,61 +1,53 @@
-import { FriendshipInvite, HistogramMeasurement, CounterMeasurement, InviteEvent, IsDeletable, Organization, Environment, BorderStyle, Invite, Field, FillStyle, BuiltinObject, IsOwnable, Branch, Agent, FontStyle, IsReactable, PlaneShape, AnnotationShape, Scene, SliderInputView, Role, Trigger, Theme, NotificationEvent, Route, ThreadView, SplitView, RoleEvent, Script, ScreenCursor, Action, Session, Entity, ShadowStyle, CustomView, Layer, User, Handle, Timer, Star, MaterializationType, CustomEntityDefinition, Graph, CustomStructDefinition, HistogramMetric, WizardView, FrameView, LabelView, ThreadCursor, Database, Thread, Variant, TextView, RunEvent, GradientStyle, Log, QueryConnection, Node, Client, Reaction, Notification, EntitlementEvent, Friendship, SceneEvent, Canvas, GaugeMeasurement, ArrowShape, Folder, TriggerEvent, Tagging, IsTracked, Tag, CustomEntity, Membership, Span, IsTaggable, Follow, Interruption, SanctionEvent, Entitlement, Service, Palette, NumberInputView, Team, File, Permission, Link, Spatial, TransitionStyle, ColorStyle, MembershipEvent, Sanction, CustomViewDefinition, CounterMetric, Snapshot, CustomEnumDefinition, NodeReference, EditEvent, Run, Window, Option, TimerEvent, CustomEventDefinition, LineShape, EffectStyle, Machine, Struct, Text, Supergraph, CustomEvent, GaugeMetric, NodeType, EventCursor, Space, FriendshipInviteEvent } from '@/language';
+import { PlaneShape, IsTaggable, GaugeMetric, EffectStyle, FontStyle, Machine, Interruption, HistogramMetric, Log, Tag, IsTracked, Database, Entity, FriendshipInvite, NodeReference, Entitlement, Layer, Branch, BorderStyle, CounterMetric, Action, EditEvent, AnnotationShape, Session, FriendshipInviteEvent, NumberInputView, CustomEvent, Trigger, ShadowStyle, Tagging, User, CustomEntityDefinition, SliderInputView, Snapshot, TransitionStyle, Text, CustomViewDefinition, IsOwnable, Struct, Handle, Friendship, ThreadCursor, Invite, ColorStyle, Role, IsReactable, QueryConnection, ScreenCursor, Link, CustomView, Span, WizardView, NodeType, TriggerEvent, CustomStructDefinition, TimerEvent, CustomEntity, Organization, SanctionEvent, Thread, LineShape, GaugeMeasurement, Palette, RunEvent, BuiltinObject, InviteEvent, Team, IsDeletable, Membership, Permission, Spatial, Option, EnumType, Timer, Field, HistogramMeasurement, CustomEnumDefinition, Service, Node, Scene, CustomEventDefinition, Notification, SceneEvent, Folder, MembershipEvent, GradientStyle, Run, Window, Canvas, Variant, LabelView, Graph, ThreadView, MaterializationType, StructFrozen, CounterMeasurement, Sanction, Script, Environment, Star, Reaction, SplitView, RoleEvent, FrameView, Theme, EntitlementEvent, NotificationEvent, Follow, File, Client, Agent, Space, ArrowShape, TextView, StructType, Route, Supergraph, EventCursor, FillStyle } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:5510 ==== */
 export class Message extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOwnable, IsTaggable, IsReactable {
   readonly id: string;
-  get parent(): Thread | null {
+  get parent(): Thread | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Thread | null;
+          return this._supergraph.get(nodePtr.id) as Thread | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
-  }
   ;
   spacePtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   updatedByPtr: NodeReference | null
   readonly deletedAt: Temporal.ZonedDateTime | null;
-  get ownedBy(): Role | Agent | Organization | Team | User | null {
+  get ownedBy(): Role | Agent | Organization | Team | User | null | null {
       const nodePtr: NodeReference | null = this.ownedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Role | Agent | Organization | Team | User | null;
+          return this._supergraph.get(nodePtr.id) as Role | Agent | Organization | Team | User | null | null;
       }
       return null;
   }
@@ -69,10 +61,10 @@ export class Message extends Node implements Spatial, Entity, IsTracked, IsDelet
   }
   ;
   ownedByPtr: NodeReference | null
-  get thread(): Thread | null {
+  get thread(): Thread | null | null {
       const nodePtr: NodeReference | null = this.threadPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Thread | null;
+          return this._supergraph.get(nodePtr.id) as Thread | null | null;
       }
       return null;
   }
@@ -87,10 +79,10 @@ export class Message extends Node implements Spatial, Entity, IsTracked, IsDelet
   ;
   threadPtr: NodeReference | null
   editedAt: Temporal.ZonedDateTime | null;
-  get replyTo(): Message | null {
+  get replyTo(): Message | null | null {
       const nodePtr: NodeReference | null = this.replyToPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Message | null;
+          return this._supergraph.get(nodePtr.id) as Message | null | null;
       }
       return null;
   }
@@ -104,10 +96,10 @@ export class Message extends Node implements Spatial, Entity, IsTracked, IsDelet
   }
   ;
   replyToPtr: NodeReference | null
-  get forwardedFrom(): Message | null {
+  get forwardedFrom(): Message | null | null {
       const nodePtr: NodeReference | null = this.forwardedFromPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Message | null;
+          return this._supergraph.get(nodePtr.id) as Message | null | null;
       }
       return null;
   }
@@ -122,10 +114,10 @@ export class Message extends Node implements Spatial, Entity, IsTracked, IsDelet
   ;
   forwardedFromPtr: NodeReference | null
   text: Text | null;
-  get node(): Node | null {
+  get node(): Node | null | null {
       const nodePtr: NodeReference | null = this.nodePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Node | null;
+          return this._supergraph.get(nodePtr.id) as Node | null | null;
       }
       return null;
   }
@@ -182,9 +174,19 @@ export class Message extends Node implements Spatial, Entity, IsTracked, IsDelet
   }
 
 
-  static create(): Message {
+  static create(options: {
+    ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
+    thread?: Thread | NodeReference | null,
+    editedAt?: Temporal.ZonedDateTime | null,
+    replyTo?: Message | NodeReference | null,
+    forwardedFrom?: Message | NodeReference | null,
+    text?: Text | null,
+    node?: Node | NodeReference | null
+  }): Message {
 
-    return new Message();
+    return new Message(
+
+    );
   }
 
   equals(other: any): boolean {

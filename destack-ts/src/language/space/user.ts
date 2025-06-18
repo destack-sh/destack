@@ -1,4 +1,4 @@
-import { Session, Entity, IsOwner, NodeReference, BuiltinObject, Handle, Agent, MaterializationType, IsTracked, Graph, ScreenCursor, IsSubject, IsFollowable, ThreadCursor, Icon, Struct, Supergraph, Global, QueryConnection, NodeType, EventCursor, Node, Space } from '@/language';
+import { Graph, IsFollowable, MaterializationType, StructFrozen, Struct, EnumType, Handle, ThreadCursor, IsTracked, Entity, QueryConnection, NodeReference, ScreenCursor, Node, IsSubject, NodeType, Session, IsOwner, EventCursor, Agent, Space, StructType, Icon, Supergraph, Global, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:20 ==== */
@@ -11,31 +11,31 @@ export enum UserStatus {
 /* ==== DESTACK_GENERATED_START:NODE:20 ==== */
 export class User extends Node implements Global, Entity, IsTracked, IsSubject, IsOwner, IsFollowable {
   readonly id: string;
-  get parent(): Node | null {
+  get parent(): Node | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Node | null;
+          return this._supergraph.get(nodePtr.id) as Node | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -56,19 +56,19 @@ export class User extends Node implements Global, Entity, IsTracked, IsSubject, 
   }
   ;
   spacePtr: NodeReference
-  get handle(): Handle | null {
+  get handle(): Handle | null | null {
       const nodePtr: NodeReference | null = this.handlePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Handle | null;
+          return this._supergraph.get(nodePtr.id) as Handle | null | null;
       }
       return null;
   }
   ;
   handlePtr: NodeReference | null
-  get cursor(): EventCursor | ScreenCursor | ThreadCursor | null {
+  get cursor(): EventCursor | ScreenCursor | ThreadCursor | null | null {
       const nodePtr: NodeReference | null = this.cursorPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as EventCursor | ScreenCursor | ThreadCursor | null;
+          return this._supergraph.get(nodePtr.id) as EventCursor | ScreenCursor | ThreadCursor | null | null;
       }
       return null;
   }
@@ -126,9 +126,24 @@ export class User extends Node implements Global, Entity, IsTracked, IsSubject, 
   }
 
 
-  static create(): User {
+  static create(options: {
+    name: string,
+    slug: string,
+    icon?: Icon | null,
+    status?: UserStatus,
+    lastLoggedInAt?: Temporal.ZonedDateTime | null,
+    isStaff?: boolean,
+    space: Space | NodeReference,
+    handle?: Handle | NodeReference | null,
+    cursor?: EventCursor | ScreenCursor | ThreadCursor | NodeReference | null,
+    email?: string | null,
+    passwordSalt?: Uint8Array | null,
+    passwordHash?: Uint8Array | null
+  }): User {
 
-    return new User();
+    return new User(
+
+    );
   }
 
   equals(other: any): boolean {

@@ -1,4 +1,4 @@
-import { Session, Entity, IsJoinable, IsOwner, User, NodeReference, BuiltinObject, Handle, Agent, MaterializationType, IsTracked, Graph, Icon, Struct, Supergraph, Global, QueryConnection, NodeType, Node, Space } from '@/language';
+import { Graph, MaterializationType, StructFrozen, Struct, EnumType, Handle, IsTracked, Entity, QueryConnection, NodeReference, IsJoinable, Node, NodeType, Session, IsOwner, Agent, User, Space, StructType, Icon, Supergraph, Global, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:40 ==== */
@@ -11,31 +11,31 @@ export enum OrganizationStatus {
 /* ==== DESTACK_GENERATED_START:NODE:40 ==== */
 export class Organization extends Node implements Global, Entity, IsTracked, IsJoinable, IsOwner {
   readonly id: string;
-  get parent(): Node | null {
+  get parent(): Node | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Node | null;
+          return this._supergraph.get(nodePtr.id) as Node | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -54,10 +54,10 @@ export class Organization extends Node implements Global, Entity, IsTracked, IsJ
   }
   ;
   spacePtr: NodeReference
-  get handle(): Handle | null {
+  get handle(): Handle | null | null {
       const nodePtr: NodeReference | null = this.handlePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Handle | null;
+          return this._supergraph.get(nodePtr.id) as Handle | null | null;
       }
       return null;
   }
@@ -100,9 +100,18 @@ export class Organization extends Node implements Global, Entity, IsTracked, IsJ
   }
 
 
-  static create(): Organization {
+  static create(options: {
+    name: string,
+    slug: string,
+    icon?: Icon | null,
+    status?: OrganizationStatus,
+    space: Space | NodeReference,
+    handle?: Handle | NodeReference | null
+  }): Organization {
 
-    return new Organization();
+    return new Organization(
+
+    );
   }
 
   equals(other: any): boolean {

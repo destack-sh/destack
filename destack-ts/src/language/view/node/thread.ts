@@ -1,51 +1,43 @@
-import { Session, Spatial, Entity, IsDeletable, NodeView, View, CustomViewDefinition, CustomView, Layer, Canvas, User, NodeReference, BuiltinObject, Agent, MaterializationType, Message, PlaneShape, IsTracked, Dimension, IsVisual, AnnotationShape, IsTaggable, Scene, Graph, IsScriptable, Window, FrameView, LabelView, Position, Struct, Text, Supergraph, QueryConnection, SplitView, NodeType, Script, IsOrdered, Node, Space } from '@/language';
+import { PlaneShape, LabelView, Graph, IsTaggable, IsDeletable, Position, MaterializationType, Spatial, NodeView, Text, StructFrozen, CustomViewDefinition, IsScriptable, Struct, EnumType, Script, IsTracked, Entity, IsVisual, Message, QueryConnection, NodeReference, SplitView, Node, Scene, Layer, CustomView, FrameView, Dimension, AnnotationShape, IsOrdered, NodeType, Session, View, Agent, Space, User, Window, StructType, Canvas, Supergraph, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:10600 ==== */
 export class ThreadView extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsTaggable, IsScriptable, IsVisual, View, NodeView {
   readonly id: string;
-  get parent(): Window | Scene | Layer | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | AnnotationShape | Canvas | PlaneShape | Layer | Scene | null {
+  get parent(): Window | Scene | Layer | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | AnnotationShape | Canvas | PlaneShape | Layer | Scene | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Window | Scene | Layer | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | AnnotationShape | Canvas | PlaneShape | Layer | Scene | null;
+          return this._supergraph.get(nodePtr.id) as Window | Scene | Layer | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | AnnotationShape | Canvas | PlaneShape | Layer | Scene | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
-  }
   ;
   spacePtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -62,10 +54,10 @@ export class ThreadView extends Node implements Spatial, Entity, IsTracked, IsDe
   maxWidth: Dimension | null;
   maxHeight: Dimension | null;
   draftText: Text | null;
-  get draftReplyTo(): Message | null {
+  get draftReplyTo(): Message | null | null {
       const nodePtr: NodeReference | null = this.draftReplyToPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Message | null;
+          return this._supergraph.get(nodePtr.id) as Message | null | null;
       }
       return null;
   }
@@ -79,10 +71,10 @@ export class ThreadView extends Node implements Spatial, Entity, IsTracked, IsDe
   }
   ;
   draftReplyToPtr: NodeReference | null
-  get script(): Script | null {
+  get script(): Script | null | null {
       const nodePtr: NodeReference | null = this.scriptPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Script | null;
+          return this._supergraph.get(nodePtr.id) as Script | null | null;
       }
       return null;
   }
@@ -149,9 +141,23 @@ export class ThreadView extends Node implements Spatial, Entity, IsTracked, IsDe
   }
 
 
-  static create(): ThreadView {
+  static create(options: {
+    name: string,
+    position?: Position | null,
+    width?: Dimension | null,
+    height?: Dimension | null,
+    minWidth?: Dimension | null,
+    minHeight?: Dimension | null,
+    maxWidth?: Dimension | null,
+    maxHeight?: Dimension | null,
+    draftText?: Text | null,
+    draftReplyTo?: Message | NodeReference | null,
+    script?: Script | NodeReference | null
+  }): ThreadView {
 
-    return new ThreadView();
+    return new ThreadView(
+
+    );
   }
 
   equals(other: any): boolean {

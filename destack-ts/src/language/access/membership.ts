@@ -1,4 +1,4 @@
-import { Session, Spatial, Entity, Particle, IsDeletable, Organization, Analytic, User, IsFrozen, NodeReference, BuiltinObject, IsOwnable, Agent, MaterializationType, Folder, IsTracked, Indexed, Event, Graph, Role, Thread, Struct, RoleType, Supergraph, Global, LikeMembership, QueryConnection, NodeType, Team, Node, Space } from '@/language';
+import { LikeMembership, Graph, Team, IsDeletable, MaterializationType, Spatial, StructFrozen, IsFrozen, Analytic, IsOwnable, Struct, EnumType, IsTracked, Role, Entity, QueryConnection, NodeReference, Indexed, Node, RoleType, Folder, Particle, NodeType, Session, Agent, Space, User, Organization, Thread, StructType, Event, Supergraph, Global, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:500 ==== */
@@ -20,47 +20,39 @@ export enum MembershipPermission {
 /* ==== DESTACK_GENERATED_START:NODE:501 ==== */
 export class MembershipEvent extends Node implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked {
   readonly id: string;
-  get parent(): Space | null {
+  get parent(): Space | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
-  }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
   }
   ;
   spacePtr: NodeReference | null
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -74,7 +66,7 @@ export class MembershipEvent extends Node implements Spatial, Particle, Analytic
       return null;
   }
 
-  set node(value: Membership | null) {
+  set node(value: Membership) {
       if (value === null) {
           this.nodePtr = null;
       } else {
@@ -91,7 +83,7 @@ export class MembershipEvent extends Node implements Spatial, Particle, Analytic
       return null;
   }
 
-  set joinable(value: Folder | Thread | Organization | Space | Team | null) {
+  set joinable(value: Folder | Thread | Organization | Space | Team) {
       if (value === null) {
           this.joinablePtr = null;
       } else {
@@ -108,7 +100,7 @@ export class MembershipEvent extends Node implements Spatial, Particle, Analytic
       return null;
   }
 
-  set member(value: Agent | User | null) {
+  set member(value: Agent | User) {
       if (value === null) {
           this.memberPtr = null;
       } else {
@@ -117,10 +109,10 @@ export class MembershipEvent extends Node implements Spatial, Particle, Analytic
   }
   ;
   memberPtr: NodeReference
-  get role(): Role | null {
+  get role(): Role | null | null {
       const nodePtr: NodeReference | null = this.rolePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Role | null;
+          return this._supergraph.get(nodePtr.id) as Role | null | null;
       }
       return null;
   }
@@ -170,9 +162,17 @@ export class MembershipEvent extends Node implements Spatial, Particle, Analytic
   }
 
 
-  static create(): MembershipEvent {
+  static create(options: {
+    node: Membership | NodeReference,
+    joinable: Folder | Thread | Organization | Space | Team | NodeReference,
+    member: Agent | User | NodeReference,
+    role?: Role | NodeReference | null,
+    roleType: RoleType
+  }): MembershipEvent {
 
-    return new MembershipEvent();
+    return new MembershipEvent(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -213,58 +213,50 @@ export class MembershipEvent extends Node implements Spatial, Particle, Analytic
 /* ==== DESTACK_GENERATED_START:NODE:500 ==== */
 export class Membership extends Node implements Global, Spatial, Entity, IsTracked, IsDeletable, IsOwnable, LikeMembership {
   readonly id: string;
-  get parent(): Folder | Thread | Organization | Space | Team | null {
+  get parent(): Folder | Thread | Organization | Space | Team | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Folder | Thread | Organization | Space | Team | null;
+          return this._supergraph.get(nodePtr.id) as Folder | Thread | Organization | Space | Team | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
-  }
   ;
   spacePtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   updatedByPtr: NodeReference | null
   readonly deletedAt: Temporal.ZonedDateTime | null;
-  get ownedBy(): Role | Agent | Organization | Team | User | null {
+  get ownedBy(): Role | Agent | Organization | Team | User | null | null {
       const nodePtr: NodeReference | null = this.ownedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Role | Agent | Organization | Team | User | null;
+          return this._supergraph.get(nodePtr.id) as Role | Agent | Organization | Team | User | null | null;
       }
       return null;
   }
@@ -278,10 +270,10 @@ export class Membership extends Node implements Global, Spatial, Entity, IsTrack
   }
   ;
   ownedByPtr: NodeReference | null
-  get member(): Agent | User | null {
+  get member(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.memberPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -295,10 +287,10 @@ export class Membership extends Node implements Global, Spatial, Entity, IsTrack
   }
   ;
   memberPtr: NodeReference | null
-  get role(): Role | null {
+  get role(): Role | null | null {
       const nodePtr: NodeReference | null = this.rolePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Role | null;
+          return this._supergraph.get(nodePtr.id) as Role | null | null;
       }
       return null;
   }
@@ -350,9 +342,16 @@ export class Membership extends Node implements Global, Spatial, Entity, IsTrack
   }
 
 
-  static create(): Membership {
+  static create(options: {
+    ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
+    member?: Agent | User | NodeReference | null,
+    role?: Role | NodeReference | null,
+    roleType?: RoleType | null
+  }): Membership {
 
-    return new Membership();
+    return new Membership(
+
+    );
   }
 
   equals(other: any): boolean {

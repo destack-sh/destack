@@ -1,4 +1,4 @@
-import { FriendshipInvite, HistogramMeasurement, CounterMeasurement, IsSourceable, InviteEvent, IsDeletable, Organization, Environment, BorderStyle, EnumType, Invite, Type, FillStyle, BuiltinObject, Branch, Agent, FontStyle, PlaneShape, AnnotationShape, Scene, SliderInputView, Role, Icon, Trigger, Theme, NotificationEvent, Route, ThreadView, SplitView, RoleEvent, Script, ScreenCursor, NumberConstraint, Action, Session, Entity, ShadowStyle, CustomView, Layer, User, Handle, Timer, Star, MaterializationType, CustomStructDefinition, Graph, CustomEntityDefinition, HistogramMetric, WizardView, FrameView, LabelView, ThreadCursor, Database, Thread, Variant, TextView, RunEvent, GradientStyle, Log, CollectionConstraint, TypeCardinality, CascadeAction, QueryConnection, Node, Client, ScalarType, PrimitiveType, Reaction, Notification, EntitlementEvent, Friendship, Canvas, SceneEvent, GaugeMeasurement, Value, ArrowShape, Folder, TriggerEvent, Tagging, IsTracked, Tag, CustomEntity, Membership, Span, IsTaggable, NodeConstraint, Follow, Interruption, SanctionEvent, Entitlement, Service, Palette, NumberInputView, Team, File, StructType, IsOrdered, StringConstraint, Permission, Link, Spatial, TransitionStyle, DefaultFactory, ColorStyle, MembershipEvent, Sanction, CustomViewDefinition, CounterMetric, Snapshot, CustomEnumDefinition, NodeReference, Message, EditEvent, EdgeType, Run, Window, Option, TimerEvent, CustomEventDefinition, LineShape, EffectStyle, Machine, Struct, Supergraph, CustomEvent, GaugeMetric, NodeType, EventCursor, Space, FriendshipInviteEvent } from '@/language';
+import { PlaneShape, PrimitiveType, IsTaggable, GaugeMetric, EffectStyle, CollectionConstraint, FontStyle, Machine, Interruption, HistogramMetric, Log, Tag, IsTracked, IsSourceable, Entity, Database, FriendshipInvite, NodeReference, Entitlement, Layer, Branch, BorderStyle, CounterMetric, Action, EditEvent, AnnotationShape, EdgeType, Session, FriendshipInviteEvent, NumberInputView, CustomEvent, Trigger, ShadowStyle, Tagging, User, CustomEntityDefinition, SliderInputView, Snapshot, TransitionStyle, CustomViewDefinition, Struct, NumberConstraint, Handle, Friendship, ThreadCursor, Invite, ColorStyle, Role, DefaultFactory, Message, QueryConnection, ScreenCursor, Link, Value, CustomView, Span, WizardView, TypeCardinality, NodeType, TriggerEvent, CustomStructDefinition, TimerEvent, CustomEntity, Organization, SanctionEvent, Thread, LineShape, GaugeMeasurement, Palette, RunEvent, BuiltinObject, InviteEvent, Team, IsDeletable, Membership, Permission, Spatial, StringConstraint, Option, EnumType, Timer, ScalarType, CascadeAction, HistogramMeasurement, CustomEnumDefinition, Service, Node, Scene, CustomEventDefinition, Notification, SceneEvent, Folder, NodeConstraint, MembershipEvent, GradientStyle, Run, Window, Canvas, Variant, LabelView, Graph, ThreadView, MaterializationType, StructFrozen, CounterMeasurement, Sanction, Script, Environment, Star, Reaction, SplitView, RoleEvent, Type, FrameView, Theme, EntitlementEvent, NotificationEvent, Follow, File, IsOrdered, Client, Agent, Space, ArrowShape, TextView, StructType, Icon, Route, Supergraph, EventCursor, FillStyle } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:2580 ==== */
@@ -12,48 +12,40 @@ export enum FieldType {
 /* ==== DESTACK_GENERATED_START:NODE:2520 ==== */
 export class Field extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsTaggable, IsSourceable {
   readonly id: string;
-  get parent(): CustomEntity | CustomEnumDefinition | CustomStructDefinition | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | AnnotationShape | Canvas | PlaneShape | Action | Script | Service | Interruption | Run | Layer | Scene | Field | null {
+  get parent(): CustomEntity | CustomEnumDefinition | CustomStructDefinition | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | AnnotationShape | Canvas | PlaneShape | Action | Script | Service | Interruption | Run | Layer | Scene | Field | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as CustomEntity | CustomEnumDefinition | CustomStructDefinition | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | AnnotationShape | Canvas | PlaneShape | Action | Script | Service | Interruption | Run | Layer | Scene | Field | null;
+          return this._supergraph.get(nodePtr.id) as CustomEntity | CustomEnumDefinition | CustomStructDefinition | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | AnnotationShape | Canvas | PlaneShape | Action | Script | Service | Interruption | Run | Layer | Scene | Field | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
-  }
   ;
   spacePtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -69,10 +61,10 @@ export class Field extends Node implements Spatial, Entity, IsTracked, IsDeletab
   primitiveType: PrimitiveType | null;
   enumType: EnumType | null;
   nodeType: NodeType | null;
-  get nodeDefinition(): CustomEntityDefinition | null {
+  get nodeDefinition(): CustomEntityDefinition | null | null {
       const nodePtr: NodeReference | null = this.nodeDefinitionPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as CustomEntityDefinition | null;
+          return this._supergraph.get(nodePtr.id) as CustomEntityDefinition | null | null;
       }
       return null;
   }
@@ -87,10 +79,10 @@ export class Field extends Node implements Spatial, Entity, IsTracked, IsDeletab
   ;
   nodeDefinitionPtr: NodeReference | null
   structType: StructType | null;
-  get baseType(): Node | null {
+  get baseType(): Node | null | null {
       const nodePtr: NodeReference | null = this.baseTypePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Node | null;
+          return this._supergraph.get(nodePtr.id) as Node | null | null;
       }
       return null;
   }
@@ -114,20 +106,12 @@ export class Field extends Node implements Spatial, Entity, IsTracked, IsDeletab
   nodeConstraint: NodeConstraint | null;
   edgeType: EdgeType | null;
   cascade: CascadeAction | null;
-  get source(): Script | null {
+  get source(): Script | null | null {
       const nodePtr: NodeReference | null = this.sourcePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Script | null;
+          return this._supergraph.get(nodePtr.id) as Script | null | null;
       }
       return null;
-  }
-
-  set source(value: Script | null) {
-      if (value === null) {
-          this.sourcePtr = null;
-      } else {
-          this.sourcePtr = value.toRef();
-      }
   }
   ;
   sourcePtr: NodeReference | null
@@ -206,9 +190,33 @@ export class Field extends Node implements Spatial, Entity, IsTracked, IsDeletab
   }
 
 
-  static create(): Field {
+  static create(options: {
+    type?: FieldType,
+    name: string,
+    icon?: Icon | null,
+    cardinality?: TypeCardinality,
+    scalarType: ScalarType,
+    primitiveType?: PrimitiveType | null,
+    enumType?: EnumType | null,
+    nodeType?: NodeType | null,
+    nodeDefinition?: CustomEntityDefinition | NodeReference | null,
+    structType?: StructType | null,
+    baseType?: Node | NodeReference | null,
+    keyType?: Type | null,
+    isRequired?: boolean | null,
+    default?: Value | null,
+    defaultFactory?: DefaultFactory | null,
+    collectionConstraint?: CollectionConstraint | null,
+    stringConstraint?: StringConstraint | null,
+    numberConstraint?: NumberConstraint | null,
+    nodeConstraint?: NodeConstraint | null,
+    edgeType?: EdgeType | null,
+    cascade?: CascadeAction | null
+  }): Field {
 
-    return new Field();
+    return new Field(
+
+    );
   }
 
   equals(other: any): boolean {

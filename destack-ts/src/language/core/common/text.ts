@@ -1,4 +1,4 @@
-import { FriendshipInvite, HistogramMeasurement, CounterMeasurement, InviteEvent, Organization, Environment, BorderStyle, Invite, Field, FillStyle, BuiltinObject, Branch, Agent, FontStyle, PlaneShape, AnnotationShape, Scene, SliderInputView, Role, Trigger, Theme, NotificationEvent, Route, ThreadView, SplitView, RoleEvent, Script, ScreenCursor, Action, Session, ShadowStyle, CustomView, Layer, User, Handle, Timer, Star, CustomEntityDefinition, Graph, CustomStructDefinition, HistogramMetric, WizardView, FrameView, LabelView, ThreadCursor, Database, Thread, Variant, TextView, RunEvent, GradientStyle, Log, QueryConnection, Node, Client, Reaction, Notification, EntitlementEvent, Friendship, SceneEvent, Canvas, GaugeMeasurement, ArrowShape, Folder, TriggerEvent, Tagging, Tag, CustomEntity, Membership, Span, Follow, Interruption, SanctionEvent, Entitlement, Service, Palette, NumberInputView, Team, File, Permission, Link, TransitionStyle, ColorStyle, MembershipEvent, Sanction, CustomViewDefinition, CounterMetric, Snapshot, CustomEnumDefinition, NodeReference, Message, Space, Run, Window, Option, TimerEvent, CustomEventDefinition, LineShape, EffectStyle, Machine, Struct, Supergraph, CustomEvent, GaugeMetric, NodeType, EventCursor, EditEvent, FriendshipInviteEvent } from '@/language';
+import { PlaneShape, GaugeMetric, EffectStyle, FontStyle, Machine, Interruption, HistogramMetric, Log, Tag, Database, FriendshipInvite, NodeReference, Entitlement, Layer, Branch, BorderStyle, CounterMetric, Action, EditEvent, AnnotationShape, Session, FriendshipInviteEvent, NumberInputView, CustomEvent, Trigger, ShadowStyle, Tagging, User, CustomEntityDefinition, SliderInputView, Snapshot, TransitionStyle, CustomViewDefinition, Struct, Handle, Friendship, ThreadCursor, Invite, ColorStyle, Role, Message, QueryConnection, ScreenCursor, Link, CustomView, Span, WizardView, NodeType, TriggerEvent, CustomStructDefinition, TimerEvent, CustomEntity, Organization, SanctionEvent, Thread, LineShape, GaugeMeasurement, Palette, RunEvent, BuiltinObject, InviteEvent, Team, Membership, Permission, Option, EnumType, Timer, Field, HistogramMeasurement, CustomEnumDefinition, Service, Node, Scene, CustomEventDefinition, Notification, SceneEvent, Folder, MembershipEvent, GradientStyle, Run, Window, Canvas, Variant, LabelView, Graph, ThreadView, StructFrozen, CounterMeasurement, Sanction, Script, Environment, Star, Reaction, SplitView, RoleEvent, FrameView, Theme, EntitlementEvent, NotificationEvent, Follow, File, Client, Agent, Space, ArrowShape, TextView, StructType, Route, Supergraph, EventCursor, FillStyle } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:2521 ==== */
@@ -13,7 +13,7 @@ export enum TextSpanType {
 /* ==== DESTACK_GENERATED_END:ENUM:2521 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2521 ==== */
-export class TextSpan extends BuiltinObject {
+export class TextSpan extends StructFrozen {
   readonly type: TextSpanType;
   readonly content: string | null;
   get node(): Node | null {
@@ -60,9 +60,21 @@ export class TextSpan extends BuiltinObject {
   }
 
 
-  static create(): TextSpan {
+  static create(options: {
+    type?: TextSpanType,
+    content?: string | null,
+    node?: Node | NodeReference | null,
+    url?: string | null,
+    isBold?: boolean | null,
+    isItalic?: boolean | null,
+    isStrikethrough?: boolean | null,
+    isUnderline?: boolean | null,
+    isCode?: boolean | null
+  }): TextSpan {
 
-    return new TextSpan();
+    return new TextSpan(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -80,7 +92,7 @@ export class TextSpan extends BuiltinObject {
 /* ==== DESTACK_GENERATED_END:STRUCT:2521 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2520 ==== */
-export class Text extends BuiltinObject {
+export class Text extends StructFrozen {
   readonly spans: Array<TextSpan>;
   readonly isBold: boolean | null;
   readonly isItalic: boolean | null;
@@ -107,9 +119,18 @@ export class Text extends BuiltinObject {
   }
 
 
-  static create(): Text {
+  static create(options: {
+    spans?: Array<TextSpan>,
+    isBold?: boolean | null,
+    isItalic?: boolean | null,
+    isStrikethrough?: boolean | null,
+    isUnderline?: boolean | null,
+    isCode?: boolean | null
+  }): Text {
 
-    return new Text();
+    return new Text(
+
+    );
   }
 
   equals(other: any): boolean {

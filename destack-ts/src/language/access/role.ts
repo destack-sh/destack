@@ -1,4 +1,4 @@
-import { Session, Spatial, Entity, Particle, IsDeletable, Organization, IsOwner, Analytic, User, IsFrozen, NodeReference, BuiltinObject, Agent, MaterializationType, Folder, IsTracked, Indexed, Event, Graph, Icon, Thread, Struct, RoleType, Supergraph, Global, QueryConnection, NodeType, Team, IsOrdered, Node, Space } from '@/language';
+import { Graph, Team, IsDeletable, MaterializationType, Spatial, StructFrozen, IsFrozen, Analytic, Struct, EnumType, IsTracked, Entity, QueryConnection, NodeReference, Indexed, Node, RoleType, Folder, Particle, IsOrdered, NodeType, Session, IsOwner, Agent, Space, User, Organization, Thread, StructType, Event, Icon, Supergraph, Global, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:521 ==== */
@@ -11,47 +11,39 @@ export enum RoleEventType {
 /* ==== DESTACK_GENERATED_START:NODE:521 ==== */
 export class RoleEvent extends Node implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked {
   readonly id: string;
-  get parent(): Space | null {
+  get parent(): Space | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
-  }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
   }
   ;
   spacePtr: NodeReference | null
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -66,7 +58,7 @@ export class RoleEvent extends Node implements Spatial, Particle, Analytic, Inde
       return null;
   }
 
-  set node(value: Role | null) {
+  set node(value: Role) {
       if (value === null) {
           this.nodePtr = null;
       } else {
@@ -104,9 +96,14 @@ export class RoleEvent extends Node implements Spatial, Particle, Analytic, Inde
   }
 
 
-  static create(): RoleEvent {
+  static create(options: {
+    type: RoleEventType,
+    node: Role | NodeReference
+  }): RoleEvent {
 
-    return new RoleEvent();
+    return new RoleEvent(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -147,48 +144,40 @@ export class RoleEvent extends Node implements Spatial, Particle, Analytic, Inde
 /* ==== DESTACK_GENERATED_START:NODE:520 ==== */
 export class Role extends Node implements Global, Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsOwner {
   readonly id: string;
-  get parent(): Folder | Thread | Organization | Space | Team | null {
+  get parent(): Folder | Thread | Organization | Space | Team | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Folder | Thread | Organization | Space | Team | null;
+          return this._supergraph.get(nodePtr.id) as Folder | Thread | Organization | Space | Team | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
-  }
   ;
   spacePtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -239,9 +228,16 @@ export class Role extends Node implements Global, Spatial, Entity, IsTracked, Is
   }
 
 
-  static create(): Role {
+  static create(options: {
+    type: RoleType,
+    name: string,
+    slug?: string | null,
+    icon?: Icon | null
+  }): Role {
 
-    return new Role();
+    return new Role(
+
+    );
   }
 
   equals(other: any): boolean {

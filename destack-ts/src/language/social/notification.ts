@@ -1,4 +1,4 @@
-import { Session, Spatial, Entity, Particle, Organization, Analytic, User, IsFrozen, NodeReference, BuiltinObject, IsOwnable, Agent, MaterializationType, IsTracked, Indexed, Event, Graph, Role, Struct, Text, Supergraph, QueryConnection, NodeType, Team, Node, Space } from '@/language';
+import { Graph, Team, MaterializationType, Spatial, Text, StructFrozen, IsFrozen, Analytic, IsOwnable, Struct, EnumType, IsTracked, Role, Entity, QueryConnection, NodeReference, Indexed, Node, Particle, NodeType, Session, Agent, Space, User, Organization, StructType, Event, Supergraph, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:5600 ==== */
@@ -24,47 +24,39 @@ export enum NotificationEventType {
 /* ==== DESTACK_GENERATED_START:NODE:5601 ==== */
 export class NotificationEvent extends Node implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked {
   readonly id: string;
-  get parent(): Space | null {
+  get parent(): Space | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
-  }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
   }
   ;
   spacePtr: NodeReference | null
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -79,7 +71,7 @@ export class NotificationEvent extends Node implements Spatial, Particle, Analyt
       return null;
   }
 
-  set node(value: Notification | null) {
+  set node(value: Notification) {
       if (value === null) {
           this.nodePtr = null;
       } else {
@@ -117,9 +109,14 @@ export class NotificationEvent extends Node implements Spatial, Particle, Analyt
   }
 
 
-  static create(): NotificationEvent {
+  static create(options: {
+    type: NotificationEventType,
+    node: Notification | NodeReference
+  }): NotificationEvent {
 
-    return new NotificationEvent();
+    return new NotificationEvent(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -160,57 +157,49 @@ export class NotificationEvent extends Node implements Spatial, Particle, Analyt
 /* ==== DESTACK_GENERATED_START:NODE:5600 ==== */
 export class Notification extends Node implements Spatial, Entity, IsTracked, IsOwnable {
   readonly id: string;
-  get parent(): Space | null {
+  get parent(): Space | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
-  }
   ;
   spacePtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   updatedByPtr: NodeReference | null
-  get ownedBy(): Role | Agent | Organization | Team | User | null {
+  get ownedBy(): Role | Agent | Organization | Team | User | null | null {
       const nodePtr: NodeReference | null = this.ownedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Role | Agent | Organization | Team | User | null;
+          return this._supergraph.get(nodePtr.id) as Role | Agent | Organization | Team | User | null | null;
       }
       return null;
   }
@@ -262,9 +251,16 @@ export class Notification extends Node implements Spatial, Entity, IsTracked, Is
   }
 
 
-  static create(): Notification {
+  static create(options: {
+    ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
+    status: NotificationStatus,
+    title: string,
+    text?: Text | null
+  }): Notification {
 
-    return new Notification();
+    return new Notification(
+
+    );
   }
 
   equals(other: any): boolean {

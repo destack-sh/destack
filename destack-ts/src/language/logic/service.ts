@@ -1,51 +1,43 @@
-import { Session, Spatial, Entity, IsSourceable, IsDeletable, Organization, User, NodeReference, BuiltinObject, IsOwnable, Value, IsExtensible, Agent, MaterializationType, IsTracked, IsTaggable, Graph, IsScriptable, Role, Struct, Supergraph, QueryConnection, NodeType, Team, Script, IsActionable, IsRunnable, IsOrdered, Node, Space } from '@/language';
+import { Graph, IsTaggable, Team, IsDeletable, MaterializationType, Spatial, StructFrozen, IsOwnable, IsScriptable, Struct, EnumType, IsExtensible, Script, IsTracked, IsSourceable, Entity, Role, QueryConnection, NodeReference, Node, Value, IsActionable, IsRunnable, IsOrdered, NodeType, Session, Agent, Space, User, Organization, StructType, Supergraph, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:3010 ==== */
 export class Service extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsExtensible, IsOrdered, IsOwnable, IsTaggable, IsActionable, IsRunnable, IsScriptable, IsSourceable {
   readonly id: string;
-  get parent(): Space | null {
+  get parent(): Space | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
-  }
   ;
   spacePtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -54,10 +46,10 @@ export class Service extends Node implements Spatial, Entity, IsTracked, IsDelet
   readonly deletedAt: Temporal.ZonedDateTime | null;
   value: Map<string, Value>;
   readonly orderKey: string;
-  get ownedBy(): Role | Agent | Organization | Team | User | null {
+  get ownedBy(): Role | Agent | Organization | Team | User | null | null {
       const nodePtr: NodeReference | null = this.ownedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Role | Agent | Organization | Team | User | null;
+          return this._supergraph.get(nodePtr.id) as Role | Agent | Organization | Team | User | null | null;
       }
       return null;
   }
@@ -72,10 +64,10 @@ export class Service extends Node implements Spatial, Entity, IsTracked, IsDelet
   ;
   ownedByPtr: NodeReference | null
   name: string;
-  get script(): Script | null {
+  get script(): Script | null | null {
       const nodePtr: NodeReference | null = this.scriptPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Script | null;
+          return this._supergraph.get(nodePtr.id) as Script | null | null;
       }
       return null;
   }
@@ -89,20 +81,12 @@ export class Service extends Node implements Spatial, Entity, IsTracked, IsDelet
   }
   ;
   scriptPtr: NodeReference | null
-  get source(): Script | null {
+  get source(): Script | null | null {
       const nodePtr: NodeReference | null = this.sourcePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Script | null;
+          return this._supergraph.get(nodePtr.id) as Script | null | null;
       }
       return null;
-  }
-
-  set source(value: Script | null) {
-      if (value === null) {
-          this.sourcePtr = null;
-      } else {
-          this.sourcePtr = value.toRef();
-      }
   }
   ;
   sourcePtr: NodeReference | null
@@ -147,9 +131,16 @@ export class Service extends Node implements Spatial, Entity, IsTracked, IsDelet
   }
 
 
-  static create(): Service {
+  static create(options: {
+    value?: Map<string, Value>,
+    ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
+    name: string,
+    script?: Script | NodeReference | null
+  }): Service {
 
-    return new Service();
+    return new Service(
+
+    );
   }
 
   equals(other: any): boolean {

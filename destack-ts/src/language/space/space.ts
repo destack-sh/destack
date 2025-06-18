@@ -1,4 +1,4 @@
-import { Session, Spatial, Entity, Region, Organization, IsJoinable, User, NodeReference, BuiltinObject, IsOwnable, Handle, Agent, MaterializationType, Folder, IsTracked, IsStarable, Graph, Role, IsFollowable, Icon, Database, Struct, Supergraph, Global, QueryConnection, NodeType, Team, Node } from '@/language';
+import { Graph, IsStarable, IsFollowable, Team, MaterializationType, Spatial, Region, StructFrozen, IsOwnable, Struct, EnumType, Handle, IsTracked, Role, Entity, Database, QueryConnection, NodeReference, IsJoinable, Node, Folder, NodeType, Session, Agent, User, Organization, StructType, Icon, Supergraph, Global, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:1 ==== */
@@ -13,57 +13,49 @@ export enum SpaceStatus {
 /* ==== DESTACK_GENERATED_START:NODE:1 ==== */
 export class Space extends Node implements Global, Spatial, Entity, IsTracked, IsOwnable, IsJoinable, IsStarable, IsFollowable {
   readonly id: string;
-  get parent(): Node | null {
+  get parent(): Node | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Node | null;
+          return this._supergraph.get(nodePtr.id) as Node | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
-  }
   ;
   spacePtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   updatedByPtr: NodeReference | null
-  get ownedBy(): Role | Agent | Organization | Team | User | null {
+  get ownedBy(): Role | Agent | Organization | Team | User | null | null {
       const nodePtr: NodeReference | null = this.ownedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Role | Agent | Organization | Team | User | null;
+          return this._supergraph.get(nodePtr.id) as Role | Agent | Organization | Team | User | null | null;
       }
       return null;
   }
@@ -81,28 +73,28 @@ export class Space extends Node implements Global, Spatial, Entity, IsTracked, I
   slug: string;
   icon: Icon | null;
   readonly status: SpaceStatus;
-  get handle(): Handle | null {
+  get handle(): Handle | null | null {
       const nodePtr: NodeReference | null = this.handlePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Handle | null;
+          return this._supergraph.get(nodePtr.id) as Handle | null | null;
       }
       return null;
   }
   ;
   handlePtr: NodeReference | null
-  get systemFolder(): Folder | null {
+  get systemFolder(): Folder | null | null {
       const nodePtr: NodeReference | null = this.systemFolderPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Folder | null;
+          return this._supergraph.get(nodePtr.id) as Folder | null | null;
       }
       return null;
   }
   ;
   systemFolderPtr: NodeReference | null
-  get homeFolder(): Folder | null {
+  get homeFolder(): Folder | null | null {
       const nodePtr: NodeReference | null = this.homeFolderPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Folder | null;
+          return this._supergraph.get(nodePtr.id) as Folder | null | null;
       }
       return null;
   }
@@ -110,10 +102,10 @@ export class Space extends Node implements Global, Spatial, Entity, IsTracked, I
   homeFolderPtr: NodeReference | null
   readonly region: Region;
   readonly galaxyName: string | null;
-  get database(): Database | null {
+  get database(): Database | null | null {
       const nodePtr: NodeReference | null = this.databasePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Database | null;
+          return this._supergraph.get(nodePtr.id) as Database | null | null;
       }
       return null;
   }
@@ -168,9 +160,23 @@ export class Space extends Node implements Global, Spatial, Entity, IsTracked, I
   }
 
 
-  static create(): Space {
+  static create(options: {
+    ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
+    name: string,
+    slug: string,
+    icon?: Icon | null,
+    status: SpaceStatus,
+    handle?: Handle | NodeReference | null,
+    systemFolder?: Folder | NodeReference | null,
+    homeFolder?: Folder | NodeReference | null,
+    region: Region,
+    galaxyName?: string | null,
+    database?: Database | NodeReference | null
+  }): Space {
 
-    return new Space();
+    return new Space(
+
+    );
   }
 
   equals(other: any): boolean {

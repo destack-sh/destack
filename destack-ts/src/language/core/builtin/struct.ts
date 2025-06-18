@@ -1,5 +1,6 @@
 import { AnyStructProto } from "@/proto";
 import { BuiltinObject } from "./object";
+import { StructType } from "@/language";
 
 /** A Struct is an ordered collection of Properties. */
 export abstract class Struct extends BuiltinObject {

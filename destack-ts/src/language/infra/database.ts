@@ -1,4 +1,4 @@
-import { Session, Tenancy, Spatial, Entity, Region, User, NodeReference, BuiltinObject, Resource, Agent, MaterializationType, IsTracked, Graph, ResourceStatus, Struct, Supergraph, QueryConnection, NodeType, Node, Space } from '@/language';
+import { Graph, MaterializationType, Spatial, Region, StructFrozen, Struct, EnumType, IsTracked, Entity, QueryConnection, NodeReference, Node, NodeType, Session, Tenancy, ResourceStatus, Resource, Agent, Space, User, StructType, Supergraph, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:7505 ==== */
@@ -8,7 +8,7 @@ export enum DatabaseType {
 /* ==== DESTACK_GENERATED_END:ENUM:7505 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:7501 ==== */
-export class DatabaseInfo extends BuiltinObject {
+export class DatabaseInfo extends Struct {
   type: DatabaseType;
   region: Region;
   galaxyName: string | null;
@@ -38,9 +38,19 @@ export class DatabaseInfo extends BuiltinObject {
   }
 
 
-  static create(): DatabaseInfo {
+  static create(options: {
+    type: DatabaseType,
+    region: Region,
+    galaxyName?: string | null,
+    externalName: string,
+    customSchemaName?: string | null,
+    tenancy?: Tenancy,
+    connectionUrl?: string | null
+  }): DatabaseInfo {
 
-    return new DatabaseInfo();
+    return new DatabaseInfo(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -60,48 +70,40 @@ export class DatabaseInfo extends BuiltinObject {
 /* ==== DESTACK_GENERATED_START:NODE:7500 ==== */
 export class Database extends Node implements Spatial, Entity, Resource, IsTracked {
   readonly id: string;
-  get parent(): Space | null {
+  get parent(): Space | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
-  }
   ;
   spacePtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -164,9 +166,22 @@ export class Database extends Node implements Spatial, Entity, Resource, IsTrack
   }
 
 
-  static create(): Database {
+  static create(options: {
+    type: DatabaseType,
+    name: string,
+    status?: ResourceStatus,
+    targetStatus?: Temporal.ZonedDateTime | null,
+    region: Region,
+    galaxyName?: string | null,
+    externalName: string,
+    customSchemaName?: string | null,
+    tenancy?: Tenancy,
+    connectionUrl?: string | null
+  }): Database {
 
-    return new Database();
+    return new Database(
+
+    );
   }
 
   equals(other: any): boolean {

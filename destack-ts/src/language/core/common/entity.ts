@@ -1,39 +1,31 @@
-import { Session, Spatial, Entity, IsSourceable, IsDeletable, Organization, User, NodeReference, BuiltinObject, IsOwnable, Value, IsExtensible, Agent, MaterializationType, Folder, Space, IsTracked, IsTaggable, Graph, IsScriptable, Role, IsCustomNode, Struct, Supergraph, QueryConnection, NodeType, TraitType, Team, Script, IsActionable, IsOrdered, Node, IsCustomNodeDefinition } from '@/language';
+import { IsCustomNode, Graph, IsTaggable, Team, IsDeletable, MaterializationType, Spatial, StructFrozen, IsOwnable, IsScriptable, Struct, EnumType, IsExtensible, Script, IsTracked, IsSourceable, Entity, Role, TraitType, QueryConnection, NodeReference, Node, Value, IsActionable, Folder, IsOrdered, NodeType, Session, IsCustomNodeDefinition, Agent, Space, User, Organization, StructType, Supergraph, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:2000 ==== */
 export class CustomEntityDefinition extends Node implements Spatial, Entity, IsCustomNodeDefinition, IsTracked, IsDeletable, IsOrdered, IsOwnable, IsTaggable, IsActionable, IsScriptable, IsSourceable {
   readonly id: string;
-  get parent(): Folder | null {
+  get parent(): Folder | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Folder | null;
+          return this._supergraph.get(nodePtr.id) as Folder | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
-  }
   ;
   spacePtr: NodeReference | null
-  get prototype(): CustomEntity | null {
+  get prototype(): CustomEntity | null | null {
       const nodePtr: NodeReference | null = this.prototypePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as CustomEntity | null;
+          return this._supergraph.get(nodePtr.id) as CustomEntity | null | null;
       }
       return null;
   }
@@ -47,22 +39,22 @@ export class CustomEntityDefinition extends Node implements Spatial, Entity, IsC
   }
   ;
   prototypePtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -70,10 +62,10 @@ export class CustomEntityDefinition extends Node implements Spatial, Entity, IsC
   updatedByPtr: NodeReference | null
   readonly deletedAt: Temporal.ZonedDateTime | null;
   readonly orderKey: string;
-  get ownedBy(): Role | Agent | Organization | Team | User | null {
+  get ownedBy(): Role | Agent | Organization | Team | User | null | null {
       const nodePtr: NodeReference | null = this.ownedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Role | Agent | Organization | Team | User | null;
+          return this._supergraph.get(nodePtr.id) as Role | Agent | Organization | Team | User | null | null;
       }
       return null;
   }
@@ -89,10 +81,10 @@ export class CustomEntityDefinition extends Node implements Spatial, Entity, IsC
   ownedByPtr: NodeReference | null
   name: string;
   traits: Array<TraitType>;
-  get script(): Script | null {
+  get script(): Script | null | null {
       const nodePtr: NodeReference | null = this.scriptPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Script | null;
+          return this._supergraph.get(nodePtr.id) as Script | null | null;
       }
       return null;
   }
@@ -106,20 +98,12 @@ export class CustomEntityDefinition extends Node implements Spatial, Entity, IsC
   }
   ;
   scriptPtr: NodeReference | null
-  get source(): Script | null {
+  get source(): Script | null | null {
       const nodePtr: NodeReference | null = this.sourcePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Script | null;
+          return this._supergraph.get(nodePtr.id) as Script | null | null;
       }
       return null;
-  }
-
-  set source(value: Script | null) {
-      if (value === null) {
-          this.sourcePtr = null;
-      } else {
-          this.sourcePtr = value.toRef();
-      }
   }
   ;
   sourcePtr: NodeReference | null
@@ -166,9 +150,17 @@ export class CustomEntityDefinition extends Node implements Spatial, Entity, IsC
   }
 
 
-  static create(): CustomEntityDefinition {
+  static create(options: {
+    prototype?: CustomEntity | NodeReference | null,
+    ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
+    name: string,
+    traits?: Array<TraitType>,
+    script?: Script | NodeReference | null
+  }): CustomEntityDefinition {
 
-    return new CustomEntityDefinition();
+    return new CustomEntityDefinition(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -209,29 +201,21 @@ export class CustomEntityDefinition extends Node implements Spatial, Entity, IsC
 /* ==== DESTACK_GENERATED_START:NODE:2001 ==== */
 export class CustomEntity extends Node implements Spatial, Entity, IsCustomNode, IsTracked, IsDeletable, IsExtensible {
   readonly id: string;
-  get parent(): CustomEntityDefinition | CustomEntity | null {
+  get parent(): CustomEntityDefinition | CustomEntity | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as CustomEntityDefinition | CustomEntity | null;
+          return this._supergraph.get(nodePtr.id) as CustomEntityDefinition | CustomEntity | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
-  }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
   }
   ;
   spacePtr: NodeReference | null
@@ -242,32 +226,24 @@ export class CustomEntity extends Node implements Spatial, Entity, IsCustomNode,
       }
       return null;
   }
-
-  set definition(value: CustomEntityDefinition | null) {
-      if (value === null) {
-          this.definitionPtr = null;
-      } else {
-          this.definitionPtr = value.toRef();
-      }
-  }
   ;
   definitionPtr: NodeReference
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -308,9 +284,13 @@ export class CustomEntity extends Node implements Spatial, Entity, IsCustomNode,
   }
 
 
-  static create(): CustomEntity {
+  static create(options: {
+    value?: Map<string, Value>
+  }): CustomEntity {
 
-    return new CustomEntity();
+    return new CustomEntity(
+
+    );
   }
 
   equals(other: any): boolean {

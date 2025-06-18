@@ -1,4 +1,4 @@
-import { Session, Spatial, Entity, IsDeletable, CustomViewDefinition, CustomView, Canvas, Style, Layer, User, NodeReference, BuiltinObject, Vector2, ArrowShape, Agent, MaterializationType, PlaneShape, IsTracked, IsVisual, AnnotationShape, IsTaggable, Scene, Graph, Axis3, SliderInputView, WizardView, FrameView, LabelView, LineShape, TextView, Struct, Theme, ThreadView, Supergraph, NumberInputView, Transition, QueryConnection, SplitView, NodeType, IsOrdered, Node, Space } from '@/language';
+import { PlaneShape, LabelView, Graph, IsTaggable, IsDeletable, ThreadView, MaterializationType, Spatial, StructFrozen, CustomViewDefinition, Struct, EnumType, IsTracked, Style, Vector2, IsVisual, Entity, QueryConnection, NodeReference, Transition, SplitView, Node, Scene, Layer, CustomView, FrameView, Axis3, Theme, WizardView, AnnotationShape, IsOrdered, NodeType, Session, NumberInputView, ArrowShape, Space, Agent, User, LineShape, TextView, StructType, Canvas, SliderInputView, Supergraph, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:12046 ==== */
@@ -39,7 +39,7 @@ export enum OffscreenBehavior {
 /* ==== DESTACK_GENERATED_END:ENUM:12049 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12025 ==== */
-export class Effect extends BuiltinObject {
+export class Effect extends Struct {
   type: EffectType;
   get style(): EffectStyle | null {
       const nodePtr: NodeReference | null = this.stylePtr;
@@ -115,9 +115,28 @@ export class Effect extends BuiltinObject {
   }
 
 
-  static create(): Effect {
+  static create(options: {
+    type: EffectType,
+    style?: EffectStyle | NodeReference | null,
+    opacity?: number | null,
+    offset?: Vector2 | null,
+    scale?: number | null,
+    rotate?: Axis3 | null,
+    skew?: Vector2 | null,
+    perspective?: number | null,
+    delay?: Temporal.Duration | null,
+    duration?: number | null,
+    threshold?: number | null,
+    once?: boolean | null,
+    repeat?: RepeatType | null,
+    split?: TextSplitType | null,
+    offscreen?: OffscreenBehavior | null,
+    transition?: Transition | null
+  }): Effect {
 
-    return new Effect();
+    return new Effect(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -137,48 +156,40 @@ export class Effect extends BuiltinObject {
 /* ==== DESTACK_GENERATED_START:NODE:12027 ==== */
 export class EffectStyle extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsTaggable, IsVisual, Style {
   readonly id: string;
-  get parent(): Scene | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | TextView | NumberInputView | SliderInputView | WizardView | ThreadView | AnnotationShape | ArrowShape | Canvas | LineShape | PlaneShape | Layer | Scene | Theme | null {
+  get parent(): Scene | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | TextView | NumberInputView | SliderInputView | WizardView | ThreadView | AnnotationShape | ArrowShape | Canvas | LineShape | PlaneShape | Layer | Scene | Theme | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Scene | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | TextView | NumberInputView | SliderInputView | WizardView | ThreadView | AnnotationShape | ArrowShape | Canvas | LineShape | PlaneShape | Layer | Scene | Theme | null;
+          return this._supergraph.get(nodePtr.id) as Scene | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | TextView | NumberInputView | SliderInputView | WizardView | ThreadView | AnnotationShape | ArrowShape | Canvas | LineShape | PlaneShape | Layer | Scene | Theme | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
-  }
   ;
   spacePtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -265,9 +276,28 @@ export class EffectStyle extends Node implements Spatial, Entity, IsTracked, IsD
   }
 
 
-  static create(): EffectStyle {
+  static create(options: {
+    type: EffectType,
+    name: string,
+    opacity?: number | null,
+    offset?: Vector2 | null,
+    scale?: number | null,
+    rotate?: Axis3 | null,
+    skew?: Vector2 | null,
+    perspective?: number | null,
+    delay?: Temporal.Duration | null,
+    duration?: number | null,
+    threshold?: number | null,
+    once?: boolean | null,
+    repeat?: RepeatType | null,
+    split?: TextSplitType | null,
+    offscreen?: OffscreenBehavior | null,
+    transition?: Transition | null
+  }): EffectStyle {
 
-    return new EffectStyle();
+    return new EffectStyle(
+
+    );
   }
 
   equals(other: any): boolean {

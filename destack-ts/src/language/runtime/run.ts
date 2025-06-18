@@ -1,4 +1,4 @@
-import { Session, Spatial, Particle, Error, Analytic, User, IsFrozen, NodeReference, BuiltinObject, Value, IsExtensible, Agent, IsTracked, Indexed, Event, Graph, Interruption, Struct, Supergraph, Service, QueryConnection, NodeType, Script, Node, Space, Action } from '@/language';
+import { Graph, Spatial, StructFrozen, IsFrozen, Interruption, Analytic, Error, Struct, EnumType, IsExtensible, Script, IsTracked, QueryConnection, NodeReference, Indexed, Service, Node, Value, Action, Particle, NodeType, Session, Agent, Space, User, StructType, Event, Supergraph, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:4000 ==== */
@@ -33,47 +33,39 @@ export enum RunEventType {
 /* ==== DESTACK_GENERATED_START:NODE:4001 ==== */
 export class RunEvent extends Node implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked {
   readonly id: string;
-  get parent(): Space | null {
+  get parent(): Space | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
-  }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
   }
   ;
   spacePtr: NodeReference | null
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -88,7 +80,7 @@ export class RunEvent extends Node implements Spatial, Particle, Analytic, Index
       return null;
   }
 
-  set node(value: Run | null) {
+  set node(value: Run) {
       if (value === null) {
           this.nodePtr = null;
       } else {
@@ -97,10 +89,10 @@ export class RunEvent extends Node implements Spatial, Particle, Analytic, Index
   }
   ;
   nodePtr: NodeReference
-  get target(): Action | Script | Service | null {
+  get target(): Action | Script | Service | null | null {
       const nodePtr: NodeReference | null = this.targetPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Action | Script | Service | null;
+          return this._supergraph.get(nodePtr.id) as Action | Script | Service | null | null;
       }
       return null;
   }
@@ -145,9 +137,15 @@ export class RunEvent extends Node implements Spatial, Particle, Analytic, Index
   }
 
 
-  static create(): RunEvent {
+  static create(options: {
+    type: RunEventType,
+    node: Run | NodeReference,
+    target?: Action | Script | Service | NodeReference | null
+  }): RunEvent {
 
-    return new RunEvent();
+    return new RunEvent(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -188,57 +186,49 @@ export class RunEvent extends Node implements Spatial, Particle, Analytic, Index
 /* ==== DESTACK_GENERATED_START:NODE:4000 ==== */
 export class Run extends Node implements Spatial, Particle, Analytic, Indexed, IsTracked, IsExtensible {
   readonly id: string;
-  get parent(): Space | null {
+  get parent(): Space | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
-  }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
   }
   ;
   spacePtr: NodeReference | null
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   updatedByPtr: NodeReference | null
   value: Map<string, Value>;
-  get target(): Action | Script | Service | null {
+  get target(): Action | Script | Service | null | null {
       const nodePtr: NodeReference | null = this.targetPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Action | Script | Service | null;
+          return this._supergraph.get(nodePtr.id) as Action | Script | Service | null | null;
       }
       return null;
   }
@@ -260,10 +250,10 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
   interruptedAt: Temporal.ZonedDateTime | null;
   terminatedAt: Temporal.ZonedDateTime | null;
   error: Error | null;
-  get interruption(): Interruption | null {
+  get interruption(): Interruption | null | null {
       const nodePtr: NodeReference | null = this.interruptionPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Interruption | null;
+          return this._supergraph.get(nodePtr.id) as Interruption | null | null;
       }
       return null;
   }
@@ -324,9 +314,23 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
   }
 
 
-  static create(): Run {
+  static create(options: {
+    value?: Map<string, Value>,
+    target?: Action | Script | Service | NodeReference | null,
+    status: RunStatus,
+    duration?: Temporal.Duration | null,
+    scheduledAt?: Temporal.ZonedDateTime | null,
+    startedAt?: Temporal.ZonedDateTime | null,
+    seenAt?: Temporal.ZonedDateTime | null,
+    interruptedAt?: Temporal.ZonedDateTime | null,
+    terminatedAt?: Temporal.ZonedDateTime | null,
+    error?: Error | null,
+    interruption?: Interruption | NodeReference | null
+  }): Run {
 
-    return new Run();
+    return new Run(
+
+    );
   }
 
   equals(other: any): boolean {

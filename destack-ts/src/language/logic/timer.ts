@@ -1,4 +1,4 @@
-import { Session, Spatial, Entity, Particle, Analytic, User, IsFrozen, NodeReference, BuiltinObject, Agent, MaterializationType, IsTracked, Indexed, Event, Graph, Struct, Supergraph, QueryConnection, NodeType, Schedule, Node, Space } from '@/language';
+import { Graph, MaterializationType, Spatial, StructFrozen, IsFrozen, Analytic, Struct, EnumType, IsTracked, Entity, QueryConnection, NodeReference, Indexed, Node, Particle, NodeType, Session, Agent, Space, User, StructType, Schedule, Event, Supergraph, BuiltinObject } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:3054 ==== */
@@ -19,47 +19,39 @@ export enum TimerType {
 /* ==== DESTACK_GENERATED_START:NODE:3051 ==== */
 export class TimerEvent extends Node implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked {
   readonly id: string;
-  get parent(): Space | null {
+  get parent(): Space | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
-  }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
   }
   ;
   spacePtr: NodeReference | null
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -74,7 +66,7 @@ export class TimerEvent extends Node implements Spatial, Particle, Analytic, Ind
       return null;
   }
 
-  set node(value: Timer | null) {
+  set node(value: Timer) {
       if (value === null) {
           this.nodePtr = null;
       } else {
@@ -112,9 +104,14 @@ export class TimerEvent extends Node implements Spatial, Particle, Analytic, Ind
   }
 
 
-  static create(): TimerEvent {
+  static create(options: {
+    type: TimerEventType,
+    node: Timer | NodeReference
+  }): TimerEvent {
 
-    return new TimerEvent();
+    return new TimerEvent(
+
+    );
   }
 
   equals(other: any): boolean {
@@ -155,48 +152,40 @@ export class TimerEvent extends Node implements Spatial, Particle, Analytic, Ind
 /* ==== DESTACK_GENERATED_START:NODE:3050 ==== */
 export class Timer extends Node implements Spatial, Entity, IsTracked {
   readonly id: string;
-  get parent(): Space | null {
+  get parent(): Space | null | null {
       const nodePtr: NodeReference | null = this.parentPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
   ;
   parentPtr: NodeReference | null
-  get space(): Space | null {
+  get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null;
+          return this._supergraph.get(nodePtr.id) as Space | null | null;
       }
       return null;
   }
-
-  set space(value: Space | null) {
-      if (value === null) {
-          this.spacePtr = null;
-      } else {
-          this.spacePtr = value.toRef();
-      }
-  }
   ;
   spacePtr: NodeReference | null
-  materialization: MaterializationType;
+  readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null {
+  get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
   ;
   createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null {
+  get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
       if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
       }
       return null;
   }
@@ -238,9 +227,15 @@ export class Timer extends Node implements Spatial, Entity, IsTracked {
   }
 
 
-  static create(): Timer {
+  static create(options: {
+    type: TimerType,
+    name: string,
+    schedule?: Schedule | null
+  }): Timer {
 
-    return new Timer();
+    return new Timer(
+
+    );
   }
 
   equals(other: any): boolean {
