@@ -72,3 +72,21 @@ class TypescriptCodeBlock:
     """A block of non-generated code."""
 
     content: str
+
+
+@dataclass(slots=True)
+class TypescriptImportBlock:
+    """A block of import statements."""
+
+    content: str
+    imports: list["TypescriptImport"]
+
+
+@dataclass(slots=True)
+class TypescriptImport:
+    """An import statement."""
+
+    content: str
+    path: str
+    is_type: bool
+    names: list[str]

@@ -1,4 +1,6 @@
-import { BuiltinObject, Struct, Node, NodeReference } from '@/language/core';
+import { BuiltinObject, Session, QueryConnection, Supergraph, Node, Struct, Graph, NodeReference } from '@/language';
+import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:50000 ==== */
 export enum EnumType {

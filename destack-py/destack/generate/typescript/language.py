@@ -10,6 +10,7 @@ from destack.language import (
     BuiltinObjectBase,
     Enum,
     EnumDefinition,
+    IntoType,
     Node,
     NodeBase,
     NodeDefinition,
@@ -43,6 +44,8 @@ from .core import (
     TypescriptDefinition,
     TypescriptDefinitionBlock,
     TypescriptFile,
+    TypescriptImport,
+    TypescriptImportBlock,
 )
 from .map import TYPESCRIPT_TYPE_BY_PRIMITIVE_TYPE
 
@@ -65,6 +68,52 @@ def _is_property_readonly(prop: Property) -> bool:
     return prop.can_write is None or prop.can_write == RoleType.SYSTEM or prop.is_managed
 
 
+def _generate_property_scalar_type(prop: IntoType, as_ptr: bool = True) -> str:
+    """Generate a scalar property Typescript type annotation."""
+    if prop.scalar_type == ScalarType.NODE_REFERENCE:
+        if as_ptr:
+            return "NodeReference"
+        else:
+            node_types = get_node_types(prop.node_types)
+            node_classes = tuple(NODE_CLASS_BY_TYPE[node_type] for node_type in node_types or ())
+            if node_classes and len(node_classes) < len(NODE_TYPES):
+                return " | ".join(node_cls.__name__ for node_cls in node_classes)
+            else:
+                return "Node"
+    elif prop.scalar_type == ScalarType.ENUM:
+        assert prop.enum_type is not None, f"no enum_type for {prop!r}"
+        enum_cls = ENUM_CLASS_BY_TYPE[prop.enum_type]
+        return f"{enum_cls.__name__}"
+    elif prop.scalar_type == ScalarType.PRIMITIVE:
+        assert prop.primitive_type is not None, f"no primitive_type for {prop!r}"
+        return TYPESCRIPT_TYPE_BY_PRIMITIVE_TYPE[prop.primitive_type]
+    elif prop.scalar_type == ScalarType.STRUCT:
+        assert prop.struct_type is not None, f"no struct_type for {prop!r}"
+        struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
+        return f"{struct_cls.__name__}"
+    elif prop.scalar_type == ScalarType.NODE_VALUE:
+        raise ValueError(f"unsupported scalar_type: {prop!r}")
+    else:
+        assert_never(prop.scalar_type)
+
+
+def _generate_property_type(prop: Property, as_ptr: bool = True) -> str:
+    """Generate a property Typescript type annotation."""
+    type_str = _generate_property_scalar_type(prop, as_ptr=as_ptr)
+    if prop.cardinality == TypeCardinality.SCALAR:
+        if prop.is_optional:
+            type_str = f"{type_str} | null"
+    elif prop.cardinality == TypeCardinality.LIST:
+        type_str = f"Array<{type_str}>"
+    elif prop.cardinality == TypeCardinality.MAP:
+        assert prop.key_type is not None, f"no key_type for {prop!r}"
+        key_type_str = _generate_property_scalar_type(prop.key_type)
+        type_str = f"Map<{key_type_str}, {type_str}>"
+    else:
+        assert_never(prop.cardinality)
+    return type_str
+
+
 def _generate_property(
     prop: Property, *, is_readonly: bool, is_node: bool, is_interface: bool
 ) -> str:
@@ -77,29 +126,17 @@ def _generate_property(
         assert prop.cardinality == TypeCardinality.SCALAR, (
             f"node references must be scalar: {prop!r}"
         )
-
-        # ptr property
+        ptr_type_str = _generate_property_type(prop, as_ptr=True)
         ptr_prop_name = f"{ts_name}Ptr"
-        ptr_prop_str = f"{ptr_prop_name}: NodeReference"
-        if prop.is_optional:
-            ptr_prop_str = f"{ptr_prop_str} | null"
-        if is_readonly:
-            ptr_prop_str = f"readonly {ptr_prop_str}"
-
-        # node property
-        node_types = get_node_types(prop.node_types)
-        node_classes = tuple(NODE_CLASS_BY_TYPE[node_type] for node_type in node_types or ())
-        if node_classes and len(node_classes) < len(NODE_TYPES):
-            node_scalar_str = " | ".join(node_cls.__name__ for node_cls in node_classes)
-        else:
-            node_scalar_str = "Node"
+        ptr_prop_str = f"{ptr_prop_name}: {ptr_type_str}"
+        node_type_str = _generate_property_scalar_type(prop, as_ptr=False)
 
         # node getter/setter
         if is_interface:
             # interface declaration
-            node_getter_str = f"get {ts_name}(): {node_scalar_str} | null;"
+            node_getter_str = f"get {ts_name}(): {node_type_str} | null"
             if not is_readonly:
-                node_setter_str = f"set {ts_name}(value: {node_scalar_str} | null): void;"
+                node_setter_str = f"set {ts_name}(value: {node_type_str} | null)"
                 node_prop_str = f"{node_getter_str}\n{node_setter_str}"
             else:
                 node_prop_str = node_getter_str
@@ -107,17 +144,17 @@ def _generate_property(
             # actual getter/setter
             if is_node:
                 node_getter_str = f"""\
-get {ts_name}(): {node_scalar_str} | null {{
+get {ts_name}(): {node_type_str} | null {{
     const nodePtr: NodeReference | null = this.{ptr_prop_name};
     if (nodePtr !== null) {{
-        return this._supergraph.get(nodePtr.id);
+        return this._supergraph.get(nodePtr.id) as {node_type_str} | null;
     }}
     return null;
 }}
 """
                 if not is_readonly:
                     node_setter_str = f"""\
-set {ts_name}(value: {node_scalar_str} | null) {{
+set {ts_name}(value: {node_type_str} | null) {{
     if (value === null) {{
         this.{ptr_prop_name} = null;
     }} else {{
@@ -131,7 +168,7 @@ set {ts_name}(value: {node_scalar_str} | null) {{
 
             else:
                 node_getter_str = f"""\
-get {ts_name}(): {node_scalar_str} | null {{
+get {ts_name}(): {node_type_str} | null {{
     const nodePtr: NodeReference | null = this.{ptr_prop_name};
     if (nodePtr !== null) {{
         if (this._supergraph === null) {{
@@ -144,7 +181,7 @@ get {ts_name}(): {node_scalar_str} | null {{
 """
                 if not is_readonly:
                     node_setter_str = f"""\
-set {ts_name}(value: {node_scalar_str} | null) {{
+set {ts_name}(value: {node_type_str} | null) {{
     if (value == null) {{
         this.{ptr_prop_name} = null;
     }} else {{
@@ -158,48 +195,122 @@ set {ts_name}(value: {node_scalar_str} | null) {{
 
         return f"{node_prop_str};\n{ptr_prop_str}"
 
-    elif prop.scalar_type == ScalarType.ENUM:
-        assert prop.enum_type is not None, f"no enum_type for {prop!r}"
-        enum_cls = ENUM_CLASS_BY_TYPE[prop.enum_type]
-        node_scalar_str = f"{enum_cls.__name__}"
-    elif prop.scalar_type == ScalarType.PRIMITIVE:
-        assert prop.primitive_type is not None, f"no primitive_type for {prop!r}"
-        node_scalar_str = TYPESCRIPT_TYPE_BY_PRIMITIVE_TYPE[prop.primitive_type]
-    elif prop.scalar_type == ScalarType.STRUCT:
-        assert prop.struct_type is not None, f"no struct_type for {prop!r}"
-        struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
-        node_scalar_str = f"{struct_cls.__name__}"
-    elif prop.scalar_type == ScalarType.NODE_VALUE:
-        raise ValueError(f"unsupported scalar_type: {prop!r}")
     else:
-        assert_never(prop.scalar_type)
-
-    node_prop_str = f"{ts_name}: {node_scalar_str}"
-    if prop.is_optional:
-        node_prop_str = f"{node_prop_str} | null"
-    if is_readonly:
-        node_prop_str = f"readonly {node_prop_str}"
-    return f"{node_prop_str};"
+        type_str = _generate_property_type(prop)
+        node_prop_str = f"{ts_name}: {type_str}"
+        if is_readonly:
+            node_prop_str = f"readonly {node_prop_str}"
+        if node_prop_str.count("\n") < 1:
+            node_prop_str = f"{node_prop_str};"
+        return node_prop_str
 
 
 def _generate_init(cls: type[BuiltinObjectBase]) -> str:
-    """Generate a Typescript constructor."""
-    return "// nocheckin: Typescript BuiltinObject.constructor"
+    """
+    Generate a Typescript constructor/create method.
+    Constructor is private with direct assignments, no defaults or anything else.
+    Create is a public factory with convenient conversion, defaults and validation.
+    """
+
+    properties = {p.name: p for p in _get_properties(cls)}
+
+    # constructor
+    constructor_header_parts: list[str] = []
+    constructor_super_parts: list[str] = []
+    constructor_body_parts: list[str] = []
+
+    # constructor main properties
+    for prop in properties.values():
+        if prop.ptr_prop is not None:
+            prop = prop.ptr_prop
+        ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
+        prop_header_str = f"{ts_name}: {_generate_property_type(prop)}"
+        constructor_header_parts.append(prop_header_str)
+        prop_body_str = f"this.{ts_name} = {ts_name};"
+        constructor_body_parts.append(prop_body_str)
+
+    # constructor extra runtime properties
+    if issubclass(cls, Node):
+        runtime_props = [
+            ("_session", "Session"),
+            ("_supergraph", "Supergraph"),
+            ("_graph", "Graph"),
+            ("_connection", "QueryConnection | null"),
+        ]
+        constructor_super_parts.append("id")  # already in regular properties
+    else:
+        runtime_props = [
+            ("_supergraph", "Supergraph"),
+        ]
+    for prop_name, prop_type in runtime_props:
+        constructor_header_parts.append(f"{prop_name}: {prop_type}")
+        constructor_super_parts.append(prop_name)
+
+    # assemble constructor
+    constructor_header_str = ",\n".join(constructor_header_parts)
+    constructor_super_str = ", ".join(constructor_super_parts)
+    constructor_body_str = "\n".join(constructor_body_parts)
+    constructor_str = f"""\
+constructor(
+{textwrap.indent(constructor_header_str, "  ")}
+) {{
+  super({constructor_super_str});
+{textwrap.indent(constructor_body_str, "  ")}
+}}
+"""
+
+    # create
+    create_header_parts: list[str] = []
+    create_body_parts: list[str] = []
+    create_constructor_parts: list[str] = []
+
+    # create main properties
+    ...
+
+    # assemble create
+    create_header_str = "\n".join(create_header_parts)
+    create_body_str = "\n".join(create_body_parts)
+    create_constructor_str = "\n".join(create_constructor_parts)
+    create_str = f"""\
+static create({create_header_str}): {cls.__name__} {{
+{textwrap.indent(create_body_str, "  ")}
+  return new {cls.__name__}({create_constructor_str});
+}}
+"""
+
+    # assemble
+    init_str = "\n\n".join((constructor_str, create_str)).strip()
+    return init_str
 
 
 def _generate_equals(cls: type[BuiltinObjectBase]) -> str:
     """Generate a Typescript equals method."""
-    return "// nocheckin: Typescript BuiltinObject.equals"
+    equals_str = """\
+equals(other: any): boolean {
+  throw new Error("Not implemented");
+}
+"""
+    return equals_str.strip()
 
 
 def _generate_hash(cls: type[BuiltinObjectBase]) -> str:
     """Generate a Typescript hash method."""
-    return "// nocheckin: Typescript BuiltinObject.hash"
+    hash_str = """\
+hash(): number {
+  throw new Error("Not implemented");
+}
+"""
+    return hash_str.strip()
 
 
 def _generate_validate(cls: type[BuiltinObjectBase]) -> str:
     """Generate a Typescript validate method."""
-    return "// nocheckin: Typescript BuiltinObject.validate"
+    validate_str = """\
+validate(): void {
+  throw new Error("Not implemented");
+}
+"""
+    return validate_str.strip()
 
 
 def _generate_to_ref(cls: type["Node"]) -> str:
@@ -209,41 +320,25 @@ def _generate_to_ref(cls: type["Node"]) -> str:
     if node_type == NodeType.SPACE:
         ref_impl = f"""\
 __toRef__(): NodeReference {{
-    return new NodeReference({{
-        nodeType: NodeType.{node_type.name},
-        id: this.id,
-        spaceId: this.id,
-    }});
+  return new NodeReference(NodeType.{node_type.name}, this.id, this.id, null, this._supergraph);
 }}
 """
     elif TraitType.CUSTOM_NODE in cls.__traits__:
         ref_impl = f"""\
 __toRef__(): NodeReference {{
-    return new NodeReference({{
-        nodeType: NodeType.{node_type.name},
-        id: this.id,
-        definitionId: this.definitionId,
-        spaceId: this.spaceId,
-    }});
+  return new NodeReference(NodeType.{node_type.name}, this.id, this.spacePtr?.id ?? null, this.definitionPtr?.id ?? null, this._supergraph);
 }}
 """
     elif TraitType.SPATIAL in cls.__traits__:
         ref_impl = f"""\
 __toRef__(): NodeReference {{
-    return new NodeReference({{
-        nodeType: NodeType.{node_type.name},
-        id: this.id,
-        spaceId: this.spaceId,
-    }});
+  return new NodeReference(NodeType.{node_type.name}, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
 }}
 """
     else:
         ref_impl = f"""\
 __toRef__(): NodeReference {{
-    return new NodeReference({{
-        nodeType: NodeType.{node_type.name},
-        id: this.id,
-    }});
+  return new NodeReference(NodeType.{node_type.name}, this.id, null, null, this._supergraph);
 """
     return ref_impl.strip()
 
@@ -315,6 +410,7 @@ def _generate_struct(definition: StructDefinition) -> str:
     struct_parts: list[str] = []
 
     # properties
+    prop_parts: list[str] = []
     for prop in _get_properties(struct_cls):
         prop_str = _generate_property(
             prop,
@@ -322,7 +418,8 @@ def _generate_struct(definition: StructDefinition) -> str:
             is_node=False,
             is_interface=False,
         )
-        struct_parts.extend(prop_str.splitlines())
+        prop_parts.append(prop_str)
+    struct_parts.append("\n".join(prop_parts))
 
     # body
     init_str = _generate_init(struct_cls)
@@ -336,7 +433,7 @@ def _generate_struct(definition: StructDefinition) -> str:
 
     struct_str = f"""\
 export class {definition.name} extends BuiltinObject {{
-{textwrap.indent("\n".join(struct_parts), "  ")}
+{textwrap.indent("\n\n".join(struct_parts), "  ")}
 }}"""
     return struct_str.strip()
 
@@ -348,14 +445,18 @@ def _generate_trait(definition: TraitDefinition) -> str:
     trait_parts: list[str] = []
 
     # properties
+    prop_parts: list[str] = []
     for prop in _get_properties(trait_cls):
+        if prop.name == "parent":
+            continue  # ignore parent for traits
         prop_str = _generate_property(
             prop,
             is_readonly=_is_property_readonly(prop),
             is_node=False,
             is_interface=True,
         )
-        trait_parts.extend(prop_str.splitlines())
+        prop_parts.append(prop_str)
+    trait_parts.append("\n".join(prop_parts))
 
     # interface
     trait_classes: list[type[NodeBase]] = [
@@ -368,7 +469,7 @@ def _generate_trait(definition: TraitDefinition) -> str:
         else ""
     )
     trait_str = f"""\
-export interface {definition.name}{implements_str} {{
+export interface {definition.alias}{implements_str} {{
 {textwrap.indent("\n".join(trait_parts), "  ")}
 }}"""
     return trait_str.strip()
@@ -381,6 +482,7 @@ def _generate_node(definition: NodeDefinition) -> str:
     node_parts: list[str] = []
 
     # properties
+    prop_parts: list[str] = []
     for prop in _get_properties(node_cls):
         prop_str = _generate_property(
             prop,
@@ -388,7 +490,8 @@ def _generate_node(definition: NodeDefinition) -> str:
             is_node=True,
             is_interface=False,
         )
-        node_parts.extend(prop_str.splitlines())
+        prop_parts.extend(prop_str.splitlines())
+    node_parts.append("\n".join(prop_parts))
 
     # body
     init_str = _generate_init(node_cls)
@@ -416,7 +519,7 @@ def _generate_node(definition: NodeDefinition) -> str:
     )
     node_str = f"""\
 export class {definition.name} extends Node{implements_str} {{
-{textwrap.indent("\n".join(node_parts), "  ")}
+{textwrap.indent("\n\n".join(node_parts), "  ")}
 }}
 """
     return node_str.strip()
@@ -500,25 +603,78 @@ DEFINITION_END_PATTERN = re.compile(r"/\* ==== DESTACK_GENERATED_END:([^:]+):([^
 
 def _generate_file(file: TypescriptFile) -> str:
     """Generate the contents of a managed TypescriptFile, merging with existing contents if present."""
-    existing_content = file.existing_str or ""
 
     # parse existing content into blocks
-    blocks: list[TypescriptDefinitionBlock | TypescriptCodeBlock] = []
-    pos = 0
-    while pos < len(existing_content):
+    existing_content = file.existing_str or ""
+    lines = existing_content.split("\n")
+    blocks: list[TypescriptDefinitionBlock | TypescriptCodeBlock | TypescriptImportBlock] = []
+    char_pos = 0
+
+    # imports
+    existing_import_lines: list[str] = []
+    existing_imports: list[TypescriptImport] = []
+
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if not stripped.startswith("import "):
+            break
+
+        # parse import
+        existing_import_lines.append(line)
+        is_type = "import type " in stripped
+
+        # extract path
+        path_match = re.search(r'from\s+["\']([^"\']+)["\']', stripped)
+        if not path_match:
+            continue
+        path = path_match.group(1)
+
+        # extract names
+        names: list[str] = []
+        if "{" in stripped and "}" in stripped:
+            # named imports
+            names_match = re.search(r"\{\s*([^}]+)\s*\}", stripped)
+            if names_match:
+                names_str = names_match.group(1)
+                names = [name.strip() for name in names_str.split(",") if name.strip()]
+        elif " * as " in stripped:
+            # namespace import
+            namespace_match = re.search(r"\*\s+as\s+(\w+)", stripped)
+            if namespace_match:
+                names = [namespace_match.group(1)]
+        else:
+            # default import
+            default_match = re.search(r"import\s+(?:type\s+)?(\w+)", stripped)
+            if default_match:
+                names = [default_match.group(1)]
+
+        import_ = TypescriptImport(content=line, path=path, is_type=is_type, names=names)
+        existing_imports.append(import_)
+    char_pos = sum(len(line) + 1 for line in existing_import_lines)  # +1 for newline
+
+    # add import block
+    import_block = TypescriptImportBlock(
+        content="\n".join(existing_import_lines), imports=existing_imports
+    )
+    blocks.append(import_block)
+
+    # regular blocks
+    while char_pos < len(existing_content):
         # look for next start marker
-        start_match = DEFINITION_START_PATTERN.search(existing_content, pos)
+        start_match = DEFINITION_START_PATTERN.search(existing_content, char_pos)
         if start_match is None:
             # no more definition blocks, add remaining content as code block
-            if pos < len(existing_content):
-                remaining = existing_content[pos:].strip()
+            if char_pos < len(existing_content):
+                remaining = existing_content[char_pos:].strip()
                 if remaining:
                     blocks.append(TypescriptCodeBlock(content=remaining))
             break
 
         # add any content before the start marker as a code block
-        if start_match.start() > pos:
-            content = existing_content[pos : start_match.start()].strip()
+        if start_match.start() > char_pos:
+            content = existing_content[char_pos : start_match.start()].strip()
             if content:
                 blocks.append(TypescriptCodeBlock(content=content))
 
@@ -545,7 +701,7 @@ def _generate_file(file: TypescriptFile) -> str:
         # add block
         block = TypescriptDefinitionBlock(kind=kind, id=id, custom_content=custom_content)
         blocks.append(block)
-        pos = end_match.end()
+        char_pos = end_match.end()
 
     # build file by updating existing definition blocks and adding new ones
     file_parts: list[str] = []
@@ -569,6 +725,8 @@ def _generate_file(file: TypescriptFile) -> str:
             new_block += f"{MARKER_END.format(kind=definition.kind, id=definition.id)}"
             file_parts.append(new_block)
             seen_definitions.add(key)
+        elif isinstance(block, TypescriptImportBlock):
+            pass  # re-assembled below
         else:
             assert_never(block)
 
@@ -582,14 +740,31 @@ def _generate_file(file: TypescriptFile) -> str:
             file_parts.append(new_block)
 
     # add imports to the top (will be auto-merged by linter)
-    imports = {d.name for d in file.dependencies.values() if d.module != file.module}
-    import_parts: list[str] = []
-    if imports:
-        import_str = f"import type {{ {', '.join(imports)} }} from '@/language';"
-        import_parts.append(import_str)
-    import_parts.append(
-        "import { BuiltinObject, Struct, Node, NodeReference, NodeType, EnumType, StructType, TraitType } from '@/language/core';"
-    )
+    inner_file_content = "\n\n".join(file_parts[1:])
+    imports = {
+        "BuiltinObject",
+        "Struct",
+        "Node",
+        "NodeReference",
+        "NodeType",
+        "Graph",
+        "Supergraph",
+        "Session",
+        "QueryConnection",
+        *(d.name for d in file.dependencies.values() if d.module != file.module),
+    }
+    # remove any imports that are already defined in this file
+    imports.difference_update(definition.name for definition in file.definitions.values())
+    import_parts: list[str] = [f"import {{ {', '.join(imports)} }} from '@/language';"]
+    if "Temporal" in inner_file_content and not any(
+        "Temporal" in import_.content for import_ in import_block.imports
+    ):
+        import_parts.append(
+            "import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively"
+        )
+    for import_ in import_block.imports:
+        if not import_.path.startswith("@/language"):
+            import_parts.append(import_.content)
     file_parts.insert(0, "\n".join(import_parts))
 
     new_str = "\n\n".join(file_parts)

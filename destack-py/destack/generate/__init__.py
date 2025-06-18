@@ -13,9 +13,6 @@ def generate(scopes: Sequence[GenerationScope] = (GenerationScope.PROTO, Generat
     """Generate all the derived things."""
     from .proto import generate_proto
     from .python import (
-        generate_language as generate_python_language,
-    )
-    from .python import (
         generate_proto as generate_python_proto,
     )
     from .typescript import (
@@ -33,5 +30,4 @@ def generate(scopes: Sequence[GenerationScope] = (GenerationScope.PROTO, Generat
 
     # language
     if GenerationScope.LANGUAGE in scopes:
-        generate_python_language()
         generate_typescript_language()

@@ -1,5 +1,5 @@
-import { PropertyDefinition } from "./property";
-import { AnyNodeProto, AnyStructProto } from "@/proto/wire";
+import { PropertyDefinition } from "@/language";
+import { AnyNodeProto, AnyStructProto } from "@/proto";
 import { Supergraph } from "../runtime/graph";
 
 /** The base for all BuiltinObjects like Structs and Nodes and all their derivatives. */
@@ -15,15 +15,39 @@ export abstract class BuiltinObject {
 	static readonly __properties__: Record<string, PropertyDefinition>;
 	static readonly __propertiesById__: Record<number, PropertyDefinition>;
 
+	// supergraph
+	_supergraph: Supergraph | null;
+
+	constructor(
+		supergraph: Supergraph | null,
+	) {
+		this._supergraph = supergraph;
+	}
+
 	// methods
-	abstract equals(other: BuiltinObject): boolean;
-	abstract hash(): number;
-	abstract repr(): string;
-	abstract clone(): BuiltinObject;
 
-	/** The Supergraph this object belongs to. */
-	_supergraph: Supergraph | null = null;
+	/** Check if this object is equal to another object. */
+	equals(other: BuiltinObject): boolean {
+		throw new Error(`equals not implemented for ${this.constructor.name}`);
+	}
+	
+	/** Get a hash of this object. */
+	hash(): number {
+		throw new Error(`hash not implemented for ${this.constructor.name}`);
+	}
 
+	/** Get a string representation of this object. */
+	repr(): string {
+		throw new Error(`repr not implemented for ${this.constructor.name}`);
+	}
+	
+	/** Clone this object. */
+	clone(): BuiltinObject {
+		throw new Error(`clone not implemented for ${this.constructor.name}`);
+	}
+
+	
+	/** Get a property definition by name. */
 	static property(name: string): PropertyDefinition {
 		const prop = this.__properties__[name];
 		if (!prop) {
@@ -45,7 +69,9 @@ export abstract class BuiltinObject {
 	}
 
 	/** Convert an instance of this BuiltinObject to a proto. */
-	abstract toProto(): AnyStructProto | AnyNodeProto;
+	toProto(): AnyStructProto | AnyNodeProto {
+		throw new Error(`toProto not implemented for ${this.constructor.name}`);
+	}
 
 	/** Convert a proto to an instance of this BuiltinObject. */
 	static fromProto(proto: AnyStructProto | AnyNodeProto): BuiltinObject {
@@ -65,7 +91,9 @@ export abstract class BuiltinObject {
 	}
 
 	/** Convert an instance of this BuiltinObject to a value. */
-	abstract toValue(): Record<string, any>;
+	toValue(): Record<string, any> {
+		throw new Error(`toValue not implemented for ${this.constructor.name}`);
+	}
 
 	/** Convert a value to an instance of this BuiltinObject. */
 	static fromValue(value: Record<string, any>): BuiltinObject {
