@@ -1,4 +1,4 @@
-import { PlaneShape, LabelView, Graph, IsDeletable, ThreadView, MaterializationType, Spatial, StructFrozen, CustomViewDefinition, Struct, EnumType, IsExtensible, IsTracked, Entity, QueryConnection, NodeReference, Service, SplitView, Node, Value, Scene, IsRunnable, CustomView, Layer, FrameView, Folder, WizardView, AnnotationShape, IsOrdered, NodeType, Session, NumberInputView, ArrowShape, Agent, CustomEntityDefinition, Space, LineShape, User, TextView, StructType, Canvas, SliderInputView, Supergraph, BuiltinObject } from '@/language';
+import { Folder, NumberInputView, ArrowShape, EnumType, StructType, CustomView, Scene, CustomViewDefinition, Node, Canvas, IsExtensible, QueryConnection, Layer, IsDeletable, User, NodeReference, Graph, Spatial, Value, LabelView, CustomEntityDefinition, SplitView, Agent, IsOrdered, Space, StructFrozen, Service, ThreadView, Struct, LineShape, BuiltinObject, AnnotationShape, SliderInputView, NodeType, TextView, Session, MaterializationType, Entity, FrameView, IsRunnable, PlaneShape, Supergraph, WizardView, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:3000 ==== */
@@ -88,11 +88,22 @@ export class Script extends Node implements Spatial, Entity, IsTracked, IsDeleta
   static create(options: {
     value?: Map<string, Value>,
     name: string,
-    code?: string | null
+    code?: string | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Script {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Script(
-
+      options.value ?? new Map(),
+      options.name,
+      options.code ?? null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

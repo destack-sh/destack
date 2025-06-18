@@ -1,4 +1,4 @@
-import { PlaneShape, LabelView, Graph, IsTaggable, IsDeletable, ThreadView, MaterializationType, Spatial, StructFrozen, CustomViewDefinition, Struct, EnumType, IsTracked, Style, Entity, IsVisual, QueryConnection, NodeReference, SplitView, Node, Scene, Layer, CustomView, FrameView, Theme, WizardView, Gradient, File, AnnotationShape, IsOrdered, NodeType, Session, NumberInputView, ArrowShape, Space, Agent, User, LineShape, TextView, StructType, Canvas, Color, SliderInputView, Supergraph, BuiltinObject } from '@/language';
+import { IsTaggable, NumberInputView, ArrowShape, EnumType, StructType, CustomView, Scene, Theme, CustomViewDefinition, Node, Canvas, QueryConnection, Layer, IsDeletable, Gradient, NodeReference, Graph, Spatial, User, LabelView, SplitView, Agent, IsOrdered, Space, StructFrozen, ThreadView, Struct, LineShape, BuiltinObject, AnnotationShape, IsVisual, SliderInputView, NodeType, File, TextView, Session, Style, Color, MaterializationType, Entity, FrameView, PlaneShape, Supergraph, WizardView, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:12034 ==== */
@@ -89,7 +89,7 @@ export class Fill extends Struct {
     imagePtr: NodeReference | null,
     position: FillPosition | null,
     size: FillSize | null,
-    _supergraph: Supergraph
+    _supergraph: Supergraph | null
   ) {
     super(_supergraph);
     this.type = type;
@@ -109,11 +109,21 @@ export class Fill extends Struct {
     gradient?: Gradient | null,
     image?: File | NodeReference | null,
     position?: FillPosition | null,
-    size?: FillSize | null
+    size?: FillSize | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null
   }): Fill {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Fill(
-
+      options.type,
+      options.style != null ? (options.style.metatype == StructType.NODE_REFERENCE ? options.style : options.style.toRef()) : null,
+      options.color ?? null,
+      options.gradient ?? null,
+      options.image != null ? (options.image.metatype == StructType.NODE_REFERENCE ? options.image : options.image.toRef()) : null,
+      options.position ?? null,
+      options.size ?? null,
+      supergraph
     );
   }
 
@@ -250,11 +260,26 @@ export class FillStyle extends Node implements Spatial, Entity, IsTracked, IsDel
     gradient?: Gradient | null,
     image?: File | NodeReference | null,
     position?: FillPosition | null,
-    size?: FillSize | null
+    size?: FillSize | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): FillStyle {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new FillStyle(
-
+      options.type,
+      options.name,
+      options.color ?? null,
+      options.gradient ?? null,
+      options.image != null ? (options.image.metatype == StructType.NODE_REFERENCE ? options.image : options.image.toRef()) : null,
+      options.position ?? null,
+      options.size ?? null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

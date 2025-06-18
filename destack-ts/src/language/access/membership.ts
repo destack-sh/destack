@@ -1,4 +1,4 @@
-import { LikeMembership, Graph, Team, IsDeletable, MaterializationType, Spatial, StructFrozen, IsFrozen, Analytic, IsOwnable, Struct, EnumType, IsTracked, Role, Entity, QueryConnection, NodeReference, Indexed, Node, RoleType, Folder, Particle, NodeType, Session, Agent, Space, User, Organization, Thread, StructType, Event, Supergraph, Global, BuiltinObject } from '@/language';
+import { Folder, Thread, LikeMembership, IsFrozen, EnumType, StructType, Node, QueryConnection, User, IsDeletable, Analytic, NodeReference, Graph, Spatial, IsOwnable, Role, Particle, Space, Agent, StructFrozen, Team, Struct, BuiltinObject, Organization, NodeType, Session, MaterializationType, Event, Entity, RoleType, Indexed, Supergraph, Global, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:500 ==== */
@@ -167,11 +167,24 @@ export class MembershipEvent extends Node implements Spatial, Particle, Analytic
     joinable: Folder | Thread | Organization | Space | Team | NodeReference,
     member: Agent | User | NodeReference,
     role?: Role | NodeReference | null,
-    roleType: RoleType
+    roleType: RoleType,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): MembershipEvent {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new MembershipEvent(
-
+      options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? options.node : options.node.toRef()) : null,
+      options.joinable != null ? (options.joinable.metatype == StructType.NODE_REFERENCE ? options.joinable : options.joinable.toRef()) : null,
+      options.member != null ? (options.member.metatype == StructType.NODE_REFERENCE ? options.member : options.member.toRef()) : null,
+      options.role != null ? (options.role.metatype == StructType.NODE_REFERENCE ? options.role : options.role.toRef()) : null,
+      options.roleType,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
@@ -346,11 +359,23 @@ export class Membership extends Node implements Global, Spatial, Entity, IsTrack
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     member?: Agent | User | NodeReference | null,
     role?: Role | NodeReference | null,
-    roleType?: RoleType | null
+    roleType?: RoleType | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Membership {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Membership(
-
+      options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? options.ownedBy : options.ownedBy.toRef()) : null,
+      options.member != null ? (options.member.metatype == StructType.NODE_REFERENCE ? options.member : options.member.toRef()) : null,
+      options.role != null ? (options.role.metatype == StructType.NODE_REFERENCE ? options.role : options.role.toRef()) : null,
+      options.roleType ?? null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

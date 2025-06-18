@@ -1,4 +1,4 @@
-import { Graph, MaterializationType, Spatial, StructFrozen, IsFrozen, Analytic, IsOwnable, Struct, EnumType, IsTracked, Entity, QueryConnection, NodeReference, Indexed, Node, LikeInvite, Particle, NodeType, Session, Agent, User, Space, StructType, Event, Supergraph, Global, BuiltinObject } from '@/language';
+import { IsFrozen, EnumType, StructType, Node, QueryConnection, User, Analytic, NodeReference, Graph, Spatial, IsOwnable, Agent, Particle, Space, StructFrozen, Struct, BuiltinObject, LikeInvite, NodeType, Session, MaterializationType, Entity, Event, Indexed, Supergraph, Global, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:31 ==== */
@@ -92,11 +92,21 @@ export class Friendship extends Node implements Global, Entity, IsTracked {
 
   static create(options: {
     userA: User | NodeReference,
-    userB: User | NodeReference
+    userB: User | NodeReference,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Friendship {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Friendship(
-
+      options.userA != null ? (options.userA.metatype == StructType.NODE_REFERENCE ? options.userA : options.userA.toRef()) : null,
+      options.userB != null ? (options.userB.metatype == StructType.NODE_REFERENCE ? options.userB : options.userB.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
@@ -215,11 +225,21 @@ export class FriendshipInviteEvent extends Node implements Spatial, Particle, An
 
   static create(options: {
     type: FriendshipInviteEventType,
-    node: FriendshipInvite | NodeReference
+    node: FriendshipInvite | NodeReference,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): FriendshipInviteEvent {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new FriendshipInviteEvent(
-
+      options.type,
+      options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? options.node : options.node.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
@@ -356,11 +376,21 @@ export class FriendshipInvite extends Node implements Global, Entity, IsTracked,
 
   static create(options: {
     ownedBy: Agent | User | NodeReference,
-    member: Agent | User | NodeReference
+    member: Agent | User | NodeReference,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): FriendshipInvite {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new FriendshipInvite(
-
+      options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? options.ownedBy : options.ownedBy.toRef()) : null,
+      options.member != null ? (options.member.metatype == StructType.NODE_REFERENCE ? options.member : options.member.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

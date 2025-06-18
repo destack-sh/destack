@@ -1,4 +1,4 @@
-import { PlaneShape, GaugeMetric, EffectStyle, FontStyle, Machine, Interruption, HistogramMetric, Log, Tag, Database, FriendshipInvite, NodeReference, Entitlement, Layer, Branch, BorderStyle, CounterMetric, Action, EditEvent, AnnotationShape, Session, FriendshipInviteEvent, NumberInputView, CustomEvent, Trigger, ShadowStyle, Tagging, User, CustomEntityDefinition, SliderInputView, Snapshot, TransitionStyle, CustomViewDefinition, Struct, Handle, Friendship, ThreadCursor, Invite, ColorStyle, Role, Message, QueryConnection, ScreenCursor, Link, CustomView, Span, WizardView, NodeType, TriggerEvent, CustomStructDefinition, TimerEvent, CustomEntity, Organization, SanctionEvent, Thread, LineShape, GaugeMeasurement, Palette, RunEvent, BuiltinObject, InviteEvent, Team, Membership, Permission, Option, EnumType, Timer, Field, HistogramMeasurement, CustomEnumDefinition, Service, Node, Scene, CustomEventDefinition, Notification, SceneEvent, Folder, MembershipEvent, GradientStyle, Run, Window, Canvas, Variant, LabelView, Graph, ThreadView, StructFrozen, CounterMeasurement, Sanction, Script, Environment, Star, Reaction, SplitView, RoleEvent, FrameView, Theme, EntitlementEvent, NotificationEvent, Follow, File, Client, Agent, Space, ArrowShape, TextView, StructType, Route, Supergraph, EventCursor, FillStyle } from '@/language';
+import { CustomView, Node, Canvas, TimerEvent, QueryConnection, EffectStyle, Layer, NodeReference, HistogramMeasurement, EditEvent, Role, CustomEnumDefinition, CustomStructDefinition, Machine, Action, BuiltinObject, Variant, CounterMeasurement, File, TextView, ColorStyle, Link, GaugeMetric, Supergraph, Tag, Star, Snapshot, Field, Palette, NumberInputView, ArrowShape, EnumType, StructType, Environment, Scene, HistogramMetric, Theme, Notification, User, CustomEvent, EntitlementEvent, Service, Follow, EventCursor, Database, Invite, GaugeMeasurement, Branch, RoleEvent, NodeType, Window, Session, Friendship, Permission, FrameView, FontStyle, Option, FriendshipInvite, Trigger, Folder, Thread, Script, BorderStyle, CustomEventDefinition, Interruption, Client, LabelView, CustomEntityDefinition, Agent, StructFrozen, Struct, NotificationEvent, Message, AnnotationShape, Entitlement, InviteEvent, Organization, Run, ScreenCursor, MembershipEvent, Membership, Timer, TriggerEvent, Log, FillStyle, FriendshipInviteEvent, Handle, Reaction, ThreadCursor, CustomViewDefinition, RunEvent, Graph, Span, SanctionEvent, TransitionStyle, SplitView, Space, Team, ThreadView, LineShape, SceneEvent, SliderInputView, Tagging, CounterMetric, Route, GradientStyle, CustomEntity, PlaneShape, ShadowStyle, Sanction, WizardView } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:2521 ==== */
@@ -45,7 +45,7 @@ export class TextSpan extends StructFrozen {
     isStrikethrough: boolean | null,
     isUnderline: boolean | null,
     isCode: boolean | null,
-    _supergraph: Supergraph
+    _supergraph: Supergraph | null
   ) {
     super(_supergraph);
     this.type = type;
@@ -69,11 +69,23 @@ export class TextSpan extends StructFrozen {
     isItalic?: boolean | null,
     isStrikethrough?: boolean | null,
     isUnderline?: boolean | null,
-    isCode?: boolean | null
+    isCode?: boolean | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null
   }): TextSpan {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new TextSpan(
-
+      options.type ?? TextSpanType.TEXT,
+      options.content ?? null,
+      options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? options.node : options.node.toRef()) : null,
+      options.url ?? null,
+      options.isBold ?? null,
+      options.isItalic ?? null,
+      options.isStrikethrough ?? null,
+      options.isUnderline ?? null,
+      options.isCode ?? null,
+      supergraph
     );
   }
 
@@ -107,7 +119,7 @@ export class Text extends StructFrozen {
     isStrikethrough: boolean | null,
     isUnderline: boolean | null,
     isCode: boolean | null,
-    _supergraph: Supergraph
+    _supergraph: Supergraph | null
   ) {
     super(_supergraph);
     this.spans = spans;
@@ -125,11 +137,20 @@ export class Text extends StructFrozen {
     isItalic?: boolean | null,
     isStrikethrough?: boolean | null,
     isUnderline?: boolean | null,
-    isCode?: boolean | null
+    isCode?: boolean | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null
   }): Text {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Text(
-
+      options.spans ?? [],
+      options.isBold ?? null,
+      options.isItalic ?? null,
+      options.isStrikethrough ?? null,
+      options.isUnderline ?? null,
+      options.isCode ?? null,
+      supergraph
     );
   }
 

@@ -1,4 +1,4 @@
-import { Graph, IsDeletable, MaterializationType, Spatial, StructFrozen, IsOwnable, Struct, EnumType, IsTracked, Entity, Message, IsReactable, QueryConnection, NodeReference, Node, NodeType, Session, Agent, Space, User, StructType, Supergraph, Global, BuiltinObject } from '@/language';
+import { EnumType, StructType, Node, QueryConnection, User, IsDeletable, NodeReference, Graph, Spatial, IsOwnable, Agent, Space, StructFrozen, Struct, IsReactable, BuiltinObject, Message, NodeType, Session, MaterializationType, Entity, Supergraph, Global, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:5520 ==== */
@@ -97,11 +97,21 @@ export class Reaction extends Node implements Global, Spatial, Entity, IsTracked
 
   static create(options: {
     ownedBy: Agent | User | NodeReference,
-    content: string
+    content: string,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Reaction {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Reaction(
-
+      options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? options.ownedBy : options.ownedBy.toRef()) : null,
+      options.content,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

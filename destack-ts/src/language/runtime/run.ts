@@ -1,4 +1,4 @@
-import { Graph, Spatial, StructFrozen, IsFrozen, Interruption, Analytic, Error, Struct, EnumType, IsExtensible, Script, IsTracked, QueryConnection, NodeReference, Indexed, Service, Node, Value, Action, Particle, NodeType, Session, Agent, Space, User, StructType, Event, Supergraph, BuiltinObject } from '@/language';
+import { IsFrozen, EnumType, StructType, Script, Node, IsExtensible, QueryConnection, User, Value, Analytic, NodeReference, Graph, Spatial, Interruption, Particle, Space, Agent, StructFrozen, Service, Struct, Action, BuiltinObject, NodeType, Session, Event, Error, Indexed, Supergraph, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:4000 ==== */
@@ -140,11 +140,22 @@ export class RunEvent extends Node implements Spatial, Particle, Analytic, Index
   static create(options: {
     type: RunEventType,
     node: Run | NodeReference,
-    target?: Action | Script | Service | NodeReference | null
+    target?: Action | Script | Service | NodeReference | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): RunEvent {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new RunEvent(
-
+      options.type,
+      options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? options.node : options.node.toRef()) : null,
+      options.target != null ? (options.target.metatype == StructType.NODE_REFERENCE ? options.target : options.target.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
@@ -325,11 +336,30 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
     interruptedAt?: Temporal.ZonedDateTime | null,
     terminatedAt?: Temporal.ZonedDateTime | null,
     error?: Error | null,
-    interruption?: Interruption | NodeReference | null
+    interruption?: Interruption | NodeReference | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Run {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Run(
-
+      options.value ?? new Map(),
+      options.target != null ? (options.target.metatype == StructType.NODE_REFERENCE ? options.target : options.target.toRef()) : null,
+      options.status,
+      options.duration ?? null,
+      options.scheduledAt ?? null,
+      options.startedAt ?? null,
+      options.seenAt ?? null,
+      options.interruptedAt ?? null,
+      options.terminatedAt ?? null,
+      options.error ?? null,
+      options.interruption != null ? (options.interruption.metatype == StructType.NODE_REFERENCE ? options.interruption : options.interruption.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

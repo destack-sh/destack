@@ -1,4 +1,4 @@
-import { PlaneShape, LabelView, Graph, IsTaggable, IsShape, IsDeletable, Position, MaterializationType, Spatial, StructFrozen, CustomViewDefinition, IsScriptable, Struct, EnumType, Script, IsTracked, Entity, IsVisual, Vector2, QueryConnection, NodeReference, SplitView, Node, Scene, Layer, CustomView, Align, FrameView, Dimension, AnnotationShape, IsOrdered, NodeType, Session, View, ContentView, Agent, Space, User, Window, StructType, Canvas, Color, Supergraph, BuiltinObject } from '@/language';
+import { IsScriptable, IsTaggable, Align, EnumType, StructType, CustomView, Scene, Script, ContentView, CustomViewDefinition, Node, Canvas, QueryConnection, Layer, IsDeletable, User, NodeReference, Graph, Spatial, View, LabelView, SplitView, Agent, IsOrdered, Space, StructFrozen, Position, Struct, Dimension, BuiltinObject, AnnotationShape, IsVisual, NodeType, Window, Session, Color, MaterializationType, Entity, Vector2, FrameView, PlaneShape, IsShape, Supergraph, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:11010 ==== */
@@ -160,11 +160,34 @@ export class LineShape extends Node implements Spatial, Entity, IsTracked, IsDel
     opacity?: number | null,
     points?: Array<Vector2>,
     color?: Color | null,
-    script?: Script | NodeReference | null
+    script?: Script | NodeReference | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): LineShape {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new LineShape(
-
+      options.type,
+      options.name,
+      options.position ?? null,
+      options.width ?? null,
+      options.height ?? null,
+      options.minWidth ?? null,
+      options.minHeight ?? null,
+      options.maxWidth ?? null,
+      options.maxHeight ?? null,
+      options.align ?? null,
+      options.isVisible ?? null,
+      options.opacity ?? null,
+      options.points ?? [],
+      options.color ?? null,
+      options.script != null ? (options.script.metatype == StructType.NODE_REFERENCE ? options.script : options.script.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

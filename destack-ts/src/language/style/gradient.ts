@@ -1,4 +1,4 @@
-import { PlaneShape, LabelView, Graph, IsTaggable, IsDeletable, ThreadView, MaterializationType, Spatial, StructFrozen, CustomViewDefinition, Struct, EnumType, IsTracked, Style, Entity, IsVisual, QueryConnection, NodeReference, Axis2, SplitView, Node, Scene, Layer, CustomView, FrameView, Theme, WizardView, AnnotationShape, IsOrdered, NodeType, Session, NumberInputView, ArrowShape, Space, Agent, User, LineShape, TextView, StructType, Canvas, Color, SliderInputView, Supergraph, BuiltinObject } from '@/language';
+import { IsTaggable, NumberInputView, ArrowShape, EnumType, StructType, CustomView, Scene, Theme, CustomViewDefinition, Node, Canvas, QueryConnection, Layer, IsDeletable, User, NodeReference, Graph, Spatial, LabelView, SplitView, Agent, IsOrdered, Space, StructFrozen, Axis2, ThreadView, Struct, LineShape, BuiltinObject, AnnotationShape, IsVisual, SliderInputView, NodeType, TextView, Session, Style, Color, MaterializationType, Entity, FrameView, PlaneShape, Supergraph, WizardView, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:12033 ==== */
@@ -18,7 +18,7 @@ export class GradientStop extends StructFrozen {
   constructor(
     color: Color | null,
     position: number,
-    _supergraph: Supergraph
+    _supergraph: Supergraph | null
   ) {
     super(_supergraph);
     this.color = color;
@@ -28,11 +28,16 @@ export class GradientStop extends StructFrozen {
 
   static create(options: {
     color?: Color | null,
-    position: number
+    position: number,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null
   }): GradientStop {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new GradientStop(
-
+      options.color ?? null,
+      options.position,
+      supergraph
     );
   }
 
@@ -83,7 +88,7 @@ export class Gradient extends Struct {
     angle: number | null,
     stops: Array<GradientStop>,
     centerAnchor: Axis2 | null,
-    _supergraph: Supergraph
+    _supergraph: Supergraph | null
   ) {
     super(_supergraph);
     this.type = type;
@@ -99,11 +104,19 @@ export class Gradient extends Struct {
     style?: GradientStyle | NodeReference | null,
     angle?: number | null,
     stops?: Array<GradientStop>,
-    centerAnchor?: Axis2 | null
+    centerAnchor?: Axis2 | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null
   }): Gradient {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Gradient(
-
+      options.type ?? GradientType.LINEAR,
+      options.style != null ? (options.style.metatype == StructType.NODE_REFERENCE ? options.style : options.style.toRef()) : null,
+      options.angle ?? null,
+      options.stops ?? [],
+      options.centerAnchor ?? null,
+      supergraph
     );
   }
 
@@ -220,11 +233,25 @@ export class GradientStyle extends Node implements Spatial, Entity, IsTracked, I
     angle?: number | null,
     stops?: Array<GradientStop>,
     centerAnchor?: Axis2 | null,
-    dark?: Gradient | null
+    dark?: Gradient | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): GradientStyle {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new GradientStyle(
-
+      options.type ?? GradientType.LINEAR,
+      options.name,
+      options.angle ?? null,
+      options.stops ?? [],
+      options.centerAnchor ?? null,
+      options.dark ?? null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

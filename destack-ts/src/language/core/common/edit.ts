@@ -1,4 +1,4 @@
-import { PlaneShape, GaugeMetric, EffectStyle, FontStyle, Machine, Interruption, HistogramMetric, Log, Tag, Database, FriendshipInvite, NodeReference, Entitlement, Layer, Branch, BorderStyle, CounterMetric, Action, EditEvent, AnnotationShape, Session, FriendshipInviteEvent, NumberInputView, CustomEvent, Trigger, ShadowStyle, Tagging, User, CustomEntityDefinition, SliderInputView, Snapshot, TransitionStyle, CustomViewDefinition, Origin, Struct, Handle, Friendship, ThreadCursor, Invite, ColorStyle, Role, Message, QueryConnection, ScreenCursor, Link, Value, CustomView, Span, WizardView, NodeType, TriggerEvent, CustomStructDefinition, TimerEvent, CustomEntity, Organization, SanctionEvent, Thread, LineShape, GaugeMeasurement, Palette, RunEvent, BuiltinObject, InviteEvent, Team, Membership, Permission, Option, EnumType, Timer, Field, HistogramMeasurement, CustomEnumDefinition, Service, Node, Scene, CustomEventDefinition, Notification, SceneEvent, Folder, MembershipEvent, GradientStyle, Run, Window, Canvas, Variant, LabelView, Graph, ThreadView, StructFrozen, CounterMeasurement, Sanction, Script, Environment, PropertyReference, Star, Reaction, SplitView, RoleEvent, FrameView, Theme, EntitlementEvent, NotificationEvent, Follow, File, Client, Agent, Space, ArrowShape, TextView, StructType, Route, Supergraph, EventCursor, FillStyle } from '@/language';
+import { CustomView, Node, Canvas, TimerEvent, QueryConnection, EffectStyle, Layer, NodeReference, HistogramMeasurement, EditEvent, Role, CustomEnumDefinition, CustomStructDefinition, Machine, Action, BuiltinObject, Variant, CounterMeasurement, File, TextView, ColorStyle, Link, GaugeMetric, Supergraph, Tag, Star, Snapshot, Field, Palette, NumberInputView, ArrowShape, EnumType, StructType, Environment, Scene, HistogramMetric, Theme, Notification, User, CustomEvent, EntitlementEvent, Service, Follow, EventCursor, Database, Invite, GaugeMeasurement, Branch, RoleEvent, NodeType, Window, Session, Friendship, Permission, FrameView, FontStyle, Option, FriendshipInvite, Trigger, Folder, Thread, Script, BorderStyle, CustomEventDefinition, Interruption, Value, Client, LabelView, CustomEntityDefinition, Agent, StructFrozen, Struct, NotificationEvent, Message, AnnotationShape, Entitlement, InviteEvent, Organization, Run, Origin, ScreenCursor, MembershipEvent, Membership, Timer, TriggerEvent, Log, FillStyle, FriendshipInviteEvent, Handle, Reaction, ThreadCursor, CustomViewDefinition, RunEvent, Graph, Span, SanctionEvent, TransitionStyle, SplitView, Space, Team, ThreadView, LineShape, PropertyReference, SceneEvent, SliderInputView, Tagging, CounterMetric, Route, GradientStyle, CustomEntity, PlaneShape, ShadowStyle, Sanction, WizardView } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:50050 ==== */
@@ -80,7 +80,7 @@ export class Edit extends StructFrozen {
     key: Value | null,
     value: Value | null,
     undo: Edit | null,
-    _supergraph: Supergraph
+    _supergraph: Supergraph | null
   ) {
     super(_supergraph);
     this.id = id;
@@ -103,11 +103,22 @@ export class Edit extends StructFrozen {
     field?: Field | NodeReference | null,
     key?: Value | null,
     value?: Value | null,
-    undo?: Edit | null
+    undo?: Edit | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null
   }): Edit {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Edit(
-
+      options.type,
+      options.operation ?? null,
+      options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? options.node : options.node.toRef()) : null,
+      options.propPtr ?? null,
+      options.field != null ? (options.field.metatype == StructType.NODE_REFERENCE ? options.field : options.field.toRef()) : null,
+      options.key ?? null,
+      options.value ?? null,
+      options.undo ?? null,
+      supergraph
     );
   }
 
@@ -154,7 +165,7 @@ export class Change extends StructFrozen {
     origin: Origin | null,
     debounce: ChangeDebounce | null,
     edits: Array<Edit>,
-    _supergraph: Supergraph
+    _supergraph: Supergraph | null
   ) {
     super(_supergraph);
     this.id = id;
@@ -169,11 +180,16 @@ export class Change extends StructFrozen {
 
   static create(options: {
     name?: string | null,
-    edits?: Array<Edit>
+    edits?: Array<Edit>,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null
   }): Change {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Change(
-
+      options.name ?? null,
+      options.edits ?? [],
+      supergraph
     );
   }
 
@@ -207,7 +223,7 @@ export class ChangeResult extends StructFrozen {
     status: ChangeStatus,
     edits: Array<Edit>,
     cascadedEdits: Array<Edit>,
-    _supergraph: Supergraph
+    _supergraph: Supergraph | null
   ) {
     super(_supergraph);
     this.id = id;
@@ -222,11 +238,17 @@ export class ChangeResult extends StructFrozen {
   static create(options: {
     status: ChangeStatus,
     edits?: Array<Edit>,
-    cascadedEdits?: Array<Edit>
+    cascadedEdits?: Array<Edit>,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null
   }): ChangeResult {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new ChangeResult(
-
+      options.status,
+      options.edits ?? [],
+      options.cascadedEdits ?? [],
+      supergraph
     );
   }
 

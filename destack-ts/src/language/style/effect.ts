@@ -1,4 +1,4 @@
-import { PlaneShape, LabelView, Graph, IsTaggable, IsDeletable, ThreadView, MaterializationType, Spatial, StructFrozen, CustomViewDefinition, Struct, EnumType, IsTracked, Style, Vector2, IsVisual, Entity, QueryConnection, NodeReference, Transition, SplitView, Node, Scene, Layer, CustomView, FrameView, Axis3, Theme, WizardView, AnnotationShape, IsOrdered, NodeType, Session, NumberInputView, ArrowShape, Space, Agent, User, LineShape, TextView, StructType, Canvas, SliderInputView, Supergraph, BuiltinObject } from '@/language';
+import { IsTaggable, NumberInputView, ArrowShape, EnumType, StructType, CustomView, Scene, Theme, CustomViewDefinition, Node, Canvas, QueryConnection, Layer, IsDeletable, User, NodeReference, Graph, Spatial, LabelView, SplitView, Agent, IsOrdered, Space, StructFrozen, ThreadView, Struct, LineShape, BuiltinObject, AnnotationShape, IsVisual, SliderInputView, NodeType, TextView, Axis3, Session, Style, MaterializationType, Vector2, Entity, Transition, FrameView, PlaneShape, Supergraph, WizardView, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:12046 ==== */
@@ -93,7 +93,7 @@ export class Effect extends Struct {
     split: TextSplitType | null,
     offscreen: OffscreenBehavior | null,
     transition: Transition | null,
-    _supergraph: Supergraph
+    _supergraph: Supergraph | null
   ) {
     super(_supergraph);
     this.type = type;
@@ -131,11 +131,30 @@ export class Effect extends Struct {
     repeat?: RepeatType | null,
     split?: TextSplitType | null,
     offscreen?: OffscreenBehavior | null,
-    transition?: Transition | null
+    transition?: Transition | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null
   }): Effect {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Effect(
-
+      options.type,
+      options.style != null ? (options.style.metatype == StructType.NODE_REFERENCE ? options.style : options.style.toRef()) : null,
+      options.opacity ?? null,
+      options.offset ?? null,
+      options.scale ?? null,
+      options.rotate ?? null,
+      options.skew ?? null,
+      options.perspective ?? null,
+      options.delay ?? null,
+      options.duration ?? null,
+      options.threshold ?? null,
+      options.once ?? null,
+      options.repeat ?? null,
+      options.split ?? null,
+      options.offscreen ?? null,
+      options.transition ?? null,
+      supergraph
     );
   }
 
@@ -292,11 +311,35 @@ export class EffectStyle extends Node implements Spatial, Entity, IsTracked, IsD
     repeat?: RepeatType | null,
     split?: TextSplitType | null,
     offscreen?: OffscreenBehavior | null,
-    transition?: Transition | null
+    transition?: Transition | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): EffectStyle {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new EffectStyle(
-
+      options.type,
+      options.name,
+      options.opacity ?? null,
+      options.offset ?? null,
+      options.scale ?? null,
+      options.rotate ?? null,
+      options.skew ?? null,
+      options.perspective ?? null,
+      options.delay ?? null,
+      options.duration ?? null,
+      options.threshold ?? null,
+      options.once ?? null,
+      options.repeat ?? null,
+      options.split ?? null,
+      options.offscreen ?? null,
+      options.transition ?? null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

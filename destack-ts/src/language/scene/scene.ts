@@ -1,4 +1,4 @@
-import { PlaneShape, LabelView, Graph, IsTaggable, Team, IsDeletable, Position, Grid, MaterializationType, Spatial, StructFrozen, IsFrozen, CustomViewDefinition, Analytic, IsOwnable, IsScriptable, Struct, GridSpan, EnumType, IsExtensible, Script, IsTracked, Role, Entity, IsVisual, Vector2, Shadow, QueryConnection, NodeReference, Indexed, Axis2, SplitView, Node, Value, Layer, Align, CustomView, Fill, FrameView, Folder, Dimension, Distribute, Axis3, Particle, Border, Layout, Direction, Corners, Insets, AnnotationShape, IsOrdered, NodeType, Session, View, ContainerView, Agent, Space, User, Organization, Window, StructType, Canvas, Event, Icon, Supergraph, BuiltinObject } from '@/language';
+import { Insets, Folder, IsScriptable, IsTaggable, Align, GridSpan, IsFrozen, Distribute, Layer, EnumType, StructType, CustomView, Script, CustomViewDefinition, Node, Direction, IsExtensible, QueryConnection, Canvas, User, IsDeletable, Analytic, NodeReference, Graph, Spatial, View, IsOwnable, Value, Grid, Fill, LabelView, Role, Shadow, SplitView, Particle, Space, Agent, StructFrozen, IsOrdered, Team, Position, Struct, Dimension, Axis2, BuiltinObject, Corners, AnnotationShape, IsVisual, Icon, Organization, NodeType, Window, Session, Axis3, MaterializationType, Event, Entity, Vector2, Layout, FrameView, ContainerView, PlaneShape, Indexed, Supergraph, IsTracked, Border } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:9011 ==== */
@@ -98,11 +98,21 @@ export class SceneEvent extends Node implements Spatial, Particle, Analytic, Ind
 
   static create(options: {
     type: SceneEventType,
-    node: Scene | NodeReference
+    node: Scene | NodeReference,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): SceneEvent {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new SceneEvent(
-
+      options.type,
+      options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? options.node : options.node.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
@@ -392,11 +402,51 @@ export class Scene extends Node implements Spatial, Entity, IsTracked, IsDeletab
     border?: Border | null,
     radius?: Corners | null,
     rootView?: CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | AnnotationShape | Canvas | PlaneShape | Layer | Scene | NodeReference | null,
-    script?: Script | NodeReference | null
+    script?: Script | NodeReference | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Scene {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Scene(
-
+      options.value ?? new Map(),
+      options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? options.ownedBy : options.ownedBy.toRef()) : null,
+      options.name,
+      options.icon ?? null,
+      options.position ?? null,
+      options.width ?? null,
+      options.height ?? null,
+      options.minWidth ?? null,
+      options.minHeight ?? null,
+      options.maxWidth ?? null,
+      options.maxHeight ?? null,
+      options.layout ?? null,
+      options.direction ?? null,
+      options.distribute ?? null,
+      options.align ?? null,
+      options.gap ?? null,
+      options.padding ?? null,
+      options.grid ?? null,
+      options.gridSpan ?? null,
+      options.aspectRatio ?? null,
+      options.isWrap ?? null,
+      options.isVisible ?? null,
+      options.opacity ?? null,
+      options.fill ?? null,
+      options.rotation ?? null,
+      options.skew ?? null,
+      options.scale ?? null,
+      options.shadow ?? null,
+      options.border ?? null,
+      options.radius ?? null,
+      options.rootView != null ? (options.rootView.metatype == StructType.NODE_REFERENCE ? options.rootView : options.rootView.toRef()) : null,
+      options.script != null ? (options.script.metatype == StructType.NODE_REFERENCE ? options.script : options.script.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

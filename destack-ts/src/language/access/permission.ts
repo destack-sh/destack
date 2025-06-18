@@ -1,4 +1,4 @@
-import { Graph, Team, IsDeletable, MaterializationType, Spatial, StructFrozen, Struct, EnumType, IsTracked, Entity, QueryConnection, NodeReference, Node, Folder, NodeType, Session, Agent, Organization, Space, User, Thread, StructType, Icon, Supergraph, BuiltinObject } from '@/language';
+import { Folder, Thread, EnumType, StructType, Node, QueryConnection, User, IsDeletable, NodeReference, Graph, Spatial, Agent, Space, Team, StructFrozen, Struct, BuiltinObject, Icon, Organization, NodeType, Session, MaterializationType, Entity, Supergraph, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:530 ==== */
@@ -95,11 +95,23 @@ export class Permission extends Node implements Spatial, Entity, IsTracked, IsDe
     type: PermissionType,
     name: string,
     slug?: string | null,
-    icon?: Icon | null
+    icon?: Icon | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Permission {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Permission(
-
+      options.type,
+      options.name,
+      options.slug ?? null,
+      options.icon ?? null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
@@ -120,7 +132,7 @@ export class Permission extends Node implements Spatial, Entity, IsTracked, IsDe
   }
 
   get _pathKey(): string {
-      return this.slug or this.name;
+      return this.slug ?? this.name;
   }
 
   get path(): string {

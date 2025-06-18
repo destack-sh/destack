@@ -26,7 +26,6 @@
   },
   "devDependencies": {
     "@protobuf-ts/plugin": "^2.11.0",
-    "@preact/signals-react-transform": "^0.5.2",
     "@types/uuid": "^10.0.0",
     "eslint": "^9.29.0",
     "prettier": "^3.5.3",

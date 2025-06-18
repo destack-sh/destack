@@ -1,4 +1,4 @@
-import { PlaneShape, LabelView, Graph, IsTaggable, IsDeletable, Position, MaterializationType, Spatial, StructFrozen, CustomViewDefinition, IsScriptable, Struct, EnumType, Script, IsTracked, Entity, IsVisual, QueryConnection, NodeReference, SplitView, Node, InputView, Scene, Layer, CustomView, FrameView, Dimension, AnnotationShape, IsOrdered, NodeType, Session, View, Agent, Space, User, Window, StructType, Canvas, Supergraph, BuiltinObject } from '@/language';
+import { IsScriptable, IsTaggable, EnumType, StructType, CustomView, Scene, Script, CustomViewDefinition, Node, Canvas, QueryConnection, Layer, InputView, IsDeletable, NodeReference, Graph, Spatial, View, User, LabelView, SplitView, Agent, IsOrdered, Space, StructFrozen, Position, Struct, Dimension, BuiltinObject, AnnotationShape, IsVisual, NodeType, Window, Session, MaterializationType, Entity, FrameView, PlaneShape, Supergraph, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:10400 ==== */
@@ -144,11 +144,32 @@ export class NumberInputView extends Node implements Spatial, Entity, IsTracked,
     opacity?: number | null,
     value?: string | null,
     placeholder?: string | null,
-    script?: Script | NodeReference | null
+    script?: Script | NodeReference | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): NumberInputView {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new NumberInputView(
-
+      options.name,
+      options.position ?? null,
+      options.width ?? null,
+      options.height ?? null,
+      options.minWidth ?? null,
+      options.minHeight ?? null,
+      options.maxWidth ?? null,
+      options.maxHeight ?? null,
+      options.isVisible ?? null,
+      options.opacity ?? null,
+      options.value ?? null,
+      options.placeholder ?? null,
+      options.script != null ? (options.script.metatype == StructType.NODE_REFERENCE ? options.script : options.script.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

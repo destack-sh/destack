@@ -1,4 +1,4 @@
-import { Graph, IsTaggable, IsStarable, IsDeletable, IsFollowable, Team, MaterializationType, Spatial, StructFrozen, IsOwnable, Struct, EnumType, IsTracked, Role, Entity, QueryConnection, NodeReference, IsJoinable, Node, Scene, IsOrdered, NodeType, Session, Agent, Space, User, Organization, StructType, Icon, Supergraph, BuiltinObject } from '@/language';
+import { IsTaggable, EnumType, StructType, IsStarable, Scene, Node, IsFollowable, QueryConnection, User, IsDeletable, NodeReference, Graph, Spatial, IsOwnable, IsJoinable, Role, Agent, IsOrdered, Space, StructFrozen, Team, Struct, BuiltinObject, Icon, Organization, NodeType, Session, MaterializationType, Entity, Supergraph, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:1000 ==== */
@@ -142,11 +142,25 @@ export class Folder extends Node implements Spatial, Entity, IsTracked, IsDeleta
     name: string,
     slug?: string | null,
     icon?: Icon | null,
-    mainScene?: Scene | NodeReference | null
+    mainScene?: Scene | NodeReference | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Folder {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Folder(
-
+      options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? options.ownedBy : options.ownedBy.toRef()) : null,
+      options.type ?? FolderType.GENERAL,
+      options.name,
+      options.slug ?? null,
+      options.icon ?? null,
+      options.mainScene != null ? (options.mainScene.metatype == StructType.NODE_REFERENCE ? options.mainScene : options.mainScene.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
@@ -167,7 +181,7 @@ export class Folder extends Node implements Spatial, Entity, IsTracked, IsDeleta
   }
 
   get _pathKey(): string {
-      return this.slug or this.name;
+      return this.slug ?? this.name;
   }
 
   get path(): string {

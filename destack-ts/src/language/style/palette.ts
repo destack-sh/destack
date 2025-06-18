@@ -1,4 +1,4 @@
-import { Graph, IsTaggable, IsDeletable, MaterializationType, Spatial, StructFrozen, Struct, EnumType, IsTracked, Entity, IsVisual, QueryConnection, NodeReference, Node, Scene, Theme, IsOrdered, NodeType, Session, Agent, Space, User, StructType, Canvas, Icon, Supergraph, BuiltinObject } from '@/language';
+import { IsTaggable, EnumType, StructType, Scene, Theme, Node, Canvas, QueryConnection, User, IsDeletable, NodeReference, Graph, Spatial, Agent, IsOrdered, Space, StructFrozen, Struct, BuiltinObject, IsVisual, Icon, NodeType, Session, MaterializationType, Entity, Supergraph, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:12010 ==== */
@@ -84,11 +84,21 @@ export class Palette extends Node implements Spatial, Entity, IsTracked, IsDelet
 
   static create(options: {
     name: string,
-    icon?: Icon | null
+    icon?: Icon | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Palette {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Palette(
-
+      options.name,
+      options.icon ?? null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

@@ -1,4 +1,4 @@
-import { Graph, IsFollowable, MaterializationType, StructFrozen, Struct, EnumType, Handle, ThreadCursor, IsTracked, Entity, QueryConnection, NodeReference, ScreenCursor, Node, IsSubject, NodeType, Session, IsOwner, EventCursor, Agent, Space, StructType, Icon, Supergraph, Global, BuiltinObject } from '@/language';
+import { Handle, ThreadCursor, EnumType, StructType, IsOwner, Node, IsFollowable, QueryConnection, NodeReference, Graph, Agent, Space, StructFrozen, Struct, BuiltinObject, EventCursor, Icon, NodeType, Session, ScreenCursor, MaterializationType, Entity, IsSubject, Supergraph, Global, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:20 ==== */
@@ -138,11 +138,31 @@ export class User extends Node implements Global, Entity, IsTracked, IsSubject, 
     cursor?: EventCursor | ScreenCursor | ThreadCursor | NodeReference | null,
     email?: string | null,
     passwordSalt?: Uint8Array | null,
-    passwordHash?: Uint8Array | null
+    passwordHash?: Uint8Array | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): User {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new User(
-
+      options.name,
+      options.slug,
+      options.icon ?? null,
+      options.status ?? UserStatus.CREATING,
+      options.lastLoggedInAt ?? null,
+      options.isStaff ?? false,
+      options.space != null ? (options.space.metatype == StructType.NODE_REFERENCE ? options.space : options.space.toRef()) : null,
+      options.handle != null ? (options.handle.metatype == StructType.NODE_REFERENCE ? options.handle : options.handle.toRef()) : null,
+      options.cursor != null ? (options.cursor.metatype == StructType.NODE_REFERENCE ? options.cursor : options.cursor.toRef()) : null,
+      options.email ?? null,
+      options.passwordSalt ?? null,
+      options.passwordHash ?? null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
@@ -162,11 +182,11 @@ export class User extends Node implements Global, Entity, IsTracked, IsSubject, 
     return new NodeReference(NodeType.USER, this.id, null, null, this._supergraph);
 
   get _pathKey(): string {
-      return this.slug or this.name;
+      return this.slug ?? this.name;
   }
 
   get path(): string {
-      return this.slug or this.name;
+      return this.slug ?? this.name;
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:20 ==== */

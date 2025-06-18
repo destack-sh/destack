@@ -1,4 +1,4 @@
-import { Graph, MaterializationType, StructFrozen, Struct, EnumType, Handle, IsTracked, Entity, QueryConnection, NodeReference, IsJoinable, Node, NodeType, Session, IsOwner, Agent, User, Space, StructType, Icon, Supergraph, Global, BuiltinObject } from '@/language';
+import { Handle, EnumType, StructType, IsOwner, Node, QueryConnection, User, NodeReference, Graph, IsJoinable, Agent, Space, StructFrozen, Struct, BuiltinObject, Icon, NodeType, Session, MaterializationType, Entity, Supergraph, Global, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:40 ==== */
@@ -106,11 +106,25 @@ export class Organization extends Node implements Global, Entity, IsTracked, IsJ
     icon?: Icon | null,
     status?: OrganizationStatus,
     space: Space | NodeReference,
-    handle?: Handle | NodeReference | null
+    handle?: Handle | NodeReference | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Organization {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Organization(
-
+      options.name,
+      options.slug,
+      options.icon ?? null,
+      options.status ?? OrganizationStatus.CREATING,
+      options.space != null ? (options.space.metatype == StructType.NODE_REFERENCE ? options.space : options.space.toRef()) : null,
+      options.handle != null ? (options.handle.metatype == StructType.NODE_REFERENCE ? options.handle : options.handle.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
@@ -130,11 +144,11 @@ export class Organization extends Node implements Global, Entity, IsTracked, IsJ
     return new NodeReference(NodeType.ORGANIZATION, this.id, null, null, this._supergraph);
 
   get _pathKey(): string {
-      return this.slug or this.name;
+      return this.slug ?? this.name;
   }
 
   get path(): string {
-      return this.slug or this.name;
+      return this.slug ?? this.name;
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:40 ==== */

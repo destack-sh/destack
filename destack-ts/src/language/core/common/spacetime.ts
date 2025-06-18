@@ -1,4 +1,4 @@
-import { Graph, Team, IsDeletable, MaterializationType, Spatial, StructFrozen, IsOwnable, Struct, EnumType, IsTracked, Role, Entity, QueryConnection, NodeReference, Node, NodeType, Session, Agent, Space, User, Organization, StructType, Supergraph, BuiltinObject } from '@/language';
+import { EnumType, StructType, Node, QueryConnection, User, IsDeletable, NodeReference, Graph, Spatial, IsOwnable, Role, Agent, Space, Team, StructFrozen, Struct, BuiltinObject, Organization, NodeType, Session, MaterializationType, Entity, Supergraph, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:1500 ==== */
@@ -101,11 +101,22 @@ export class Snapshot extends Node implements Spatial, Entity, IsTracked, IsDele
   static create(options: {
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     name: string,
-    slug?: string | null
+    slug?: string | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Snapshot {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Snapshot(
-
+      options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? options.ownedBy : options.ownedBy.toRef()) : null,
+      options.name,
+      options.slug ?? null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
@@ -126,7 +137,7 @@ export class Snapshot extends Node implements Spatial, Entity, IsTracked, IsDele
   }
 
   get _pathKey(): string {
-      return this.slug or this.name;
+      return this.slug ?? this.name;
   }
 
   get path(): string {
@@ -264,11 +275,23 @@ export class Branch extends Node implements Spatial, Entity, IsTracked, IsDeleta
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     name: string,
     slug?: string | null,
-    head?: Snapshot | NodeReference | null
+    head?: Snapshot | NodeReference | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Branch {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Branch(
-
+      options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? options.ownedBy : options.ownedBy.toRef()) : null,
+      options.name,
+      options.slug ?? null,
+      options.head != null ? (options.head.metatype == StructType.NODE_REFERENCE ? options.head : options.head.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
@@ -289,7 +312,7 @@ export class Branch extends Node implements Spatial, Entity, IsTracked, IsDeleta
   }
 
   get _pathKey(): string {
-      return this.slug or this.name;
+      return this.slug ?? this.name;
   }
 
   get path(): string {

@@ -1,4 +1,4 @@
-import { Graph, IsFollowable, IsDeletable, MaterializationType, Spatial, StructFrozen, IsScriptable, Struct, EnumType, ThreadCursor, Script, IsTracked, Entity, QueryConnection, NodeReference, ScreenCursor, Node, IsSubject, Folder, NodeType, Session, IsOwner, Space, User, StructType, Icon, Supergraph, EventCursor, BuiltinObject } from '@/language';
+import { Folder, IsScriptable, ThreadCursor, EnumType, StructType, Script, IsOwner, Node, IsFollowable, QueryConnection, User, IsDeletable, NodeReference, Graph, Spatial, Space, StructFrozen, Struct, BuiltinObject, EventCursor, Icon, NodeType, Session, ScreenCursor, MaterializationType, Entity, IsSubject, Supergraph, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:600 ==== */
@@ -125,11 +125,24 @@ export class Agent extends Node implements Spatial, Entity, IsTracked, IsDeletab
     slug: string,
     icon?: Icon | null,
     cursor?: EventCursor | ScreenCursor | ThreadCursor | NodeReference | null,
-    script?: Script | NodeReference | null
+    script?: Script | NodeReference | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Agent {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Agent(
-
+      options.name,
+      options.slug,
+      options.icon ?? null,
+      options.cursor != null ? (options.cursor.metatype == StructType.NODE_REFERENCE ? options.cursor : options.cursor.toRef()) : null,
+      options.script != null ? (options.script.metatype == StructType.NODE_REFERENCE ? options.script : options.script.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
@@ -150,7 +163,7 @@ export class Agent extends Node implements Spatial, Entity, IsTracked, IsDeletab
   }
 
   get _pathKey(): string {
-      return this.slug or this.name;
+      return this.slug ?? this.name;
   }
 
   get path(): string {

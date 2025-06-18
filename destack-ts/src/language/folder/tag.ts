@@ -1,4 +1,4 @@
-import { PlaneShape, LabelView, Graph, IsTaggable, IsDeletable, ThreadView, MaterializationType, EffectStyle, Spatial, TransitionStyle, StructFrozen, CustomViewDefinition, FontStyle, Option, LikeTag, Struct, Route, EnumType, Field, IsTracked, ColorStyle, Entity, Message, CustomEnumDefinition, QueryConnection, NodeReference, Service, SplitView, Node, Scene, Layer, CustomView, BorderStyle, FrameView, Action, Folder, EditEvent, Theme, WizardView, AnnotationShape, IsOrdered, NodeType, Session, CustomStructDefinition, NumberInputView, GradientStyle, Agent, Space, User, CustomEntityDefinition, ArrowShape, LineShape, TextView, Thread, StructType, Canvas, Palette, Icon, SliderInputView, Supergraph, ShadowStyle, FillStyle, BuiltinObject } from '@/language';
+import { Field, Folder, Palette, IsTaggable, NumberInputView, ArrowShape, Thread, EnumType, StructType, CustomView, Scene, BorderStyle, Theme, CustomViewDefinition, Node, Canvas, EffectStyle, QueryConnection, User, IsDeletable, Layer, NodeReference, Graph, Spatial, EditEvent, LabelView, CustomEntityDefinition, TransitionStyle, CustomEnumDefinition, Agent, IsOrdered, Space, StructFrozen, CustomStructDefinition, SplitView, ThreadView, Struct, Action, LineShape, BuiltinObject, Service, Message, AnnotationShape, Icon, SliderInputView, LikeTag, NodeType, TextView, Session, ColorStyle, MaterializationType, Entity, Route, FrameView, GradientStyle, PlaneShape, FillStyle, ShadowStyle, Supergraph, FontStyle, WizardView, IsTracked, Option } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:1010 ==== */
@@ -84,11 +84,21 @@ export class Tag extends Node implements Spatial, Entity, IsTracked, IsDeletable
 
   static create(options: {
     name: string,
-    icon?: Icon | null
+    icon?: Icon | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Tag {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Tag(
-
+      options.name,
+      options.icon ?? null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
@@ -222,11 +232,20 @@ export class Tagging extends Node implements Spatial, Entity, IsTracked, IsDelet
 
 
   static create(options: {
-    tag?: Tag | NodeReference | null
+    tag?: Tag | NodeReference | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Tagging {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Tagging(
-
+      options.tag != null ? (options.tag.metatype == StructType.NODE_REFERENCE ? options.tag : options.tag.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

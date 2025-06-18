@@ -1,4 +1,4 @@
-import { PlaneShape, LabelView, Graph, IsTaggable, IsDeletable, ThreadView, MaterializationType, Spatial, StructFrozen, CustomViewDefinition, Struct, EnumType, IsTracked, Style, Entity, IsVisual, QueryConnection, NodeReference, SplitView, Node, Scene, Layer, CustomView, Fill, FrameView, Theme, WizardView, Length, AnnotationShape, IsOrdered, NodeType, Session, NumberInputView, ArrowShape, Space, Agent, User, LineShape, TextView, StructType, Canvas, SliderInputView, Supergraph, BuiltinObject } from '@/language';
+import { IsTaggable, NumberInputView, ArrowShape, EnumType, StructType, CustomView, Scene, Theme, CustomViewDefinition, Node, Canvas, QueryConnection, Layer, IsDeletable, User, NodeReference, Graph, Spatial, Fill, LabelView, SplitView, Agent, IsOrdered, Space, StructFrozen, ThreadView, Struct, LineShape, BuiltinObject, AnnotationShape, IsVisual, SliderInputView, NodeType, TextView, Session, Style, MaterializationType, Entity, FrameView, Length, PlaneShape, Supergraph, WizardView, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:12026 ==== */
@@ -109,7 +109,7 @@ export class Font extends Struct {
     letterSpacing: Length | null,
     decoration: TextDecoration | null,
     transform: TextTransform | null,
-    _supergraph: Supergraph
+    _supergraph: Supergraph | null
   ) {
     super(_supergraph);
     this.type = type;
@@ -135,11 +135,24 @@ export class Font extends Struct {
     lineHeight?: Length | null,
     letterSpacing?: Length | null,
     decoration?: TextDecoration | null,
-    transform?: TextTransform | null
+    transform?: TextTransform | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null
   }): Font {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Font(
-
+      options.type ?? FontType.SANS,
+      options.style != null ? (options.style.metatype == StructType.NODE_REFERENCE ? options.style : options.style.toRef()) : null,
+      options.weight ?? FontWeight.NORMAL,
+      options.color ?? null,
+      options.size ?? FontSize.BASE,
+      options.align ?? TextAlign.LEFT,
+      options.lineHeight ?? null,
+      options.letterSpacing ?? null,
+      options.decoration ?? TextDecoration.NONE,
+      options.transform ?? TextTransform.NONE,
+      supergraph
     );
   }
 
@@ -272,11 +285,29 @@ export class FontStyle extends Node implements Spatial, Entity, IsTracked, IsDel
     lineHeight?: Length | null,
     letterSpacing?: Length | null,
     decoration?: TextDecoration | null,
-    transform?: TextTransform | null
+    transform?: TextTransform | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): FontStyle {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new FontStyle(
-
+      options.type ?? FontType.SANS,
+      options.name,
+      options.weight ?? FontWeight.NORMAL,
+      options.color ?? null,
+      options.size ?? FontSize.BASE,
+      options.align ?? TextAlign.LEFT,
+      options.lineHeight ?? null,
+      options.letterSpacing ?? null,
+      options.decoration ?? TextDecoration.NONE,
+      options.transform ?? TextTransform.NONE,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

@@ -1,4 +1,4 @@
-import { Graph, MaterializationType, Spatial, StructFrozen, IsFrozen, Analytic, Condition, Struct, EnumType, RelationReference, Script, IsTracked, Entity, QueryConnection, NodeReference, Indexed, Service, Node, Value, Action, Particle, NodeType, Session, Agent, Space, User, StructType, Event, Supergraph, BuiltinObject } from '@/language';
+import { IsFrozen, EnumType, StructType, Script, Node, QueryConnection, User, Value, Analytic, NodeReference, Graph, Spatial, Particle, Space, Agent, StructFrozen, Service, Struct, Action, BuiltinObject, Condition, NodeType, Session, MaterializationType, Event, Entity, RelationReference, Indexed, Supergraph, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:3041 ==== */
@@ -105,11 +105,21 @@ export class TriggerEvent extends Node implements Spatial, Particle, Analytic, I
 
   static create(options: {
     type: TriggerEventType,
-    node: Trigger | NodeReference
+    node: Trigger | NodeReference,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): TriggerEvent {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new TriggerEvent(
-
+      options.type,
+      options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? options.node : options.node.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
@@ -257,11 +267,25 @@ export class Trigger extends Node implements Spatial, Entity, IsTracked {
     event?: RelationReference | null,
     where?: Condition | null,
     target: Action | Script | Service | NodeReference,
-    arguments?: Map<string, Value>
+    arguments?: Map<string, Value>,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Trigger {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Trigger(
-
+      options.type,
+      options.name,
+      options.event ?? null,
+      options.where ?? null,
+      options.target != null ? (options.target.metatype == StructType.NODE_REFERENCE ? options.target : options.target.toRef()) : null,
+      options.arguments ?? new Map(),
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

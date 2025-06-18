@@ -34,7 +34,7 @@ class IconType(Enum):
 class Icon(StructFrozen):
     """An icon to be displayed in some view."""
 
-    type: IconType = property_(30, default=False)
+    type: IconType = property_(30)
     # content
     emoji: str | None = property_(31)
     fa_name: str | None = property_(33)

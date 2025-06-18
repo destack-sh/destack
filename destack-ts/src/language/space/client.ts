@@ -1,4 +1,4 @@
-import { Graph, IsDeletable, MaterializationType, StructFrozen, Machine, Struct, EnumType, ThreadCursor, IsTracked, Entity, QueryConnection, NodeReference, ScreenCursor, Node, NodeType, Session, EventCursor, Agent, User, StructType, Supergraph, Global, ClientType, BuiltinObject } from '@/language';
+import { ThreadCursor, EnumType, StructType, Node, QueryConnection, User, IsDeletable, NodeReference, Graph, Agent, StructFrozen, Machine, Struct, BuiltinObject, EventCursor, ClientType, NodeType, Session, ScreenCursor, MaterializationType, Entity, Supergraph, Global, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50001 ==== */
@@ -13,7 +13,7 @@ export class Origin extends StructFrozen {
     id: string | null,
     ck: string | null,
     nonce: string | null,
-    _supergraph: Supergraph
+    _supergraph: Supergraph | null
   ) {
     super(_supergraph);
     this.type = type;
@@ -27,11 +27,18 @@ export class Origin extends StructFrozen {
     type: ClientType,
     id?: string | null,
     ck?: string | null,
-    nonce?: string | null
+    nonce?: string | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null
   }): Origin {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Origin(
-
+      options.type,
+      options.id ?? null,
+      options.ck ?? null,
+      options.nonce ?? null,
+      supergraph
     );
   }
 
@@ -210,11 +217,32 @@ export class Client extends Node implements Global, Entity, IsTracked, IsDeletab
     accessToken?: string | null,
     seenAt?: Temporal.ZonedDateTime | null,
     loggedInAt?: Temporal.ZonedDateTime | null,
-    cursor?: EventCursor | ScreenCursor | ThreadCursor | NodeReference | null
+    cursor?: EventCursor | ScreenCursor | ThreadCursor | NodeReference | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Client {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Client(
-
+      options.type,
+      options.name,
+      options.machine != null ? (options.machine.metatype == StructType.NODE_REFERENCE ? options.machine : options.machine.toRef()) : null,
+      options.user != null ? (options.user.metatype == StructType.NODE_REFERENCE ? options.user : options.user.toRef()) : null,
+      options.deviceType ?? null,
+      options.deviceName ?? null,
+      options.operatingSystem ?? null,
+      options.browserName ?? null,
+      options.browserVersion ?? null,
+      options.accessToken ?? null,
+      options.seenAt ?? null,
+      options.loggedInAt ?? null,
+      options.cursor != null ? (options.cursor.metatype == StructType.NODE_REFERENCE ? options.cursor : options.cursor.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

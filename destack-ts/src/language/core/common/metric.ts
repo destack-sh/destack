@@ -1,4 +1,4 @@
-import { IsCustomNode, Graph, MaterializationType, Spatial, StructFrozen, Analytic, Metric, Struct, EnumType, Script, IsTracked, IsSourceable, Entity, Measurement, QueryConnection, NodeReference, Node, CustomView, IsOrdered, NodeType, Session, CustomEntity, IsCustomNodeDefinition, Agent, Space, User, StructType, Supergraph, BuiltinObject } from '@/language';
+import { EnumType, StructType, CustomView, Script, Node, QueryConnection, User, IsCustomNode, Analytic, NodeReference, Graph, Spatial, Agent, IsOrdered, Space, StructFrozen, Struct, BuiltinObject, Measurement, IsSourceable, NodeType, Session, Metric, MaterializationType, Entity, CustomEntity, IsCustomNodeDefinition, Supergraph, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:4110 ==== */
@@ -108,11 +108,21 @@ export class GaugeMetric extends Node implements Spatial, Entity, IsCustomNodeDe
 
   static create(options: {
     prototype?: CustomEntity | GaugeMeasurement | CounterMeasurement | HistogramMeasurement | CustomView | NodeReference | null,
-    name: string
+    name: string,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): GaugeMetric {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new GaugeMetric(
-
+      options.prototype != null ? (options.prototype.metatype == StructType.NODE_REFERENCE ? options.prototype : options.prototype.toRef()) : null,
+      options.name,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
@@ -237,11 +247,20 @@ export class GaugeMeasurement extends Node implements Spatial, Analytic, IsCusto
 
 
   static create(options: {
-    definition: GaugeMetric | NodeReference
+    definition: GaugeMetric | NodeReference,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): GaugeMeasurement {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new GaugeMeasurement(
-
+      options.definition != null ? (options.definition.metatype == StructType.NODE_REFERENCE ? options.definition : options.definition.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
@@ -387,11 +406,21 @@ export class CounterMetric extends Node implements Spatial, Entity, IsCustomNode
 
   static create(options: {
     prototype?: CustomEntity | GaugeMeasurement | CounterMeasurement | HistogramMeasurement | CustomView | NodeReference | null,
-    name: string
+    name: string,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): CounterMetric {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new CounterMetric(
-
+      options.prototype != null ? (options.prototype.metatype == StructType.NODE_REFERENCE ? options.prototype : options.prototype.toRef()) : null,
+      options.name,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
@@ -516,11 +545,20 @@ export class CounterMeasurement extends Node implements Spatial, Analytic, IsCus
 
 
   static create(options: {
-    definition: CounterMetric | NodeReference
+    definition: CounterMetric | NodeReference,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): CounterMeasurement {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new CounterMeasurement(
-
+      options.definition != null ? (options.definition.metatype == StructType.NODE_REFERENCE ? options.definition : options.definition.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
@@ -666,11 +704,21 @@ export class HistogramMetric extends Node implements Spatial, Entity, IsCustomNo
 
   static create(options: {
     prototype?: CustomEntity | GaugeMeasurement | CounterMeasurement | HistogramMeasurement | CustomView | NodeReference | null,
-    name: string
+    name: string,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): HistogramMetric {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new HistogramMetric(
-
+      options.prototype != null ? (options.prototype.metatype == StructType.NODE_REFERENCE ? options.prototype : options.prototype.toRef()) : null,
+      options.name,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
@@ -795,11 +843,20 @@ export class HistogramMeasurement extends Node implements Spatial, Analytic, IsC
 
 
   static create(options: {
-    definition: HistogramMetric | NodeReference
+    definition: HistogramMetric | NodeReference,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): HistogramMeasurement {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new HistogramMeasurement(
-
+      options.definition != null ? (options.definition.metatype == StructType.NODE_REFERENCE ? options.definition : options.definition.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

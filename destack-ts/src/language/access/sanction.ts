@@ -1,4 +1,4 @@
-import { Graph, Team, IsDeletable, MaterializationType, Spatial, StructFrozen, IsFrozen, Analytic, Struct, EnumType, IsTracked, Entity, QueryConnection, NodeReference, Indexed, Node, Folder, Particle, NodeType, Session, Agent, Space, User, Organization, Thread, StructType, Event, Supergraph, BuiltinObject } from '@/language';
+import { Folder, Thread, IsFrozen, EnumType, StructType, Node, QueryConnection, User, IsDeletable, Analytic, NodeReference, Graph, Spatial, Particle, Space, Agent, StructFrozen, Team, Struct, BuiltinObject, Organization, NodeType, Session, MaterializationType, Event, Entity, Indexed, Supergraph, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:541 ==== */
@@ -103,11 +103,20 @@ export class SanctionEvent extends Node implements Spatial, Particle, Analytic, 
 
 
   static create(options: {
-    node: Sanction | NodeReference
+    node: Sanction | NodeReference,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): SanctionEvent {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new SanctionEvent(
-
+      options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? options.node : options.node.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
@@ -246,11 +255,22 @@ export class Sanction extends Node implements Spatial, Entity, IsTracked, IsDele
   static create(options: {
     type: SanctionType,
     expiresAt?: Temporal.ZonedDateTime | null,
-    target: Agent | User | NodeReference
+    target: Agent | User | NodeReference,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Sanction {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Sanction(
-
+      options.type,
+      options.expiresAt ?? null,
+      options.target != null ? (options.target.metatype == StructType.NODE_REFERENCE ? options.target : options.target.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

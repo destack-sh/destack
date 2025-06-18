@@ -1,4 +1,4 @@
-import { PlaneShape, LabelView, Graph, IsTaggable, IsDeletable, ThreadView, MaterializationType, Spatial, StructFrozen, CustomViewDefinition, Struct, EnumType, IsTracked, Style, Entity, IsVisual, QueryConnection, NodeReference, SplitView, Node, Scene, Layer, CustomView, FrameView, Theme, WizardView, Insets, AnnotationShape, IsOrdered, NodeType, Session, NumberInputView, ArrowShape, Space, Agent, User, LineShape, TextView, StructType, Canvas, Color, SliderInputView, Supergraph, BuiltinObject } from '@/language';
+import { Insets, IsTaggable, NumberInputView, ArrowShape, EnumType, StructType, CustomView, Scene, Theme, CustomViewDefinition, Node, Canvas, QueryConnection, Layer, IsDeletable, User, NodeReference, Graph, Spatial, LabelView, SplitView, Agent, IsOrdered, Space, StructFrozen, ThreadView, Struct, LineShape, BuiltinObject, AnnotationShape, IsVisual, SliderInputView, NodeType, TextView, Session, Style, Color, MaterializationType, Entity, FrameView, PlaneShape, Supergraph, WizardView, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:12032 ==== */
@@ -42,7 +42,7 @@ export class Border extends Struct {
     stylePtr: NodeReference | null,
     color: Color | null,
     width: Insets | null,
-    _supergraph: Supergraph
+    _supergraph: Supergraph | null
   ) {
     super(_supergraph);
     this.type = type;
@@ -56,11 +56,18 @@ export class Border extends Struct {
     type?: BorderType,
     style?: BorderStyle | NodeReference | null,
     color?: Color | null,
-    width?: Insets | null
+    width?: Insets | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null
   }): Border {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Border(
-
+      options.type ?? BorderType.SOLID,
+      options.style != null ? (options.style.metatype == StructType.NODE_REFERENCE ? options.style : options.style.toRef()) : null,
+      options.color ?? null,
+      options.width ?? null,
+      supergraph
     );
   }
 
@@ -169,11 +176,23 @@ export class BorderStyle extends Node implements Spatial, Entity, IsTracked, IsD
     type?: BorderType,
     name: string,
     color?: Color | null,
-    width?: Insets | null
+    width?: Insets | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): BorderStyle {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new BorderStyle(
-
+      options.type ?? BorderType.SOLID,
+      options.name,
+      options.color ?? null,
+      options.width ?? null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

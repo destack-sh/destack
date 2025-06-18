@@ -1,4 +1,4 @@
-import { Graph, Team, IsDeletable, MaterializationType, Spatial, StructFrozen, IsOwnable, Struct, EnumType, IsTracked, Role, Entity, IsVisual, QueryConnection, NodeReference, Node, IsOrdered, NodeType, Session, Agent, Space, User, Organization, StructType, Supergraph, BuiltinObject } from '@/language';
+import { EnumType, StructType, Node, QueryConnection, User, IsDeletable, NodeReference, Graph, Spatial, IsOwnable, Role, Agent, IsOrdered, Space, StructFrozen, Team, Struct, BuiltinObject, IsVisual, Organization, NodeType, Session, MaterializationType, Entity, Supergraph, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:9000 ==== */
@@ -112,11 +112,22 @@ export class Window extends Node implements Spatial, Entity, IsTracked, IsDeleta
   static create(options: {
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     type: WindowType,
-    name?: string | null
+    name?: string | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Window {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Window(
-
+      options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? options.ownedBy : options.ownedBy.toRef()) : null,
+      options.type,
+      options.name ?? null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

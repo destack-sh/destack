@@ -1,4 +1,4 @@
-import { Graph, MaterializationType, Spatial, StructFrozen, IsFrozen, Analytic, Struct, EnumType, IsTracked, Entity, QueryConnection, NodeReference, Indexed, Node, Particle, NodeType, Session, Agent, Space, User, StructType, Schedule, Event, Supergraph, BuiltinObject } from '@/language';
+import { IsFrozen, EnumType, StructType, Node, QueryConnection, Schedule, User, Analytic, NodeReference, Graph, Spatial, Particle, Space, Agent, StructFrozen, Struct, BuiltinObject, NodeType, Session, MaterializationType, Event, Entity, Indexed, Supergraph, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:3054 ==== */
@@ -106,11 +106,21 @@ export class TimerEvent extends Node implements Spatial, Particle, Analytic, Ind
 
   static create(options: {
     type: TimerEventType,
-    node: Timer | NodeReference
+    node: Timer | NodeReference,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): TimerEvent {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new TimerEvent(
-
+      options.type,
+      options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? options.node : options.node.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
@@ -230,11 +240,22 @@ export class Timer extends Node implements Spatial, Entity, IsTracked {
   static create(options: {
     type: TimerType,
     name: string,
-    schedule?: Schedule | null
+    schedule?: Schedule | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Timer {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Timer(
-
+      options.type,
+      options.name,
+      options.schedule ?? null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

@@ -1,4 +1,4 @@
-import { PlaneShape, LabelView, Graph, IsTaggable, IsShape, IsDeletable, Position, MaterializationType, Spatial, StructFrozen, CustomViewDefinition, IsScriptable, Struct, EnumType, Script, IsTracked, Entity, IsVisual, Vector2, QueryConnection, NodeReference, SplitView, Node, Scene, Layer, CustomView, Align, FrameView, Dimension, AnnotationShape, IsOrdered, NodeType, Session, View, ContentView, Agent, Space, User, Window, StructType, Canvas, Supergraph, BuiltinObject } from '@/language';
+import { IsScriptable, IsTaggable, Align, EnumType, StructType, CustomView, Scene, Script, ContentView, CustomViewDefinition, Node, Canvas, QueryConnection, Layer, IsDeletable, User, NodeReference, Graph, Spatial, View, LabelView, SplitView, Agent, IsOrdered, Space, StructFrozen, Position, Struct, Dimension, BuiltinObject, AnnotationShape, IsVisual, NodeType, Window, Session, MaterializationType, Entity, Vector2, FrameView, PlaneShape, IsShape, Supergraph, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:11012 ==== */
@@ -164,11 +164,35 @@ export class ArrowShape extends Node implements Spatial, Entity, IsTracked, IsDe
     start: Vector2,
     endType: ArrowHeadType,
     end: Vector2,
-    script?: Script | NodeReference | null
+    script?: Script | NodeReference | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): ArrowShape {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new ArrowShape(
-
+      options.name,
+      options.position ?? null,
+      options.width ?? null,
+      options.height ?? null,
+      options.minWidth ?? null,
+      options.minHeight ?? null,
+      options.maxWidth ?? null,
+      options.maxHeight ?? null,
+      options.align ?? null,
+      options.isVisible ?? null,
+      options.opacity ?? null,
+      options.startType,
+      options.start,
+      options.endType,
+      options.end,
+      options.script != null ? (options.script.metatype == StructType.NODE_REFERENCE ? options.script : options.script.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

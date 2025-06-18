@@ -1,4 +1,4 @@
-import { Graph, IsTaggable, IsDeletable, MaterializationType, Spatial, StructFrozen, Struct, EnumType, IsExtensible, Script, IsTracked, IsSourceable, Entity, QueryConnection, NodeReference, Node, Value, IsOrdered, NodeType, Session, Agent, Space, User, StructType, Icon, Supergraph, BuiltinObject } from '@/language';
+import { IsTaggable, EnumType, StructType, Script, Node, IsExtensible, QueryConnection, User, IsDeletable, Value, NodeReference, Graph, Spatial, Agent, IsOrdered, Space, StructFrozen, Struct, BuiltinObject, IsSourceable, Icon, NodeType, Session, MaterializationType, Entity, Supergraph, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:2500 ==== */
@@ -99,11 +99,22 @@ export class CustomStructDefinition extends Node implements Spatial, Entity, IsT
   static create(options: {
     value?: Map<string, Value>,
     name: string,
-    icon?: Icon | null
+    icon?: Icon | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): CustomStructDefinition {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new CustomStructDefinition(
-
+      options.value ?? new Map(),
+      options.name,
+      options.icon ?? null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

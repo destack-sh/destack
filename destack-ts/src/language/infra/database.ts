@@ -1,4 +1,4 @@
-import { Graph, MaterializationType, Spatial, Region, StructFrozen, Struct, EnumType, IsTracked, Entity, QueryConnection, NodeReference, Node, NodeType, Session, Tenancy, ResourceStatus, Resource, Agent, Space, User, StructType, Supergraph, BuiltinObject } from '@/language';
+import { ResourceStatus, Region, EnumType, StructType, Node, QueryConnection, User, NodeReference, Graph, Spatial, Agent, Space, StructFrozen, Struct, Resource, BuiltinObject, NodeType, Session, MaterializationType, Entity, Tenancy, Supergraph, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:7505 ==== */
@@ -25,7 +25,7 @@ export class DatabaseInfo extends Struct {
     customSchemaName: string | null,
     tenancy: Tenancy,
     connectionUrl: string | null,
-    _supergraph: Supergraph
+    _supergraph: Supergraph | null
   ) {
     super(_supergraph);
     this.type = type;
@@ -45,11 +45,21 @@ export class DatabaseInfo extends Struct {
     externalName: string,
     customSchemaName?: string | null,
     tenancy?: Tenancy,
-    connectionUrl?: string | null
+    connectionUrl?: string | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null
   }): DatabaseInfo {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new DatabaseInfo(
-
+      options.type,
+      options.region,
+      options.galaxyName ?? null,
+      options.externalName,
+      options.customSchemaName ?? null,
+      options.tenancy ?? Tenancy.DEDICATED,
+      options.connectionUrl ?? null,
+      supergraph
     );
   }
 
@@ -176,11 +186,29 @@ export class Database extends Node implements Spatial, Entity, Resource, IsTrack
     externalName: string,
     customSchemaName?: string | null,
     tenancy?: Tenancy,
-    connectionUrl?: string | null
+    connectionUrl?: string | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Database {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Database(
-
+      options.type,
+      options.name,
+      options.status ?? ResourceStatus.PENDING,
+      options.targetStatus ?? null,
+      options.region,
+      options.galaxyName ?? null,
+      options.externalName,
+      options.customSchemaName ?? null,
+      options.tenancy ?? Tenancy.DEDICATED,
+      options.connectionUrl ?? null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

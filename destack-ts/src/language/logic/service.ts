@@ -1,4 +1,4 @@
-import { Graph, IsTaggable, Team, IsDeletable, MaterializationType, Spatial, StructFrozen, IsOwnable, IsScriptable, Struct, EnumType, IsExtensible, Script, IsTracked, IsSourceable, Entity, Role, QueryConnection, NodeReference, Node, Value, IsActionable, IsRunnable, IsOrdered, NodeType, Session, Agent, Space, User, Organization, StructType, Supergraph, BuiltinObject } from '@/language';
+import { IsScriptable, IsTaggable, EnumType, StructType, Script, Node, IsExtensible, QueryConnection, User, IsDeletable, Value, NodeReference, Graph, Spatial, IsOwnable, Role, Agent, IsOrdered, Space, StructFrozen, Team, Struct, BuiltinObject, IsSourceable, Organization, NodeType, Session, MaterializationType, Entity, IsRunnable, Supergraph, IsActionable, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:3010 ==== */
@@ -135,11 +135,23 @@ export class Service extends Node implements Spatial, Entity, IsTracked, IsDelet
     value?: Map<string, Value>,
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     name: string,
-    script?: Script | NodeReference | null
+    script?: Script | NodeReference | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Service {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Service(
-
+      options.value ?? new Map(),
+      options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? options.ownedBy : options.ownedBy.toRef()) : null,
+      options.name,
+      options.script != null ? (options.script.metatype == StructType.NODE_REFERENCE ? options.script : options.script.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
