@@ -14,7 +14,7 @@ from destack.language.registry import (
     NODE_CLASS_BY_TYPE,
     NODE_TYPE_BY_CLASS,
     NODE_TYPES_BY_TRAIT_TYPE,
-    TRAIT_CLASS_BY_TRAIT,
+    TRAIT_CLASS_BY_TYPE,
     TRAIT_TYPE_BY_CLASS,
 )
 from destack.utils.fractional import INTEGER_MAX, INTEGER_ZERO
@@ -364,7 +364,7 @@ class PolyGraph(Graph):
                     node_cls = NODE_CLASS_BY_TYPE[node_type]
                     node_types = (node_type,)
                 else:
-                    node_cls = TRAIT_CLASS_BY_TRAIT[node_type]  # type: ignore
+                    node_cls = TRAIT_CLASS_BY_TYPE[node_type]  # type: ignore
                     node_types = NODE_TYPES_BY_TRAIT_TYPE[node_type]
 
             # collect

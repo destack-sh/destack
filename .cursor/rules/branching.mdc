@@ -1,0 +1,7 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+For exhaustive matching, prefer if/else over match.
+If we're checking anything that should cover all cases use some variant of assert_never in an else branch.

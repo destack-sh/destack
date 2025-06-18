@@ -4,4 +4,4 @@ globs:
 alwaysApply: true
 ---
 Inline comments should be short and begin with a lowercase letter.
-Usually inline comments should be at the top of a related code block
+Usually inline comments should be above a related code block (these blocks are usually 3-10 lines).

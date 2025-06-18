@@ -8,7 +8,7 @@ from typing import (
 from destack.language.registry import (
     NODE_CLASS_BY_TYPE,
     STRUCT_CLASS_BY_TYPE,
-    TRAIT_CLASS_BY_TRAIT,
+    TRAIT_CLASS_BY_TYPE,
 )
 from destack.proto import NodeReferenceProto, PropertyReferenceProto, ScopeProto
 from destack.utils.uuid import UUID
@@ -83,7 +83,7 @@ class RelationReference(StructFrozen):
             return NODE_CLASS_BY_TYPE.get(NodeType.CUSTOM_ENTITY)
         elif self.type == RelationType.TRAIT:
             assert self.trait_type is not None, f"no trait_type for {self!r}"
-            return TRAIT_CLASS_BY_TRAIT.get(self.trait_type)
+            return TRAIT_CLASS_BY_TYPE.get(self.trait_type)
         else:
             assert_never(self.type)
 
@@ -182,7 +182,7 @@ class PropertyReference(StructFrozen[PropertyReferenceProto]):
             return NODE_CLASS_BY_TYPE.get(self.node_type)
         elif self.type == PropertyReferenceType.TRAIT:
             assert self.trait_type is not None, f"no trait_type for {self!r}"
-            return TRAIT_CLASS_BY_TRAIT.get(self.trait_type)
+            return TRAIT_CLASS_BY_TYPE.get(self.trait_type)
         elif self.struct_type is not None:
             assert self.struct_type is not None, f"no struct_type for {self!r}"
             return STRUCT_CLASS_BY_TYPE.get(self.struct_type)
