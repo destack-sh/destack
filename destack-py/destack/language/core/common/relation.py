@@ -133,10 +133,9 @@ class AttributeReference(StructFrozen):
     """Reference to a Field or Property."""
 
     type: AttributeType = property_(30, is_repr=True)
-    prop: Optional["Property"] = property_(31, is_repr=True)
+    prop_ptr: Optional["PropertyReference"] = property_(31, is_repr=True)
     field: Optional["Field"] = property_(32, is_repr=True)
     if TYPE_CHECKING:
-        prop_ptr: Optional["PropertyReference"] = None
         field_ptr: Optional["NodeReference"] = None
 
 
@@ -145,7 +144,7 @@ AttributeReferenceIn = Union["Field", "Property", "AttributeReference"]
 
 def attribute_ref(attribute: AttributeReferenceIn) -> AttributeReference:
     if isinstance(attribute, Property):
-        return AttributeReference(type=AttributeType.PROPERTY, prop=attribute)
+        return AttributeReference(type=AttributeType.PROPERTY, prop_ptr=attribute.to_ref())
     elif isinstance(attribute, Node):
         return AttributeReference(type=AttributeType.FIELD, field=attribute)
     elif isinstance(attribute, AttributeReference):

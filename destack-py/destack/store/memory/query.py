@@ -57,10 +57,11 @@ def _evaluate_expression(context: MemoryContext, expression: Expression, row: Me
         assert expression.attribute is not None, f"no attribute for {expression!r}"
         attr = expression.attribute
         if attr.type == AttributeType.PROPERTY:
-            prop = attr.prop
-            assert prop is not None, f"no property for {attr!r}"
+            prop_ptr = attr.prop_ptr
+            assert prop_ptr is not None, f"no property for {attr!r}"
+            prop = prop_ptr.resolve_or_error()
             if prop.scalar_type == ScalarType.NODE_REFERENCE:
-                node_ptr_packed = row.value.get(str(prop.id))
+                node_ptr_packed = row.value.get(str(prop_ptr.id))
                 return node_ptr_packed["32"] if node_ptr_packed is not None else None
             else:
                 return row.value.get(str(prop.id))
