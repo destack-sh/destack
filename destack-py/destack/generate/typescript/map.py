@@ -13,8 +13,8 @@ TYPESCRIPT_TYPE_BY_PRIMITIVE_TYPE: Mapping[PrimitiveType, str] = {
     PrimitiveType.UUID: "string",
     PrimitiveType.JSON: "any",
     PrimitiveType.BYTES: "Uint8Array",
-    PrimitiveType.DATETIME: "DateTime",
-    PrimitiveType.DATE: "Date",
-    PrimitiveType.TIME: "Time",
-    PrimitiveType.DURATION: "Duration",
+    PrimitiveType.DATETIME: "Temporal.ZonedDateTime",
+    PrimitiveType.DATE: "Temporal.PlainDate",
+    PrimitiveType.TIME: "Temporal.PlainTime",
+    PrimitiveType.DURATION: "Temporal.Duration",
 }

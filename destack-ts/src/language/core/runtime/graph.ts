@@ -112,6 +112,7 @@ export class PolyGraph extends Graph {
 	 }
 }
 
+/** A Supergraph is a collection of Graphs. */
 export class Supergraph {
 	readonly session: Session;
 	readonly graphs: Graph[];

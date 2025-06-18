@@ -1,0 +1,640 @@
+import { BuiltinObject, Session, Value, QueryConnection, NodeType, RelationReference, AttributeReference, Supergraph, Node, Struct, Graph, NodeReference } from '@/language';
+import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+
+/* ==== DESTACK_GENERATED_START:ENUM:108 ==== */
+export enum FunctionType {
+  ADD = 1,
+  SUBTRACT = 2,
+  MULTIPLY = 3,
+  DIVIDE = 4,
+  MODULO = 5,
+  POWER = 6,
+}
+/* ==== DESTACK_GENERATED_END:ENUM:108 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:103 ==== */
+export enum ConditionalType {
+  NOT = 1,
+  AND = 2,
+  OR = 3,
+  EQUALS = 10,
+  NOT_EQUALS = 11,
+  GREATER_THAN = 12,
+  GREATER_THAN_OR_EQUALS = 13,
+  LESS_THAN = 14,
+  LESS_THAN_OR_EQUALS = 15,
+  MATCHES = 20,
+  STARTS_WITH = 21,
+  ENDS_WITH = 22,
+  IN = 30,
+  NOT_IN = 31,
+  EXISTS = 40,
+  NOT_EXISTS = 41,
+}
+/* ==== DESTACK_GENERATED_END:ENUM:103 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:104 ==== */
+export enum AggregationType {
+  EXISTS = 1,
+  COUNT = 2,
+  SUM = 3,
+  MIN = 4,
+  MAX = 5,
+  AVERAGE = 6,
+}
+/* ==== DESTACK_GENERATED_END:ENUM:104 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:109 ==== */
+export enum ExpressionType {
+  LITERAL = 1,
+  ATTRIBUTE = 2,
+  CONDITION = 3,
+  FUNCTION = 4,
+  AGGREGATION = 5,
+}
+/* ==== DESTACK_GENERATED_END:ENUM:109 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:106 ==== */
+export enum SortType {
+  ASCENDING = 1,
+  DESCENDING = 2,
+}
+/* ==== DESTACK_GENERATED_END:ENUM:106 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:105 ==== */
+export enum SortMode {
+  MAX = 1,
+  MIN = 2,
+  AVERAGE = 3,
+  SUM = 4,
+  MEDIAN = 5,
+}
+/* ==== DESTACK_GENERATED_END:ENUM:105 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:107 ==== */
+export enum JoinType {
+  LEFT = 1,
+  PARENT = 10,
+  CHILD = 11,
+}
+/* ==== DESTACK_GENERATED_END:ENUM:107 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:120 ==== */
+export enum QueryType {
+  NODE = 1,
+  SCALAR = 2,
+  GROUPED_NODE = 10,
+  GROUPED_SCALAR = 11,
+}
+/* ==== DESTACK_GENERATED_END:ENUM:120 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:121 ==== */
+export enum QueryUpdateType {
+  FULL_RESULT = 1,
+  PARTIAL_RESULT = 2,
+}
+/* ==== DESTACK_GENERATED_END:ENUM:121 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:50101 ==== */
+export class Function extends BuiltinObject {
+  readonly type: FunctionType;
+  readonly left: Expression;
+  readonly right: Expression | null;
+
+  constructor(
+    type: FunctionType,
+    left: Expression,
+    right: Expression | null,
+    _supergraph: Supergraph
+  ) {
+    super(_supergraph);
+    this.type = type;
+    this.left = left;
+    this.right = right;
+  }
+
+
+  static create(): Function {
+
+    return new Function();
+  }
+
+  equals(other: any): boolean {
+    throw new Error("Not implemented");
+  }
+
+  hash(): number {
+    throw new Error("Not implemented");
+  }
+
+  validate(): void {
+    throw new Error("Not implemented");
+  }
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:50101 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:50104 ==== */
+export class Condition extends BuiltinObject {
+  readonly type: ConditionalType;
+  readonly left: Expression;
+  readonly right: Expression | null;
+
+  constructor(
+    type: ConditionalType,
+    left: Expression,
+    right: Expression | null,
+    _supergraph: Supergraph
+  ) {
+    super(_supergraph);
+    this.type = type;
+    this.left = left;
+    this.right = right;
+  }
+
+
+  static create(): Condition {
+
+    return new Condition();
+  }
+
+  equals(other: any): boolean {
+    throw new Error("Not implemented");
+  }
+
+  hash(): number {
+    throw new Error("Not implemented");
+  }
+
+  validate(): void {
+    throw new Error("Not implemented");
+  }
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:50104 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:50103 ==== */
+export class Aggregation extends BuiltinObject {
+  readonly type: AggregationType;
+  readonly expression: Expression | null;
+
+  constructor(
+    type: AggregationType,
+    expression: Expression | null,
+    _supergraph: Supergraph
+  ) {
+    super(_supergraph);
+    this.type = type;
+    this.expression = expression;
+  }
+
+
+  static create(): Aggregation {
+
+    return new Aggregation();
+  }
+
+  equals(other: any): boolean {
+    throw new Error("Not implemented");
+  }
+
+  hash(): number {
+    throw new Error("Not implemented");
+  }
+
+  validate(): void {
+    throw new Error("Not implemented");
+  }
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:50103 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:50100 ==== */
+export class Expression extends BuiltinObject {
+  readonly type: ExpressionType;
+  readonly literal: Value | null;
+  readonly attribute: AttributeReference | null;
+  readonly condition: Condition | null;
+  readonly function: Function | null;
+  readonly aggregation: Aggregation | null;
+
+  constructor(
+    type: ExpressionType,
+    literal: Value | null,
+    attribute: AttributeReference | null,
+    condition: Condition | null,
+    function: Function | null,
+    aggregation: Aggregation | null,
+    _supergraph: Supergraph
+  ) {
+    super(_supergraph);
+    this.type = type;
+    this.literal = literal;
+    this.attribute = attribute;
+    this.condition = condition;
+    this.function = function;
+    this.aggregation = aggregation;
+  }
+
+
+  static create(): Expression {
+
+    return new Expression();
+  }
+
+  equals(other: any): boolean {
+    throw new Error("Not implemented");
+  }
+
+  hash(): number {
+    throw new Error("Not implemented");
+  }
+
+  validate(): void {
+    throw new Error("Not implemented");
+  }
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:50100 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:50105 ==== */
+export class Sort extends BuiltinObject {
+  readonly type: SortType;
+  readonly by: Expression;
+  readonly mode: SortMode | null;
+
+  constructor(
+    type: SortType,
+    by: Expression,
+    mode: SortMode | null,
+    _supergraph: Supergraph
+  ) {
+    super(_supergraph);
+    this.type = type;
+    this.by = by;
+    this.mode = mode;
+  }
+
+
+  static create(): Sort {
+
+    return new Sort();
+  }
+
+  equals(other: any): boolean {
+    throw new Error("Not implemented");
+  }
+
+  hash(): number {
+    throw new Error("Not implemented");
+  }
+
+  validate(): void {
+    throw new Error("Not implemented");
+  }
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:50105 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:50106 ==== */
+export class Select extends BuiltinObject {
+  readonly attributes: Array<AttributeReference>;
+
+  constructor(
+    attributes: Array<AttributeReference>,
+    _supergraph: Supergraph
+  ) {
+    super(_supergraph);
+    this.attributes = attributes;
+  }
+
+
+  static create(): Select {
+
+    return new Select();
+  }
+
+  equals(other: any): boolean {
+    throw new Error("Not implemented");
+  }
+
+  hash(): number {
+    throw new Error("Not implemented");
+  }
+
+  validate(): void {
+    throw new Error("Not implemented");
+  }
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:50106 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:50102 ==== */
+export class Join extends BuiltinObject {
+  readonly type: JoinType;
+  readonly relation: RelationReference | null;
+  readonly recursive: boolean;
+  readonly depth: number | null;
+  readonly on: Condition | null;
+
+  constructor(
+    type: JoinType,
+    relation: RelationReference | null,
+    recursive: boolean,
+    depth: number | null,
+    on: Condition | null,
+    _supergraph: Supergraph
+  ) {
+    super(_supergraph);
+    this.type = type;
+    this.relation = relation;
+    this.recursive = recursive;
+    this.depth = depth;
+    this.on = on;
+  }
+
+
+  static create(): Join {
+
+    return new Join();
+  }
+
+  equals(other: any): boolean {
+    throw new Error("Not implemented");
+  }
+
+  hash(): number {
+    throw new Error("Not implemented");
+  }
+
+  validate(): void {
+    throw new Error("Not implemented");
+  }
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:50102 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:50110 ==== */
+export class Query extends BuiltinObject {
+  readonly id: string;
+  readonly type: QueryType;
+  readonly name: string;
+  readonly relation: RelationReference;
+  readonly join: Join | null;
+  readonly select: Select | null;
+  readonly subqueries: Array<Query>;
+  readonly where: Condition | null;
+  readonly having: Condition | null;
+  readonly groupBy: Array<Expression>;
+  readonly aggregation: Aggregation | null;
+  readonly sort: Array<Sort>;
+  readonly limit: number | null;
+  readonly offset: number | null;
+
+  constructor(
+    id: string,
+    type: QueryType,
+    name: string,
+    relation: RelationReference,
+    join: Join | null,
+    select: Select | null,
+    subqueries: Array<Query>,
+    where: Condition | null,
+    having: Condition | null,
+    groupBy: Array<Expression>,
+    aggregation: Aggregation | null,
+    sort: Array<Sort>,
+    limit: number | null,
+    offset: number | null,
+    _supergraph: Supergraph
+  ) {
+    super(_supergraph);
+    this.id = id;
+    this.type = type;
+    this.name = name;
+    this.relation = relation;
+    this.join = join;
+    this.select = select;
+    this.subqueries = subqueries;
+    this.where = where;
+    this.having = having;
+    this.groupBy = groupBy;
+    this.aggregation = aggregation;
+    this.sort = sort;
+    this.limit = limit;
+    this.offset = offset;
+  }
+
+
+  static create(): Query {
+
+    return new Query();
+  }
+
+  equals(other: any): boolean {
+    throw new Error("Not implemented");
+  }
+
+  hash(): number {
+    throw new Error("Not implemented");
+  }
+
+  validate(): void {
+    throw new Error("Not implemented");
+  }
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:50110 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:50114 ==== */
+export class Histogram extends BuiltinObject {
+  readonly buckets: Array<Value>;
+  readonly counts: Array<number>;
+
+  constructor(
+    buckets: Array<Value>,
+    counts: Array<number>,
+    _supergraph: Supergraph
+  ) {
+    super(_supergraph);
+    this.buckets = buckets;
+    this.counts = counts;
+  }
+
+
+  static create(): Histogram {
+
+    return new Histogram();
+  }
+
+  equals(other: any): boolean {
+    throw new Error("Not implemented");
+  }
+
+  hash(): number {
+    throw new Error("Not implemented");
+  }
+
+  validate(): void {
+    throw new Error("Not implemented");
+  }
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:50114 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:50111 ==== */
+export class QueryResult extends BuiltinObject {
+  id: string;
+  type: QueryType;
+  groups: Array<QueryResultGroup>;
+  subresults: Array<QueryResult>;
+  nodes: Array<Value>;
+  count: number | null;
+  exists: boolean | null;
+  scalar: Value | null;
+
+  constructor(
+    id: string,
+    type: QueryType,
+    groups: Array<QueryResultGroup>,
+    subresults: Array<QueryResult>,
+    nodes: Array<Value>,
+    count: number | null,
+    exists: boolean | null,
+    scalar: Value | null,
+    _supergraph: Supergraph
+  ) {
+    super(_supergraph);
+    this.id = id;
+    this.type = type;
+    this.groups = groups;
+    this.subresults = subresults;
+    this.nodes = nodes;
+    this.count = count;
+    this.exists = exists;
+    this.scalar = scalar;
+  }
+
+
+  static create(): QueryResult {
+
+    return new QueryResult();
+  }
+
+  equals(other: any): boolean {
+    throw new Error("Not implemented");
+  }
+
+  hash(): number {
+    throw new Error("Not implemented");
+  }
+
+  validate(): void {
+    throw new Error("Not implemented");
+  }
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:50111 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:50112 ==== */
+export class QueryResultGroup extends BuiltinObject {
+  type: QueryType;
+  discriminator: Value;
+  nodes: Array<Value>;
+  count: number | null;
+  exists: boolean | null;
+  scalar: Value | null;
+
+  constructor(
+    type: QueryType,
+    discriminator: Value,
+    nodes: Array<Value>,
+    count: number | null,
+    exists: boolean | null,
+    scalar: Value | null,
+    _supergraph: Supergraph
+  ) {
+    super(_supergraph);
+    this.type = type;
+    this.discriminator = discriminator;
+    this.nodes = nodes;
+    this.count = count;
+    this.exists = exists;
+    this.scalar = scalar;
+  }
+
+
+  static create(): QueryResultGroup {
+
+    return new QueryResultGroup();
+  }
+
+  equals(other: any): boolean {
+    throw new Error("Not implemented");
+  }
+
+  hash(): number {
+    throw new Error("Not implemented");
+  }
+
+  validate(): void {
+    throw new Error("Not implemented");
+  }
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:50112 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:50113 ==== */
+export class QueryUpdate extends BuiltinObject {
+  readonly type: QueryUpdateType;
+  readonly result: QueryResult | null;
+
+  constructor(
+    type: QueryUpdateType,
+    result: QueryResult | null,
+    _supergraph: Supergraph
+  ) {
+    super(_supergraph);
+    this.type = type;
+    this.result = result;
+  }
+
+
+  static create(): QueryUpdate {
+
+    return new QueryUpdate();
+  }
+
+  equals(other: any): boolean {
+    throw new Error("Not implemented");
+  }
+
+  hash(): number {
+    throw new Error("Not implemented");
+  }
+
+  validate(): void {
+    throw new Error("Not implemented");
+  }
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:50113 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:2571 ==== */
+export class Selection extends BuiltinObject {
+
+
+  constructor(
+    _supergraph: Supergraph
+  ) {
+    super(_supergraph);
+
+  }
+
+
+  static create(): Selection {
+
+    return new Selection();
+  }
+
+  equals(other: any): boolean {
+    throw new Error("Not implemented");
+  }
+
+  hash(): number {
+    throw new Error("Not implemented");
+  }
+
+  validate(): void {
+    throw new Error("Not implemented");
+  }
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:2571 ==== */

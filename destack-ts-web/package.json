@@ -36,7 +36,8 @@
     "posthog-js": "^1.246.1",
     "pyodide": "^0.27.7",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "temporal-polyfill": "^0.3.0"
   },
   "devDependencies": {
     "@preact/signals-react-transform": "^0.5.2",

@@ -1,12 +1,22 @@
 import { Graph, QueryConnection, Session, Supergraph } from "@/language/core/runtime";
 import { BuiltinObject } from "./object";
+import { NodeReference } from "@/language/core/common/relation";
+import { NodeType } from "@/language";
 
+/** A Node is a collection of properties with an identity. */
 export abstract class Node extends BuiltinObject {
 
 	static readonly __isNode__: boolean = true;
 	static readonly metatype: NodeType;
 
 	readonly id: string;
+	get parent(): Node | null {
+		if (this.parentPtr === null) {
+			return null;
+		}
+		return this._supergraph.get(this.parentPtr.id);
+	}
+	readonly parentPtr: NodeReference | null;
 	
 	// runtime
 	_session: Session;
@@ -21,20 +31,24 @@ export abstract class Node extends BuiltinObject {
 
 	constructor(
 		id: string,
-		session: Session,
-		supergraph: Supergraph,
-		graph: Graph,
-		connection: QueryConnection | null,
+		_session: Session,
+		_supergraph: Supergraph,
+		_graph: Graph,
+		_connection: QueryConnection | null,
 	) {
-		super();
+		super(_supergraph);
 		this.id = id;
-		this._session = session;
-		this._supergraph = supergraph;
-		this._graph = graph;
-		this._connection = connection;
+		this._session = _session;
+		this._supergraph = _supergraph;
+		this._graph = _graph;
+		this._connection = _connection;
 	}
 
-	path(): string {
+	get _pathKey(): string {
+		throw new Error("Not implemented");
+	}
+
+	get path(): string {
 		throw new Error("Not implemented");
 	}
 
