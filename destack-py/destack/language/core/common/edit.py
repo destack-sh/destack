@@ -88,6 +88,7 @@ class Edit(StructFrozen):
     type: EditType = property_(30, is_repr=True)
     operation: EditOperation | None = property_(31, is_repr=True)
     node: Node = property_(32, is_repr=True)
+    # nocheckin: remove PropertyReferences (just resolve manually)
     prop: Property | None = property_(33, is_repr=True)
     field: "Field | None" = property_(34, is_repr=True)  # for IsExtensible.value
     key: "Value | None" = property_(35, is_repr=True)  # for map operations

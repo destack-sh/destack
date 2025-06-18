@@ -75,11 +75,6 @@ def _is_setup_complete() -> bool:
     return _SETUP_STAGE == _SetupStage.COMPLETED
 
 
-def _set_setup_finalizing():
-    global _SETUP_STAGE
-    _SETUP_STAGE = _SetupStage.FINALIZING
-
-
 def _set_setup_complete():
     global _SETUP_STAGE
     _SETUP_STAGE = _SetupStage.COMPLETED
@@ -93,7 +88,7 @@ def get_tk_b64_from_ck(ck: UUID) -> str:
 _processed_classes: dict[type["BuiltinObjectBase"], type["BuiltinObjectBase"]] = {}
 
 
-def _generate_init_impl[ObjectT: BuiltinObjectBase](
+def _generate_init[ObjectT: BuiltinObjectBase](
     cls: type[ObjectT],
     is_node: bool,
     is_root_node: bool,
@@ -333,7 +328,7 @@ else:
     return init_str, extra_glbls
 
 
-def _generate_repr_impl[ObjectT: BuiltinObjectBase](
+def _generate_repr[ObjectT: BuiltinObjectBase](
     cls: type[ObjectT],
 ) -> tuple[str, dict[str, Any]]:
     """Generates BuiltinObject.__repr__."""
@@ -475,7 +470,7 @@ __str__ = __repr__
     return repr_impl, {}
 
 
-def _generate_ref_impl[NodeT: "Node"](
+def _generate_ref[NodeT: "Node"](
     cls: type[NodeT], node_type: NodeType
 ) -> tuple[str, dict[str, Any]]:
     """Generates Node.__to_ref__ method."""
@@ -491,7 +486,7 @@ def __to_ref__(self) -> "NodeReference":
         space_id=self.id,
     )
 """
-    elif node_type == NodeType.CUSTOM_ENTITY:
+    elif TraitType.CUSTOM_NODE in cls.__traits__:
         ref_impl = f"""\
 def __to_ref__(self) -> "NodeReference":
     return NodeReference(
@@ -527,7 +522,7 @@ def __to_ref__(self) -> "NodeReference":
 #
 
 
-def _generate_equals_impl[ObjectT: BuiltinObjectBase](
+def _generate_equals[ObjectT: BuiltinObjectBase](
     cls: type[ObjectT],
     is_node: bool,
 ) -> tuple[str, dict[str, Any]]:
@@ -632,7 +627,7 @@ def _generate_scalar_cmp_impl(prop: Property) -> str:
 #
 
 
-def _generate_validate_impl[ObjectT: BuiltinObjectBase](
+def _generate_validate[ObjectT: BuiltinObjectBase](
     cls: type[ObjectT],
 ) -> tuple[str, dict[str, Any]]:
     """Generates BuiltinObject.validate method."""
@@ -648,7 +643,7 @@ def validate(self) -> None:
 #
 
 
-def _generate_path_impl[NodeT: Node](cls: type[NodeT]) -> tuple[str, dict[str, Any]]:
+def _generate_path[NodeT: Node](cls: type[NodeT]) -> tuple[str, dict[str, Any]]:
     """Generates Node.path property (and Node._path_key helper)."""
     assert cls.__is_node__, f"{cls.__name__} is not a Node"
 
@@ -963,7 +958,7 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
             "EMPTY_DICT": frozendict(),
             "uuid4": uuid4,
         }
-        init_str, init_glbls = _generate_init_impl(
+        init_str, init_glbls = _generate_init(
             cls,
             is_node=is_node,
             is_frozen=is_frozen,
@@ -973,20 +968,20 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
         )
         exec_(init_str, {**glbls, **init_glbls}, cls_dict, f"{cls.__name__}:init")
         # __repr__
-        repr_str, repr_glbls = _generate_repr_impl(cls)
+        repr_str, repr_glbls = _generate_repr(cls)
         exec_(repr_str, {**glbls, **repr_glbls}, cls_dict, f"{cls.__name__}:repr")
         # equals
-        equals_str, equals_glbls = _generate_equals_impl(cls, is_node=is_node)
+        equals_str, equals_glbls = _generate_equals(cls, is_node=is_node)
         exec_(equals_str, {**glbls, **equals_glbls}, cls_dict, f"{cls.__name__}:equals")
         # validate
-        validate_str, validate_glbls = _generate_validate_impl(cls)
+        validate_str, validate_glbls = _generate_validate(cls)
         exec_(validate_str, {**glbls, **validate_glbls}, cls_dict, f"{cls.__name__}:validate")
         if is_node:
             # __to_ref__
-            ref_str, ref_glbls = _generate_ref_impl(cast(type["Node"], cls), NodeType(object_type))
+            ref_str, ref_glbls = _generate_ref(cast(type["Node"], cls), NodeType(object_type))
             exec_(ref_str, {**glbls, **ref_glbls}, cls_dict, f"{cls.__name__}:to_ref")
             # path
-            path_str, path_glbls = _generate_path_impl(cast(type["Node"], cls))
+            path_str, path_glbls = _generate_path(cast(type["Node"], cls))
             exec_(path_str, {**glbls, **path_glbls}, cls_dict, f"{cls.__name__}:path")
         # pack/unpack are generated after setup because we need all classes
 

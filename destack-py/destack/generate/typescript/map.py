@@ -1,0 +1,20 @@
+from collections.abc import Mapping
+
+from destack.language import PrimitiveType
+
+TYPESCRIPT_TYPE_BY_PRIMITIVE_TYPE: Mapping[PrimitiveType, str] = {
+    PrimitiveType.BOOLEAN: "boolean",
+    PrimitiveType.INT16: "number",
+    PrimitiveType.INT32: "number",
+    PrimitiveType.INT64: "number",
+    PrimitiveType.FLOAT32: "number",
+    PrimitiveType.FLOAT64: "number",
+    PrimitiveType.STRING: "string",
+    PrimitiveType.UUID: "string",
+    PrimitiveType.JSON: "any",
+    PrimitiveType.BYTES: "Uint8Array",
+    PrimitiveType.DATETIME: "DateTime",
+    PrimitiveType.DATE: "Date",
+    PrimitiveType.TIME: "Time",
+    PrimitiveType.DURATION: "Duration",
+}

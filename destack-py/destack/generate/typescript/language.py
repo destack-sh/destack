@@ -1,9 +1,7 @@
 import textwrap
 from collections import defaultdict
-from collections.abc import Mapping
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, assert_never, cast
+from typing import assert_never, cast
 
 from destack.language import (
     EMPTY_DICT,
@@ -11,15 +9,17 @@ from destack.language import (
     BuiltinObjectBase,
     Enum,
     EnumDefinition,
+    Node,
     NodeBase,
     NodeDefinition,
-    PrimitiveType,
+    NodeType,
     Property,
     RoleType,
     ScalarType,
     StructDefinition,
     Trait,
     TraitDefinition,
+    TraitType,
     TypeCardinality,
     get_node_types,
 )
@@ -36,55 +36,9 @@ from destack.language.registry import (
 )
 from destack.utils.string import Casing, to_casing
 
-GENERATION_PATH = "destack-ts/src/language"
-MARKER_START = "/* ==== DESTACK_GENERATED_START:{kind}:{id} ==== */"
-MARKER_END = "/* ==== DESTACK_GENERATED_END:{kind}:{id} ==== */"
-MARKER_CUSTOM_START = "/* ==== DESTACK_GENERATED_CUSTOM_START ==== */"
-MARKER_CUSTOM_END = "/* ==== DESTACK_GENERATED_CUSTOM_END ==== */"
-
-Kind = Literal["ENUM", "STRUCT", "TRAIT", "NODE"]
-Definition = EnumDefinition | StructDefinition | TraitDefinition | NodeDefinition
-
-
-@dataclass(slots=True)
-class TypescriptFile:
-    name: str
-    module: str
-    path: Path
-    definitions: Mapping[str, "TypescriptDefinition"]
-    dependencies: Mapping[str, "TypescriptDefinition"]
-    existing_str: str | None = None
-    new_str: str | None = None
-
-
-@dataclass(slots=True)
-class TypescriptDefinition:
-    name: str
-    cls: type[BuiltinObjectBase] | type[Enum]
-    module: str
-    kind: Kind
-    id: int
-    definition: Definition
-    definition_str: str
-    dependencies: Mapping[str, Definition]
-
-
-TYPESCRIPT_TYPE_BY_PRIMITIVE_TYPE: Mapping[PrimitiveType, str] = {
-    PrimitiveType.BOOLEAN: "boolean",
-    PrimitiveType.INT16: "number",
-    PrimitiveType.INT32: "number",
-    PrimitiveType.INT64: "number",
-    PrimitiveType.FLOAT32: "number",
-    PrimitiveType.FLOAT64: "number",
-    PrimitiveType.STRING: "string",
-    PrimitiveType.UUID: "string",
-    PrimitiveType.JSON: "any",
-    PrimitiveType.BYTES: "Uint8Array",
-    PrimitiveType.DATETIME: "DateTime",
-    PrimitiveType.DATE: "Date",
-    PrimitiveType.TIME: "Time",
-    PrimitiveType.DURATION: "Duration",
-}
+from .const import GENERATION_PATH, MARKER_END, MARKER_START, Definition
+from .core import TypescriptDefinition, TypescriptFile
+from .map import TYPESCRIPT_TYPE_BY_PRIMITIVE_TYPE
 
 
 def _get_properties(cls: type[BuiltinObjectBase]) -> list[Property]:
@@ -222,9 +176,118 @@ set {ts_name}(value: {node_scalar_str} | null) {{
     return f"{node_prop_str};"
 
 
-def _generate_constructor(cls: type[BuiltinObjectBase]) -> str:
+def _generate_init(cls: type[BuiltinObjectBase]) -> str:
     """Generate a Typescript constructor."""
-    return ""
+    return ""  # nocheckin: Typescript BuiltinObject.constructor
+
+
+def _generate_equals(cls: type[BuiltinObjectBase]) -> str:
+    """Generate a Typescript equals method."""
+    return ""  # nocheckin: Typescript BuiltinObject.equals
+
+
+def _generate_hash(cls: type[BuiltinObjectBase]) -> str:
+    """Generate a Typescript hash method."""
+    return ""  # nocheckin: Typescript BuiltinObject.hash
+
+
+def _generate_validate(cls: type[BuiltinObjectBase]) -> str:
+    """Generate a Typescript validate method."""
+    return ""  # nocheckin: Typescript BuiltinObject.validate
+
+
+def _generate_to_ref(cls: type["Node"]) -> str:
+    """Generate a Typescript toRef method."""
+
+    node_type = cls.metatype
+    if node_type == NodeType.SPACE:
+        ref_impl = f"""\
+__toRef__(self): NodeReference {{
+    return new NodeReference({{
+        nodeType: NodeType.{node_type.name},
+        id: this.id,
+        spaceId: this.id,
+    }});
+}}
+"""
+    elif TraitType.CUSTOM_NODE in cls.__traits__:
+        ref_impl = f"""\
+__toRef__(self): NodeReference {{
+    return new NodeReference({{
+        nodeType: NodeType.{node_type.name},
+        id: this.id,
+        definitionId: this.definitionId,
+        spaceId: this.spaceId,
+    }});
+}}
+"""
+    elif TraitType.SPATIAL in cls.__traits__:
+        ref_impl = f"""\
+__toRef__(self): NodeReference {{
+    return new NodeReference({{
+        nodeType: NodeType.{node_type.name},
+        id: this.id,
+        spaceId: this.spaceId,
+    }});
+}}
+"""
+    else:
+        ref_impl = f"""\
+__toRef__(self): NodeReference {{
+    return new NodeReference({{
+        nodeType: NodeType.{node_type.name},
+        id: this.id,
+    }});
+"""
+    return ref_impl
+
+
+def _generate_path(cls: type[Node]) -> str:
+    """Generate a Typescript path method."""
+    # Node._path_key
+    if "slug" in cls.__properties__:
+        if "name" in cls.__properties__:
+            path_key_str = "this.slug or this.name"
+        else:
+            path_key_str = f'this.slug or "{cls.__name__}[id={{this.id}}]"'
+    elif "name" in cls.__properties__:
+        path_key_str = "this.name"
+    elif "title" in cls.__properties__:
+        path_key_str = "this.title"
+    else:
+        path_key_str = f'"{cls.__name__}[id={{this.id}}]"'
+
+    # Node.path
+    if cls.__root_type__ is None:
+        path_str = f"""\
+get _pathKey(): string {{
+    return {path_key_str};
+}}
+
+get path(): string {{
+    return {path_key_str};
+}}"""
+    else:
+        path_str = f"""\
+get _pathKey(): string {{
+    return {path_key_str};
+}}
+
+get path(): string {{
+    const path_parts: string[] = [];
+    let node: Node | null = this;
+    while (node !== null) {{
+        path_parts.push(node._pathKey);
+        node = node.parent;
+    }}
+    if (!this._isAttached) {{
+        path_parts.push("<detached>");
+    }}
+    return path_parts.reverse().join("/");
+}}
+"""
+
+    return path_str
 
 
 def _generate_enum(definition: EnumDefinition) -> str:
@@ -235,7 +298,8 @@ def _generate_enum(definition: EnumDefinition) -> str:
     enum_str = f"""\
 export enum {definition.name} {{
 {textwrap.indent("\n".join(enum_parts), "  ")}
-}}"""
+}}
+"""
     return enum_str
 
 
@@ -254,8 +318,15 @@ def _generate_struct(definition: StructDefinition) -> str:
         )
         struct_parts.extend(prop_str.splitlines())
 
-    # constructor
-    struct_parts.append(_generate_constructor(struct_cls))
+    # body
+    init_str = _generate_init(struct_cls)
+    struct_parts.append(init_str)
+    equals_str = _generate_equals(struct_cls)
+    struct_parts.append(equals_str)
+    hash_str = _generate_hash(struct_cls)
+    struct_parts.append(hash_str)
+    validate_str = _generate_validate(struct_cls)
+    struct_parts.append(validate_str)
 
     struct_str = f"""\
 export class {definition.name} extends BuiltinObject {{
@@ -313,6 +384,20 @@ def _generate_node(definition: NodeDefinition) -> str:
         )
         node_parts.extend(prop_str.splitlines())
 
+    # body
+    init_str = _generate_init(node_cls)
+    node_parts.append(init_str)
+    equals_str = _generate_equals(node_cls)
+    node_parts.append(equals_str)
+    hash_str = _generate_hash(node_cls)
+    node_parts.append(hash_str)
+    validate_str = _generate_validate(node_cls)
+    node_parts.append(validate_str)
+    to_ref_str = _generate_to_ref(node_cls)
+    node_parts.append(to_ref_str)
+    path_str = _generate_path(node_cls)
+    node_parts.append(path_str)
+
     # class
     trait_classes: list[type[NodeBase]] = [
         TRAIT_CLASS_BY_TRAIT[trait_type] for trait_type in definition.traits
@@ -361,6 +446,7 @@ def _get_definition_dependencies(cls: type[BuiltinObjectBase]) -> dict[str, Defi
 
 
 def _generate_definition(definition: Definition) -> TypescriptDefinition:
+    """Generate a Typescript definition."""
     if isinstance(definition, EnumDefinition):
         kind = "ENUM"
         cls = ENUM_CLASS_BY_TYPE[definition.type]
@@ -404,7 +490,7 @@ def _generate_definition(definition: Definition) -> TypescriptDefinition:
 def _generate_file(file: TypescriptFile) -> str:
     if file.existing_str is not None:
         # nocheckin: merge TypescriptFile contents with existing
-        raise NotImplementedError(f"merge TypescriptFile: {file.path}")
+        return file.existing_str
 
     file_parts: list[str] = []
 

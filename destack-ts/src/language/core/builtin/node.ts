@@ -38,8 +38,15 @@ export abstract class Node extends BuiltinObject {
 		throw new Error("Not implemented");
 	}
 
-	toRef(): NodeReference {
+	__toRef__(): NodeReference {
 		throw new Error("Not implemented");
+	}
+
+	toRef(): NodeReference {
+		if (this._ref === null) {
+			this._ref = this.__toRef__();
+		}
+		return this._ref;
 	}
 
 	/** Append a child to this Node. */
