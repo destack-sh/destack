@@ -1,4 +1,4 @@
-import { Graph, Team, IsDeletable, MaterializationType, Spatial, StructFrozen, IsFrozen, Analytic, Struct, EnumType, IsTracked, Entity, QueryConnection, NodeReference, Indexed, Node, RoleType, Folder, Particle, IsOrdered, NodeType, Session, IsOwner, Agent, Space, User, Organization, Thread, StructType, Event, Icon, Supergraph, Global, BuiltinObject } from '@/language';
+import { Folder, Thread, IsFrozen, EnumType, StructType, IsOwner, Node, QueryConnection, User, IsDeletable, Analytic, NodeReference, Graph, Spatial, Particle, Space, Agent, StructFrozen, IsOrdered, Team, Struct, BuiltinObject, Icon, Organization, NodeType, Session, MaterializationType, Event, Entity, RoleType, Indexed, Supergraph, Global, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:521 ==== */
@@ -98,11 +98,21 @@ export class RoleEvent extends Node implements Spatial, Particle, Analytic, Inde
 
   static create(options: {
     type: RoleEventType,
-    node: Role | NodeReference
+    node: Role | NodeReference,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): RoleEvent {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new RoleEvent(
-
+      options.type,
+      options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? options.node : options.node.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
@@ -232,11 +242,23 @@ export class Role extends Node implements Global, Spatial, Entity, IsTracked, Is
     type: RoleType,
     name: string,
     slug?: string | null,
-    icon?: Icon | null
+    icon?: Icon | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Role {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Role(
-
+      options.type,
+      options.name,
+      options.slug ?? null,
+      options.icon ?? null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
@@ -257,7 +279,7 @@ export class Role extends Node implements Global, Spatial, Entity, IsTracked, Is
   }
 
   get _pathKey(): string {
-      return this.slug or this.name;
+      return this.slug ?? this.name;
   }
 
   get path(): string {

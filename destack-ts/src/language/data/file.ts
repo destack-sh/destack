@@ -1,4 +1,4 @@
-import { Graph, MaterializationType, Spatial, StructFrozen, Struct, EnumType, IsTracked, Entity, QueryConnection, NodeReference, Node, NodeType, Session, ResourceStatus, Resource, Agent, Space, User, StructType, Supergraph, Global, BuiltinObject } from '@/language';
+import { ResourceStatus, EnumType, StructType, Node, QueryConnection, User, NodeReference, Graph, Spatial, Agent, Space, StructFrozen, Struct, Resource, BuiltinObject, NodeType, Session, MaterializationType, Entity, Supergraph, Global, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:2541 ==== */
@@ -276,11 +276,40 @@ export class File extends Node implements Global, Spatial, Entity, Resource, IsT
     faviconUrl?: string | null,
     thumbnailWidth?: number | null,
     thumbnailHeight?: number | null,
-    content?: Uint8Array | null
+    content?: Uint8Array | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): File {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new File(
-
+      options.type,
+      options.name,
+      options.status ?? ResourceStatus.PENDING,
+      options.targetStatus ?? null,
+      options.source,
+      options.mimeType ?? null,
+      options.format ?? null,
+      options.size ?? null,
+      options.sha256 ?? null,
+      options.width ?? null,
+      options.height ?? null,
+      options.aspectRatio ?? null,
+      options.codec ?? null,
+      options.duration ?? null,
+      options.url ?? null,
+      options.contentUrl ?? null,
+      options.thumbnailUrl ?? null,
+      options.faviconUrl ?? null,
+      options.thumbnailWidth ?? null,
+      options.thumbnailHeight ?? null,
+      options.content ?? null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

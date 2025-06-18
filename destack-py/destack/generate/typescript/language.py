@@ -133,6 +133,13 @@ def _generate_value(type: IntoType, value: Any) -> str:
             return f'"{value}"'
         else:
             raise ValueError(f"unsupported primitive type: {type.primitive_type!r}")
+    elif type.scalar_type == ScalarType.ENUM:
+        if type.cardinality == TypeCardinality.SCALAR:
+            assert type.enum_type is not None, f"no enum_type for {type!r}"
+            enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
+            return f"{enum_cls.__name__}.{value.name}"
+        else:
+            raise ValueError(f"unsupported enum cardinality: {type.cardinality!r}")
     else:
         raise ValueError(f"unsupported value type: {type.scalar_type!r}")
 
@@ -265,7 +272,7 @@ def _generate_init(cls: type[BuiltinObjectBase]) -> str:
         constructor_super_parts.append("id")  # already in regular properties
     else:
         runtime_props = [
-            ("_supergraph", "Supergraph"),
+            ("_supergraph", "Supergraph | null"),
         ]
     for prop_name, prop_type in runtime_props:
         constructor_header_parts.append(f"{prop_name}: {prop_type}")
@@ -309,24 +316,45 @@ constructor(
             if prop.is_optional:
                 type_str = f"{type_str} | null"
             create_constructor_parts.append(
-                f"{ts_name}: {ts_name} != null ? ({ts_name}.metatype == StructType.NODE_REFERENCE ? {ts_name} : {ts_name}.toRef()) : null"
+                f"options.{ts_name} != null ? (options.{ts_name}.metatype == StructType.NODE_REFERENCE ? options.{ts_name} : options.{ts_name}.toRef()) : null"
             )
         else:
             # can be passed as value
             type_str = _generate_property_type(prop)
             if prop.default is not UNSET and prop.default is not None:
-                create_body_parts.append(
-                    f"{ts_name}: {ts_name} ?? {_generate_value(prop, prop.default)};"
+                create_constructor_parts.append(
+                    f"options.{ts_name} ?? {_generate_value(prop, prop.default)}"
                 )
             elif prop.default_factory is not None:
-                ...
+                create_constructor_parts.append(f"options.{ts_name}")  # nocheckin
+            elif prop.cardinality == TypeCardinality.LIST:
+                create_constructor_parts.append(f"options.{ts_name} ?? []")
+            elif prop.cardinality == TypeCardinality.MAP:
+                create_constructor_parts.append(f"options.{ts_name} ?? new Map()")
+            elif not is_required:
+                create_constructor_parts.append(f"options.{ts_name} ?? null")
             else:
-                create_body_parts.append(f"{ts_name};")
+                create_constructor_parts.append(f"options.{ts_name}")
 
         if is_required:
             create_header_parts.append(f"{ts_name}: {type_str}")
         else:
             create_header_parts.append(f"{ts_name}?: {type_str}")
+
+    create_header_parts.append("_session?: Session | null")  # noqa: FURB113
+    create_header_parts.append("_supergraph?: Supergraph | null")
+    if issubclass(cls, Node):
+        create_header_parts.append("_graph?: Graph | null")  # noqa: FURB113
+        create_header_parts.append("_connection?: QueryConnection | null")
+        create_constructor_parts.append("session")
+        create_constructor_parts.append("supergraph")
+        create_constructor_parts.append("options._graph")
+        create_constructor_parts.append("options._connection")
+    else:
+        create_constructor_parts.append("supergraph")
+
+    create_body_parts.append("const session = options._session ?? ACTIVE_SESSION.get();")  # noqa: FURB113
+    create_body_parts.append("const supergraph = options._supergraph ?? session.supergraph;")
 
     # assemble create
     create_header_str = ",\n".join(create_header_parts)
@@ -338,7 +366,7 @@ static create(options: {{
 }}): {cls.__name__} {{
 {textwrap.indent(create_body_str, "  ")}
   return new {cls.__name__}(
-{textwrap.indent(create_constructor_str, "  ")}
+{textwrap.indent(create_constructor_str, "    ")}
   );
 }}
 """

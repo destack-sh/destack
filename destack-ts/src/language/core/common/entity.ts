@@ -1,4 +1,4 @@
-import { IsCustomNode, Graph, IsTaggable, Team, IsDeletable, MaterializationType, Spatial, StructFrozen, IsOwnable, IsScriptable, Struct, EnumType, IsExtensible, Script, IsTracked, IsSourceable, Entity, Role, TraitType, QueryConnection, NodeReference, Node, Value, IsActionable, Folder, IsOrdered, NodeType, Session, IsCustomNodeDefinition, Agent, Space, User, Organization, StructType, Supergraph, BuiltinObject } from '@/language';
+import { Folder, IsScriptable, IsTaggable, TraitType, EnumType, StructType, Script, Node, IsExtensible, QueryConnection, User, IsDeletable, IsCustomNode, NodeReference, Graph, Spatial, Value, IsOwnable, Role, Agent, IsOrdered, Space, StructFrozen, Team, Struct, BuiltinObject, IsSourceable, Organization, NodeType, Session, MaterializationType, Entity, IsCustomNodeDefinition, Supergraph, IsActionable, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:2000 ==== */
@@ -155,11 +155,24 @@ export class CustomEntityDefinition extends Node implements Spatial, Entity, IsC
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     name: string,
     traits?: Array<TraitType>,
-    script?: Script | NodeReference | null
+    script?: Script | NodeReference | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): CustomEntityDefinition {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new CustomEntityDefinition(
-
+      options.prototype != null ? (options.prototype.metatype == StructType.NODE_REFERENCE ? options.prototype : options.prototype.toRef()) : null,
+      options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? options.ownedBy : options.ownedBy.toRef()) : null,
+      options.name,
+      options.traits ?? [],
+      options.script != null ? (options.script.metatype == StructType.NODE_REFERENCE ? options.script : options.script.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
@@ -285,11 +298,20 @@ export class CustomEntity extends Node implements Spatial, Entity, IsCustomNode,
 
 
   static create(options: {
-    value?: Map<string, Value>
+    value?: Map<string, Value>,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): CustomEntity {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new CustomEntity(
-
+      options.value ?? new Map(),
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

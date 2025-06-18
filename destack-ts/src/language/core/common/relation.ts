@@ -1,4 +1,4 @@
-import { Graph, Field, TraitType, Supergraph, Region, CustomEntityDefinition, StructFrozen, QueryConnection, StructType, NodeType, Session, Node, Struct, EnumType, BuiltinObject } from '@/language';
+import { Struct, Node, BuiltinObject, Field, QueryConnection, Region, Graph, TraitType, Supergraph, NodeType, EnumType, StructType, CustomEntityDefinition, Session, StructFrozen } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:50010 ==== */
@@ -32,7 +32,7 @@ export class Scope extends StructFrozen {
   constructor(
     region: Region | null,
     spaceId: string | null,
-    _supergraph: Supergraph
+    _supergraph: Supergraph | null
   ) {
     super(_supergraph);
     this.region = region;
@@ -42,11 +42,16 @@ export class Scope extends StructFrozen {
 
   static create(options: {
     region?: Region | null,
-    spaceId?: string | null
+    spaceId?: string | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null
   }): Scope {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Scope(
-
+      options.region ?? null,
+      options.spaceId ?? null,
+      supergraph
     );
   }
 
@@ -87,7 +92,7 @@ export class RelationReference extends StructFrozen {
     nodeType: NodeType | null,
     definitionPtr: NodeReference | null,
     traitType: TraitType | null,
-    _supergraph: Supergraph
+    _supergraph: Supergraph | null
   ) {
     super(_supergraph);
     this.type = type;
@@ -101,11 +106,18 @@ export class RelationReference extends StructFrozen {
     type: RelationType,
     nodeType?: NodeType | null,
     definition?: CustomEntityDefinition | NodeReference | null,
-    traitType?: TraitType | null
+    traitType?: TraitType | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null
   }): RelationReference {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new RelationReference(
-
+      options.type,
+      options.nodeType ?? null,
+      options.definition != null ? (options.definition.metatype == StructType.NODE_REFERENCE ? options.definition : options.definition.toRef()) : null,
+      options.traitType ?? null,
+      supergraph
     );
   }
 
@@ -144,7 +156,7 @@ export class AttributeReference extends StructFrozen {
     type: AttributeType,
     propPtr: PropertyReference | null,
     fieldPtr: NodeReference | null,
-    _supergraph: Supergraph
+    _supergraph: Supergraph | null
   ) {
     super(_supergraph);
     this.type = type;
@@ -156,11 +168,17 @@ export class AttributeReference extends StructFrozen {
   static create(options: {
     type: AttributeType,
     propPtr?: PropertyReference | null,
-    field?: Field | NodeReference | null
+    field?: Field | NodeReference | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null
   }): AttributeReference {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new AttributeReference(
-
+      options.type,
+      options.propPtr ?? null,
+      options.field != null ? (options.field.metatype == StructType.NODE_REFERENCE ? options.field : options.field.toRef()) : null,
+      supergraph
     );
   }
 
@@ -192,7 +210,7 @@ export class PropertyReference extends StructFrozen {
     traitType: TraitType | null,
     structType: StructType | null,
     id: number,
-    _supergraph: Supergraph
+    _supergraph: Supergraph | null
   ) {
     super(_supergraph);
     this.type = type;
@@ -208,11 +226,19 @@ export class PropertyReference extends StructFrozen {
     nodeType?: NodeType | null,
     traitType?: TraitType | null,
     structType?: StructType | null,
-    id: number
+    id: number,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null
   }): PropertyReference {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new PropertyReference(
-
+      options.type,
+      options.nodeType ?? null,
+      options.traitType ?? null,
+      options.structType ?? null,
+      options.id,
+      supergraph
     );
   }
 
@@ -242,7 +268,7 @@ export class NodeReference extends StructFrozen {
     id: string,
     spaceId: string | null,
     definitionId: string | null,
-    _supergraph: Supergraph
+    _supergraph: Supergraph | null
   ) {
     super(_supergraph);
     this.nodeType = nodeType;
@@ -256,11 +282,18 @@ export class NodeReference extends StructFrozen {
     nodeType: NodeType,
     id: string,
     spaceId?: string | null,
-    definitionId?: string | null
+    definitionId?: string | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null
   }): NodeReference {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new NodeReference(
-
+      options.nodeType,
+      options.id,
+      options.spaceId ?? null,
+      options.definitionId ?? null,
+      supergraph
     );
   }
 

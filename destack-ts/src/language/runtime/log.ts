@@ -1,4 +1,4 @@
-import { Graph, Spatial, StructFrozen, IsFrozen, Analytic, Struct, EnumType, IsTracked, QueryConnection, NodeReference, Node, NodeType, Session, Agent, Space, User, StructType, Supergraph, BuiltinObject } from '@/language';
+import { IsFrozen, EnumType, StructType, Node, QueryConnection, User, Analytic, NodeReference, Graph, Spatial, Agent, Space, StructFrozen, Struct, BuiltinObject, NodeType, Session, Supergraph, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:4100 ==== */
@@ -90,11 +90,22 @@ export class Log extends Node implements Spatial, Analytic, IsFrozen, IsTracked 
   static create(options: {
     content: string,
     attributes?: Map<string, any>,
-    level: LogLevel
+    level: LogLevel,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Log {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Log(
-
+      options.content,
+      options.attributes ?? new Map(),
+      options.level,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

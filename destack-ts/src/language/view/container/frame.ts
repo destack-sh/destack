@@ -1,4 +1,4 @@
-import { PlaneShape, LabelView, Graph, IsTaggable, IsDeletable, Position, Grid, MaterializationType, Spatial, StructFrozen, CustomViewDefinition, IsScriptable, Struct, GridSpan, EnumType, IsExtensible, Script, IsTracked, Entity, IsVisual, Vector2, Shadow, QueryConnection, NodeReference, Axis2, SplitView, Node, Value, Scene, Layer, CustomView, Align, Fill, Dimension, Axis3, Distribute, Border, Layout, Direction, Corners, Insets, AnnotationShape, IsOrdered, NodeType, Session, View, ContainerView, Agent, Space, User, Window, StructType, Canvas, Supergraph, BuiltinObject } from '@/language';
+import { Insets, IsScriptable, IsTaggable, Align, GridSpan, Distribute, EnumType, StructType, CustomView, Scene, Script, CustomViewDefinition, Node, Canvas, IsExtensible, QueryConnection, Direction, Layer, IsDeletable, User, NodeReference, Graph, Spatial, View, Value, Grid, Fill, LabelView, Shadow, SplitView, Agent, IsOrdered, Space, StructFrozen, Position, Axis2, Corners, Struct, Dimension, BuiltinObject, AnnotationShape, IsVisual, NodeType, Window, Session, Axis3, MaterializationType, Entity, Vector2, Layout, ContainerView, PlaneShape, Supergraph, IsTracked, Border } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:10020 ==== */
@@ -208,11 +208,48 @@ export class FrameView extends Node implements Spatial, Entity, IsTracked, IsDel
     shadow?: Shadow | null,
     border?: Border | null,
     radius?: Corners | null,
-    script?: Script | NodeReference | null
+    script?: Script | NodeReference | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): FrameView {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new FrameView(
-
+      options.value ?? new Map(),
+      options.name,
+      options.position ?? null,
+      options.width ?? null,
+      options.height ?? null,
+      options.minWidth ?? null,
+      options.minHeight ?? null,
+      options.maxWidth ?? null,
+      options.maxHeight ?? null,
+      options.layout ?? null,
+      options.direction ?? null,
+      options.distribute ?? null,
+      options.align ?? null,
+      options.gap ?? null,
+      options.padding ?? null,
+      options.grid ?? null,
+      options.gridSpan ?? null,
+      options.aspectRatio ?? null,
+      options.isWrap ?? null,
+      options.isVisible ?? null,
+      options.opacity ?? null,
+      options.fill ?? null,
+      options.rotation ?? null,
+      options.skew ?? null,
+      options.scale ?? null,
+      options.shadow ?? null,
+      options.border ?? null,
+      options.radius ?? null,
+      options.script != null ? (options.script.metatype == StructType.NODE_REFERENCE ? options.script : options.script.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

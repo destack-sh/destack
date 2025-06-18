@@ -1,4 +1,4 @@
-import { Graph, Supergraph, StructFrozen, File, QueryConnection, StructType, NodeReference, NodeType, Session, Node, Struct, Color, EnumType, BuiltinObject } from '@/language';
+import { Struct, Color, Node, BuiltinObject, QueryConnection, NodeReference, Graph, Supergraph, NodeType, EnumType, StructType, Session, File, StructFrozen } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:2531 ==== */
@@ -40,7 +40,7 @@ export class Icon extends StructFrozen {
     filePtr: NodeReference | null,
     fileUrl: string | null,
     color: Color | null,
-    _supergraph: Supergraph
+    _supergraph: Supergraph | null
   ) {
     super(_supergraph);
     this.type = type;
@@ -54,17 +54,27 @@ export class Icon extends StructFrozen {
 
 
   static create(options: {
-    type?: IconType,
+    type: IconType,
     emoji?: string | null,
     faName?: string | null,
     vscName?: string | null,
     file?: File | NodeReference | null,
     fileUrl?: string | null,
-    color?: Color | null
+    color?: Color | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null
   }): Icon {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Icon(
-
+      options.type,
+      options.emoji ?? null,
+      options.faName ?? null,
+      options.vscName ?? null,
+      options.file != null ? (options.file.metatype == StructType.NODE_REFERENCE ? options.file : options.file.toRef()) : null,
+      options.fileUrl ?? null,
+      options.color ?? null,
+      supergraph
     );
   }
 

@@ -1,4 +1,4 @@
-import { PlaneShape, LabelView, Graph, IsTaggable, IsDeletable, Position, MaterializationType, Spatial, NodeView, Text, StructFrozen, CustomViewDefinition, IsScriptable, Struct, EnumType, Script, IsTracked, Entity, IsVisual, Message, QueryConnection, NodeReference, SplitView, Node, Scene, Layer, CustomView, FrameView, Dimension, AnnotationShape, IsOrdered, NodeType, Session, View, Agent, Space, User, Window, StructType, Canvas, Supergraph, BuiltinObject } from '@/language';
+import { IsScriptable, IsTaggable, EnumType, StructType, CustomView, Scene, Script, Text, CustomViewDefinition, Node, Canvas, QueryConnection, Layer, IsDeletable, User, NodeReference, Graph, Spatial, View, LabelView, SplitView, Agent, IsOrdered, Space, StructFrozen, Position, Struct, Dimension, BuiltinObject, NodeView, Message, AnnotationShape, IsVisual, NodeType, Window, Session, MaterializationType, Entity, FrameView, PlaneShape, Supergraph, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:10600 ==== */
@@ -152,11 +152,30 @@ export class ThreadView extends Node implements Spatial, Entity, IsTracked, IsDe
     maxHeight?: Dimension | null,
     draftText?: Text | null,
     draftReplyTo?: Message | NodeReference | null,
-    script?: Script | NodeReference | null
+    script?: Script | NodeReference | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): ThreadView {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new ThreadView(
-
+      options.name,
+      options.position ?? null,
+      options.width ?? null,
+      options.height ?? null,
+      options.minWidth ?? null,
+      options.minHeight ?? null,
+      options.maxWidth ?? null,
+      options.maxHeight ?? null,
+      options.draftText ?? null,
+      options.draftReplyTo != null ? (options.draftReplyTo.metatype == StructType.NODE_REFERENCE ? options.draftReplyTo : options.draftReplyTo.toRef()) : null,
+      options.script != null ? (options.script.metatype == StructType.NODE_REFERENCE ? options.script : options.script.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

@@ -1,4 +1,4 @@
-import { Graph, IsStarable, IsFollowable, Team, MaterializationType, Spatial, Region, StructFrozen, IsOwnable, Struct, EnumType, Handle, IsTracked, Role, Entity, Database, QueryConnection, NodeReference, IsJoinable, Node, Folder, NodeType, Session, Agent, User, Organization, StructType, Icon, Supergraph, Global, BuiltinObject } from '@/language';
+import { Handle, Folder, Region, EnumType, StructType, IsStarable, Node, IsFollowable, QueryConnection, User, NodeReference, Graph, Spatial, IsOwnable, IsJoinable, Role, Agent, Team, StructFrozen, Struct, BuiltinObject, Database, Icon, Organization, NodeType, Session, MaterializationType, Entity, Supergraph, Global, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:1 ==== */
@@ -171,11 +171,30 @@ export class Space extends Node implements Global, Spatial, Entity, IsTracked, I
     homeFolder?: Folder | NodeReference | null,
     region: Region,
     galaxyName?: string | null,
-    database?: Database | NodeReference | null
+    database?: Database | NodeReference | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Space {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Space(
-
+      options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? options.ownedBy : options.ownedBy.toRef()) : null,
+      options.name,
+      options.slug,
+      options.icon ?? null,
+      options.status,
+      options.handle != null ? (options.handle.metatype == StructType.NODE_REFERENCE ? options.handle : options.handle.toRef()) : null,
+      options.systemFolder != null ? (options.systemFolder.metatype == StructType.NODE_REFERENCE ? options.systemFolder : options.systemFolder.toRef()) : null,
+      options.homeFolder != null ? (options.homeFolder.metatype == StructType.NODE_REFERENCE ? options.homeFolder : options.homeFolder.toRef()) : null,
+      options.region,
+      options.galaxyName ?? null,
+      options.database != null ? (options.database.metatype == StructType.NODE_REFERENCE ? options.database : options.database.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
@@ -196,11 +215,11 @@ export class Space extends Node implements Global, Spatial, Entity, IsTracked, I
   }
 
   get _pathKey(): string {
-      return this.slug or this.name;
+      return this.slug ?? this.name;
   }
 
   get path(): string {
-      return this.slug or this.name;
+      return this.slug ?? this.name;
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:1 ==== */

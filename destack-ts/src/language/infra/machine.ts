@@ -1,4 +1,4 @@
-import { Graph, MaterializationType, Spatial, StructFrozen, Struct, EnumType, IsTracked, Entity, QueryConnection, NodeReference, Node, NodeType, Session, ResourceStatus, Resource, Client, Agent, Space, User, StructType, Supergraph, BuiltinObject } from '@/language';
+import { ResourceStatus, EnumType, StructType, Node, QueryConnection, User, NodeReference, Graph, Spatial, Client, Agent, Space, StructFrozen, Struct, Resource, BuiltinObject, NodeType, Session, MaterializationType, Entity, Supergraph, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:7600 ==== */
@@ -156,11 +156,34 @@ export class Machine extends Node implements Spatial, Entity, Resource, IsTracke
     ram?: number,
     width?: number,
     height?: number,
-    isHeadless?: boolean
+    isHeadless?: boolean,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Machine {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Machine(
-
+      options.type ?? MachineType.RUNTIME,
+      options.status ?? ResourceStatus.PENDING,
+      options.targetStatus ?? null,
+      options.version ?? "2025.06.16.5",
+      options.externalName ?? null,
+      options.externalId ?? null,
+      options.imageId ?? null,
+      options.grpcUrl ?? null,
+      options.vncUrl ?? null,
+      options.client != null ? (options.client.metatype == StructType.NODE_REFERENCE ? options.client : options.client.toRef()) : null,
+      options.cpu ?? 1.0,
+      options.ram ?? 1.0,
+      options.width ?? 1280,
+      options.height ?? 960,
+      options.isHeadless ?? false,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

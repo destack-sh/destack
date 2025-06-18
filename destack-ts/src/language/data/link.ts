@@ -1,4 +1,4 @@
-import { Graph, MaterializationType, Spatial, StructFrozen, Struct, EnumType, IsTracked, Entity, QueryConnection, NodeReference, Node, NodeType, Session, ResourceStatus, Resource, Agent, Space, User, StructType, Supergraph, BuiltinObject } from '@/language';
+import { ResourceStatus, EnumType, StructType, Node, QueryConnection, User, NodeReference, Graph, Spatial, Agent, Space, StructFrozen, Struct, Resource, BuiltinObject, NodeType, Session, MaterializationType, Entity, Supergraph, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:2550 ==== */
@@ -140,11 +140,35 @@ export class Link extends Node implements Spatial, Entity, Resource, IsTracked {
     attributionTag?: string | null,
     publishedAt?: Temporal.ZonedDateTime | null,
     expiresAt?: Temporal.ZonedDateTime | null,
-    imageUrls?: Array<string>
+    imageUrls?: Array<string>,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Link {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Link(
-
+      options.type,
+      options.status ?? ResourceStatus.PENDING,
+      options.targetStatus ?? null,
+      options.url ?? null,
+      options.domain ?? null,
+      options.contentUrl ?? null,
+      options.thumbnailUrl ?? null,
+      options.faviconUrl ?? null,
+      options.thumbnailWidth ?? null,
+      options.thumbnailHeight ?? null,
+      options.content ?? null,
+      options.attribution ?? null,
+      options.attributionTag ?? null,
+      options.publishedAt ?? null,
+      options.expiresAt ?? null,
+      options.imageUrls ?? [],
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

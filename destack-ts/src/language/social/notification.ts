@@ -1,4 +1,4 @@
-import { Graph, Team, MaterializationType, Spatial, Text, StructFrozen, IsFrozen, Analytic, IsOwnable, Struct, EnumType, IsTracked, Role, Entity, QueryConnection, NodeReference, Indexed, Node, Particle, NodeType, Session, Agent, Space, User, Organization, StructType, Event, Supergraph, BuiltinObject } from '@/language';
+import { IsFrozen, EnumType, StructType, Text, Node, QueryConnection, User, Analytic, NodeReference, Graph, Spatial, IsOwnable, Role, Particle, Space, Agent, StructFrozen, Team, Struct, BuiltinObject, Organization, NodeType, Session, MaterializationType, Event, Entity, Indexed, Supergraph, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:5600 ==== */
@@ -111,11 +111,21 @@ export class NotificationEvent extends Node implements Spatial, Particle, Analyt
 
   static create(options: {
     type: NotificationEventType,
-    node: Notification | NodeReference
+    node: Notification | NodeReference,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): NotificationEvent {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new NotificationEvent(
-
+      options.type,
+      options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? options.node : options.node.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
@@ -255,11 +265,23 @@ export class Notification extends Node implements Spatial, Entity, IsTracked, Is
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     status: NotificationStatus,
     title: string,
-    text?: Text | null
+    text?: Text | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Notification {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Notification(
-
+      options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? options.ownedBy : options.ownedBy.toRef()) : null,
+      options.status,
+      options.title,
+      options.text ?? null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

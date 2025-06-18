@@ -1,4 +1,4 @@
-import { Graph, IsDeletable, MaterializationType, Spatial, StructFrozen, IsOwnable, Struct, EnumType, IsTracked, Entity, QueryConnection, NodeReference, Node, Folder, NodeType, Session, LikeFollow, Agent, Space, User, StructType, Supergraph, Global, BuiltinObject } from '@/language';
+import { Folder, EnumType, StructType, Node, QueryConnection, User, IsDeletable, NodeReference, Graph, Spatial, IsOwnable, LikeFollow, Agent, Space, StructFrozen, Struct, BuiltinObject, NodeType, Session, MaterializationType, Entity, Supergraph, Global, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:5530 ==== */
@@ -93,11 +93,20 @@ export class Follow extends Node implements Global, Spatial, Entity, IsTracked, 
 
 
   static create(options: {
-    ownedBy: Agent | User | NodeReference
+    ownedBy: Agent | User | NodeReference,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Follow {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Follow(
-
+      options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? options.ownedBy : options.ownedBy.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

@@ -1,4 +1,4 @@
-import { PlaneShape, IsCustomNode, LabelView, Graph, IsTaggable, IsDeletable, Position, Grid, MaterializationType, Spatial, StructFrozen, IsScriptable, Struct, GridSpan, EnumType, IsExtensible, Script, IsTracked, Entity, IsVisual, Vector2, Shadow, QueryConnection, NodeReference, Axis2, SplitView, Node, Value, Scene, Layer, Align, Fill, FrameView, Folder, Dimension, Distribute, Axis3, Border, Layout, Direction, Corners, Insets, AnnotationShape, IsOrdered, NodeType, Session, View, ContainerView, IsCustomNodeDefinition, Agent, Space, User, Window, StructType, Canvas, Supergraph, BuiltinObject } from '@/language';
+import { Insets, Folder, IsScriptable, IsTaggable, Align, GridSpan, Distribute, Layer, EnumType, StructType, Script, Scene, Node, Direction, IsExtensible, QueryConnection, Canvas, User, IsDeletable, Value, NodeReference, Graph, Spatial, View, Grid, IsCustomNode, Fill, LabelView, Shadow, SplitView, Agent, IsOrdered, Space, StructFrozen, Position, Axis2, Corners, Struct, Dimension, BuiltinObject, AnnotationShape, IsVisual, NodeType, Window, Session, Axis3, MaterializationType, Entity, Vector2, Layout, FrameView, ContainerView, PlaneShape, IsCustomNodeDefinition, Supergraph, IsTracked, Border } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:10000 ==== */
@@ -228,11 +228,49 @@ export class CustomViewDefinition extends Node implements Spatial, Entity, IsCus
     shadow?: Shadow | null,
     border?: Border | null,
     radius?: Corners | null,
-    script?: Script | NodeReference | null
+    script?: Script | NodeReference | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): CustomViewDefinition {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new CustomViewDefinition(
-
+      options.prototype != null ? (options.prototype.metatype == StructType.NODE_REFERENCE ? options.prototype : options.prototype.toRef()) : null,
+      options.value ?? new Map(),
+      options.name,
+      options.position ?? null,
+      options.width ?? null,
+      options.height ?? null,
+      options.minWidth ?? null,
+      options.minHeight ?? null,
+      options.maxWidth ?? null,
+      options.maxHeight ?? null,
+      options.layout ?? null,
+      options.direction ?? null,
+      options.distribute ?? null,
+      options.align ?? null,
+      options.gap ?? null,
+      options.padding ?? null,
+      options.grid ?? null,
+      options.gridSpan ?? null,
+      options.aspectRatio ?? null,
+      options.isWrap ?? null,
+      options.isVisible ?? null,
+      options.opacity ?? null,
+      options.fill ?? null,
+      options.rotation ?? null,
+      options.skew ?? null,
+      options.scale ?? null,
+      options.shadow ?? null,
+      options.border ?? null,
+      options.radius ?? null,
+      options.script != null ? (options.script.metatype == StructType.NODE_REFERENCE ? options.script : options.script.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
@@ -489,11 +527,48 @@ export class CustomView extends Node implements Spatial, Entity, IsCustomNode, I
     shadow?: Shadow | null,
     border?: Border | null,
     radius?: Corners | null,
-    script?: Script | NodeReference | null
+    script?: Script | NodeReference | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): CustomView {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new CustomView(
-
+      options.value ?? new Map(),
+      options.name,
+      options.position ?? null,
+      options.width ?? null,
+      options.height ?? null,
+      options.minWidth ?? null,
+      options.minHeight ?? null,
+      options.maxWidth ?? null,
+      options.maxHeight ?? null,
+      options.layout ?? null,
+      options.direction ?? null,
+      options.distribute ?? null,
+      options.align ?? null,
+      options.gap ?? null,
+      options.padding ?? null,
+      options.grid ?? null,
+      options.gridSpan ?? null,
+      options.aspectRatio ?? null,
+      options.isWrap ?? null,
+      options.isVisible ?? null,
+      options.opacity ?? null,
+      options.fill ?? null,
+      options.rotation ?? null,
+      options.skew ?? null,
+      options.scale ?? null,
+      options.shadow ?? null,
+      options.border ?? null,
+      options.radius ?? null,
+      options.script != null ? (options.script.metatype == StructType.NODE_REFERENCE ? options.script : options.script.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

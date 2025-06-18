@@ -1,4 +1,4 @@
-import { PlaneShape, PrimitiveType, IsTaggable, GaugeMetric, EffectStyle, CollectionConstraint, FontStyle, Machine, Interruption, HistogramMetric, Log, Tag, IsTracked, IsSourceable, Entity, Database, FriendshipInvite, NodeReference, Entitlement, Layer, Branch, BorderStyle, CounterMetric, Action, EditEvent, AnnotationShape, EdgeType, Session, FriendshipInviteEvent, NumberInputView, CustomEvent, Trigger, ShadowStyle, Tagging, User, CustomEntityDefinition, SliderInputView, Snapshot, TransitionStyle, CustomViewDefinition, Struct, NumberConstraint, Handle, Friendship, ThreadCursor, Invite, ColorStyle, Role, DefaultFactory, Message, QueryConnection, ScreenCursor, Link, Value, CustomView, Span, WizardView, TypeCardinality, NodeType, TriggerEvent, CustomStructDefinition, TimerEvent, CustomEntity, Organization, SanctionEvent, Thread, LineShape, GaugeMeasurement, Palette, RunEvent, BuiltinObject, InviteEvent, Team, IsDeletable, Membership, Permission, Spatial, StringConstraint, Option, EnumType, Timer, ScalarType, CascadeAction, HistogramMeasurement, CustomEnumDefinition, Service, Node, Scene, CustomEventDefinition, Notification, SceneEvent, Folder, NodeConstraint, MembershipEvent, GradientStyle, Run, Window, Canvas, Variant, LabelView, Graph, ThreadView, MaterializationType, StructFrozen, CounterMeasurement, Sanction, Script, Environment, Star, Reaction, SplitView, RoleEvent, Type, FrameView, Theme, EntitlementEvent, NotificationEvent, Follow, File, IsOrdered, Client, Agent, Space, ArrowShape, TextView, StructType, Icon, Route, Supergraph, EventCursor, FillStyle } from '@/language';
+import { NodeConstraint, CustomView, Node, Canvas, TimerEvent, QueryConnection, EffectStyle, Layer, IsDeletable, NodeReference, HistogramMeasurement, EditEvent, Role, CustomEnumDefinition, CustomStructDefinition, Machine, DefaultFactory, Action, BuiltinObject, Variant, IsSourceable, Icon, CounterMeasurement, File, TextView, ColorStyle, Link, GaugeMetric, Supergraph, Tag, Star, IsTracked, Snapshot, Palette, ScalarType, NumberInputView, ArrowShape, EnumType, StructType, Environment, Scene, HistogramMetric, Theme, Notification, User, Spatial, CustomEvent, EntitlementEvent, Service, Follow, PrimitiveType, EventCursor, Database, Invite, GaugeMeasurement, Branch, RoleEvent, NodeType, Window, Session, Friendship, Entity, Permission, FrameView, StringConstraint, FontStyle, Option, FriendshipInvite, Trigger, Folder, Type, CascadeAction, Thread, Script, BorderStyle, CustomEventDefinition, Interruption, Value, EdgeType, LabelView, Client, CustomEntityDefinition, Agent, StructFrozen, Struct, NotificationEvent, Message, AnnotationShape, Entitlement, InviteEvent, Run, Organization, ScreenCursor, MaterializationType, MembershipEvent, CollectionConstraint, Membership, Timer, TriggerEvent, Log, FillStyle, FriendshipInviteEvent, Handle, Reaction, IsTaggable, NumberConstraint, ThreadCursor, CustomViewDefinition, RunEvent, Graph, WizardView, Span, SanctionEvent, TransitionStyle, SplitView, IsOrdered, Space, Team, ThreadView, LineShape, SceneEvent, SliderInputView, Tagging, CounterMetric, Route, GradientStyle, CustomEntity, PlaneShape, ShadowStyle, Sanction, TypeCardinality } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:2580 ==== */
@@ -211,11 +211,40 @@ export class Field extends Node implements Spatial, Entity, IsTracked, IsDeletab
     numberConstraint?: NumberConstraint | null,
     nodeConstraint?: NodeConstraint | null,
     edgeType?: EdgeType | null,
-    cascade?: CascadeAction | null
+    cascade?: CascadeAction | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Field {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Field(
-
+      options.type ?? FieldType.MEMBER,
+      options.name,
+      options.icon ?? null,
+      options.cardinality ?? TypeCardinality.SCALAR,
+      options.scalarType,
+      options.primitiveType ?? null,
+      options.enumType ?? null,
+      options.nodeType ?? null,
+      options.nodeDefinition != null ? (options.nodeDefinition.metatype == StructType.NODE_REFERENCE ? options.nodeDefinition : options.nodeDefinition.toRef()) : null,
+      options.structType ?? null,
+      options.baseType != null ? (options.baseType.metatype == StructType.NODE_REFERENCE ? options.baseType : options.baseType.toRef()) : null,
+      options.keyType ?? null,
+      options.isRequired ?? null,
+      options.default ?? null,
+      options.defaultFactory ?? null,
+      options.collectionConstraint ?? null,
+      options.stringConstraint ?? null,
+      options.numberConstraint ?? null,
+      options.nodeConstraint ?? null,
+      options.edgeType ?? null,
+      options.cascade ?? null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

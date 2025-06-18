@@ -1,4 +1,4 @@
-import { PlaneShape, LabelView, Graph, IsTaggable, IsDeletable, ThreadView, MaterializationType, Spatial, StructFrozen, CustomViewDefinition, Struct, EnumType, IsTracked, Style, Entity, IsVisual, QueryConnection, NodeReference, SplitView, Node, Scene, Layer, CustomView, FrameView, Theme, WizardView, AnnotationShape, IsOrdered, NodeType, Session, NumberInputView, ArrowShape, Space, Agent, User, LineShape, TextView, StructType, Canvas, SliderInputView, Supergraph, BuiltinObject } from '@/language';
+import { IsTaggable, NumberInputView, ArrowShape, EnumType, StructType, CustomView, Scene, Theme, CustomViewDefinition, Node, Canvas, QueryConnection, Layer, IsDeletable, User, NodeReference, Graph, Spatial, LabelView, SplitView, Agent, IsOrdered, Space, StructFrozen, ThreadView, Struct, LineShape, BuiltinObject, AnnotationShape, IsVisual, SliderInputView, NodeType, TextView, Session, Style, MaterializationType, Entity, FrameView, PlaneShape, Supergraph, WizardView, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:12043 ==== */
@@ -59,7 +59,7 @@ export class Transition extends Struct {
     mass: number | null,
     bounce: number | null,
     springType: SpringType | null,
-    _supergraph: Supergraph
+    _supergraph: Supergraph | null
   ) {
     super(_supergraph);
     this.type = type;
@@ -85,11 +85,24 @@ export class Transition extends Struct {
     damping?: number | null,
     mass?: number | null,
     bounce?: number | null,
-    springType?: SpringType | null
+    springType?: SpringType | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null
   }): Transition {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Transition(
-
+      options.type ?? TransitionType.TWEEN,
+      options.style != null ? (options.style.metatype == StructType.NODE_REFERENCE ? options.style : options.style.toRef()) : null,
+      options.delay ?? null,
+      options.duration ?? null,
+      options.ease ?? [],
+      options.stiffness ?? null,
+      options.damping ?? null,
+      options.mass ?? null,
+      options.bounce ?? null,
+      options.springType ?? null,
+      supergraph
     );
   }
 
@@ -222,11 +235,29 @@ export class TransitionStyle extends Node implements Spatial, Entity, IsTracked,
     damping?: number | null,
     mass?: number | null,
     bounce?: number | null,
-    springType?: SpringType | null
+    springType?: SpringType | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): TransitionStyle {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new TransitionStyle(
-
+      options.type ?? TransitionType.TWEEN,
+      options.name,
+      options.delay ?? null,
+      options.duration ?? null,
+      options.ease ?? [],
+      options.stiffness ?? null,
+      options.damping ?? null,
+      options.mass ?? null,
+      options.bounce ?? null,
+      options.springType ?? null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

@@ -1,4 +1,4 @@
-import { Graph, Team, IsDeletable, MaterializationType, Spatial, StructFrozen, CustomViewDefinition, IsOwnable, Struct, EnumType, IsTracked, Role, Entity, QueryConnection, NodeReference, Node, Scene, Layer, Length, NodeType, Session, Agent, Space, User, Organization, StructType, Icon, Supergraph, BuiltinObject } from '@/language';
+import { EnumType, StructType, Scene, CustomViewDefinition, Node, QueryConnection, Layer, IsDeletable, User, NodeReference, Graph, Spatial, IsOwnable, Role, Agent, Space, Team, StructFrozen, Struct, BuiltinObject, Icon, Organization, NodeType, Session, MaterializationType, Entity, Length, Supergraph, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:9030 ==== */
@@ -140,11 +140,28 @@ export class Variant extends Node implements Spatial, Entity, IsTracked, IsDelet
     maxWidth?: Length | null,
     maxHeight?: Length | null,
     minWidth?: Length | null,
-    minHeight?: Length | null
+    minHeight?: Length | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Variant {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Variant(
-
+      options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? options.ownedBy : options.ownedBy.toRef()) : null,
+      options.type,
+      options.name,
+      options.slug ?? null,
+      options.icon ?? null,
+      options.maxWidth ?? null,
+      options.maxHeight ?? null,
+      options.minWidth ?? null,
+      options.minHeight ?? null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
@@ -165,7 +182,7 @@ export class Variant extends Node implements Spatial, Entity, IsTracked, IsDelet
   }
 
   get _pathKey(): string {
-      return this.slug or this.name;
+      return this.slug ?? this.name;
   }
 
   get path(): string {

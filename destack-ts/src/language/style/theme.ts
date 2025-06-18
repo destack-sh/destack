@@ -1,4 +1,4 @@
-import { Graph, IsTaggable, IsDeletable, MaterializationType, Spatial, StructFrozen, Struct, EnumType, IsTracked, Entity, IsVisual, QueryConnection, NodeReference, Node, IsOrdered, NodeType, Session, Agent, Space, User, StructType, Icon, Supergraph, BuiltinObject } from '@/language';
+import { IsTaggable, EnumType, StructType, Node, QueryConnection, User, IsDeletable, NodeReference, Graph, Spatial, Agent, IsOrdered, Space, StructFrozen, Struct, BuiltinObject, IsVisual, Icon, NodeType, Session, MaterializationType, Entity, Supergraph, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:12000 ==== */
@@ -84,11 +84,21 @@ export class Theme extends Node implements Spatial, Entity, IsTracked, IsDeletab
 
   static create(options: {
     name: string,
-    icon?: Icon | null
+    icon?: Icon | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Theme {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Theme(
-
+      options.name,
+      options.icon ?? null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

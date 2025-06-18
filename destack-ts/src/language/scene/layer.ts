@@ -1,4 +1,4 @@
-import { Graph, IsTaggable, Team, IsDeletable, Position, Grid, MaterializationType, Spatial, StructFrozen, IsOwnable, IsScriptable, Struct, GridSpan, EnumType, IsExtensible, Script, IsTracked, Role, Entity, IsVisual, Vector2, Shadow, QueryConnection, NodeReference, Axis2, Node, Value, Scene, Align, Fill, Dimension, Axis3, Distribute, Border, Layout, Direction, Corners, Insets, IsOrdered, NodeType, Session, View, ContainerView, Agent, Space, User, Organization, StructType, Canvas, Icon, Supergraph, BuiltinObject } from '@/language';
+import { Insets, IsScriptable, IsTaggable, Align, GridSpan, Distribute, EnumType, StructType, Script, Scene, Node, Canvas, IsExtensible, QueryConnection, Direction, User, IsDeletable, Value, NodeReference, Graph, Spatial, View, IsOwnable, Grid, Fill, Role, Shadow, Agent, IsOrdered, Space, StructFrozen, Team, Position, Axis2, Struct, Dimension, Corners, BuiltinObject, IsVisual, Icon, Organization, NodeType, Session, Axis3, MaterializationType, Entity, Vector2, Layout, ContainerView, Supergraph, IsTracked, Border } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:9020 ==== */
@@ -243,11 +243,51 @@ export class Layer extends Node implements Spatial, Entity, IsTracked, IsDeletab
     shadow?: Shadow | null,
     border?: Border | null,
     radius?: Corners | null,
-    script?: Script | NodeReference | null
+    script?: Script | NodeReference | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Layer {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Layer(
-
+      options.value ?? new Map(),
+      options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? options.ownedBy : options.ownedBy.toRef()) : null,
+      options.type ?? LayerType.GENERAL,
+      options.name,
+      options.icon ?? null,
+      options.position ?? null,
+      options.width ?? null,
+      options.height ?? null,
+      options.minWidth ?? null,
+      options.minHeight ?? null,
+      options.maxWidth ?? null,
+      options.maxHeight ?? null,
+      options.layout ?? null,
+      options.direction ?? null,
+      options.distribute ?? null,
+      options.align ?? null,
+      options.gap ?? null,
+      options.padding ?? null,
+      options.grid ?? null,
+      options.gridSpan ?? null,
+      options.aspectRatio ?? null,
+      options.isWrap ?? null,
+      options.isVisible ?? null,
+      options.opacity ?? null,
+      options.fill ?? null,
+      options.rotation ?? null,
+      options.skew ?? null,
+      options.scale ?? null,
+      options.shadow ?? null,
+      options.border ?? null,
+      options.radius ?? null,
+      options.script != null ? (options.script.metatype == StructType.NODE_REFERENCE ? options.script : options.script.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

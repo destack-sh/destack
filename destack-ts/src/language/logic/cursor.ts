@@ -1,4 +1,4 @@
-import { Graph, Team, MaterializationType, Spatial, StructFrozen, IsOwnable, Struct, EnumType, IsTracked, Role, Entity, QueryConnection, NodeReference, Vector2i, Node, NodeType, Session, Agent, Space, User, Organization, StructType, Supergraph, BuiltinObject } from '@/language';
+import { EnumType, StructType, Node, QueryConnection, User, NodeReference, Graph, Spatial, IsOwnable, Role, Agent, Space, Team, StructFrozen, Struct, BuiltinObject, Organization, NodeType, Vector2i, Session, MaterializationType, Entity, Supergraph, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:3100 ==== */
@@ -129,11 +129,22 @@ export class EventCursor extends Node implements Spatial, Entity, IsTracked, IsO
   static create(options: {
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     status?: CursorStatus,
-    activeAt?: Temporal.ZonedDateTime | null
+    activeAt?: Temporal.ZonedDateTime | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): EventCursor {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new EventCursor(
-
+      options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? options.ownedBy : options.ownedBy.toRef()) : null,
+      options.status ?? CursorStatus.CREATED,
+      options.activeAt ?? null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
@@ -273,11 +284,23 @@ export class ScreenCursor extends Node implements Spatial, Entity, IsTracked, Is
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     status?: CursorStatus,
     activeAt?: Temporal.ZonedDateTime | null,
-    position?: Vector2i | null
+    position?: Vector2i | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): ScreenCursor {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new ScreenCursor(
-
+      options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? options.ownedBy : options.ownedBy.toRef()) : null,
+      options.status ?? CursorStatus.CREATED,
+      options.activeAt ?? null,
+      options.position ?? null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
@@ -413,11 +436,22 @@ export class ThreadCursor extends Node implements Spatial, Entity, IsTracked, Is
   static create(options: {
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     status?: CursorStatus,
-    activeAt?: Temporal.ZonedDateTime | null
+    activeAt?: Temporal.ZonedDateTime | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): ThreadCursor {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new ThreadCursor(
-
+      options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? options.ownedBy : options.ownedBy.toRef()) : null,
+      options.status ?? CursorStatus.CREATED,
+      options.activeAt ?? null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

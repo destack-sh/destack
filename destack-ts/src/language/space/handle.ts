@@ -1,4 +1,4 @@
-import { Graph, MaterializationType, StructFrozen, Struct, EnumType, IsTracked, Entity, QueryConnection, NodeReference, Node, NodeType, Session, Agent, Space, User, StructType, Supergraph, Global, BuiltinObject } from '@/language';
+import { EnumType, StructType, Node, QueryConnection, User, NodeReference, Graph, Agent, Space, StructFrozen, Struct, BuiltinObject, NodeType, Session, MaterializationType, Entity, Supergraph, Global, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:10 ==== */
@@ -63,11 +63,20 @@ export class Handle extends Node implements Global, Entity, IsTracked {
 
 
   static create(options: {
-    slug: string
+    slug: string,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Handle {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Handle(
-
+      options.slug,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
@@ -87,7 +96,7 @@ export class Handle extends Node implements Global, Entity, IsTracked {
     return new NodeReference(NodeType.HANDLE, this.id, null, null, this._supergraph);
 
   get _pathKey(): string {
-      return this.slug or "Handle[id={this.id}]";
+      return this.slug ?? "Handle[id={this.id}]";
   }
 
   get path(): string {

@@ -1,4 +1,4 @@
-import { Graph, Spatial, StructFrozen, Analytic, Struct, EnumType, IsExtensible, Script, IsTracked, Message, QueryConnection, NodeReference, Indexed, Service, Node, Value, Action, Span, Particle, NodeType, Session, Run, Agent, Space, User, StructType, Supergraph, BuiltinObject } from '@/language';
+import { EnumType, StructType, Script, Node, IsExtensible, QueryConnection, User, Value, Analytic, NodeReference, Graph, Spatial, Span, Particle, Space, Agent, StructFrozen, Service, Struct, Action, BuiltinObject, Message, Run, NodeType, Session, Indexed, Supergraph, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:4020 ==== */
@@ -174,11 +174,28 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
     duration?: Temporal.Duration | null,
     closedAt?: Temporal.ZonedDateTime | null,
     response?: InterruptionResponse | null,
-    message?: Message | NodeReference | null
+    message?: Message | NodeReference | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Interruption {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Interruption(
-
+      options.value ?? new Map(),
+      options.type,
+      options.runnable != null ? (options.runnable.metatype == StructType.NODE_REFERENCE ? options.runnable : options.runnable.toRef()) : null,
+      options.span != null ? (options.span.metatype == StructType.NODE_REFERENCE ? options.span : options.span.toRef()) : null,
+      options.status ?? InterruptionStatus.OPEN,
+      options.duration ?? null,
+      options.closedAt ?? null,
+      options.response ?? null,
+      options.message != null ? (options.message.metatype == StructType.NODE_REFERENCE ? options.message : options.message.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

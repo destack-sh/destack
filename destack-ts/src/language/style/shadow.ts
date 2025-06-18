@@ -1,4 +1,4 @@
-import { PlaneShape, LabelView, Graph, IsTaggable, IsDeletable, ThreadView, MaterializationType, Spatial, StructFrozen, CustomViewDefinition, Struct, EnumType, IsTracked, Style, Entity, IsVisual, QueryConnection, NodeReference, Axis2, SplitView, Node, Scene, Layer, CustomView, FrameView, Theme, WizardView, AnnotationShape, IsOrdered, NodeType, Session, NumberInputView, ArrowShape, Space, Agent, User, LineShape, TextView, StructType, Canvas, Color, SliderInputView, Supergraph, BuiltinObject } from '@/language';
+import { IsTaggable, NumberInputView, ArrowShape, EnumType, StructType, CustomView, Scene, Theme, CustomViewDefinition, Node, Canvas, QueryConnection, Layer, IsDeletable, User, NodeReference, Graph, Spatial, LabelView, SplitView, Agent, IsOrdered, Space, StructFrozen, Axis2, ThreadView, Struct, LineShape, BuiltinObject, AnnotationShape, IsVisual, SliderInputView, NodeType, TextView, Session, Style, Color, MaterializationType, Entity, FrameView, PlaneShape, Supergraph, WizardView, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:12030 ==== */
@@ -55,7 +55,7 @@ export class Shadow extends Struct {
     blur: number | null,
     spread: number | null,
     diffusion: number | null,
-    _supergraph: Supergraph
+    _supergraph: Supergraph | null
   ) {
     super(_supergraph);
     this.type = type;
@@ -77,11 +77,22 @@ export class Shadow extends Struct {
     offset?: Axis2 | null,
     blur?: number | null,
     spread?: number | null,
-    diffusion?: number | null
+    diffusion?: number | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null
   }): Shadow {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Shadow(
-
+      options.type ?? ShadowType.BOX,
+      options.style != null ? (options.style.metatype == StructType.NODE_REFERENCE ? options.style : options.style.toRef()) : null,
+      options.color ?? null,
+      options.position ?? ShadowPosition.OUTSIDE,
+      options.offset ?? null,
+      options.blur ?? null,
+      options.spread ?? null,
+      options.diffusion ?? null,
+      supergraph
     );
   }
 
@@ -206,11 +217,27 @@ export class ShadowStyle extends Node implements Spatial, Entity, IsTracked, IsD
     offset?: Axis2 | null,
     blur?: number | null,
     spread?: number | null,
-    diffusion?: number | null
+    diffusion?: number | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): ShadowStyle {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new ShadowStyle(
-
+      options.type ?? ShadowType.BOX,
+      options.name,
+      options.color ?? null,
+      options.position ?? ShadowPosition.OUTSIDE,
+      options.offset ?? null,
+      options.blur ?? null,
+      options.spread ?? null,
+      options.diffusion ?? null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

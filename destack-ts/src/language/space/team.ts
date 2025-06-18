@@ -1,4 +1,4 @@
-import { Graph, MaterializationType, StructFrozen, Struct, EnumType, IsTracked, Entity, QueryConnection, NodeReference, IsJoinable, Node, NodeType, Session, IsOwner, Agent, User, StructType, Icon, Supergraph, Global, BuiltinObject } from '@/language';
+import { EnumType, StructType, IsOwner, Node, QueryConnection, User, NodeReference, Graph, IsJoinable, Agent, StructFrozen, Struct, BuiltinObject, Icon, NodeType, Session, MaterializationType, Entity, Supergraph, Global, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:50 ==== */
@@ -71,11 +71,22 @@ export class Team extends Node implements Global, Entity, IsTracked, IsJoinable,
   static create(options: {
     name: string,
     slug?: string | null,
-    icon?: Icon | null
+    icon?: Icon | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Team {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Team(
-
+      options.name,
+      options.slug ?? null,
+      options.icon ?? null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
@@ -95,11 +106,11 @@ export class Team extends Node implements Global, Entity, IsTracked, IsJoinable,
     return new NodeReference(NodeType.TEAM, this.id, null, null, this._supergraph);
 
   get _pathKey(): string {
-      return this.slug or this.name;
+      return this.slug ?? this.name;
   }
 
   get path(): string {
-      return this.slug or this.name;
+      return this.slug ?? this.name;
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:50 ==== */

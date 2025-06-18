@@ -1,4 +1,4 @@
-import { PlaneShape, IsTaggable, GaugeMetric, EffectStyle, FontStyle, Machine, Interruption, HistogramMetric, Log, Tag, IsTracked, Database, Entity, IsSourceable, FriendshipInvite, NodeReference, Entitlement, Layer, Branch, BorderStyle, CounterMetric, Action, Particle, AnnotationShape, Session, FriendshipInviteEvent, NumberInputView, Trigger, ShadowStyle, Tagging, User, CustomEntityDefinition, SliderInputView, Snapshot, TransitionStyle, CustomViewDefinition, Struct, Handle, Friendship, ThreadCursor, Invite, ColorStyle, Role, Message, QueryConnection, ScreenCursor, Link, Value, CustomView, EditOperation, Span, WizardView, NodeType, TriggerEvent, CustomStructDefinition, TimerEvent, CustomEntity, Organization, SanctionEvent, Thread, LineShape, GaugeMeasurement, Palette, RunEvent, BuiltinObject, InviteEvent, Team, Membership, Permission, Spatial, IsFrozen, Option, Analytic, EnumType, Timer, Field, HistogramMeasurement, CustomEnumDefinition, Indexed, Service, Node, Scene, Notification, SceneEvent, Folder, MembershipEvent, GradientStyle, Run, Window, Canvas, Event, Variant, LabelView, Graph, ThreadView, MaterializationType, StructFrozen, CounterMeasurement, Sanction, Script, Environment, PropertyReference, Star, Reaction, SplitView, RoleEvent, FrameView, Theme, EntitlementEvent, NotificationEvent, EditType, Follow, File, IsOrdered, Client, Agent, Space, ArrowShape, TextView, StructType, Route, Supergraph, EventCursor, FillStyle } from '@/language';
+import { EditType, CustomView, EditOperation, Node, Canvas, TimerEvent, QueryConnection, EffectStyle, Layer, Analytic, NodeReference, HistogramMeasurement, Role, CustomEnumDefinition, Particle, CustomStructDefinition, Machine, Action, BuiltinObject, Variant, IsSourceable, CounterMeasurement, File, TextView, ColorStyle, Link, GaugeMetric, Indexed, Supergraph, Tag, Star, IsTracked, Snapshot, Field, Palette, NumberInputView, ArrowShape, EnumType, StructType, Environment, Scene, HistogramMetric, Theme, Notification, User, Spatial, EntitlementEvent, Service, Follow, EventCursor, Database, Invite, GaugeMeasurement, Branch, RoleEvent, NodeType, Window, Session, Friendship, Event, Permission, Entity, FrameView, FontStyle, Option, FriendshipInvite, Trigger, Folder, Thread, Script, BorderStyle, Interruption, Value, Client, LabelView, CustomEntityDefinition, Agent, StructFrozen, Struct, NotificationEvent, Message, AnnotationShape, Entitlement, InviteEvent, Organization, Run, ScreenCursor, MaterializationType, MembershipEvent, Membership, Timer, TriggerEvent, Log, FillStyle, FriendshipInviteEvent, Handle, Reaction, IsTaggable, IsFrozen, ThreadCursor, CustomViewDefinition, RunEvent, Graph, Span, SanctionEvent, TransitionStyle, SplitView, Space, Team, IsOrdered, ThreadView, LineShape, PropertyReference, SceneEvent, SliderInputView, Tagging, CounterMetric, Route, GradientStyle, CustomEntity, PlaneShape, ShadowStyle, Sanction, WizardView } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:4202 ==== */
@@ -127,11 +127,26 @@ export class EditEvent extends Node implements Spatial, Particle, Analytic, Inde
     propPtr?: PropertyReference | null,
     field?: Field | NodeReference | null,
     key?: Value | null,
-    value?: Value | null
+    value?: Value | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): EditEvent {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new EditEvent(
-
+      options.type,
+      options.operation ?? null,
+      options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? options.node : options.node.toRef()) : null,
+      options.propPtr ?? null,
+      options.field != null ? (options.field.metatype == StructType.NODE_REFERENCE ? options.field : options.field.toRef()) : null,
+      options.key ?? null,
+      options.value ?? null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
@@ -257,11 +272,20 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, IsTr
 
 
   static create(options: {
-    name: string
+    name: string,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): CustomEventDefinition {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new CustomEventDefinition(
-
+      options.name,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
@@ -406,11 +430,21 @@ export class CustomEvent extends Node implements Spatial, Particle, Analytic, In
 
   static create(options: {
     node?: Node | NodeReference | null,
-    definition: CustomEventDefinition | NodeReference
+    definition: CustomEventDefinition | NodeReference,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): CustomEvent {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new CustomEvent(
-
+      options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? options.node : options.node.toRef()) : null,
+      options.definition != null ? (options.definition.metatype == StructType.NODE_REFERENCE ? options.definition : options.definition.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

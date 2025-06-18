@@ -1,4 +1,4 @@
-import { Graph, IsTaggable, IsDeletable, MaterializationType, Spatial, Text, StructFrozen, Struct, EnumType, IsExtensible, Script, IsTracked, IsSourceable, Entity, QueryConnection, NodeReference, Service, Node, Value, IsRunnable, IsOrdered, NodeType, Session, Agent, Space, CustomEntityDefinition, User, StructType, Supergraph, BuiltinObject } from '@/language';
+import { IsTaggable, EnumType, StructType, Script, Text, Node, IsExtensible, QueryConnection, User, IsDeletable, Value, NodeReference, Graph, Spatial, CustomEntityDefinition, Agent, IsOrdered, Space, StructFrozen, Service, Struct, BuiltinObject, IsSourceable, NodeType, Session, MaterializationType, Entity, IsRunnable, Supergraph, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:3020 ==== */
@@ -109,11 +109,23 @@ export class Action extends Node implements Spatial, Entity, IsTracked, IsDeleta
     value?: Map<string, Value>,
     name: string,
     cardinality?: ActionCardinality,
-    text?: Text | null
+    text?: Text | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Action {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Action(
-
+      options.value ?? new Map(),
+      options.name,
+      options.cardinality ?? ActionCardinality.UNARY,
+      options.text ?? null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

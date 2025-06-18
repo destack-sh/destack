@@ -1,4 +1,4 @@
-import { PlaneShape, IsTaggable, GaugeMetric, EffectStyle, FontStyle, Machine, Interruption, HistogramMetric, Log, Tag, IsTracked, Database, Entity, FriendshipInvite, NodeReference, Entitlement, Layer, Branch, BorderStyle, CounterMetric, Action, EditEvent, AnnotationShape, Session, FriendshipInviteEvent, NumberInputView, CustomEvent, Trigger, ShadowStyle, Tagging, User, CustomEntityDefinition, SliderInputView, Snapshot, TransitionStyle, Text, CustomViewDefinition, IsOwnable, Struct, Handle, Friendship, ThreadCursor, Invite, ColorStyle, Role, IsReactable, QueryConnection, ScreenCursor, Link, CustomView, Span, WizardView, NodeType, TriggerEvent, CustomStructDefinition, TimerEvent, CustomEntity, Organization, SanctionEvent, Thread, LineShape, GaugeMeasurement, Palette, RunEvent, BuiltinObject, InviteEvent, Team, IsDeletable, Membership, Permission, Spatial, Option, EnumType, Timer, Field, HistogramMeasurement, CustomEnumDefinition, Service, Node, Scene, CustomEventDefinition, Notification, SceneEvent, Folder, MembershipEvent, GradientStyle, Run, Window, Canvas, Variant, LabelView, Graph, ThreadView, MaterializationType, StructFrozen, CounterMeasurement, Sanction, Script, Environment, Star, Reaction, SplitView, RoleEvent, FrameView, Theme, EntitlementEvent, NotificationEvent, Follow, File, Client, Agent, Space, ArrowShape, TextView, StructType, Route, Supergraph, EventCursor, FillStyle } from '@/language';
+import { CustomView, Node, Canvas, TimerEvent, QueryConnection, EffectStyle, Layer, IsDeletable, NodeReference, HistogramMeasurement, EditEvent, Role, CustomEnumDefinition, CustomStructDefinition, Machine, IsReactable, Action, BuiltinObject, Variant, CounterMeasurement, File, TextView, ColorStyle, Link, GaugeMetric, Supergraph, Tag, Star, IsTracked, Snapshot, Field, Palette, NumberInputView, ArrowShape, EnumType, StructType, Environment, Scene, HistogramMetric, Theme, Notification, User, Spatial, CustomEvent, EntitlementEvent, Service, Follow, EventCursor, Database, Invite, GaugeMeasurement, Branch, RoleEvent, NodeType, Window, Session, Friendship, Entity, Permission, FrameView, FontStyle, Option, FriendshipInvite, Trigger, Folder, Thread, Script, BorderStyle, CustomEventDefinition, Interruption, Client, LabelView, CustomEntityDefinition, Agent, StructFrozen, Struct, NotificationEvent, AnnotationShape, Entitlement, InviteEvent, Organization, Run, ScreenCursor, MaterializationType, MembershipEvent, Membership, Timer, TriggerEvent, Log, FillStyle, FriendshipInviteEvent, Handle, Reaction, IsTaggable, ThreadCursor, Text, CustomViewDefinition, RunEvent, Graph, IsOwnable, Span, SanctionEvent, TransitionStyle, SplitView, Space, Team, ThreadView, LineShape, SceneEvent, SliderInputView, Tagging, CounterMetric, Route, GradientStyle, CustomEntity, PlaneShape, ShadowStyle, Sanction, WizardView } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:5510 ==== */
@@ -181,11 +181,26 @@ export class Message extends Node implements Spatial, Entity, IsTracked, IsDelet
     replyTo?: Message | NodeReference | null,
     forwardedFrom?: Message | NodeReference | null,
     text?: Text | null,
-    node?: Node | NodeReference | null
+    node?: Node | NodeReference | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): Message {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new Message(
-
+      options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? options.ownedBy : options.ownedBy.toRef()) : null,
+      options.thread != null ? (options.thread.metatype == StructType.NODE_REFERENCE ? options.thread : options.thread.toRef()) : null,
+      options.editedAt ?? null,
+      options.replyTo != null ? (options.replyTo.metatype == StructType.NODE_REFERENCE ? options.replyTo : options.replyTo.toRef()) : null,
+      options.forwardedFrom != null ? (options.forwardedFrom.metatype == StructType.NODE_REFERENCE ? options.forwardedFrom : options.forwardedFrom.toRef()) : null,
+      options.text ?? null,
+      options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? options.node : options.node.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 

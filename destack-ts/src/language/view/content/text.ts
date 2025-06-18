@@ -1,4 +1,4 @@
-import { PlaneShape, LabelView, Graph, IsTaggable, IsDeletable, Position, MaterializationType, Spatial, StructFrozen, CustomViewDefinition, IsScriptable, Struct, EnumType, Script, IsTracked, Entity, IsVisual, QueryConnection, NodeReference, SplitView, Node, Scene, Layer, CustomView, Align, FrameView, Fill, Dimension, AnnotationShape, IsOrdered, NodeType, Session, Font, View, ContentView, Agent, Space, User, Window, StructType, Canvas, Supergraph, BuiltinObject } from '@/language';
+import { IsScriptable, IsTaggable, Align, EnumType, StructType, CustomView, Scene, Script, ContentView, CustomViewDefinition, Node, Canvas, Font, QueryConnection, Layer, IsDeletable, User, NodeReference, Graph, Spatial, View, Fill, LabelView, SplitView, Agent, IsOrdered, Space, StructFrozen, Position, Struct, Dimension, BuiltinObject, AnnotationShape, IsVisual, NodeType, Window, Session, MaterializationType, Entity, FrameView, PlaneShape, Supergraph, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:10200 ==== */
@@ -156,11 +156,35 @@ export class TextView extends Node implements Spatial, Entity, IsTracked, IsDele
     font?: Font | null,
     color?: Fill | null,
     text?: string | null,
-    script?: Script | NodeReference | null
+    script?: Script | NodeReference | null,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null
   }): TextView {
-
+    const session = options._session ?? ACTIVE_SESSION.get();
+    const supergraph = options._supergraph ?? session.supergraph;
     return new TextView(
-
+      options.name,
+      options.position ?? null,
+      options.width ?? null,
+      options.height ?? null,
+      options.minWidth ?? null,
+      options.minHeight ?? null,
+      options.maxWidth ?? null,
+      options.maxHeight ?? null,
+      options.align ?? null,
+      options.isVisible ?? null,
+      options.opacity ?? null,
+      options.userSelect ?? null,
+      options.font ?? null,
+      options.color ?? null,
+      options.text ?? null,
+      options.script != null ? (options.script.metatype == StructType.NODE_REFERENCE ? options.script : options.script.toRef()) : null,
+      session,
+      supergraph,
+      options._graph,
+      options._connection
     );
   }
 
