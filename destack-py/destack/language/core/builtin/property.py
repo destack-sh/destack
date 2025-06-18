@@ -305,9 +305,6 @@ def parse_type_annotation(
     elif class_name and (node_t := _resolve_node_types(class_name)):
         scalar_type = ScalarType.NODE_REFERENCE
         node_types = list(node_t)
-    elif class_name == "Property":
-        scalar_type = ScalarType.STRUCT
-        struct_type = StructType.PROPERTY_REFERENCE
     assert scalar_type is not None, f"undetermined scalar type: {py_type!r}"
 
     # default: scalar
@@ -451,31 +448,7 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
         Contribute the wired and stored pointer properties required by this property.
         """
 
-        # property reference
-        if self.struct_type == StructType.PROPERTY_REFERENCE:
-            assert self.cardinality in (TypeCardinality.SCALAR, TypeCardinality.LIST), (
-                f"invalid property reference: {self!r}"
-            )
-            assert self.is_required is not UNSET, f"must set is_required on {self!r}"
-            ptr_prop = Property(
-                id=self.id,
-                name=self.name + "_ptr",
-                component=self.component,
-                cardinality=self.cardinality,
-                scalar_type=ScalarType.STRUCT,
-                primitive_type=PrimitiveType.JSON,
-                struct_type=StructType.PROPERTY_REFERENCE,
-                is_required=self.is_required,
-                default=None,
-                runtime_prop=self,
-                is_wired=True,
-                is_stored=True,
-                is_eq=self.is_eq,
-            )
-            return ptr_prop
-
-        # node reference
-        elif self.scalar_type == ScalarType.NODE_REFERENCE:
+        if self.scalar_type == ScalarType.NODE_REFERENCE:
             assert self.edge_type is not None, f"no edge type for {self!r}"
             ptr_prop = Property(
                 id=self.id,
@@ -545,10 +518,7 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
         if self.name == "template" and object_type is not None:
             self.node_types = (NodeType(object_type),)
         # references get a _ptr property (which is wired/stored)
-        if (
-            self.scalar_type == ScalarType.NODE_REFERENCE
-            or self.struct_type == StructType.PROPERTY_REFERENCE
-        ):
+        if self.scalar_type == ScalarType.NODE_REFERENCE:
             # (don't want lists of Node references or Property references in Nodes, it's a mess)
             assert self.cardinality == TypeCardinality.SCALAR or not self.component.__is_node__, (
                 f"invalid list: {self!r}"

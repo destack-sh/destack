@@ -12,7 +12,6 @@ from ..builtin import (
     Enum,
     EnumType,
     Node,
-    Property,
     StructFrozen,
     StructType,
     builtin_enum,
@@ -88,14 +87,12 @@ class Edit(StructFrozen):
     type: EditType = property_(30, is_repr=True)
     operation: EditOperation | None = property_(31, is_repr=True)
     node: Node = property_(32, is_repr=True)
-    # nocheckin: remove PropertyReferences (just resolve manually)
-    prop: Property | None = property_(33, is_repr=True)
+    prop_ptr: PropertyReference | None = property_(33, is_repr=True)
     field: "Field | None" = property_(34, is_repr=True)  # for IsExtensible.value
     key: "Value | None" = property_(35, is_repr=True)  # for map operations
     if TYPE_CHECKING:
         node_ptr: NodeReference = UNSET
         field_ptr: NodeReference | None = None
-        prop_ptr: PropertyReference | None = None
 
     value: "Value | None" = property_(40)
     undo: "Edit | None" = property_(

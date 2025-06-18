@@ -703,47 +703,6 @@ def path(self) -> str:
     return path_impl, {}
 
 
-def _generate_property_property_impl(prop: Property) -> str:
-    """The computed get/set property for a property reference."""
-
-    ptr_prop = prop.ptr_prop
-    assert ptr_prop is not None, f"no wired prop for {prop!r}"
-
-    if prop.cardinality == TypeCardinality.SCALAR:
-        # property scalar
-        return f"""\
-@property
-def {prop.name}(self: "BuiltinObjectBase") -> "Property | None":
-    value_ptr: PropertyReference | None = self.{ptr_prop.name}
-    if value_ptr is not None:
-        return value_ptr.resolve()
-    else:
-        return None
-
-@{prop.name}.setter
-def {prop.name}(self: "BuiltinObjectBase", value: "Property | None"):
-    if value is None:
-        {ptr_prop.name} = None
-    else:
-        {ptr_prop.name} = value.to_ref()
-"""
-    elif prop.cardinality == TypeCardinality.LIST:
-        # property list
-        return f"""\
-@property
-def {prop.name}(self: "BuiltinObjectBase") -> tuple["Property", ...]:
-    value_ptrs: list[PropertyReference] = self.{ptr_prop.name}
-    assert type(value_ptrs) is list, f"invalid {prop}: {{value_ptrs!r}}"
-    return tuple(p.resolve() for p in value_ptrs)
-
-@{prop.name}.setter
-def {prop.name}(self: "BuiltinObjectBase", values: list["Property"]):
-    self.{ptr_prop.name} = [p.to_ref() for p in values]
-"""
-    else:
-        raise RuntimeError(f"unsupported cardinality: {prop.cardinality}")
-
-
 def _generate_node_property_impl(prop: Property) -> str:
     """The computed get/set property for a node reference. Resolved against the active supergraph."""
     # NOTE :Performance: we could inline Supergraph.get into node property getters
@@ -989,17 +948,8 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
         for prop in properties.values():
             if prop.runtime_prop is not None:
                 continue  # not a contributed property
-            # computed property property
-            if prop.struct_type == StructType.PROPERTY_REFERENCE:
-                property_property_str = _generate_property_property_impl(prop)
-                exec_(
-                    property_property_str,
-                    {},
-                    cls_dict,
-                    f"{cls.__name__}:property_property:{prop.name}",
-                )
             # computed node property
-            elif prop.edge_type in (EdgeType.PARENT, EdgeType.REGULAR):
+            if prop.edge_type in (EdgeType.PARENT, EdgeType.REGULAR):
                 node_property_str = _generate_node_property_impl(prop)
                 exec_(node_property_str, {}, cls_dict, f"{cls.__name__}:node_property:{prop.name}")
 

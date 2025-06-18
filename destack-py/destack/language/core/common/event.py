@@ -15,7 +15,6 @@ from ..builtin import (
     IsTaggable,
     Node,
     NodeType,
-    Property,
     Spatial,
     builtin_node,
     property_,
@@ -46,13 +45,12 @@ class EditEvent(
     type: "EditType" = property_(30, is_repr=True)
     operation: "EditOperation | None" = property_(31, is_repr=True)
     node: "Node" = property_(35, is_repr=True)
-    prop: "Property | None" = property_(36, is_repr=True)
+    prop_ptr: "PropertyReference | None" = property_(36, is_repr=True)
     field: "Field | None" = property_(37, is_repr=True)  # for IsExtensible.value
     key: "Value | None" = property_(38, is_repr=True)  # for map operations
     if TYPE_CHECKING:
         node_ptr: NodeReference = UNSET
         field_ptr: NodeReference | None = None
-        property_ptr: PropertyReference | None = None
 
     # value
     value: "Value | None" = property_(40)

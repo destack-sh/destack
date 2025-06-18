@@ -66,8 +66,9 @@ def _compile_attribute(
 ) -> str:
     """Compile an Attribute into a SQL expression."""
     if attribute.type == AttributeType.PROPERTY:
-        prop = attribute.prop
-        assert prop is not None, f"no property for {attribute!r}"
+        prop_ptr = attribute.prop_ptr
+        assert prop_ptr is not None, f"no property for {attribute!r}"
+        prop = prop_ptr.resolve_or_error()
         if prop.scalar_type == ScalarType.NODE_REFERENCE:
             # unravel reference column into id
             return f"{prop.name}_id"

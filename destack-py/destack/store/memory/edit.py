@@ -159,7 +159,8 @@ def _execute_data_edit(
     # update
     elif edit_type == EditType.UPDATE:
         for edit in edits:
-            prop = edit.prop
+            assert edit.prop_ptr is not None, f"no prop_ptr for {edit!r}"
+            prop = edit.prop_ptr.resolve()
             assert prop is not None, f"no prop for {edit!r}"
             node_id = edit.node_ptr.id
 
