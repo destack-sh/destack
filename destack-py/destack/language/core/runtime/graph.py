@@ -286,7 +286,7 @@ class PolyGraph(Graph):
     def get_roots[N: Node = Node](
         self, node_type: NodeType | TraitType | type[N] | None = None
     ) -> Sequence[N]:
-        node_types = _resolve_node_types(node_type)
+        node_types = get_node_types(node_type)
         if node_types is None:
             roots = tuple(
                 node
@@ -307,7 +307,7 @@ class PolyGraph(Graph):
         self, node_type: NodeType | TraitType | type[N] | None = None, of: "Node | None" = None
     ) -> Sequence[N]:
         if of is None:
-            node_types = _resolve_node_types(node_type)
+            node_types = get_node_types(node_type)
             if node_types is None:
                 leaves = tuple(
                     node for node in self.nodes if not self.nodes_by_parent_id.get(node.id)
@@ -396,7 +396,7 @@ class PolyGraph(Graph):
         descendants: list[Node] = []
 
         # collect
-        node_types = _resolve_node_types(node_type)
+        node_types = get_node_types(node_type)
         while queue:
             current = queue.pop(0)
             children_by_type = self.nodes_by_parent_id.get(current.id)
@@ -484,7 +484,7 @@ class Supergraph:
         return node
 
 
-def _resolve_node_types(
+def get_node_types(
     node_type: "NodeType | TraitType | type[Node] | None",
 ) -> tuple["NodeType", ...] | None:
     """Resolve the NodeTypes for a NodeType, TraitType, or Node class."""

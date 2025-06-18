@@ -63,7 +63,6 @@ class RelationReference(StructFrozen):
     definition: Optional["CustomEntityDefinition"] = property_(32, is_repr=True)
     trait_type: Optional[TraitType] = property_(33, is_repr=True)
     if TYPE_CHECKING:
-        definition_id: Optional[UUID] = None
         definition_ptr: Optional["NodeReference"] = None
 
     @property
@@ -138,7 +137,6 @@ class AttributeReference(StructFrozen):
     field: Optional["Field"] = property_(32, is_repr=True)
     if TYPE_CHECKING:
         prop_ptr: Optional["PropertyReference"] = None
-        field_id: Optional[UUID] = None
         field_ptr: Optional["NodeReference"] = None
 
 

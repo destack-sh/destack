@@ -89,7 +89,7 @@ class PostgresStore(Store):
             for change in changes:
                 # duplicate context if we're mutating custom node definitions
                 has_custom_edits = any(
-                    edit.node_type in (NodeType.CUSTOM_ENTITY_DEFINITION, NodeType.FIELD)
+                    edit.node_ptr.node_type in (NodeType.CUSTOM_ENTITY_DEFINITION, NodeType.FIELD)
                     for edit in change.edits
                 )
                 local_context = self.context.copy() if has_custom_edits else self.context
@@ -148,7 +148,7 @@ class PostgresStoreContext(PostgresContext):
     def apply(self, edits: Sequence[Edit]) -> Sequence[Edit]:
         applied_edits: list[Edit] = []
         for edit in edits:
-            if edit.node_type in (NodeType.CUSTOM_ENTITY_DEFINITION, NodeType.FIELD):
+            if edit.node_ptr.node_type in (NodeType.CUSTOM_ENTITY_DEFINITION, NodeType.FIELD):
                 applied_edits.append(edit)
                 # :PostgresSchemaEdits
         return applied_edits
@@ -180,8 +180,8 @@ class PostgresStoreContext(PostgresContext):
                 assert relation.node_type is not None, f"no node_type for {relation!r}"
                 table_name = f"{DESTACK_BUILTIN_TABLE_PREFIX}{relation.node_type.name.lower()}"
             elif relation.type == RelationType.CUSTOM_NODE:
-                assert relation.definition_id is not None, f"no definition_id for {relation!r}"
-                table_name = f"{DESTACK_CUSTOM_TABLE_PREFIX}{relation.definition_id}"
+                assert relation.definition_ptr is not None, f"no definition_ptr for {relation!r}"
+                table_name = f"{DESTACK_CUSTOM_TABLE_PREFIX}{relation.definition_ptr.id}"
             elif relation.type == RelationType.TRAIT:
                 raise RuntimeError(f"cannot get single table for {relation!r}")
             else:

@@ -401,8 +401,6 @@ class Trait(Node if TYPE_CHECKING else NodeBase):
     id: UUID = property_(2, is_managed=True, is_eq=False, can_write=None)
     parent: Optional["Node"] = property_parent_(node_is_customizable=True)
     if TYPE_CHECKING:
-        parent_type: NodeType | None = None
-        parent_id: Optional[UUID] = None
         parent_ptr: Optional[NodeReference] = None
 
     __is_node__: ClassVar[bool] = True
@@ -467,11 +465,7 @@ class IsTracked(Trait):
         can_write=RoleType.SYSTEM,
     )
     if TYPE_CHECKING:
-        created_by_id: Optional[UUID] = None
-        created_by_type: NodeType | None = None
         created_by_ptr: Optional[NodeReference] = None
-        updated_by_id: Optional[UUID] = None
-        updated_by_type: NodeType | None = None
         updated_by_ptr: Optional[NodeReference] = None
 
 
@@ -546,9 +540,8 @@ class IsCustomNodeDefinition(Trait):
 class IsCustomNode(Trait):
     """A Node that is asome Custom Node."""
 
-    definition: "IsCustomNodeDefinition" = property_(6)
+    definition: "IsCustomNodeDefinition" = property_(6, is_managed=True, can_write=None)
     if TYPE_CHECKING:
-        definition_id: Optional[UUID] = None
         definition_ptr: Optional[NodeReference] = None
 
 
@@ -563,7 +556,7 @@ class IsExtensible(Trait):
 class IsOrdered(Trait):
     """A Node that can be ordered."""
 
-    order_key: str = property_(22, is_eq=False, default=INTEGER_ZERO)
+    order_key: str = property_(22, is_eq=False, is_managed=True, default=INTEGER_ZERO)
 
 
 @builtin_trait(TraitType.REACTABLE)
@@ -622,8 +615,6 @@ class IsOwnable(Trait):
 
     owned_by: Optional["IsOwner"] = property_(25, is_repr=True)
     if TYPE_CHECKING:
-        owned_by_id: Optional[UUID] = None
-        owned_by_type: Optional[NodeType] = None
         owned_by_ptr: Optional[NodeReference] = None
 
 
@@ -724,7 +715,6 @@ class Spatial(Trait):
     parent: Optional["Space"] = property_parent_(node_is_customizable=False)
     space: "Space | None" = property_(5)
     if TYPE_CHECKING:
-        space_id: Optional[UUID] = None
         space_ptr: Optional[NodeReference] = None
 
 
@@ -769,13 +759,9 @@ class Entity(IsTracked):
     )
     # Entity.set_properties/set_fields: 12-13
     if TYPE_CHECKING:
-        snapshot_id: Optional[UUID] = None
         snapshot_ptr: Optional["NodeReference"] = None
-        base_id: Optional[UUID] = None
         base_ptr: Optional["NodeReference"] = None
-        instance_id: Optional[UUID] = None
         instance_ptr: Optional["NodeReference"] = None
-        template_id: Optional[UUID] = None
         template_ptr: Optional["NodeReference"] = None
 
 
@@ -842,5 +828,3 @@ class Event[N: Node = Node](Spatial, Particle, Indexed, Analytic, IsFrozen):
     node: Optional["Node"] = property_(35, description="The Node this Event is about.")
     if TYPE_CHECKING:
         node_ptr: Optional[NodeReference] = None
-        node_id: Optional[UUID] = None
-        node_type: Optional[NodeType] = None

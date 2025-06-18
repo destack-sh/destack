@@ -7,11 +7,11 @@ async def test_node_space_ptr(session: Session):
     session.create(space)
     folder = Folder(name="MyFolder")
     space.add_child(folder)
-    assert folder.space_id == space.id
+    assert folder.space_ptr and folder.space_ptr.id == space.id
     tags = [Tag(name="A"), Tag(name="B"), Tag(name="C")]
     folder.add_children(*tags)
     for tag in tags:
-        assert tag.space_id == space.id
+        assert tag.space_ptr and tag.space_ptr.id == space.id
     await session.commit()
 
     folders_unpacked = await Folder.search(where=Folder.property("space").eq(space)).execute_list()

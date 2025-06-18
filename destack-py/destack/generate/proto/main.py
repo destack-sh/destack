@@ -37,10 +37,6 @@ from .core import (
 if TYPE_CHECKING:
     from destack.language import Property
 
-#
-# Map Destack types to Proto types
-# We map and walk at the same type for simplicity (using the cache)
-#
 
 PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, ProtoFieldType] = {
     PrimitiveType.BOOLEAN: ProtoFieldType.BOOL,

@@ -26,7 +26,7 @@ from .type import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import Icon, Node, Type, Value
+    from destack.language import Icon, Node, NodeBase, Type, Value
 
 
 _type = type
@@ -125,7 +125,25 @@ class TraitDefinition(StructFrozen):
     icon: "Icon | None" = property_(34)
     description: str | None = property_(36)
     properties: list["PropertyDefinition"] = property_(50)
-    nodes: list[NodeType] = property_(51)
+    traits: list[TraitType] = property_(51)
+
+    @classmethod
+    def from_trait(cls, trait_cls: _type["NodeBase"]) -> "TraitDefinition":
+        """Create TraitDefinition from a Trait class."""
+        from .icon import to_icon
+
+        trait_type = TraitType(trait_cls.metatype)
+        return cls(
+            id=trait_cls.metatype.value,
+            type=trait_type,
+            name=trait_cls.metatype.camel_name,
+            icon=to_icon(trait_cls.metatype.icon) if trait_cls.metatype.icon else None,
+            description=trait_cls.__doc__,
+            properties=[
+                prop.definition for prop in trait_cls.__properties__.values() if prop.is_wired
+            ],
+            traits=list(trait_cls.__traits__),
+        )
 
 
 @builtin_struct(StructType.NODE_DEFINITION, frozen=True)
@@ -168,6 +186,7 @@ class StructDefinition(StructFrozen):
     icon: "Icon | None" = property_(34)
     description: str | None = property_(36)
     properties: list["PropertyDefinition"] = property_(50)
+    is_frozen: bool = property_(60)
 
     @classmethod
     def from_struct(cls, struct_cls: _type[StructBase]) -> "StructDefinition":
@@ -183,6 +202,7 @@ class StructDefinition(StructFrozen):
             properties=[
                 prop.definition for prop in struct_cls.__properties__.values() if prop.is_wired
             ],
+            is_frozen=struct_cls.__is_frozen__,
         )
 
 

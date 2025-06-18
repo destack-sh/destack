@@ -1,7 +1,6 @@
 import { Graph, QueryConnection, Session, Supergraph } from "@/language/core/runtime";
 import { BuiltinObject } from "./object";
 
-
 export abstract class Node extends BuiltinObject {
 
 	static readonly __isNode__: boolean = true;

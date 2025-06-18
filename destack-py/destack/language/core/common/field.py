@@ -23,7 +23,6 @@ from ..builtin import (
 )
 from .query import IntoQuery
 from .type import (
-    UUID,
     CollectionConstraint,
     DefaultFactory,
     NodeConstraint,
@@ -85,7 +84,6 @@ class Field(
     base_type: Optional["Node"] = property_(47, is_repr=True)
     key_type: Optional["Type"] = property_(48, is_repr=True)  # for maps
     if TYPE_CHECKING:
-        base_id: Optional[UUID] = None
         base_ptr: Optional["NodeReference"] = None
 
     # meta

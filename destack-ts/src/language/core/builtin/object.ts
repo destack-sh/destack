@@ -1,4 +1,4 @@
-import { Property } from "@/language/core/builtin/property";
+import { PropertyDefinition } from "./property";
 import { AnyNodeProto, AnyStructProto } from "@/proto/wire";
 import { Supergraph } from "../runtime/graph";
 
@@ -12,8 +12,8 @@ export abstract class BuiltinObject {
 	static readonly __isTrait__: boolean;
 
 	// properties
-	static readonly __properties__: Record<string, Property>;
-	static readonly __propertiesById__: Record<number, Property>;
+	static readonly __properties__: Record<string, PropertyDefinition>;
+	static readonly __propertiesById__: Record<number, PropertyDefinition>;
 
 	// methods
 	abstract equals(other: BuiltinObject): boolean;
@@ -24,7 +24,7 @@ export abstract class BuiltinObject {
 	/** The Supergraph this object belongs to. */
 	_supergraph: Supergraph | null = null;
 
-	static property(name: string): Property {
+	static property(name: string): PropertyDefinition {
 		const prop = this.__properties__[name];
 		if (!prop) {
 			throw new Error(`Property ${name} not found on ${this.constructor.name}`);

@@ -22,7 +22,6 @@ from destack.language.core import (
     property_,
 )
 from destack.proto import SpaceProto
-from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
     from destack.language import Database, Folder, Handle, NodeReference
@@ -71,11 +70,8 @@ class Space(
     )
     if TYPE_CHECKING:
         handle_ptr: Optional[NodeReference] = None
-        handle_id: Optional[UUID] = None
         root_folder_ptr: Optional[NodeReference] = None
-        root_folder_id: Optional[UUID] = None
         home_folder_ptr: Optional[NodeReference] = None
-        home_folder_id: Optional[UUID] = None
 
     # infra
     region: Region = property_(50, can_write=RoleType.SYSTEM)
@@ -86,4 +82,3 @@ class Space(
     # search, analytics, vault, cache, ...
     if TYPE_CHECKING:
         database_ptr: Optional[NodeReference] = None
-        database_id: Optional[UUID] = None

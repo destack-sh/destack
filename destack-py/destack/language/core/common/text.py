@@ -4,8 +4,6 @@ from typing import TYPE_CHECKING, Any, Optional, assert_never
 
 import regex
 
-from destack.utils.uuid import UUID
-
 from ..builtin import (
     BuiltinObjectFrozen,
     Enum,
@@ -58,7 +56,6 @@ class TextSpan(TextOptionsBase, StructFrozen):
     content: Optional[str] = property_(33)
     node: Optional[Node] = property_(34)
     if TYPE_CHECKING:
-        node_id: Optional[UUID] = None
         node_ptr: Optional[NodeReference] = None
     url: Optional[str] = property_(35)
 
@@ -82,7 +79,7 @@ class Text(TextOptionsBase, StructFrozen):
                     return True
         elif isinstance(item, Node):
             for span in self.spans:
-                if span.node_id is not None and span.node_id == item.id:
+                if span.node_ptr is not None and span.node_ptr.id == item.id:
                     return True
         else:
             assert_never(item)

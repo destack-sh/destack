@@ -42,7 +42,7 @@ NODE_TYPES_BY_MAIN_STORE_TYPE: dict[StoreType, tuple[NodeType, ...]] = {}
 
 ORDER_GROUP_BY_NODE_TYPE: dict[NodeType, TraitType | NodeType] = {}
 
-TRAIT_CLASS_BY_TRAIT: dict[TraitType, type["BuiltinObjectBase"]] = {}
+TRAIT_CLASS_BY_TRAIT: dict[TraitType, type["NodeBase"]] = {}
 TRAIT_TYPE_BY_CLASS: dict[type["Trait"], TraitType] = {}
 NODE_TYPES_BY_TRAIT_TYPE: dict[TraitType, tuple[NodeType, ...]] = {}
 
@@ -253,10 +253,15 @@ def _complete_setup():
         RELATION_REF_BY_CLASS[cls] = relation_ref(cls)
 
     # generate meta info
-    from destack.language.core import EnumDefinition, NodeDefinition, StructDefinition
+    from destack.language.core import (
+        EnumDefinition,
+        NodeDefinition,
+        StructDefinition,
+        TraitDefinition,
+    )
 
-    for trait_type in TRAIT_CLASS_BY_TRAIT:
-        trait_definition = TRAIT_DEFINITION_BY_TYPE[trait_type]
+    for trait_type, trait_cls in TRAIT_CLASS_BY_TRAIT.items():
+        trait_definition = TraitDefinition.from_trait(trait_cls)
         TRAIT_DEFINITION_BY_TYPE[trait_type] = trait_definition
     for node_cls in NODE_CLASS_BY_TYPE.values():
         node_definition = NodeDefinition.from_node(node_cls)

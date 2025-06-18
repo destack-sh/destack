@@ -21,7 +21,6 @@ from destack.language.core import (
     property_,
 )
 from destack.proto import UserProto
-from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
     from destack.language import Cursor, Handle, NodeReference, Space
@@ -63,11 +62,8 @@ class User(
     handle: Optional["Handle"] = property_(51, can_write=RoleType.SYSTEM, node_space_from="self")
     cursor: Optional["Cursor"] = property_(52, can_write=RoleType.SYSTEM, node_space_from="self")
     if TYPE_CHECKING:
-        space_id: UUID = property_()
         space_ptr: NodeReference = property_()
-        handle_id: Optional[UUID] = None
         handle_ptr: Optional[NodeReference] = None
-        cursor_id: Optional[UUID] = None
         cursor_ptr: Optional[NodeReference] = None
 
     # auth

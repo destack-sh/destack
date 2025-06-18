@@ -19,7 +19,6 @@ from destack.language.core import (
     property_,
 )
 from destack.proto import OrganizationProto
-from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
     from destack.language import Handle, Space
@@ -55,7 +54,5 @@ class Organization(
     space: "Space" = property_(50, can_write=RoleType.SYSTEM)
     handle: Optional["Handle"] = property_(51, can_write=RoleType.SYSTEM)
     if TYPE_CHECKING:
-        space_id: UUID = property_()
         space_ptr: NodeReference = property_()
-        handle_id: Optional[UUID] = None
         handle_ptr: Optional[NodeReference] = None

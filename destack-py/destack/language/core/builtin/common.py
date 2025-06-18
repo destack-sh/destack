@@ -370,11 +370,11 @@ class StructType(Enum):
     SELECT = 50106
     RELATION_REFERENCE = 50107
     ATTRIBUTE_REFERENCE = 50108
-    QUERY = 50109
-    QUERY_RESULT = 50110
-    QUERY_RESULT_GROUP = 50111
-    QUERY_UPDATE = 50112
-    HISTOGRAM = 50113
+    QUERY = 50110
+    QUERY_RESULT = 50111
+    QUERY_RESULT_GROUP = 50112
+    QUERY_UPDATE = 50113
+    HISTOGRAM = 50114
     VECTOR2 = 50200, None, None, "fas fa-vector-square"
     VECTOR3 = 50201, None, None, "fas fa-vector-square"
     VECTOR4 = 50202, None, None, "fas fa-vector-square"
