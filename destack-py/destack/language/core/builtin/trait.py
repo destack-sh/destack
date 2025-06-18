@@ -14,7 +14,7 @@ from typing import (
 from destack.language.registry import (
     NODE_TYPES_BY_TRAIT_TYPE,
     RELATION_REF_BY_CLASS,
-    TRAIT_CLASS_BY_TRAIT,
+    TRAIT_CLASS_BY_TYPE,
     TRAIT_TYPE_BY_CLASS,
 )
 from destack.proto import AnyObjectProto
@@ -120,7 +120,7 @@ def builtin_trait(
         # register
         if trait_type is not None:
             cls.metatype = trait_type
-            TRAIT_CLASS_BY_TRAIT[trait_type] = cls
+            TRAIT_CLASS_BY_TYPE[trait_type] = cls
             TRAIT_TYPE_BY_CLASS[cast(type["Trait"], cls)] = trait_type
 
         return cls

@@ -1,3 +1,4 @@
+import re
 import textwrap
 from collections import defaultdict
 from pathlib import Path
@@ -30,14 +31,19 @@ from destack.language.registry import (
     NODE_DEFINITION_BY_TYPE,
     STRUCT_CLASS_BY_TYPE,
     STRUCT_DEFINITION_BY_TYPE,
-    TRAIT_CLASS_BY_TRAIT,
+    TRAIT_CLASS_BY_TYPE,
     TRAIT_DEFINITION_BY_TYPE,
     TRAIT_TYPE_BY_CLASS,
 )
 from destack.utils.string import Casing, to_casing
 
-from .const import GENERATION_PATH, MARKER_END, MARKER_START, Definition
-from .core import TypescriptDefinition, TypescriptFile
+from .const import GENERATION_PATH, MARKER_CUSTOM_START, MARKER_END, MARKER_START, Definition, Kind
+from .core import (
+    TypescriptCodeBlock,
+    TypescriptDefinition,
+    TypescriptDefinitionBlock,
+    TypescriptFile,
+)
 from .map import TYPESCRIPT_TYPE_BY_PRIMITIVE_TYPE
 
 
@@ -178,22 +184,22 @@ set {ts_name}(value: {node_scalar_str} | null) {{
 
 def _generate_init(cls: type[BuiltinObjectBase]) -> str:
     """Generate a Typescript constructor."""
-    return ""  # nocheckin: Typescript BuiltinObject.constructor
+    return "// nocheckin: Typescript BuiltinObject.constructor"
 
 
 def _generate_equals(cls: type[BuiltinObjectBase]) -> str:
     """Generate a Typescript equals method."""
-    return ""  # nocheckin: Typescript BuiltinObject.equals
+    return "// nocheckin: Typescript BuiltinObject.equals"
 
 
 def _generate_hash(cls: type[BuiltinObjectBase]) -> str:
     """Generate a Typescript hash method."""
-    return ""  # nocheckin: Typescript BuiltinObject.hash
+    return "// nocheckin: Typescript BuiltinObject.hash"
 
 
 def _generate_validate(cls: type[BuiltinObjectBase]) -> str:
     """Generate a Typescript validate method."""
-    return ""  # nocheckin: Typescript BuiltinObject.validate
+    return "// nocheckin: Typescript BuiltinObject.validate"
 
 
 def _generate_to_ref(cls: type["Node"]) -> str:
@@ -202,7 +208,7 @@ def _generate_to_ref(cls: type["Node"]) -> str:
     node_type = cls.metatype
     if node_type == NodeType.SPACE:
         ref_impl = f"""\
-__toRef__(self): NodeReference {{
+__toRef__(): NodeReference {{
     return new NodeReference({{
         nodeType: NodeType.{node_type.name},
         id: this.id,
@@ -212,7 +218,7 @@ __toRef__(self): NodeReference {{
 """
     elif TraitType.CUSTOM_NODE in cls.__traits__:
         ref_impl = f"""\
-__toRef__(self): NodeReference {{
+__toRef__(): NodeReference {{
     return new NodeReference({{
         nodeType: NodeType.{node_type.name},
         id: this.id,
@@ -223,7 +229,7 @@ __toRef__(self): NodeReference {{
 """
     elif TraitType.SPATIAL in cls.__traits__:
         ref_impl = f"""\
-__toRef__(self): NodeReference {{
+__toRef__(): NodeReference {{
     return new NodeReference({{
         nodeType: NodeType.{node_type.name},
         id: this.id,
@@ -233,13 +239,13 @@ __toRef__(self): NodeReference {{
 """
     else:
         ref_impl = f"""\
-__toRef__(self): NodeReference {{
+__toRef__(): NodeReference {{
     return new NodeReference({{
         nodeType: NodeType.{node_type.name},
         id: this.id,
     }});
 """
-    return ref_impl
+    return ref_impl.strip()
 
 
 def _generate_path(cls: type[Node]) -> str:
@@ -287,7 +293,7 @@ get path(): string {{
 }}
 """
 
-    return path_str
+    return path_str.strip()
 
 
 def _generate_enum(definition: EnumDefinition) -> str:
@@ -300,7 +306,7 @@ export enum {definition.name} {{
 {textwrap.indent("\n".join(enum_parts), "  ")}
 }}
 """
-    return enum_str
+    return enum_str.strip()
 
 
 def _generate_struct(definition: StructDefinition) -> str:
@@ -332,13 +338,13 @@ def _generate_struct(definition: StructDefinition) -> str:
 export class {definition.name} extends BuiltinObject {{
 {textwrap.indent("\n".join(struct_parts), "  ")}
 }}"""
-    return struct_str
+    return struct_str.strip()
 
 
 def _generate_trait(definition: TraitDefinition) -> str:
     """Generate a Typescript Trait definition."""
 
-    trait_cls = TRAIT_CLASS_BY_TRAIT[definition.type]
+    trait_cls = TRAIT_CLASS_BY_TYPE[definition.type]
     trait_parts: list[str] = []
 
     # properties
@@ -353,7 +359,7 @@ def _generate_trait(definition: TraitDefinition) -> str:
 
     # interface
     trait_classes: list[type[NodeBase]] = [
-        TRAIT_CLASS_BY_TRAIT[trait_type] for trait_type in definition.traits
+        TRAIT_CLASS_BY_TYPE[trait_type] for trait_type in definition.traits
     ]
     trait_classes.sort(key=lambda cls: TRAIT_TYPE_BY_CLASS[cast(type[Trait], cls)])
     implements_str = (
@@ -365,7 +371,7 @@ def _generate_trait(definition: TraitDefinition) -> str:
 export interface {definition.name}{implements_str} {{
 {textwrap.indent("\n".join(trait_parts), "  ")}
 }}"""
-    return trait_str
+    return trait_str.strip()
 
 
 def _generate_node(definition: NodeDefinition) -> str:
@@ -400,7 +406,7 @@ def _generate_node(definition: NodeDefinition) -> str:
 
     # class
     trait_classes: list[type[NodeBase]] = [
-        TRAIT_CLASS_BY_TRAIT[trait_type] for trait_type in definition.traits
+        TRAIT_CLASS_BY_TYPE[trait_type] for trait_type in definition.traits
     ]
     trait_classes.sort(key=lambda cls: TRAIT_TYPE_BY_CLASS[cast(type[Trait], cls)])
     implements_str = (
@@ -413,7 +419,7 @@ export class {definition.name} extends Node{implements_str} {{
 {textwrap.indent("\n".join(node_parts), "  ")}
 }}
 """
-    return node_str
+    return node_str.strip()
 
 
 def _get_definition_dependencies(cls: type[BuiltinObjectBase]) -> dict[str, Definition]:
@@ -423,7 +429,7 @@ def _get_definition_dependencies(cls: type[BuiltinObjectBase]) -> dict[str, Defi
     # base classes
     if issubclass(cls, (Trait, NodeBase)):
         for trait_type in cls.__traits__:
-            trait_cls = TRAIT_CLASS_BY_TRAIT[trait_type]
+            trait_cls = TRAIT_CLASS_BY_TYPE[trait_type]
             dependencies[trait_cls.__name__] = TRAIT_DEFINITION_BY_TYPE[trait_type]
 
     # properties
@@ -461,7 +467,7 @@ def _generate_definition(definition: Definition) -> TypescriptDefinition:
         dependencies = _get_definition_dependencies(cast(type[BuiltinObjectBase], cls))
     elif isinstance(definition, TraitDefinition):
         kind = "TRAIT"
-        cls = TRAIT_CLASS_BY_TRAIT[definition.type]
+        cls = TRAIT_CLASS_BY_TYPE[definition.type]
         definition_str = _generate_trait(definition)
         name = definition.alias
         dependencies = _get_definition_dependencies(cast(type[BuiltinObjectBase], cls))
@@ -487,23 +493,102 @@ def _generate_definition(definition: Definition) -> TypescriptDefinition:
     return source_definition
 
 
+DEFINITION_START_PATTERN = re.compile(r"/\* ==== DESTACK_GENERATED_START:([^:]+):([^=]+) ==== \*/")
+DEFINITION_CUSTOM_START_PATTERN = re.compile(r"/\* ==== DESTACK_GENERATED_CUSTOM_START ==== \*/")
+DEFINITION_END_PATTERN = re.compile(r"/\* ==== DESTACK_GENERATED_END:([^:]+):([^=]+) ==== \*/")
+
+
 def _generate_file(file: TypescriptFile) -> str:
-    if file.existing_str is not None:
-        # nocheckin: merge TypescriptFile contents with existing
-        return file.existing_str
+    """Generate the contents of a managed TypescriptFile, merging with existing contents if present."""
+    existing_content = file.existing_str or ""
 
+    # parse existing content into blocks
+    blocks: list[TypescriptDefinitionBlock | TypescriptCodeBlock] = []
+    pos = 0
+    while pos < len(existing_content):
+        # look for next start marker
+        start_match = DEFINITION_START_PATTERN.search(existing_content, pos)
+        if start_match is None:
+            # no more definition blocks, add remaining content as code block
+            if pos < len(existing_content):
+                remaining = existing_content[pos:].strip()
+                if remaining:
+                    blocks.append(TypescriptCodeBlock(content=remaining))
+            break
+
+        # add any content before the start marker as a code block
+        if start_match.start() > pos:
+            content = existing_content[pos : start_match.start()].strip()
+            if content:
+                blocks.append(TypescriptCodeBlock(content=content))
+
+        # parse the definition block
+        kind = start_match.group(1)
+        assert kind in ("ENUM", "STRUCT", "TRAIT", "NODE"), f"invalid kind: {kind} in {file.path}"
+        kind = cast(Kind, kind)
+        id_str = start_match.group(2).strip()
+        id_int = int(id_str)
+
+        # find the corresponding end marker
+        end_match = DEFINITION_END_PATTERN.search(existing_content, start_match.end())
+        if end_match is None or end_match.group(1) != kind or end_match.group(2).strip() != id_str:
+            raise ValueError(f"no matching end marker for {kind}:{id_str}")
+
+        # look for custom content within the definition block
+        custom_content = ""
+        custom_match = DEFINITION_CUSTOM_START_PATTERN.search(existing_content, start_match.end())
+        if custom_match is not None and custom_match.start() < end_match.start():
+            custom_start = custom_match.end()
+            custom_end = end_match.start()
+            custom_content = existing_content[custom_start:custom_end].strip()
+
+        # add block
+        block = TypescriptDefinitionBlock(kind=kind, id=id_int, custom_content=custom_content)
+        blocks.append(block)
+        pos = end_match.end()
+
+    # build file by updating existing definition blocks and adding new ones
     file_parts: list[str] = []
+    seen_definitions: set[tuple[Kind, int]] = set()
+    for block in blocks:
+        if isinstance(block, TypescriptCodeBlock):
+            file_parts.append(block.content)
+        elif isinstance(block, TypescriptDefinitionBlock):
+            key = (block.kind, block.id)
+            definition = file.get_definition(block.kind, block.id)
+            if definition is None:
+                raise RuntimeError(f"unknown definition: {key} in {file.path}")
+            new_block = f"{MARKER_START.format(kind=definition.kind, id=definition.id)}\n"
+            new_block += f"{definition.definition_str}\n"
+            if block.custom_content:
+                new_block += f"{MARKER_CUSTOM_START}\n{block.custom_content}\n"
+            new_block += f"{MARKER_END.format(kind=definition.kind, id=definition.id)}"
+            file_parts.append(new_block)
+            seen_definitions.add(key)
+        else:
+            assert_never(block)
 
-    for definition in file.definitions.values():
-        file_parts.append(
-            f"""\
-{MARKER_START.format(kind=definition.kind, id=definition.id)}
-{definition.definition_str}
-{MARKER_END.format(kind=definition.kind, id=definition.id)}
-"""
-        )
+    # add any new definitions at the end
+    for key, definition in file.definitions.items():
+        if key not in seen_definitions:
+            new_block = f"{MARKER_START.format(kind=definition.kind, id=definition.id)}\n"
+            new_block += f"{definition.definition_str}\n"
+            new_block += f"{MARKER_END.format(kind=definition.kind, id=definition.id)}"
+            file_parts.append(new_block)
 
-    return "\n\n".join(file_parts)
+    # add imports to the top (will be auto-merged by linter)
+    import_parts: list[str] = []
+    imports_by_module: dict[str, list[str]] = defaultdict(list)
+    for dependency in file.dependencies.values():
+        if dependency.module != file.module:
+            imports_by_module[dependency.module].append(dependency.name)
+    for module, imports in imports_by_module.items():
+        import_path = module.split(".", 1)[-1].replace(".", "/") + ".ts"
+        import_parts.append(f"import type {{ {', '.join(imports)} }} from '@/{import_path}';")
+    file_parts.insert(0, "\n".join(import_parts))
+
+    new_str = "\n\n".join(file_parts)
+    return new_str
 
 
 def generate():
@@ -517,7 +602,7 @@ def generate():
     for struct_type, struct_cls in STRUCT_CLASS_BY_TYPE.items():
         definition = _generate_definition(STRUCT_DEFINITION_BY_TYPE[struct_type])
         definition_by_cls[struct_cls] = definition
-    for trait_type, trait_cls in TRAIT_CLASS_BY_TRAIT.items():
+    for trait_type, trait_cls in TRAIT_CLASS_BY_TYPE.items():
         definition = _generate_definition(TRAIT_DEFINITION_BY_TYPE[trait_type])
         definition_by_cls[trait_cls] = definition
     for node_type, node_cls in NODE_CLASS_BY_TYPE.items():
@@ -542,9 +627,11 @@ def generate():
     # generate files
     files_by_module: dict[str, TypescriptFile] = {}
     for module, definitions in definitions_by_module.items():
+        # path
         target_path = Path(GENERATION_PATH) / (module.split(".", 2)[-1].replace(".", "/") + ".ts")
         existing_file_str = target_path.read_text() if target_path.exists() else None
 
+        # definitions
         file_definitions_by_name: dict[str, TypescriptDefinition] = {
             definition.definition.name: definition for definition in definitions
         }
@@ -555,7 +642,8 @@ def generate():
                     raise RuntimeError(f"missing dependency: {dependency_name}")
                 file_dependencies_by_name[dependency_name] = definitions_by_name[dependency_name]
 
-        files_by_module[module] = TypescriptFile(
+        # file
+        file = TypescriptFile(
             name=module,
             module=module,
             path=target_path,
@@ -563,12 +651,12 @@ def generate():
             dependencies=file_dependencies_by_name,
             existing_str=existing_file_str,
         )
+        file.new_str = _generate_file(file)
+        files_by_module[module] = file
 
     for file in files_by_module.values():
-        file.new_str = _generate_file(file)
         print("=" * 80)
         print(file.path)
-        print(", ".join(file.dependencies.keys()))
         print("=" * 80)
         print(file.new_str)
         print("=" * 80)

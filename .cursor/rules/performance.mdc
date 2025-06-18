@@ -4,4 +4,4 @@ globs:
 alwaysApply: false
 ---
 Performance matters a lot and we care.
-Don't over-optimize when it makes code harder to read, but some consideration is important.
+Don't over-optimize when it makes code harder to read, but some consideration up-front is important.

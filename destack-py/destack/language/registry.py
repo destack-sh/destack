@@ -42,7 +42,7 @@ NODE_TYPES_BY_MAIN_STORE_TYPE: dict[StoreType, tuple[NodeType, ...]] = {}
 
 ORDER_GROUP_BY_NODE_TYPE: dict[NodeType, TraitType | NodeType] = {}
 
-TRAIT_CLASS_BY_TRAIT: dict[TraitType, type["NodeBase"]] = {}
+TRAIT_CLASS_BY_TYPE: dict[TraitType, type["NodeBase"]] = {}
 TRAIT_TYPE_BY_CLASS: dict[type["Trait"], TraitType] = {}
 NODE_TYPES_BY_TRAIT_TYPE: dict[TraitType, tuple[NodeType, ...]] = {}
 
@@ -128,7 +128,7 @@ def _complete_setup():
     for trait, node_types in node_types_by_trait.items():
         NODE_TYPES_BY_TRAIT_TYPE[trait] = tuple(node_types)
     for trait_type in TraitType:
-        assert trait_type in TRAIT_CLASS_BY_TRAIT, f"missing trait type: {trait_type!r}"
+        assert trait_type in TRAIT_CLASS_BY_TYPE, f"missing trait type: {trait_type!r}"
         if trait_type not in NODE_TYPES_BY_TRAIT_TYPE:
             NODE_TYPES_BY_TRAIT_TYPE[trait_type] = ()
 
@@ -260,7 +260,7 @@ def _complete_setup():
         TraitDefinition,
     )
 
-    for trait_type, trait_cls in TRAIT_CLASS_BY_TRAIT.items():
+    for trait_type, trait_cls in TRAIT_CLASS_BY_TYPE.items():
         trait_definition = TraitDefinition.from_trait(trait_cls)
         TRAIT_DEFINITION_BY_TYPE[trait_type] = trait_definition
     for node_cls in NODE_CLASS_BY_TYPE.values():
