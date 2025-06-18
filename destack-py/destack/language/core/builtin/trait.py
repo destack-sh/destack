@@ -47,7 +47,6 @@ if TYPE_CHECKING:
         NodeReference,
         Query,
         Script,
-        Snapshot,
         Sort,
         Space,
         Value,
@@ -732,31 +731,31 @@ class Entity(IsTracked):
     # when merging: time before space (id+snapshot_id over template)
     # snapshot and template properties must be READ ONLY (no write)
     materialization: MaterializationType = property_(7, default=MaterializationType.FULL_GRAPH)
-    snapshot: Optional["Snapshot"] = property_(
-        8,
-        can_write=None,
-        node_space_from="self",
-        description="The Snapshot this Entity is part of.",
-    )
-    base: Optional["Snapshot"] = property_(
-        9,
-        can_write=None,
-        node_is_customizable=False,
-        node_space_from="self",
-        description="The Snapshot this Entity's snapshot is based on.",
-    )
-    instance: Optional["Entity"] = property_(
-        10,
-        can_write=None,
-        node_is_customizable=False,
-        description="The (root) Entity in this Entity's instance tree.",
-    )
-    template: Optional["Entity"] = property_(
-        11,
-        can_write=None,
-        node_is_customizable=False,
-        description="The template this Entity instance is based on.",
-    )
+    # snapshot: Optional["Snapshot"] = property_(
+    #     8,
+    #     can_write=None,
+    #     node_space_from="self",
+    #     description="The Snapshot this Entity is part of.",
+    # )
+    # base: Optional["Snapshot"] = property_(
+    #     9,
+    #     can_write=None,
+    #     node_is_customizable=False,
+    #     node_space_from="self",
+    #     description="The Snapshot this Entity's snapshot is based on.",
+    # )
+    # instance: Optional["Entity"] = property_(
+    #     10,
+    #     can_write=None,
+    #     node_is_customizable=False,
+    #     description="The (root) Entity in this Entity's instance tree.",
+    # )
+    # template: Optional["Entity"] = property_(
+    #     11,
+    #     can_write=None,
+    #     node_is_customizable=False,
+    #     description="The template this Entity instance is based on.",
+    # )
     # Entity.set_properties/set_fields: 12-13
     if TYPE_CHECKING:
         snapshot_ptr: Optional["NodeReference"] = None

@@ -485,19 +485,26 @@ class Supergraph:
 
 
 def get_node_types(
-    node_type: "NodeType | TraitType | type[Node] | None",
-) -> tuple["NodeType", ...] | None:
+    node_type: "NodeType | TraitType | Collection[NodeType | TraitType] | type[Node] | None",
+) -> Sequence["NodeType"] | None:
     """Resolve the NodeTypes for a NodeType, TraitType, or Node class."""
-    node_types: tuple[NodeType, ...] | None = None
-    if node_type is not None:
-        if isinstance(node_type, type):
-            if node_t := NODE_TYPE_BY_CLASS.get(node_type):
-                node_types = (node_t,)
-            else:
-                node_types = NODE_TYPES_BY_TRAIT_TYPE[TRAIT_TYPE_BY_CLASS[node_type]]  # type: ignore
+    if node_type is None:
+        return None
+    elif isinstance(node_type, type):
+        if node_t := NODE_TYPE_BY_CLASS.get(node_type):
+            return (node_t,)
         else:
-            if isinstance(node_type, NodeType):
-                node_types = (node_type,)
+            return NODE_TYPES_BY_TRAIT_TYPE[TRAIT_TYPE_BY_CLASS[node_type]]  # type: ignore
+    elif isinstance(node_type, Collection):
+        node_types = []
+        for t in node_type:
+            if isinstance(t, NodeType):
+                node_types.append(t)
             else:
-                node_types = NODE_TYPES_BY_TRAIT_TYPE[node_type]
-    return node_types
+                node_types.extend(NODE_TYPES_BY_TRAIT_TYPE[t])
+        return node_types
+    else:
+        if isinstance(node_type, NodeType):
+            return (node_type,)
+        else:
+            return NODE_TYPES_BY_TRAIT_TYPE[node_type]

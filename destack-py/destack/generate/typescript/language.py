@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Literal, assert_never, cast
 
 from destack.language import (
+    NODE_TYPES,
     BuiltinObjectBase,
     Enum,
     EnumDefinition,
@@ -19,8 +20,8 @@ from destack.language import (
     Trait,
     TraitDefinition,
     TypeCardinality,
+    get_node_types,
 )
-from destack.language.core.runtime.graph import get_node_types
 from destack.language.registry import (
     ENUM_CLASS_BY_TYPE,
     ENUM_DEFINITION_BY_TYPE,
@@ -81,7 +82,27 @@ TYPESCRIPT_TYPE_BY_PRIMITIVE_TYPE: Mapping[PrimitiveType, str] = {
 }
 
 
-def _generate_property(prop: Property, is_readonly: bool, is_interface: bool) -> str:
+def _get_properties(cls: type[BuiltinObjectBase]) -> list[Property]:
+    """Get the properties of a class."""
+    properties: list[Property] = []
+    for prop in cls.__wired_properties__.values():
+        if prop.id == 1:
+            continue
+        if prop.runtime_prop is not None:
+            prop = prop.runtime_prop
+        properties.append(prop)
+    properties.sort(key=lambda prop: prop.id or 0)
+    return properties
+
+
+def _is_property_readonly(prop: Property) -> bool:
+    """Check if a property is (effectively) readonly to the user."""
+    return prop.can_write is None or prop.can_write == RoleType.SYSTEM or prop.is_managed
+
+
+def _generate_property(
+    prop: Property, *, is_readonly: bool, is_node: bool, is_interface: bool
+) -> str:
     """Generate a Property definition."""
 
     ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
@@ -91,36 +112,109 @@ def _generate_property(prop: Property, is_readonly: bool, is_interface: bool) ->
         assert prop.cardinality == TypeCardinality.SCALAR, (
             f"node references must be scalar: {prop!r}"
         )
+
+        # ptr property
+        ptr_prop_name = f"{ts_name}Ptr"
+        ptr_prop_str = f"{ptr_prop_name}: NodeReference"
+        if prop.is_optional:
+            ptr_prop_str = f"{ptr_prop_str} | null"
+        if is_readonly:
+            ptr_prop_str = f"readonly {ptr_prop_str}"
+
+        # node property
         node_types = get_node_types(prop.node_types)
-        return ""
+        node_classes = tuple(NODE_CLASS_BY_TYPE[node_type] for node_type in node_types or ())
+        if node_classes and len(node_classes) < len(NODE_TYPES):
+            node_scalar_str = " | ".join(node_cls.__name__ for node_cls in node_classes)
+        else:
+            node_scalar_str = "Node"
+
+        # node getter/setter
+        if is_interface:
+            # interface declaration
+            node_getter_str = f"get {ts_name}(): {node_scalar_str} | null;"
+            if not is_readonly:
+                node_setter_str = f"set {ts_name}(value: {node_scalar_str} | null): void;"
+                node_prop_str = f"{node_getter_str}\n{node_setter_str}"
+            else:
+                node_prop_str = node_getter_str
+        else:
+            # actual getter/setter
+            if is_node:
+                node_getter_str = f"""\
+get {ts_name}(): {node_scalar_str} | null {{
+    const nodePtr: NodeReference | null = this.{ptr_prop_name};
+    if (nodePtr !== null) {{
+        return this._supergraph.get(nodePtr.id);
+    }}
+    return null;
+}}
+"""
+                if not is_readonly:
+                    node_setter_str = f"""\
+set {ts_name}(value: {node_scalar_str} | null) {{
+    if (value === null) {{
+        this.{ptr_prop_name} = null;
+    }} else {{
+        this.{ptr_prop_name} = value.toRef();
+    }}
+}}
+"""
+                    node_prop_str = f"{node_getter_str}\n{node_setter_str}"
+                else:
+                    node_prop_str = node_getter_str
+
+            else:
+                node_getter_str = f"""\
+get {ts_name}(): {node_scalar_str} | null {{
+    const nodePtr: NodeReference | null = this.{ptr_prop_name};
+    if (nodePtr !== null) {{
+        if (this._supergraph === null) {{
+            return null;
+        }}
+        return this._supergraph.get(nodePtr.id);
+    }}
+    return null;
+}}
+"""
+                if not is_readonly:
+                    node_setter_str = f"""\
+set {ts_name}(value: {node_scalar_str} | null) {{
+    if (value == null) {{
+        this.{ptr_prop_name} = null;
+    }} else {{
+        this.{ptr_prop_name} = value.toRef();
+    }}
+}}
+"""
+                    node_prop_str = f"{node_getter_str}\n{node_setter_str}"
+                else:
+                    node_prop_str = node_getter_str
+
+        return f"{node_prop_str};\n{ptr_prop_str};"
 
     elif prop.scalar_type == ScalarType.ENUM:
         assert prop.enum_type is not None, f"no enum_type for {prop!r}"
         enum_cls = ENUM_CLASS_BY_TYPE[prop.enum_type]
-        scalar_str = f"{enum_cls.__name__}"
+        node_scalar_str = f"{enum_cls.__name__}"
     elif prop.scalar_type == ScalarType.PRIMITIVE:
         assert prop.primitive_type is not None, f"no primitive_type for {prop!r}"
-        scalar_str = TYPESCRIPT_TYPE_BY_PRIMITIVE_TYPE[prop.primitive_type]
+        node_scalar_str = TYPESCRIPT_TYPE_BY_PRIMITIVE_TYPE[prop.primitive_type]
     elif prop.scalar_type == ScalarType.STRUCT:
         assert prop.struct_type is not None, f"no struct_type for {prop!r}"
         struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
-        scalar_str = f"{struct_cls.__name__}"
+        node_scalar_str = f"{struct_cls.__name__}"
     elif prop.scalar_type == ScalarType.NODE_VALUE:
         raise ValueError(f"unsupported scalar_type: {prop!r}")
     else:
         assert_never(prop.scalar_type)
 
-    prop_str = f"{ts_name}: {scalar_str}"
+    node_prop_str = f"{ts_name}: {node_scalar_str}"
     if prop.is_optional:
-        prop_str = f"{prop_str} | null"
-    if (
-        is_readonly
-        or prop.can_write is None
-        or prop.can_write == RoleType.SYSTEM
-        or prop.is_managed
-    ):
-        prop_str = f"readonly {prop_str}"
-    return f"{prop_str};"
+        node_prop_str = f"{node_prop_str} | null"
+    if is_readonly:
+        node_prop_str = f"readonly {node_prop_str}"
+    return f"{node_prop_str};"
 
 
 def _generate_constructor(cls: type[BuiltinObjectBase]) -> str:
@@ -140,13 +234,6 @@ export enum {definition.name} {{
     return enum_str
 
 
-def _get_properties(cls: type[BuiltinObjectBase]) -> list[Property]:
-    """Get the properties of a class."""
-    properties = [prop for prop in cls.__properties__.values() if prop.id == 1 or prop.is_wired]
-    properties.sort(key=lambda prop: prop.id or 0)
-    return properties
-
-
 def _generate_struct(definition: StructDefinition) -> str:
     """Generate a Typescript Struct definition."""
     struct_cls = STRUCT_CLASS_BY_TYPE[definition.type]
@@ -154,7 +241,12 @@ def _generate_struct(definition: StructDefinition) -> str:
 
     # properties
     for prop in _get_properties(struct_cls):
-        prop_str = _generate_property(prop, is_readonly=definition.is_frozen, is_interface=False)
+        prop_str = _generate_property(
+            prop,
+            is_readonly=definition.is_frozen,
+            is_node=False,
+            is_interface=False,
+        )
         struct_parts.extend(prop_str.splitlines())
 
     # constructor
@@ -175,7 +267,12 @@ def _generate_trait(definition: TraitDefinition) -> str:
 
     # properties
     for prop in _get_properties(trait_cls):
-        prop_str = _generate_property(prop, is_readonly=False, is_interface=True)
+        prop_str = _generate_property(
+            prop,
+            is_readonly=_is_property_readonly(prop),
+            is_node=False,
+            is_interface=True,
+        )
         trait_parts.extend(prop_str.splitlines())
 
     # interface
@@ -203,7 +300,12 @@ def _generate_node(definition: NodeDefinition) -> str:
 
     # properties
     for prop in _get_properties(node_cls):
-        prop_str = _generate_property(prop, is_readonly=False, is_interface=False)
+        prop_str = _generate_property(
+            prop,
+            is_readonly=_is_property_readonly(prop),
+            is_node=True,
+            is_interface=False,
+        )
         node_parts.extend(prop_str.splitlines())
 
     # class
