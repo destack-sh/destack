@@ -280,16 +280,16 @@ get _pathKey(): string {{
 }}
 
 get path(): string {{
-    const path_parts: string[] = [];
+    const pathParts: string[] = [];
     let node: Node | null = this;
     while (node !== null) {{
-        path_parts.push(node._pathKey);
+        pathParts.push(node._pathKey);
         node = node.parent;
     }}
     if (!this._isAttached) {{
-        path_parts.push("<detached>");
+        pathParts.push("<detached>");
     }}
-    return path_parts.reverse().join("/");
+    return pathParts.reverse().join("/");
 }}
 """
 
@@ -527,7 +527,7 @@ def _generate_file(file: TypescriptFile) -> str:
         assert kind in ("ENUM", "STRUCT", "TRAIT", "NODE"), f"invalid kind: {kind} in {file.path}"
         kind = cast(Kind, kind)
         id_str = start_match.group(2).strip()
-        id_int = int(id_str)
+        id = int(id_str)
 
         # find the corresponding end marker
         end_match = DEFINITION_END_PATTERN.search(existing_content, start_match.end())
@@ -543,7 +543,7 @@ def _generate_file(file: TypescriptFile) -> str:
             custom_content = existing_content[custom_start:custom_end].strip()
 
         # add block
-        block = TypescriptDefinitionBlock(kind=kind, id=id_int, custom_content=custom_content)
+        block = TypescriptDefinitionBlock(kind=kind, id=id, custom_content=custom_content)
         blocks.append(block)
         pos = end_match.end()
 
@@ -555,6 +555,8 @@ def _generate_file(file: TypescriptFile) -> str:
             file_parts.append(block.content)
         elif isinstance(block, TypescriptDefinitionBlock):
             key = (block.kind, block.id)
+            if key in seen_definitions:
+                continue  # duplicate block (for some reason)
             definition = file.get_definition(block.kind, block.id)
             if definition is None:
                 raise RuntimeError(
@@ -571,7 +573,8 @@ def _generate_file(file: TypescriptFile) -> str:
             assert_never(block)
 
     # add any new definitions at the end
-    for key, definition in file.definitions.items():
+    for definition in file.definitions.values():
+        key = (definition.kind, definition.id)
         if key not in seen_definitions:
             new_block = f"{MARKER_START.format(kind=definition.kind, id=definition.id)}\n"
             new_block += f"{definition.definition_str}\n"
@@ -580,8 +583,14 @@ def _generate_file(file: TypescriptFile) -> str:
 
     # add imports to the top (will be auto-merged by linter)
     imports = {d.name for d in file.dependencies.values() if d.module != file.module}
-    import_str = f"import type {{ {', '.join(imports)} }} from '@/language';"
-    file_parts.insert(0, import_str)
+    import_parts: list[str] = []
+    if imports:
+        import_str = f"import type {{ {', '.join(imports)} }} from '@/language';"
+        import_parts.append(import_str)
+    import_parts.append(
+        "import { BuiltinObject, Struct, Node, NodeReference, NodeType, EnumType, StructType, TraitType } from '@/language/core';"
+    )
+    file_parts.insert(0, "\n".join(import_parts))
 
     new_str = "\n\n".join(file_parts)
     return new_str
@@ -652,11 +661,28 @@ def generate():
 
     # write files
     for file in files_by_module.values():
-        print("=" * 80)
-        print(file.path)
-        print("=" * 80)
-        print(file.new_str)
-        print("=" * 80)
         assert file.new_str, f"empty {file.path}"
         file.path.parent.mkdir(parents=True, exist_ok=True)
         file.path.write_text(file.new_str)
+
+    # write index files
+    module_paths = list({file.path.parent for file in files_by_module.values()})
+    module_paths.append(Path(GENERATION_PATH))
+    for module_path in sorted(module_paths):
+        # generate index.ts file that re-exports every subfile/subfolder
+        index_path = module_path / "index.ts"
+        index_path.parent.mkdir(parents=True, exist_ok=True)
+        index_lines = []
+        # collect all .ts files in this directory (excluding index.ts itself)
+        ts_files = [f for f in module_path.glob("*.ts") if f.name != "index.ts"]
+        for ts_file in sorted(ts_files):
+            module_name = ts_file.stem
+            index_lines.append(f"export * from './{module_name}';")
+        # collect all subdirectories that contain .ts files
+        for subdir in sorted(module_path.iterdir()):
+            if subdir.is_dir() and any(subdir.rglob("*.ts")):
+                subdir_name = subdir.name
+                index_lines.append(f"export * from './{subdir_name}';")
+
+        index_content = "\n".join(index_lines) + "\n"
+        index_path.write_text(index_content)

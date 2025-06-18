@@ -1,4 +1,4 @@
-
+import { BuiltinObject, Struct, Node, NodeReference } from '@/language/core';
 
 /* ==== DESTACK_GENERATED_START:ENUM:50000 ==== */
 export enum EnumType {
