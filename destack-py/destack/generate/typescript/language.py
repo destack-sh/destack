@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Literal, assert_never, cast
 
 from destack.language import (
+    EMPTY_DICT,
     NODE_TYPES,
     BuiltinObjectBase,
     Enum,
@@ -49,14 +50,18 @@ Definition = EnumDefinition | StructDefinition | TraitDefinition | NodeDefinitio
 class TypescriptFile:
     name: str
     module: str
-    definitions: Mapping[str, "TypescriptDefinition"]
     path: Path
+    definitions: Mapping[str, "TypescriptDefinition"]
+    dependencies: Mapping[str, "TypescriptDefinition"]
     existing_str: str | None = None
     new_str: str | None = None
 
 
 @dataclass(slots=True)
 class TypescriptDefinition:
+    name: str
+    cls: type[BuiltinObjectBase] | type[Enum]
+    module: str
     kind: Kind
     id: int
     definition: Definition
@@ -326,25 +331,67 @@ export class {definition.name} extends Node{implements_str} {{
     return node_str
 
 
-def _generate_definition(definition: Definition) -> TypescriptDefinition:
+def _get_definition_dependencies(cls: type[BuiltinObjectBase]) -> dict[str, Definition]:
+    """Get the dependencies of a definition."""
     dependencies: dict[str, Definition] = {}
 
+    # base classes
+    if issubclass(cls, (Trait, NodeBase)):
+        for trait_type in cls.__traits__:
+            trait_cls = TRAIT_CLASS_BY_TRAIT[trait_type]
+            dependencies[trait_cls.__name__] = TRAIT_DEFINITION_BY_TYPE[trait_type]
+
+    # properties
+    for prop in _get_properties(cls):
+        if prop.scalar_type == ScalarType.NODE_REFERENCE:
+            node_types = get_node_types(prop.node_types)
+            for node_type in node_types or ():
+                node_cls = NODE_CLASS_BY_TYPE[node_type]
+                dependencies[node_cls.__name__] = NODE_DEFINITION_BY_TYPE[node_type]
+        elif prop.scalar_type == ScalarType.STRUCT:
+            assert prop.struct_type is not None, f"no struct_type for {prop!r}"
+            struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
+            dependencies[struct_cls.__name__] = STRUCT_DEFINITION_BY_TYPE[prop.struct_type]
+        elif prop.scalar_type == ScalarType.ENUM:
+            assert prop.enum_type is not None, f"no enum_type for {prop!r}"
+            enum_cls = ENUM_CLASS_BY_TYPE[prop.enum_type]
+            dependencies[enum_cls.__name__] = ENUM_DEFINITION_BY_TYPE[prop.enum_type]
+
+    return dependencies
+
+
+def _generate_definition(definition: Definition) -> TypescriptDefinition:
     if isinstance(definition, EnumDefinition):
-        definition_str = _generate_enum(definition)
         kind = "ENUM"
+        cls = ENUM_CLASS_BY_TYPE[definition.type]
+        definition_str = _generate_enum(definition)
+        name = definition.name
+        dependencies = EMPTY_DICT
     elif isinstance(definition, StructDefinition):
-        definition_str = _generate_struct(definition)
         kind = "STRUCT"
+        cls = STRUCT_CLASS_BY_TYPE[definition.type]
+        definition_str = _generate_struct(definition)
+        name = definition.name
+        dependencies = _get_definition_dependencies(cast(type[BuiltinObjectBase], cls))
     elif isinstance(definition, TraitDefinition):
-        definition_str = _generate_trait(definition)
         kind = "TRAIT"
+        cls = TRAIT_CLASS_BY_TRAIT[definition.type]
+        definition_str = _generate_trait(definition)
+        name = definition.alias
+        dependencies = _get_definition_dependencies(cast(type[BuiltinObjectBase], cls))
     elif isinstance(definition, NodeDefinition):
-        definition_str = _generate_node(definition)
         kind = "NODE"
+        cls = NODE_CLASS_BY_TYPE[definition.type]
+        definition_str = _generate_node(definition)
+        name = definition.name
+        dependencies = _get_definition_dependencies(cast(type[BuiltinObjectBase], cls))
     else:
         assert_never(definition)
 
     source_definition = TypescriptDefinition(
+        name=name,
+        cls=cls,
+        module=cls.__module__,
         kind=kind,
         id=definition.id,
         definition=definition,
@@ -356,8 +403,8 @@ def _generate_definition(definition: Definition) -> TypescriptDefinition:
 
 def _generate_file(file: TypescriptFile) -> str:
     if file.existing_str is not None:
-        # nocheckin
-        return file.existing_str
+        # nocheckin: merge TypescriptFile contents with existing
+        raise NotImplementedError(f"merge TypescriptFile: {file.path}")
 
     file_parts: list[str] = []
 
@@ -392,26 +439,42 @@ def generate():
         definition_by_cls[node_cls] = definition
 
     # organize definitions into files
+    definitions_by_name: dict[str, TypescriptDefinition] = {}
     definitions_by_module: dict[str, list[TypescriptDefinition]] = defaultdict(list)
     for cls, definition in definition_by_cls.items():
         module = cls.__module__
         definitions_by_module[module].append(definition)
+        existing_definition = definitions_by_name.get(definition.name)
+        if existing_definition is not None:
+            raise RuntimeError(
+                f"duplicate definition name: {definition.name} "
+                f"({existing_definition.module}.{existing_definition.cls.__name__} vs "
+                f"{definition.module}.{definition.cls.__name__})"
+            )
+        definitions_by_name[definition.name] = definition
 
     # generate files
     files_by_module: dict[str, TypescriptFile] = {}
     for module, definitions in definitions_by_module.items():
-        target_path = Path(GENERATION_PATH) / (module.replace(".", "/") + ".ts")
-        target_path.parent.mkdir(parents=True, exist_ok=True)
+        target_path = Path(GENERATION_PATH) / (module.split(".", 2)[-1].replace(".", "/") + ".ts")
         existing_file_str = target_path.read_text() if target_path.exists() else None
 
-        definitions_by_name: dict[str, TypescriptDefinition] = {
+        file_definitions_by_name: dict[str, TypescriptDefinition] = {
             definition.definition.name: definition for definition in definitions
         }
+        file_dependencies_by_name: dict[str, TypescriptDefinition] = {}
+        for definition in definitions:
+            for dependency_name in definition.dependencies:
+                if dependency_name not in definitions_by_name:
+                    raise RuntimeError(f"missing dependency: {dependency_name}")
+                file_dependencies_by_name[dependency_name] = definitions_by_name[dependency_name]
+
         files_by_module[module] = TypescriptFile(
             name=module,
             module=module,
             path=target_path,
-            definitions=definitions_by_name,
+            definitions=file_definitions_by_name,
+            dependencies=file_dependencies_by_name,
             existing_str=existing_file_str,
         )
 
@@ -419,6 +482,7 @@ def generate():
         file.new_str = _generate_file(file)
         print("=" * 80)
         print(file.path)
+        print(", ".join(file.dependencies.keys()))
         print("=" * 80)
         print(file.new_str)
         print("=" * 80)

@@ -122,6 +122,7 @@ class TraitDefinition(StructFrozen):
     id: int = property_(2)
     type: TraitType = property_(30)
     name: str = property_(31)
+    alias: str = property_(32)
     icon: "Icon | None" = property_(34)
     description: str | None = property_(36)
     properties: list["PropertyDefinition"] = property_(50)
@@ -137,6 +138,7 @@ class TraitDefinition(StructFrozen):
             id=trait_cls.metatype.value,
             type=trait_type,
             name=trait_cls.metatype.camel_name,
+            alias=trait_cls.__name__,
             icon=to_icon(trait_cls.metatype.icon) if trait_cls.metatype.icon else None,
             description=trait_cls.__doc__,
             properties=[
@@ -166,7 +168,7 @@ class NodeDefinition(StructFrozen):
         return cls(
             id=node_cls.metatype.value,
             type=node_cls.metatype,
-            name=node_cls.metatype.camel_name,
+            name=node_cls.__name__,
             icon=to_icon(node_cls.metatype.icon) if node_cls.metatype.icon else None,
             description=node_cls.__doc__,
             properties=[
@@ -196,7 +198,7 @@ class StructDefinition(StructFrozen):
         return cls(
             id=struct_cls.metatype.value,
             type=struct_cls.metatype,
-            name=struct_cls.metatype.camel_name,
+            name=struct_cls.__name__,
             icon=to_icon(struct_cls.metatype.icon) if struct_cls.metatype.icon else None,
             description=struct_cls.__doc__,
             properties=[
