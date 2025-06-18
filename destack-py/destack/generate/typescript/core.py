@@ -27,16 +27,22 @@ class TypescriptFile:
     def get_definition(self, kind: Kind, id: int) -> "TypescriptDefinition | None":
         """Resolve a definition by kind and id."""
         if kind == "ENUM":
-            cls = ENUM_CLASS_BY_TYPE[EnumType(id)]
+            metatype = EnumType(id)
+            cls = ENUM_CLASS_BY_TYPE[metatype]
         elif kind == "STRUCT":
+            metatype = StructType(id)
             cls = STRUCT_CLASS_BY_TYPE[StructType(id)]
         elif kind == "TRAIT":
-            cls = TRAIT_CLASS_BY_TYPE[TraitType(id)]
+            metatype = TraitType(id)
+            cls = TRAIT_CLASS_BY_TYPE[metatype]
         elif kind == "NODE":
-            cls = NODE_CLASS_BY_TYPE[NodeType(id)]
+            metatype = NodeType(id)
+            cls = NODE_CLASS_BY_TYPE[metatype]
         else:
             assert_never(kind)
         definition = self.definitions.get(cls.__name__)
+        if definition is None and kind == "TRAIT":
+            definition = self.definitions.get(metatype.camel_name)
         return definition
 
 

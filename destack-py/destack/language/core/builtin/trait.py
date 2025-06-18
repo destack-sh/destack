@@ -64,6 +64,7 @@ if TYPE_CHECKING:
 #  - Is (e.g., IsTaggable, IsOwnable): the trait ascribes some behavior
 #
 
+TRAIT_PREFIXES = ("Is", "Has", "Like")
 # traits you must have at least one of
 AT_LEAST_ONE_TRAITS = (
     (TraitType.GLOBAL, TraitType.SPATIAL),

@@ -156,7 +156,7 @@ set {ts_name}(value: {node_scalar_str} | null) {{
                 else:
                     node_prop_str = node_getter_str
 
-        return f"{node_prop_str};\n{ptr_prop_str};"
+        return f"{node_prop_str};\n{ptr_prop_str}"
 
     elif prop.scalar_type == ScalarType.ENUM:
         assert prop.enum_type is not None, f"no enum_type for {prop!r}"
@@ -557,7 +557,9 @@ def _generate_file(file: TypescriptFile) -> str:
             key = (block.kind, block.id)
             definition = file.get_definition(block.kind, block.id)
             if definition is None:
-                raise RuntimeError(f"unknown definition: {key} in {file.path}")
+                raise RuntimeError(
+                    f"unknown definition: {key} in {file.path} (defines: {list(file.definitions.keys())})"
+                )
             new_block = f"{MARKER_START.format(kind=definition.kind, id=definition.id)}\n"
             new_block += f"{definition.definition_str}\n"
             if block.custom_content:
@@ -577,15 +579,9 @@ def _generate_file(file: TypescriptFile) -> str:
             file_parts.append(new_block)
 
     # add imports to the top (will be auto-merged by linter)
-    import_parts: list[str] = []
-    imports_by_module: dict[str, list[str]] = defaultdict(list)
-    for dependency in file.dependencies.values():
-        if dependency.module != file.module:
-            imports_by_module[dependency.module].append(dependency.name)
-    for module, imports in imports_by_module.items():
-        import_path = module.split(".", 1)[-1].replace(".", "/") + ".ts"
-        import_parts.append(f"import type {{ {', '.join(imports)} }} from '@/{import_path}';")
-    file_parts.insert(0, "\n".join(import_parts))
+    imports = {d.name for d in file.dependencies.values() if d.module != file.module}
+    import_str = f"import type {{ {', '.join(imports)} }} from '@/language';"
+    file_parts.insert(0, import_str)
 
     new_str = "\n\n".join(file_parts)
     return new_str
@@ -654,9 +650,13 @@ def generate():
         file.new_str = _generate_file(file)
         files_by_module[module] = file
 
+    # write files
     for file in files_by_module.values():
         print("=" * 80)
         print(file.path)
         print("=" * 80)
         print(file.new_str)
         print("=" * 80)
+        assert file.new_str, f"empty {file.path}"
+        file.path.parent.mkdir(parents=True, exist_ok=True)
+        file.path.write_text(file.new_str)

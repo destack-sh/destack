@@ -75,6 +75,7 @@ from .property import (
 )
 from .struct import StructBase, StructFrozen, StructMutable, builtin_struct
 from .trait import (
+    TRAIT_PREFIXES,
     Analytic,
     Entity,
     Event,
@@ -142,6 +143,7 @@ __all__ = [
     "REGION_BY_SLUG",
     "STRUCT_TYPES",
     "TRACING",
+    "TRAIT_PREFIXES",
     "TRAIT_TYPES",
     "UNSET",
     "VERSION",

@@ -74,12 +74,12 @@ def _resolve_struct_type(class_name: str) -> StructType | None:
 
 def _resolve_trait_type(name: str) -> TraitType | None:
     """Get a trait by name."""
-    if name.startswith("Is"):
-        name = name[2:]
-    elif name.startswith("Has"):
-        name = name[3:]
-    elif name.startswith("Like"):
-        name = name[4:]
+    from .trait import TRAIT_PREFIXES
+
+    for trait_prefix in TRAIT_PREFIXES:
+        if name.startswith(trait_prefix):
+            name = name[len(trait_prefix) :]
+            break
     name = to_casing(name, Casing.ALL_CAPS)
     trait = TraitType.__members__.get(name)
     return trait
