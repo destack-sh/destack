@@ -26,8 +26,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.06.16.5"
-CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
+VERSION = "2025.06.19.0"
 FLOAT_EPSILON = 1e-6
 BEGINNING_OF_TIME = datetime.fromisoformat("1970-01-01T00:00:00+00:00")
 
@@ -41,6 +40,8 @@ UNSET = cast(Any, _Unset())
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
 EMPTY_DICT: dict[Any, Any] = frozendict()
+
+# runtime context
 IS_IN_USER_CODE = contextvars.ContextVar("is_in_user_code", default=False)
 ACTIVE_SESSION: contextvars.ContextVar[Optional["Session"]] = contextvars.ContextVar(
     "active_session", default=None

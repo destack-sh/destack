@@ -1,6 +1,6 @@
 [project]
 name = "destack"
-version = "2025.06.16.5"
+version = "2025.06.19.0"
 description = "Destack Python"
 authors = [{ name = "Symbol Industries", email = "hello@symbol.industries" }]
 
