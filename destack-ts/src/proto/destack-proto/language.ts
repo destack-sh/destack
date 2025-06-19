@@ -6376,9 +6376,9 @@ export interface PropertyDefinitionProto {
      */
     isUnique?: boolean;
     /**
-     * @generated from protobuf field: optional symbol.destack.ValueProto default = 55
+     * @generated from protobuf field: optional symbol.destack.ValueProto default_value = 55
      */
-    default?: ValueProto;
+    defaultValue?: ValueProto;
     /**
      * @generated from protobuf field: optional symbol.destack.DefaultFactoryProto default_factory = 56
      */
@@ -9454,9 +9454,9 @@ export interface TypeProto {
      */
     isVariable?: boolean;
     /**
-     * @generated from protobuf field: optional symbol.destack.ValueProto default = 55
+     * @generated from protobuf field: optional symbol.destack.ValueProto default_value = 55
      */
-    default?: ValueProto;
+    defaultValue?: ValueProto;
     /**
      * @generated from protobuf field: optional symbol.destack.DefaultFactoryProto default_factory = 56
      */
@@ -30564,7 +30564,7 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
             { no: 48, name: "key_type", kind: "message", T: () => TypeProto },
             { no: 50, name: "is_required", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 51, name: "is_unique", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 55, name: "default", kind: "message", T: () => ValueProto },
+            { no: 55, name: "default_value", kind: "message", T: () => ValueProto },
             { no: 56, name: "default_factory", kind: "enum", opt: true, T: () => ["symbol.destack.DefaultFactoryProto", DefaultFactoryProto] },
             { no: 60, name: "collection_constraint", kind: "message", T: () => CollectionConstraintProto },
             { no: 61, name: "string_constraint", kind: "message", T: () => StringConstraintProto },
@@ -30648,8 +30648,8 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
                 case /* optional bool is_unique */ 51:
                     message.isUnique = reader.bool();
                     break;
-                case /* optional symbol.destack.ValueProto default */ 55:
-                    message.default = ValueProto.internalBinaryRead(reader, reader.uint32(), options, message.default);
+                case /* optional symbol.destack.ValueProto default_value */ 55:
+                    message.defaultValue = ValueProto.internalBinaryRead(reader, reader.uint32(), options, message.defaultValue);
                     break;
                 case /* optional symbol.destack.DefaultFactoryProto default_factory */ 56:
                     message.defaultFactory = reader.int32();
@@ -30750,9 +30750,9 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
         /* optional bool is_unique = 51; */
         if (message.isUnique !== undefined)
             writer.tag(51, WireType.Varint).bool(message.isUnique);
-        /* optional symbol.destack.ValueProto default = 55; */
-        if (message.default)
-            ValueProto.internalBinaryWrite(message.default, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.ValueProto default_value = 55; */
+        if (message.defaultValue)
+            ValueProto.internalBinaryWrite(message.defaultValue, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.destack.DefaultFactoryProto default_factory = 56; */
         if (message.defaultFactory !== undefined)
             writer.tag(56, WireType.Varint).int32(message.defaultFactory);
@@ -37852,7 +37852,7 @@ class TypeProto$Type extends MessageType<TypeProto> {
             { no: 48, name: "key_type", kind: "message", T: () => TypeProto },
             { no: 50, name: "is_required", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 51, name: "is_variable", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 55, name: "default", kind: "message", T: () => ValueProto },
+            { no: 55, name: "default_value", kind: "message", T: () => ValueProto },
             { no: 56, name: "default_factory", kind: "enum", opt: true, T: () => ["symbol.destack.DefaultFactoryProto", DefaultFactoryProto] },
             { no: 60, name: "collection_constraint", kind: "message", T: () => CollectionConstraintProto },
             { no: 61, name: "string_constraint", kind: "message", T: () => StringConstraintProto },
@@ -37910,8 +37910,8 @@ class TypeProto$Type extends MessageType<TypeProto> {
                 case /* optional bool is_variable */ 51:
                     message.isVariable = reader.bool();
                     break;
-                case /* optional symbol.destack.ValueProto default */ 55:
-                    message.default = ValueProto.internalBinaryRead(reader, reader.uint32(), options, message.default);
+                case /* optional symbol.destack.ValueProto default_value */ 55:
+                    message.defaultValue = ValueProto.internalBinaryRead(reader, reader.uint32(), options, message.defaultValue);
                     break;
                 case /* optional symbol.destack.DefaultFactoryProto default_factory */ 56:
                     message.defaultFactory = reader.int32();
@@ -37976,9 +37976,9 @@ class TypeProto$Type extends MessageType<TypeProto> {
         /* optional bool is_variable = 51; */
         if (message.isVariable !== undefined)
             writer.tag(51, WireType.Varint).bool(message.isVariable);
-        /* optional symbol.destack.ValueProto default = 55; */
-        if (message.default)
-            ValueProto.internalBinaryWrite(message.default, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.ValueProto default_value = 55; */
+        if (message.defaultValue)
+            ValueProto.internalBinaryWrite(message.defaultValue, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.destack.DefaultFactoryProto default_factory = 56; */
         if (message.defaultFactory !== undefined)
             writer.tag(56, WireType.Varint).int32(message.defaultFactory);

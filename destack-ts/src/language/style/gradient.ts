@@ -1,4 +1,4 @@
-import { IsTaggable, NumberInputView, ArrowShape, EnumType, StructType, CustomView, Scene, Theme, CustomViewDefinition, Node, Canvas, QueryConnection, Layer, IsDeletable, User, NodeReference, Graph, Spatial, LabelView, SplitView, Agent, IsOrdered, Space, StructFrozen, Axis2, ThreadView, Struct, LineShape, BuiltinObject, AnnotationShape, IsVisual, SliderInputView, NodeType, TextView, Session, Style, Color, MaterializationType, Entity, FrameView, PlaneShape, Supergraph, WizardView, IsTracked } from '@/language';
+import { Axis2, Canvas, EnumType, PlaneShape, StructFrozen, IsOrdered, NumberInputView, CustomViewDefinition, Color, LineShape, Agent, FrameView, ThreadView, StructType, QueryConnection, TextView, NodeType, Supergraph, IsVisual, Session, AnnotationShape, Node, IsTaggable, LabelView, Style, IsTracked, IsDeletable, Spatial, Struct, MaterializationType, SliderInputView, SplitView, WizardView, Graph, User, Theme, ArrowShape, Scene, Entity, CustomView, BuiltinObject, Layer, NodeReference, Space } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:12033 ==== */
@@ -64,7 +64,7 @@ export class Gradient extends Struct {
           if (this._supergraph === null) {
               return null;
           }
-          return this._supergraph.get(nodePtr.id);
+          return this._supergraph.get(nodePtr.id) as GradientStyle | null;
       }
       return null;
   }

@@ -1,4 +1,4 @@
-import { Insets, IsTaggable, NumberInputView, ArrowShape, EnumType, StructType, CustomView, Scene, Theme, CustomViewDefinition, Node, Canvas, QueryConnection, Layer, IsDeletable, User, NodeReference, Graph, Spatial, LabelView, SplitView, Agent, IsOrdered, Space, StructFrozen, ThreadView, Struct, LineShape, BuiltinObject, AnnotationShape, IsVisual, SliderInputView, NodeType, TextView, Session, Style, Color, MaterializationType, Entity, FrameView, PlaneShape, Supergraph, WizardView, IsTracked } from '@/language';
+import { Canvas, PlaneShape, EnumType, StructFrozen, IsOrdered, NumberInputView, CustomViewDefinition, Color, LineShape, Agent, FrameView, ThreadView, StructType, QueryConnection, TextView, NodeType, Supergraph, IsVisual, Session, AnnotationShape, Node, IsTaggable, LabelView, Style, IsTracked, IsDeletable, Spatial, Struct, MaterializationType, SliderInputView, SplitView, WizardView, Graph, User, Theme, ArrowShape, Insets, Scene, Entity, CustomView, BuiltinObject, Layer, NodeReference, Space } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:12032 ==== */
@@ -20,7 +20,7 @@ export class Border extends Struct {
           if (this._supergraph === null) {
               return null;
           }
-          return this._supergraph.get(nodePtr.id);
+          return this._supergraph.get(nodePtr.id) as BorderStyle | null;
       }
       return null;
   }

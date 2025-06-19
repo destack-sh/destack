@@ -1,4 +1,4 @@
-import { Struct, Node, BuiltinObject, QueryConnection, Type, NodeReference, Graph, Supergraph, NodeType, EnumType, StructType, Session, StructFrozen } from '@/language';
+import { EnumType, Graph, StructFrozen, StructType, Supergraph, Type, Struct, Session, BuiltinObject, QueryConnection, NodeType, Node, NodeReference } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2500 ==== */

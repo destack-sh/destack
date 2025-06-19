@@ -1,4 +1,4 @@
-import { Palette, IsTaggable, NumberInputView, ArrowShape, EnumType, StructType, CustomView, Scene, Theme, CustomViewDefinition, Node, Canvas, QueryConnection, Layer, IsDeletable, User, NodeReference, Graph, Spatial, LabelView, SplitView, Agent, IsOrdered, Space, StructFrozen, ThreadView, Struct, LineShape, BuiltinObject, AnnotationShape, IsVisual, SliderInputView, NodeType, TextView, Session, Style, MaterializationType, Entity, FrameView, PlaneShape, Supergraph, WizardView, IsTracked } from '@/language';
+import { Canvas, PlaneShape, EnumType, StructFrozen, IsOrdered, NumberInputView, CustomViewDefinition, LineShape, Agent, FrameView, ThreadView, StructType, QueryConnection, Palette, TextView, NodeType, Supergraph, IsVisual, Session, AnnotationShape, Node, IsTaggable, LabelView, Style, IsTracked, IsDeletable, Spatial, Struct, MaterializationType, SliderInputView, SplitView, WizardView, Graph, User, Theme, ArrowShape, Scene, Entity, CustomView, BuiltinObject, Layer, NodeReference, Space } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:12020 ==== */
@@ -73,7 +73,7 @@ export class Color extends Struct {
           if (this._supergraph === null) {
               return null;
           }
-          return this._supergraph.get(nodePtr.id);
+          return this._supergraph.get(nodePtr.id) as ColorStyle | null;
       }
       return null;
   }

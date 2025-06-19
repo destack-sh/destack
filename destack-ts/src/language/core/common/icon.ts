@@ -1,4 +1,4 @@
-import { Struct, Color, Node, BuiltinObject, QueryConnection, NodeReference, Graph, Supergraph, NodeType, EnumType, StructType, Session, File, StructFrozen } from '@/language';
+import { File, EnumType, Graph, StructFrozen, StructType, Supergraph, Struct, Color, Session, BuiltinObject, QueryConnection, NodeType, Node, NodeReference } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:2531 ==== */
@@ -23,7 +23,7 @@ export class Icon extends StructFrozen {
           if (this._supergraph === null) {
               return null;
           }
-          return this._supergraph.get(nodePtr.id);
+          return this._supergraph.get(nodePtr.id) as File | null;
       }
       return null;
   }

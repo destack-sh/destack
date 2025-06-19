@@ -39,7 +39,6 @@ from .common import (
 from .const import (
     ACTIVE_SESSION,
     BEGINNING_OF_TIME,
-    CK_LENGTH_B64,
     CLOUD,
     DESTACK_ID,
     DESTACK_SLUG,
@@ -125,7 +124,6 @@ from .trait import (
 __all__ = [
     "ACTIVE_SESSION",
     "BEGINNING_OF_TIME",
-    "CK_LENGTH_B64",
     "CLOUD",
     "DESTACK_ID",
     "DESTACK_SLUG",

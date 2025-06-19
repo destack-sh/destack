@@ -1,4 +1,4 @@
-import { Struct, Node, BuiltinObject, Field, QueryConnection, Region, Graph, TraitType, Supergraph, NodeType, EnumType, StructType, CustomEntityDefinition, Session, StructFrozen } from '@/language';
+import { EnumType, Graph, CustomEntityDefinition, StructFrozen, StructType, Supergraph, Region, Field, Struct, Session, BuiltinObject, QueryConnection, TraitType, NodeType, Node } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:50010 ==== */
@@ -79,7 +79,7 @@ export class RelationReference extends StructFrozen {
           if (this._supergraph === null) {
               return null;
           }
-          return this._supergraph.get(nodePtr.id);
+          return this._supergraph.get(nodePtr.id) as CustomEntityDefinition | null;
       }
       return null;
   }
@@ -145,7 +145,7 @@ export class AttributeReference extends StructFrozen {
           if (this._supergraph === null) {
               return null;
           }
-          return this._supergraph.get(nodePtr.id);
+          return this._supergraph.get(nodePtr.id) as Field | null;
       }
       return null;
   }

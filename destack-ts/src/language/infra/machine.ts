@@ -1,4 +1,4 @@
-import { ResourceStatus, EnumType, StructType, Node, QueryConnection, User, NodeReference, Graph, Spatial, Client, Agent, Space, StructFrozen, Struct, Resource, BuiltinObject, NodeType, Session, MaterializationType, Entity, Supergraph, IsTracked } from '@/language';
+import { EnumType, Resource, StructFrozen, Client, Agent, StructType, QueryConnection, NodeType, Supergraph, ResourceStatus, Session, Node, IsTracked, Spatial, Struct, MaterializationType, Graph, User, Entity, BuiltinObject, NodeReference, Space } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:7600 ==== */
@@ -168,7 +168,7 @@ export class Machine extends Node implements Spatial, Entity, Resource, IsTracke
       options.type ?? MachineType.RUNTIME,
       options.status ?? ResourceStatus.PENDING,
       options.targetStatus ?? null,
-      options.version ?? "2025.06.16.5",
+      options.version ?? "2025.06.19.0",
       options.externalName ?? null,
       options.externalId ?? null,
       options.imageId ?? null,

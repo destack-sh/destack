@@ -206,7 +206,7 @@ get {ts_name}(): {node_type_str} {{
         if (this._supergraph === null) {{
             return null;
         }}
-        return this._supergraph.get(nodePtr.id);
+        return this._supergraph.get(nodePtr.id) as {node_type_str};
     }}
     return null;
 }}

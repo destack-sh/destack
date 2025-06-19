@@ -1,4 +1,4 @@
-import { IsTaggable, NumberInputView, ArrowShape, EnumType, StructType, CustomView, Scene, Theme, CustomViewDefinition, Node, Canvas, QueryConnection, Layer, IsDeletable, User, NodeReference, Graph, Spatial, LabelView, SplitView, Agent, IsOrdered, Space, StructFrozen, ThreadView, Struct, LineShape, BuiltinObject, AnnotationShape, IsVisual, SliderInputView, NodeType, TextView, Axis3, Session, Style, MaterializationType, Vector2, Entity, Transition, FrameView, PlaneShape, Supergraph, WizardView, IsTracked } from '@/language';
+import { Canvas, PlaneShape, EnumType, StructFrozen, IsOrdered, NumberInputView, CustomViewDefinition, LineShape, Agent, Vector2, FrameView, StructType, QueryConnection, ThreadView, TextView, NodeType, Supergraph, IsVisual, Session, AnnotationShape, Node, IsTaggable, LabelView, Transition, Style, IsTracked, IsDeletable, Spatial, Struct, MaterializationType, SliderInputView, SplitView, WizardView, Graph, User, Theme, ArrowShape, Scene, Entity, Axis3, CustomView, BuiltinObject, Layer, NodeReference, Space } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:12046 ==== */
@@ -47,7 +47,7 @@ export class Effect extends Struct {
           if (this._supergraph === null) {
               return null;
           }
-          return this._supergraph.get(nodePtr.id);
+          return this._supergraph.get(nodePtr.id) as EffectStyle | null;
       }
       return null;
   }
