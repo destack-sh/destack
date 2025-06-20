@@ -89,7 +89,7 @@ class Field(
     # meta
     is_required: bool | None = property_(50)
     # is_external
-    default: Optional["Value"] = property_(55)
+    default_value: Optional["Value"] = property_(55)
     default_factory: Optional[DefaultFactory] = property_(56)
 
     # constraints
