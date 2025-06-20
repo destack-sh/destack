@@ -2933,9 +2933,9 @@ export interface FieldProto {
      */
     isRequired?: boolean;
     /**
-     * @generated from protobuf field: optional symbol.destack.ValueProto default = 55
+     * @generated from protobuf field: optional symbol.destack.ValueProto default_value = 55
      */
-    default?: ValueProto;
+    defaultValue?: ValueProto;
     /**
      * @generated from protobuf field: optional symbol.destack.DefaultFactoryProto default_factory = 56
      */
@@ -22537,7 +22537,7 @@ class FieldProto$Type extends MessageType<FieldProto> {
             { no: 47, name: "base_type_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 48, name: "key_type", kind: "message", T: () => TypeProto },
             { no: 50, name: "is_required", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 55, name: "default", kind: "message", T: () => ValueProto },
+            { no: 55, name: "default_value", kind: "message", T: () => ValueProto },
             { no: 56, name: "default_factory", kind: "enum", opt: true, T: () => ["symbol.destack.DefaultFactoryProto", DefaultFactoryProto] },
             { no: 60, name: "collection_constraint", kind: "message", T: () => CollectionConstraintProto },
             { no: 61, name: "string_constraint", kind: "message", T: () => StringConstraintProto },
@@ -22639,8 +22639,8 @@ class FieldProto$Type extends MessageType<FieldProto> {
                 case /* optional bool is_required */ 50:
                     message.isRequired = reader.bool();
                     break;
-                case /* optional symbol.destack.ValueProto default */ 55:
-                    message.default = ValueProto.internalBinaryRead(reader, reader.uint32(), options, message.default);
+                case /* optional symbol.destack.ValueProto default_value */ 55:
+                    message.defaultValue = ValueProto.internalBinaryRead(reader, reader.uint32(), options, message.defaultValue);
                     break;
                 case /* optional symbol.destack.DefaultFactoryProto default_factory */ 56:
                     message.defaultFactory = reader.int32();
@@ -22750,9 +22750,9 @@ class FieldProto$Type extends MessageType<FieldProto> {
         /* optional bool is_required = 50; */
         if (message.isRequired !== undefined)
             writer.tag(50, WireType.Varint).bool(message.isRequired);
-        /* optional symbol.destack.ValueProto default = 55; */
-        if (message.default)
-            ValueProto.internalBinaryWrite(message.default, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.ValueProto default_value = 55; */
+        if (message.defaultValue)
+            ValueProto.internalBinaryWrite(message.defaultValue, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.destack.DefaultFactoryProto default_factory = 56; */
         if (message.defaultFactory !== undefined)
             writer.tag(56, WireType.Varint).int32(message.defaultFactory);

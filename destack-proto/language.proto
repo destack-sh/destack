@@ -2443,7 +2443,7 @@ message FieldProto {
   optional NodeReferenceProto base_type_ptr = 47;
   optional TypeProto key_type = 48;
   optional bool is_required = 50;
-  optional ValueProto default = 55;
+  optional ValueProto default_value = 55;
   optional DefaultFactoryProto default_factory = 56;
   optional CollectionConstraintProto collection_constraint = 60;
   optional StringConstraintProto string_constraint = 61;

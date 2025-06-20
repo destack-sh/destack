@@ -1,4 +1,4 @@
-import { CustomEnumDefinition, TypeCardinality, Interruption, Team, Follow, EntitlementEvent, ScalarType, LineShape, CustomEventDefinition, ThreadView, EdgeType, DefaultFactory, IsTaggable, Action, HistogramMeasurement, CounterMetric, FillStyle, Struct, MaterializationType, Run, SliderInputView, SplitView, Membership, FriendshipInvite, ArrowShape, Scene, Database, Type, FontStyle, Option, GaugeMetric, Value, Service, Canvas, PlaneShape, NotificationEvent, Client, Agent, Folder, CustomStructDefinition, NodeType, File, GradientStyle, TriggerEvent, HistogramMetric, Supergraph, Notification, Link, StringConstraint, IsTracked, Spatial, WizardView, IsSourceable, Graph, User, Friendship, Thread, Snapshot, ThreadCursor, Permission, Layer, CustomEntityDefinition, IsOrdered, CustomEvent, CustomViewDefinition, EventCursor, FrameView, Trigger, StructType, Palette, TextView, EditEvent, CounterMeasurement, EffectStyle, Machine, ColorStyle, Message, Session, Variant, Log, Role, CustomEntity, SceneEvent, BorderStyle, CollectionConstraint, NodeConstraint, ShadowStyle, Reaction, Star, TransitionStyle, Icon, Handle, Entity, CustomView, SanctionEvent, Route, BuiltinObject, Tagging, Timer, Script, EnumType, Invite, StructFrozen, NumberInputView, InviteEvent, QueryConnection, Entitlement, FriendshipInviteEvent, Branch, AnnotationShape, RunEvent, Node, LabelView, Organization, NumberConstraint, IsDeletable, TimerEvent, Tag, ScreenCursor, Span, CascadeAction, GaugeMeasurement, PrimitiveType, RoleEvent, Theme, Environment, Window, MembershipEvent, Sanction, NodeReference, Space } from '@/language';
+import { BorderStyle, GaugeMeasurement, Window, ShadowStyle, Interruption, Span, Database, PlaneShape, TextView, InviteEvent, CustomStructDefinition, Membership, IsTracked, Role, EffectStyle, Team, ArrowShape, Sanction, Theme, Value, Palette, Friendship, MembershipEvent, HistogramMeasurement, User, NodeType, Thread, StructFrozen, TypeCardinality, TimerEvent, EntitlementEvent, CustomEnumDefinition, ScalarType, Handle, NodeReference, Machine, Entity, Tagging, Notification, Supergraph, SplitView, Star, IsSourceable, Client, SanctionEvent, Folder, Canvas, CounterMeasurement, Script, Session, HistogramMetric, Layer, Reaction, Action, Log, CascadeAction, Type, Route, SceneEvent, Struct, CustomEvent, CustomView, NumberConstraint, CustomEntityDefinition, EnumType, AnnotationShape, StructType, Invite, GradientStyle, Space, IsTaggable, Run, ScreenCursor, Spatial, RoleEvent, TransitionStyle, ThreadView, IsDeletable, Node, BuiltinObject, CustomEventDefinition, NotificationEvent, LineShape, StringConstraint, Permission, Agent, Option, Trigger, ThreadCursor, PrimitiveType, WizardView, FriendshipInviteEvent, LabelView, FriendshipInvite, SliderInputView, EdgeType, Branch, Scene, Environment, Entitlement, TriggerEvent, GaugeMetric, EditEvent, NumberInputView, CustomViewDefinition, EventCursor, ColorStyle, Service, Organization, CounterMetric, Timer, DefaultFactory, Link, NodeConstraint, Message, MaterializationType, QueryConnection, Follow, IsOrdered, FontStyle, FrameView, Tag, Icon, Graph, FillStyle, File, RunEvent, CollectionConstraint, Variant, Snapshot, CustomEntity } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:2580 ==== */
@@ -98,7 +98,7 @@ export class Field extends Node implements Spatial, Entity, IsTracked, IsDeletab
   baseTypePtr: NodeReference | null
   keyType: Type | null;
   isRequired: boolean | null;
-  default: Value | null;
+  defaultValue: Value | null;
   defaultFactory: DefaultFactory | null;
   collectionConstraint: CollectionConstraint | null;
   stringConstraint: StringConstraint | null;
@@ -140,7 +140,7 @@ export class Field extends Node implements Spatial, Entity, IsTracked, IsDeletab
     baseTypePtr: NodeReference | null,
     keyType: Type | null,
     isRequired: boolean | null,
-    default: Value | null,
+    defaultValue: Value | null,
     defaultFactory: DefaultFactory | null,
     collectionConstraint: CollectionConstraint | null,
     stringConstraint: StringConstraint | null,
@@ -178,7 +178,7 @@ export class Field extends Node implements Spatial, Entity, IsTracked, IsDeletab
     this.baseTypePtr = baseTypePtr;
     this.keyType = keyType;
     this.isRequired = isRequired;
-    this.default = default;
+    this.defaultValue = defaultValue;
     this.defaultFactory = defaultFactory;
     this.collectionConstraint = collectionConstraint;
     this.stringConstraint = stringConstraint;
@@ -204,7 +204,7 @@ export class Field extends Node implements Spatial, Entity, IsTracked, IsDeletab
     baseType?: Node | NodeReference | null,
     keyType?: Type | null,
     isRequired?: boolean | null,
-    default?: Value | null,
+    defaultValue?: Value | null,
     defaultFactory?: DefaultFactory | null,
     collectionConstraint?: CollectionConstraint | null,
     stringConstraint?: StringConstraint | null,
@@ -233,7 +233,7 @@ export class Field extends Node implements Spatial, Entity, IsTracked, IsDeletab
       options.baseType != null ? (options.baseType.metatype == StructType.NODE_REFERENCE ? options.baseType : options.baseType.toRef()) : null,
       options.keyType ?? null,
       options.isRequired ?? null,
-      options.default ?? null,
+      options.defaultValue ?? null,
       options.defaultFactory ?? null,
       options.collectionConstraint ?? null,
       options.stringConstraint ?? null,
