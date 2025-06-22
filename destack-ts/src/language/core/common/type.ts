@@ -1,4 +1,4 @@
-import { EnumType, Timer, WizardView, User, CustomEnumDefinition, Invite, Action, Thread, Tagging, Snapshot, FillStyle, File, DefaultFactory, SanctionEvent, SceneEvent, HistogramMeasurement, BuiltinObject, FontStyle, EffectStyle, Theme, Star, Agent, Organization, Log, CustomStructDefinition, Interruption, TransitionStyle, Session, SplitView, Supergraph, RoleEvent, Handle, Environment, Space, CustomEventDefinition, Value, EventCursor, Option, CustomView, Palette, Variant, RunEvent, Client, CounterMetric, ArrowShape, StructFrozen, ScreenCursor, NotificationEvent, Team, Span, Entitlement, Node, GaugeMeasurement, HistogramMetric, Trigger, NodeReference, CustomEntityDefinition, NumberInputView, GradientStyle, Graph, AnnotationShape, LabelView, Window, Link, ThreadView, Canvas, Folder, Notification, PlaneShape, ThreadCursor, Reaction, Branch, Script, Service, Struct, TriggerEvent, QueryConnection, Permission, FriendshipInviteEvent, Tag, FrameView, Route, Role, Sanction, EntitlementEvent, Run, NodeType, BorderStyle, ScalarType, TraitType, FriendshipInvite, Machine, ShadowStyle, CustomEntity, TypeCardinality, Membership, Field, PrimitiveType, ColorStyle, GaugeMetric, SliderInputView, MembershipEvent, TextView, Follow, CustomViewDefinition, Layer, InviteEvent, Scene, StructType, Message, Friendship, CounterMeasurement, CustomEvent, EditEvent, LineShape, Database, TimerEvent } from '@/language';
+import { Folder, Session, Timer, Snapshot, Option, ScreenCursor, ShadowStyle, Interruption, NodeType, Action, Window, EffectStyle, Trigger, EventCursor, SliderInputView, HistogramMetric, Value, CustomView, LabelView, Environment, ThreadView, Message, TransitionStyle, Space, CustomViewDefinition, Script, EnumType, Client, Layer, TextView, ColorStyle, FriendshipInviteEvent, Field, InviteEvent, Agent, Tagging, Follow, CustomEventDefinition, AnnotationShape, activeSession, StructType, RunEvent, CustomEvent, Role, Branch, HistogramMeasurement, NotificationEvent, WizardView, TriggerEvent, Variant, SceneEvent, EditEvent, Handle, Reaction, RoleEvent, CustomStructDefinition, Star, NumberInputView, Route, GaugeMetric, CustomEntityDefinition, File, ACTIVE_SESSION, DefaultFactory, LineShape, ThreadCursor, PrimitiveType, Machine, ScalarType, SanctionEvent, FrameView, Friendship, Supergraph, Database, Thread, FontStyle, Link, User, TraitType, Team, MembershipEvent, ArrowShape, BorderStyle, EntitlementEvent, SplitView, TypeCardinality, Node, CounterMeasurement, PlaneShape, BuiltinObject, Organization, Scene, StructFrozen, GradientStyle, Entitlement, Graph, Service, Struct, Permission, Sanction, Log, Canvas, Invite, Span, Palette, QueryConnection, GaugeMeasurement, NodeReference, CustomEnumDefinition, CounterMetric, TimerEvent, Membership, Run, Theme, CustomEntity, FriendshipInvite, Notification, Tag, FillStyle } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:2570 ==== */
@@ -29,38 +29,21 @@ export class StringConstraint extends StructFrozen {
   readonly startsWith: string | null;
   readonly endsWith: string | null;
 
-  constructor(
-    format: StringFormat | null,
-    regex: string | null,
-    startsWith: string | null,
-    endsWith: string | null,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.format = format;
-    this.regex = regex;
-    this.startsWith = startsWith;
-    this.endsWith = endsWith;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     format?: StringFormat | null,
     regex?: string | null,
     startsWith?: string | null,
     endsWith?: string | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): StringConstraint {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new StringConstraint(
-      options.format ?? null,
-      options.regex ?? null,
-      options.startsWith ?? null,
-      options.endsWith ?? null,
-      supergraph
-    );
+    super(supergraph);
+    this.format = options.format ?? null;
+    this.regex = options.regex ?? null;
+    this.startsWith = options.startsWith ?? null;
+    this.endsWith = options.endsWith ?? null;
   }
 
   equals(other: any): boolean {
@@ -86,26 +69,7 @@ export class NumberConstraint extends StructFrozen {
   readonly precision: number | null;
   readonly scale: number | null;
 
-  constructor(
-    format: NumberFormat | null,
-    minValue: number | null,
-    maxValue: number | null,
-    stepValue: number | null,
-    precision: number | null,
-    scale: number | null,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.format = format;
-    this.minValue = minValue;
-    this.maxValue = maxValue;
-    this.stepValue = stepValue;
-    this.precision = precision;
-    this.scale = scale;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     format?: NumberFormat | null,
     minValue?: number | null,
     maxValue?: number | null,
@@ -114,18 +78,16 @@ export class NumberConstraint extends StructFrozen {
     scale?: number | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): NumberConstraint {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new NumberConstraint(
-      options.format ?? null,
-      options.minValue ?? null,
-      options.maxValue ?? null,
-      options.stepValue ?? null,
-      options.precision ?? null,
-      options.scale ?? null,
-      supergraph
-    );
+    super(supergraph);
+    this.format = options.format ?? null;
+    this.minValue = options.minValue ?? null;
+    this.maxValue = options.maxValue ?? null;
+    this.stepValue = options.stepValue ?? null;
+    this.precision = options.precision ?? null;
+    this.scale = options.scale ?? null;
   }
 
   equals(other: any): boolean {
@@ -147,30 +109,17 @@ export class CollectionConstraint extends StructFrozen {
   readonly minLength: number | null;
   readonly maxLength: number | null;
 
-  constructor(
-    minLength: number | null,
-    maxLength: number | null,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.minLength = minLength;
-    this.maxLength = maxLength;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     minLength?: number | null,
     maxLength?: number | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): CollectionConstraint {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new CollectionConstraint(
-      options.minLength ?? null,
-      options.maxLength ?? null,
-      supergraph
-    );
+    super(supergraph);
+    this.minLength = options.minLength ?? null;
+    this.maxLength = options.maxLength ?? null;
   }
 
   equals(other: any): boolean {
@@ -192,30 +141,17 @@ export class NodeConstraint extends StructFrozen {
   readonly nodeTypes: Array<NodeType>;
   readonly nodeTraits: Array<TraitType>;
 
-  constructor(
-    nodeTypes: Array<NodeType>,
-    nodeTraits: Array<TraitType>,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.nodeTypes = nodeTypes;
-    this.nodeTraits = nodeTraits;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     nodeTypes?: Array<NodeType>,
     nodeTraits?: Array<TraitType>,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): NodeConstraint {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new NodeConstraint(
-      options.nodeTypes ?? [],
-      options.nodeTraits ?? [],
-      supergraph
-    );
+    super(supergraph);
+    this.nodeTypes = options.nodeTypes ?? [];
+    this.nodeTraits = options.nodeTraits ?? [];
   }
 
   equals(other: any): boolean {
@@ -274,48 +210,7 @@ export class Type extends StructFrozen {
   readonly numberConstraint: NumberConstraint | null;
   readonly nodeConstraint: NodeConstraint | null;
 
-  constructor(
-    cardinality: TypeCardinality,
-    scalarType: ScalarType,
-    primitiveType: PrimitiveType | null,
-    enumType: EnumType | null,
-    nodeType: NodeType | null,
-    nodeDefinitionPtr: NodeReference | null,
-    structType: StructType | null,
-    baseTypePtr: NodeReference | null,
-    keyType: Type | null,
-    isRequired: boolean | null,
-    isVariable: boolean | null,
-    defaultValue: Value | null,
-    defaultFactory: DefaultFactory | null,
-    collectionConstraint: CollectionConstraint | null,
-    stringConstraint: StringConstraint | null,
-    numberConstraint: NumberConstraint | null,
-    nodeConstraint: NodeConstraint | null,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.cardinality = cardinality;
-    this.scalarType = scalarType;
-    this.primitiveType = primitiveType;
-    this.enumType = enumType;
-    this.nodeType = nodeType;
-    this.nodeDefinitionPtr = nodeDefinitionPtr;
-    this.structType = structType;
-    this.baseTypePtr = baseTypePtr;
-    this.keyType = keyType;
-    this.isRequired = isRequired;
-    this.isVariable = isVariable;
-    this.defaultValue = defaultValue;
-    this.defaultFactory = defaultFactory;
-    this.collectionConstraint = collectionConstraint;
-    this.stringConstraint = stringConstraint;
-    this.numberConstraint = numberConstraint;
-    this.nodeConstraint = nodeConstraint;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     cardinality?: TypeCardinality,
     scalarType: ScalarType,
     primitiveType?: PrimitiveType | null,
@@ -335,29 +230,27 @@ export class Type extends StructFrozen {
     nodeConstraint?: NodeConstraint | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): Type {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Type(
-      options.cardinality ?? TypeCardinality.SCALAR,
-      options.scalarType,
-      options.primitiveType ?? null,
-      options.enumType ?? null,
-      options.nodeType ?? null,
-      options.nodeDefinition != null ? (options.nodeDefinition.metatype == StructType.NODE_REFERENCE ? options.nodeDefinition : options.nodeDefinition.toRef()) : null,
-      options.structType ?? null,
-      options.baseType != null ? (options.baseType.metatype == StructType.NODE_REFERENCE ? options.baseType : options.baseType.toRef()) : null,
-      options.keyType ?? null,
-      options.isRequired ?? null,
-      options.isVariable ?? null,
-      options.defaultValue ?? null,
-      options.defaultFactory ?? null,
-      options.collectionConstraint ?? null,
-      options.stringConstraint ?? null,
-      options.numberConstraint ?? null,
-      options.nodeConstraint ?? null,
-      supergraph
-    );
+    super(supergraph);
+    this.cardinality = options.cardinality ?? TypeCardinality.SCALAR;
+    this.scalarType = options.scalarType;
+    this.primitiveType = options.primitiveType ?? null;
+    this.enumType = options.enumType ?? null;
+    this.nodeType = options.nodeType ?? null;
+    this.nodeDefinitionPtr = options.nodeDefinition != null ? (options.nodeDefinition.metatype == StructType.NODE_REFERENCE ? (options.nodeDefinition as NodeReference) : (options.nodeDefinition as Node).toRef()) : null;
+    this.structType = options.structType ?? null;
+    this.baseTypePtr = options.baseType != null ? (options.baseType.metatype == StructType.NODE_REFERENCE ? (options.baseType as NodeReference) : (options.baseType as Node).toRef()) : null;
+    this.keyType = options.keyType ?? null;
+    this.isRequired = options.isRequired ?? null;
+    this.isVariable = options.isVariable ?? null;
+    this.defaultValue = options.defaultValue ?? null;
+    this.defaultFactory = options.defaultFactory ?? null;
+    this.collectionConstraint = options.collectionConstraint ?? null;
+    this.stringConstraint = options.stringConstraint ?? null;
+    this.numberConstraint = options.numberConstraint ?? null;
+    this.nodeConstraint = options.nodeConstraint ?? null;
   }
 
   equals(other: any): boolean {

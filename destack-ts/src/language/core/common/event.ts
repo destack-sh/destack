@@ -1,4 +1,4 @@
-import { EnumType, Timer, WizardView, Analytic, User, IsOrdered, CustomEnumDefinition, Invite, Action, Thread, Tagging, Snapshot, FillStyle, File, SanctionEvent, SceneEvent, HistogramMeasurement, BuiltinObject, PropertyReference, FontStyle, EffectStyle, Theme, Star, Agent, Organization, Log, CustomStructDefinition, Interruption, IsTracked, TransitionStyle, Session, EditType, SplitView, Supergraph, RoleEvent, Handle, Environment, Space, Value, EventCursor, Option, CustomView, Palette, Variant, RunEvent, Entity, Client, CounterMetric, ArrowShape, StructFrozen, Event, ScreenCursor, NotificationEvent, Team, Span, Entitlement, Node, GaugeMeasurement, HistogramMetric, Trigger, NodeReference, CustomEntityDefinition, EditOperation, NumberInputView, GradientStyle, Graph, AnnotationShape, IsTaggable, LabelView, Window, Link, ThreadView, Canvas, Folder, Notification, PlaneShape, ThreadCursor, Reaction, Branch, Particle, Script, MaterializationType, Service, Struct, TriggerEvent, QueryConnection, Permission, FriendshipInviteEvent, Tag, FrameView, Route, Role, Sanction, EntitlementEvent, Run, NodeType, BorderStyle, Indexed, FriendshipInvite, Machine, ShadowStyle, CustomEntity, Membership, Field, ColorStyle, GaugeMetric, IsSourceable, SliderInputView, MembershipEvent, TextView, Follow, CustomViewDefinition, Layer, Spatial, IsFrozen, InviteEvent, Scene, StructType, Message, Friendship, CounterMeasurement, LineShape, Database, TimerEvent } from '@/language';
+import { EditType, Folder, Session, Timer, Snapshot, Option, ScreenCursor, ShadowStyle, Interruption, NodeType, Action, Window, Indexed, EffectStyle, Trigger, EventCursor, SliderInputView, HistogramMetric, Value, CustomView, LabelView, Environment, ThreadView, Message, TransitionStyle, IsSourceable, Space, CustomViewDefinition, Script, EnumType, Client, Layer, TextView, ColorStyle, FriendshipInviteEvent, Field, InviteEvent, Agent, Tagging, IsTaggable, Follow, AnnotationShape, Event, activeSession, StructType, RunEvent, Role, Branch, HistogramMeasurement, NotificationEvent, WizardView, TriggerEvent, Variant, SceneEvent, Reaction, Handle, RoleEvent, CustomStructDefinition, Star, NumberInputView, Route, GaugeMetric, CustomEntityDefinition, File, ACTIVE_SESSION, LineShape, ThreadCursor, IsOrdered, Machine, Tag, SanctionEvent, FrameView, Friendship, Supergraph, EditOperation, Database, Thread, FontStyle, Link, User, Analytic, Spatial, Team, MembershipEvent, ArrowShape, BorderStyle, EntitlementEvent, SplitView, Entity, Node, IsTracked, CounterMeasurement, PlaneShape, BuiltinObject, Organization, Scene, StructFrozen, IsFrozen, GradientStyle, Entitlement, Graph, Service, Struct, Permission, Particle, Sanction, Canvas, Invite, Span, Palette, QueryConnection, GaugeMeasurement, NodeReference, CustomEnumDefinition, MaterializationType, CounterMetric, TimerEvent, Membership, PropertyReference, Run, Theme, CustomEntity, FriendshipInvite, Notification, Log, FillStyle } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:4202 ==== */
@@ -52,12 +52,8 @@ export class EditEvent extends Node implements Spatial, Particle, Analytic, Inde
       return null;
   }
 
-  set node(value: Node) {
-      if (value === null) {
-          this.nodePtr = null;
-      } else {
-          this.nodePtr = value.toRef();
-      }
+  set node(node: Node) {
+      this.nodePtr = node.toRef();
   }
   ;
   nodePtr: NodeReference
@@ -70,11 +66,11 @@ export class EditEvent extends Node implements Spatial, Particle, Analytic, Inde
       return null;
   }
 
-  set field(value: Field | null) {
-      if (value === null) {
+  set field(node: Field | null) {
+      if (node === null) {
           this.fieldPtr = null;
       } else {
-          this.fieldPtr = value.toRef();
+          this.fieldPtr = node.toRef();
       }
   }
   ;
@@ -82,45 +78,7 @@ export class EditEvent extends Node implements Spatial, Particle, Analytic, Inde
   key: Value | null;
   value: Value | null;
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    type: EditType,
-    operation: EditOperation | null,
-    nodePtr: NodeReference,
-    propPtr: PropertyReference | null,
-    fieldPtr: NodeReference | null,
-    key: Value | null,
-    value: Value | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.type = type;
-    this.operation = operation;
-    this.nodePtr = nodePtr;
-    this.propPtr = propPtr;
-    this.fieldPtr = fieldPtr;
-    this.key = key;
-    this.value = value;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type: EditType,
     operation?: EditOperation | null,
     node: Node | NodeReference,
@@ -132,22 +90,17 @@ export class EditEvent extends Node implements Spatial, Particle, Analytic, Inde
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): EditEvent {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new EditEvent(
-      options.type,
-      options.operation ?? null,
-      options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? options.node : options.node.toRef()) : null,
-      options.propPtr ?? null,
-      options.field != null ? (options.field.metatype == StructType.NODE_REFERENCE ? options.field : options.field.toRef()) : null,
-      options.key ?? null,
-      options.value ?? null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.type = options.type;
+    this.operation = options.operation ?? null;
+    this.nodePtr = options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? (options.node as NodeReference) : (options.node as Node).toRef()) : null;
+    this.propPtr = options.propPtr ?? null;
+    this.fieldPtr = options.field != null ? (options.field.metatype == StructType.NODE_REFERENCE ? (options.field as NodeReference) : (options.field as Node).toRef()) : null;
+    this.key = options.key ?? null;
+    this.value = options.value ?? null;
   }
 
   equals(other: any): boolean {
@@ -239,54 +192,17 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, IsTr
   ;
   sourcePtr: NodeReference | null
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    orderKey: string,
-    name: string,
-    sourcePtr: NodeReference | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.orderKey = orderKey;
-    this.name = name;
-    this.sourcePtr = sourcePtr;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     name: string,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): CustomEventDefinition {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new CustomEventDefinition(
-      options.name,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.name = options.name;
   }
 
   equals(other: any): boolean {
@@ -373,11 +289,11 @@ export class CustomEvent extends Node implements Spatial, Particle, Analytic, In
       return null;
   }
 
-  set node(value: Node | null) {
-      if (value === null) {
+  set node(node: Node | null) {
+      if (node === null) {
           this.nodePtr = null;
       } else {
-          this.nodePtr = value.toRef();
+          this.nodePtr = node.toRef();
       }
   }
   ;
@@ -390,62 +306,25 @@ export class CustomEvent extends Node implements Spatial, Particle, Analytic, In
       return null;
   }
 
-  set definition(value: CustomEventDefinition) {
-      if (value === null) {
-          this.definitionPtr = null;
-      } else {
-          this.definitionPtr = value.toRef();
-      }
+  set definition(node: CustomEventDefinition) {
+      this.definitionPtr = node.toRef();
   }
   ;
   definitionPtr: NodeReference
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    nodePtr: NodeReference | null,
-    definitionPtr: NodeReference,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.nodePtr = nodePtr;
-    this.definitionPtr = definitionPtr;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     node?: Node | NodeReference | null,
     definition: CustomEventDefinition | NodeReference,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): CustomEvent {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new CustomEvent(
-      options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? options.node : options.node.toRef()) : null,
-      options.definition != null ? (options.definition.metatype == StructType.NODE_REFERENCE ? options.definition : options.definition.toRef()) : null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.nodePtr = options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? (options.node as NodeReference) : (options.node as Node).toRef()) : null;
+    this.definitionPtr = options.definition != null ? (options.definition.metatype == StructType.NODE_REFERENCE ? (options.definition as NodeReference) : (options.definition as Node).toRef()) : null;
   }
 
   equals(other: any): boolean {

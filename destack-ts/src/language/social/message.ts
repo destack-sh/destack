@@ -1,4 +1,4 @@
-import { EnumType, Timer, WizardView, User, CustomEnumDefinition, Invite, Action, Thread, Tagging, Snapshot, FillStyle, IsOwnable, File, Text, SanctionEvent, SceneEvent, HistogramMeasurement, BuiltinObject, FontStyle, EffectStyle, Theme, Star, Agent, Organization, Log, CustomStructDefinition, Interruption, IsTracked, TransitionStyle, Session, SplitView, Supergraph, RoleEvent, Handle, Environment, Space, CustomEventDefinition, EventCursor, Option, CustomView, Palette, Variant, Entity, RunEvent, Client, CounterMetric, ArrowShape, StructFrozen, ScreenCursor, NotificationEvent, Team, Span, HistogramMetric, Entitlement, Node, GaugeMeasurement, Trigger, NodeReference, CustomEntityDefinition, NumberInputView, GradientStyle, Graph, AnnotationShape, IsTaggable, LabelView, Window, Link, ThreadView, Canvas, Folder, Notification, PlaneShape, ThreadCursor, Reaction, Branch, Script, MaterializationType, Service, Struct, TriggerEvent, QueryConnection, Permission, FriendshipInviteEvent, Tag, FrameView, Route, Role, Sanction, EntitlementEvent, Run, NodeType, IsDeletable, BorderStyle, FriendshipInvite, Machine, ShadowStyle, CustomEntity, Membership, IsReactable, Field, ColorStyle, GaugeMetric, SliderInputView, MembershipEvent, TextView, Follow, CustomViewDefinition, Layer, Spatial, InviteEvent, Scene, StructType, Friendship, CounterMeasurement, CustomEvent, EditEvent, LineShape, Database, TimerEvent } from '@/language';
+import { Folder, Session, Timer, Snapshot, Option, ScreenCursor, ShadowStyle, Interruption, NodeType, Action, Window, EffectStyle, Trigger, EventCursor, SliderInputView, HistogramMetric, CustomView, LabelView, Environment, ThreadView, TransitionStyle, Space, CustomViewDefinition, Script, EnumType, Client, Layer, TextView, ColorStyle, FriendshipInviteEvent, Field, InviteEvent, Agent, Tagging, IsTaggable, Follow, CustomEventDefinition, AnnotationShape, activeSession, StructType, RunEvent, CustomEvent, Role, Branch, HistogramMeasurement, NotificationEvent, WizardView, TriggerEvent, Variant, SceneEvent, EditEvent, IsReactable, Handle, Reaction, Text, RoleEvent, CustomStructDefinition, Star, NumberInputView, Route, GaugeMetric, CustomEntityDefinition, File, ACTIVE_SESSION, LineShape, ThreadCursor, Machine, Tag, SanctionEvent, FrameView, Friendship, Supergraph, Database, Thread, IsOwnable, FontStyle, Link, User, Spatial, Team, MembershipEvent, ArrowShape, BorderStyle, EntitlementEvent, Entity, SplitView, Node, IsTracked, CounterMeasurement, PlaneShape, BuiltinObject, Organization, Scene, StructFrozen, GradientStyle, Entitlement, Graph, Service, Struct, Permission, Sanction, Canvas, Invite, Span, Palette, QueryConnection, GaugeMeasurement, NodeReference, MaterializationType, CustomEnumDefinition, CounterMetric, TimerEvent, Membership, Run, Theme, IsDeletable, CustomEntity, FriendshipInvite, Notification, Log, FillStyle } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:5510 ==== */
@@ -52,11 +52,11 @@ export class Message extends Node implements Spatial, Entity, IsTracked, IsDelet
       return null;
   }
 
-  set ownedBy(value: Role | Agent | Organization | Team | User | null) {
-      if (value === null) {
+  set ownedBy(node: Role | Agent | Organization | Team | User | null) {
+      if (node === null) {
           this.ownedByPtr = null;
       } else {
-          this.ownedByPtr = value.toRef();
+          this.ownedByPtr = node.toRef();
       }
   }
   ;
@@ -69,11 +69,11 @@ export class Message extends Node implements Spatial, Entity, IsTracked, IsDelet
       return null;
   }
 
-  set thread(value: Thread | null) {
-      if (value === null) {
+  set thread(node: Thread | null) {
+      if (node === null) {
           this.threadPtr = null;
       } else {
-          this.threadPtr = value.toRef();
+          this.threadPtr = node.toRef();
       }
   }
   ;
@@ -87,11 +87,11 @@ export class Message extends Node implements Spatial, Entity, IsTracked, IsDelet
       return null;
   }
 
-  set replyTo(value: Message | null) {
-      if (value === null) {
+  set replyTo(node: Message | null) {
+      if (node === null) {
           this.replyToPtr = null;
       } else {
-          this.replyToPtr = value.toRef();
+          this.replyToPtr = node.toRef();
       }
   }
   ;
@@ -104,11 +104,11 @@ export class Message extends Node implements Spatial, Entity, IsTracked, IsDelet
       return null;
   }
 
-  set forwardedFrom(value: Message | null) {
-      if (value === null) {
+  set forwardedFrom(node: Message | null) {
+      if (node === null) {
           this.forwardedFromPtr = null;
       } else {
-          this.forwardedFromPtr = value.toRef();
+          this.forwardedFromPtr = node.toRef();
       }
   }
   ;
@@ -122,59 +122,17 @@ export class Message extends Node implements Spatial, Entity, IsTracked, IsDelet
       return null;
   }
 
-  set node(value: Node | null) {
-      if (value === null) {
+  set node(node: Node | null) {
+      if (node === null) {
           this.nodePtr = null;
       } else {
-          this.nodePtr = value.toRef();
+          this.nodePtr = node.toRef();
       }
   }
   ;
   nodePtr: NodeReference | null
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    deletedAt: Temporal.ZonedDateTime | null,
-    ownedByPtr: NodeReference | null,
-    threadPtr: NodeReference | null,
-    editedAt: Temporal.ZonedDateTime | null,
-    replyToPtr: NodeReference | null,
-    forwardedFromPtr: NodeReference | null,
-    text: Text | null,
-    nodePtr: NodeReference | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.deletedAt = deletedAt;
-    this.ownedByPtr = ownedByPtr;
-    this.threadPtr = threadPtr;
-    this.editedAt = editedAt;
-    this.replyToPtr = replyToPtr;
-    this.forwardedFromPtr = forwardedFromPtr;
-    this.text = text;
-    this.nodePtr = nodePtr;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     thread?: Thread | NodeReference | null,
     editedAt?: Temporal.ZonedDateTime | null,
@@ -186,22 +144,17 @@ export class Message extends Node implements Spatial, Entity, IsTracked, IsDelet
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): Message {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Message(
-      options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? options.ownedBy : options.ownedBy.toRef()) : null,
-      options.thread != null ? (options.thread.metatype == StructType.NODE_REFERENCE ? options.thread : options.thread.toRef()) : null,
-      options.editedAt ?? null,
-      options.replyTo != null ? (options.replyTo.metatype == StructType.NODE_REFERENCE ? options.replyTo : options.replyTo.toRef()) : null,
-      options.forwardedFrom != null ? (options.forwardedFrom.metatype == StructType.NODE_REFERENCE ? options.forwardedFrom : options.forwardedFrom.toRef()) : null,
-      options.text ?? null,
-      options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? options.node : options.node.toRef()) : null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.ownedByPtr = options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? (options.ownedBy as NodeReference) : (options.ownedBy as Node).toRef()) : null;
+    this.threadPtr = options.thread != null ? (options.thread.metatype == StructType.NODE_REFERENCE ? (options.thread as NodeReference) : (options.thread as Node).toRef()) : null;
+    this.editedAt = options.editedAt ?? null;
+    this.replyToPtr = options.replyTo != null ? (options.replyTo.metatype == StructType.NODE_REFERENCE ? (options.replyTo as NodeReference) : (options.replyTo as Node).toRef()) : null;
+    this.forwardedFromPtr = options.forwardedFrom != null ? (options.forwardedFrom.metatype == StructType.NODE_REFERENCE ? (options.forwardedFrom as NodeReference) : (options.forwardedFrom as Node).toRef()) : null;
+    this.text = options.text ?? null;
+    this.nodePtr = options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? (options.node as NodeReference) : (options.node as Node).toRef()) : null;
   }
 
   equals(other: any): boolean {

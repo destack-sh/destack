@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, User, Supergraph, Space, IsOwnable, MaterializationType, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, Spatial, StructType, Team, Role, Node, NodeType, NodeReference, IsDeletable, Agent, Organization, Graph } from '@/language';
+import { Agent, BuiltinObject, ACTIVE_SESSION, Organization, Session, StructFrozen, Graph, Struct, activeSession, StructType, NodeType, Role, Supergraph, QueryConnection, NodeReference, MaterializationType, IsOwnable, User, Spatial, Team, Space, IsDeletable, Entity, EnumType, Node, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:1500 ==== */
@@ -52,11 +52,11 @@ export class Snapshot extends Node implements Spatial, Entity, IsTracked, IsDele
       return null;
   }
 
-  set ownedBy(value: Role | Agent | Organization | Team | User | null) {
-      if (value === null) {
+  set ownedBy(node: Role | Agent | Organization | Team | User | null) {
+      if (node === null) {
           this.ownedByPtr = null;
       } else {
-          this.ownedByPtr = value.toRef();
+          this.ownedByPtr = node.toRef();
       }
   }
   ;
@@ -64,41 +64,7 @@ export class Snapshot extends Node implements Spatial, Entity, IsTracked, IsDele
   name: string;
   slug: string | null;
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    deletedAt: Temporal.ZonedDateTime | null,
-    ownedByPtr: NodeReference | null,
-    name: string,
-    slug: string | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.deletedAt = deletedAt;
-    this.ownedByPtr = ownedByPtr;
-    this.name = name;
-    this.slug = slug;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     name: string,
     slug?: string | null,
@@ -106,18 +72,13 @@ export class Snapshot extends Node implements Spatial, Entity, IsTracked, IsDele
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): Snapshot {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Snapshot(
-      options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? options.ownedBy : options.ownedBy.toRef()) : null,
-      options.name,
-      options.slug ?? null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.ownedByPtr = options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? (options.ownedBy as NodeReference) : (options.ownedBy as Node).toRef()) : null;
+    this.name = options.name;
+    this.slug = options.slug ?? null;
   }
 
   equals(other: any): boolean {
@@ -206,11 +167,11 @@ export class Branch extends Node implements Spatial, Entity, IsTracked, IsDeleta
       return null;
   }
 
-  set ownedBy(value: Role | Agent | Organization | Team | User | null) {
-      if (value === null) {
+  set ownedBy(node: Role | Agent | Organization | Team | User | null) {
+      if (node === null) {
           this.ownedByPtr = null;
       } else {
-          this.ownedByPtr = value.toRef();
+          this.ownedByPtr = node.toRef();
       }
   }
   ;
@@ -225,53 +186,17 @@ export class Branch extends Node implements Spatial, Entity, IsTracked, IsDeleta
       return null;
   }
 
-  set head(value: Snapshot | null) {
-      if (value === null) {
+  set head(node: Snapshot | null) {
+      if (node === null) {
           this.headPtr = null;
       } else {
-          this.headPtr = value.toRef();
+          this.headPtr = node.toRef();
       }
   }
   ;
   headPtr: NodeReference | null
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    deletedAt: Temporal.ZonedDateTime | null,
-    ownedByPtr: NodeReference | null,
-    name: string,
-    slug: string | null,
-    headPtr: NodeReference | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.deletedAt = deletedAt;
-    this.ownedByPtr = ownedByPtr;
-    this.name = name;
-    this.slug = slug;
-    this.headPtr = headPtr;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     name: string,
     slug?: string | null,
@@ -280,19 +205,14 @@ export class Branch extends Node implements Spatial, Entity, IsTracked, IsDeleta
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): Branch {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Branch(
-      options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? options.ownedBy : options.ownedBy.toRef()) : null,
-      options.name,
-      options.slug ?? null,
-      options.head != null ? (options.head.metatype == StructType.NODE_REFERENCE ? options.head : options.head.toRef()) : null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.ownedByPtr = options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? (options.ownedBy as NodeReference) : (options.ownedBy as Node).toRef()) : null;
+    this.name = options.name;
+    this.slug = options.slug ?? null;
+    this.headPtr = options.head != null ? (options.head.metatype == StructType.NODE_REFERENCE ? (options.head as NodeReference) : (options.head as Node).toRef()) : null;
   }
 
   equals(other: any): boolean {

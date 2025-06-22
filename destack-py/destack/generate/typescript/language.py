@@ -185,13 +185,20 @@ get {ts_name}(): {node_type_str} | null {{
 }}
 """
                 if not is_readonly:
-                    node_setter_str = f"""\
-set {ts_name}(value: {node_type_str}) {{
-    if (value === null) {{
+                    if prop.is_optional:
+                        node_setter_str = f"""\
+set {ts_name}(node: {node_type_str}) {{
+    if (node === null) {{
         this.{ptr_prop_name} = null;
     }} else {{
-        this.{ptr_prop_name} = value.toRef();
+        this.{ptr_prop_name} = node.toRef();
     }}
+}}
+"""
+                    else:
+                        node_setter_str = f"""\
+set {ts_name}(node: {node_type_str}) {{
+    this.{ptr_prop_name} = node.toRef();
 }}
 """
                     node_prop_str = f"{node_getter_str}\n{node_setter_str}"
@@ -238,65 +245,16 @@ set {ts_name}(value: {node_type_str}) {{
 
 
 def _generate_init(cls: type[BuiltinObjectBase]) -> str:
-    """
-    Generate a Typescript constructor/create method.
-    Constructor is private with direct assignments, no defaults or anything else.
-    Create is a public factory with convenient conversion, defaults and validation.
-    """
+    """Generate a Typescript constructor with options-style parameters."""
 
     properties = {p.name: p for p in _get_properties(cls)}
 
-    # constructor
+    # constructor header parts
     constructor_header_parts: list[str] = []
-    constructor_super_parts: list[str] = []
     constructor_body_parts: list[str] = []
+    constructor_assignment_parts: list[str] = []
 
     # constructor main properties
-    for prop in properties.values():
-        if prop.ptr_prop is not None:
-            prop = prop.ptr_prop
-        ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
-        prop_header_str = f"{ts_name}: {_generate_property_type(prop)}"
-        constructor_header_parts.append(prop_header_str)
-        prop_body_str = f"this.{ts_name} = {ts_name};"
-        constructor_body_parts.append(prop_body_str)
-
-    # constructor extra runtime properties
-    if issubclass(cls, Node):
-        runtime_props = [
-            ("_session", "Session"),
-            ("_supergraph", "Supergraph"),
-            ("_graph", "Graph"),
-            ("_connection", "QueryConnection | null"),
-        ]
-        constructor_super_parts.append("id")  # already in regular properties
-    else:
-        runtime_props = [
-            ("_supergraph", "Supergraph | null"),
-        ]
-    for prop_name, prop_type in runtime_props:
-        constructor_header_parts.append(f"{prop_name}: {prop_type}")
-        constructor_super_parts.append(prop_name)
-
-    # assemble constructor
-    constructor_header_str = ",\n".join(constructor_header_parts)
-    constructor_super_str = ", ".join(constructor_super_parts)
-    constructor_body_str = "\n".join(constructor_body_parts)
-    constructor_str = f"""\
-constructor(
-{textwrap.indent(constructor_header_str, "  ")}
-) {{
-  super({constructor_super_str});
-{textwrap.indent(constructor_body_str, "  ")}
-}}
-"""
-
-    # from
-    create_header_parts: list[str] = []
-    create_body_parts: list[str] = []
-    create_constructor_parts: list[str] = []
-
-    # from main properties
     for prop in properties.values():
         if prop.is_managed:
             continue  # ignore
@@ -308,6 +266,7 @@ constructor(
             and prop.default_factory is None
             and prop.cardinality == TypeCardinality.SCALAR
         )
+
         if prop.scalar_type == ScalarType.NODE_REFERENCE:
             # can be passed either as Node or NodeReference
             node_type_str = _generate_property_scalar_type(prop, as_ptr=False)
@@ -315,65 +274,81 @@ constructor(
             type_str = f"{node_type_str} | {ptr_type_str}"
             if prop.is_optional:
                 type_str = f"{type_str} | null"
-            create_constructor_parts.append(
-                f"options.{ts_name} != null ? (options.{ts_name}.metatype == StructType.NODE_REFERENCE ? options.{ts_name} : options.{ts_name}.toRef()) : null"
-            )
+
+            # use ptr_prop for assignment
+            if prop.ptr_prop is not None:
+                ptr_prop_name = to_casing(prop.ptr_prop.name, Casing.LOWER_CAMEL)
+                constructor_assignment_parts.append(
+                    f"this.{ptr_prop_name} = options.{ts_name} != null ? (options.{ts_name}.metatype == StructType.NODE_REFERENCE ? (options.{ts_name} as NodeReference) : (options.{ts_name} as Node).toRef()) : null;"
+                )
         else:
             # can be passed as value
             type_str = _generate_property_type(prop)
             if prop.default is not UNSET and prop.default is not None:
-                create_constructor_parts.append(
-                    f"options.{ts_name} ?? {_generate_value(prop, prop.default)}"
+                constructor_assignment_parts.append(
+                    f"this.{ts_name} = options.{ts_name} ?? {_generate_value(prop, prop.default)};"
                 )
             elif prop.default_factory is not None:
-                create_constructor_parts.append(f"options.{ts_name}")  # nocheckin
+                constructor_assignment_parts.append(
+                    f"this.{ts_name} = options.{ts_name};"
+                )  # nocheckin: Typescript default factory
             elif prop.cardinality == TypeCardinality.LIST:
-                create_constructor_parts.append(f"options.{ts_name} ?? []")
+                constructor_assignment_parts.append(f"this.{ts_name} = options.{ts_name} ?? [];")
             elif prop.cardinality == TypeCardinality.MAP:
-                create_constructor_parts.append(f"options.{ts_name} ?? new Map()")
+                constructor_assignment_parts.append(
+                    f"this.{ts_name} = options.{ts_name} ?? new Map();"
+                )
             elif not is_required:
-                create_constructor_parts.append(f"options.{ts_name} ?? null")
+                constructor_assignment_parts.append(f"this.{ts_name} = options.{ts_name} ?? null;")
             else:
-                create_constructor_parts.append(f"options.{ts_name}")
+                constructor_assignment_parts.append(f"this.{ts_name} = options.{ts_name};")
 
         if is_required:
-            create_header_parts.append(f"{ts_name}: {type_str}")
+            constructor_header_parts.append(f"{ts_name}: {type_str}")
         else:
-            create_header_parts.append(f"{ts_name}?: {type_str}")
+            constructor_header_parts.append(f"{ts_name}?: {type_str}")
 
-    create_header_parts.append("_session?: Session | null")  # noqa: FURB113
-    create_header_parts.append("_supergraph?: Supergraph | null")
+    # constructor super call
     if issubclass(cls, Node):
-        create_header_parts.append("_graph?: Graph | null")  # noqa: FURB113
-        create_header_parts.append("_connection?: QueryConnection | null")
-        create_constructor_parts.append("session")
-        create_constructor_parts.append("supergraph")
-        create_constructor_parts.append("options._graph")
-        create_constructor_parts.append("options._connection")
+        constructor_body_parts.append("""\
+super(
+    options.id,
+    options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference).id : (options.parent as Node).id) : null,
+    session,
+    supergraph,
+    options._graph,
+    options._connection,
+);
+""")
     else:
-        create_constructor_parts.append("supergraph")
+        constructor_body_parts.append("""\
+super(supergraph);
+""")
 
-    create_body_parts.append("const session = options._session ?? ACTIVE_SESSION.get();")  # noqa: FURB113
-    create_body_parts.append("const supergraph = options._supergraph ?? session.supergraph;")
+    constructor_header_parts.append("_session?: Session | null")
+    constructor_header_parts.append("_supergraph?: Supergraph | null")
+    if issubclass(cls, Node):
+        constructor_header_parts.append("_graph?: Graph | null")
+        constructor_header_parts.append("_connection?: QueryConnection | null")
 
-    # assemble from
-    create_header_str = ",\n".join(create_header_parts)
-    create_body_str = "\n".join(create_body_parts)
-    create_constructor_str = ",\n".join(create_constructor_parts)
-    create_str = f"""\
-static from(options: {{
-{textwrap.indent(create_header_str, "  ")}
-}}): {cls.__name__} {{
-{textwrap.indent(create_body_str, "  ")}
-  return new {cls.__name__}(
-{textwrap.indent(create_constructor_str, "    ")}
-  );
+    # constructor body setup
+    constructor_body_parts.append("const session = options._session ?? ACTIVE_SESSION.get();")
+    constructor_body_parts.append("const supergraph = options._supergraph ?? session.supergraph;")
+
+    # assemble constructor
+    constructor_header_str = ",\n".join(constructor_header_parts)
+    constructor_body_str = "\n".join(constructor_body_parts)
+    constructor_assignment_str = "\n".join(constructor_assignment_parts)
+    constructor_str = f"""\
+constructor(options: {{
+{textwrap.indent(constructor_header_str, "  ")}
+}}) {{
+{textwrap.indent(constructor_body_str, "  ")}
+{textwrap.indent(constructor_assignment_str, "  ")}
 }}
 """
 
-    # assemble
-    init_str = "\n\n".join((constructor_str, create_str)).strip()
-    return init_str
+    return constructor_str.strip()
 
 
 def _generate_equals(cls: type[BuiltinObjectBase]) -> str:
@@ -844,6 +819,8 @@ def _generate_file(file: TypescriptFile) -> str:
         "Supergraph",
         "Session",
         "QueryConnection",
+        "ACTIVE_SESSION",
+        "activeSession",
         *(d.name for d in file.dependencies.values() if d.module != file.module),
     }
     # remove any imports that are already defined in this file

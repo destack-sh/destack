@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, AnnotationShape, IsTaggable, Window, Grid, Canvas, User, SplitView, IsOrdered, Align, IsScriptable, Supergraph, Fill, Direction, Shadow, Corners, Distribute, PlaneShape, Axis2, Space, Value, Script, View, CustomView, MaterializationType, Entity, Struct, Axis3, QueryConnection, CustomViewDefinition, BuiltinObject, StructFrozen, Layer, Spatial, IsExtensible, Scene, FrameView, StructType, Dimension, ContainerView, IsVisual, Node, NodeType, Layout, Vector2, NodeReference, IsDeletable, GridSpan, Agent, Insets, Border, Position, Graph } from '@/language';
+import { PlaneShape, Agent, IsTaggable, ContainerView, IsScriptable, BuiltinObject, ACTIVE_SESSION, IsVisual, Layout, Align, Corners, Session, Scene, View, StructFrozen, Vector2, IsOrdered, Graph, Distribute, Struct, GridSpan, AnnotationShape, activeSession, Axis2, Insets, StructType, Border, NodeType, Window, Canvas, FrameView, Dimension, Direction, Supergraph, Axis3, QueryConnection, NodeReference, MaterializationType, Value, User, Position, CustomView, IsExtensible, Spatial, Fill, Space, CustomViewDefinition, Shadow, IsDeletable, Entity, SplitView, EnumType, Grid, Script, Layer, Node, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:10030 ==== */
@@ -81,105 +81,17 @@ export class LabelView extends Node implements Spatial, Entity, IsTracked, IsDel
       return null;
   }
 
-  set script(value: Script | null) {
-      if (value === null) {
+  set script(node: Script | null) {
+      if (node === null) {
           this.scriptPtr = null;
       } else {
-          this.scriptPtr = value.toRef();
+          this.scriptPtr = node.toRef();
       }
   }
   ;
   scriptPtr: NodeReference | null
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    deletedAt: Temporal.ZonedDateTime | null,
-    value: Map<string, Value>,
-    orderKey: string,
-    name: string,
-    position: Position | null,
-    width: Dimension | null,
-    height: Dimension | null,
-    minWidth: Dimension | null,
-    minHeight: Dimension | null,
-    maxWidth: Dimension | null,
-    maxHeight: Dimension | null,
-    layout: Layout | null,
-    direction: Direction | null,
-    distribute: Distribute | null,
-    align: Align | null,
-    gap: Axis2 | null,
-    padding: Insets | null,
-    grid: Grid | null,
-    gridSpan: GridSpan | null,
-    aspectRatio: number | null,
-    isWrap: boolean | null,
-    isVisible: boolean | null,
-    opacity: number | null,
-    fill: Fill | null,
-    rotation: Axis3 | null,
-    skew: Vector2 | null,
-    scale: number | null,
-    shadow: Shadow | null,
-    border: Border | null,
-    radius: Corners | null,
-    scriptPtr: NodeReference | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.deletedAt = deletedAt;
-    this.value = value;
-    this.orderKey = orderKey;
-    this.name = name;
-    this.position = position;
-    this.width = width;
-    this.height = height;
-    this.minWidth = minWidth;
-    this.minHeight = minHeight;
-    this.maxWidth = maxWidth;
-    this.maxHeight = maxHeight;
-    this.layout = layout;
-    this.direction = direction;
-    this.distribute = distribute;
-    this.align = align;
-    this.gap = gap;
-    this.padding = padding;
-    this.grid = grid;
-    this.gridSpan = gridSpan;
-    this.aspectRatio = aspectRatio;
-    this.isWrap = isWrap;
-    this.isVisible = isVisible;
-    this.opacity = opacity;
-    this.fill = fill;
-    this.rotation = rotation;
-    this.skew = skew;
-    this.scale = scale;
-    this.shadow = shadow;
-    this.border = border;
-    this.radius = radius;
-    this.scriptPtr = scriptPtr;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     value?: Map<string, Value>,
     name: string,
     position?: Position | null,
@@ -213,44 +125,39 @@ export class LabelView extends Node implements Spatial, Entity, IsTracked, IsDel
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): LabelView {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new LabelView(
-      options.value ?? new Map(),
-      options.name,
-      options.position ?? null,
-      options.width ?? null,
-      options.height ?? null,
-      options.minWidth ?? null,
-      options.minHeight ?? null,
-      options.maxWidth ?? null,
-      options.maxHeight ?? null,
-      options.layout ?? null,
-      options.direction ?? null,
-      options.distribute ?? null,
-      options.align ?? null,
-      options.gap ?? null,
-      options.padding ?? null,
-      options.grid ?? null,
-      options.gridSpan ?? null,
-      options.aspectRatio ?? null,
-      options.isWrap ?? null,
-      options.isVisible ?? null,
-      options.opacity ?? null,
-      options.fill ?? null,
-      options.rotation ?? null,
-      options.skew ?? null,
-      options.scale ?? null,
-      options.shadow ?? null,
-      options.border ?? null,
-      options.radius ?? null,
-      options.script != null ? (options.script.metatype == StructType.NODE_REFERENCE ? options.script : options.script.toRef()) : null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.value = options.value ?? new Map();
+    this.name = options.name;
+    this.position = options.position ?? null;
+    this.width = options.width ?? null;
+    this.height = options.height ?? null;
+    this.minWidth = options.minWidth ?? null;
+    this.minHeight = options.minHeight ?? null;
+    this.maxWidth = options.maxWidth ?? null;
+    this.maxHeight = options.maxHeight ?? null;
+    this.layout = options.layout ?? null;
+    this.direction = options.direction ?? null;
+    this.distribute = options.distribute ?? null;
+    this.align = options.align ?? null;
+    this.gap = options.gap ?? null;
+    this.padding = options.padding ?? null;
+    this.grid = options.grid ?? null;
+    this.gridSpan = options.gridSpan ?? null;
+    this.aspectRatio = options.aspectRatio ?? null;
+    this.isWrap = options.isWrap ?? null;
+    this.isVisible = options.isVisible ?? null;
+    this.opacity = options.opacity ?? null;
+    this.fill = options.fill ?? null;
+    this.rotation = options.rotation ?? null;
+    this.skew = options.skew ?? null;
+    this.scale = options.scale ?? null;
+    this.shadow = options.shadow ?? null;
+    this.border = options.border ?? null;
+    this.radius = options.radius ?? null;
+    this.scriptPtr = options.script != null ? (options.script.metatype == StructType.NODE_REFERENCE ? (options.script as NodeReference) : (options.script as Node).toRef()) : null;
   }
 
   equals(other: any): boolean {

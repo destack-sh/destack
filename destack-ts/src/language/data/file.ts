@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, User, Supergraph, Space, MaterializationType, Global, Entity, Struct, ResourceStatus, QueryConnection, BuiltinObject, StructFrozen, Spatial, Resource, StructType, Node, NodeType, NodeReference, Agent, Graph } from '@/language';
+import { Agent, BuiltinObject, ACTIVE_SESSION, Session, StructFrozen, Graph, ResourceStatus, Struct, activeSession, Global, StructType, NodeType, Supergraph, QueryConnection, NodeReference, MaterializationType, User, Spatial, Space, Resource, Entity, EnumType, Node, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:2541 ==== */
@@ -187,75 +187,7 @@ export class File extends Node implements Global, Spatial, Entity, Resource, IsT
   thumbnailHeight: number | null;
   content: Uint8Array | null;
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    type: FileType,
-    name: string,
-    status: ResourceStatus,
-    targetStatus: Temporal.ZonedDateTime | null,
-    source: FileSource,
-    mimeType: string | null,
-    format: FileFormat | null,
-    size: number | null,
-    sha256: string | null,
-    width: number | null,
-    height: number | null,
-    aspectRatio: number | null,
-    codec: string | null,
-    duration: Temporal.Duration | null,
-    url: string | null,
-    contentUrl: string | null,
-    thumbnailUrl: string | null,
-    faviconUrl: string | null,
-    thumbnailWidth: number | null,
-    thumbnailHeight: number | null,
-    content: Uint8Array | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.type = type;
-    this.name = name;
-    this.status = status;
-    this.targetStatus = targetStatus;
-    this.source = source;
-    this.mimeType = mimeType;
-    this.format = format;
-    this.size = size;
-    this.sha256 = sha256;
-    this.width = width;
-    this.height = height;
-    this.aspectRatio = aspectRatio;
-    this.codec = codec;
-    this.duration = duration;
-    this.url = url;
-    this.contentUrl = contentUrl;
-    this.thumbnailUrl = thumbnailUrl;
-    this.faviconUrl = faviconUrl;
-    this.thumbnailWidth = thumbnailWidth;
-    this.thumbnailHeight = thumbnailHeight;
-    this.content = content;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type: FileType,
     name: string,
     status?: ResourceStatus,
@@ -281,36 +213,31 @@ export class File extends Node implements Global, Spatial, Entity, Resource, IsT
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): File {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new File(
-      options.type,
-      options.name,
-      options.status ?? ResourceStatus.PENDING,
-      options.targetStatus ?? null,
-      options.source,
-      options.mimeType ?? null,
-      options.format ?? null,
-      options.size ?? null,
-      options.sha256 ?? null,
-      options.width ?? null,
-      options.height ?? null,
-      options.aspectRatio ?? null,
-      options.codec ?? null,
-      options.duration ?? null,
-      options.url ?? null,
-      options.contentUrl ?? null,
-      options.thumbnailUrl ?? null,
-      options.faviconUrl ?? null,
-      options.thumbnailWidth ?? null,
-      options.thumbnailHeight ?? null,
-      options.content ?? null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.type = options.type;
+    this.name = options.name;
+    this.status = options.status ?? ResourceStatus.PENDING;
+    this.targetStatus = options.targetStatus ?? null;
+    this.source = options.source;
+    this.mimeType = options.mimeType ?? null;
+    this.format = options.format ?? null;
+    this.size = options.size ?? null;
+    this.sha256 = options.sha256 ?? null;
+    this.width = options.width ?? null;
+    this.height = options.height ?? null;
+    this.aspectRatio = options.aspectRatio ?? null;
+    this.codec = options.codec ?? null;
+    this.duration = options.duration ?? null;
+    this.url = options.url ?? null;
+    this.contentUrl = options.contentUrl ?? null;
+    this.thumbnailUrl = options.thumbnailUrl ?? null;
+    this.faviconUrl = options.faviconUrl ?? null;
+    this.thumbnailWidth = options.thumbnailWidth ?? null;
+    this.thumbnailHeight = options.thumbnailHeight ?? null;
+    this.content = options.content ?? null;
   }
 
   equals(other: any): boolean {

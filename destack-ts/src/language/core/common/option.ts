@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, IsTaggable, User, IsOrdered, Supergraph, Field, Space, Script, MaterializationType, IsSourceable, Icon, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, Spatial, StructType, Node, NodeType, NodeReference, IsDeletable, Agent, CustomStructDefinition, Graph } from '@/language';
+import { Agent, IsTaggable, BuiltinObject, ACTIVE_SESSION, Session, StructFrozen, IsOrdered, Graph, Struct, activeSession, StructType, NodeType, Icon, Supergraph, QueryConnection, NodeReference, MaterializationType, User, Spatial, IsSourceable, Space, CustomStructDefinition, IsDeletable, Entity, Script, EnumType, Node, Field, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:2530 ==== */
@@ -57,60 +57,19 @@ export class Option extends Node implements Spatial, Entity, IsTracked, IsDeleta
   ;
   sourcePtr: NodeReference | null
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    deletedAt: Temporal.ZonedDateTime | null,
-    orderKey: string,
-    name: string,
-    icon: Icon | null,
-    sourcePtr: NodeReference | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.deletedAt = deletedAt;
-    this.orderKey = orderKey;
-    this.name = name;
-    this.icon = icon;
-    this.sourcePtr = sourcePtr;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     name: string,
     icon?: Icon | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): Option {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Option(
-      options.name,
-      options.icon ?? null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.name = options.name;
+    this.icon = options.icon ?? null;
   }
 
   equals(other: any): boolean {

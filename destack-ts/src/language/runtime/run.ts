@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, Indexed, Analytic, User, Supergraph, Action, Error, Space, Value, Particle, Script, Service, Struct, QueryConnection, BuiltinObject, StructFrozen, Event, Spatial, IsExtensible, IsFrozen, StructType, Node, NodeType, NodeReference, Agent, Interruption, Graph } from '@/language';
+import { Agent, BuiltinObject, ACTIVE_SESSION, Session, StructFrozen, IsFrozen, Graph, Service, Struct, Event, activeSession, Particle, Interruption, StructType, NodeType, Action, Indexed, Supergraph, QueryConnection, Error, NodeReference, Value, User, Analytic, IsExtensible, Spatial, Space, Script, EnumType, Node, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:4000 ==== */
@@ -80,12 +80,8 @@ export class RunEvent extends Node implements Spatial, Particle, Analytic, Index
       return null;
   }
 
-  set node(value: Run) {
-      if (value === null) {
-          this.nodePtr = null;
-      } else {
-          this.nodePtr = value.toRef();
-      }
+  set node(node: Run) {
+      this.nodePtr = node.toRef();
   }
   ;
   nodePtr: NodeReference
@@ -97,47 +93,17 @@ export class RunEvent extends Node implements Spatial, Particle, Analytic, Index
       return null;
   }
 
-  set target(value: Action | Script | Service | null) {
-      if (value === null) {
+  set target(node: Action | Script | Service | null) {
+      if (node === null) {
           this.targetPtr = null;
       } else {
-          this.targetPtr = value.toRef();
+          this.targetPtr = node.toRef();
       }
   }
   ;
   targetPtr: NodeReference | null
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    type: RunEventType,
-    nodePtr: NodeReference,
-    targetPtr: NodeReference | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.type = type;
-    this.nodePtr = nodePtr;
-    this.targetPtr = targetPtr;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type: RunEventType,
     node: Run | NodeReference,
     target?: Action | Script | Service | NodeReference | null,
@@ -145,18 +111,13 @@ export class RunEvent extends Node implements Spatial, Particle, Analytic, Index
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): RunEvent {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new RunEvent(
-      options.type,
-      options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? options.node : options.node.toRef()) : null,
-      options.target != null ? (options.target.metatype == StructType.NODE_REFERENCE ? options.target : options.target.toRef()) : null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.type = options.type;
+    this.nodePtr = options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? (options.node as NodeReference) : (options.node as Node).toRef()) : null;
+    this.targetPtr = options.target != null ? (options.target.metatype == StructType.NODE_REFERENCE ? (options.target as NodeReference) : (options.target as Node).toRef()) : null;
   }
 
   equals(other: any): boolean {
@@ -244,11 +205,11 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
       return null;
   }
 
-  set target(value: Action | Script | Service | null) {
-      if (value === null) {
+  set target(node: Action | Script | Service | null) {
+      if (node === null) {
           this.targetPtr = null;
       } else {
-          this.targetPtr = value.toRef();
+          this.targetPtr = node.toRef();
       }
   }
   ;
@@ -269,63 +230,17 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
       return null;
   }
 
-  set interruption(value: Interruption | null) {
-      if (value === null) {
+  set interruption(node: Interruption | null) {
+      if (node === null) {
           this.interruptionPtr = null;
       } else {
-          this.interruptionPtr = value.toRef();
+          this.interruptionPtr = node.toRef();
       }
   }
   ;
   interruptionPtr: NodeReference | null
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    value: Map<string, Value>,
-    targetPtr: NodeReference | null,
-    status: RunStatus,
-    duration: Temporal.Duration | null,
-    scheduledAt: Temporal.ZonedDateTime | null,
-    startedAt: Temporal.ZonedDateTime | null,
-    seenAt: Temporal.ZonedDateTime | null,
-    interruptedAt: Temporal.ZonedDateTime | null,
-    terminatedAt: Temporal.ZonedDateTime | null,
-    error: Error | null,
-    interruptionPtr: NodeReference | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.value = value;
-    this.targetPtr = targetPtr;
-    this.status = status;
-    this.duration = duration;
-    this.scheduledAt = scheduledAt;
-    this.startedAt = startedAt;
-    this.seenAt = seenAt;
-    this.interruptedAt = interruptedAt;
-    this.terminatedAt = terminatedAt;
-    this.error = error;
-    this.interruptionPtr = interruptionPtr;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     value?: Map<string, Value>,
     target?: Action | Script | Service | NodeReference | null,
     status: RunStatus,
@@ -341,26 +256,21 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): Run {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Run(
-      options.value ?? new Map(),
-      options.target != null ? (options.target.metatype == StructType.NODE_REFERENCE ? options.target : options.target.toRef()) : null,
-      options.status,
-      options.duration ?? null,
-      options.scheduledAt ?? null,
-      options.startedAt ?? null,
-      options.seenAt ?? null,
-      options.interruptedAt ?? null,
-      options.terminatedAt ?? null,
-      options.error ?? null,
-      options.interruption != null ? (options.interruption.metatype == StructType.NODE_REFERENCE ? options.interruption : options.interruption.toRef()) : null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.value = options.value ?? new Map();
+    this.targetPtr = options.target != null ? (options.target.metatype == StructType.NODE_REFERENCE ? (options.target as NodeReference) : (options.target as Node).toRef()) : null;
+    this.status = options.status;
+    this.duration = options.duration ?? null;
+    this.scheduledAt = options.scheduledAt ?? null;
+    this.startedAt = options.startedAt ?? null;
+    this.seenAt = options.seenAt ?? null;
+    this.interruptedAt = options.interruptedAt ?? null;
+    this.terminatedAt = options.terminatedAt ?? null;
+    this.error = options.error ?? null;
+    this.interruptionPtr = options.interruption != null ? (options.interruption.metatype == StructType.NODE_REFERENCE ? (options.interruption as NodeReference) : (options.interruption as Node).toRef()) : null;
   }
 
   equals(other: any): boolean {

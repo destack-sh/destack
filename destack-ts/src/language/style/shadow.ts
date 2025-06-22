@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, AnnotationShape, IsTaggable, LabelView, WizardView, ThreadView, Canvas, User, SplitView, IsOrdered, Supergraph, Axis2, PlaneShape, Space, CustomView, MaterializationType, SliderInputView, Entity, Struct, TextView, ArrowShape, QueryConnection, CustomViewDefinition, BuiltinObject, StructFrozen, Layer, Spatial, Scene, FrameView, StructType, Theme, IsVisual, Node, NodeType, Color, NodeReference, IsDeletable, Agent, Style, LineShape, NumberInputView, Graph } from '@/language';
+import { PlaneShape, Agent, IsTaggable, BuiltinObject, ACTIVE_SESSION, IsVisual, Session, Scene, StructFrozen, LineShape, IsOrdered, Graph, Struct, AnnotationShape, activeSession, Axis2, StructType, NodeType, Canvas, FrameView, Supergraph, QueryConnection, SliderInputView, NodeReference, WizardView, MaterializationType, User, CustomView, Spatial, LabelView, ThreadView, Color, Space, CustomViewDefinition, NumberInputView, ArrowShape, Theme, IsDeletable, Entity, SplitView, EnumType, Layer, TextView, Style, Node, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:12030 ==== */
@@ -46,30 +46,7 @@ export class Shadow extends Struct {
   spread: number | null;
   diffusion: number | null;
 
-  constructor(
-    type: ShadowType,
-    stylePtr: NodeReference | null,
-    color: Color | null,
-    position: ShadowPosition,
-    offset: Axis2 | null,
-    blur: number | null,
-    spread: number | null,
-    diffusion: number | null,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.type = type;
-    this.stylePtr = stylePtr;
-    this.color = color;
-    this.position = position;
-    this.offset = offset;
-    this.blur = blur;
-    this.spread = spread;
-    this.diffusion = diffusion;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type?: ShadowType,
     style?: ShadowStyle | NodeReference | null,
     color?: Color | null,
@@ -80,20 +57,18 @@ export class Shadow extends Struct {
     diffusion?: number | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): Shadow {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Shadow(
-      options.type ?? ShadowType.BOX,
-      options.style != null ? (options.style.metatype == StructType.NODE_REFERENCE ? options.style : options.style.toRef()) : null,
-      options.color ?? null,
-      options.position ?? ShadowPosition.OUTSIDE,
-      options.offset ?? null,
-      options.blur ?? null,
-      options.spread ?? null,
-      options.diffusion ?? null,
-      supergraph
-    );
+    super(supergraph);
+    this.type = options.type ?? ShadowType.BOX;
+    this.stylePtr = options.style != null ? (options.style.metatype == StructType.NODE_REFERENCE ? (options.style as NodeReference) : (options.style as Node).toRef()) : null;
+    this.color = options.color ?? null;
+    this.position = options.position ?? ShadowPosition.OUTSIDE;
+    this.offset = options.offset ?? null;
+    this.blur = options.blur ?? null;
+    this.spread = options.spread ?? null;
+    this.diffusion = options.diffusion ?? null;
   }
 
   equals(other: any): boolean {
@@ -163,53 +138,7 @@ export class ShadowStyle extends Node implements Spatial, Entity, IsTracked, IsD
   spread: number | null;
   diffusion: number | null;
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    deletedAt: Temporal.ZonedDateTime | null,
-    orderKey: string,
-    type: ShadowType,
-    name: string,
-    color: Color | null,
-    position: ShadowPosition,
-    offset: Axis2 | null,
-    blur: number | null,
-    spread: number | null,
-    diffusion: number | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.deletedAt = deletedAt;
-    this.orderKey = orderKey;
-    this.type = type;
-    this.name = name;
-    this.color = color;
-    this.position = position;
-    this.offset = offset;
-    this.blur = blur;
-    this.spread = spread;
-    this.diffusion = diffusion;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type?: ShadowType,
     name: string,
     color?: Color | null,
@@ -222,23 +151,18 @@ export class ShadowStyle extends Node implements Spatial, Entity, IsTracked, IsD
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): ShadowStyle {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new ShadowStyle(
-      options.type ?? ShadowType.BOX,
-      options.name,
-      options.color ?? null,
-      options.position ?? ShadowPosition.OUTSIDE,
-      options.offset ?? null,
-      options.blur ?? null,
-      options.spread ?? null,
-      options.diffusion ?? null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.type = options.type ?? ShadowType.BOX;
+    this.name = options.name;
+    this.color = options.color ?? null;
+    this.position = options.position ?? ShadowPosition.OUTSIDE;
+    this.offset = options.offset ?? null;
+    this.blur = options.blur ?? null;
+    this.spread = options.spread ?? null;
+    this.diffusion = options.diffusion ?? null;
   }
 
   equals(other: any): boolean {

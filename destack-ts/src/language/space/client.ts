@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, Machine, User, Supergraph, ThreadCursor, EventCursor, Global, MaterializationType, Entity, Struct, QueryConnection, ClientType, BuiltinObject, StructFrozen, StructType, ScreenCursor, Node, NodeType, NodeReference, IsDeletable, Agent, Graph } from '@/language';
+import { Agent, BuiltinObject, ACTIVE_SESSION, Session, StructFrozen, ThreadCursor, Graph, ClientType, Machine, Struct, ScreenCursor, activeSession, Global, StructType, NodeType, EventCursor, Supergraph, QueryConnection, NodeReference, MaterializationType, User, IsDeletable, Entity, EnumType, Node, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50001 ==== */
@@ -8,38 +8,21 @@ export class Origin extends StructFrozen {
   readonly ck: string | null;
   readonly nonce: string | null;
 
-  constructor(
-    type: ClientType,
-    id: string | null,
-    ck: string | null,
-    nonce: string | null,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.type = type;
-    this.id = id;
-    this.ck = ck;
-    this.nonce = nonce;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type: ClientType,
     id?: string | null,
     ck?: string | null,
     nonce?: string | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): Origin {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Origin(
-      options.type,
-      options.id ?? null,
-      options.ck ?? null,
-      options.nonce ?? null,
-      supergraph
-    );
+    super(supergraph);
+    this.type = options.type;
+    this.id = options.id ?? null;
+    this.ck = options.ck ?? null;
+    this.nonce = options.nonce ?? null;
   }
 
   equals(other: any): boolean {
@@ -100,11 +83,11 @@ export class Client extends Node implements Global, Entity, IsTracked, IsDeletab
       return null;
   }
 
-  set machine(value: Machine | null) {
-      if (value === null) {
+  set machine(node: Machine | null) {
+      if (node === null) {
           this.machinePtr = null;
       } else {
-          this.machinePtr = value.toRef();
+          this.machinePtr = node.toRef();
       }
   }
   ;
@@ -117,11 +100,11 @@ export class Client extends Node implements Global, Entity, IsTracked, IsDeletab
       return null;
   }
 
-  set user(value: User | null) {
-      if (value === null) {
+  set user(node: User | null) {
+      if (node === null) {
           this.userPtr = null;
       } else {
-          this.userPtr = value.toRef();
+          this.userPtr = node.toRef();
       }
   }
   ;
@@ -142,69 +125,17 @@ export class Client extends Node implements Global, Entity, IsTracked, IsDeletab
       return null;
   }
 
-  set cursor(value: EventCursor | ScreenCursor | ThreadCursor | null) {
-      if (value === null) {
+  set cursor(node: EventCursor | ScreenCursor | ThreadCursor | null) {
+      if (node === null) {
           this.cursorPtr = null;
       } else {
-          this.cursorPtr = value.toRef();
+          this.cursorPtr = node.toRef();
       }
   }
   ;
   cursorPtr: NodeReference | null
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    deletedAt: Temporal.ZonedDateTime | null,
-    type: ClientType,
-    name: string,
-    machinePtr: NodeReference | null,
-    userPtr: NodeReference | null,
-    deviceType: string | null,
-    deviceName: string | null,
-    operatingSystem: string | null,
-    browserName: string | null,
-    browserVersion: string | null,
-    accessToken: string | null,
-    seenAt: Temporal.ZonedDateTime | null,
-    loggedInAt: Temporal.ZonedDateTime | null,
-    cursorPtr: NodeReference | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.deletedAt = deletedAt;
-    this.type = type;
-    this.name = name;
-    this.machinePtr = machinePtr;
-    this.userPtr = userPtr;
-    this.deviceType = deviceType;
-    this.deviceName = deviceName;
-    this.operatingSystem = operatingSystem;
-    this.browserName = browserName;
-    this.browserVersion = browserVersion;
-    this.accessToken = accessToken;
-    this.seenAt = seenAt;
-    this.loggedInAt = loggedInAt;
-    this.cursorPtr = cursorPtr;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type: ClientType,
     name: string,
     machine?: Machine | NodeReference | null,
@@ -222,28 +153,23 @@ export class Client extends Node implements Global, Entity, IsTracked, IsDeletab
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): Client {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Client(
-      options.type,
-      options.name,
-      options.machine != null ? (options.machine.metatype == StructType.NODE_REFERENCE ? options.machine : options.machine.toRef()) : null,
-      options.user != null ? (options.user.metatype == StructType.NODE_REFERENCE ? options.user : options.user.toRef()) : null,
-      options.deviceType ?? null,
-      options.deviceName ?? null,
-      options.operatingSystem ?? null,
-      options.browserName ?? null,
-      options.browserVersion ?? null,
-      options.accessToken ?? null,
-      options.seenAt ?? null,
-      options.loggedInAt ?? null,
-      options.cursor != null ? (options.cursor.metatype == StructType.NODE_REFERENCE ? options.cursor : options.cursor.toRef()) : null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.type = options.type;
+    this.name = options.name;
+    this.machinePtr = options.machine != null ? (options.machine.metatype == StructType.NODE_REFERENCE ? (options.machine as NodeReference) : (options.machine as Node).toRef()) : null;
+    this.userPtr = options.user != null ? (options.user.metatype == StructType.NODE_REFERENCE ? (options.user as NodeReference) : (options.user as Node).toRef()) : null;
+    this.deviceType = options.deviceType ?? null;
+    this.deviceName = options.deviceName ?? null;
+    this.operatingSystem = options.operatingSystem ?? null;
+    this.browserName = options.browserName ?? null;
+    this.browserVersion = options.browserVersion ?? null;
+    this.accessToken = options.accessToken ?? null;
+    this.seenAt = options.seenAt ?? null;
+    this.loggedInAt = options.loggedInAt ?? null;
+    this.cursorPtr = options.cursor != null ? (options.cursor.metatype == StructType.NODE_REFERENCE ? (options.cursor as NodeReference) : (options.cursor as Node).toRef()) : null;
   }
 
   equals(other: any): boolean {

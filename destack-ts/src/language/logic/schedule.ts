@@ -1,4 +1,4 @@
-import { EnumType, Session, Struct, QueryConnection, Node, NodeType, BuiltinObject, StructFrozen, NodeReference, StructType, Supergraph, Graph } from '@/language';
+import { Graph, Supergraph, Struct, QueryConnection, NodeReference, activeSession, StructType, BuiltinObject, EnumType, ACTIVE_SESSION, NodeType, Session, StructFrozen, Node } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:3051 ==== */
@@ -60,46 +60,7 @@ export class Schedule extends Struct {
   byMinute: Array<number>;
   bySecond: Array<number>;
 
-  constructor(
-    frequency: ScheduleFrequency,
-    interval: number,
-    start: Temporal.ZonedDateTime | null,
-    end: Temporal.ZonedDateTime | null,
-    count: number | null,
-    weekStart: DayOfWeek | null,
-    bySetPos: Array<number>,
-    byMonth: Array<Month>,
-    byMonthDay: Array<number>,
-    byYearDay: Array<number>,
-    byEaster: Array<number>,
-    byWeekNo: Array<number>,
-    byWeekDay: Array<DayOfWeek>,
-    byHour: Array<number>,
-    byMinute: Array<number>,
-    bySecond: Array<number>,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.frequency = frequency;
-    this.interval = interval;
-    this.start = start;
-    this.end = end;
-    this.count = count;
-    this.weekStart = weekStart;
-    this.bySetPos = bySetPos;
-    this.byMonth = byMonth;
-    this.byMonthDay = byMonthDay;
-    this.byYearDay = byYearDay;
-    this.byEaster = byEaster;
-    this.byWeekNo = byWeekNo;
-    this.byWeekDay = byWeekDay;
-    this.byHour = byHour;
-    this.byMinute = byMinute;
-    this.bySecond = bySecond;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     frequency: ScheduleFrequency,
     interval?: number,
     start?: Temporal.ZonedDateTime | null,
@@ -118,28 +79,26 @@ export class Schedule extends Struct {
     bySecond?: Array<number>,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): Schedule {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Schedule(
-      options.frequency,
-      options.interval ?? 1,
-      options.start ?? null,
-      options.end ?? null,
-      options.count ?? null,
-      options.weekStart ?? null,
-      options.bySetPos ?? [],
-      options.byMonth ?? [],
-      options.byMonthDay ?? [],
-      options.byYearDay ?? [],
-      options.byEaster ?? [],
-      options.byWeekNo ?? [],
-      options.byWeekDay ?? [],
-      options.byHour ?? [],
-      options.byMinute ?? [],
-      options.bySecond ?? [],
-      supergraph
-    );
+    super(supergraph);
+    this.frequency = options.frequency;
+    this.interval = options.interval ?? 1;
+    this.start = options.start ?? null;
+    this.end = options.end ?? null;
+    this.count = options.count ?? null;
+    this.weekStart = options.weekStart ?? null;
+    this.bySetPos = options.bySetPos ?? [];
+    this.byMonth = options.byMonth ?? [];
+    this.byMonthDay = options.byMonthDay ?? [];
+    this.byYearDay = options.byYearDay ?? [];
+    this.byEaster = options.byEaster ?? [];
+    this.byWeekNo = options.byWeekNo ?? [];
+    this.byWeekDay = options.byWeekDay ?? [];
+    this.byHour = options.byHour ?? [];
+    this.byMinute = options.byMinute ?? [];
+    this.bySecond = options.bySecond ?? [];
   }
 
   equals(other: any): boolean {

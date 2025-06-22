@@ -1,4 +1,4 @@
-import { EnumType, Session, Struct, QueryConnection, Node, NodeType, BuiltinObject, StructFrozen, CustomEntityDefinition, Region, TraitType, Field, StructType, Supergraph, Graph } from '@/language';
+import { Graph, Supergraph, CustomEntityDefinition, Struct, QueryConnection, activeSession, StructType, BuiltinObject, EnumType, ACTIVE_SESSION, NodeType, Session, TraitType, StructFrozen, Node, Region, Field } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:50010 ==== */
@@ -29,30 +29,17 @@ export class Scope extends StructFrozen {
   readonly region: Region | null;
   readonly spaceId: string | null;
 
-  constructor(
-    region: Region | null,
-    spaceId: string | null,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.region = region;
-    this.spaceId = spaceId;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     region?: Region | null,
     spaceId?: string | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): Scope {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Scope(
-      options.region ?? null,
-      options.spaceId ?? null,
-      supergraph
-    );
+    super(supergraph);
+    this.region = options.region ?? null;
+    this.spaceId = options.spaceId ?? null;
   }
 
   equals(other: any): boolean {
@@ -87,38 +74,21 @@ export class RelationReference extends StructFrozen {
   definitionPtr: NodeReference | null
   readonly traitType: TraitType | null;
 
-  constructor(
-    type: RelationType,
-    nodeType: NodeType | null,
-    definitionPtr: NodeReference | null,
-    traitType: TraitType | null,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.type = type;
-    this.nodeType = nodeType;
-    this.definitionPtr = definitionPtr;
-    this.traitType = traitType;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type: RelationType,
     nodeType?: NodeType | null,
     definition?: CustomEntityDefinition | NodeReference | null,
     traitType?: TraitType | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): RelationReference {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new RelationReference(
-      options.type,
-      options.nodeType ?? null,
-      options.definition != null ? (options.definition.metatype == StructType.NODE_REFERENCE ? options.definition : options.definition.toRef()) : null,
-      options.traitType ?? null,
-      supergraph
-    );
+    super(supergraph);
+    this.type = options.type;
+    this.nodeType = options.nodeType ?? null;
+    this.definitionPtr = options.definition != null ? (options.definition.metatype == StructType.NODE_REFERENCE ? (options.definition as NodeReference) : (options.definition as Node).toRef()) : null;
+    this.traitType = options.traitType ?? null;
   }
 
   equals(other: any): boolean {
@@ -152,34 +122,19 @@ export class AttributeReference extends StructFrozen {
   ;
   fieldPtr: NodeReference | null
 
-  constructor(
-    type: AttributeType,
-    propPtr: PropertyReference | null,
-    fieldPtr: NodeReference | null,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.type = type;
-    this.propPtr = propPtr;
-    this.fieldPtr = fieldPtr;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type: AttributeType,
     propPtr?: PropertyReference | null,
     field?: Field | NodeReference | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): AttributeReference {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new AttributeReference(
-      options.type,
-      options.propPtr ?? null,
-      options.field != null ? (options.field.metatype == StructType.NODE_REFERENCE ? options.field : options.field.toRef()) : null,
-      supergraph
-    );
+    super(supergraph);
+    this.type = options.type;
+    this.propPtr = options.propPtr ?? null;
+    this.fieldPtr = options.field != null ? (options.field.metatype == StructType.NODE_REFERENCE ? (options.field as NodeReference) : (options.field as Node).toRef()) : null;
   }
 
   equals(other: any): boolean {
@@ -204,24 +159,7 @@ export class PropertyReference extends StructFrozen {
   readonly structType: StructType | null;
   readonly id: number;
 
-  constructor(
-    type: PropertyReferenceType,
-    nodeType: NodeType | null,
-    traitType: TraitType | null,
-    structType: StructType | null,
-    id: number,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.type = type;
-    this.nodeType = nodeType;
-    this.traitType = traitType;
-    this.structType = structType;
-    this.id = id;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type: PropertyReferenceType,
     nodeType?: NodeType | null,
     traitType?: TraitType | null,
@@ -229,17 +167,15 @@ export class PropertyReference extends StructFrozen {
     id: number,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): PropertyReference {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new PropertyReference(
-      options.type,
-      options.nodeType ?? null,
-      options.traitType ?? null,
-      options.structType ?? null,
-      options.id,
-      supergraph
-    );
+    super(supergraph);
+    this.type = options.type;
+    this.nodeType = options.nodeType ?? null;
+    this.traitType = options.traitType ?? null;
+    this.structType = options.structType ?? null;
+    this.id = options.id;
   }
 
   equals(other: any): boolean {
@@ -263,38 +199,21 @@ export class NodeReference extends StructFrozen {
   readonly spaceId: string | null;
   readonly definitionId: string | null;
 
-  constructor(
-    nodeType: NodeType,
-    id: string,
-    spaceId: string | null,
-    definitionId: string | null,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.nodeType = nodeType;
-    this.id = id;
-    this.spaceId = spaceId;
-    this.definitionId = definitionId;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     nodeType: NodeType,
     id: string,
     spaceId?: string | null,
     definitionId?: string | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): NodeReference {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new NodeReference(
-      options.nodeType,
-      options.id,
-      options.spaceId ?? null,
-      options.definitionId ?? null,
-      supergraph
-    );
+    super(supergraph);
+    this.nodeType = options.nodeType;
+    this.id = options.id;
+    this.spaceId = options.spaceId ?? null;
+    this.definitionId = options.definitionId ?? null;
   }
 
   equals(other: any): boolean {

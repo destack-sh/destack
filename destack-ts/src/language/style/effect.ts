@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, AnnotationShape, IsTaggable, LabelView, WizardView, ThreadView, Canvas, User, SplitView, IsOrdered, Supergraph, PlaneShape, Space, Transition, CustomView, MaterializationType, SliderInputView, Entity, Struct, Axis3, TextView, ArrowShape, QueryConnection, CustomViewDefinition, BuiltinObject, StructFrozen, Layer, Spatial, Scene, FrameView, StructType, Theme, IsVisual, Node, NodeType, Vector2, NodeReference, IsDeletable, Agent, Style, LineShape, NumberInputView, Graph } from '@/language';
+import { PlaneShape, Agent, IsTaggable, BuiltinObject, ACTIVE_SESSION, IsVisual, Session, Scene, Vector2, StructFrozen, LineShape, IsOrdered, Graph, Struct, AnnotationShape, activeSession, StructType, NodeType, Canvas, FrameView, Supergraph, Axis3, QueryConnection, SliderInputView, NodeReference, WizardView, MaterializationType, User, CustomView, Spatial, LabelView, ThreadView, Space, CustomViewDefinition, NumberInputView, ArrowShape, Theme, IsDeletable, Entity, SplitView, EnumType, Layer, TextView, Style, Node, Transition, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:12046 ==== */
@@ -76,46 +76,7 @@ export class Effect extends Struct {
   offscreen: OffscreenBehavior | null;
   transition: Transition | null;
 
-  constructor(
-    type: EffectType,
-    stylePtr: NodeReference | null,
-    opacity: number | null,
-    offset: Vector2 | null,
-    scale: number | null,
-    rotate: Axis3 | null,
-    skew: Vector2 | null,
-    perspective: number | null,
-    delay: Temporal.Duration | null,
-    duration: number | null,
-    threshold: number | null,
-    once: boolean | null,
-    repeat: RepeatType | null,
-    split: TextSplitType | null,
-    offscreen: OffscreenBehavior | null,
-    transition: Transition | null,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.type = type;
-    this.stylePtr = stylePtr;
-    this.opacity = opacity;
-    this.offset = offset;
-    this.scale = scale;
-    this.rotate = rotate;
-    this.skew = skew;
-    this.perspective = perspective;
-    this.delay = delay;
-    this.duration = duration;
-    this.threshold = threshold;
-    this.once = once;
-    this.repeat = repeat;
-    this.split = split;
-    this.offscreen = offscreen;
-    this.transition = transition;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type: EffectType,
     style?: EffectStyle | NodeReference | null,
     opacity?: number | null,
@@ -134,28 +95,26 @@ export class Effect extends Struct {
     transition?: Transition | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): Effect {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Effect(
-      options.type,
-      options.style != null ? (options.style.metatype == StructType.NODE_REFERENCE ? options.style : options.style.toRef()) : null,
-      options.opacity ?? null,
-      options.offset ?? null,
-      options.scale ?? null,
-      options.rotate ?? null,
-      options.skew ?? null,
-      options.perspective ?? null,
-      options.delay ?? null,
-      options.duration ?? null,
-      options.threshold ?? null,
-      options.once ?? null,
-      options.repeat ?? null,
-      options.split ?? null,
-      options.offscreen ?? null,
-      options.transition ?? null,
-      supergraph
-    );
+    super(supergraph);
+    this.type = options.type;
+    this.stylePtr = options.style != null ? (options.style.metatype == StructType.NODE_REFERENCE ? (options.style as NodeReference) : (options.style as Node).toRef()) : null;
+    this.opacity = options.opacity ?? null;
+    this.offset = options.offset ?? null;
+    this.scale = options.scale ?? null;
+    this.rotate = options.rotate ?? null;
+    this.skew = options.skew ?? null;
+    this.perspective = options.perspective ?? null;
+    this.delay = options.delay ?? null;
+    this.duration = options.duration ?? null;
+    this.threshold = options.threshold ?? null;
+    this.once = options.once ?? null;
+    this.repeat = options.repeat ?? null;
+    this.split = options.split ?? null;
+    this.offscreen = options.offscreen ?? null;
+    this.transition = options.transition ?? null;
   }
 
   equals(other: any): boolean {
@@ -233,69 +192,7 @@ export class EffectStyle extends Node implements Spatial, Entity, IsTracked, IsD
   offscreen: OffscreenBehavior | null;
   transition: Transition | null;
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    deletedAt: Temporal.ZonedDateTime | null,
-    orderKey: string,
-    type: EffectType,
-    name: string,
-    opacity: number | null,
-    offset: Vector2 | null,
-    scale: number | null,
-    rotate: Axis3 | null,
-    skew: Vector2 | null,
-    perspective: number | null,
-    delay: Temporal.Duration | null,
-    duration: number | null,
-    threshold: number | null,
-    once: boolean | null,
-    repeat: RepeatType | null,
-    split: TextSplitType | null,
-    offscreen: OffscreenBehavior | null,
-    transition: Transition | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.deletedAt = deletedAt;
-    this.orderKey = orderKey;
-    this.type = type;
-    this.name = name;
-    this.opacity = opacity;
-    this.offset = offset;
-    this.scale = scale;
-    this.rotate = rotate;
-    this.skew = skew;
-    this.perspective = perspective;
-    this.delay = delay;
-    this.duration = duration;
-    this.threshold = threshold;
-    this.once = once;
-    this.repeat = repeat;
-    this.split = split;
-    this.offscreen = offscreen;
-    this.transition = transition;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type: EffectType,
     name: string,
     opacity?: number | null,
@@ -316,31 +213,26 @@ export class EffectStyle extends Node implements Spatial, Entity, IsTracked, IsD
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): EffectStyle {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new EffectStyle(
-      options.type,
-      options.name,
-      options.opacity ?? null,
-      options.offset ?? null,
-      options.scale ?? null,
-      options.rotate ?? null,
-      options.skew ?? null,
-      options.perspective ?? null,
-      options.delay ?? null,
-      options.duration ?? null,
-      options.threshold ?? null,
-      options.once ?? null,
-      options.repeat ?? null,
-      options.split ?? null,
-      options.offscreen ?? null,
-      options.transition ?? null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.type = options.type;
+    this.name = options.name;
+    this.opacity = options.opacity ?? null;
+    this.offset = options.offset ?? null;
+    this.scale = options.scale ?? null;
+    this.rotate = options.rotate ?? null;
+    this.skew = options.skew ?? null;
+    this.perspective = options.perspective ?? null;
+    this.delay = options.delay ?? null;
+    this.duration = options.duration ?? null;
+    this.threshold = options.threshold ?? null;
+    this.once = options.once ?? null;
+    this.repeat = options.repeat ?? null;
+    this.split = options.split ?? null;
+    this.offscreen = options.offscreen ?? null;
+    this.transition = options.transition ?? null;
   }
 
   equals(other: any): boolean {

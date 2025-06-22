@@ -1,4 +1,4 @@
-import { EnumType, Session, Type, CascadeAction, CollectionConstraint, TypeCardinality, Supergraph, PrimitiveType, StringConstraint, Value, Icon, DefaultFactory, Struct, NumberConstraint, QueryConnection, NodeConstraint, BuiltinObject, StructFrozen, EdgeType, StructType, Node, NodeType, NodeReference, ScalarType, TraitType, Graph } from '@/language';
+import { BuiltinObject, ACTIVE_SESSION, Session, DefaultFactory, StructFrozen, NumberConstraint, Graph, PrimitiveType, Struct, activeSession, ScalarType, StructType, NodeType, CascadeAction, Icon, NodeConstraint, Supergraph, QueryConnection, EdgeType, NodeReference, Value, TraitType, CollectionConstraint, EnumType, Type, TypeCardinality, StringConstraint, Node } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50004 ==== */
@@ -33,72 +33,7 @@ export class PropertyDefinition extends StructFrozen {
   readonly isManaged: boolean;
   readonly isComputed: boolean;
 
-  constructor(
-    id: number,
-    name: string,
-    icon: Icon | null,
-    description: string | null,
-    cardinality: TypeCardinality,
-    scalarType: ScalarType,
-    primitiveType: PrimitiveType | null,
-    enumType: EnumType | null,
-    nodeType: NodeType | null,
-    structType: StructType | null,
-    keyType: Type | null,
-    isRequired: boolean | null,
-    isUnique: boolean | null,
-    defaultValue: Value | null,
-    defaultFactory: DefaultFactory | null,
-    collectionConstraint: CollectionConstraint | null,
-    stringConstraint: StringConstraint | null,
-    numberConstraint: NumberConstraint | null,
-    nodeConstraint: NodeConstraint | null,
-    nodeIsCustomizable: boolean,
-    edgeType: EdgeType | null,
-    cascade: CascadeAction | null,
-    isWired: boolean,
-    isStored: boolean,
-    isRepr: boolean,
-    isHash: boolean,
-    isEq: boolean,
-    isManaged: boolean,
-    isComputed: boolean,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.id = id;
-    this.name = name;
-    this.icon = icon;
-    this.description = description;
-    this.cardinality = cardinality;
-    this.scalarType = scalarType;
-    this.primitiveType = primitiveType;
-    this.enumType = enumType;
-    this.nodeType = nodeType;
-    this.structType = structType;
-    this.keyType = keyType;
-    this.isRequired = isRequired;
-    this.isUnique = isUnique;
-    this.defaultValue = defaultValue;
-    this.defaultFactory = defaultFactory;
-    this.collectionConstraint = collectionConstraint;
-    this.stringConstraint = stringConstraint;
-    this.numberConstraint = numberConstraint;
-    this.nodeConstraint = nodeConstraint;
-    this.nodeIsCustomizable = nodeIsCustomizable;
-    this.edgeType = edgeType;
-    this.cascade = cascade;
-    this.isWired = isWired;
-    this.isStored = isStored;
-    this.isRepr = isRepr;
-    this.isHash = isHash;
-    this.isEq = isEq;
-    this.isManaged = isManaged;
-    this.isComputed = isComputed;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     id: number,
     name: string,
     icon?: Icon | null,
@@ -130,41 +65,39 @@ export class PropertyDefinition extends StructFrozen {
     isComputed: boolean,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): PropertyDefinition {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new PropertyDefinition(
-      options.id,
-      options.name,
-      options.icon ?? null,
-      options.description ?? null,
-      options.cardinality ?? TypeCardinality.SCALAR,
-      options.scalarType,
-      options.primitiveType ?? null,
-      options.enumType ?? null,
-      options.nodeType ?? null,
-      options.structType ?? null,
-      options.keyType ?? null,
-      options.isRequired ?? null,
-      options.isUnique ?? null,
-      options.defaultValue ?? null,
-      options.defaultFactory ?? null,
-      options.collectionConstraint ?? null,
-      options.stringConstraint ?? null,
-      options.numberConstraint ?? null,
-      options.nodeConstraint ?? null,
-      options.nodeIsCustomizable,
-      options.edgeType ?? null,
-      options.cascade ?? null,
-      options.isWired,
-      options.isStored,
-      options.isRepr,
-      options.isHash,
-      options.isEq,
-      options.isManaged,
-      options.isComputed,
-      supergraph
-    );
+    super(supergraph);
+    this.id = options.id;
+    this.name = options.name;
+    this.icon = options.icon ?? null;
+    this.description = options.description ?? null;
+    this.cardinality = options.cardinality ?? TypeCardinality.SCALAR;
+    this.scalarType = options.scalarType;
+    this.primitiveType = options.primitiveType ?? null;
+    this.enumType = options.enumType ?? null;
+    this.nodeType = options.nodeType ?? null;
+    this.structType = options.structType ?? null;
+    this.keyType = options.keyType ?? null;
+    this.isRequired = options.isRequired ?? null;
+    this.isUnique = options.isUnique ?? null;
+    this.defaultValue = options.defaultValue ?? null;
+    this.defaultFactory = options.defaultFactory ?? null;
+    this.collectionConstraint = options.collectionConstraint ?? null;
+    this.stringConstraint = options.stringConstraint ?? null;
+    this.numberConstraint = options.numberConstraint ?? null;
+    this.nodeConstraint = options.nodeConstraint ?? null;
+    this.nodeIsCustomizable = options.nodeIsCustomizable;
+    this.edgeType = options.edgeType ?? null;
+    this.cascade = options.cascade ?? null;
+    this.isWired = options.isWired;
+    this.isStored = options.isStored;
+    this.isRepr = options.isRepr;
+    this.isHash = options.isHash;
+    this.isEq = options.isEq;
+    this.isManaged = options.isManaged;
+    this.isComputed = options.isComputed;
   }
 
   equals(other: any): boolean {
@@ -192,30 +125,7 @@ export class TraitDefinition extends StructFrozen {
   readonly properties: Array<PropertyDefinition>;
   readonly traits: Array<TraitType>;
 
-  constructor(
-    id: number,
-    type: TraitType,
-    name: string,
-    alias: string,
-    icon: Icon | null,
-    description: string | null,
-    properties: Array<PropertyDefinition>,
-    traits: Array<TraitType>,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.id = id;
-    this.type = type;
-    this.name = name;
-    this.alias = alias;
-    this.icon = icon;
-    this.description = description;
-    this.properties = properties;
-    this.traits = traits;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     id: number,
     type: TraitType,
     name: string,
@@ -226,20 +136,18 @@ export class TraitDefinition extends StructFrozen {
     traits?: Array<TraitType>,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): TraitDefinition {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new TraitDefinition(
-      options.id,
-      options.type,
-      options.name,
-      options.alias,
-      options.icon ?? null,
-      options.description ?? null,
-      options.properties ?? [],
-      options.traits ?? [],
-      supergraph
-    );
+    super(supergraph);
+    this.id = options.id;
+    this.type = options.type;
+    this.name = options.name;
+    this.alias = options.alias;
+    this.icon = options.icon ?? null;
+    this.description = options.description ?? null;
+    this.properties = options.properties ?? [];
+    this.traits = options.traits ?? [];
   }
 
   equals(other: any): boolean {
@@ -266,28 +174,7 @@ export class NodeDefinition extends StructFrozen {
   readonly properties: Array<PropertyDefinition>;
   readonly traits: Array<TraitType>;
 
-  constructor(
-    id: number,
-    type: NodeType,
-    name: string,
-    icon: Icon | null,
-    description: string | null,
-    properties: Array<PropertyDefinition>,
-    traits: Array<TraitType>,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.id = id;
-    this.type = type;
-    this.name = name;
-    this.icon = icon;
-    this.description = description;
-    this.properties = properties;
-    this.traits = traits;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     id: number,
     type: NodeType,
     name: string,
@@ -297,19 +184,17 @@ export class NodeDefinition extends StructFrozen {
     traits?: Array<TraitType>,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): NodeDefinition {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new NodeDefinition(
-      options.id,
-      options.type,
-      options.name,
-      options.icon ?? null,
-      options.description ?? null,
-      options.properties ?? [],
-      options.traits ?? [],
-      supergraph
-    );
+    super(supergraph);
+    this.id = options.id;
+    this.type = options.type;
+    this.name = options.name;
+    this.icon = options.icon ?? null;
+    this.description = options.description ?? null;
+    this.properties = options.properties ?? [];
+    this.traits = options.traits ?? [];
   }
 
   equals(other: any): boolean {
@@ -336,28 +221,7 @@ export class StructDefinition extends StructFrozen {
   readonly properties: Array<PropertyDefinition>;
   readonly isFrozen: boolean;
 
-  constructor(
-    id: number,
-    type: StructType,
-    name: string,
-    icon: Icon | null,
-    description: string | null,
-    properties: Array<PropertyDefinition>,
-    isFrozen: boolean,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.id = id;
-    this.type = type;
-    this.name = name;
-    this.icon = icon;
-    this.description = description;
-    this.properties = properties;
-    this.isFrozen = isFrozen;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     id: number,
     type: StructType,
     name: string,
@@ -367,19 +231,17 @@ export class StructDefinition extends StructFrozen {
     isFrozen: boolean,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): StructDefinition {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new StructDefinition(
-      options.id,
-      options.type,
-      options.name,
-      options.icon ?? null,
-      options.description ?? null,
-      options.properties ?? [],
-      options.isFrozen,
-      supergraph
-    );
+    super(supergraph);
+    this.id = options.id;
+    this.type = options.type;
+    this.name = options.name;
+    this.icon = options.icon ?? null;
+    this.description = options.description ?? null;
+    this.properties = options.properties ?? [];
+    this.isFrozen = options.isFrozen;
   }
 
   equals(other: any): boolean {
@@ -405,26 +267,7 @@ export class EnumDefinition extends StructFrozen {
   readonly description: string | null;
   readonly options: Array<EnumOptionDefinition>;
 
-  constructor(
-    id: number,
-    type: EnumType,
-    name: string,
-    icon: Icon | null,
-    description: string | null,
-    options: Array<EnumOptionDefinition>,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.id = id;
-    this.type = type;
-    this.name = name;
-    this.icon = icon;
-    this.description = description;
-    this.options = options;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     id: number,
     type: EnumType,
     name: string,
@@ -433,18 +276,16 @@ export class EnumDefinition extends StructFrozen {
     options?: Array<EnumOptionDefinition>,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): EnumDefinition {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new EnumDefinition(
-      options.id,
-      options.type,
-      options.name,
-      options.icon ?? null,
-      options.description ?? null,
-      options.options ?? [],
-      supergraph
-    );
+    super(supergraph);
+    this.id = options.id;
+    this.type = options.type;
+    this.name = options.name;
+    this.icon = options.icon ?? null;
+    this.description = options.description ?? null;
+    this.options = options.options ?? [];
   }
 
   equals(other: any): boolean {
@@ -469,24 +310,7 @@ export class EnumOptionDefinition extends StructFrozen {
   readonly icon: Icon | null;
   readonly description: string | null;
 
-  constructor(
-    id: number,
-    type: EnumType,
-    name: string,
-    icon: Icon | null,
-    description: string | null,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.id = id;
-    this.type = type;
-    this.name = name;
-    this.icon = icon;
-    this.description = description;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     id: number,
     type: EnumType,
     name: string,
@@ -494,17 +318,15 @@ export class EnumOptionDefinition extends StructFrozen {
     description?: string | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): EnumOptionDefinition {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new EnumOptionDefinition(
-      options.id,
-      options.type,
-      options.name,
-      options.icon ?? null,
-      options.description ?? null,
-      supergraph
-    );
+    super(supergraph);
+    this.id = options.id;
+    this.type = options.type;
+    this.name = options.name;
+    this.icon = options.icon ?? null;
+    this.description = options.description ?? null;
   }
 
   equals(other: any): boolean {
@@ -529,24 +351,7 @@ export class PermissionDefinition extends StructFrozen {
   readonly nodeType: NodeType;
   readonly icon: Icon | null;
 
-  constructor(
-    id: number,
-    type: EnumType,
-    name: string,
-    nodeType: NodeType,
-    icon: Icon | null,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.id = id;
-    this.type = type;
-    this.name = name;
-    this.nodeType = nodeType;
-    this.icon = icon;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     id: number,
     type: EnumType,
     name: string,
@@ -554,17 +359,15 @@ export class PermissionDefinition extends StructFrozen {
     icon?: Icon | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): PermissionDefinition {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new PermissionDefinition(
-      options.id,
-      options.type,
-      options.name,
-      options.nodeType,
-      options.icon ?? null,
-      supergraph
-    );
+    super(supergraph);
+    this.id = options.id;
+    this.type = options.type;
+    this.name = options.name;
+    this.nodeType = options.nodeType;
+    this.icon = options.icon ?? null;
   }
 
   equals(other: any): boolean {
@@ -587,34 +390,19 @@ export class ConstantDefinition extends StructFrozen {
   readonly path: string;
   readonly value: Value;
 
-  constructor(
-    name: string,
-    path: string,
-    value: Value,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.name = name;
-    this.path = path;
-    this.value = value;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     name: string,
     path: string,
     value: Value,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): ConstantDefinition {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new ConstantDefinition(
-      options.name,
-      options.path,
-      options.value,
-      supergraph
-    );
+    super(supergraph);
+    this.name = options.name;
+    this.path = options.path;
+    this.value = options.value;
   }
 
   equals(other: any): boolean {

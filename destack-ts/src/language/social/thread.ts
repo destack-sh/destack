@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, IsTaggable, User, Supergraph, Folder, IsJoinable, Space, IsOwnable, MaterializationType, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, Spatial, StructType, Team, Role, Node, NodeType, NodeReference, IsDeletable, Agent, Organization, Graph } from '@/language';
+import { Agent, IsTaggable, BuiltinObject, ACTIVE_SESSION, Organization, Folder, Session, StructFrozen, Graph, Struct, activeSession, StructType, NodeType, Role, Supergraph, QueryConnection, NodeReference, MaterializationType, IsOwnable, User, Spatial, Team, Space, IsDeletable, Entity, EnumType, IsJoinable, Node, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:5500 ==== */
@@ -59,67 +59,30 @@ export class Thread extends Node implements Spatial, Entity, IsTracked, IsDeleta
       return null;
   }
 
-  set ownedBy(value: Role | Agent | Organization | Team | User | null) {
-      if (value === null) {
+  set ownedBy(node: Role | Agent | Organization | Team | User | null) {
+      if (node === null) {
           this.ownedByPtr = null;
       } else {
-          this.ownedByPtr = value.toRef();
+          this.ownedByPtr = node.toRef();
       }
   }
   ;
   ownedByPtr: NodeReference | null
   name: string;
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    deletedAt: Temporal.ZonedDateTime | null,
-    ownedByPtr: NodeReference | null,
-    name: string,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.deletedAt = deletedAt;
-    this.ownedByPtr = ownedByPtr;
-    this.name = name;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     name: string,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): Thread {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Thread(
-      options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? options.ownedBy : options.ownedBy.toRef()) : null,
-      options.name,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.ownedByPtr = options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? (options.ownedBy as NodeReference) : (options.ownedBy as Node).toRef()) : null;
+    this.name = options.name;
   }
 
   equals(other: any): boolean {

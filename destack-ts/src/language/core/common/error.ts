@@ -1,4 +1,4 @@
-import { EnumType, Session, Struct, QueryConnection, Node, NodeType, BuiltinObject, StructFrozen, NodeReference, StructType, Supergraph, Graph } from '@/language';
+import { Graph, Supergraph, Struct, QueryConnection, NodeReference, activeSession, StructType, BuiltinObject, EnumType, ACTIVE_SESSION, NodeType, Session, StructFrozen, Node } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:50041 ==== */
@@ -25,34 +25,19 @@ export class Error extends StructFrozen {
   readonly title: string | null;
   readonly text: string | null;
 
-  constructor(
-    type: ErrorType,
-    title: string | null,
-    text: string | null,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.type = type;
-    this.title = title;
-    this.text = text;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type: ErrorType,
     title?: string | null,
     text?: string | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): Error {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Error(
-      options.type,
-      options.title ?? null,
-      options.text ?? null,
-      supergraph
-    );
+    super(supergraph);
+    this.type = options.type;
+    this.title = options.title ?? null;
+    this.text = options.text ?? null;
   }
 
   equals(other: any): boolean {

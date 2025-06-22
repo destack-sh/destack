@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, IsTaggable, IsFollowable, User, IsOrdered, Supergraph, IsJoinable, Space, IsOwnable, MaterializationType, Icon, Entity, Struct, IsStarable, QueryConnection, BuiltinObject, StructFrozen, Spatial, Scene, StructType, Team, Role, Node, NodeType, NodeReference, IsDeletable, Agent, Organization, Graph } from '@/language';
+import { Agent, IsTaggable, IsFollowable, BuiltinObject, ACTIVE_SESSION, Organization, Session, Scene, StructFrozen, IsOrdered, Graph, Struct, activeSession, StructType, IsStarable, NodeType, Role, Icon, Supergraph, QueryConnection, NodeReference, MaterializationType, IsOwnable, User, Spatial, Team, Space, IsDeletable, Entity, EnumType, IsJoinable, Node, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:1000 ==== */
@@ -63,11 +63,11 @@ export class Folder extends Node implements Spatial, Entity, IsTracked, IsDeleta
       return null;
   }
 
-  set ownedBy(value: Role | Agent | Organization | Team | User | null) {
-      if (value === null) {
+  set ownedBy(node: Role | Agent | Organization | Team | User | null) {
+      if (node === null) {
           this.ownedByPtr = null;
       } else {
-          this.ownedByPtr = value.toRef();
+          this.ownedByPtr = node.toRef();
       }
   }
   ;
@@ -84,59 +84,17 @@ export class Folder extends Node implements Spatial, Entity, IsTracked, IsDeleta
       return null;
   }
 
-  set mainScene(value: Scene | null) {
-      if (value === null) {
+  set mainScene(node: Scene | null) {
+      if (node === null) {
           this.mainScenePtr = null;
       } else {
-          this.mainScenePtr = value.toRef();
+          this.mainScenePtr = node.toRef();
       }
   }
   ;
   mainScenePtr: NodeReference | null
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    deletedAt: Temporal.ZonedDateTime | null,
-    orderKey: string,
-    ownedByPtr: NodeReference | null,
-    type: FolderType,
-    name: string,
-    slug: string | null,
-    icon: Icon | null,
-    mainScenePtr: NodeReference | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.deletedAt = deletedAt;
-    this.orderKey = orderKey;
-    this.ownedByPtr = ownedByPtr;
-    this.type = type;
-    this.name = name;
-    this.slug = slug;
-    this.icon = icon;
-    this.mainScenePtr = mainScenePtr;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     type?: FolderType,
     name: string,
@@ -147,21 +105,16 @@ export class Folder extends Node implements Spatial, Entity, IsTracked, IsDeleta
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): Folder {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Folder(
-      options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? options.ownedBy : options.ownedBy.toRef()) : null,
-      options.type ?? FolderType.GENERAL,
-      options.name,
-      options.slug ?? null,
-      options.icon ?? null,
-      options.mainScene != null ? (options.mainScene.metatype == StructType.NODE_REFERENCE ? options.mainScene : options.mainScene.toRef()) : null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.ownedByPtr = options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? (options.ownedBy as NodeReference) : (options.ownedBy as Node).toRef()) : null;
+    this.type = options.type ?? FolderType.GENERAL;
+    this.name = options.name;
+    this.slug = options.slug ?? null;
+    this.icon = options.icon ?? null;
+    this.mainScenePtr = options.mainScene != null ? (options.mainScene.metatype == StructType.NODE_REFERENCE ? (options.mainScene as NodeReference) : (options.mainScene as Node).toRef()) : null;
   }
 
   equals(other: any): boolean {

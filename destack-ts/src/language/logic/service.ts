@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, IsTaggable, IsActionable, User, IsOrdered, IsScriptable, Supergraph, Space, Value, IsOwnable, Script, MaterializationType, IsSourceable, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, Spatial, IsExtensible, StructType, Team, Role, IsRunnable, Node, NodeType, NodeReference, IsDeletable, Agent, Organization, Graph } from '@/language';
+import { Agent, IsTaggable, IsScriptable, BuiltinObject, ACTIVE_SESSION, Organization, Session, StructFrozen, IsOrdered, Graph, Struct, activeSession, StructType, NodeType, Role, Supergraph, QueryConnection, NodeReference, IsActionable, MaterializationType, IsOwnable, Value, IsRunnable, User, IsExtensible, Spatial, Team, IsSourceable, Space, IsDeletable, Entity, Script, EnumType, Node, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:3010 ==== */
@@ -54,11 +54,11 @@ export class Service extends Node implements Spatial, Entity, IsTracked, IsDelet
       return null;
   }
 
-  set ownedBy(value: Role | Agent | Organization | Team | User | null) {
-      if (value === null) {
+  set ownedBy(node: Role | Agent | Organization | Team | User | null) {
+      if (node === null) {
           this.ownedByPtr = null;
       } else {
-          this.ownedByPtr = value.toRef();
+          this.ownedByPtr = node.toRef();
       }
   }
   ;
@@ -72,11 +72,11 @@ export class Service extends Node implements Spatial, Entity, IsTracked, IsDelet
       return null;
   }
 
-  set script(value: Script | null) {
-      if (value === null) {
+  set script(node: Script | null) {
+      if (node === null) {
           this.scriptPtr = null;
       } else {
-          this.scriptPtr = value.toRef();
+          this.scriptPtr = node.toRef();
       }
   }
   ;
@@ -91,47 +91,7 @@ export class Service extends Node implements Spatial, Entity, IsTracked, IsDelet
   ;
   sourcePtr: NodeReference | null
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    deletedAt: Temporal.ZonedDateTime | null,
-    value: Map<string, Value>,
-    orderKey: string,
-    ownedByPtr: NodeReference | null,
-    name: string,
-    scriptPtr: NodeReference | null,
-    sourcePtr: NodeReference | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.deletedAt = deletedAt;
-    this.value = value;
-    this.orderKey = orderKey;
-    this.ownedByPtr = ownedByPtr;
-    this.name = name;
-    this.scriptPtr = scriptPtr;
-    this.sourcePtr = sourcePtr;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     value?: Map<string, Value>,
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     name: string,
@@ -140,19 +100,14 @@ export class Service extends Node implements Spatial, Entity, IsTracked, IsDelet
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): Service {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Service(
-      options.value ?? new Map(),
-      options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? options.ownedBy : options.ownedBy.toRef()) : null,
-      options.name,
-      options.script != null ? (options.script.metatype == StructType.NODE_REFERENCE ? options.script : options.script.toRef()) : null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.value = options.value ?? new Map();
+    this.ownedByPtr = options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? (options.ownedBy as NodeReference) : (options.ownedBy as Node).toRef()) : null;
+    this.name = options.name;
+    this.scriptPtr = options.script != null ? (options.script.metatype == StructType.NODE_REFERENCE ? (options.script as NodeReference) : (options.script as Node).toRef()) : null;
   }
 
   equals(other: any): boolean {

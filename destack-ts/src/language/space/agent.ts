@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, IsFollowable, IsOwner, User, IsScriptable, Supergraph, Folder, Space, ThreadCursor, EventCursor, Script, MaterializationType, Icon, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, Spatial, IsSubject, StructType, ScreenCursor, Node, NodeType, NodeReference, IsDeletable, Graph } from '@/language';
+import { IsFollowable, IsScriptable, BuiltinObject, ACTIVE_SESSION, Folder, Session, StructFrozen, ThreadCursor, Graph, Struct, ScreenCursor, activeSession, StructType, NodeType, IsSubject, EventCursor, Icon, Supergraph, QueryConnection, NodeReference, MaterializationType, User, Spatial, Space, IsDeletable, Entity, Script, EnumType, IsOwner, Node, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:600 ==== */
@@ -55,11 +55,11 @@ export class Agent extends Node implements Spatial, Entity, IsTracked, IsDeletab
       return null;
   }
 
-  set cursor(value: EventCursor | ScreenCursor | ThreadCursor | null) {
-      if (value === null) {
+  set cursor(node: EventCursor | ScreenCursor | ThreadCursor | null) {
+      if (node === null) {
           this.cursorPtr = null;
       } else {
-          this.cursorPtr = value.toRef();
+          this.cursorPtr = node.toRef();
       }
   }
   ;
@@ -72,55 +72,17 @@ export class Agent extends Node implements Spatial, Entity, IsTracked, IsDeletab
       return null;
   }
 
-  set script(value: Script | null) {
-      if (value === null) {
+  set script(node: Script | null) {
+      if (node === null) {
           this.scriptPtr = null;
       } else {
-          this.scriptPtr = value.toRef();
+          this.scriptPtr = node.toRef();
       }
   }
   ;
   scriptPtr: NodeReference | null
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    deletedAt: Temporal.ZonedDateTime | null,
-    name: string,
-    slug: string,
-    icon: Icon | null,
-    cursorPtr: NodeReference | null,
-    scriptPtr: NodeReference | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.deletedAt = deletedAt;
-    this.name = name;
-    this.slug = slug;
-    this.icon = icon;
-    this.cursorPtr = cursorPtr;
-    this.scriptPtr = scriptPtr;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     name: string,
     slug: string,
     icon?: Icon | null,
@@ -130,20 +92,15 @@ export class Agent extends Node implements Spatial, Entity, IsTracked, IsDeletab
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): Agent {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Agent(
-      options.name,
-      options.slug,
-      options.icon ?? null,
-      options.cursor != null ? (options.cursor.metatype == StructType.NODE_REFERENCE ? options.cursor : options.cursor.toRef()) : null,
-      options.script != null ? (options.script.metatype == StructType.NODE_REFERENCE ? options.script : options.script.toRef()) : null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.name = options.name;
+    this.slug = options.slug;
+    this.icon = options.icon ?? null;
+    this.cursorPtr = options.cursor != null ? (options.cursor.metatype == StructType.NODE_REFERENCE ? (options.cursor as NodeReference) : (options.cursor as Node).toRef()) : null;
+    this.scriptPtr = options.script != null ? (options.script.metatype == StructType.NODE_REFERENCE ? (options.script as NodeReference) : (options.script as Node).toRef()) : null;
   }
 
   equals(other: any): boolean {

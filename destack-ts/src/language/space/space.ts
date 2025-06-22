@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, IsFollowable, User, Region, Supergraph, Folder, IsJoinable, Handle, IsOwnable, Global, MaterializationType, Icon, Entity, Struct, IsStarable, QueryConnection, BuiltinObject, StructFrozen, Spatial, StructType, Team, Role, Node, NodeType, NodeReference, Agent, Organization, Database, Graph } from '@/language';
+import { Agent, IsFollowable, BuiltinObject, ACTIVE_SESSION, Organization, Folder, Session, StructFrozen, Graph, Struct, activeSession, Global, StructType, IsStarable, NodeType, Role, Icon, Supergraph, Database, QueryConnection, NodeReference, MaterializationType, IsOwnable, User, Spatial, Team, Region, Handle, Entity, EnumType, IsJoinable, Node, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:1 ==== */
@@ -60,11 +60,11 @@ export class Space extends Node implements Global, Spatial, Entity, IsTracked, I
       return null;
   }
 
-  set ownedBy(value: Role | Agent | Organization | Team | User | null) {
-      if (value === null) {
+  set ownedBy(node: Role | Agent | Organization | Team | User | null) {
+      if (node === null) {
           this.ownedByPtr = null;
       } else {
-          this.ownedByPtr = value.toRef();
+          this.ownedByPtr = node.toRef();
       }
   }
   ;
@@ -112,55 +112,7 @@ export class Space extends Node implements Global, Spatial, Entity, IsTracked, I
   ;
   databasePtr: NodeReference | null
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    ownedByPtr: NodeReference | null,
-    name: string,
-    slug: string,
-    icon: Icon | null,
-    status: SpaceStatus,
-    handlePtr: NodeReference | null,
-    systemFolderPtr: NodeReference | null,
-    homeFolderPtr: NodeReference | null,
-    region: Region,
-    galaxyName: string | null,
-    databasePtr: NodeReference | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.ownedByPtr = ownedByPtr;
-    this.name = name;
-    this.slug = slug;
-    this.icon = icon;
-    this.status = status;
-    this.handlePtr = handlePtr;
-    this.systemFolderPtr = systemFolderPtr;
-    this.homeFolderPtr = homeFolderPtr;
-    this.region = region;
-    this.galaxyName = galaxyName;
-    this.databasePtr = databasePtr;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     name: string,
     slug: string,
@@ -176,26 +128,21 @@ export class Space extends Node implements Global, Spatial, Entity, IsTracked, I
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): Space {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Space(
-      options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? options.ownedBy : options.ownedBy.toRef()) : null,
-      options.name,
-      options.slug,
-      options.icon ?? null,
-      options.status,
-      options.handle != null ? (options.handle.metatype == StructType.NODE_REFERENCE ? options.handle : options.handle.toRef()) : null,
-      options.systemFolder != null ? (options.systemFolder.metatype == StructType.NODE_REFERENCE ? options.systemFolder : options.systemFolder.toRef()) : null,
-      options.homeFolder != null ? (options.homeFolder.metatype == StructType.NODE_REFERENCE ? options.homeFolder : options.homeFolder.toRef()) : null,
-      options.region,
-      options.galaxyName ?? null,
-      options.database != null ? (options.database.metatype == StructType.NODE_REFERENCE ? options.database : options.database.toRef()) : null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.ownedByPtr = options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? (options.ownedBy as NodeReference) : (options.ownedBy as Node).toRef()) : null;
+    this.name = options.name;
+    this.slug = options.slug;
+    this.icon = options.icon ?? null;
+    this.status = options.status;
+    this.handlePtr = options.handle != null ? (options.handle.metatype == StructType.NODE_REFERENCE ? (options.handle as NodeReference) : (options.handle as Node).toRef()) : null;
+    this.systemFolderPtr = options.systemFolder != null ? (options.systemFolder.metatype == StructType.NODE_REFERENCE ? (options.systemFolder as NodeReference) : (options.systemFolder as Node).toRef()) : null;
+    this.homeFolderPtr = options.homeFolder != null ? (options.homeFolder.metatype == StructType.NODE_REFERENCE ? (options.homeFolder as NodeReference) : (options.homeFolder as Node).toRef()) : null;
+    this.region = options.region;
+    this.galaxyName = options.galaxyName ?? null;
+    this.databasePtr = options.database != null ? (options.database.metatype == StructType.NODE_REFERENCE ? (options.database as NodeReference) : (options.database as Node).toRef()) : null;
   }
 
   equals(other: any): boolean {

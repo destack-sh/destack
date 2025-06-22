@@ -1,4 +1,4 @@
-import { EnumType, Session, Type, Struct, QueryConnection, Node, NodeType, BuiltinObject, StructFrozen, NodeReference, StructType, Supergraph, Graph } from '@/language';
+import { Graph, Supergraph, Struct, QueryConnection, NodeReference, activeSession, StructType, BuiltinObject, EnumType, ACTIVE_SESSION, NodeType, Session, Type, StructFrozen, Node } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2500 ==== */
@@ -6,30 +6,17 @@ export class Value extends StructFrozen {
   readonly type: Type;
   readonly value: any;
 
-  constructor(
-    type: Type,
-    value: any,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.type = type;
-    this.value = value;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type: Type,
     value: any,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): Value {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Value(
-      options.type,
-      options.value,
-      supergraph
-    );
+    super(supergraph);
+    this.type = options.type;
+    this.value = options.value;
   }
 
   equals(other: any): boolean {

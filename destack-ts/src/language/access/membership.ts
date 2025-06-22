@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, Indexed, Analytic, User, Supergraph, Folder, Thread, LikeMembership, Space, Particle, IsOwnable, Global, MaterializationType, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, Event, Spatial, IsFrozen, StructType, Team, Role, Node, NodeType, NodeReference, IsDeletable, Agent, Organization, RoleType, Graph } from '@/language';
+import { Agent, BuiltinObject, ACTIVE_SESSION, Organization, Folder, Session, StructFrozen, IsFrozen, Graph, Struct, Event, activeSession, Particle, Global, StructType, RoleType, NodeType, Indexed, Role, Supergraph, QueryConnection, NodeReference, MaterializationType, Thread, IsOwnable, LikeMembership, User, Analytic, Spatial, Team, Space, IsDeletable, Entity, EnumType, Node, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:500 ==== */
@@ -66,12 +66,8 @@ export class MembershipEvent extends Node implements Spatial, Particle, Analytic
       return null;
   }
 
-  set node(value: Membership) {
-      if (value === null) {
-          this.nodePtr = null;
-      } else {
-          this.nodePtr = value.toRef();
-      }
+  set node(node: Membership) {
+      this.nodePtr = node.toRef();
   }
   ;
   nodePtr: NodeReference
@@ -83,12 +79,8 @@ export class MembershipEvent extends Node implements Spatial, Particle, Analytic
       return null;
   }
 
-  set joinable(value: Folder | Thread | Organization | Space | Team) {
-      if (value === null) {
-          this.joinablePtr = null;
-      } else {
-          this.joinablePtr = value.toRef();
-      }
+  set joinable(node: Folder | Thread | Organization | Space | Team) {
+      this.joinablePtr = node.toRef();
   }
   ;
   joinablePtr: NodeReference
@@ -100,12 +92,8 @@ export class MembershipEvent extends Node implements Spatial, Particle, Analytic
       return null;
   }
 
-  set member(value: Agent | User) {
-      if (value === null) {
-          this.memberPtr = null;
-      } else {
-          this.memberPtr = value.toRef();
-      }
+  set member(node: Agent | User) {
+      this.memberPtr = node.toRef();
   }
   ;
   memberPtr: NodeReference
@@ -117,52 +105,18 @@ export class MembershipEvent extends Node implements Spatial, Particle, Analytic
       return null;
   }
 
-  set role(value: Role | null) {
-      if (value === null) {
+  set role(node: Role | null) {
+      if (node === null) {
           this.rolePtr = null;
       } else {
-          this.rolePtr = value.toRef();
+          this.rolePtr = node.toRef();
       }
   }
   ;
   rolePtr: NodeReference | null
   roleType: RoleType;
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    nodePtr: NodeReference,
-    joinablePtr: NodeReference,
-    memberPtr: NodeReference,
-    rolePtr: NodeReference | null,
-    roleType: RoleType,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.nodePtr = nodePtr;
-    this.joinablePtr = joinablePtr;
-    this.memberPtr = memberPtr;
-    this.rolePtr = rolePtr;
-    this.roleType = roleType;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     node: Membership | NodeReference,
     joinable: Folder | Thread | Organization | Space | Team | NodeReference,
     member: Agent | User | NodeReference,
@@ -172,20 +126,15 @@ export class MembershipEvent extends Node implements Spatial, Particle, Analytic
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): MembershipEvent {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new MembershipEvent(
-      options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? options.node : options.node.toRef()) : null,
-      options.joinable != null ? (options.joinable.metatype == StructType.NODE_REFERENCE ? options.joinable : options.joinable.toRef()) : null,
-      options.member != null ? (options.member.metatype == StructType.NODE_REFERENCE ? options.member : options.member.toRef()) : null,
-      options.role != null ? (options.role.metatype == StructType.NODE_REFERENCE ? options.role : options.role.toRef()) : null,
-      options.roleType,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.nodePtr = options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? (options.node as NodeReference) : (options.node as Node).toRef()) : null;
+    this.joinablePtr = options.joinable != null ? (options.joinable.metatype == StructType.NODE_REFERENCE ? (options.joinable as NodeReference) : (options.joinable as Node).toRef()) : null;
+    this.memberPtr = options.member != null ? (options.member.metatype == StructType.NODE_REFERENCE ? (options.member as NodeReference) : (options.member as Node).toRef()) : null;
+    this.rolePtr = options.role != null ? (options.role.metatype == StructType.NODE_REFERENCE ? (options.role as NodeReference) : (options.role as Node).toRef()) : null;
+    this.roleType = options.roleType;
   }
 
   equals(other: any): boolean {
@@ -274,11 +223,11 @@ export class Membership extends Node implements Global, Spatial, Entity, IsTrack
       return null;
   }
 
-  set ownedBy(value: Role | Agent | Organization | Team | User | null) {
-      if (value === null) {
+  set ownedBy(node: Role | Agent | Organization | Team | User | null) {
+      if (node === null) {
           this.ownedByPtr = null;
       } else {
-          this.ownedByPtr = value.toRef();
+          this.ownedByPtr = node.toRef();
       }
   }
   ;
@@ -291,11 +240,11 @@ export class Membership extends Node implements Global, Spatial, Entity, IsTrack
       return null;
   }
 
-  set member(value: Agent | User | null) {
-      if (value === null) {
+  set member(node: Agent | User | null) {
+      if (node === null) {
           this.memberPtr = null;
       } else {
-          this.memberPtr = value.toRef();
+          this.memberPtr = node.toRef();
       }
   }
   ;
@@ -308,54 +257,18 @@ export class Membership extends Node implements Global, Spatial, Entity, IsTrack
       return null;
   }
 
-  set role(value: Role | null) {
-      if (value === null) {
+  set role(node: Role | null) {
+      if (node === null) {
           this.rolePtr = null;
       } else {
-          this.rolePtr = value.toRef();
+          this.rolePtr = node.toRef();
       }
   }
   ;
   rolePtr: NodeReference | null
   roleType: RoleType | null;
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    deletedAt: Temporal.ZonedDateTime | null,
-    ownedByPtr: NodeReference | null,
-    memberPtr: NodeReference | null,
-    rolePtr: NodeReference | null,
-    roleType: RoleType | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.deletedAt = deletedAt;
-    this.ownedByPtr = ownedByPtr;
-    this.memberPtr = memberPtr;
-    this.rolePtr = rolePtr;
-    this.roleType = roleType;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     member?: Agent | User | NodeReference | null,
     role?: Role | NodeReference | null,
@@ -364,19 +277,14 @@ export class Membership extends Node implements Global, Spatial, Entity, IsTrack
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): Membership {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Membership(
-      options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? options.ownedBy : options.ownedBy.toRef()) : null,
-      options.member != null ? (options.member.metatype == StructType.NODE_REFERENCE ? options.member : options.member.toRef()) : null,
-      options.role != null ? (options.role.metatype == StructType.NODE_REFERENCE ? options.role : options.role.toRef()) : null,
-      options.roleType ?? null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.ownedByPtr = options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? (options.ownedBy as NodeReference) : (options.ownedBy as Node).toRef()) : null;
+    this.memberPtr = options.member != null ? (options.member.metatype == StructType.NODE_REFERENCE ? (options.member as NodeReference) : (options.member as Node).toRef()) : null;
+    this.rolePtr = options.role != null ? (options.role.metatype == StructType.NODE_REFERENCE ? (options.role as NodeReference) : (options.role as Node).toRef()) : null;
+    this.roleType = options.roleType ?? null;
   }
 
   equals(other: any): boolean {

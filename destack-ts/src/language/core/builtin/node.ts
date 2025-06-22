@@ -23,7 +23,7 @@ export abstract class Node extends BuiltinObject {
 	_supergraph: Supergraph;
 	_graph: Graph;
 	_connection: QueryConnection | null;
-	_hash: number | null;
+	_hash: string | null;
 	_ref: NodeReference | null;
 	_isNew: boolean;
 	_isAttached: boolean;
@@ -31,17 +31,26 @@ export abstract class Node extends BuiltinObject {
 
 	constructor(
 		id: string,
+		parentPtr: NodeReference | null,
 		_session: Session,
 		_supergraph: Supergraph,
 		_graph: Graph,
 		_connection: QueryConnection | null,
+		_isNew: boolean,
+		_isAttached: boolean,
 	) {
 		super(_supergraph);
 		this.id = id;
+		this.parentPtr = parentPtr;
 		this._session = _session;
 		this._supergraph = _supergraph;
 		this._graph = _graph;
 		this._connection = _connection;
+		this._hash = this.id;
+		this._ref = null;
+		this._dirty = null;
+		this._isNew = _isNew;
+		this._isAttached = _isAttached;
 	}
 
 	get _pathKey(): string {
