@@ -68,20 +68,19 @@ def raises_grpc_error(*statuses: grpclib.const.Status):
 from destack.language import (
     NODE_TYPES,
     STRUCT_TYPES,
+    WORLD_ORACLE,
     BuiltinObjectBase,
-    EnvironmentType,
     NodeType,
     Session,
     StructType,
 )
 from destack.test.conftest import _setup_test_env
-from destack.utils.oracle import REAL_ORACLE
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-SHARED_SESSION = Session(mode=EnvironmentType.STAGING, oracle=REAL_ORACLE)
+SHARED_SESSION = Session(oracle=WORLD_ORACLE)
 
 
 # init shared builtin objects (in shared session)

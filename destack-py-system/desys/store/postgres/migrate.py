@@ -22,11 +22,10 @@ import structlog
 from more_itertools import first
 from opentelemetry import trace
 
-from destack.language import StoreType
+from destack.language import Oracle, StoreType
 from destack.utils.code import format_code
 from destack.utils.env import REPOSITORY_PATH
 from destack.utils.func import partition, re_search_or_error
-from destack.utils.oracle import Oracle
 
 from .core import (
     POSTGRES_TYPE_BY_UDT,

@@ -18,7 +18,7 @@ from destack.grpc import (
     ServiceKind,
     SpaceBase,
 )
-from destack.language import Client, DatabaseInfo, IsSubject, Session
+from destack.language import Client, DatabaseInfo, IsSubject, Oracle, Session
 from destack.proto import (
     CommitRequest,
     CommitResponse,
@@ -32,7 +32,6 @@ from destack.proto import (
     UploadFilesResponse,
 )
 from destack.utils.env import get_from_env
-from destack.utils.oracle import Oracle
 from destack.utils.telemetry import set_baggage
 from destack.utils.uuid import UUID
 from desys.sharding import DatabaseProvider, GalaxyProvider

@@ -6,8 +6,7 @@ import typer
 from rich.console import Console
 
 from destack.cli.utils import async_to_sync, parse_region, parse_store_type
-from destack.language import REGION, Region, StoreType
-from destack.utils.oracle import REAL_ORACLE
+from destack.language import REGION, WORLD_ORACLE, Region, StoreType
 
 if TYPE_CHECKING:
     from destack.language import Region, StoreType
@@ -74,7 +73,7 @@ async def apply(
     for database in databases:
         async with pg_transaction(database) as (conn, tx):
             await postgres_migrate(
-                conn=conn, target=target, store_type=store_type, oracle=REAL_ORACLE
+                conn=conn, target=target, store_type=store_type, oracle=WORLD_ORACLE
             )
             if not dry_run:
                 await tx.commit()

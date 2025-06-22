@@ -30,6 +30,7 @@ from destack.language import (
     Handle,
     IsSubject,
     JoinType,
+    Oracle,
     Region,
     Session,
     Space,
@@ -41,7 +42,6 @@ from destack.language import (
 from destack.proto import RpcMetadata
 from destack.store import BufferedStore
 from destack.utils.func import generate_access_token, generate_salt
-from destack.utils.oracle import Oracle
 from destack.utils.uuid import UUID
 from desys.sharding import DatabaseProvider, GalaxyProvider
 from desys.store import PostgresStore

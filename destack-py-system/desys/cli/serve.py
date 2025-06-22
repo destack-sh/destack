@@ -9,8 +9,8 @@ import typer
 
 from destack.cli.utils import async_to_sync
 from destack.grpc import GrpcServer, Network, RealNetwork, ServiceBase
+from destack.language import WORLD_ORACLE
 from destack.utils.env import ENV, IS_DEV
-from destack.utils.oracle import REAL_ORACLE
 from destack.utils.telemetry import capture_exception
 from destack.utils.watch import restart_on_file_changes
 
@@ -68,10 +68,10 @@ def _guard_server(
 async def _do_serve(
     handlers: list[ServiceBase], *, network: Network, host: str, port: int, watch: bool
 ):
-    """Serves the given handlers."""
+    """Serves the given gRPC services."""
     logger.info("serve", handlers=handlers, host=host, port=port, env=ENV)
     start = time_ns()
-    server = GrpcServer(handlers=handlers, network=network, oracle=REAL_ORACLE)
+    server = GrpcServer(handlers=handlers, network=network, oracle=WORLD_ORACLE)
     if IS_DEV and watch:
         _ = asyncio.create_task(restart_on_file_changes())  # noqa: RUF006
     try:
@@ -95,7 +95,7 @@ async def universe(host: str, port: int, watch: bool = False, no_check: bool = F
         id="destack",
         global_database=global_database,
         network=network,
-        oracle=REAL_ORACLE,
+        oracle=WORLD_ORACLE,
         galaxy_provider=GALAXY_PROVIDER,
         database_provider=DATABASE_PROVIDER,
         on_error=capture_exception,
@@ -118,7 +118,7 @@ async def space(host: str, port: int, watch: bool = False, no_check: bool = Fals
         galaxy_provider=GALAXY_PROVIDER,
         database_provider=DATABASE_PROVIDER,
         network=network,
-        oracle=REAL_ORACLE,
+        oracle=WORLD_ORACLE,
         on_error=capture_exception,
     )
     await _do_serve(handlers=[space_router], network=network, host=host, port=port, watch=watch)

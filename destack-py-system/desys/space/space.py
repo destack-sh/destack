@@ -14,6 +14,7 @@ from destack.language import (
     IsSubject,
     NodeReference,
     NodeType,
+    Oracle,
     Query,
     Scope,
     Session,
@@ -37,7 +38,6 @@ from destack.proto import (
 )
 from destack.store import BufferedStore
 from destack.utils.env import ENV, get_from_env
-from destack.utils.oracle import Oracle
 from destack.utils.uuid import UUID
 from desys.sharding import DatabaseProvider, GalaxyProvider
 from desys.store import PostgresStore
