@@ -12,8 +12,7 @@ import pytz
 
 class Oracle(abc.ABC):
     """
-    The oracle for all our entropy, like time and randomness.
-    Useful to isolate non-determinsim, and of course to mock in simulation testing.
+    The oracle for all our entropy (e.g., time, randomness).
     """
 
     def __str__(self) -> str:

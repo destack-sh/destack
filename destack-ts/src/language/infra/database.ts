@@ -1,4 +1,4 @@
-import { IsTracked, Region, Resource, MaterializationType, StructFrozen, Supergraph, Struct, Space, NodeType, Entity, Node, Agent, StructType, QueryConnection, Tenancy, Graph, NodeReference, ResourceStatus, Session, User, BuiltinObject, EnumType, Spatial } from '@/language';
+import { IsTracked, EnumType, Session, User, Region, Supergraph, Space, MaterializationType, Entity, Struct, ResourceStatus, QueryConnection, BuiltinObject, StructFrozen, Spatial, Resource, StructType, Tenancy, Node, NodeType, NodeReference, Agent, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:7505 ==== */
@@ -38,7 +38,7 @@ export class DatabaseInfo extends Struct {
   }
 
 
-  static create(options: {
+  static from(options: {
     type: DatabaseType,
     region: Region,
     galaxyName?: string | null,
@@ -176,7 +176,7 @@ export class Database extends Node implements Spatial, Entity, Resource, IsTrack
   }
 
 
-  static create(options: {
+  static from(options: {
     type: DatabaseType,
     name: string,
     status?: ResourceStatus,

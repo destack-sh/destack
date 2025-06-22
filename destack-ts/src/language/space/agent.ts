@@ -1,4 +1,4 @@
-import { ThreadCursor, IsOwner, IsTracked, Script, MaterializationType, StructFrozen, IsScriptable, IsFollowable, Supergraph, Struct, Folder, Space, NodeType, Entity, Node, StructType, QueryConnection, IsDeletable, Graph, NodeReference, EventCursor, Session, User, IsSubject, ScreenCursor, BuiltinObject, EnumType, Spatial, Icon } from '@/language';
+import { IsTracked, EnumType, Session, IsFollowable, IsOwner, User, IsScriptable, Supergraph, Folder, Space, ThreadCursor, EventCursor, Script, MaterializationType, Icon, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, Spatial, IsSubject, StructType, ScreenCursor, Node, NodeType, NodeReference, IsDeletable, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:600 ==== */
@@ -120,7 +120,7 @@ export class Agent extends Node implements Spatial, Entity, IsTracked, IsDeletab
   }
 
 
-  static create(options: {
+  static from(options: {
     name: string,
     slug: string,
     icon?: Icon | null,

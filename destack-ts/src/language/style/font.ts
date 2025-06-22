@@ -1,4 +1,4 @@
-import { IsOrdered, Theme, Layer, Style, ThreadView, NumberInputView, IsTracked, Length, MaterializationType, StructFrozen, Fill, FrameView, TextView, Supergraph, Struct, PlaneShape, Space, NodeType, Entity, Scene, LineShape, LabelView, Node, IsTaggable, ArrowShape, Agent, StructType, CustomView, QueryConnection, IsDeletable, Graph, Canvas, NodeReference, WizardView, Session, User, CustomViewDefinition, BuiltinObject, EnumType, Spatial, SplitView, SliderInputView, IsVisual, AnnotationShape } from '@/language';
+import { IsTracked, EnumType, Session, AnnotationShape, IsTaggable, LabelView, WizardView, ThreadView, Canvas, User, SplitView, IsOrdered, Supergraph, Fill, PlaneShape, Space, Length, CustomView, MaterializationType, SliderInputView, Entity, Struct, TextView, ArrowShape, QueryConnection, CustomViewDefinition, BuiltinObject, StructFrozen, Layer, Spatial, Scene, FrameView, StructType, Theme, IsVisual, Node, NodeType, NodeReference, IsDeletable, Agent, Style, LineShape, NumberInputView, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:12026 ==== */
@@ -125,7 +125,7 @@ export class Font extends Struct {
   }
 
 
-  static create(options: {
+  static from(options: {
     type?: FontType,
     style?: FontStyle | NodeReference | null,
     weight?: FontWeight | null,
@@ -275,7 +275,7 @@ export class FontStyle extends Node implements Spatial, Entity, IsTracked, IsDel
   }
 
 
-  static create(options: {
+  static from(options: {
     type?: FontType,
     name: string,
     weight?: FontWeight | null,

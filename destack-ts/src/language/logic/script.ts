@@ -1,4 +1,4 @@
-import { IsOrdered, Layer, ThreadView, NumberInputView, IsTracked, CustomEntityDefinition, MaterializationType, StructFrozen, FrameView, TextView, Supergraph, Struct, Folder, PlaneShape, Space, NodeType, Entity, Scene, LineShape, LabelView, Node, ArrowShape, Agent, StructType, CustomView, Value, QueryConnection, IsRunnable, IsDeletable, Graph, Canvas, NodeReference, WizardView, Session, IsExtensible, User, CustomViewDefinition, BuiltinObject, EnumType, Spatial, SplitView, SliderInputView, AnnotationShape, Service } from '@/language';
+import { IsTracked, EnumType, Session, AnnotationShape, LabelView, WizardView, ThreadView, Canvas, User, SplitView, IsOrdered, Supergraph, Folder, PlaneShape, Space, Value, CustomView, MaterializationType, SliderInputView, Service, Entity, Struct, TextView, ArrowShape, QueryConnection, CustomViewDefinition, BuiltinObject, StructFrozen, Layer, Spatial, IsExtensible, Scene, FrameView, StructType, IsRunnable, Node, NodeType, NodeReference, IsDeletable, CustomEntityDefinition, Agent, LineShape, NumberInputView, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:3000 ==== */
@@ -85,7 +85,7 @@ export class Script extends Node implements Spatial, Entity, IsTracked, IsDeleta
   }
 
 
-  static create(options: {
+  static from(options: {
     value?: Map<string, Value>,
     name: string,
     code?: string | null,

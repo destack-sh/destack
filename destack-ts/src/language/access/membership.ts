@@ -1,4 +1,4 @@
-import { LikeMembership, IsTracked, Organization, MaterializationType, StructFrozen, Supergraph, Struct, Folder, Space, NodeType, RoleType, Entity, Node, Analytic, Agent, Thread, StructType, IsFrozen, QueryConnection, Particle, Event, IsDeletable, Global, Graph, NodeReference, IsOwnable, Session, User, BuiltinObject, EnumType, Spatial, Role, Team, Indexed } from '@/language';
+import { IsTracked, EnumType, Session, Indexed, Analytic, User, Supergraph, Folder, Thread, LikeMembership, Space, Particle, IsOwnable, Global, MaterializationType, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, Event, Spatial, IsFrozen, StructType, Team, Role, Node, NodeType, NodeReference, IsDeletable, Agent, Organization, RoleType, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:500 ==== */
@@ -162,7 +162,7 @@ export class MembershipEvent extends Node implements Spatial, Particle, Analytic
   }
 
 
-  static create(options: {
+  static from(options: {
     node: Membership | NodeReference,
     joinable: Folder | Thread | Organization | Space | Team | NodeReference,
     member: Agent | User | NodeReference,
@@ -355,7 +355,7 @@ export class Membership extends Node implements Global, Spatial, Entity, IsTrack
   }
 
 
-  static create(options: {
+  static from(options: {
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     member?: Agent | User | NodeReference | null,
     role?: Role | NodeReference | null,

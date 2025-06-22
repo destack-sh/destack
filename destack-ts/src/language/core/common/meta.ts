@@ -1,4 +1,4 @@
-import { NumberConstraint, StringConstraint, StructFrozen, Supergraph, Struct, TypeCardinality, NodeType, PrimitiveType, NodeConstraint, TraitType, Node, StructType, Value, QueryConnection, CollectionConstraint, DefaultFactory, ScalarType, Graph, NodeReference, CascadeAction, Type, Session, BuiltinObject, EnumType, EdgeType, Icon } from '@/language';
+import { EnumType, Session, Type, CascadeAction, CollectionConstraint, TypeCardinality, Supergraph, PrimitiveType, StringConstraint, Value, Icon, DefaultFactory, Struct, NumberConstraint, QueryConnection, NodeConstraint, BuiltinObject, StructFrozen, EdgeType, StructType, Node, NodeType, NodeReference, ScalarType, TraitType, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50004 ==== */
@@ -98,7 +98,7 @@ export class PropertyDefinition extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     id: number,
     name: string,
     icon?: Icon | null,
@@ -215,7 +215,7 @@ export class TraitDefinition extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     id: number,
     type: TraitType,
     name: string,
@@ -287,7 +287,7 @@ export class NodeDefinition extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     id: number,
     type: NodeType,
     name: string,
@@ -357,7 +357,7 @@ export class StructDefinition extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     id: number,
     type: StructType,
     name: string,
@@ -424,7 +424,7 @@ export class EnumDefinition extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     id: number,
     type: EnumType,
     name: string,
@@ -486,7 +486,7 @@ export class EnumOptionDefinition extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     id: number,
     type: EnumType,
     name: string,
@@ -546,7 +546,7 @@ export class PermissionDefinition extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     id: number,
     type: EnumType,
     name: string,
@@ -600,7 +600,7 @@ export class ConstantDefinition extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     name: string,
     path: string,
     value: Value,

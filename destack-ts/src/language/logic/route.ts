@@ -1,4 +1,4 @@
-import { IsOrdered, IsTracked, Organization, MaterializationType, StructFrozen, Supergraph, Struct, Folder, Space, NodeType, Entity, Scene, Node, IsTaggable, Agent, StructType, QueryConnection, IsDeletable, Graph, NodeReference, IsOwnable, Session, User, BuiltinObject, EnumType, Spatial, Role, Team } from '@/language';
+import { IsTracked, EnumType, Session, IsTaggable, User, IsOrdered, Supergraph, Folder, Space, IsOwnable, MaterializationType, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, Spatial, Scene, StructType, Team, Role, Node, NodeType, NodeReference, IsDeletable, Agent, Organization, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:3030 ==== */
@@ -117,7 +117,7 @@ export class Route extends Node implements Spatial, Entity, IsTracked, IsDeletab
   }
 
 
-  static create(options: {
+  static from(options: {
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     name: string,
     scene?: Scene | NodeReference | null,

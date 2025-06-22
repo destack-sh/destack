@@ -1,4 +1,4 @@
-import { IsTracked, Organization, MaterializationType, StructFrozen, Supergraph, Struct, Space, NodeType, Entity, Node, Agent, StructType, QueryConnection, IsDeletable, Graph, NodeReference, IsOwnable, Session, User, BuiltinObject, EnumType, Spatial, Role, Team } from '@/language';
+import { IsTracked, EnumType, Session, User, Supergraph, Space, IsOwnable, MaterializationType, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, Spatial, StructType, Team, Role, Node, NodeType, NodeReference, IsDeletable, Agent, Organization, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:1500 ==== */
@@ -98,7 +98,7 @@ export class Snapshot extends Node implements Spatial, Entity, IsTracked, IsDele
   }
 
 
-  static create(options: {
+  static from(options: {
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     name: string,
     slug?: string | null,
@@ -271,7 +271,7 @@ export class Branch extends Node implements Spatial, Entity, IsTracked, IsDeleta
   }
 
 
-  static create(options: {
+  static from(options: {
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     name: string,
     slug?: string | null,

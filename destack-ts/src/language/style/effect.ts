@@ -1,4 +1,4 @@
-import { IsOrdered, Theme, Layer, Style, ThreadView, NumberInputView, IsTracked, MaterializationType, StructFrozen, FrameView, TextView, Supergraph, Struct, PlaneShape, Space, NodeType, Entity, Scene, LineShape, LabelView, Node, IsTaggable, ArrowShape, Agent, StructType, CustomView, QueryConnection, Transition, Axis3, IsDeletable, Graph, Canvas, NodeReference, WizardView, Session, User, CustomViewDefinition, BuiltinObject, Vector2, EnumType, Spatial, SplitView, SliderInputView, IsVisual, AnnotationShape } from '@/language';
+import { IsTracked, EnumType, Session, AnnotationShape, IsTaggable, LabelView, WizardView, ThreadView, Canvas, User, SplitView, IsOrdered, Supergraph, PlaneShape, Space, Transition, CustomView, MaterializationType, SliderInputView, Entity, Struct, Axis3, TextView, ArrowShape, QueryConnection, CustomViewDefinition, BuiltinObject, StructFrozen, Layer, Spatial, Scene, FrameView, StructType, Theme, IsVisual, Node, NodeType, Vector2, NodeReference, IsDeletable, Agent, Style, LineShape, NumberInputView, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:12046 ==== */
@@ -115,7 +115,7 @@ export class Effect extends Struct {
   }
 
 
-  static create(options: {
+  static from(options: {
     type: EffectType,
     style?: EffectStyle | NodeReference | null,
     opacity?: number | null,
@@ -295,7 +295,7 @@ export class EffectStyle extends Node implements Spatial, Entity, IsTracked, IsD
   }
 
 
-  static create(options: {
+  static from(options: {
     type: EffectType,
     name: string,
     opacity?: number | null,

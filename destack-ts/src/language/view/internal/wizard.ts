@@ -1,4 +1,4 @@
-import { IsOrdered, Layer, IsTracked, Script, MaterializationType, InternalView, StructFrozen, FrameView, IsScriptable, Supergraph, Struct, PlaneShape, Space, NodeType, Entity, Scene, LabelView, Node, IsTaggable, Agent, StructType, CustomView, Position, QueryConnection, IsDeletable, Dimension, Graph, Canvas, NodeReference, Window, View, Session, User, CustomViewDefinition, BuiltinObject, EnumType, Spatial, SplitView, IsVisual, AnnotationShape } from '@/language';
+import { IsTracked, EnumType, Session, AnnotationShape, IsTaggable, LabelView, Window, Canvas, User, SplitView, IsOrdered, IsScriptable, Supergraph, PlaneShape, Space, Script, View, CustomView, MaterializationType, Entity, Struct, QueryConnection, CustomViewDefinition, BuiltinObject, StructFrozen, Layer, Spatial, Scene, FrameView, StructType, InternalView, Dimension, IsVisual, Node, NodeType, NodeReference, IsDeletable, Agent, Position, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:10650 ==== */
@@ -119,7 +119,7 @@ export class WizardView extends Node implements Spatial, Entity, IsTracked, IsDe
   }
 
 
-  static create(options: {
+  static from(options: {
     name: string,
     position?: Position | null,
     width?: Dimension | null,

@@ -1,4 +1,4 @@
-import { IsTracked, Organization, MaterializationType, StructFrozen, Supergraph, Struct, Folder, Space, NodeType, Entity, Node, Analytic, Agent, Thread, StructType, IsFrozen, QueryConnection, Particle, Event, IsDeletable, Graph, NodeReference, Session, User, BuiltinObject, EnumType, Spatial, Team, Indexed } from '@/language';
+import { IsTracked, EnumType, Session, Indexed, Analytic, User, Supergraph, Folder, Thread, Space, Particle, MaterializationType, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, Event, Spatial, IsFrozen, StructType, Team, Node, NodeType, NodeReference, IsDeletable, Agent, Organization, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:541 ==== */
@@ -102,7 +102,7 @@ export class SanctionEvent extends Node implements Spatial, Particle, Analytic, 
   }
 
 
-  static create(options: {
+  static from(options: {
     node: Sanction | NodeReference,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
@@ -252,7 +252,7 @@ export class Sanction extends Node implements Spatial, Entity, IsTracked, IsDele
   }
 
 
-  static create(options: {
+  static from(options: {
     type: SanctionType,
     expiresAt?: Temporal.ZonedDateTime | null,
     target: Agent | User | NodeReference,

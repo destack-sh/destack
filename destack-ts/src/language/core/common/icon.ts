@@ -1,4 +1,4 @@
-import { Node, StructType, Supergraph, Session, QueryConnection, Struct, Color, File, BuiltinObject, NodeType, EnumType, Graph, StructFrozen, NodeReference } from '@/language';
+import { EnumType, Session, File, Struct, QueryConnection, Node, NodeType, Color, BuiltinObject, StructFrozen, NodeReference, StructType, Supergraph, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:2531 ==== */
@@ -53,7 +53,7 @@ export class Icon extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     type: IconType,
     emoji?: string | null,
     faName?: string | null,

@@ -1,4 +1,4 @@
-import { Node, StructType, Supergraph, Session, QueryConnection, Struct, BuiltinObject, NodeType, EnumType, Graph, StructFrozen, NodeReference } from '@/language';
+import { EnumType, Session, Struct, QueryConnection, Node, NodeType, BuiltinObject, StructFrozen, NodeReference, StructType, Supergraph, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:12038 ==== */
@@ -84,7 +84,7 @@ export class Length extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     unit: LengthUnit,
     value: number,
     _session?: Session | null,
@@ -138,7 +138,7 @@ export class Position extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     type: PositionType,
     top?: Length | null,
     left?: Length | null,
@@ -192,7 +192,7 @@ export class Dimension extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     type: DimensionType,
     unit: LengthUnit,
     value: number,
@@ -248,7 +248,7 @@ export class Insets extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     base?: number | null,
     top?: number | null,
     left?: number | null,
@@ -308,7 +308,7 @@ export class Corners extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     base?: number | null,
     topLeft?: number | null,
     topRight?: number | null,
@@ -362,7 +362,7 @@ export class Axis2 extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     base?: number | null,
     x?: number | null,
     y?: number | null,
@@ -415,7 +415,7 @@ export class Axis3 extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     base?: number | null,
     x?: number | null,
     y?: number | null,
@@ -464,7 +464,7 @@ export class Vector2 extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     x: number,
     y: number,
     _session?: Session | null,
@@ -512,7 +512,7 @@ export class Vector3 extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     x: number,
     y: number,
     z: number,
@@ -565,7 +565,7 @@ export class Vector4 extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     x: number,
     y: number,
     z: number,
@@ -614,7 +614,7 @@ export class Vector2i extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     x: number,
     y: number,
     _session?: Session | null,
@@ -662,7 +662,7 @@ export class Vector3i extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     x: number,
     y: number,
     z: number,
@@ -715,7 +715,7 @@ export class Vector4i extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     x: number,
     y: number,
     z: number,
@@ -773,7 +773,7 @@ export class Grid extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     columns: number,
     rows: number,
     columnWidth?: Dimension | null,
@@ -824,7 +824,7 @@ export class GridSpan extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     columns: number,
     rows: number,
     _session?: Session | null,

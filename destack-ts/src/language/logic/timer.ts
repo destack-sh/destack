@@ -1,4 +1,4 @@
-import { IsTracked, MaterializationType, StructFrozen, Supergraph, Struct, Space, NodeType, Entity, Node, Analytic, Agent, StructType, IsFrozen, QueryConnection, Particle, Event, Schedule, Graph, NodeReference, Session, User, BuiltinObject, EnumType, Spatial, Indexed } from '@/language';
+import { IsTracked, EnumType, Session, Indexed, Analytic, User, Supergraph, Space, Schedule, Particle, MaterializationType, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, Event, Spatial, IsFrozen, StructType, Node, NodeType, NodeReference, Agent, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:3054 ==== */
@@ -104,7 +104,7 @@ export class TimerEvent extends Node implements Spatial, Particle, Analytic, Ind
   }
 
 
-  static create(options: {
+  static from(options: {
     type: TimerEventType,
     node: Timer | NodeReference,
     _session?: Session | null,
@@ -237,7 +237,7 @@ export class Timer extends Node implements Spatial, Entity, IsTracked {
   }
 
 
-  static create(options: {
+  static from(options: {
     type: TimerType,
     name: string,
     schedule?: Schedule | null,

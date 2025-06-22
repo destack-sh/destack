@@ -1,4 +1,4 @@
-import { IsOrdered, IsCustomNode, IsTracked, Organization, Script, MaterializationType, StructFrozen, IsScriptable, IsSourceable, Supergraph, Struct, Folder, Space, NodeType, Entity, IsCustomNodeDefinition, TraitType, Node, IsTaggable, Agent, StructType, Value, QueryConnection, IsDeletable, Graph, NodeReference, IsOwnable, Session, IsExtensible, User, BuiltinObject, EnumType, Spatial, IsActionable, Role, Team } from '@/language';
+import { IsTracked, EnumType, Session, IsTaggable, IsActionable, User, IsOrdered, IsScriptable, Supergraph, Folder, Space, Value, IsOwnable, Script, MaterializationType, IsSourceable, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, Spatial, IsExtensible, IsCustomNode, StructType, Team, Role, Node, NodeType, NodeReference, IsDeletable, Agent, Organization, TraitType, IsCustomNodeDefinition, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:2000 ==== */
@@ -150,7 +150,7 @@ export class CustomEntityDefinition extends Node implements Spatial, Entity, IsC
   }
 
 
-  static create(options: {
+  static from(options: {
     prototype?: CustomEntity | NodeReference | null,
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     name: string,
@@ -297,7 +297,7 @@ export class CustomEntity extends Node implements Spatial, Entity, IsCustomNode,
   }
 
 
-  static create(options: {
+  static from(options: {
     value?: Map<string, Value>,
     _session?: Session | null,
     _supergraph?: Supergraph | null,

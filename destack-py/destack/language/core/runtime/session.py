@@ -63,12 +63,12 @@ class Session:
         subject: IsSubject | None = None,
         store: "Store | None" = None,
     ):
-        self.supergraph = Supergraph(self)
         self.oracle: Oracle = oracle
         self.space: Space | None = space
         self.origin: Origin | None = origin
         self.subject: IsSubject | None = subject
         self.store: Store | None = store
+        self.supergraph = Supergraph(self)
 
         # transaction (pending)
         self.dirty: dict[UUID, Node] = {}
@@ -97,11 +97,13 @@ class Session:
 
     async def open(self):
         """Opens the Session."""
+        assert self.closed_at is None, f"{self!r} is already closed"
         assert self._token is None, f"{self!r} is already open"
         self._token = ACTIVE_SESSION.set(self)
 
     async def close(self):
         """Closes the Session."""
+        assert self.closed_at is None, f"{self!r} is already closed"
         if self._token is not None:
             try:  # noqa: SIM105
                 ACTIVE_SESSION.reset(self._token)

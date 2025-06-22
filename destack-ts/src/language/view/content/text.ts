@@ -1,4 +1,4 @@
-import { IsOrdered, Layer, IsTracked, Script, MaterializationType, StructFrozen, FrameView, Fill, IsScriptable, Supergraph, Struct, PlaneShape, Space, NodeType, Entity, Scene, LabelView, Node, IsTaggable, Agent, StructType, CustomView, Position, QueryConnection, IsDeletable, ContentView, Graph, Canvas, Dimension, NodeReference, Window, Font, View, Session, User, CustomViewDefinition, Align, BuiltinObject, EnumType, Spatial, SplitView, IsVisual, AnnotationShape } from '@/language';
+import { IsTracked, EnumType, Session, AnnotationShape, IsTaggable, LabelView, Window, Font, Canvas, User, SplitView, IsOrdered, Align, IsScriptable, Supergraph, Fill, PlaneShape, Space, Script, View, CustomView, MaterializationType, Entity, Struct, QueryConnection, CustomViewDefinition, BuiltinObject, StructFrozen, Layer, Spatial, Scene, FrameView, StructType, Dimension, ContentView, IsVisual, Node, NodeType, NodeReference, IsDeletable, Agent, Position, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:10200 ==== */
@@ -140,7 +140,7 @@ export class TextView extends Node implements Spatial, Entity, IsTracked, IsDele
   }
 
 
-  static create(options: {
+  static from(options: {
     name: string,
     position?: Position | null,
     width?: Dimension | null,

@@ -1,4 +1,4 @@
-import { Layer, IsTracked, Organization, Length, MaterializationType, StructFrozen, Supergraph, Struct, Space, NodeType, Entity, Scene, Node, Agent, StructType, QueryConnection, IsDeletable, Graph, NodeReference, IsOwnable, Session, User, CustomViewDefinition, BuiltinObject, EnumType, Spatial, Role, Icon, Team } from '@/language';
+import { IsTracked, EnumType, Session, User, Supergraph, Space, Length, IsOwnable, MaterializationType, Icon, Entity, Struct, QueryConnection, CustomViewDefinition, BuiltinObject, StructFrozen, Layer, Spatial, Scene, StructType, Team, Role, Node, NodeType, NodeReference, IsDeletable, Agent, Organization, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:9030 ==== */
@@ -131,7 +131,7 @@ export class Variant extends Node implements Spatial, Entity, IsTracked, IsDelet
   }
 
 
-  static create(options: {
+  static from(options: {
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     type: VariantType,
     name: string,

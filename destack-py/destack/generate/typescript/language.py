@@ -291,12 +291,12 @@ constructor(
 }}
 """
 
-    # create
+    # from
     create_header_parts: list[str] = []
     create_body_parts: list[str] = []
     create_constructor_parts: list[str] = []
 
-    # create main properties
+    # from main properties
     for prop in properties.values():
         if prop.is_managed:
             continue  # ignore
@@ -356,12 +356,12 @@ constructor(
     create_body_parts.append("const session = options._session ?? ACTIVE_SESSION.get();")  # noqa: FURB113
     create_body_parts.append("const supergraph = options._supergraph ?? session.supergraph;")
 
-    # assemble create
+    # assemble from
     create_header_str = ",\n".join(create_header_parts)
     create_body_str = "\n".join(create_body_parts)
     create_constructor_str = ",\n".join(create_constructor_parts)
     create_str = f"""\
-static create(options: {{
+static from(options: {{
 {textwrap.indent(create_header_str, "  ")}
 }}): {cls.__name__} {{
 {textwrap.indent(create_body_str, "  ")}

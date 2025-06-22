@@ -1,4 +1,4 @@
-import { IsTracked, Organization, Region, MaterializationType, StructFrozen, IsFollowable, Supergraph, Struct, Handle, Folder, IsStarable, NodeType, Entity, Node, Agent, StructType, QueryConnection, Global, Graph, Database, NodeReference, IsOwnable, Session, User, BuiltinObject, EnumType, Spatial, Role, Icon, IsJoinable, Team } from '@/language';
+import { IsTracked, EnumType, Session, IsFollowable, User, Region, Supergraph, Folder, IsJoinable, Handle, IsOwnable, Global, MaterializationType, Icon, Entity, Struct, IsStarable, QueryConnection, BuiltinObject, StructFrozen, Spatial, StructType, Team, Role, Node, NodeType, NodeReference, Agent, Organization, Database, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:1 ==== */
@@ -160,7 +160,7 @@ export class Space extends Node implements Global, Spatial, Entity, IsTracked, I
   }
 
 
-  static create(options: {
+  static from(options: {
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     name: string,
     slug: string,

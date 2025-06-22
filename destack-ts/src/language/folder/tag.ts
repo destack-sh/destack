@@ -1,4 +1,4 @@
-import { IsOrdered, Theme, Layer, ThreadView, NumberInputView, LikeTag, IsTracked, MaterializationType, CustomEntityDefinition, ColorStyle, StructFrozen, FrameView, TextView, Supergraph, ShadowStyle, Struct, Folder, Space, CustomStructDefinition, SliderInputView, PlaneShape, NodeType, Entity, Scene, LineShape, Palette, LabelView, Node, IsTaggable, ArrowShape, Agent, Thread, StructType, CustomView, EffectStyle, QueryConnection, FillStyle, Option, FontStyle, EditEvent, IsDeletable, BorderStyle, Graph, Canvas, NodeReference, Message, CustomEnumDefinition, WizardView, Route, GradientStyle, Session, User, CustomViewDefinition, BuiltinObject, TransitionStyle, EnumType, Spatial, SplitView, Icon, Field, Action, AnnotationShape, Service } from '@/language';
+import { IsTracked, EnumType, Session, AnnotationShape, IsTaggable, TransitionStyle, LabelView, WizardView, ThreadView, User, Canvas, SplitView, ShadowStyle, IsOrdered, CustomEnumDefinition, Supergraph, Field, Folder, Action, ColorStyle, Thread, PlaneShape, Space, FillStyle, Option, CustomView, MaterializationType, Palette, SliderInputView, Service, Icon, Entity, Struct, TextView, ArrowShape, QueryConnection, CustomViewDefinition, BuiltinObject, StructFrozen, Layer, Spatial, Scene, FrameView, StructType, FontStyle, Route, EffectStyle, Message, Theme, Node, NodeType, LikeTag, NodeReference, IsDeletable, EditEvent, Agent, CustomEntityDefinition, BorderStyle, CustomStructDefinition, LineShape, NumberInputView, GradientStyle, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:1010 ==== */
@@ -82,7 +82,7 @@ export class Tag extends Node implements Spatial, Entity, IsTracked, IsDeletable
   }
 
 
-  static create(options: {
+  static from(options: {
     name: string,
     icon?: Icon | null,
     _session?: Session | null,
@@ -231,7 +231,7 @@ export class Tagging extends Node implements Spatial, Entity, IsTracked, IsDelet
   }
 
 
-  static create(options: {
+  static from(options: {
     tag?: Tag | NodeReference | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null,

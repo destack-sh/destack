@@ -1,4 +1,4 @@
-import { IsOrdered, IsTracked, Script, MaterializationType, StructFrozen, IsSourceable, Supergraph, Struct, Space, CustomStructDefinition, NodeType, Entity, Node, IsTaggable, Agent, StructType, QueryConnection, IsDeletable, Graph, NodeReference, Session, User, BuiltinObject, EnumType, Spatial, Icon, Field } from '@/language';
+import { IsTracked, EnumType, Session, IsTaggable, User, IsOrdered, Supergraph, Field, Space, Script, MaterializationType, IsSourceable, Icon, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, Spatial, StructType, Node, NodeType, NodeReference, IsDeletable, Agent, CustomStructDefinition, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:2530 ==== */
@@ -93,7 +93,7 @@ export class Option extends Node implements Spatial, Entity, IsTracked, IsDeleta
   }
 
 
-  static create(options: {
+  static from(options: {
     name: string,
     icon?: Icon | null,
     _session?: Session | null,

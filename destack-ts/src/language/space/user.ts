@@ -1,4 +1,4 @@
-import { ThreadCursor, IsOwner, IsTracked, MaterializationType, StructFrozen, IsFollowable, Supergraph, Struct, Handle, Space, NodeType, Entity, Node, Agent, StructType, QueryConnection, Global, Graph, NodeReference, EventCursor, Session, IsSubject, ScreenCursor, BuiltinObject, EnumType, Icon } from '@/language';
+import { IsTracked, EnumType, Session, IsFollowable, IsOwner, Supergraph, Handle, Space, ThreadCursor, EventCursor, MaterializationType, Global, Icon, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, IsSubject, StructType, ScreenCursor, Node, NodeType, NodeReference, Agent, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:20 ==== */
@@ -126,7 +126,7 @@ export class User extends Node implements Global, Entity, IsTracked, IsSubject, 
   }
 
 
-  static create(options: {
+  static from(options: {
     name: string,
     slug: string,
     icon?: Icon | null,

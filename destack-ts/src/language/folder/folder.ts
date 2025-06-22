@@ -1,4 +1,4 @@
-import { IsOrdered, IsTracked, Organization, MaterializationType, StructFrozen, IsFollowable, Supergraph, Struct, IsStarable, Space, NodeType, Entity, Scene, Node, IsTaggable, Agent, StructType, QueryConnection, IsDeletable, Graph, NodeReference, IsOwnable, Session, User, BuiltinObject, EnumType, Spatial, Role, Icon, IsJoinable, Team } from '@/language';
+import { IsTracked, EnumType, Session, IsTaggable, IsFollowable, User, IsOrdered, Supergraph, IsJoinable, Space, IsOwnable, MaterializationType, Icon, Entity, Struct, IsStarable, QueryConnection, BuiltinObject, StructFrozen, Spatial, Scene, StructType, Team, Role, Node, NodeType, NodeReference, IsDeletable, Agent, Organization, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:1000 ==== */
@@ -136,7 +136,7 @@ export class Folder extends Node implements Spatial, Entity, IsTracked, IsDeleta
   }
 
 
-  static create(options: {
+  static from(options: {
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     type?: FolderType,
     name: string,

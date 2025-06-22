@@ -1,4 +1,4 @@
-import { Entitlement, Theme, ThreadView, Indexed, ColorStyle, Timer, FrameView, Follow, Machine, Handle, CustomStructDefinition, Environment, Invite, Palette, LabelView, Agent, Value, QueryConnection, RunEvent, EditOperation, Message, GradientStyle, RoleEvent, Tagging, Session, NotificationEvent, ScreenCursor, BuiltinObject, Role, Tag, SliderInputView, Action, Team, GaugeMetric, FontStyle, ThreadCursor, CounterMeasurement, IsTracked, Organization, CustomEntityDefinition, StructFrozen, Supergraph, InviteEvent, Struct, LineShape, Log, Analytic, PropertyReference, CustomView, FillStyle, Option, Canvas, Window, WizardView, User, TransitionStyle, Spatial, SplitView, Snapshot, AnnotationShape, Layer, NumberInputView, Interruption, Permission, File, Script, IsSourceable, TextView, Reaction, Variant, Branch, NodeType, Entity, Scene, Link, IsTaggable, Thread, StructType, IsFrozen, CustomEntity, Event, Graph, Friendship, SceneEvent, EntitlementEvent, CustomEnumDefinition, Route, Notification, EnumType, Client, Service, IsOrdered, Sanction, Span, SanctionEvent, MembershipEvent, TriggerEvent, MaterializationType, TimerEvent, ShadowStyle, Folder, Space, PlaneShape, HistogramMetric, Membership, Node, ArrowShape, CounterMetric, EffectStyle, Run, Particle, EditType, GaugeMeasurement, BorderStyle, Star, Database, NodeReference, FriendshipInviteEvent, EventCursor, CustomViewDefinition, FriendshipInvite, HistogramMeasurement, Field, Trigger } from '@/language';
+import { EnumType, Timer, WizardView, Analytic, User, IsOrdered, CustomEnumDefinition, Invite, Action, Thread, Tagging, Snapshot, FillStyle, File, SanctionEvent, SceneEvent, HistogramMeasurement, BuiltinObject, PropertyReference, FontStyle, EffectStyle, Theme, Star, Agent, Organization, Log, CustomStructDefinition, Interruption, IsTracked, TransitionStyle, Session, EditType, SplitView, Supergraph, RoleEvent, Handle, Environment, Space, Value, EventCursor, Option, CustomView, Palette, Variant, RunEvent, Entity, Client, CounterMetric, ArrowShape, StructFrozen, Event, ScreenCursor, NotificationEvent, Team, Span, Entitlement, Node, GaugeMeasurement, HistogramMetric, Trigger, NodeReference, CustomEntityDefinition, EditOperation, NumberInputView, GradientStyle, Graph, AnnotationShape, IsTaggable, LabelView, Window, Link, ThreadView, Canvas, Folder, Notification, PlaneShape, ThreadCursor, Reaction, Branch, Particle, Script, MaterializationType, Service, Struct, TriggerEvent, QueryConnection, Permission, FriendshipInviteEvent, Tag, FrameView, Route, Role, Sanction, EntitlementEvent, Run, NodeType, BorderStyle, Indexed, FriendshipInvite, Machine, ShadowStyle, CustomEntity, Membership, Field, ColorStyle, GaugeMetric, IsSourceable, SliderInputView, MembershipEvent, TextView, Follow, CustomViewDefinition, Layer, Spatial, IsFrozen, InviteEvent, Scene, StructType, Message, Friendship, CounterMeasurement, LineShape, Database, TimerEvent } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:4202 ==== */
@@ -120,7 +120,7 @@ export class EditEvent extends Node implements Spatial, Particle, Analytic, Inde
   }
 
 
-  static create(options: {
+  static from(options: {
     type: EditType,
     operation?: EditOperation | null,
     node: Node | NodeReference,
@@ -271,7 +271,7 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, IsTr
   }
 
 
-  static create(options: {
+  static from(options: {
     name: string,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
@@ -428,7 +428,7 @@ export class CustomEvent extends Node implements Spatial, Particle, Analytic, In
   }
 
 
-  static create(options: {
+  static from(options: {
     node?: Node | NodeReference | null,
     definition: CustomEventDefinition | NodeReference,
     _session?: Session | null,

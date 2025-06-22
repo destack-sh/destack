@@ -1,4 +1,4 @@
-import { IsOrdered, Theme, Layer, Style, ThreadView, NumberInputView, File, IsTracked, MaterializationType, StructFrozen, FrameView, TextView, Supergraph, Struct, PlaneShape, Space, NodeType, Entity, Scene, LineShape, LabelView, Node, IsTaggable, ArrowShape, Agent, StructType, CustomView, QueryConnection, IsDeletable, Color, Graph, Canvas, NodeReference, WizardView, Session, User, CustomViewDefinition, BuiltinObject, Gradient, EnumType, Spatial, SplitView, SliderInputView, IsVisual, AnnotationShape } from '@/language';
+import { IsTracked, EnumType, Session, AnnotationShape, IsTaggable, LabelView, Gradient, WizardView, ThreadView, Canvas, User, SplitView, IsOrdered, Supergraph, PlaneShape, Space, CustomView, MaterializationType, File, SliderInputView, Entity, Struct, TextView, ArrowShape, QueryConnection, CustomViewDefinition, BuiltinObject, StructFrozen, Layer, Spatial, Scene, FrameView, StructType, Theme, IsVisual, Node, NodeType, Color, NodeReference, IsDeletable, Agent, Style, LineShape, NumberInputView, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:12034 ==== */
@@ -102,7 +102,7 @@ export class Fill extends Struct {
   }
 
 
-  static create(options: {
+  static from(options: {
     type: FillType,
     style?: FillStyle | NodeReference | null,
     color?: Color | null,
@@ -253,7 +253,7 @@ export class FillStyle extends Node implements Spatial, Entity, IsTracked, IsDel
   }
 
 
-  static create(options: {
+  static from(options: {
     type: FillType,
     name: string,
     color?: Color | null,

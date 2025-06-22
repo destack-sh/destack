@@ -1,4 +1,4 @@
-import { IsOrdered, Axis2, Layer, Theme, Style, ThreadView, NumberInputView, IsTracked, MaterializationType, StructFrozen, FrameView, TextView, Supergraph, Struct, PlaneShape, Space, NodeType, Entity, Scene, LineShape, LabelView, Node, IsTaggable, ArrowShape, Agent, StructType, CustomView, QueryConnection, IsDeletable, Color, Graph, Canvas, NodeReference, WizardView, Session, User, CustomViewDefinition, BuiltinObject, EnumType, Spatial, SplitView, SliderInputView, IsVisual, AnnotationShape } from '@/language';
+import { IsTracked, EnumType, Session, AnnotationShape, IsTaggable, LabelView, WizardView, ThreadView, Canvas, User, SplitView, IsOrdered, Supergraph, Axis2, PlaneShape, Space, CustomView, MaterializationType, SliderInputView, Entity, Struct, TextView, ArrowShape, QueryConnection, CustomViewDefinition, BuiltinObject, StructFrozen, Layer, Spatial, Scene, FrameView, StructType, Theme, IsVisual, Node, NodeType, Color, NodeReference, IsDeletable, Agent, Style, LineShape, NumberInputView, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:12033 ==== */
@@ -26,7 +26,7 @@ export class GradientStop extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     color?: Color | null,
     position: number,
     _session?: Session | null,
@@ -99,7 +99,7 @@ export class Gradient extends Struct {
   }
 
 
-  static create(options: {
+  static from(options: {
     type?: GradientType,
     style?: GradientStyle | NodeReference | null,
     angle?: number | null,
@@ -227,7 +227,7 @@ export class GradientStyle extends Node implements Spatial, Entity, IsTracked, I
   }
 
 
-  static create(options: {
+  static from(options: {
     type?: GradientType,
     name: string,
     angle?: number | null,

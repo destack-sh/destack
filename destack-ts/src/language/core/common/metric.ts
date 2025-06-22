@@ -1,4 +1,4 @@
-import { IsOrdered, IsCustomNode, IsTracked, Script, MaterializationType, StructFrozen, IsSourceable, Supergraph, Struct, Space, NodeType, Metric, Entity, IsCustomNodeDefinition, Measurement, Node, Analytic, Agent, StructType, CustomView, QueryConnection, CustomEntity, Graph, NodeReference, Session, User, BuiltinObject, EnumType, Spatial } from '@/language';
+import { IsTracked, EnumType, Session, Analytic, Measurement, User, CustomEntity, IsOrdered, Supergraph, Space, Metric, CustomView, MaterializationType, IsSourceable, Script, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, Spatial, IsCustomNode, StructType, Node, NodeType, NodeReference, Agent, IsCustomNodeDefinition, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:4110 ==== */
@@ -106,7 +106,7 @@ export class GaugeMetric extends Node implements Spatial, Entity, IsCustomNodeDe
   }
 
 
-  static create(options: {
+  static from(options: {
     prototype?: CustomEntity | GaugeMeasurement | CounterMeasurement | HistogramMeasurement | CustomView | NodeReference | null,
     name: string,
     _session?: Session | null,
@@ -246,7 +246,7 @@ export class GaugeMeasurement extends Node implements Spatial, Analytic, IsCusto
   }
 
 
-  static create(options: {
+  static from(options: {
     definition: GaugeMetric | NodeReference,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
@@ -404,7 +404,7 @@ export class CounterMetric extends Node implements Spatial, Entity, IsCustomNode
   }
 
 
-  static create(options: {
+  static from(options: {
     prototype?: CustomEntity | GaugeMeasurement | CounterMeasurement | HistogramMeasurement | CustomView | NodeReference | null,
     name: string,
     _session?: Session | null,
@@ -544,7 +544,7 @@ export class CounterMeasurement extends Node implements Spatial, Analytic, IsCus
   }
 
 
-  static create(options: {
+  static from(options: {
     definition: CounterMetric | NodeReference,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
@@ -702,7 +702,7 @@ export class HistogramMetric extends Node implements Spatial, Entity, IsCustomNo
   }
 
 
-  static create(options: {
+  static from(options: {
     prototype?: CustomEntity | GaugeMeasurement | CounterMeasurement | HistogramMeasurement | CustomView | NodeReference | null,
     name: string,
     _session?: Session | null,
@@ -842,7 +842,7 @@ export class HistogramMeasurement extends Node implements Spatial, Analytic, IsC
   }
 
 
-  static create(options: {
+  static from(options: {
     definition: HistogramMetric | NodeReference,
     _session?: Session | null,
     _supergraph?: Supergraph | null,

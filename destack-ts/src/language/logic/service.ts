@@ -1,4 +1,4 @@
-import { IsOrdered, IsTracked, Organization, Script, MaterializationType, StructFrozen, IsScriptable, IsSourceable, Supergraph, Struct, Space, NodeType, Entity, Node, IsTaggable, Agent, StructType, Value, QueryConnection, IsRunnable, IsDeletable, Graph, NodeReference, IsOwnable, Session, IsExtensible, User, BuiltinObject, EnumType, Spatial, IsActionable, Role, Team } from '@/language';
+import { IsTracked, EnumType, Session, IsTaggable, IsActionable, User, IsOrdered, IsScriptable, Supergraph, Space, Value, IsOwnable, Script, MaterializationType, IsSourceable, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, Spatial, IsExtensible, StructType, Team, Role, IsRunnable, Node, NodeType, NodeReference, IsDeletable, Agent, Organization, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:3010 ==== */
@@ -131,7 +131,7 @@ export class Service extends Node implements Spatial, Entity, IsTracked, IsDelet
   }
 
 
-  static create(options: {
+  static from(options: {
     value?: Map<string, Value>,
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     name: string,

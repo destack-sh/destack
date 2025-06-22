@@ -1,4 +1,4 @@
-import { Span, IsTracked, Script, StructFrozen, Supergraph, Struct, Space, NodeType, Node, Analytic, Agent, StructType, Value, Run, QueryConnection, Particle, Service, Graph, NodeReference, Message, Session, IsExtensible, User, BuiltinObject, EnumType, Spatial, Action, Indexed } from '@/language';
+import { IsTracked, EnumType, Session, Indexed, Analytic, User, Supergraph, Action, Space, Value, Particle, Script, Service, Struct, QueryConnection, BuiltinObject, StructFrozen, Spatial, IsExtensible, StructType, Message, Span, Run, Node, NodeType, NodeReference, Agent, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:4020 ==== */
@@ -165,7 +165,7 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
   }
 
 
-  static create(options: {
+  static from(options: {
     value?: Map<string, Value>,
     type: InterruptionType,
     runnable?: Action | Script | Service | NodeReference | null,

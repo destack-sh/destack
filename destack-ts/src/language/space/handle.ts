@@ -1,4 +1,4 @@
-import { IsTracked, MaterializationType, StructFrozen, Supergraph, Struct, Space, NodeType, Entity, Node, Agent, StructType, QueryConnection, Global, Graph, NodeReference, Session, User, BuiltinObject, EnumType } from '@/language';
+import { IsTracked, EnumType, Session, User, Supergraph, Space, MaterializationType, Global, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, StructType, Node, NodeType, NodeReference, Agent, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:10 ==== */
@@ -62,7 +62,7 @@ export class Handle extends Node implements Global, Entity, IsTracked {
   }
 
 
-  static create(options: {
+  static from(options: {
     slug: string,
     _session?: Session | null,
     _supergraph?: Supergraph | null,

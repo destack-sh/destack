@@ -1,4 +1,4 @@
-import { IsOrdered, Theme, Layer, Style, ThreadView, NumberInputView, IsTracked, MaterializationType, StructFrozen, FrameView, TextView, Supergraph, Struct, PlaneShape, Space, NodeType, Entity, Scene, LineShape, LabelView, Node, IsTaggable, ArrowShape, Agent, StructType, CustomView, QueryConnection, IsDeletable, Graph, Canvas, NodeReference, WizardView, Session, User, CustomViewDefinition, BuiltinObject, EnumType, Spatial, SplitView, SliderInputView, IsVisual, AnnotationShape } from '@/language';
+import { IsTracked, EnumType, Session, AnnotationShape, IsTaggable, LabelView, WizardView, ThreadView, Canvas, User, SplitView, IsOrdered, Supergraph, PlaneShape, Space, CustomView, MaterializationType, SliderInputView, Entity, Struct, TextView, ArrowShape, QueryConnection, CustomViewDefinition, BuiltinObject, StructFrozen, Layer, Spatial, Scene, FrameView, StructType, Theme, IsVisual, Node, NodeType, NodeReference, IsDeletable, Agent, Style, LineShape, NumberInputView, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:12043 ==== */
@@ -75,7 +75,7 @@ export class Transition extends Struct {
   }
 
 
-  static create(options: {
+  static from(options: {
     type?: TransitionType,
     style?: TransitionStyle | NodeReference | null,
     delay?: number | null,
@@ -225,7 +225,7 @@ export class TransitionStyle extends Node implements Spatial, Entity, IsTracked,
   }
 
 
-  static create(options: {
+  static from(options: {
     type?: TransitionType,
     name: string,
     delay?: number | null,
