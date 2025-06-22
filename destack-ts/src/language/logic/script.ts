@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, AnnotationShape, LabelView, WizardView, ThreadView, Canvas, User, SplitView, IsOrdered, Supergraph, Folder, PlaneShape, Space, Value, CustomView, MaterializationType, SliderInputView, Service, Entity, Struct, TextView, ArrowShape, QueryConnection, CustomViewDefinition, BuiltinObject, StructFrozen, Layer, Spatial, IsExtensible, Scene, FrameView, StructType, IsRunnable, Node, NodeType, NodeReference, IsDeletable, CustomEntityDefinition, Agent, LineShape, NumberInputView, Graph } from '@/language';
+import { PlaneShape, CustomEntityDefinition, Agent, BuiltinObject, ACTIVE_SESSION, Folder, Session, Scene, StructFrozen, LineShape, IsOrdered, Graph, Service, Struct, AnnotationShape, activeSession, StructType, NodeType, Canvas, FrameView, Supergraph, QueryConnection, SliderInputView, NodeReference, WizardView, MaterializationType, Value, IsRunnable, User, CustomView, IsExtensible, Spatial, LabelView, ThreadView, Space, CustomViewDefinition, NumberInputView, ArrowShape, IsDeletable, Entity, SplitView, EnumType, Layer, TextView, Node, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:3000 ==== */
@@ -49,43 +49,7 @@ export class Script extends Node implements Spatial, Entity, IsTracked, IsDeleta
   name: string;
   code: string | null;
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    deletedAt: Temporal.ZonedDateTime | null,
-    value: Map<string, Value>,
-    orderKey: string,
-    name: string,
-    code: string | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.deletedAt = deletedAt;
-    this.value = value;
-    this.orderKey = orderKey;
-    this.name = name;
-    this.code = code;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     value?: Map<string, Value>,
     name: string,
     code?: string | null,
@@ -93,18 +57,13 @@ export class Script extends Node implements Spatial, Entity, IsTracked, IsDeleta
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): Script {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Script(
-      options.value ?? new Map(),
-      options.name,
-      options.code ?? null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.value = options.value ?? new Map();
+    this.name = options.name;
+    this.code = options.code ?? null;
   }
 
   equals(other: any): boolean {

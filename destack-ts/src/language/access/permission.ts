@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, User, Supergraph, Folder, Thread, Space, MaterializationType, Icon, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, Spatial, StructType, Team, Node, NodeType, NodeReference, IsDeletable, Agent, Organization, Graph } from '@/language';
+import { Agent, BuiltinObject, ACTIVE_SESSION, Organization, Folder, Session, StructFrozen, Graph, Struct, activeSession, StructType, NodeType, Icon, Supergraph, QueryConnection, NodeReference, MaterializationType, Thread, User, Spatial, Team, Space, IsDeletable, Entity, EnumType, Node, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:530 ==== */
@@ -55,43 +55,7 @@ export class Permission extends Node implements Spatial, Entity, IsTracked, IsDe
   slug: string | null;
   icon: Icon | null;
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    deletedAt: Temporal.ZonedDateTime | null,
-    type: PermissionType,
-    name: string,
-    slug: string | null,
-    icon: Icon | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.deletedAt = deletedAt;
-    this.type = type;
-    this.name = name;
-    this.slug = slug;
-    this.icon = icon;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type: PermissionType,
     name: string,
     slug?: string | null,
@@ -100,19 +64,14 @@ export class Permission extends Node implements Spatial, Entity, IsTracked, IsDe
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): Permission {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Permission(
-      options.type,
-      options.name,
-      options.slug ?? null,
-      options.icon ?? null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.type = options.type;
+    this.name = options.name;
+    this.slug = options.slug ?? null;
+    this.icon = options.icon ?? null;
   }
 
   equals(other: any): boolean {

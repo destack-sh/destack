@@ -1,4 +1,4 @@
-import { EnumType, Session, Struct, RelationReference, QueryConnection, Node, NodeType, AttributeReference, BuiltinObject, StructFrozen, NodeReference, Value, StructType, Supergraph, Graph } from '@/language';
+import { Graph, Supergraph, Struct, QueryConnection, NodeReference, activeSession, Value, StructType, BuiltinObject, EnumType, ACTIVE_SESSION, NodeType, Session, AttributeReference, RelationReference, StructFrozen, Node } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:108 ==== */
@@ -101,34 +101,19 @@ export class Function extends StructFrozen {
   readonly left: Expression;
   readonly right: Expression | null;
 
-  constructor(
-    type: FunctionType,
-    left: Expression,
-    right: Expression | null,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.type = type;
-    this.left = left;
-    this.right = right;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type: FunctionType,
     left: Expression,
     right?: Expression | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): Function {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Function(
-      options.type,
-      options.left,
-      options.right ?? null,
-      supergraph
-    );
+    super(supergraph);
+    this.type = options.type;
+    this.left = options.left;
+    this.right = options.right ?? null;
   }
 
   equals(other: any): boolean {
@@ -151,34 +136,19 @@ export class Condition extends StructFrozen {
   readonly left: Expression;
   readonly right: Expression | null;
 
-  constructor(
-    type: ConditionalType,
-    left: Expression,
-    right: Expression | null,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.type = type;
-    this.left = left;
-    this.right = right;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type: ConditionalType,
     left: Expression,
     right?: Expression | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): Condition {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Condition(
-      options.type,
-      options.left,
-      options.right ?? null,
-      supergraph
-    );
+    super(supergraph);
+    this.type = options.type;
+    this.left = options.left;
+    this.right = options.right ?? null;
   }
 
   equals(other: any): boolean {
@@ -200,30 +170,17 @@ export class Aggregation extends StructFrozen {
   readonly type: AggregationType;
   readonly expression: Expression | null;
 
-  constructor(
-    type: AggregationType,
-    expression: Expression | null,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.type = type;
-    this.expression = expression;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type: AggregationType,
     expression?: Expression | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): Aggregation {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Aggregation(
-      options.type,
-      options.expression ?? null,
-      supergraph
-    );
+    super(supergraph);
+    this.type = options.type;
+    this.expression = options.expression ?? null;
   }
 
   equals(other: any): boolean {
@@ -249,26 +206,7 @@ export class Expression extends StructFrozen {
   readonly function: Function | null;
   readonly aggregation: Aggregation | null;
 
-  constructor(
-    type: ExpressionType,
-    literal: Value | null,
-    attribute: AttributeReference | null,
-    condition: Condition | null,
-    function: Function | null,
-    aggregation: Aggregation | null,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.type = type;
-    this.literal = literal;
-    this.attribute = attribute;
-    this.condition = condition;
-    this.function = function;
-    this.aggregation = aggregation;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type: ExpressionType,
     literal?: Value | null,
     attribute?: AttributeReference | null,
@@ -277,18 +215,16 @@ export class Expression extends StructFrozen {
     aggregation?: Aggregation | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): Expression {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Expression(
-      options.type,
-      options.literal ?? null,
-      options.attribute ?? null,
-      options.condition ?? null,
-      options.function ?? null,
-      options.aggregation ?? null,
-      supergraph
-    );
+    super(supergraph);
+    this.type = options.type;
+    this.literal = options.literal ?? null;
+    this.attribute = options.attribute ?? null;
+    this.condition = options.condition ?? null;
+    this.function = options.function ?? null;
+    this.aggregation = options.aggregation ?? null;
   }
 
   equals(other: any): boolean {
@@ -311,34 +247,19 @@ export class Sort extends StructFrozen {
   readonly by: Expression;
   readonly mode: SortMode | null;
 
-  constructor(
-    type: SortType,
-    by: Expression,
-    mode: SortMode | null,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.type = type;
-    this.by = by;
-    this.mode = mode;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type: SortType,
     by: Expression,
     mode?: SortMode | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): Sort {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Sort(
-      options.type,
-      options.by,
-      options.mode ?? null,
-      supergraph
-    );
+    super(supergraph);
+    this.type = options.type;
+    this.by = options.by;
+    this.mode = options.mode ?? null;
   }
 
   equals(other: any): boolean {
@@ -359,26 +280,15 @@ export class Sort extends StructFrozen {
 export class Select extends StructFrozen {
   readonly attributes: Array<AttributeReference>;
 
-  constructor(
-    attributes: Array<AttributeReference>,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.attributes = attributes;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     attributes?: Array<AttributeReference>,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): Select {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Select(
-      options.attributes ?? [],
-      supergraph
-    );
+    super(supergraph);
+    this.attributes = options.attributes ?? [];
   }
 
   equals(other: any): boolean {
@@ -403,24 +313,7 @@ export class Join extends StructFrozen {
   readonly depth: number | null;
   readonly on: Condition | null;
 
-  constructor(
-    type: JoinType,
-    relation: RelationReference | null,
-    recursive: boolean,
-    depth: number | null,
-    on: Condition | null,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.type = type;
-    this.relation = relation;
-    this.recursive = recursive;
-    this.depth = depth;
-    this.on = on;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type: JoinType,
     relation?: RelationReference | null,
     recursive?: boolean,
@@ -428,17 +321,15 @@ export class Join extends StructFrozen {
     on?: Condition | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): Join {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Join(
-      options.type,
-      options.relation ?? null,
-      options.recursive ?? false,
-      options.depth ?? null,
-      options.on ?? null,
-      supergraph
-    );
+    super(supergraph);
+    this.type = options.type;
+    this.relation = options.relation ?? null;
+    this.recursive = options.recursive ?? false;
+    this.depth = options.depth ?? null;
+    this.on = options.on ?? null;
   }
 
   equals(other: any): boolean {
@@ -472,42 +363,7 @@ export class Query extends StructFrozen {
   readonly limit: number | null;
   readonly offset: number | null;
 
-  constructor(
-    id: string,
-    type: QueryType,
-    name: string,
-    relation: RelationReference,
-    join: Join | null,
-    select: Select | null,
-    subqueries: Array<Query>,
-    where: Condition | null,
-    having: Condition | null,
-    groupBy: Array<Expression>,
-    aggregation: Aggregation | null,
-    sort: Array<Sort>,
-    limit: number | null,
-    offset: number | null,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.id = id;
-    this.type = type;
-    this.name = name;
-    this.relation = relation;
-    this.join = join;
-    this.select = select;
-    this.subqueries = subqueries;
-    this.where = where;
-    this.having = having;
-    this.groupBy = groupBy;
-    this.aggregation = aggregation;
-    this.sort = sort;
-    this.limit = limit;
-    this.offset = offset;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     id?: string,
     type: QueryType,
     name: string,
@@ -524,26 +380,24 @@ export class Query extends StructFrozen {
     offset?: number | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): Query {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Query(
-      options.id,
-      options.type,
-      options.name,
-      options.relation,
-      options.join ?? null,
-      options.select ?? null,
-      options.subqueries ?? [],
-      options.where ?? null,
-      options.having ?? null,
-      options.groupBy ?? [],
-      options.aggregation ?? null,
-      options.sort ?? [],
-      options.limit ?? null,
-      options.offset ?? null,
-      supergraph
-    );
+    super(supergraph);
+    this.id = options.id;
+    this.type = options.type;
+    this.name = options.name;
+    this.relation = options.relation;
+    this.join = options.join ?? null;
+    this.select = options.select ?? null;
+    this.subqueries = options.subqueries ?? [];
+    this.where = options.where ?? null;
+    this.having = options.having ?? null;
+    this.groupBy = options.groupBy ?? [];
+    this.aggregation = options.aggregation ?? null;
+    this.sort = options.sort ?? [];
+    this.limit = options.limit ?? null;
+    this.offset = options.offset ?? null;
   }
 
   equals(other: any): boolean {
@@ -565,30 +419,17 @@ export class Histogram extends StructFrozen {
   readonly buckets: Array<Value>;
   readonly counts: Array<number>;
 
-  constructor(
-    buckets: Array<Value>,
-    counts: Array<number>,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.buckets = buckets;
-    this.counts = counts;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     buckets?: Array<Value>,
     counts?: Array<number>,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): Histogram {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Histogram(
-      options.buckets ?? [],
-      options.counts ?? [],
-      supergraph
-    );
+    super(supergraph);
+    this.buckets = options.buckets ?? [];
+    this.counts = options.counts ?? [];
   }
 
   equals(other: any): boolean {
@@ -616,30 +457,7 @@ export class QueryResult extends Struct {
   exists: boolean | null;
   scalar: Value | null;
 
-  constructor(
-    id: string,
-    type: QueryType,
-    groups: Array<QueryResultGroup>,
-    subresults: Array<QueryResult>,
-    nodes: Array<Value>,
-    count: number | null,
-    exists: boolean | null,
-    scalar: Value | null,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.id = id;
-    this.type = type;
-    this.groups = groups;
-    this.subresults = subresults;
-    this.nodes = nodes;
-    this.count = count;
-    this.exists = exists;
-    this.scalar = scalar;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     id: string,
     type: QueryType,
     groups?: Array<QueryResultGroup>,
@@ -650,20 +468,18 @@ export class QueryResult extends Struct {
     scalar?: Value | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): QueryResult {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new QueryResult(
-      options.id,
-      options.type,
-      options.groups ?? [],
-      options.subresults ?? [],
-      options.nodes ?? [],
-      options.count ?? null,
-      options.exists ?? null,
-      options.scalar ?? null,
-      supergraph
-    );
+    super(supergraph);
+    this.id = options.id;
+    this.type = options.type;
+    this.groups = options.groups ?? [];
+    this.subresults = options.subresults ?? [];
+    this.nodes = options.nodes ?? [];
+    this.count = options.count ?? null;
+    this.exists = options.exists ?? null;
+    this.scalar = options.scalar ?? null;
   }
 
   equals(other: any): boolean {
@@ -689,26 +505,7 @@ export class QueryResultGroup extends Struct {
   exists: boolean | null;
   scalar: Value | null;
 
-  constructor(
-    type: QueryType,
-    discriminator: Value,
-    nodes: Array<Value>,
-    count: number | null,
-    exists: boolean | null,
-    scalar: Value | null,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.type = type;
-    this.discriminator = discriminator;
-    this.nodes = nodes;
-    this.count = count;
-    this.exists = exists;
-    this.scalar = scalar;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type: QueryType,
     discriminator: Value,
     nodes?: Array<Value>,
@@ -717,18 +514,16 @@ export class QueryResultGroup extends Struct {
     scalar?: Value | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): QueryResultGroup {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new QueryResultGroup(
-      options.type,
-      options.discriminator,
-      options.nodes ?? [],
-      options.count ?? null,
-      options.exists ?? null,
-      options.scalar ?? null,
-      supergraph
-    );
+    super(supergraph);
+    this.type = options.type;
+    this.discriminator = options.discriminator;
+    this.nodes = options.nodes ?? [];
+    this.count = options.count ?? null;
+    this.exists = options.exists ?? null;
+    this.scalar = options.scalar ?? null;
   }
 
   equals(other: any): boolean {
@@ -750,30 +545,17 @@ export class QueryUpdate extends StructFrozen {
   readonly type: QueryUpdateType;
   readonly result: QueryResult | null;
 
-  constructor(
-    type: QueryUpdateType,
-    result: QueryResult | null,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.type = type;
-    this.result = result;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type: QueryUpdateType,
     result?: QueryResult | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): QueryUpdate {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new QueryUpdate(
-      options.type,
-      options.result ?? null,
-      supergraph
-    );
+    super(supergraph);
+    this.type = options.type;
+    this.result = options.result ?? null;
   }
 
   equals(other: any): boolean {
@@ -794,23 +576,14 @@ export class QueryUpdate extends StructFrozen {
 export class Selection extends StructFrozen {
 
 
-  constructor(
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-
-  }
-
-
-  static from(options: {
+  constructor(options: {
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): Selection {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Selection(
-      supergraph
-    );
+    super(supergraph);
+
   }
 
   equals(other: any): boolean {

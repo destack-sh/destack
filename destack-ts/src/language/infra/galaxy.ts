@@ -1,4 +1,4 @@
-import { EnumType, Session, Struct, QueryConnection, Node, NodeType, BuiltinObject, StructFrozen, NodeReference, Region, StructType, Supergraph, Graph } from '@/language';
+import { Graph, Supergraph, Struct, QueryConnection, NodeReference, activeSession, StructType, BuiltinObject, EnumType, ACTIVE_SESSION, NodeType, Session, StructFrozen, Node, Region } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:STRUCT:7601 ==== */
@@ -7,34 +7,19 @@ export class GalaxyInfo extends Struct {
   name: string;
   host: string;
 
-  constructor(
-    region: Region,
-    name: string,
-    host: string,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.region = region;
-    this.name = name;
-    this.host = host;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     region: Region,
     name: string,
     host: string,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): GalaxyInfo {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new GalaxyInfo(
-      options.region,
-      options.name,
-      options.host,
-      supergraph
-    );
+    super(supergraph);
+    this.region = options.region;
+    this.name = options.name;
+    this.host = options.host;
   }
 
   equals(other: any): boolean {

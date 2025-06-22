@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, AnnotationShape, IsTaggable, LabelView, WizardView, ThreadView, Canvas, User, SplitView, IsOrdered, Supergraph, PlaneShape, Space, Palette, CustomView, MaterializationType, SliderInputView, Entity, Struct, TextView, ArrowShape, QueryConnection, CustomViewDefinition, BuiltinObject, StructFrozen, Layer, Spatial, Scene, FrameView, StructType, Theme, IsVisual, Node, NodeType, NodeReference, IsDeletable, Agent, Style, LineShape, NumberInputView, Graph } from '@/language';
+import { PlaneShape, Agent, IsTaggable, BuiltinObject, ACTIVE_SESSION, IsVisual, Session, Scene, StructFrozen, LineShape, IsOrdered, Graph, Struct, AnnotationShape, activeSession, StructType, NodeType, Canvas, FrameView, Palette, Supergraph, QueryConnection, SliderInputView, NodeReference, WizardView, MaterializationType, User, CustomView, Spatial, LabelView, ThreadView, Space, CustomViewDefinition, NumberInputView, ArrowShape, Theme, IsDeletable, Entity, SplitView, EnumType, Layer, TextView, Style, Node, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:12020 ==== */
@@ -95,32 +95,7 @@ export class Color extends Struct {
   z: number | null;
   alpha: number | null;
 
-  constructor(
-    type: ColorType,
-    stylePtr: NodeReference | null,
-    hue: ColorHue | null,
-    shade: ColorShade | null,
-    intent: ColorIntent | null,
-    x: number | null,
-    y: number | null,
-    z: number | null,
-    alpha: number | null,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.type = type;
-    this.stylePtr = stylePtr;
-    this.hue = hue;
-    this.shade = shade;
-    this.intent = intent;
-    this.x = x;
-    this.y = y;
-    this.z = z;
-    this.alpha = alpha;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type: ColorType,
     style?: ColorStyle | NodeReference | null,
     hue?: ColorHue | null,
@@ -132,21 +107,19 @@ export class Color extends Struct {
     alpha?: number | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): Color {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Color(
-      options.type,
-      options.style != null ? (options.style.metatype == StructType.NODE_REFERENCE ? options.style : options.style.toRef()) : null,
-      options.hue ?? null,
-      options.shade ?? null,
-      options.intent ?? null,
-      options.x ?? null,
-      options.y ?? null,
-      options.z ?? null,
-      options.alpha ?? null,
-      supergraph
-    );
+    super(supergraph);
+    this.type = options.type;
+    this.stylePtr = options.style != null ? (options.style.metatype == StructType.NODE_REFERENCE ? (options.style as NodeReference) : (options.style as Node).toRef()) : null;
+    this.hue = options.hue ?? null;
+    this.shade = options.shade ?? null;
+    this.intent = options.intent ?? null;
+    this.x = options.x ?? null;
+    this.y = options.y ?? null;
+    this.z = options.z ?? null;
+    this.alpha = options.alpha ?? null;
   }
 
   equals(other: any): boolean {
@@ -218,57 +191,7 @@ export class ColorStyle extends Node implements Spatial, Entity, IsTracked, IsDe
   alpha: number | null;
   dark: Color | null;
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    deletedAt: Temporal.ZonedDateTime | null,
-    orderKey: string,
-    type: ColorType,
-    name: string,
-    hue: ColorHue | null,
-    shade: ColorShade | null,
-    intent: ColorIntent | null,
-    x: number | null,
-    y: number | null,
-    z: number | null,
-    alpha: number | null,
-    dark: Color | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.deletedAt = deletedAt;
-    this.orderKey = orderKey;
-    this.type = type;
-    this.name = name;
-    this.hue = hue;
-    this.shade = shade;
-    this.intent = intent;
-    this.x = x;
-    this.y = y;
-    this.z = z;
-    this.alpha = alpha;
-    this.dark = dark;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type: ColorType,
     name: string,
     hue?: ColorHue | null,
@@ -283,25 +206,20 @@ export class ColorStyle extends Node implements Spatial, Entity, IsTracked, IsDe
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): ColorStyle {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new ColorStyle(
-      options.type,
-      options.name,
-      options.hue ?? null,
-      options.shade ?? null,
-      options.intent ?? null,
-      options.x ?? null,
-      options.y ?? null,
-      options.z ?? null,
-      options.alpha ?? null,
-      options.dark ?? null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.type = options.type;
+    this.name = options.name;
+    this.hue = options.hue ?? null;
+    this.shade = options.shade ?? null;
+    this.intent = options.intent ?? null;
+    this.x = options.x ?? null;
+    this.y = options.y ?? null;
+    this.z = options.z ?? null;
+    this.alpha = options.alpha ?? null;
+    this.dark = options.dark ?? null;
   }
 
   equals(other: any): boolean {

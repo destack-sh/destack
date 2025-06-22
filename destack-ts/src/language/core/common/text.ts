@@ -1,4 +1,4 @@
-import { EnumType, Timer, WizardView, User, CustomEnumDefinition, Invite, Action, Thread, Tagging, Snapshot, FillStyle, File, SanctionEvent, SceneEvent, HistogramMeasurement, BuiltinObject, FontStyle, EffectStyle, Theme, Star, Agent, Organization, Log, CustomStructDefinition, Interruption, TransitionStyle, Session, SplitView, Supergraph, RoleEvent, Handle, Environment, Space, CustomEventDefinition, EventCursor, Option, CustomView, Palette, Variant, RunEvent, Client, CounterMetric, ArrowShape, StructFrozen, ScreenCursor, NotificationEvent, Team, Span, Entitlement, Node, GaugeMeasurement, HistogramMetric, Trigger, NodeReference, CustomEntityDefinition, NumberInputView, GradientStyle, Graph, AnnotationShape, LabelView, Window, Link, ThreadView, Canvas, Folder, Notification, PlaneShape, ThreadCursor, Reaction, Branch, Script, Service, Struct, TriggerEvent, QueryConnection, Permission, FriendshipInviteEvent, Tag, FrameView, Route, Role, Sanction, EntitlementEvent, Run, NodeType, BorderStyle, FriendshipInvite, Machine, ShadowStyle, CustomEntity, Membership, Field, ColorStyle, GaugeMetric, SliderInputView, MembershipEvent, TextView, Follow, CustomViewDefinition, Layer, InviteEvent, Scene, StructType, Message, Friendship, CounterMeasurement, CustomEvent, EditEvent, LineShape, Database, TimerEvent } from '@/language';
+import { Folder, Session, Timer, Snapshot, Option, ScreenCursor, ShadowStyle, Interruption, NodeType, Action, Window, EffectStyle, Trigger, EventCursor, SliderInputView, HistogramMetric, CustomView, LabelView, Environment, ThreadView, Message, TransitionStyle, Space, CustomViewDefinition, Script, EnumType, Client, Layer, TextView, ColorStyle, FriendshipInviteEvent, Field, InviteEvent, Agent, Tagging, Follow, CustomEventDefinition, AnnotationShape, activeSession, StructType, RunEvent, CustomEvent, Role, Branch, HistogramMeasurement, NotificationEvent, WizardView, TriggerEvent, Variant, SceneEvent, EditEvent, Handle, Reaction, RoleEvent, CustomStructDefinition, Star, NumberInputView, Route, GaugeMetric, CustomEntityDefinition, File, ACTIVE_SESSION, LineShape, ThreadCursor, Machine, Tag, SanctionEvent, FrameView, Friendship, Supergraph, Database, Thread, FontStyle, Link, User, Team, MembershipEvent, ArrowShape, BorderStyle, EntitlementEvent, SplitView, Node, CounterMeasurement, PlaneShape, BuiltinObject, Organization, Scene, StructFrozen, GradientStyle, Entitlement, Graph, Service, Struct, Permission, Sanction, Canvas, Invite, Span, Palette, QueryConnection, GaugeMeasurement, NodeReference, CustomEnumDefinition, CounterMetric, TimerEvent, Membership, Run, Theme, CustomEntity, FriendshipInvite, Notification, Log, FillStyle } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:2521 ==== */
@@ -35,32 +35,7 @@ export class TextSpan extends StructFrozen {
   readonly isUnderline: boolean | null;
   readonly isCode: boolean | null;
 
-  constructor(
-    type: TextSpanType,
-    content: string | null,
-    nodePtr: NodeReference | null,
-    url: string | null,
-    isBold: boolean | null,
-    isItalic: boolean | null,
-    isStrikethrough: boolean | null,
-    isUnderline: boolean | null,
-    isCode: boolean | null,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.type = type;
-    this.content = content;
-    this.nodePtr = nodePtr;
-    this.url = url;
-    this.isBold = isBold;
-    this.isItalic = isItalic;
-    this.isStrikethrough = isStrikethrough;
-    this.isUnderline = isUnderline;
-    this.isCode = isCode;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type?: TextSpanType,
     content?: string | null,
     node?: Node | NodeReference | null,
@@ -72,21 +47,19 @@ export class TextSpan extends StructFrozen {
     isCode?: boolean | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): TextSpan {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new TextSpan(
-      options.type ?? TextSpanType.TEXT,
-      options.content ?? null,
-      options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? options.node : options.node.toRef()) : null,
-      options.url ?? null,
-      options.isBold ?? null,
-      options.isItalic ?? null,
-      options.isStrikethrough ?? null,
-      options.isUnderline ?? null,
-      options.isCode ?? null,
-      supergraph
-    );
+    super(supergraph);
+    this.type = options.type ?? TextSpanType.TEXT;
+    this.content = options.content ?? null;
+    this.nodePtr = options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? (options.node as NodeReference) : (options.node as Node).toRef()) : null;
+    this.url = options.url ?? null;
+    this.isBold = options.isBold ?? null;
+    this.isItalic = options.isItalic ?? null;
+    this.isStrikethrough = options.isStrikethrough ?? null;
+    this.isUnderline = options.isUnderline ?? null;
+    this.isCode = options.isCode ?? null;
   }
 
   equals(other: any): boolean {
@@ -112,26 +85,7 @@ export class Text extends StructFrozen {
   readonly isUnderline: boolean | null;
   readonly isCode: boolean | null;
 
-  constructor(
-    spans: Array<TextSpan>,
-    isBold: boolean | null,
-    isItalic: boolean | null,
-    isStrikethrough: boolean | null,
-    isUnderline: boolean | null,
-    isCode: boolean | null,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.spans = spans;
-    this.isBold = isBold;
-    this.isItalic = isItalic;
-    this.isStrikethrough = isStrikethrough;
-    this.isUnderline = isUnderline;
-    this.isCode = isCode;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     spans?: Array<TextSpan>,
     isBold?: boolean | null,
     isItalic?: boolean | null,
@@ -140,18 +94,16 @@ export class Text extends StructFrozen {
     isCode?: boolean | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): Text {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Text(
-      options.spans ?? [],
-      options.isBold ?? null,
-      options.isItalic ?? null,
-      options.isStrikethrough ?? null,
-      options.isUnderline ?? null,
-      options.isCode ?? null,
-      supergraph
-    );
+    super(supergraph);
+    this.spans = options.spans ?? [];
+    this.isBold = options.isBold ?? null;
+    this.isItalic = options.isItalic ?? null;
+    this.isStrikethrough = options.isStrikethrough ?? null;
+    this.isUnderline = options.isUnderline ?? null;
+    this.isCode = options.isCode ?? null;
   }
 
   equals(other: any): boolean {

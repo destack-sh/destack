@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, AnnotationShape, IsTaggable, LabelView, WizardView, ThreadView, Canvas, User, SplitView, IsOrdered, Supergraph, Fill, PlaneShape, Space, Length, CustomView, MaterializationType, SliderInputView, Entity, Struct, TextView, ArrowShape, QueryConnection, CustomViewDefinition, BuiltinObject, StructFrozen, Layer, Spatial, Scene, FrameView, StructType, Theme, IsVisual, Node, NodeType, NodeReference, IsDeletable, Agent, Style, LineShape, NumberInputView, Graph } from '@/language';
+import { PlaneShape, Agent, IsTaggable, BuiltinObject, ACTIVE_SESSION, IsVisual, Session, Scene, StructFrozen, LineShape, IsOrdered, Graph, Struct, AnnotationShape, activeSession, StructType, NodeType, Canvas, FrameView, Supergraph, QueryConnection, Length, SliderInputView, NodeReference, WizardView, MaterializationType, User, CustomView, Spatial, LabelView, ThreadView, Fill, Space, CustomViewDefinition, NumberInputView, ArrowShape, Theme, IsDeletable, Entity, SplitView, EnumType, Layer, TextView, Style, Node, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:12026 ==== */
@@ -98,34 +98,7 @@ export class Font extends Struct {
   decoration: TextDecoration | null;
   transform: TextTransform | null;
 
-  constructor(
-    type: FontType,
-    stylePtr: NodeReference | null,
-    weight: FontWeight | null,
-    color: Fill | null,
-    size: FontSize | null,
-    align: TextAlign | null,
-    lineHeight: Length | null,
-    letterSpacing: Length | null,
-    decoration: TextDecoration | null,
-    transform: TextTransform | null,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.type = type;
-    this.stylePtr = stylePtr;
-    this.weight = weight;
-    this.color = color;
-    this.size = size;
-    this.align = align;
-    this.lineHeight = lineHeight;
-    this.letterSpacing = letterSpacing;
-    this.decoration = decoration;
-    this.transform = transform;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type?: FontType,
     style?: FontStyle | NodeReference | null,
     weight?: FontWeight | null,
@@ -138,22 +111,20 @@ export class Font extends Struct {
     transform?: TextTransform | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): Font {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Font(
-      options.type ?? FontType.SANS,
-      options.style != null ? (options.style.metatype == StructType.NODE_REFERENCE ? options.style : options.style.toRef()) : null,
-      options.weight ?? FontWeight.NORMAL,
-      options.color ?? null,
-      options.size ?? FontSize.BASE,
-      options.align ?? TextAlign.LEFT,
-      options.lineHeight ?? null,
-      options.letterSpacing ?? null,
-      options.decoration ?? TextDecoration.NONE,
-      options.transform ?? TextTransform.NONE,
-      supergraph
-    );
+    super(supergraph);
+    this.type = options.type ?? FontType.SANS;
+    this.stylePtr = options.style != null ? (options.style.metatype == StructType.NODE_REFERENCE ? (options.style as NodeReference) : (options.style as Node).toRef()) : null;
+    this.weight = options.weight ?? FontWeight.NORMAL;
+    this.color = options.color ?? null;
+    this.size = options.size ?? FontSize.BASE;
+    this.align = options.align ?? TextAlign.LEFT;
+    this.lineHeight = options.lineHeight ?? null;
+    this.letterSpacing = options.letterSpacing ?? null;
+    this.decoration = options.decoration ?? TextDecoration.NONE;
+    this.transform = options.transform ?? TextTransform.NONE;
   }
 
   equals(other: any): boolean {
@@ -225,57 +196,7 @@ export class FontStyle extends Node implements Spatial, Entity, IsTracked, IsDel
   decoration: TextDecoration | null;
   transform: TextTransform | null;
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    deletedAt: Temporal.ZonedDateTime | null,
-    orderKey: string,
-    type: FontType,
-    name: string,
-    weight: FontWeight | null,
-    color: Fill | null,
-    size: FontSize | null,
-    align: TextAlign | null,
-    lineHeight: Length | null,
-    letterSpacing: Length | null,
-    decoration: TextDecoration | null,
-    transform: TextTransform | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.deletedAt = deletedAt;
-    this.orderKey = orderKey;
-    this.type = type;
-    this.name = name;
-    this.weight = weight;
-    this.color = color;
-    this.size = size;
-    this.align = align;
-    this.lineHeight = lineHeight;
-    this.letterSpacing = letterSpacing;
-    this.decoration = decoration;
-    this.transform = transform;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type?: FontType,
     name: string,
     weight?: FontWeight | null,
@@ -290,25 +211,20 @@ export class FontStyle extends Node implements Spatial, Entity, IsTracked, IsDel
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): FontStyle {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new FontStyle(
-      options.type ?? FontType.SANS,
-      options.name,
-      options.weight ?? FontWeight.NORMAL,
-      options.color ?? null,
-      options.size ?? FontSize.BASE,
-      options.align ?? TextAlign.LEFT,
-      options.lineHeight ?? null,
-      options.letterSpacing ?? null,
-      options.decoration ?? TextDecoration.NONE,
-      options.transform ?? TextTransform.NONE,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.type = options.type ?? FontType.SANS;
+    this.name = options.name;
+    this.weight = options.weight ?? FontWeight.NORMAL;
+    this.color = options.color ?? null;
+    this.size = options.size ?? FontSize.BASE;
+    this.align = options.align ?? TextAlign.LEFT;
+    this.lineHeight = options.lineHeight ?? null;
+    this.letterSpacing = options.letterSpacing ?? null;
+    this.decoration = options.decoration ?? TextDecoration.NONE;
+    this.transform = options.transform ?? TextTransform.NONE;
   }
 
   equals(other: any): boolean {

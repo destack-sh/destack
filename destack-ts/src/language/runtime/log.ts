@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, Analytic, User, Supergraph, Space, Struct, QueryConnection, BuiltinObject, StructFrozen, Spatial, IsFrozen, StructType, Node, NodeType, NodeReference, Agent, Graph } from '@/language';
+import { Agent, BuiltinObject, ACTIVE_SESSION, Session, StructFrozen, IsFrozen, Graph, Struct, activeSession, StructType, NodeType, Supergraph, QueryConnection, NodeReference, User, Analytic, Spatial, Space, EnumType, Node, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:4100 ==== */
@@ -57,37 +57,7 @@ export class Log extends Node implements Spatial, Analytic, IsFrozen, IsTracked 
   attributes: Map<string, any>;
   level: LogLevel;
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    content: string,
-    attributes: Map<string, any>,
-    level: LogLevel,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.content = content;
-    this.attributes = attributes;
-    this.level = level;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     content: string,
     attributes?: Map<string, any>,
     level: LogLevel,
@@ -95,18 +65,13 @@ export class Log extends Node implements Spatial, Analytic, IsFrozen, IsTracked 
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): Log {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Log(
-      options.content,
-      options.attributes ?? new Map(),
-      options.level,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.content = options.content;
+    this.attributes = options.attributes ?? new Map();
+    this.level = options.level;
   }
 
   equals(other: any): boolean {

@@ -1,4 +1,4 @@
-import { Session, Struct, QueryConnection, Node, BuiltinObject, StructFrozen, NodeReference, Supergraph, Graph } from '@/language';
+import { Graph, Supergraph, Struct, QueryConnection, NodeReference, activeSession, BuiltinObject, ACTIVE_SESSION, Session, StructFrozen, Node } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 

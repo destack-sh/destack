@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, AnnotationShape, IsTaggable, LabelView, Window, Canvas, User, SplitView, IsOrdered, IsScriptable, Supergraph, PlaneShape, Space, Script, View, CustomView, MaterializationType, Entity, Struct, QueryConnection, CustomViewDefinition, BuiltinObject, StructFrozen, Layer, Spatial, Scene, FrameView, StructType, InternalView, Dimension, IsVisual, Node, NodeType, NodeReference, IsDeletable, Agent, Position, Graph } from '@/language';
+import { PlaneShape, Agent, IsTaggable, IsScriptable, BuiltinObject, ACTIVE_SESSION, IsVisual, Session, Scene, View, StructFrozen, IsOrdered, Graph, Struct, AnnotationShape, activeSession, StructType, NodeType, Window, Canvas, FrameView, Dimension, Supergraph, QueryConnection, InternalView, NodeReference, MaterializationType, User, Position, CustomView, Spatial, LabelView, Space, CustomViewDefinition, IsDeletable, Entity, SplitView, EnumType, Script, Layer, Node, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:10650 ==== */
@@ -61,65 +61,17 @@ export class WizardView extends Node implements Spatial, Entity, IsTracked, IsDe
       return null;
   }
 
-  set script(value: Script | null) {
-      if (value === null) {
+  set script(node: Script | null) {
+      if (node === null) {
           this.scriptPtr = null;
       } else {
-          this.scriptPtr = value.toRef();
+          this.scriptPtr = node.toRef();
       }
   }
   ;
   scriptPtr: NodeReference | null
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    deletedAt: Temporal.ZonedDateTime | null,
-    orderKey: string,
-    name: string,
-    position: Position | null,
-    width: Dimension | null,
-    height: Dimension | null,
-    minWidth: Dimension | null,
-    minHeight: Dimension | null,
-    maxWidth: Dimension | null,
-    maxHeight: Dimension | null,
-    scriptPtr: NodeReference | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.deletedAt = deletedAt;
-    this.orderKey = orderKey;
-    this.name = name;
-    this.position = position;
-    this.width = width;
-    this.height = height;
-    this.minWidth = minWidth;
-    this.minHeight = minHeight;
-    this.maxWidth = maxWidth;
-    this.maxHeight = maxHeight;
-    this.scriptPtr = scriptPtr;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     name: string,
     position?: Position | null,
     width?: Dimension | null,
@@ -133,24 +85,19 @@ export class WizardView extends Node implements Spatial, Entity, IsTracked, IsDe
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): WizardView {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new WizardView(
-      options.name,
-      options.position ?? null,
-      options.width ?? null,
-      options.height ?? null,
-      options.minWidth ?? null,
-      options.minHeight ?? null,
-      options.maxWidth ?? null,
-      options.maxHeight ?? null,
-      options.script != null ? (options.script.metatype == StructType.NODE_REFERENCE ? options.script : options.script.toRef()) : null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.name = options.name;
+    this.position = options.position ?? null;
+    this.width = options.width ?? null;
+    this.height = options.height ?? null;
+    this.minWidth = options.minWidth ?? null;
+    this.minHeight = options.minHeight ?? null;
+    this.maxWidth = options.maxWidth ?? null;
+    this.maxHeight = options.maxHeight ?? null;
+    this.scriptPtr = options.script != null ? (options.script.metatype == StructType.NODE_REFERENCE ? (options.script as NodeReference) : (options.script as Node).toRef()) : null;
   }
 
   equals(other: any): boolean {

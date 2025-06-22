@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, AnnotationShape, IsTaggable, TransitionStyle, LabelView, WizardView, ThreadView, User, Canvas, SplitView, ShadowStyle, IsOrdered, CustomEnumDefinition, Supergraph, Field, Folder, Action, ColorStyle, Thread, PlaneShape, Space, FillStyle, Option, CustomView, MaterializationType, Palette, SliderInputView, Service, Icon, Entity, Struct, TextView, ArrowShape, QueryConnection, CustomViewDefinition, BuiltinObject, StructFrozen, Layer, Spatial, Scene, FrameView, StructType, FontStyle, Route, EffectStyle, Message, Theme, Node, NodeType, LikeTag, NodeReference, IsDeletable, EditEvent, Agent, CustomEntityDefinition, BorderStyle, CustomStructDefinition, LineShape, NumberInputView, GradientStyle, Graph } from '@/language';
+import { PlaneShape, CustomEntityDefinition, Agent, IsTaggable, BuiltinObject, ACTIVE_SESSION, Folder, Session, Scene, StructFrozen, LineShape, IsOrdered, GradientStyle, Graph, Service, Struct, Option, AnnotationShape, ShadowStyle, activeSession, StructType, NodeType, Action, Canvas, EffectStyle, FrameView, Icon, Palette, Supergraph, QueryConnection, SliderInputView, NodeReference, MaterializationType, CustomEnumDefinition, WizardView, Thread, FontStyle, User, CustomView, Spatial, LabelView, ThreadView, EditEvent, Message, TransitionStyle, Space, CustomStructDefinition, CustomViewDefinition, NumberInputView, ArrowShape, LikeTag, IsDeletable, Entity, SplitView, EnumType, BorderStyle, Theme, Layer, Route, TextView, ColorStyle, Node, FillStyle, Field, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:1010 ==== */
@@ -48,58 +48,19 @@ export class Tag extends Node implements Spatial, Entity, IsTracked, IsDeletable
   name: string;
   icon: Icon | null;
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    deletedAt: Temporal.ZonedDateTime | null,
-    orderKey: string,
-    name: string,
-    icon: Icon | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.deletedAt = deletedAt;
-    this.orderKey = orderKey;
-    this.name = name;
-    this.icon = icon;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     name: string,
     icon?: Icon | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): Tag {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Tag(
-      options.name,
-      options.icon ?? null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.name = options.name;
+    this.icon = options.icon ?? null;
   }
 
   equals(other: any): boolean {
@@ -189,64 +150,27 @@ export class Tagging extends Node implements Spatial, Entity, IsTracked, IsDelet
       return null;
   }
 
-  set tag(value: Tag | null) {
-      if (value === null) {
+  set tag(node: Tag | null) {
+      if (node === null) {
           this.tagPtr = null;
       } else {
-          this.tagPtr = value.toRef();
+          this.tagPtr = node.toRef();
       }
   }
   ;
   tagPtr: NodeReference | null
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    deletedAt: Temporal.ZonedDateTime | null,
-    orderKey: string,
-    tagPtr: NodeReference | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.deletedAt = deletedAt;
-    this.orderKey = orderKey;
-    this.tagPtr = tagPtr;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     tag?: Tag | NodeReference | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): Tagging {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Tagging(
-      options.tag != null ? (options.tag.metatype == StructType.NODE_REFERENCE ? options.tag : options.tag.toRef()) : null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.tagPtr = options.tag != null ? (options.tag.metatype == StructType.NODE_REFERENCE ? (options.tag as NodeReference) : (options.tag as Node).toRef()) : null;
   }
 
   equals(other: any): boolean {

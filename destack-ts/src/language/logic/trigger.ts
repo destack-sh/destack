@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, Indexed, RelationReference, Analytic, User, Supergraph, Action, Space, Value, Particle, Script, MaterializationType, Service, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, Event, Spatial, IsFrozen, StructType, Node, NodeType, Condition, NodeReference, Agent, Graph } from '@/language';
+import { Agent, BuiltinObject, ACTIVE_SESSION, Session, StructFrozen, IsFrozen, Graph, Service, Struct, Event, activeSession, Particle, StructType, NodeType, Action, Indexed, Supergraph, QueryConnection, NodeReference, MaterializationType, Value, User, Analytic, Condition, Spatial, Space, Entity, Script, EnumType, RelationReference, Node, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:3041 ==== */
@@ -65,62 +65,25 @@ export class TriggerEvent extends Node implements Spatial, Particle, Analytic, I
       return null;
   }
 
-  set node(value: Trigger) {
-      if (value === null) {
-          this.nodePtr = null;
-      } else {
-          this.nodePtr = value.toRef();
-      }
+  set node(node: Trigger) {
+      this.nodePtr = node.toRef();
   }
   ;
   nodePtr: NodeReference
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    type: TriggerEventType,
-    nodePtr: NodeReference,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.type = type;
-    this.nodePtr = nodePtr;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type: TriggerEventType,
     node: Trigger | NodeReference,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): TriggerEvent {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new TriggerEvent(
-      options.type,
-      options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? options.node : options.node.toRef()) : null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.type = options.type;
+    this.nodePtr = options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? (options.node as NodeReference) : (options.node as Node).toRef()) : null;
   }
 
   equals(other: any): boolean {
@@ -212,56 +175,14 @@ export class Trigger extends Node implements Spatial, Entity, IsTracked {
       return null;
   }
 
-  set target(value: Action | Script | Service) {
-      if (value === null) {
-          this.targetPtr = null;
-      } else {
-          this.targetPtr = value.toRef();
-      }
+  set target(node: Action | Script | Service) {
+      this.targetPtr = node.toRef();
   }
   ;
   targetPtr: NodeReference
   arguments: Map<string, Value>;
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    type: TriggerType,
-    name: string,
-    event: RelationReference | null,
-    where: Condition | null,
-    targetPtr: NodeReference,
-    arguments: Map<string, Value>,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.type = type;
-    this.name = name;
-    this.event = event;
-    this.where = where;
-    this.targetPtr = targetPtr;
-    this.arguments = arguments;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type: TriggerType,
     name: string,
     event?: RelationReference | null,
@@ -272,21 +193,16 @@ export class Trigger extends Node implements Spatial, Entity, IsTracked {
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): Trigger {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Trigger(
-      options.type,
-      options.name,
-      options.event ?? null,
-      options.where ?? null,
-      options.target != null ? (options.target.metatype == StructType.NODE_REFERENCE ? options.target : options.target.toRef()) : null,
-      options.arguments ?? new Map(),
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.type = options.type;
+    this.name = options.name;
+    this.event = options.event ?? null;
+    this.where = options.where ?? null;
+    this.targetPtr = options.target != null ? (options.target.metatype == StructType.NODE_REFERENCE ? (options.target as NodeReference) : (options.target as Node).toRef()) : null;
+    this.arguments = options.arguments ?? new Map();
   }
 
   equals(other: any): boolean {

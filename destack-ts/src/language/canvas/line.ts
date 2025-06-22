@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, AnnotationShape, IsTaggable, LabelView, Window, Canvas, User, SplitView, IsShape, IsOrdered, Align, IsScriptable, Supergraph, PlaneShape, Space, Script, View, CustomView, MaterializationType, Entity, Struct, QueryConnection, CustomViewDefinition, BuiltinObject, StructFrozen, Layer, Spatial, Scene, FrameView, StructType, Dimension, ContentView, IsVisual, Node, NodeType, Vector2, Color, NodeReference, IsDeletable, Agent, Position, Graph } from '@/language';
+import { IsShape, PlaneShape, Agent, IsTaggable, IsScriptable, BuiltinObject, ACTIVE_SESSION, IsVisual, Align, Session, Scene, View, StructFrozen, Vector2, IsOrdered, Graph, Struct, AnnotationShape, activeSession, StructType, NodeType, Window, Canvas, FrameView, Dimension, Supergraph, QueryConnection, NodeReference, MaterializationType, User, Position, CustomView, Spatial, LabelView, Color, Space, CustomViewDefinition, IsDeletable, Entity, SplitView, EnumType, Script, Layer, Node, ContentView, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:11010 ==== */
@@ -75,77 +75,17 @@ export class LineShape extends Node implements Spatial, Entity, IsTracked, IsDel
       return null;
   }
 
-  set script(value: Script | null) {
-      if (value === null) {
+  set script(node: Script | null) {
+      if (node === null) {
           this.scriptPtr = null;
       } else {
-          this.scriptPtr = value.toRef();
+          this.scriptPtr = node.toRef();
       }
   }
   ;
   scriptPtr: NodeReference | null
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    deletedAt: Temporal.ZonedDateTime | null,
-    orderKey: string,
-    type: LineType,
-    name: string,
-    position: Position | null,
-    width: Dimension | null,
-    height: Dimension | null,
-    minWidth: Dimension | null,
-    minHeight: Dimension | null,
-    maxWidth: Dimension | null,
-    maxHeight: Dimension | null,
-    align: Align | null,
-    isVisible: boolean | null,
-    opacity: number | null,
-    points: Array<Vector2>,
-    color: Color | null,
-    scriptPtr: NodeReference | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.deletedAt = deletedAt;
-    this.orderKey = orderKey;
-    this.type = type;
-    this.name = name;
-    this.position = position;
-    this.width = width;
-    this.height = height;
-    this.minWidth = minWidth;
-    this.minHeight = minHeight;
-    this.maxWidth = maxWidth;
-    this.maxHeight = maxHeight;
-    this.align = align;
-    this.isVisible = isVisible;
-    this.opacity = opacity;
-    this.points = points;
-    this.color = color;
-    this.scriptPtr = scriptPtr;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type: LineType,
     name: string,
     position?: Position | null,
@@ -165,30 +105,25 @@ export class LineShape extends Node implements Spatial, Entity, IsTracked, IsDel
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): LineShape {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new LineShape(
-      options.type,
-      options.name,
-      options.position ?? null,
-      options.width ?? null,
-      options.height ?? null,
-      options.minWidth ?? null,
-      options.minHeight ?? null,
-      options.maxWidth ?? null,
-      options.maxHeight ?? null,
-      options.align ?? null,
-      options.isVisible ?? null,
-      options.opacity ?? null,
-      options.points ?? [],
-      options.color ?? null,
-      options.script != null ? (options.script.metatype == StructType.NODE_REFERENCE ? options.script : options.script.toRef()) : null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.type = options.type;
+    this.name = options.name;
+    this.position = options.position ?? null;
+    this.width = options.width ?? null;
+    this.height = options.height ?? null;
+    this.minWidth = options.minWidth ?? null;
+    this.minHeight = options.minHeight ?? null;
+    this.maxWidth = options.maxWidth ?? null;
+    this.maxHeight = options.maxHeight ?? null;
+    this.align = options.align ?? null;
+    this.isVisible = options.isVisible ?? null;
+    this.opacity = options.opacity ?? null;
+    this.points = options.points ?? [];
+    this.color = options.color ?? null;
+    this.scriptPtr = options.script != null ? (options.script.metatype == StructType.NODE_REFERENCE ? (options.script as NodeReference) : (options.script as Node).toRef()) : null;
   }
 
   equals(other: any): boolean {

@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, IsTaggable, User, IsOrdered, Supergraph, Space, Value, Script, MaterializationType, IsSourceable, Service, Text, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, Spatial, IsExtensible, StructType, IsRunnable, Node, NodeType, NodeReference, IsDeletable, CustomEntityDefinition, Agent, Graph } from '@/language';
+import { CustomEntityDefinition, Agent, IsTaggable, BuiltinObject, ACTIVE_SESSION, Session, StructFrozen, IsOrdered, Graph, Service, Struct, activeSession, StructType, NodeType, Supergraph, QueryConnection, NodeReference, MaterializationType, Value, IsRunnable, User, IsExtensible, Spatial, IsSourceable, Space, Text, IsDeletable, Entity, Script, EnumType, Node, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:3020 ==== */
@@ -65,47 +65,7 @@ export class Action extends Node implements Spatial, Entity, IsTracked, IsDeleta
   ;
   sourcePtr: NodeReference | null
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    deletedAt: Temporal.ZonedDateTime | null,
-    value: Map<string, Value>,
-    orderKey: string,
-    name: string,
-    cardinality: ActionCardinality,
-    text: Text | null,
-    sourcePtr: NodeReference | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.deletedAt = deletedAt;
-    this.value = value;
-    this.orderKey = orderKey;
-    this.name = name;
-    this.cardinality = cardinality;
-    this.text = text;
-    this.sourcePtr = sourcePtr;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     value?: Map<string, Value>,
     name: string,
     cardinality?: ActionCardinality,
@@ -114,19 +74,14 @@ export class Action extends Node implements Spatial, Entity, IsTracked, IsDeleta
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): Action {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Action(
-      options.value ?? new Map(),
-      options.name,
-      options.cardinality ?? ActionCardinality.UNARY,
-      options.text ?? null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.value = options.value ?? new Map();
+    this.name = options.name;
+    this.cardinality = options.cardinality ?? ActionCardinality.UNARY;
+    this.text = options.text ?? null;
   }
 
   equals(other: any): boolean {

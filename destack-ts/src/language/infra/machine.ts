@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, User, Supergraph, Space, MaterializationType, Entity, Struct, Client, ResourceStatus, QueryConnection, BuiltinObject, StructFrozen, Spatial, Resource, StructType, Node, NodeType, NodeReference, Agent, Graph } from '@/language';
+import { Agent, BuiltinObject, ACTIVE_SESSION, Session, StructFrozen, Graph, ResourceStatus, Struct, activeSession, StructType, NodeType, Supergraph, QueryConnection, NodeReference, MaterializationType, User, Spatial, Space, Resource, Entity, EnumType, Client, Node, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:7600 ==== */
@@ -70,11 +70,11 @@ export class Machine extends Node implements Spatial, Entity, Resource, IsTracke
       return null;
   }
 
-  set client(value: Client | null) {
-      if (value === null) {
+  set client(node: Client | null) {
+      if (node === null) {
           this.clientPtr = null;
       } else {
-          this.clientPtr = value.toRef();
+          this.clientPtr = node.toRef();
       }
   }
   ;
@@ -85,63 +85,7 @@ export class Machine extends Node implements Spatial, Entity, Resource, IsTracke
   readonly height: number;
   readonly isHeadless: boolean;
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    type: MachineType,
-    status: ResourceStatus,
-    targetStatus: Temporal.ZonedDateTime | null,
-    version: string,
-    externalName: string | null,
-    externalId: string | null,
-    imageId: string | null,
-    grpcUrl: string | null,
-    vncUrl: string | null,
-    clientPtr: NodeReference | null,
-    cpu: number,
-    ram: number,
-    width: number,
-    height: number,
-    isHeadless: boolean,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.type = type;
-    this.status = status;
-    this.targetStatus = targetStatus;
-    this.version = version;
-    this.externalName = externalName;
-    this.externalId = externalId;
-    this.imageId = imageId;
-    this.grpcUrl = grpcUrl;
-    this.vncUrl = vncUrl;
-    this.clientPtr = clientPtr;
-    this.cpu = cpu;
-    this.ram = ram;
-    this.width = width;
-    this.height = height;
-    this.isHeadless = isHeadless;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type?: MachineType,
     status?: ResourceStatus,
     targetStatus?: Temporal.ZonedDateTime | null,
@@ -161,30 +105,25 @@ export class Machine extends Node implements Spatial, Entity, Resource, IsTracke
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): Machine {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Machine(
-      options.type ?? MachineType.RUNTIME,
-      options.status ?? ResourceStatus.PENDING,
-      options.targetStatus ?? null,
-      options.version ?? "2025.06.22.0",
-      options.externalName ?? null,
-      options.externalId ?? null,
-      options.imageId ?? null,
-      options.grpcUrl ?? null,
-      options.vncUrl ?? null,
-      options.client != null ? (options.client.metatype == StructType.NODE_REFERENCE ? options.client : options.client.toRef()) : null,
-      options.cpu ?? 1.0,
-      options.ram ?? 1.0,
-      options.width ?? 1280,
-      options.height ?? 960,
-      options.isHeadless ?? false,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.type = options.type ?? MachineType.RUNTIME;
+    this.status = options.status ?? ResourceStatus.PENDING;
+    this.targetStatus = options.targetStatus ?? null;
+    this.version = options.version ?? "2025.06.22.0";
+    this.externalName = options.externalName ?? null;
+    this.externalId = options.externalId ?? null;
+    this.imageId = options.imageId ?? null;
+    this.grpcUrl = options.grpcUrl ?? null;
+    this.vncUrl = options.vncUrl ?? null;
+    this.clientPtr = options.client != null ? (options.client.metatype == StructType.NODE_REFERENCE ? (options.client as NodeReference) : (options.client as Node).toRef()) : null;
+    this.cpu = options.cpu ?? 1.0;
+    this.ram = options.ram ?? 1.0;
+    this.width = options.width ?? 1280;
+    this.height = options.height ?? 960;
+    this.isHeadless = options.isHeadless ?? false;
   }
 
   equals(other: any): boolean {

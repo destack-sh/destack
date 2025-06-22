@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, Analytic, Measurement, User, CustomEntity, IsOrdered, Supergraph, Space, Metric, CustomView, MaterializationType, IsSourceable, Script, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, Spatial, IsCustomNode, StructType, Node, NodeType, NodeReference, Agent, IsCustomNodeDefinition, Graph } from '@/language';
+import { Agent, Measurement, BuiltinObject, ACTIVE_SESSION, Session, StructFrozen, IsOrdered, Graph, Struct, activeSession, IsCustomNodeDefinition, StructType, NodeType, Supergraph, QueryConnection, NodeReference, MaterializationType, Metric, User, Analytic, CustomView, Spatial, IsCustomNode, IsSourceable, Space, Entity, CustomEntity, EnumType, Script, Node, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:4110 ==== */
@@ -30,11 +30,11 @@ export class GaugeMetric extends Node implements Spatial, Entity, IsCustomNodeDe
       return null;
   }
 
-  set prototype(value: CustomEntity | GaugeMeasurement | CounterMeasurement | HistogramMeasurement | CustomView | null) {
-      if (value === null) {
+  set prototype(node: CustomEntity | GaugeMeasurement | CounterMeasurement | HistogramMeasurement | CustomView | null) {
+      if (node === null) {
           this.prototypePtr = null;
       } else {
-          this.prototypePtr = value.toRef();
+          this.prototypePtr = node.toRef();
       }
   }
   ;
@@ -72,58 +72,19 @@ export class GaugeMetric extends Node implements Spatial, Entity, IsCustomNodeDe
   ;
   sourcePtr: NodeReference | null
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    prototypePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    orderKey: string,
-    name: string,
-    sourcePtr: NodeReference | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.prototypePtr = prototypePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.orderKey = orderKey;
-    this.name = name;
-    this.sourcePtr = sourcePtr;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     prototype?: CustomEntity | GaugeMeasurement | CounterMeasurement | HistogramMeasurement | CustomView | NodeReference | null,
     name: string,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): GaugeMetric {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new GaugeMetric(
-      options.prototype != null ? (options.prototype.metatype == StructType.NODE_REFERENCE ? options.prototype : options.prototype.toRef()) : null,
-      options.name,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.prototypePtr = options.prototype != null ? (options.prototype.metatype == StructType.NODE_REFERENCE ? (options.prototype as NodeReference) : (options.prototype as Node).toRef()) : null;
+    this.name = options.name;
   }
 
   equals(other: any): boolean {
@@ -190,12 +151,8 @@ export class GaugeMeasurement extends Node implements Spatial, Analytic, IsCusto
       return null;
   }
 
-  set definition(value: GaugeMetric) {
-      if (value === null) {
-          this.definitionPtr = null;
-      } else {
-          this.definitionPtr = value.toRef();
-      }
+  set definition(node: GaugeMetric) {
+      this.definitionPtr = node.toRef();
   }
   ;
   definitionPtr: NodeReference
@@ -220,48 +177,17 @@ export class GaugeMeasurement extends Node implements Spatial, Analytic, IsCusto
   ;
   updatedByPtr: NodeReference | null
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    definitionPtr: NodeReference,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.definitionPtr = definitionPtr;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     definition: GaugeMetric | NodeReference,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): GaugeMeasurement {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new GaugeMeasurement(
-      options.definition != null ? (options.definition.metatype == StructType.NODE_REFERENCE ? options.definition : options.definition.toRef()) : null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.definitionPtr = options.definition != null ? (options.definition.metatype == StructType.NODE_REFERENCE ? (options.definition as NodeReference) : (options.definition as Node).toRef()) : null;
   }
 
   equals(other: any): boolean {
@@ -328,11 +254,11 @@ export class CounterMetric extends Node implements Spatial, Entity, IsCustomNode
       return null;
   }
 
-  set prototype(value: CustomEntity | GaugeMeasurement | CounterMeasurement | HistogramMeasurement | CustomView | null) {
-      if (value === null) {
+  set prototype(node: CustomEntity | GaugeMeasurement | CounterMeasurement | HistogramMeasurement | CustomView | null) {
+      if (node === null) {
           this.prototypePtr = null;
       } else {
-          this.prototypePtr = value.toRef();
+          this.prototypePtr = node.toRef();
       }
   }
   ;
@@ -370,58 +296,19 @@ export class CounterMetric extends Node implements Spatial, Entity, IsCustomNode
   ;
   sourcePtr: NodeReference | null
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    prototypePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    orderKey: string,
-    name: string,
-    sourcePtr: NodeReference | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.prototypePtr = prototypePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.orderKey = orderKey;
-    this.name = name;
-    this.sourcePtr = sourcePtr;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     prototype?: CustomEntity | GaugeMeasurement | CounterMeasurement | HistogramMeasurement | CustomView | NodeReference | null,
     name: string,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): CounterMetric {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new CounterMetric(
-      options.prototype != null ? (options.prototype.metatype == StructType.NODE_REFERENCE ? options.prototype : options.prototype.toRef()) : null,
-      options.name,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.prototypePtr = options.prototype != null ? (options.prototype.metatype == StructType.NODE_REFERENCE ? (options.prototype as NodeReference) : (options.prototype as Node).toRef()) : null;
+    this.name = options.name;
   }
 
   equals(other: any): boolean {
@@ -488,12 +375,8 @@ export class CounterMeasurement extends Node implements Spatial, Analytic, IsCus
       return null;
   }
 
-  set definition(value: CounterMetric) {
-      if (value === null) {
-          this.definitionPtr = null;
-      } else {
-          this.definitionPtr = value.toRef();
-      }
+  set definition(node: CounterMetric) {
+      this.definitionPtr = node.toRef();
   }
   ;
   definitionPtr: NodeReference
@@ -518,48 +401,17 @@ export class CounterMeasurement extends Node implements Spatial, Analytic, IsCus
   ;
   updatedByPtr: NodeReference | null
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    definitionPtr: NodeReference,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.definitionPtr = definitionPtr;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     definition: CounterMetric | NodeReference,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): CounterMeasurement {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new CounterMeasurement(
-      options.definition != null ? (options.definition.metatype == StructType.NODE_REFERENCE ? options.definition : options.definition.toRef()) : null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.definitionPtr = options.definition != null ? (options.definition.metatype == StructType.NODE_REFERENCE ? (options.definition as NodeReference) : (options.definition as Node).toRef()) : null;
   }
 
   equals(other: any): boolean {
@@ -626,11 +478,11 @@ export class HistogramMetric extends Node implements Spatial, Entity, IsCustomNo
       return null;
   }
 
-  set prototype(value: CustomEntity | GaugeMeasurement | CounterMeasurement | HistogramMeasurement | CustomView | null) {
-      if (value === null) {
+  set prototype(node: CustomEntity | GaugeMeasurement | CounterMeasurement | HistogramMeasurement | CustomView | null) {
+      if (node === null) {
           this.prototypePtr = null;
       } else {
-          this.prototypePtr = value.toRef();
+          this.prototypePtr = node.toRef();
       }
   }
   ;
@@ -668,58 +520,19 @@ export class HistogramMetric extends Node implements Spatial, Entity, IsCustomNo
   ;
   sourcePtr: NodeReference | null
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    prototypePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    orderKey: string,
-    name: string,
-    sourcePtr: NodeReference | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.prototypePtr = prototypePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.orderKey = orderKey;
-    this.name = name;
-    this.sourcePtr = sourcePtr;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     prototype?: CustomEntity | GaugeMeasurement | CounterMeasurement | HistogramMeasurement | CustomView | NodeReference | null,
     name: string,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): HistogramMetric {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new HistogramMetric(
-      options.prototype != null ? (options.prototype.metatype == StructType.NODE_REFERENCE ? options.prototype : options.prototype.toRef()) : null,
-      options.name,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.prototypePtr = options.prototype != null ? (options.prototype.metatype == StructType.NODE_REFERENCE ? (options.prototype as NodeReference) : (options.prototype as Node).toRef()) : null;
+    this.name = options.name;
   }
 
   equals(other: any): boolean {
@@ -786,12 +599,8 @@ export class HistogramMeasurement extends Node implements Spatial, Analytic, IsC
       return null;
   }
 
-  set definition(value: HistogramMetric) {
-      if (value === null) {
-          this.definitionPtr = null;
-      } else {
-          this.definitionPtr = value.toRef();
-      }
+  set definition(node: HistogramMetric) {
+      this.definitionPtr = node.toRef();
   }
   ;
   definitionPtr: NodeReference
@@ -816,48 +625,17 @@ export class HistogramMeasurement extends Node implements Spatial, Analytic, IsC
   ;
   updatedByPtr: NodeReference | null
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    definitionPtr: NodeReference,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.definitionPtr = definitionPtr;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     definition: HistogramMetric | NodeReference,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): HistogramMeasurement {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new HistogramMeasurement(
-      options.definition != null ? (options.definition.metatype == StructType.NODE_REFERENCE ? options.definition : options.definition.toRef()) : null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.definitionPtr = options.definition != null ? (options.definition.metatype == StructType.NODE_REFERENCE ? (options.definition as NodeReference) : (options.definition as Node).toRef()) : null;
   }
 
   equals(other: any): boolean {

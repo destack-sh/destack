@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, IsOwner, User, Supergraph, IsJoinable, Handle, Space, MaterializationType, Global, Icon, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, StructType, Node, NodeType, NodeReference, Agent, Graph } from '@/language';
+import { Agent, BuiltinObject, ACTIVE_SESSION, Session, StructFrozen, Graph, Struct, activeSession, Global, StructType, NodeType, Icon, Supergraph, QueryConnection, NodeReference, MaterializationType, User, Handle, Space, Entity, EnumType, IsOwner, IsJoinable, Node, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:40 ==== */
@@ -64,43 +64,7 @@ export class Organization extends Node implements Global, Entity, IsTracked, IsJ
   ;
   handlePtr: NodeReference | null
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    name: string,
-    slug: string,
-    icon: Icon | null,
-    status: OrganizationStatus,
-    spacePtr: NodeReference,
-    handlePtr: NodeReference | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.name = name;
-    this.slug = slug;
-    this.icon = icon;
-    this.status = status;
-    this.spacePtr = spacePtr;
-    this.handlePtr = handlePtr;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     name: string,
     slug: string,
     icon?: Icon | null,
@@ -111,21 +75,16 @@ export class Organization extends Node implements Global, Entity, IsTracked, IsJ
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): Organization {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Organization(
-      options.name,
-      options.slug,
-      options.icon ?? null,
-      options.status ?? OrganizationStatus.CREATING,
-      options.space != null ? (options.space.metatype == StructType.NODE_REFERENCE ? options.space : options.space.toRef()) : null,
-      options.handle != null ? (options.handle.metatype == StructType.NODE_REFERENCE ? options.handle : options.handle.toRef()) : null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.name = options.name;
+    this.slug = options.slug;
+    this.icon = options.icon ?? null;
+    this.status = options.status ?? OrganizationStatus.CREATING;
+    this.spacePtr = options.space != null ? (options.space.metatype == StructType.NODE_REFERENCE ? (options.space as NodeReference) : (options.space as Node).toRef()) : null;
+    this.handlePtr = options.handle != null ? (options.handle.metatype == StructType.NODE_REFERENCE ? (options.handle as NodeReference) : (options.handle as Node).toRef()) : null;
   }
 
   equals(other: any): boolean {

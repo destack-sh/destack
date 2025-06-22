@@ -1,141 +1,5 @@
-import { EnumType, Timer, WizardView, User, IsOrdered, CustomEnumDefinition, Action, Invite, Thread, Tagging, StringConstraint, Snapshot, FillStyle, File, DefaultFactory, SanctionEvent, SceneEvent, NumberConstraint, HistogramMeasurement, BuiltinObject, FontStyle, EffectStyle, Theme, Star, Agent, Organization, Log, CustomStructDefinition, Interruption, IsTracked, TransitionStyle, Session, Type, SplitView, Supergraph, RoleEvent, Handle, Environment, Space, CustomEventDefinition, Value, EventCursor, Option, CustomView, Palette, Variant, Entity, RunEvent, Client, CounterMetric, ArrowShape, StructFrozen, ScreenCursor, NotificationEvent, Team, Span, Entitlement, Node, GaugeMeasurement, HistogramMetric, Trigger, NodeReference, CustomEntityDefinition, NumberInputView, GradientStyle, Graph, CascadeAction, AnnotationShape, IsTaggable, LabelView, Window, Link, ThreadView, Canvas, Folder, Notification, PlaneShape, ThreadCursor, Reaction, Branch, Script, MaterializationType, Service, Struct, TriggerEvent, QueryConnection, Permission, FriendshipInviteEvent, Tag, FrameView, Route, Role, Sanction, EntitlementEvent, Run, NodeType, IsDeletable, BorderStyle, ScalarType, FriendshipInvite, Machine, ShadowStyle, CollectionConstraint, CustomEntity, TypeCardinality, Membership, PrimitiveType, ColorStyle, GaugeMetric, IsSourceable, SliderInputView, Icon, MembershipEvent, TextView, Follow, CustomViewDefinition, NodeConstraint, Layer, EdgeType, Spatial, InviteEvent, Scene, StructType, Message, Friendship, CounterMeasurement, CustomEvent, EditEvent, LineShape, Database, TimerEvent } from '@/language';
+import { Folder, Session, Timer, Snapshot, Option, ScreenCursor, ShadowStyle, Interruption, NodeType, Action, Window, EffectStyle, Trigger, EventCursor, Icon, SliderInputView, HistogramMetric, Value, CustomView, LabelView, Environment, ThreadView, Message, TransitionStyle, IsSourceable, Space, CustomViewDefinition, Script, EnumType, Client, Layer, TextView, ColorStyle, FriendshipInviteEvent, InviteEvent, Agent, Tagging, IsTaggable, Follow, CustomEventDefinition, AnnotationShape, activeSession, StructType, RunEvent, CustomEvent, CascadeAction, Role, Branch, HistogramMeasurement, NotificationEvent, EdgeType, WizardView, TriggerEvent, Variant, SceneEvent, EditEvent, Handle, Reaction, RoleEvent, CustomStructDefinition, Star, NumberInputView, Route, StringConstraint, GaugeMetric, CustomEntityDefinition, File, ACTIVE_SESSION, DefaultFactory, LineShape, ThreadCursor, IsOrdered, NumberConstraint, PrimitiveType, Machine, ScalarType, SanctionEvent, FrameView, Friendship, NodeConstraint, Supergraph, Database, Thread, FontStyle, Link, User, Spatial, Team, MembershipEvent, ArrowShape, BorderStyle, EntitlementEvent, Entity, SplitView, Type, TypeCardinality, Node, IsTracked, CounterMeasurement, PlaneShape, BuiltinObject, Organization, Scene, StructFrozen, GradientStyle, Entitlement, Graph, Service, Struct, Permission, Sanction, Log, Canvas, Invite, Span, Palette, QueryConnection, GaugeMeasurement, NodeReference, CustomEnumDefinition, MaterializationType, CounterMetric, TimerEvent, CollectionConstraint, Membership, Run, Theme, IsDeletable, CustomEntity, FriendshipInvite, Notification, Tag, FillStyle } from '@/language';
 import { Temporal } from 'temporal-polyfill';
-
-Layer,
-  Supergraph,
-  Invite,
-  Follow,
-  SanctionEvent,
-  CustomEventDefinition,
-  Theme,
-  TriggerEvent,
-  TextView,
-  Environment,
-  FontStyle,
-  ScalarType,
-  EventCursor,
-  InviteEvent,
-  CounterMetric,
-  Team,
-  Message,
-  IsTracked,
-  Value,
-  TimerEvent,
-  FrameView,
-  EntitlementEvent,
-  Canvas,
-  CascadeAction,
-  AnnotationShape,
-  Run,
-  Trigger,
-  Log,
-  CustomEntity,
-  Space,
-  ColorStyle,
-  Scene,
-  HistogramMetric,
-  Action,
-  Link,
-  CustomViewDefinition,
-  Interruption,
-  Reaction,
-  GradientStyle,
-  ArrowShape,
-  RunEvent,
-  GaugeMeasurement,
-  CustomEvent,
-  Session,
-  EditEvent,
-  Script,
-  CustomStructDefinition,
-  Node,
-  NodeConstraint,
-  Type,
-  Membership,
-  CustomEntityDefinition,
-  Handle,
-  Friendship,
-  CollectionConstraint,
-  GaugeMetric,
-  FriendshipInviteEvent,
-  ThreadView,
-  Database,
-  Agent,
-  Role,
-  Permission,
-  StructFrozen,
-  IsDeletable,
-  FillStyle,
-  BorderStyle,
-  CustomEnumDefinition,
-  SplitView,
-  User,
-  Organization,
-  MaterializationType,
-  BuiltinObject,
-  Spatial,
-  Folder,
-  Graph,
-  Machine,
-  Service,
-  EffectStyle,
-  StringConstraint,
-  NodeType,
-  Span,
-  Tagging,
-  QueryConnection,
-  ShadowStyle,
-  EdgeType,
-  Variant,
-  ThreadCursor,
-  FriendshipInvite,
-  IsTaggable,
-  Route,
-  Window,
-  NotificationEvent,
-  Entity,
-  MembershipEvent,
-  Option,
-  HistogramMeasurement,
-  DefaultFactory,
-  IsSourceable,
-  PlaneShape,
-  CounterMeasurement,
-  Notification,
-  File,
-  EnumType,
-  Entitlement,
-  Struct,
-  NodeReference,
-  NumberConstraint,
-  RoleEvent,
-  ScreenCursor,
-  WizardView,
-  Sanction,
-  CustomView,
-  SliderInputView,
-  LineShape,
-  Thread,
-  Palette,
-  IsOrdered,
-  NumberInputView,
-  StructType,
-  Tag,
-  LabelView,
-  Client,
-  Branch,
-  Icon,
-  Timer,
-  TransitionStyle,
-  SceneEvent,
-  TypeCardinality,
-  Star,
-  PrimitiveType,
-  Snapshot,
-  ACTIVE_SESSION,
-  activeSession,
-} from "@/language";
-import { Temporal } from "temporal-polyfill"; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:2580 ==== */
 export enum FieldType {
@@ -205,11 +69,11 @@ export class Field extends Node implements Spatial, Entity, IsTracked, IsDeletab
       return null;
   }
 
-  set nodeDefinition(value: CustomEntityDefinition | null) {
-      if (value === null) {
+  set nodeDefinition(node: CustomEntityDefinition | null) {
+      if (node === null) {
           this.nodeDefinitionPtr = null;
       } else {
-          this.nodeDefinitionPtr = value.toRef();
+          this.nodeDefinitionPtr = node.toRef();
       }
   }
   ;
@@ -223,11 +87,11 @@ export class Field extends Node implements Spatial, Entity, IsTracked, IsDeletab
       return null;
   }
 
-  set baseType(value: Node | null) {
-      if (value === null) {
+  set baseType(node: Node | null) {
+      if (node === null) {
           this.baseTypePtr = null;
       } else {
-          this.baseTypePtr = value.toRef();
+          this.baseTypePtr = node.toRef();
       }
   }
   ;
@@ -252,81 +116,7 @@ export class Field extends Node implements Spatial, Entity, IsTracked, IsDeletab
   ;
   sourcePtr: NodeReference | null
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    deletedAt: Temporal.ZonedDateTime | null,
-    orderKey: string,
-    type: FieldType,
-    name: string,
-    icon: Icon | null,
-    cardinality: TypeCardinality,
-    scalarType: ScalarType,
-    primitiveType: PrimitiveType | null,
-    enumType: EnumType | null,
-    nodeType: NodeType | null,
-    nodeDefinitionPtr: NodeReference | null,
-    structType: StructType | null,
-    baseTypePtr: NodeReference | null,
-    keyType: Type | null,
-    isRequired: boolean | null,
-    defaultValue: Value | null,
-    defaultFactory: DefaultFactory | null,
-    collectionConstraint: CollectionConstraint | null,
-    stringConstraint: StringConstraint | null,
-    numberConstraint: NumberConstraint | null,
-    nodeConstraint: NodeConstraint | null,
-    edgeType: EdgeType | null,
-    cascade: CascadeAction | null,
-    sourcePtr: NodeReference | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.deletedAt = deletedAt;
-    this.orderKey = orderKey;
-    this.type = type;
-    this.name = name;
-    this.icon = icon;
-    this.cardinality = cardinality;
-    this.scalarType = scalarType;
-    this.primitiveType = primitiveType;
-    this.enumType = enumType;
-    this.nodeType = nodeType;
-    this.nodeDefinitionPtr = nodeDefinitionPtr;
-    this.structType = structType;
-    this.baseTypePtr = baseTypePtr;
-    this.keyType = keyType;
-    this.isRequired = isRequired;
-    this.defaultValue = defaultValue;
-    this.defaultFactory = defaultFactory;
-    this.collectionConstraint = collectionConstraint;
-    this.stringConstraint = stringConstraint;
-    this.numberConstraint = numberConstraint;
-    this.nodeConstraint = nodeConstraint;
-    this.edgeType = edgeType;
-    this.cascade = cascade;
-    this.sourcePtr = sourcePtr;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type?: FieldType,
     name: string,
     icon?: Icon | null,
@@ -352,36 +142,31 @@ export class Field extends Node implements Spatial, Entity, IsTracked, IsDeletab
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): Field {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Field(
-      options.type ?? FieldType.MEMBER,
-      options.name,
-      options.icon ?? null,
-      options.cardinality ?? TypeCardinality.SCALAR,
-      options.scalarType,
-      options.primitiveType ?? null,
-      options.enumType ?? null,
-      options.nodeType ?? null,
-      options.nodeDefinition != null ? (options.nodeDefinition.metatype == StructType.NODE_REFERENCE ? options.nodeDefinition : options.nodeDefinition.toRef()) : null,
-      options.structType ?? null,
-      options.baseType != null ? (options.baseType.metatype == StructType.NODE_REFERENCE ? options.baseType : options.baseType.toRef()) : null,
-      options.keyType ?? null,
-      options.isRequired ?? null,
-      options.defaultValue ?? null,
-      options.defaultFactory ?? null,
-      options.collectionConstraint ?? null,
-      options.stringConstraint ?? null,
-      options.numberConstraint ?? null,
-      options.nodeConstraint ?? null,
-      options.edgeType ?? null,
-      options.cascade ?? null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.type = options.type ?? FieldType.MEMBER;
+    this.name = options.name;
+    this.icon = options.icon ?? null;
+    this.cardinality = options.cardinality ?? TypeCardinality.SCALAR;
+    this.scalarType = options.scalarType;
+    this.primitiveType = options.primitiveType ?? null;
+    this.enumType = options.enumType ?? null;
+    this.nodeType = options.nodeType ?? null;
+    this.nodeDefinitionPtr = options.nodeDefinition != null ? (options.nodeDefinition.metatype == StructType.NODE_REFERENCE ? (options.nodeDefinition as NodeReference) : (options.nodeDefinition as Node).toRef()) : null;
+    this.structType = options.structType ?? null;
+    this.baseTypePtr = options.baseType != null ? (options.baseType.metatype == StructType.NODE_REFERENCE ? (options.baseType as NodeReference) : (options.baseType as Node).toRef()) : null;
+    this.keyType = options.keyType ?? null;
+    this.isRequired = options.isRequired ?? null;
+    this.defaultValue = options.defaultValue ?? null;
+    this.defaultFactory = options.defaultFactory ?? null;
+    this.collectionConstraint = options.collectionConstraint ?? null;
+    this.stringConstraint = options.stringConstraint ?? null;
+    this.numberConstraint = options.numberConstraint ?? null;
+    this.nodeConstraint = options.nodeConstraint ?? null;
+    this.edgeType = options.edgeType ?? null;
+    this.cascade = options.cascade ?? null;
   }
 
   equals(other: any): boolean {

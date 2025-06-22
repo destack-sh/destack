@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, AnnotationShape, IsTaggable, LabelView, WizardView, ThreadView, Canvas, User, SplitView, IsOrdered, Supergraph, PlaneShape, Space, CustomView, MaterializationType, SliderInputView, Entity, Struct, TextView, ArrowShape, QueryConnection, CustomViewDefinition, BuiltinObject, StructFrozen, Layer, Spatial, Scene, FrameView, StructType, Theme, IsVisual, Node, NodeType, NodeReference, IsDeletable, Agent, Style, LineShape, NumberInputView, Graph } from '@/language';
+import { PlaneShape, Agent, IsTaggable, BuiltinObject, ACTIVE_SESSION, IsVisual, Session, Scene, StructFrozen, LineShape, IsOrdered, Graph, Struct, AnnotationShape, activeSession, StructType, NodeType, Canvas, FrameView, Supergraph, QueryConnection, SliderInputView, NodeReference, WizardView, MaterializationType, User, CustomView, Spatial, LabelView, ThreadView, Space, CustomViewDefinition, NumberInputView, ArrowShape, Theme, IsDeletable, Entity, SplitView, EnumType, Layer, TextView, Style, Node, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:12043 ==== */
@@ -48,34 +48,7 @@ export class Transition extends Struct {
   bounce: number | null;
   springType: SpringType | null;
 
-  constructor(
-    type: TransitionType,
-    stylePtr: NodeReference | null,
-    delay: number | null,
-    duration: number | null,
-    ease: Array<number>,
-    stiffness: number | null,
-    damping: number | null,
-    mass: number | null,
-    bounce: number | null,
-    springType: SpringType | null,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.type = type;
-    this.stylePtr = stylePtr;
-    this.delay = delay;
-    this.duration = duration;
-    this.ease = ease;
-    this.stiffness = stiffness;
-    this.damping = damping;
-    this.mass = mass;
-    this.bounce = bounce;
-    this.springType = springType;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type?: TransitionType,
     style?: TransitionStyle | NodeReference | null,
     delay?: number | null,
@@ -88,22 +61,20 @@ export class Transition extends Struct {
     springType?: SpringType | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): Transition {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Transition(
-      options.type ?? TransitionType.TWEEN,
-      options.style != null ? (options.style.metatype == StructType.NODE_REFERENCE ? options.style : options.style.toRef()) : null,
-      options.delay ?? null,
-      options.duration ?? null,
-      options.ease ?? [],
-      options.stiffness ?? null,
-      options.damping ?? null,
-      options.mass ?? null,
-      options.bounce ?? null,
-      options.springType ?? null,
-      supergraph
-    );
+    super(supergraph);
+    this.type = options.type ?? TransitionType.TWEEN;
+    this.stylePtr = options.style != null ? (options.style.metatype == StructType.NODE_REFERENCE ? (options.style as NodeReference) : (options.style as Node).toRef()) : null;
+    this.delay = options.delay ?? null;
+    this.duration = options.duration ?? null;
+    this.ease = options.ease ?? [];
+    this.stiffness = options.stiffness ?? null;
+    this.damping = options.damping ?? null;
+    this.mass = options.mass ?? null;
+    this.bounce = options.bounce ?? null;
+    this.springType = options.springType ?? null;
   }
 
   equals(other: any): boolean {
@@ -175,57 +146,7 @@ export class TransitionStyle extends Node implements Spatial, Entity, IsTracked,
   bounce: number | null;
   springType: SpringType | null;
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    deletedAt: Temporal.ZonedDateTime | null,
-    orderKey: string,
-    type: TransitionType,
-    name: string,
-    delay: number | null,
-    duration: number | null,
-    ease: Array<number>,
-    stiffness: number | null,
-    damping: number | null,
-    mass: number | null,
-    bounce: number | null,
-    springType: SpringType | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.deletedAt = deletedAt;
-    this.orderKey = orderKey;
-    this.type = type;
-    this.name = name;
-    this.delay = delay;
-    this.duration = duration;
-    this.ease = ease;
-    this.stiffness = stiffness;
-    this.damping = damping;
-    this.mass = mass;
-    this.bounce = bounce;
-    this.springType = springType;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type?: TransitionType,
     name: string,
     delay?: number | null,
@@ -240,25 +161,20 @@ export class TransitionStyle extends Node implements Spatial, Entity, IsTracked,
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): TransitionStyle {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new TransitionStyle(
-      options.type ?? TransitionType.TWEEN,
-      options.name,
-      options.delay ?? null,
-      options.duration ?? null,
-      options.ease ?? [],
-      options.stiffness ?? null,
-      options.damping ?? null,
-      options.mass ?? null,
-      options.bounce ?? null,
-      options.springType ?? null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.type = options.type ?? TransitionType.TWEEN;
+    this.name = options.name;
+    this.delay = options.delay ?? null;
+    this.duration = options.duration ?? null;
+    this.ease = options.ease ?? [];
+    this.stiffness = options.stiffness ?? null;
+    this.damping = options.damping ?? null;
+    this.mass = options.mass ?? null;
+    this.bounce = options.bounce ?? null;
+    this.springType = options.springType ?? null;
   }
 
   equals(other: any): boolean {

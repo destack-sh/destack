@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, User, Supergraph, Folder, Space, IsOwnable, Global, MaterializationType, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, Spatial, StructType, Node, NodeType, NodeReference, IsDeletable, Agent, Graph } from '@/language';
+import { Agent, BuiltinObject, ACTIVE_SESSION, Folder, Session, StructFrozen, Graph, Struct, activeSession, Global, StructType, NodeType, Supergraph, QueryConnection, NodeReference, MaterializationType, IsOwnable, User, Spatial, Space, IsDeletable, Entity, EnumType, Node, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:5521 ==== */
@@ -52,62 +52,23 @@ export class Star extends Node implements Global, Spatial, Entity, IsTracked, Is
       return null;
   }
 
-  set ownedBy(value: Agent | User) {
-      if (value === null) {
-          this.ownedByPtr = null;
-      } else {
-          this.ownedByPtr = value.toRef();
-      }
+  set ownedBy(node: Agent | User) {
+      this.ownedByPtr = node.toRef();
   }
   ;
   ownedByPtr: NodeReference
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    deletedAt: Temporal.ZonedDateTime | null,
-    ownedByPtr: NodeReference,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.deletedAt = deletedAt;
-    this.ownedByPtr = ownedByPtr;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     ownedBy: Agent | User | NodeReference,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): Star {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Star(
-      options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? options.ownedBy : options.ownedBy.toRef()) : null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.ownedByPtr = options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? (options.ownedBy as NodeReference) : (options.ownedBy as Node).toRef()) : null;
   }
 
   equals(other: any): boolean {

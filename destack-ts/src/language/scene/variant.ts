@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, User, Supergraph, Space, Length, IsOwnable, MaterializationType, Icon, Entity, Struct, QueryConnection, CustomViewDefinition, BuiltinObject, StructFrozen, Layer, Spatial, Scene, StructType, Team, Role, Node, NodeType, NodeReference, IsDeletable, Agent, Organization, Graph } from '@/language';
+import { Agent, BuiltinObject, ACTIVE_SESSION, Organization, Session, Scene, StructFrozen, Graph, Struct, activeSession, StructType, NodeType, Role, Icon, Supergraph, QueryConnection, Length, NodeReference, MaterializationType, IsOwnable, User, Spatial, Team, Space, CustomViewDefinition, IsDeletable, Entity, EnumType, Layer, Node, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:9030 ==== */
@@ -67,11 +67,11 @@ export class Variant extends Node implements Spatial, Entity, IsTracked, IsDelet
       return null;
   }
 
-  set ownedBy(value: Role | Agent | Organization | Team | User | null) {
-      if (value === null) {
+  set ownedBy(node: Role | Agent | Organization | Team | User | null) {
+      if (node === null) {
           this.ownedByPtr = null;
       } else {
-          this.ownedByPtr = value.toRef();
+          this.ownedByPtr = node.toRef();
       }
   }
   ;
@@ -85,53 +85,7 @@ export class Variant extends Node implements Spatial, Entity, IsTracked, IsDelet
   minWidth: Length | null;
   minHeight: Length | null;
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    deletedAt: Temporal.ZonedDateTime | null,
-    ownedByPtr: NodeReference | null,
-    type: VariantType,
-    name: string,
-    slug: string | null,
-    icon: Icon | null,
-    maxWidth: Length | null,
-    maxHeight: Length | null,
-    minWidth: Length | null,
-    minHeight: Length | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.deletedAt = deletedAt;
-    this.ownedByPtr = ownedByPtr;
-    this.type = type;
-    this.name = name;
-    this.slug = slug;
-    this.icon = icon;
-    this.maxWidth = maxWidth;
-    this.maxHeight = maxHeight;
-    this.minWidth = minWidth;
-    this.minHeight = minHeight;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     type: VariantType,
     name: string,
@@ -145,24 +99,19 @@ export class Variant extends Node implements Spatial, Entity, IsTracked, IsDelet
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): Variant {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Variant(
-      options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? options.ownedBy : options.ownedBy.toRef()) : null,
-      options.type,
-      options.name,
-      options.slug ?? null,
-      options.icon ?? null,
-      options.maxWidth ?? null,
-      options.maxHeight ?? null,
-      options.minWidth ?? null,
-      options.minHeight ?? null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.ownedByPtr = options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? (options.ownedBy as NodeReference) : (options.ownedBy as Node).toRef()) : null;
+    this.type = options.type;
+    this.name = options.name;
+    this.slug = options.slug ?? null;
+    this.icon = options.icon ?? null;
+    this.maxWidth = options.maxWidth ?? null;
+    this.maxHeight = options.maxHeight ?? null;
+    this.minWidth = options.minWidth ?? null;
+    this.minHeight = options.minHeight ?? null;
   }
 
   equals(other: any): boolean {

@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, User, Supergraph, Space, IsOwnable, MaterializationType, Entity, Struct, Vector2i, QueryConnection, BuiltinObject, StructFrozen, Spatial, StructType, Team, Role, Node, NodeType, NodeReference, Agent, Organization, Graph } from '@/language';
+import { Agent, BuiltinObject, ACTIVE_SESSION, Organization, Session, StructFrozen, Graph, Struct, activeSession, StructType, NodeType, Vector2i, Role, Supergraph, QueryConnection, NodeReference, MaterializationType, IsOwnable, User, Spatial, Team, Space, Entity, EnumType, Node, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:3100 ==== */
@@ -82,11 +82,11 @@ export class EventCursor extends Node implements Spatial, Entity, IsTracked, IsO
       return null;
   }
 
-  set ownedBy(value: Role | Agent | Organization | Team | User | null) {
-      if (value === null) {
+  set ownedBy(node: Role | Agent | Organization | Team | User | null) {
+      if (node === null) {
           this.ownedByPtr = null;
       } else {
-          this.ownedByPtr = value.toRef();
+          this.ownedByPtr = node.toRef();
       }
   }
   ;
@@ -94,39 +94,7 @@ export class EventCursor extends Node implements Spatial, Entity, IsTracked, IsO
   status: CursorStatus;
   activeAt: Temporal.ZonedDateTime | null;
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    ownedByPtr: NodeReference | null,
-    status: CursorStatus,
-    activeAt: Temporal.ZonedDateTime | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.ownedByPtr = ownedByPtr;
-    this.status = status;
-    this.activeAt = activeAt;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     status?: CursorStatus,
     activeAt?: Temporal.ZonedDateTime | null,
@@ -134,18 +102,13 @@ export class EventCursor extends Node implements Spatial, Entity, IsTracked, IsO
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): EventCursor {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new EventCursor(
-      options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? options.ownedBy : options.ownedBy.toRef()) : null,
-      options.status ?? CursorStatus.CREATED,
-      options.activeAt ?? null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.ownedByPtr = options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? (options.ownedBy as NodeReference) : (options.ownedBy as Node).toRef()) : null;
+    this.status = options.status ?? CursorStatus.CREATED;
+    this.activeAt = options.activeAt ?? null;
   }
 
   equals(other: any): boolean {
@@ -233,11 +196,11 @@ export class ScreenCursor extends Node implements Spatial, Entity, IsTracked, Is
       return null;
   }
 
-  set ownedBy(value: Role | Agent | Organization | Team | User | null) {
-      if (value === null) {
+  set ownedBy(node: Role | Agent | Organization | Team | User | null) {
+      if (node === null) {
           this.ownedByPtr = null;
       } else {
-          this.ownedByPtr = value.toRef();
+          this.ownedByPtr = node.toRef();
       }
   }
   ;
@@ -246,41 +209,7 @@ export class ScreenCursor extends Node implements Spatial, Entity, IsTracked, Is
   activeAt: Temporal.ZonedDateTime | null;
   position: Vector2i | null;
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    ownedByPtr: NodeReference | null,
-    status: CursorStatus,
-    activeAt: Temporal.ZonedDateTime | null,
-    position: Vector2i | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.ownedByPtr = ownedByPtr;
-    this.status = status;
-    this.activeAt = activeAt;
-    this.position = position;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     status?: CursorStatus,
     activeAt?: Temporal.ZonedDateTime | null,
@@ -289,19 +218,14 @@ export class ScreenCursor extends Node implements Spatial, Entity, IsTracked, Is
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): ScreenCursor {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new ScreenCursor(
-      options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? options.ownedBy : options.ownedBy.toRef()) : null,
-      options.status ?? CursorStatus.CREATED,
-      options.activeAt ?? null,
-      options.position ?? null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.ownedByPtr = options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? (options.ownedBy as NodeReference) : (options.ownedBy as Node).toRef()) : null;
+    this.status = options.status ?? CursorStatus.CREATED;
+    this.activeAt = options.activeAt ?? null;
+    this.position = options.position ?? null;
   }
 
   equals(other: any): boolean {
@@ -389,11 +313,11 @@ export class ThreadCursor extends Node implements Spatial, Entity, IsTracked, Is
       return null;
   }
 
-  set ownedBy(value: Role | Agent | Organization | Team | User | null) {
-      if (value === null) {
+  set ownedBy(node: Role | Agent | Organization | Team | User | null) {
+      if (node === null) {
           this.ownedByPtr = null;
       } else {
-          this.ownedByPtr = value.toRef();
+          this.ownedByPtr = node.toRef();
       }
   }
   ;
@@ -401,39 +325,7 @@ export class ThreadCursor extends Node implements Spatial, Entity, IsTracked, Is
   status: CursorStatus;
   activeAt: Temporal.ZonedDateTime | null;
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    ownedByPtr: NodeReference | null,
-    status: CursorStatus,
-    activeAt: Temporal.ZonedDateTime | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.ownedByPtr = ownedByPtr;
-    this.status = status;
-    this.activeAt = activeAt;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     status?: CursorStatus,
     activeAt?: Temporal.ZonedDateTime | null,
@@ -441,18 +333,13 @@ export class ThreadCursor extends Node implements Spatial, Entity, IsTracked, Is
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): ThreadCursor {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new ThreadCursor(
-      options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? options.ownedBy : options.ownedBy.toRef()) : null,
-      options.status ?? CursorStatus.CREATED,
-      options.activeAt ?? null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.ownedByPtr = options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? (options.ownedBy as NodeReference) : (options.ownedBy as Node).toRef()) : null;
+    this.status = options.status ?? CursorStatus.CREATED;
+    this.activeAt = options.activeAt ?? null;
   }
 
   equals(other: any): boolean {

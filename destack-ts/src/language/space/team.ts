@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, IsOwner, User, Supergraph, IsJoinable, MaterializationType, Global, Icon, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, StructType, Node, NodeType, NodeReference, Agent, Graph } from '@/language';
+import { Agent, BuiltinObject, ACTIVE_SESSION, Session, StructFrozen, Graph, Struct, activeSession, Global, StructType, NodeType, Icon, Supergraph, QueryConnection, NodeReference, MaterializationType, User, Entity, EnumType, IsOwner, IsJoinable, Node, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:50 ==== */
@@ -38,37 +38,7 @@ export class Team extends Node implements Global, Entity, IsTracked, IsJoinable,
   slug: string | null;
   icon: Icon | null;
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    name: string,
-    slug: string | null,
-    icon: Icon | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.name = name;
-    this.slug = slug;
-    this.icon = icon;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     name: string,
     slug?: string | null,
     icon?: Icon | null,
@@ -76,18 +46,13 @@ export class Team extends Node implements Global, Entity, IsTracked, IsJoinable,
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): Team {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Team(
-      options.name,
-      options.slug ?? null,
-      options.icon ?? null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.name = options.name;
+    this.slug = options.slug ?? null;
+    this.icon = options.icon ?? null;
   }
 
   equals(other: any): boolean {

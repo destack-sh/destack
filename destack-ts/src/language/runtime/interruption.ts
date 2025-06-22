@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, Indexed, Analytic, User, Supergraph, Action, Space, Value, Particle, Script, Service, Struct, QueryConnection, BuiltinObject, StructFrozen, Spatial, IsExtensible, StructType, Message, Span, Run, Node, NodeType, NodeReference, Agent, Graph } from '@/language';
+import { Agent, BuiltinObject, ACTIVE_SESSION, Session, StructFrozen, Graph, Service, Struct, activeSession, Particle, StructType, NodeType, Action, Indexed, Span, Supergraph, QueryConnection, NodeReference, Value, User, Analytic, IsExtensible, Spatial, Run, Message, Space, Script, EnumType, Node, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:4020 ==== */
@@ -75,11 +75,11 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
       return null;
   }
 
-  set runnable(value: Action | Script | Service | null) {
-      if (value === null) {
+  set runnable(node: Action | Script | Service | null) {
+      if (node === null) {
           this.runnablePtr = null;
       } else {
-          this.runnablePtr = value.toRef();
+          this.runnablePtr = node.toRef();
       }
   }
   ;
@@ -92,11 +92,11 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
       return null;
   }
 
-  set span(value: Span | null) {
-      if (value === null) {
+  set span(node: Span | null) {
+      if (node === null) {
           this.spanPtr = null;
       } else {
-          this.spanPtr = value.toRef();
+          this.spanPtr = node.toRef();
       }
   }
   ;
@@ -113,59 +113,17 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
       return null;
   }
 
-  set message(value: Message | null) {
-      if (value === null) {
+  set message(node: Message | null) {
+      if (node === null) {
           this.messagePtr = null;
       } else {
-          this.messagePtr = value.toRef();
+          this.messagePtr = node.toRef();
       }
   }
   ;
   messagePtr: NodeReference | null
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    value: Map<string, Value>,
-    type: InterruptionType,
-    runnablePtr: NodeReference | null,
-    spanPtr: NodeReference | null,
-    status: InterruptionStatus,
-    duration: Temporal.Duration | null,
-    closedAt: Temporal.ZonedDateTime | null,
-    response: InterruptionResponse | null,
-    messagePtr: NodeReference | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.value = value;
-    this.type = type;
-    this.runnablePtr = runnablePtr;
-    this.spanPtr = spanPtr;
-    this.status = status;
-    this.duration = duration;
-    this.closedAt = closedAt;
-    this.response = response;
-    this.messagePtr = messagePtr;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     value?: Map<string, Value>,
     type: InterruptionType,
     runnable?: Action | Script | Service | NodeReference | null,
@@ -179,24 +137,19 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): Interruption {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Interruption(
-      options.value ?? new Map(),
-      options.type,
-      options.runnable != null ? (options.runnable.metatype == StructType.NODE_REFERENCE ? options.runnable : options.runnable.toRef()) : null,
-      options.span != null ? (options.span.metatype == StructType.NODE_REFERENCE ? options.span : options.span.toRef()) : null,
-      options.status ?? InterruptionStatus.OPEN,
-      options.duration ?? null,
-      options.closedAt ?? null,
-      options.response ?? null,
-      options.message != null ? (options.message.metatype == StructType.NODE_REFERENCE ? options.message : options.message.toRef()) : null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.value = options.value ?? new Map();
+    this.type = options.type;
+    this.runnablePtr = options.runnable != null ? (options.runnable.metatype == StructType.NODE_REFERENCE ? (options.runnable as NodeReference) : (options.runnable as Node).toRef()) : null;
+    this.spanPtr = options.span != null ? (options.span.metatype == StructType.NODE_REFERENCE ? (options.span as NodeReference) : (options.span as Node).toRef()) : null;
+    this.status = options.status ?? InterruptionStatus.OPEN;
+    this.duration = options.duration ?? null;
+    this.closedAt = options.closedAt ?? null;
+    this.response = options.response ?? null;
+    this.messagePtr = options.message != null ? (options.message.metatype == StructType.NODE_REFERENCE ? (options.message as NodeReference) : (options.message as Node).toRef()) : null;
   }
 
   equals(other: any): boolean {

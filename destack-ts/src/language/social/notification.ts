@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, Indexed, Analytic, User, Supergraph, Space, Particle, IsOwnable, MaterializationType, Text, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, Event, Spatial, IsFrozen, StructType, Team, Role, Node, NodeType, NodeReference, Agent, Organization, Graph } from '@/language';
+import { Agent, BuiltinObject, ACTIVE_SESSION, Organization, Session, StructFrozen, IsFrozen, Graph, Struct, Event, activeSession, Particle, StructType, NodeType, Indexed, Role, Supergraph, QueryConnection, NodeReference, MaterializationType, IsOwnable, User, Analytic, Spatial, Team, Text, Space, Entity, EnumType, Node, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:5600 ==== */
@@ -71,62 +71,25 @@ export class NotificationEvent extends Node implements Spatial, Particle, Analyt
       return null;
   }
 
-  set node(value: Notification) {
-      if (value === null) {
-          this.nodePtr = null;
-      } else {
-          this.nodePtr = value.toRef();
-      }
+  set node(node: Notification) {
+      this.nodePtr = node.toRef();
   }
   ;
   nodePtr: NodeReference
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    type: NotificationEventType,
-    nodePtr: NodeReference,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.type = type;
-    this.nodePtr = nodePtr;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type: NotificationEventType,
     node: Notification | NodeReference,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): NotificationEvent {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new NotificationEvent(
-      options.type,
-      options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? options.node : options.node.toRef()) : null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.type = options.type;
+    this.nodePtr = options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? (options.node as NodeReference) : (options.node as Node).toRef()) : null;
   }
 
   equals(other: any): boolean {
@@ -214,11 +177,11 @@ export class Notification extends Node implements Spatial, Entity, IsTracked, Is
       return null;
   }
 
-  set ownedBy(value: Role | Agent | Organization | Team | User | null) {
-      if (value === null) {
+  set ownedBy(node: Role | Agent | Organization | Team | User | null) {
+      if (node === null) {
           this.ownedByPtr = null;
       } else {
-          this.ownedByPtr = value.toRef();
+          this.ownedByPtr = node.toRef();
       }
   }
   ;
@@ -227,41 +190,7 @@ export class Notification extends Node implements Spatial, Entity, IsTracked, Is
   title: string;
   text: Text | null;
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    ownedByPtr: NodeReference | null,
-    status: NotificationStatus,
-    title: string,
-    text: Text | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.ownedByPtr = ownedByPtr;
-    this.status = status;
-    this.title = title;
-    this.text = text;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     status: NotificationStatus,
     title: string,
@@ -270,19 +199,14 @@ export class Notification extends Node implements Spatial, Entity, IsTracked, Is
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): Notification {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Notification(
-      options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? options.ownedBy : options.ownedBy.toRef()) : null,
-      options.status,
-      options.title,
-      options.text ?? null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.ownedByPtr = options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? (options.ownedBy as NodeReference) : (options.ownedBy as Node).toRef()) : null;
+    this.status = options.status;
+    this.title = options.title;
+    this.text = options.text ?? null;
   }
 
   equals(other: any): boolean {

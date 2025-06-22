@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, AnnotationShape, IsTaggable, LabelView, Gradient, WizardView, ThreadView, Canvas, User, SplitView, IsOrdered, Supergraph, PlaneShape, Space, CustomView, MaterializationType, File, SliderInputView, Entity, Struct, TextView, ArrowShape, QueryConnection, CustomViewDefinition, BuiltinObject, StructFrozen, Layer, Spatial, Scene, FrameView, StructType, Theme, IsVisual, Node, NodeType, Color, NodeReference, IsDeletable, Agent, Style, LineShape, NumberInputView, Graph } from '@/language';
+import { PlaneShape, Agent, File, IsTaggable, BuiltinObject, ACTIVE_SESSION, IsVisual, Session, Scene, StructFrozen, LineShape, IsOrdered, Graph, Struct, AnnotationShape, activeSession, StructType, NodeType, Canvas, FrameView, Gradient, Supergraph, QueryConnection, SliderInputView, NodeReference, WizardView, MaterializationType, User, CustomView, Spatial, LabelView, ThreadView, Color, Space, CustomViewDefinition, NumberInputView, ArrowShape, Theme, IsDeletable, Entity, SplitView, EnumType, Layer, TextView, Style, Node, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:12034 ==== */
@@ -81,28 +81,7 @@ export class Fill extends Struct {
   position: FillPosition | null;
   size: FillSize | null;
 
-  constructor(
-    type: FillType,
-    stylePtr: NodeReference | null,
-    color: Color | null,
-    gradient: Gradient | null,
-    imagePtr: NodeReference | null,
-    position: FillPosition | null,
-    size: FillSize | null,
-    _supergraph: Supergraph | null
-  ) {
-    super(_supergraph);
-    this.type = type;
-    this.stylePtr = stylePtr;
-    this.color = color;
-    this.gradient = gradient;
-    this.imagePtr = imagePtr;
-    this.position = position;
-    this.size = size;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type: FillType,
     style?: FillStyle | NodeReference | null,
     color?: Color | null,
@@ -112,19 +91,17 @@ export class Fill extends Struct {
     size?: FillSize | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null
-  }): Fill {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Fill(
-      options.type,
-      options.style != null ? (options.style.metatype == StructType.NODE_REFERENCE ? options.style : options.style.toRef()) : null,
-      options.color ?? null,
-      options.gradient ?? null,
-      options.image != null ? (options.image.metatype == StructType.NODE_REFERENCE ? options.image : options.image.toRef()) : null,
-      options.position ?? null,
-      options.size ?? null,
-      supergraph
-    );
+    super(supergraph);
+    this.type = options.type;
+    this.stylePtr = options.style != null ? (options.style.metatype == StructType.NODE_REFERENCE ? (options.style as NodeReference) : (options.style as Node).toRef()) : null;
+    this.color = options.color ?? null;
+    this.gradient = options.gradient ?? null;
+    this.imagePtr = options.image != null ? (options.image.metatype == StructType.NODE_REFERENCE ? (options.image as NodeReference) : (options.image as Node).toRef()) : null;
+    this.position = options.position ?? null;
+    this.size = options.size ?? null;
   }
 
   equals(other: any): boolean {
@@ -197,11 +174,11 @@ export class FillStyle extends Node implements Spatial, Entity, IsTracked, IsDel
       return null;
   }
 
-  set image(value: File | null) {
-      if (value === null) {
+  set image(node: File | null) {
+      if (node === null) {
           this.imagePtr = null;
       } else {
-          this.imagePtr = value.toRef();
+          this.imagePtr = node.toRef();
       }
   }
   ;
@@ -209,51 +186,7 @@ export class FillStyle extends Node implements Spatial, Entity, IsTracked, IsDel
   position: FillPosition | null;
   size: FillSize | null;
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    deletedAt: Temporal.ZonedDateTime | null,
-    orderKey: string,
-    type: FillType,
-    name: string,
-    color: Color | null,
-    gradient: Gradient | null,
-    imagePtr: NodeReference | null,
-    position: FillPosition | null,
-    size: FillSize | null,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.deletedAt = deletedAt;
-    this.orderKey = orderKey;
-    this.type = type;
-    this.name = name;
-    this.color = color;
-    this.gradient = gradient;
-    this.imagePtr = imagePtr;
-    this.position = position;
-    this.size = size;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type: FillType,
     name: string,
     color?: Color | null,
@@ -265,22 +198,17 @@ export class FillStyle extends Node implements Spatial, Entity, IsTracked, IsDel
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): FillStyle {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new FillStyle(
-      options.type,
-      options.name,
-      options.color ?? null,
-      options.gradient ?? null,
-      options.image != null ? (options.image.metatype == StructType.NODE_REFERENCE ? options.image : options.image.toRef()) : null,
-      options.position ?? null,
-      options.size ?? null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.type = options.type;
+    this.name = options.name;
+    this.color = options.color ?? null;
+    this.gradient = options.gradient ?? null;
+    this.imagePtr = options.image != null ? (options.image.metatype == StructType.NODE_REFERENCE ? (options.image as NodeReference) : (options.image as Node).toRef()) : null;
+    this.position = options.position ?? null;
+    this.size = options.size ?? null;
   }
 
   equals(other: any): boolean {

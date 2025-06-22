@@ -1,4 +1,4 @@
-import { IsTracked, EnumType, Session, Indexed, Analytic, User, Supergraph, Folder, Thread, Space, Particle, MaterializationType, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, Event, Spatial, IsFrozen, StructType, Team, Node, NodeType, NodeReference, IsDeletable, Agent, Organization, Graph } from '@/language';
+import { Agent, BuiltinObject, ACTIVE_SESSION, Organization, Folder, Session, StructFrozen, IsFrozen, Graph, Struct, Event, activeSession, Particle, StructType, NodeType, Indexed, Supergraph, QueryConnection, NodeReference, MaterializationType, Thread, User, Analytic, Spatial, Team, Space, IsDeletable, Entity, EnumType, Node, IsTracked } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:541 ==== */
@@ -66,58 +66,23 @@ export class SanctionEvent extends Node implements Spatial, Particle, Analytic, 
       return null;
   }
 
-  set node(value: Sanction) {
-      if (value === null) {
-          this.nodePtr = null;
-      } else {
-          this.nodePtr = value.toRef();
-      }
+  set node(node: Sanction) {
+      this.nodePtr = node.toRef();
   }
   ;
   nodePtr: NodeReference
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    nodePtr: NodeReference,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.nodePtr = nodePtr;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     node: Sanction | NodeReference,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): SanctionEvent {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new SanctionEvent(
-      options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? options.node : options.node.toRef()) : null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.nodePtr = options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? (options.node as NodeReference) : (options.node as Node).toRef()) : null;
   }
 
   equals(other: any): boolean {
@@ -208,51 +173,13 @@ export class Sanction extends Node implements Spatial, Entity, IsTracked, IsDele
       return null;
   }
 
-  set target(value: Agent | User) {
-      if (value === null) {
-          this.targetPtr = null;
-      } else {
-          this.targetPtr = value.toRef();
-      }
+  set target(node: Agent | User) {
+      this.targetPtr = node.toRef();
   }
   ;
   targetPtr: NodeReference
 
-  constructor(
-    id: string,
-    parentPtr: NodeReference | null,
-    spacePtr: NodeReference | null,
-    materialization: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdByPtr: NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedByPtr: NodeReference | null,
-    deletedAt: Temporal.ZonedDateTime | null,
-    type: SanctionType,
-    expiresAt: Temporal.ZonedDateTime | null,
-    targetPtr: NodeReference,
-    _session: Session,
-    _supergraph: Supergraph,
-    _graph: Graph,
-    _connection: QueryConnection | null
-  ) {
-    super(id, _session, _supergraph, _graph, _connection);
-    this.id = id;
-    this.parentPtr = parentPtr;
-    this.spacePtr = spacePtr;
-    this.materialization = materialization;
-    this.createdAt = createdAt;
-    this.createdByPtr = createdByPtr;
-    this.updatedAt = updatedAt;
-    this.updatedByPtr = updatedByPtr;
-    this.deletedAt = deletedAt;
-    this.type = type;
-    this.expiresAt = expiresAt;
-    this.targetPtr = targetPtr;
-  }
-
-
-  static from(options: {
+  constructor(options: {
     type: SanctionType,
     expiresAt?: Temporal.ZonedDateTime | null,
     target: Agent | User | NodeReference,
@@ -260,18 +187,13 @@ export class Sanction extends Node implements Spatial, Entity, IsTracked, IsDele
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
-  }): Sanction {
+  }) {
     const session = options._session ?? ACTIVE_SESSION.get();
     const supergraph = options._supergraph ?? session.supergraph;
-    return new Sanction(
-      options.type,
-      options.expiresAt ?? null,
-      options.target != null ? (options.target.metatype == StructType.NODE_REFERENCE ? options.target : options.target.toRef()) : null,
-      session,
-      supergraph,
-      options._graph,
-      options._connection
-    );
+    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    this.type = options.type;
+    this.expiresAt = options.expiresAt ?? null;
+    this.targetPtr = options.target != null ? (options.target.metatype == StructType.NODE_REFERENCE ? (options.target as NodeReference) : (options.target as Node).toRef()) : null;
   }
 
   equals(other: any): boolean {
