@@ -1,4 +1,4 @@
-import { Layer, Agent, PlaneShape, Scene, Supergraph, StructFrozen, CustomViewDefinition, EnumType, Struct, SplitView, Session, Position, NodeReference, User, Script, MaterializationType, BuiltinObject, Graph, Dimension, CustomView, NodeType, Node, StructType, QueryConnection, LabelView, FrameView, Canvas, AnnotationShape, Window, Space } from '@/language';
+import { Layer, Script, MaterializationType, FrameView, StructFrozen, Supergraph, Struct, PlaneShape, Space, NodeType, Scene, LabelView, Node, Agent, StructType, CustomView, Position, QueryConnection, Dimension, Graph, Canvas, NodeReference, Window, Session, User, CustomViewDefinition, BuiltinObject, EnumType, SplitView, AnnotationShape } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:TRAIT:10650 ==== */

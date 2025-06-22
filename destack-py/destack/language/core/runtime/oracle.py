@@ -9,65 +9,6 @@ from typing import Callable, final, override
 
 import pytz
 
-MAX_SCHEDULE_DURATION = 100 * 365 * 24 * 60 * 60  # 100 years in seconds
-MAX_SCHEDULE_DURATION_NS = MAX_SCHEDULE_DURATION * 1e9  # 100 years in nanoseconds
-
-
-class Timer:
-    """Simple Oracle-backed timer."""
-
-    def __init__(self, oracle: "Oracle") -> None:
-        self.oracle = oracle
-        self.start_ns = None
-        self.end_ns = None
-
-    def __str__(self) -> str:
-        if self.start_ns is None:
-            return "not started"
-        elif self.end_ns is None:
-            return "running"
-        else:
-            return f"{self.elapsed:.3f}s"
-
-    def __repr__(self) -> str:
-        return f"<Timer {self!s}>"
-
-    def start(self):
-        assert self.start_ns is None, f"f{self!r} already started"
-        self.start_ns = self.oracle.time_ns()
-
-    def stop(self):
-        assert self.start_ns is not None, f"{self!r} not started"
-        assert self.end_ns is None, f"{self!r} already stopped"
-        self.end_ns = self.oracle.time_ns()
-
-    def __enter__(self):
-        self.start()
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.stop()
-
-    async def __aenter__(self):
-        self.start()
-        return self
-
-    async def __aexit__(self, exc_type, exc_value, traceback):
-        self.stop()
-
-    @property
-    def elapsed_ns(self) -> int:
-        if self.start_ns is None:
-            return 0
-        elif self.end_ns is None:
-            return self.oracle.time_ns() - self.start_ns
-        else:
-            return self.end_ns - self.start_ns
-
-    @property
-    def elapsed(self) -> float:
-        return self.elapsed_ns / 1e9
-
 
 class Oracle(abc.ABC):
     """
@@ -132,12 +73,8 @@ class Oracle(abc.ABC):
         """Call a callback as soon as possible. Like asyncio.call_soon."""
         ...
 
-    def timer(self) -> Timer:
-        """Create a timer."""
-        return Timer(self)
 
-
-class RealOracle(Oracle):
+class WorldOracle(Oracle):
     """The real world oracle."""
 
     def __init__(self, *, seed: int | None = None):
@@ -186,4 +123,4 @@ class RealOracle(Oracle):
         asyncio.get_event_loop().call_soon(callback, *args, context=context)
 
 
-REAL_ORACLE = RealOracle()
+WORLD_ORACLE = WorldOracle()

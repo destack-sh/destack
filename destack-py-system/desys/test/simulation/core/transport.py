@@ -9,7 +9,7 @@ from grpclib.protocol import H2Protocol
 from grpclib.server import Server as GrpcServer
 from opentelemetry import trace
 
-from destack.utils.oracle import Oracle
+from destack.language import Oracle
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)

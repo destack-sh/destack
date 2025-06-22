@@ -1,8 +1,8 @@
 import structlog
 from opentelemetry import trace
 
+from destack.language import Oracle
 from destack.utils.env import IS_DEV, IS_TEST
-from destack.utils.oracle import Oracle
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)

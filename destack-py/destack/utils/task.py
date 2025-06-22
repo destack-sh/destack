@@ -3,8 +3,6 @@ import contextlib
 from collections.abc import Awaitable, Coroutine
 from typing import Any, Callable
 
-from destack.utils.oracle import Oracle
-
 
 async def _wrap_task(coro: Coroutine, logger, task_id: str, owner: Any) -> None:
     try:
@@ -32,7 +30,6 @@ class TaskManager:
         *,
         owner: Any,
         logger: Any,
-        oracle: Oracle,
         on_error: Callable[[BaseException], None] | None,
         task_id_prefix: str | None = None,
     ):
@@ -40,7 +37,6 @@ class TaskManager:
         self._errors = []
         self._owner = owner
         self._logger = logger
-        self._oracle = oracle
         self._on_error = on_error
         self._task_id_prefix = task_id_prefix
         self._is_closed = False
@@ -161,50 +157,6 @@ class TaskManager:
         )
         self._active_tasks.append(task)
         return task
-
-    async def _run_scheduled_tasks(
-        self,
-        run_every: float,
-        process: Callable[[], Awaitable[None] | Coroutine[None, None, None] | None],
-        task_id: str,
-        skip_errors: bool = False,
-    ) -> None:
-        while True:
-            try:
-                await self._oracle.sleep(run_every)
-                ret = process()
-                if ret is not None:
-                    await ret
-            except Exception as e:
-                # sleep throws RuntimeError if event loop is closed (happens when pytest shuts down)
-                if isinstance(e, asyncio.CancelledError) or (
-                    isinstance(e, RuntimeError) and "event loop is closed" in str(e).lower()
-                ):
-                    self._logger.trace("task.cancel", owner=self._owner, task_id=task_id)
-                    break
-                self._logger.exception("task.error", owner=self._owner, task_id=task_id, exc_info=e)
-                if not skip_errors:
-                    if self._on_error is not None:
-                        self._on_error(e)
-                    self._errors.append(e)
-                    raise
-
-    def start_scheduled(
-        self,
-        every: float,
-        process: Callable[[], Awaitable[None] | Coroutine[None, None, None] | None],
-        task_id: str | None = None,
-        *,
-        skip_errors: bool,
-    ) -> None:
-        task_id = self._make_task_id(task_id, process.__name__)
-        task = asyncio.create_task(
-            coro=self._run_scheduled_tasks(
-                run_every=every, process=process, task_id=task_id, skip_errors=skip_errors
-            ),
-            name=task_id,
-        )
-        self._active_tasks.append(task)
 
     def close(self):
         self._is_closed = True

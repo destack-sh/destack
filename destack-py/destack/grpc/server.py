@@ -11,7 +11,7 @@ from opentelemetry import trace
 from destack.grpc.health import HealthService
 from destack.grpc.network import Network
 from destack.grpc.service import ServiceBase
-from destack.utils.oracle import Oracle
+from destack.language import Oracle
 from destack.utils.telemetry import export_now
 
 logger = structlog.get_logger(__name__)

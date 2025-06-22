@@ -23,10 +23,9 @@ from grpclib.client import ServiceMethod
 from opentelemetry import trace
 
 from destack.grpc.wiring import unpack_rpc_headers
-from destack.language import EMPTY_DICT, Client, DestackError, IsSubject, Session
+from destack.language import EMPTY_DICT, Client, DestackError, IsSubject, Oracle, Session
 from destack.proto import RpcMetadata, ServiceKind
 from destack.utils.env import IS_DEV, IS_TEST
-from destack.utils.oracle import Oracle
 from destack.utils.string import Casing, to_casing
 from destack.utils.task import TaskManager
 from destack.utils.telemetry import (
@@ -78,7 +77,7 @@ class ServiceBase(abc.ABC):
         self.logger = logger.bind(service=self)
         self.tracer = tracer
         self.network = network
-        self.tasks = TaskManager(owner=self, logger=logger, oracle=oracle, on_error=on_error)
+        self.tasks = TaskManager(owner=self, logger=logger, on_error=on_error)
         self.oracle = oracle
         self.active_unary_requests_count = 0
         self._on_error = on_error

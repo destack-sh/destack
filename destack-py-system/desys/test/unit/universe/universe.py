@@ -11,9 +11,8 @@ from destack.grpc import (
     UniverseClient,
     pack_rpc_headers,
 )
-from destack.language import Client, ClientType, DatabaseInfo, Session
+from destack.language import WORLD_ORACLE, Client, ClientType, DatabaseInfo, Session
 from destack.test.fixtures import raises_grpc_error
-from destack.utils.oracle import REAL_ORACLE
 from desys.sharding import DATABASE_PROVIDER, GALAXY_PROVIDER
 from desys.test.simulation.core import SimulatedChannel
 
@@ -28,7 +27,7 @@ async def universe_service(
         id="universe",
         global_database=global_postgres_database,
         network=NullNetwork(),
-        oracle=REAL_ORACLE,
+        oracle=WORLD_ORACLE,
         galaxy_provider=GALAXY_PROVIDER,
         database_provider=DATABASE_PROVIDER,
     )
@@ -40,7 +39,7 @@ async def universe_service(
 
 @pytest.fixture
 async def universe(universe_service):
-    async with SimulatedChannel(services=(universe_service,), oracle=REAL_ORACLE) as channel:
+    async with SimulatedChannel(services=(universe_service,), oracle=WORLD_ORACLE) as channel:
         yield UniverseClient(channel=channel)
 
 

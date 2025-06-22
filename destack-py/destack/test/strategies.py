@@ -32,7 +32,6 @@ from destack.language import (
     icon,
 )
 from destack.language.registry import STRUCT_CLASS_BY_TYPE, get_builtin_object_cls
-from destack.utils.oracle import MAX_SCHEDULE_DURATION
 
 logger = structlog.get_logger(__name__)
 
@@ -76,9 +75,7 @@ def draw_direct(strat: st.SearchStrategy):
     return examples[0]
 
 
-DURATION_STRATEGY = st.floats(
-    min_value=0, max_value=MAX_SCHEDULE_DURATION, allow_nan=False, allow_infinity=False
-)
+DURATION_STRATEGY = st.floats(min_value=0, allow_nan=False, allow_infinity=False)
 JSON_STRATEGY = st.none()  # not needed yet
 ORDER_KEY_STRATEGY = st.one_of(
     st.just("a0"), st.just("a1"), st.just("a2"), st.just("a3"), st.just("a4")

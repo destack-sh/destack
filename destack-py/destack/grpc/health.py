@@ -6,7 +6,7 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
-from destack.language import Client, IsSubject, Session
+from destack.language import Client, IsSubject, Oracle, Session
 from destack.proto import (
     HealthBase,
     HealthCheckRequest,
@@ -14,7 +14,6 @@ from destack.proto import (
     RpcMetadata,
     ServiceKind,
 )
-from destack.utils.oracle import Oracle
 
 from .network import Network
 from .service import ServiceBase

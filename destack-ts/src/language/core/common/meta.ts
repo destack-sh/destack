@@ -1,4 +1,4 @@
-import { DefaultFactory, Supergraph, StructFrozen, EnumType, Struct, Session, NodeReference, ScalarType, NumberConstraint, BuiltinObject, Graph, StringConstraint, NodeType, Node, StructType, Value, QueryConnection, NodeConstraint, EdgeType, Type, CascadeAction, Icon, CollectionConstraint, TypeCardinality, TraitType, PrimitiveType } from '@/language';
+import { NumberConstraint, StringConstraint, StructFrozen, Supergraph, Struct, TypeCardinality, NodeType, PrimitiveType, NodeConstraint, TraitType, Node, StructType, Value, QueryConnection, CollectionConstraint, DefaultFactory, ScalarType, Graph, NodeReference, CascadeAction, Type, Session, BuiltinObject, EnumType, EdgeType, Icon } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50004 ==== */

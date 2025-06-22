@@ -9,10 +9,9 @@ from typing import (
 import structlog
 from opentelemetry import trace
 
-from destack.utils.oracle import REAL_ORACLE, Oracle
 from destack.utils.uuid import UUID
 
-from ..builtin import ACTIVE_SESSION, EnvironmentType, IsSubject, Node, TypeCardinality
+from ..builtin import ACTIVE_SESSION, IsSubject, Node, TypeCardinality
 from ..common import (
     Change,
     ChangeResult,
@@ -23,6 +22,7 @@ from ..common import (
     to_value,
 )
 from .graph import Supergraph
+from .oracle import WORLD_ORACLE, Oracle
 from .store import OptimisticStore
 
 if TYPE_CHECKING:
@@ -36,7 +36,7 @@ tracer = trace.get_tracer(__name__)
 
 class Session:
     """
-    A managed Session for interacting with a Destack.
+    A managed Session for interacting with Destack.
     """
 
     __slots__ = (
@@ -46,7 +46,6 @@ class Session:
         "connections",
         "dirty",
         "edits",
-        "mode",
         "oracle",
         "origin",
         "runtime",
@@ -58,15 +57,13 @@ class Session:
 
     def __init__(
         self,
-        mode: EnvironmentType = EnvironmentType.STAGING,
-        oracle: Oracle = REAL_ORACLE,
+        oracle: Oracle = WORLD_ORACLE,
         space: Optional["Space"] = None,
         origin: "Origin | None" = None,
         subject: IsSubject | None = None,
         store: "Store | None" = None,
     ):
         self.supergraph = Supergraph(self)
-        self.mode: EnvironmentType = mode
         self.oracle: Oracle = oracle
         self.space: Space | None = space
         self.origin: Origin | None = origin
@@ -84,7 +81,7 @@ class Session:
         self._token: Any | None = None
 
     def __str__(self) -> str:
-        content_parts: list[str] = [f"mode={self.mode.name}"]
+        content_parts: list[str] = []
         if self.space:
             content_parts.append(f"destack={self.space.slug}")
         if self.subject is not None:

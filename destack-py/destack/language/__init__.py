@@ -1,7 +1,5 @@
 # ruff: noqa: F405
 
-from destack.utils.oracle import REAL_ORACLE as REAL_ORACLE
-
 from .access import *  # noqa: F403
 from .canvas import *  # noqa: F403
 from .core import *  # noqa: F403

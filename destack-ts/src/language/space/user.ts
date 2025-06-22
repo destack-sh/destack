@@ -1,4 +1,4 @@
-import { Agent, Supergraph, StructFrozen, Global, EnumType, IsFollowable, Struct, Session, NodeReference, EventCursor, MaterializationType, BuiltinObject, Graph, ScreenCursor, IsSubject, NodeType, Node, StructType, IsTracked, QueryConnection, IsOwner, ThreadCursor, Icon, Handle, Entity, Space } from '@/language';
+import { ThreadCursor, IsOwner, IsTracked, MaterializationType, StructFrozen, IsFollowable, Supergraph, Struct, Handle, Space, NodeType, Entity, Node, Agent, StructType, QueryConnection, Global, Graph, NodeReference, EventCursor, Session, IsSubject, ScreenCursor, BuiltinObject, EnumType, Icon } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:20 ==== */
