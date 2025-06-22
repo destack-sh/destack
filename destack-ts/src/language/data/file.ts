@@ -1,4 +1,4 @@
-import { IsTracked, Resource, MaterializationType, StructFrozen, Supergraph, Struct, Space, NodeType, Entity, Node, Agent, StructType, QueryConnection, Global, Graph, NodeReference, ResourceStatus, Session, User, BuiltinObject, EnumType, Spatial } from '@/language';
+import { IsTracked, EnumType, Session, User, Supergraph, Space, MaterializationType, Global, Entity, Struct, ResourceStatus, QueryConnection, BuiltinObject, StructFrozen, Spatial, Resource, StructType, Node, NodeType, NodeReference, Agent, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:2541 ==== */
@@ -255,7 +255,7 @@ export class File extends Node implements Global, Spatial, Entity, Resource, IsT
   }
 
 
-  static create(options: {
+  static from(options: {
     type: FileType,
     name: string,
     status?: ResourceStatus,

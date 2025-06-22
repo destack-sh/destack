@@ -1,4 +1,4 @@
-import { IsTracked, MaterializationType, StructFrozen, Supergraph, Struct, Space, NodeType, Entity, Node, Analytic, Agent, StructType, IsFrozen, QueryConnection, Particle, Event, LikeInvite, Global, Graph, NodeReference, IsOwnable, Session, User, BuiltinObject, EnumType, Spatial, Indexed } from '@/language';
+import { IsTracked, EnumType, Session, Indexed, LikeInvite, Analytic, User, Supergraph, Space, Particle, IsOwnable, MaterializationType, Global, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, Event, Spatial, IsFrozen, StructType, Node, NodeType, NodeReference, Agent, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:31 ==== */
@@ -90,7 +90,7 @@ export class Friendship extends Node implements Global, Entity, IsTracked {
   }
 
 
-  static create(options: {
+  static from(options: {
     userA: User | NodeReference,
     userB: User | NodeReference,
     _session?: Session | null,
@@ -223,7 +223,7 @@ export class FriendshipInviteEvent extends Node implements Spatial, Particle, An
   }
 
 
-  static create(options: {
+  static from(options: {
     type: FriendshipInviteEventType,
     node: FriendshipInvite | NodeReference,
     _session?: Session | null,
@@ -374,7 +374,7 @@ export class FriendshipInvite extends Node implements Global, Entity, IsTracked,
   }
 
 
-  static create(options: {
+  static from(options: {
     ownedBy: Agent | User | NodeReference,
     member: Agent | User | NodeReference,
     _session?: Session | null,

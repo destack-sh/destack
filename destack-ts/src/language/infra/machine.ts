@@ -1,4 +1,4 @@
-import { IsTracked, MaterializationType, Resource, StructFrozen, Supergraph, Struct, Space, NodeType, Entity, Node, Agent, StructType, QueryConnection, Graph, NodeReference, ResourceStatus, Session, User, BuiltinObject, EnumType, Spatial, Client } from '@/language';
+import { IsTracked, EnumType, Session, User, Supergraph, Space, MaterializationType, Entity, Struct, Client, ResourceStatus, QueryConnection, BuiltinObject, StructFrozen, Spatial, Resource, StructType, Node, NodeType, NodeReference, Agent, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:7600 ==== */
@@ -141,7 +141,7 @@ export class Machine extends Node implements Spatial, Entity, Resource, IsTracke
   }
 
 
-  static create(options: {
+  static from(options: {
     type?: MachineType,
     status?: ResourceStatus,
     targetStatus?: Temporal.ZonedDateTime | null,
@@ -168,7 +168,7 @@ export class Machine extends Node implements Spatial, Entity, Resource, IsTracke
       options.type ?? MachineType.RUNTIME,
       options.status ?? ResourceStatus.PENDING,
       options.targetStatus ?? null,
-      options.version ?? "2025.06.21.0",
+      options.version ?? "2025.06.22.0",
       options.externalName ?? null,
       options.externalId ?? null,
       options.imageId ?? null,

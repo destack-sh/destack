@@ -1,4 +1,4 @@
-import { IsTracked, MaterializationType, StructFrozen, Supergraph, Struct, Folder, Space, NodeType, Entity, Node, Agent, StructType, QueryConnection, IsDeletable, Global, Graph, NodeReference, IsOwnable, Session, User, BuiltinObject, EnumType, Spatial } from '@/language';
+import { IsTracked, EnumType, Session, User, Supergraph, Folder, Space, IsOwnable, Global, MaterializationType, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, Spatial, StructType, Node, NodeType, NodeReference, IsDeletable, Agent, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:5521 ==== */
@@ -92,7 +92,7 @@ export class Star extends Node implements Global, Spatial, Entity, IsTracked, Is
   }
 
 
-  static create(options: {
+  static from(options: {
     ownedBy: Agent | User | NodeReference,
     _session?: Session | null,
     _supergraph?: Supergraph | null,

@@ -1,4 +1,4 @@
-import { IsOrdered, Text, IsTracked, Script, CustomEntityDefinition, MaterializationType, StructFrozen, IsSourceable, Supergraph, Struct, Space, NodeType, Entity, Node, IsTaggable, Agent, StructType, Value, QueryConnection, IsRunnable, IsDeletable, Graph, NodeReference, Session, IsExtensible, User, BuiltinObject, EnumType, Spatial, Service } from '@/language';
+import { IsTracked, EnumType, Session, IsTaggable, User, IsOrdered, Supergraph, Space, Value, Script, MaterializationType, IsSourceable, Service, Text, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, Spatial, IsExtensible, StructType, IsRunnable, Node, NodeType, NodeReference, IsDeletable, CustomEntityDefinition, Agent, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:3020 ==== */
@@ -105,7 +105,7 @@ export class Action extends Node implements Spatial, Entity, IsTracked, IsDeleta
   }
 
 
-  static create(options: {
+  static from(options: {
     value?: Map<string, Value>,
     name: string,
     cardinality?: ActionCardinality,

@@ -1,4 +1,4 @@
-import { IsTracked, Organization, MaterializationType, StructFrozen, Supergraph, Struct, Space, NodeType, Entity, Vector2i, Node, Agent, StructType, QueryConnection, Graph, NodeReference, IsOwnable, Session, User, BuiltinObject, EnumType, Spatial, Role, Team } from '@/language';
+import { IsTracked, EnumType, Session, User, Supergraph, Space, IsOwnable, MaterializationType, Entity, Struct, Vector2i, QueryConnection, BuiltinObject, StructFrozen, Spatial, StructType, Team, Role, Node, NodeType, NodeReference, Agent, Organization, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:3100 ==== */
@@ -126,7 +126,7 @@ export class EventCursor extends Node implements Spatial, Entity, IsTracked, IsO
   }
 
 
-  static create(options: {
+  static from(options: {
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     status?: CursorStatus,
     activeAt?: Temporal.ZonedDateTime | null,
@@ -280,7 +280,7 @@ export class ScreenCursor extends Node implements Spatial, Entity, IsTracked, Is
   }
 
 
-  static create(options: {
+  static from(options: {
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     status?: CursorStatus,
     activeAt?: Temporal.ZonedDateTime | null,
@@ -433,7 +433,7 @@ export class ThreadCursor extends Node implements Spatial, Entity, IsTracked, Is
   }
 
 
-  static create(options: {
+  static from(options: {
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     status?: CursorStatus,
     activeAt?: Temporal.ZonedDateTime | null,

@@ -1,4 +1,4 @@
-import { IsOrdered, Axis2, IsTracked, Organization, Script, MaterializationType, Distribute, StructFrozen, Fill, IsScriptable, Supergraph, Struct, Shadow, Space, NodeType, Entity, Corners, Scene, Direction, Node, IsTaggable, Agent, StructType, Value, Position, QueryConnection, Insets, Axis3, Grid, IsDeletable, Dimension, Graph, Canvas, NodeReference, IsOwnable, Layout, View, Session, IsExtensible, User, Border, Align, BuiltinObject, Vector2, EnumType, Spatial, ContainerView, Role, Icon, GridSpan, IsVisual, Team } from '@/language';
+import { IsTracked, EnumType, Session, IsTaggable, Grid, Canvas, User, IsOrdered, Align, IsScriptable, Supergraph, Fill, Direction, Shadow, Corners, Distribute, Axis2, Space, Value, IsOwnable, View, MaterializationType, Script, Icon, Entity, Struct, Axis3, QueryConnection, BuiltinObject, StructFrozen, Spatial, IsExtensible, Scene, StructType, Team, Role, Dimension, ContainerView, IsVisual, Node, NodeType, Layout, Vector2, NodeReference, IsDeletable, GridSpan, Agent, Organization, Insets, Border, Position, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:9020 ==== */
@@ -211,7 +211,7 @@ export class Layer extends Node implements Spatial, Entity, IsTracked, IsDeletab
   }
 
 
-  static create(options: {
+  static from(options: {
     value?: Map<string, Value>,
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     type?: LayerType,

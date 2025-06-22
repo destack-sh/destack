@@ -1,4 +1,4 @@
-import { IsTracked, StructFrozen, Supergraph, Struct, Space, NodeType, Node, Analytic, Agent, StructType, IsFrozen, Run, QueryConnection, Graph, NodeReference, Session, User, BuiltinObject, EnumType, Spatial } from '@/language';
+import { IsTracked, EnumType, Session, Analytic, User, Supergraph, Space, Struct, QueryConnection, BuiltinObject, StructFrozen, Spatial, IsFrozen, StructType, Run, Node, NodeType, NodeReference, Agent, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:4010 ==== */
@@ -67,7 +67,7 @@ export class Span extends Node implements Spatial, Analytic, IsFrozen, IsTracked
   }
 
 
-  static create(options: {
+  static from(options: {
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,

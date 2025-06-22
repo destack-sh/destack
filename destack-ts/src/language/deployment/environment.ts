@@ -1,4 +1,4 @@
-import { IsTracked, MaterializationType, StructFrozen, Supergraph, Struct, Space, NodeType, Entity, Node, Agent, StructType, QueryConnection, IsDeletable, Graph, NodeReference, Session, User, BuiltinObject, EnumType, Spatial, Icon } from '@/language';
+import { IsTracked, EnumType, Session, User, Supergraph, Space, MaterializationType, Icon, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, Spatial, StructType, Node, NodeType, NodeReference, IsDeletable, Agent, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:4500 ==== */
@@ -79,7 +79,7 @@ export class Environment extends Node implements Spatial, Entity, IsTracked, IsD
   }
 
 
-  static create(options: {
+  static from(options: {
     name: string,
     icon?: Icon | null,
     _session?: Session | null,

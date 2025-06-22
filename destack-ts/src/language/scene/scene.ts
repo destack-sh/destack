@@ -1,4 +1,4 @@
-import { IsOrdered, Axis2, Layer, IsTracked, Organization, Script, MaterializationType, Distribute, StructFrozen, Fill, FrameView, IsScriptable, Supergraph, Struct, Shadow, Folder, Space, PlaneShape, NodeType, Entity, Corners, Direction, LabelView, Node, Analytic, IsTaggable, AnnotationShape, Agent, StructType, IsFrozen, Value, QueryConnection, Particle, Position, CustomView, Event, Insets, Axis3, Grid, IsDeletable, Dimension, Graph, Canvas, NodeReference, IsOwnable, Layout, Window, View, Session, IsExtensible, User, Border, CustomViewDefinition, Align, BuiltinObject, Vector2, EnumType, Spatial, ContainerView, Role, Icon, GridSpan, IsVisual, SplitView, Team, Indexed } from '@/language';
+import { IsTracked, EnumType, Session, AnnotationShape, Indexed, IsTaggable, LabelView, Window, Grid, Analytic, User, Canvas, SplitView, IsOrdered, Align, IsScriptable, Supergraph, Folder, Fill, Direction, Shadow, Corners, Distribute, Axis2, PlaneShape, Space, Value, Particle, IsOwnable, View, MaterializationType, CustomView, Script, Icon, Entity, Struct, Axis3, QueryConnection, CustomViewDefinition, BuiltinObject, StructFrozen, Event, Layer, Spatial, IsExtensible, IsFrozen, FrameView, StructType, Team, Role, Dimension, ContainerView, IsVisual, Node, NodeType, Layout, Vector2, NodeReference, IsDeletable, GridSpan, Agent, Organization, Insets, Border, Position, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:9011 ==== */
@@ -96,7 +96,7 @@ export class SceneEvent extends Node implements Spatial, Particle, Analytic, Ind
   }
 
 
-  static create(options: {
+  static from(options: {
     type: SceneEventType,
     node: Scene | NodeReference,
     _session?: Session | null,
@@ -370,7 +370,7 @@ export class Scene extends Node implements Spatial, Entity, IsTracked, IsDeletab
   }
 
 
-  static create(options: {
+  static from(options: {
     value?: Map<string, Value>,
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     name: string,

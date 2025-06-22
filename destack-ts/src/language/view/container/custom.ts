@@ -1,4 +1,4 @@
-import { IsOrdered, Axis2, Layer, IsCustomNode, IsTracked, Script, MaterializationType, Distribute, StructFrozen, Fill, FrameView, IsScriptable, Supergraph, Struct, Shadow, Folder, Space, PlaneShape, NodeType, Entity, IsCustomNodeDefinition, Corners, Scene, Direction, LabelView, Node, IsTaggable, Agent, StructType, Value, Position, QueryConnection, Insets, Axis3, Grid, IsDeletable, Dimension, Graph, Canvas, NodeReference, Layout, Window, View, Session, IsExtensible, User, Border, Align, BuiltinObject, Vector2, EnumType, Spatial, ContainerView, SplitView, GridSpan, IsVisual, AnnotationShape } from '@/language';
+import { IsTracked, EnumType, Session, AnnotationShape, IsTaggable, LabelView, Window, Grid, User, Canvas, SplitView, IsOrdered, Align, IsScriptable, Supergraph, Folder, Fill, Direction, Shadow, Corners, Distribute, Axis2, PlaneShape, Space, Value, Script, View, MaterializationType, Entity, Struct, Axis3, QueryConnection, BuiltinObject, StructFrozen, Layer, Spatial, IsExtensible, Scene, FrameView, IsCustomNode, StructType, Dimension, ContainerView, IsVisual, Node, NodeType, Layout, Vector2, NodeReference, IsDeletable, GridSpan, Agent, Insets, Border, Position, IsCustomNodeDefinition, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:10000 ==== */
@@ -198,7 +198,7 @@ export class CustomViewDefinition extends Node implements Spatial, Entity, IsCus
   }
 
 
-  static create(options: {
+  static from(options: {
     prototype?: CustomView | NodeReference | null,
     value?: Map<string, Value>,
     name: string,
@@ -498,7 +498,7 @@ export class CustomView extends Node implements Spatial, Entity, IsCustomNode, I
   }
 
 
-  static create(options: {
+  static from(options: {
     value?: Map<string, Value>,
     name: string,
     position?: Position | null,

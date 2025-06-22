@@ -1,4 +1,4 @@
-import { IsTracked, Organization, MaterializationType, StructFrozen, Supergraph, Struct, Folder, Space, NodeType, Entity, Node, Agent, Thread, StructType, QueryConnection, IsDeletable, Graph, NodeReference, Session, User, BuiltinObject, EnumType, Spatial, Icon, Team } from '@/language';
+import { IsTracked, EnumType, Session, User, Supergraph, Folder, Thread, Space, MaterializationType, Icon, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, Spatial, StructType, Team, Node, NodeType, NodeReference, IsDeletable, Agent, Organization, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:530 ==== */
@@ -91,7 +91,7 @@ export class Permission extends Node implements Spatial, Entity, IsTracked, IsDe
   }
 
 
-  static create(options: {
+  static from(options: {
     type: PermissionType,
     name: string,
     slug?: string | null,

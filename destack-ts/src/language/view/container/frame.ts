@@ -1,4 +1,4 @@
-import { IsOrdered, Axis2, Layer, IsTracked, Script, MaterializationType, Distribute, StructFrozen, Fill, IsScriptable, Supergraph, Struct, Shadow, PlaneShape, Space, NodeType, Entity, Corners, Scene, Direction, LabelView, Node, IsTaggable, Agent, StructType, CustomView, Value, QueryConnection, Position, Insets, Axis3, Grid, IsDeletable, Dimension, Graph, Canvas, NodeReference, Layout, Window, View, Session, IsExtensible, User, CustomViewDefinition, Border, Align, BuiltinObject, Vector2, EnumType, Spatial, ContainerView, SplitView, GridSpan, IsVisual, AnnotationShape } from '@/language';
+import { IsTracked, EnumType, Session, AnnotationShape, IsTaggable, LabelView, Window, Grid, Canvas, User, SplitView, IsOrdered, Align, IsScriptable, Supergraph, Fill, Direction, Shadow, Corners, Distribute, PlaneShape, Axis2, Space, Value, Script, View, CustomView, MaterializationType, Entity, Struct, Axis3, QueryConnection, CustomViewDefinition, BuiltinObject, StructFrozen, Layer, Spatial, IsExtensible, Scene, StructType, Dimension, ContainerView, IsVisual, Node, NodeType, Layout, Vector2, NodeReference, IsDeletable, GridSpan, Agent, Insets, Border, Position, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:10020 ==== */
@@ -179,7 +179,7 @@ export class FrameView extends Node implements Spatial, Entity, IsTracked, IsDel
   }
 
 
-  static create(options: {
+  static from(options: {
     value?: Map<string, Value>,
     name: string,
     position?: Position | null,

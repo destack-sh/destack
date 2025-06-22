@@ -1,4 +1,4 @@
-import { Text, IsTracked, Organization, MaterializationType, StructFrozen, Supergraph, Struct, Space, NodeType, Entity, Node, Analytic, Agent, StructType, IsFrozen, QueryConnection, Particle, Event, Graph, NodeReference, IsOwnable, Session, User, BuiltinObject, EnumType, Spatial, Role, Team, Indexed } from '@/language';
+import { IsTracked, EnumType, Session, Indexed, Analytic, User, Supergraph, Space, Particle, IsOwnable, MaterializationType, Text, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, Event, Spatial, IsFrozen, StructType, Team, Role, Node, NodeType, NodeReference, Agent, Organization, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:5600 ==== */
@@ -109,7 +109,7 @@ export class NotificationEvent extends Node implements Spatial, Particle, Analyt
   }
 
 
-  static create(options: {
+  static from(options: {
     type: NotificationEventType,
     node: Notification | NodeReference,
     _session?: Session | null,
@@ -261,7 +261,7 @@ export class Notification extends Node implements Spatial, Entity, IsTracked, Is
   }
 
 
-  static create(options: {
+  static from(options: {
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     status: NotificationStatus,
     title: string,

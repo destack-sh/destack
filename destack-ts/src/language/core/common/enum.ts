@@ -1,4 +1,4 @@
-import { IsOrdered, IsTracked, Script, MaterializationType, StructFrozen, IsSourceable, Supergraph, Struct, Space, NodeType, Entity, Node, IsTaggable, Agent, StructType, Value, QueryConnection, IsDeletable, Graph, NodeReference, Session, IsExtensible, User, BuiltinObject, EnumType, Spatial, Icon } from '@/language';
+import { IsTracked, EnumType, Session, IsTaggable, User, IsOrdered, Supergraph, Space, Value, Script, MaterializationType, IsSourceable, Icon, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, Spatial, IsExtensible, StructType, Node, NodeType, NodeReference, IsDeletable, Agent, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:2510 ==== */
@@ -96,7 +96,7 @@ export class CustomEnumDefinition extends Node implements Spatial, Entity, IsTra
   }
 
 
-  static create(options: {
+  static from(options: {
     value?: Map<string, Value>,
     name: string,
     icon?: Icon | null,

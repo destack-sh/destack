@@ -1,4 +1,4 @@
-import { IsOrdered, Layer, IsTracked, IsShape, Script, MaterializationType, StructFrozen, FrameView, IsScriptable, Supergraph, Struct, PlaneShape, Space, NodeType, Entity, Scene, LabelView, Node, IsTaggable, Agent, StructType, CustomView, Position, QueryConnection, IsDeletable, ContentView, Graph, Canvas, Dimension, NodeReference, Color, Window, View, Session, User, CustomViewDefinition, Align, BuiltinObject, Vector2, EnumType, Spatial, SplitView, IsVisual, AnnotationShape } from '@/language';
+import { IsTracked, EnumType, Session, AnnotationShape, IsTaggable, LabelView, Window, Canvas, User, SplitView, IsShape, IsOrdered, Align, IsScriptable, Supergraph, PlaneShape, Space, Script, View, CustomView, MaterializationType, Entity, Struct, QueryConnection, CustomViewDefinition, BuiltinObject, StructFrozen, Layer, Spatial, Scene, FrameView, StructType, Dimension, ContentView, IsVisual, Node, NodeType, Vector2, Color, NodeReference, IsDeletable, Agent, Position, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:11010 ==== */
@@ -145,7 +145,7 @@ export class LineShape extends Node implements Spatial, Entity, IsTracked, IsDel
   }
 
 
-  static create(options: {
+  static from(options: {
     type: LineType,
     name: string,
     position?: Position | null,

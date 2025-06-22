@@ -1,4 +1,4 @@
-import { ThreadCursor, IsTracked, MaterializationType, StructFrozen, Machine, Supergraph, Struct, NodeType, Entity, Node, Agent, StructType, QueryConnection, IsDeletable, Global, ClientType, Graph, NodeReference, EventCursor, Session, User, ScreenCursor, BuiltinObject, EnumType } from '@/language';
+import { IsTracked, EnumType, Session, Machine, User, Supergraph, ThreadCursor, EventCursor, Global, MaterializationType, Entity, Struct, QueryConnection, ClientType, BuiltinObject, StructFrozen, StructType, ScreenCursor, Node, NodeType, NodeReference, IsDeletable, Agent, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50001 ==== */
@@ -23,7 +23,7 @@ export class Origin extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     type: ClientType,
     id?: string | null,
     ck?: string | null,
@@ -204,7 +204,7 @@ export class Client extends Node implements Global, Entity, IsTracked, IsDeletab
   }
 
 
-  static create(options: {
+  static from(options: {
     type: ClientType,
     name: string,
     machine?: Machine | NodeReference | null,

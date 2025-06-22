@@ -1,4 +1,4 @@
-import { Node, StructType, Supergraph, Session, QueryConnection, Struct, Value, RelationReference, AttributeReference, BuiltinObject, NodeType, EnumType, Graph, StructFrozen, NodeReference } from '@/language';
+import { EnumType, Session, Struct, RelationReference, QueryConnection, Node, NodeType, AttributeReference, BuiltinObject, StructFrozen, NodeReference, Value, StructType, Supergraph, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:108 ==== */
@@ -114,7 +114,7 @@ export class Function extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     type: FunctionType,
     left: Expression,
     right?: Expression | null,
@@ -164,7 +164,7 @@ export class Condition extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     type: ConditionalType,
     left: Expression,
     right?: Expression | null,
@@ -211,7 +211,7 @@ export class Aggregation extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     type: AggregationType,
     expression?: Expression | null,
     _session?: Session | null,
@@ -268,7 +268,7 @@ export class Expression extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     type: ExpressionType,
     literal?: Value | null,
     attribute?: AttributeReference | null,
@@ -324,7 +324,7 @@ export class Sort extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     type: SortType,
     by: Expression,
     mode?: SortMode | null,
@@ -368,7 +368,7 @@ export class Select extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     attributes?: Array<AttributeReference>,
     _session?: Session | null,
     _supergraph?: Supergraph | null
@@ -420,7 +420,7 @@ export class Join extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     type: JoinType,
     relation?: RelationReference | null,
     recursive?: boolean,
@@ -507,7 +507,7 @@ export class Query extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     id?: string,
     type: QueryType,
     name: string,
@@ -576,7 +576,7 @@ export class Histogram extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     buckets?: Array<Value>,
     counts?: Array<number>,
     _session?: Session | null,
@@ -639,7 +639,7 @@ export class QueryResult extends Struct {
   }
 
 
-  static create(options: {
+  static from(options: {
     id: string,
     type: QueryType,
     groups?: Array<QueryResultGroup>,
@@ -708,7 +708,7 @@ export class QueryResultGroup extends Struct {
   }
 
 
-  static create(options: {
+  static from(options: {
     type: QueryType,
     discriminator: Value,
     nodes?: Array<Value>,
@@ -761,7 +761,7 @@ export class QueryUpdate extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     type: QueryUpdateType,
     result?: QueryResult | null,
     _session?: Session | null,
@@ -802,7 +802,7 @@ export class Selection extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     _session?: Session | null,
     _supergraph?: Supergraph | null
   }): Selection {

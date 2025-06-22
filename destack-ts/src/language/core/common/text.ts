@@ -1,4 +1,4 @@
-import { Entitlement, Theme, ThreadView, CustomEvent, ColorStyle, Timer, FrameView, Follow, Machine, Handle, CustomStructDefinition, Environment, Invite, Palette, LabelView, Agent, QueryConnection, RunEvent, EditEvent, Message, GradientStyle, RoleEvent, Tagging, Session, NotificationEvent, ScreenCursor, BuiltinObject, Role, Tag, SliderInputView, Action, Team, GaugeMetric, FontStyle, ThreadCursor, CounterMeasurement, Organization, CustomEntityDefinition, StructFrozen, Supergraph, InviteEvent, Struct, LineShape, Log, CustomEventDefinition, CustomView, FillStyle, Option, Canvas, Window, WizardView, User, TransitionStyle, SplitView, Snapshot, AnnotationShape, Layer, NumberInputView, Interruption, Permission, File, Script, TextView, Reaction, Variant, Branch, NodeType, Scene, Link, Thread, StructType, CustomEntity, Graph, Friendship, SceneEvent, EntitlementEvent, CustomEnumDefinition, Route, Notification, EnumType, Client, Service, Sanction, Span, SanctionEvent, MembershipEvent, TriggerEvent, TimerEvent, ShadowStyle, Folder, Space, PlaneShape, HistogramMetric, Membership, Node, ArrowShape, CounterMetric, EffectStyle, Run, GaugeMeasurement, BorderStyle, Star, Database, NodeReference, FriendshipInviteEvent, EventCursor, CustomViewDefinition, FriendshipInvite, HistogramMeasurement, Field, Trigger } from '@/language';
+import { EnumType, Timer, WizardView, User, CustomEnumDefinition, Invite, Action, Thread, Tagging, Snapshot, FillStyle, File, SanctionEvent, SceneEvent, HistogramMeasurement, BuiltinObject, FontStyle, EffectStyle, Theme, Star, Agent, Organization, Log, CustomStructDefinition, Interruption, TransitionStyle, Session, SplitView, Supergraph, RoleEvent, Handle, Environment, Space, CustomEventDefinition, EventCursor, Option, CustomView, Palette, Variant, RunEvent, Client, CounterMetric, ArrowShape, StructFrozen, ScreenCursor, NotificationEvent, Team, Span, Entitlement, Node, GaugeMeasurement, HistogramMetric, Trigger, NodeReference, CustomEntityDefinition, NumberInputView, GradientStyle, Graph, AnnotationShape, LabelView, Window, Link, ThreadView, Canvas, Folder, Notification, PlaneShape, ThreadCursor, Reaction, Branch, Script, Service, Struct, TriggerEvent, QueryConnection, Permission, FriendshipInviteEvent, Tag, FrameView, Route, Role, Sanction, EntitlementEvent, Run, NodeType, BorderStyle, FriendshipInvite, Machine, ShadowStyle, CustomEntity, Membership, Field, ColorStyle, GaugeMetric, SliderInputView, MembershipEvent, TextView, Follow, CustomViewDefinition, Layer, InviteEvent, Scene, StructType, Message, Friendship, CounterMeasurement, CustomEvent, EditEvent, LineShape, Database, TimerEvent } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:2521 ==== */
@@ -60,7 +60,7 @@ export class TextSpan extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     type?: TextSpanType,
     content?: string | null,
     node?: Node | NodeReference | null,
@@ -131,7 +131,7 @@ export class Text extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     spans?: Array<TextSpan>,
     isBold?: boolean | null,
     isItalic?: boolean | null,

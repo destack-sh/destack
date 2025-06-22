@@ -1,4 +1,4 @@
-import { IsOrdered, IsTracked, Organization, MaterializationType, StructFrozen, Supergraph, Struct, Space, NodeType, Entity, Node, Agent, StructType, QueryConnection, IsDeletable, Graph, NodeReference, IsOwnable, Session, User, BuiltinObject, EnumType, Spatial, Role, IsVisual, Team } from '@/language';
+import { IsTracked, EnumType, Session, User, IsOrdered, Supergraph, Space, IsOwnable, MaterializationType, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, Spatial, StructType, Team, Role, IsVisual, Node, NodeType, NodeReference, IsDeletable, Agent, Organization, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:9000 ==== */
@@ -109,7 +109,7 @@ export class Window extends Node implements Spatial, Entity, IsTracked, IsDeleta
   }
 
 
-  static create(options: {
+  static from(options: {
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     type: WindowType,
     name?: string | null,

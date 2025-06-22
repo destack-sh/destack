@@ -1,4 +1,4 @@
-import { Interruption, IsTracked, Script, StructFrozen, Supergraph, Struct, Space, NodeType, Node, Analytic, Agent, StructType, IsFrozen, Value, QueryConnection, Particle, Event, Service, Error, Graph, NodeReference, Session, IsExtensible, User, BuiltinObject, EnumType, Spatial, Action, Indexed } from '@/language';
+import { IsTracked, EnumType, Session, Indexed, Analytic, User, Supergraph, Action, Error, Space, Value, Particle, Script, Service, Struct, QueryConnection, BuiltinObject, StructFrozen, Event, Spatial, IsExtensible, IsFrozen, StructType, Node, NodeType, NodeReference, Agent, Interruption, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:4000 ==== */
@@ -137,7 +137,7 @@ export class RunEvent extends Node implements Spatial, Particle, Analytic, Index
   }
 
 
-  static create(options: {
+  static from(options: {
     type: RunEventType,
     node: Run | NodeReference,
     target?: Action | Script | Service | NodeReference | null,
@@ -325,7 +325,7 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
   }
 
 
-  static create(options: {
+  static from(options: {
     value?: Map<string, Value>,
     target?: Action | Script | Service | NodeReference | null,
     status: RunStatus,

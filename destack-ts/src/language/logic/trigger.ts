@@ -1,4 +1,4 @@
-import { IsTracked, Condition, Script, MaterializationType, StructFrozen, Supergraph, Struct, Space, NodeType, Entity, Node, Analytic, Agent, StructType, IsFrozen, RelationReference, QueryConnection, Particle, Value, Event, Service, Graph, NodeReference, Session, User, BuiltinObject, EnumType, Spatial, Action, Indexed } from '@/language';
+import { IsTracked, EnumType, Session, Indexed, RelationReference, Analytic, User, Supergraph, Action, Space, Value, Particle, Script, MaterializationType, Service, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, Event, Spatial, IsFrozen, StructType, Node, NodeType, Condition, NodeReference, Agent, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:3041 ==== */
@@ -103,7 +103,7 @@ export class TriggerEvent extends Node implements Spatial, Particle, Analytic, I
   }
 
 
-  static create(options: {
+  static from(options: {
     type: TriggerEventType,
     node: Trigger | NodeReference,
     _session?: Session | null,
@@ -261,7 +261,7 @@ export class Trigger extends Node implements Spatial, Entity, IsTracked {
   }
 
 
-  static create(options: {
+  static from(options: {
     type: TriggerType,
     name: string,
     event?: RelationReference | null,

@@ -1,4 +1,4 @@
-import { Node, StructType, Supergraph, Session, QueryConnection, Struct, BuiltinObject, TraitType, NodeType, Region, EnumType, Field, CustomEntityDefinition, Graph, StructFrozen } from '@/language';
+import { EnumType, Session, Struct, QueryConnection, Node, NodeType, BuiltinObject, StructFrozen, CustomEntityDefinition, Region, TraitType, Field, StructType, Supergraph, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:50010 ==== */
@@ -40,7 +40,7 @@ export class Scope extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     region?: Region | null,
     spaceId?: string | null,
     _session?: Session | null,
@@ -102,7 +102,7 @@ export class RelationReference extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     type: RelationType,
     nodeType?: NodeType | null,
     definition?: CustomEntityDefinition | NodeReference | null,
@@ -165,7 +165,7 @@ export class AttributeReference extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     type: AttributeType,
     propPtr?: PropertyReference | null,
     field?: Field | NodeReference | null,
@@ -221,7 +221,7 @@ export class PropertyReference extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     type: PropertyReferenceType,
     nodeType?: NodeType | null,
     traitType?: TraitType | null,
@@ -278,7 +278,7 @@ export class NodeReference extends StructFrozen {
   }
 
 
-  static create(options: {
+  static from(options: {
     nodeType: NodeType,
     id: string,
     spaceId?: string | null,

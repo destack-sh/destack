@@ -1,4 +1,4 @@
-import { IsTracked, MaterializationType, Resource, StructFrozen, Supergraph, Struct, Space, NodeType, Entity, Node, Agent, StructType, QueryConnection, Graph, NodeReference, ResourceStatus, Session, User, BuiltinObject, EnumType, Spatial } from '@/language';
+import { IsTracked, EnumType, Session, User, Supergraph, Space, MaterializationType, Entity, Struct, ResourceStatus, QueryConnection, BuiltinObject, StructFrozen, Spatial, Resource, StructType, Node, NodeType, NodeReference, Agent, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:2550 ==== */
@@ -124,7 +124,7 @@ export class Link extends Node implements Spatial, Entity, Resource, IsTracked {
   }
 
 
-  static create(options: {
+  static from(options: {
     type: LinkType,
     status?: ResourceStatus,
     targetStatus?: Temporal.ZonedDateTime | null,

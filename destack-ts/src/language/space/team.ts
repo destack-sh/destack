@@ -1,4 +1,4 @@
-import { IsOwner, IsTracked, MaterializationType, StructFrozen, Supergraph, Struct, NodeType, Entity, Node, Agent, StructType, QueryConnection, Global, Graph, NodeReference, Session, User, BuiltinObject, EnumType, Icon, IsJoinable } from '@/language';
+import { IsTracked, EnumType, Session, IsOwner, User, Supergraph, IsJoinable, MaterializationType, Global, Icon, Entity, Struct, QueryConnection, BuiltinObject, StructFrozen, StructType, Node, NodeType, NodeReference, Agent, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:50 ==== */
@@ -68,7 +68,7 @@ export class Team extends Node implements Global, Entity, IsTracked, IsJoinable,
   }
 
 
-  static create(options: {
+  static from(options: {
     name: string,
     slug?: string | null,
     icon?: Icon | null,

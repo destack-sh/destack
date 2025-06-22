@@ -1,4 +1,4 @@
-import { IsOrdered, Theme, Layer, Style, ThreadView, NumberInputView, IsTracked, MaterializationType, StructFrozen, FrameView, TextView, Supergraph, Struct, PlaneShape, Space, NodeType, Entity, Scene, LineShape, LabelView, Node, IsTaggable, ArrowShape, Agent, StructType, CustomView, QueryConnection, Insets, IsDeletable, Color, Graph, Canvas, NodeReference, WizardView, Session, User, CustomViewDefinition, BuiltinObject, EnumType, Spatial, SplitView, SliderInputView, IsVisual, AnnotationShape } from '@/language';
+import { IsTracked, EnumType, Session, AnnotationShape, IsTaggable, LabelView, WizardView, ThreadView, Canvas, User, SplitView, IsOrdered, Supergraph, PlaneShape, Space, CustomView, MaterializationType, SliderInputView, Entity, Struct, TextView, ArrowShape, QueryConnection, CustomViewDefinition, BuiltinObject, StructFrozen, Layer, Spatial, Scene, FrameView, StructType, Theme, IsVisual, Node, NodeType, Color, NodeReference, IsDeletable, Agent, Insets, Style, LineShape, NumberInputView, Graph } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:12032 ==== */
@@ -52,7 +52,7 @@ export class Border extends Struct {
   }
 
 
-  static create(options: {
+  static from(options: {
     type?: BorderType,
     style?: BorderStyle | NodeReference | null,
     color?: Color | null,
@@ -172,7 +172,7 @@ export class BorderStyle extends Node implements Spatial, Entity, IsTracked, IsD
   }
 
 
-  static create(options: {
+  static from(options: {
     type?: BorderType,
     name: string,
     color?: Color | null,
