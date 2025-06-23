@@ -33,6 +33,7 @@ from destack.language.registry import (
     ENUM_DEFINITION_BY_TYPE,
     NODE_CLASS_BY_TYPE,
     NODE_DEFINITION_BY_TYPE,
+    NODE_TYPES_BY_TRAIT_TYPE,
     STRUCT_CLASS_BY_TYPE,
     STRUCT_DEFINITION_BY_TYPE,
     TRAIT_CLASS_BY_TYPE,
@@ -1011,11 +1012,20 @@ def generate():
     registry_str_parts.extend((node_map_str, node_cls_by_type_str))
     # trait maps
     trait_map_str_parts: list[str] = ["export type TraitTypeMapping = {"]
+    node_type_by_trait_str_parts: list[str] = [
+        "export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {"
+    ]
     for trait_type, trait_cls in TRAIT_CLASS_BY_TYPE.items():
         trait_map_str_parts.append(f"  [TraitType.{trait_type.name}]: {trait_cls.__name__},")
+        node_types = NODE_TYPES_BY_TRAIT_TYPE.get(trait_type, ())
+        node_type_by_trait_str_parts.append(
+            f"  [TraitType.{trait_type.name}]: [{', '.join(f'NodeType.{node_type.name}' for node_type in node_types)}], "
+        )
+    node_type_by_trait_str_parts.append("};")
     trait_map_str_parts.append("};")
     trait_map_str = "\n".join(trait_map_str_parts)
-    registry_str_parts.append(trait_map_str)
+    node_type_by_trait_str = "\n".join(node_type_by_trait_str_parts)
+    registry_str_parts.extend((trait_map_str, node_type_by_trait_str))
     # struct maps
     struct_map_str_parts: list[str] = ["export type StructTypeMapping = {"]
     struct_cls_by_type_str_parts: list[str] = ["export const STRUCT_CLASS_BY_TYPE = {"]
