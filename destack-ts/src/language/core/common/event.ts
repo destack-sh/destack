@@ -1,5 +1,4 @@
 import {
-  Agent,
   Analytic,
   EditOperation,
   EditType,
@@ -11,6 +10,7 @@ import {
   IsFrozen,
   IsOrdered,
   IsSourceable,
+  IsSubject,
   IsTaggable,
   IsTracked,
   MaterializationType,
@@ -27,7 +27,6 @@ import {
   StructType,
   Supergraph,
   TraitType,
-  User,
   Value,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
@@ -71,19 +70,19 @@ export class EditEvent
   }
   readonly spacePtr: NodeReference | null;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
@@ -127,9 +126,9 @@ export class EditEvent
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     type: EditType;
     operation?: EditOperation | null;
     node: Node | NodeReference;
@@ -202,6 +201,7 @@ export class EditEvent
     this.key = _key;
     let _value = options.value ?? null;
     this.value = _value;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();
@@ -305,19 +305,19 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, IsTr
   readonly spacePtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
@@ -339,9 +339,9 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, IsTr
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     orderKey?: string;
     name: string;
     source?: Script | NodeReference | null;
@@ -410,6 +410,7 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, IsTr
       _source = _source.toRef();
     }
     this.sourcePtr = _source;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();
@@ -514,19 +515,19 @@ export class CustomEvent extends Node implements Spatial, Particle, Analytic, In
   }
   readonly spacePtr: NodeReference | null;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
@@ -565,9 +566,9 @@ export class CustomEvent extends Node implements Spatial, Particle, Analytic, In
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     definition: CustomEventDefinition | NodeReference;
     _session?: Session | null;
@@ -622,6 +623,7 @@ export class CustomEvent extends Node implements Spatial, Particle, Analytic, In
       throw new Error(`CustomEvent.definition is required`);
     }
     this.definitionPtr = _definition;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();

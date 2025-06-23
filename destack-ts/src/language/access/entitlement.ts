@@ -1,19 +1,18 @@
 import {
-  Agent,
   Analytic,
   Entity,
   Event,
-  Folder,
   Graph,
   Indexed,
   IsDeletable,
   IsFrozen,
+  IsJoinable,
+  IsSubject,
   IsTracked,
   MaterializationType,
   Node,
   NodeReference,
   NodeType,
-  Organization,
   Particle,
   QueryConnection,
   Session,
@@ -21,10 +20,7 @@ import {
   Spatial,
   StructType,
   Supergraph,
-  Team,
-  Thread,
   TraitType,
-  User,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
 
@@ -79,19 +75,19 @@ export class EntitlementEvent extends Node implements Spatial, Particle, Analyti
   }
   readonly spacePtr: NodeReference | null;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
@@ -114,9 +110,9 @@ export class EntitlementEvent extends Node implements Spatial, Particle, Analyti
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     node: Entitlement | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -165,6 +161,7 @@ export class EntitlementEvent extends Node implements Spatial, Particle, Analyti
       throw new Error(`EntitlementEvent.node is required`);
     }
     this.nodePtr = _node;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();
@@ -260,19 +257,10 @@ export class Entitlement extends Node implements Spatial, Entity, IsTracked, IsD
   ];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): Agent | User | Folder | Thread | Organization | Space | Team | null | null {
+  get parent(): (Node & IsSubject) | (Node & IsJoinable) | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as
-        | Agent
-        | User
-        | Folder
-        | Thread
-        | Organization
-        | Space
-        | Team
-        | null
-        | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | (Node & IsJoinable) | null | null;
     }
     return null;
   }
@@ -287,19 +275,19 @@ export class Entitlement extends Node implements Spatial, Entity, IsTracked, IsD
   readonly spacePtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
@@ -307,32 +295,32 @@ export class Entitlement extends Node implements Spatial, Entity, IsTracked, IsD
   readonly deletedAt: Temporal.ZonedDateTime | null;
   type: EntitlementType;
   expiresAt: Temporal.ZonedDateTime | null;
-  get target(): Agent | User | null {
+  get target(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
 
-  set target(node: Agent | User) {
+  set target(node: Node & IsSubject) {
     this.targetPtr = node.toRef();
   }
   targetPtr: NodeReference;
 
   constructor(options: {
     id?: string;
-    parent?: Agent | User | Folder | Thread | Organization | Space | Team | NodeReference | null;
+    parent?: (Node & IsSubject) | (Node & IsJoinable) | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     type: EntitlementType;
     expiresAt?: Temporal.ZonedDateTime | null;
-    target: Agent | User | NodeReference;
+    target: (Node & IsSubject) | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -397,6 +385,7 @@ export class Entitlement extends Node implements Spatial, Entity, IsTracked, IsD
       throw new Error(`Entitlement.target is required`);
     }
     this.targetPtr = _target;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();

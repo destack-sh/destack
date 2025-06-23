@@ -4,6 +4,7 @@ from destack.language.core import (
     Entity,
     Enum,
     EnumType,
+    HasName,
     IsDeletable,
     IsOrdered,
     IsOwnable,
@@ -11,7 +12,6 @@ from destack.language.core import (
     Node,
     NodeType,
     Spatial,
-    StringFormat,
     builtin_enum,
     builtin_node,
     property_,
@@ -35,6 +35,7 @@ class WindowType(Enum):
 class Window(
     Spatial,
     Entity,
+    HasName,
     IsVisual,
     IsOwnable,
     IsOrdered,
@@ -46,6 +47,3 @@ class Window(
     """
 
     type: WindowType = property_(30)
-    name: str | None = property_(31, format=StringFormat.NAME)
-
-    pass

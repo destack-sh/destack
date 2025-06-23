@@ -1,4 +1,4 @@
-import { timedeltaFromISOFormat, timedeltaToISOFormat } from "@/utils/time";
+import { timedeltaFromISOFormat, timedeltaToISOFormat } from "@destack/utils/time";
 import { describe, expect, test } from "vitest";
 
 describe("timedeltaFromISOFormat", () => {

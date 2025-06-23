@@ -1,8 +1,8 @@
 import {
-  Agent,
   Client,
   Entity,
   Graph,
+  IsSubject,
   IsTracked,
   MaterializationType,
   Node,
@@ -17,7 +17,6 @@ import {
   StructType,
   Supergraph,
   TraitType,
-  User,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
 
@@ -59,19 +58,19 @@ export class Machine extends Node implements Spatial, Entity, Resource, IsTracke
   readonly spacePtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
@@ -113,9 +112,9 @@ export class Machine extends Node implements Spatial, Entity, Resource, IsTracke
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     type?: MachineType;
     status?: ResourceStatus;
     targetStatus?: Temporal.ZonedDateTime | null;
@@ -259,6 +258,7 @@ export class Machine extends Node implements Spatial, Entity, Resource, IsTracke
       throw new Error(`Machine.isHeadless is required`);
     }
     this.isHeadless = _isHeadless;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();

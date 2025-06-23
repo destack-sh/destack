@@ -99,6 +99,7 @@ export class Length extends StructFrozen {
       throw new Error(`Length.value is required`);
     }
     this.value = _value;
+
     // identity
     // ...
   }
@@ -158,6 +159,7 @@ export class Position extends StructFrozen {
     this.width = _width;
     let _height = options.height ?? null;
     this.height = _height;
+
     // identity
     // ...
   }
@@ -215,6 +217,7 @@ export class Dimension extends StructFrozen {
       throw new Error(`Dimension.value is required`);
     }
     this.value = _value;
+
     // identity
     // ...
   }
@@ -271,6 +274,7 @@ export class Insets extends StructFrozen {
     this.right = _right;
     let _bottom = options.bottom ?? null;
     this.bottom = _bottom;
+
     // identity
     // ...
   }
@@ -327,6 +331,7 @@ export class Corners extends StructFrozen {
     this.bottomLeft = _bottomLeft;
     let _bottomRight = options.bottomRight ?? null;
     this.bottomRight = _bottomRight;
+
     // identity
     // ...
   }
@@ -375,6 +380,7 @@ export class Axis2 extends StructFrozen {
     this.x = _x;
     let _y = options.y ?? null;
     this.y = _y;
+
     // identity
     // ...
   }
@@ -427,6 +433,7 @@ export class Axis3 extends StructFrozen {
     this.y = _y;
     let _z = options.z ?? null;
     this.z = _z;
+
     // identity
     // ...
   }
@@ -472,6 +479,7 @@ export class Vector2 extends StructFrozen {
       throw new Error(`Vector2.y is required`);
     }
     this.y = _y;
+
     // identity
     // ...
   }
@@ -529,6 +537,7 @@ export class Vector3 extends StructFrozen {
       throw new Error(`Vector3.z is required`);
     }
     this.z = _z;
+
     // identity
     // ...
   }
@@ -593,6 +602,7 @@ export class Vector4 extends StructFrozen {
       throw new Error(`Vector4.w is required`);
     }
     this.w = _w;
+
     // identity
     // ...
   }
@@ -638,6 +648,7 @@ export class Vector2i extends StructFrozen {
       throw new Error(`Vector2i.y is required`);
     }
     this.y = _y;
+
     // identity
     // ...
   }
@@ -695,6 +706,7 @@ export class Vector3i extends StructFrozen {
       throw new Error(`Vector3i.z is required`);
     }
     this.z = _z;
+
     // identity
     // ...
   }
@@ -759,6 +771,7 @@ export class Vector4i extends StructFrozen {
       throw new Error(`Vector4i.w is required`);
     }
     this.w = _w;
+
     // identity
     // ...
   }
@@ -821,6 +834,7 @@ export class Grid extends StructFrozen {
     this.columnMinWidth = _columnMinWidth;
     let _rowHeight = options.rowHeight ?? null;
     this.rowHeight = _rowHeight;
+
     // identity
     // ...
   }
@@ -866,6 +880,7 @@ export class GridSpan extends StructFrozen {
       throw new Error(`GridSpan.rows is required`);
     }
     this.rows = _rows;
+
     // identity
     // ...
   }

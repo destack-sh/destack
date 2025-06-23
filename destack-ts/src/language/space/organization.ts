@@ -1,5 +1,4 @@
 import {
-  Agent,
   Entity,
   Global,
   Graph,
@@ -7,6 +6,7 @@ import {
   Icon,
   IsJoinable,
   IsOwner,
+  IsSubject,
   IsTracked,
   MaterializationType,
   Node,
@@ -18,7 +18,6 @@ import {
   StructType,
   Supergraph,
   TraitType,
-  User,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
 
@@ -69,19 +68,19 @@ export class Organization extends Node implements Global, Entity, IsTracked, IsJ
   readonly parentPtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
@@ -112,9 +111,9 @@ export class Organization extends Node implements Global, Entity, IsTracked, IsJ
     parent?: Node | NodeReference | null;
     materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     name: string;
     slug: string;
     icon?: Icon | null;
@@ -196,6 +195,7 @@ export class Organization extends Node implements Global, Entity, IsTracked, IsJ
       _handle = _handle.toRef();
     }
     this.handlePtr = _handle;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();

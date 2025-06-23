@@ -30,7 +30,7 @@
     "@protobuf-ts/runtime": "^2.11.0",
     "@protobuf-ts/runtime-rpc": "^2.11.0",
     "@react-three/fiber": "^9.1.2",
-    "destack-ts": "link:destack-ts",
+    "destack": "link:destack",
     "framer-motion": "^12.18.1",
     "grpc-web": "^1.5.0",
     "posthog-js": "^1.246.1",

@@ -1,23 +1,22 @@
 import {
-  Agent,
   Analytic,
   Entity,
   Event,
-  Folder,
   Global,
   Graph,
   Icon,
   Indexed,
   IsDeletable,
   IsFrozen,
+  IsJoinable,
   IsOrdered,
   IsOwner,
+  IsSubject,
   IsTracked,
   MaterializationType,
   Node,
   NodeReference,
   NodeType,
-  Organization,
   Particle,
   QueryConnection,
   RoleType,
@@ -26,10 +25,7 @@ import {
   Spatial,
   StructType,
   Supergraph,
-  Team,
-  Thread,
   TraitType,
-  User,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
 
@@ -75,19 +71,19 @@ export class RoleEvent extends Node implements Spatial, Particle, Analytic, Inde
   }
   readonly spacePtr: NodeReference | null;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
@@ -111,9 +107,9 @@ export class RoleEvent extends Node implements Spatial, Particle, Analytic, Inde
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     type: RoleEventType;
     node: Role | NodeReference;
     _session?: Session | null;
@@ -168,6 +164,7 @@ export class RoleEvent extends Node implements Spatial, Particle, Analytic, Inde
       throw new Error(`RoleEvent.node is required`);
     }
     this.nodePtr = _node;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();
@@ -267,10 +264,10 @@ export class Role extends Node implements Global, Spatial, Entity, IsTracked, Is
   ];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): Folder | Thread | Organization | Space | Team | null | null {
+  get parent(): (Node & IsJoinable) | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Folder | Thread | Organization | Space | Team | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsJoinable) | null | null;
     }
     return null;
   }
@@ -285,19 +282,19 @@ export class Role extends Node implements Global, Spatial, Entity, IsTracked, Is
   readonly spacePtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
@@ -311,13 +308,13 @@ export class Role extends Node implements Global, Spatial, Entity, IsTracked, Is
 
   constructor(options: {
     id?: string;
-    parent?: Folder | Thread | Organization | Space | Team | NodeReference | null;
+    parent?: (Node & IsJoinable) | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;
     type: RoleType;
@@ -395,6 +392,7 @@ export class Role extends Node implements Global, Spatial, Entity, IsTracked, Is
     this.slug = _slug;
     let _icon = options.icon ?? null;
     this.icon = _icon;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();

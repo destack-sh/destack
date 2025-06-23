@@ -1,10 +1,6 @@
 import {
   AttributeReference,
-  CustomEntityDefinition,
-  Field,
-  NodeClass,
   NodeType,
-  PropertyReference,
   RelationReference,
   Session,
   Struct,
@@ -12,9 +8,9 @@ import {
   StructType,
   Supergraph,
   Value,
-  toValue,
 } from "@/language";
-import { assertNever } from "@/utils/functools";
+import { CustomEntityDefinition, Field, NodeClass, PropertyReference, toValue } from "@destack/language";
+import { assertNever } from "@destack/utils/functools";
 import { v4 as uuid4 } from "uuid";
 
 /* ==== DESTACK_GENERATED_START:ENUM:108 ==== */
@@ -147,6 +143,7 @@ export class Function extends StructFrozen {
     this.left = _left;
     let _right = options.right ?? null;
     this.right = _right;
+
     // identity
     // ...
   }
@@ -209,6 +206,7 @@ export class Condition extends StructFrozen {
     this.left = _left;
     let _right = options.right ?? null;
     this.right = _right;
+
     // identity
     // ...
   }
@@ -270,6 +268,7 @@ export class Aggregation extends StructFrozen {
     this.type = _type;
     let _expression = options.expression ?? null;
     this.expression = _expression;
+
     // identity
     // ...
   }
@@ -341,6 +340,7 @@ export class Expression extends StructFrozen {
     this.function = _function;
     let _aggregation = options.aggregation ?? null;
     this.aggregation = _aggregation;
+
     // identity
     // ...
   }
@@ -431,6 +431,7 @@ export class Sort extends StructFrozen {
     this.by = _by;
     let _mode = options.mode ?? null;
     this.mode = _mode;
+
     // identity
     // ...
   }
@@ -482,6 +483,7 @@ export class Select extends StructFrozen {
       throw new Error(`Select.attributes is required`);
     }
     this.attributes = _attributes;
+
     // identity
     // ...
   }
@@ -555,6 +557,7 @@ export class Join extends StructFrozen {
     this.depth = _depth;
     let _on = options.on ?? null;
     this.on = _on;
+
     // identity
     // ...
   }
@@ -690,6 +693,7 @@ export class Query extends StructFrozen {
     this.limit = _limit;
     let _offset = options.offset ?? null;
     this.offset = _offset;
+
     // identity
     // ...
   }
@@ -740,6 +744,7 @@ export class Histogram extends StructFrozen {
       throw new Error(`Histogram.counts is required`);
     }
     this.counts = _counts;
+
     // identity
     // ...
   }
@@ -823,6 +828,7 @@ export class QueryResult extends Struct {
     this.exists = _exists;
     let _scalar = options.scalar ?? null;
     this.scalar = _scalar;
+
     // identity
     // ...
   }
@@ -892,6 +898,7 @@ export class QueryResultGroup extends Struct {
     this.exists = _exists;
     let _scalar = options.scalar ?? null;
     this.scalar = _scalar;
+
     // identity
     // ...
   }
@@ -939,6 +946,7 @@ export class QueryUpdate extends StructFrozen {
     this.type = _type;
     let _result = options.result ?? null;
     this.result = _result;
+
     // identity
     // ...
   }

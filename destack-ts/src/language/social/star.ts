@@ -1,11 +1,11 @@
 import {
-  Agent,
   Entity,
-  Folder,
   Global,
   Graph,
   IsDeletable,
   IsOwnable,
+  IsStarable,
+  IsSubject,
   IsTracked,
   MaterializationType,
   Node,
@@ -18,7 +18,6 @@ import {
   StructType,
   Supergraph,
   TraitType,
-  User,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
 
@@ -39,10 +38,10 @@ export class Star extends Node implements Global, Spatial, Entity, IsTracked, Is
   static __ancestorTypes__: NodeType[] = [NodeType.FOLDER, NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): Folder | Space | null | null {
+  get parent(): (Node & IsStarable) | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Folder | Space | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsStarable) | null | null;
     }
     return null;
   }
@@ -57,48 +56,48 @@ export class Star extends Node implements Global, Spatial, Entity, IsTracked, Is
   readonly spacePtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
   readonly deletedAt: Temporal.ZonedDateTime | null;
-  get ownedBy(): Agent | User | null {
+  get ownedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
 
-  set ownedBy(node: Agent | User) {
+  set ownedBy(node: Node & IsSubject) {
     this.ownedByPtr = node.toRef();
   }
   ownedByPtr: NodeReference;
 
   constructor(options: {
     id?: string;
-    parent?: Folder | Space | NodeReference | null;
+    parent?: (Node & IsStarable) | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    ownedBy: Agent | User | NodeReference;
+    ownedBy: (Node & IsSubject) | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -156,6 +155,7 @@ export class Star extends Node implements Global, Spatial, Entity, IsTracked, Is
       throw new Error(`Star.ownedBy is required`);
     }
     this.ownedByPtr = _ownedBy;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();

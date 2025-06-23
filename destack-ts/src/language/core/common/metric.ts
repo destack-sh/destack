@@ -1,14 +1,12 @@
 import {
-  Agent,
   Analytic,
-  CustomEntity,
-  CustomView,
   Entity,
   Graph,
   IsCustomNode,
   IsCustomNodeDefinition,
   IsOrdered,
   IsSourceable,
+  IsSubject,
   IsTracked,
   MaterializationType,
   Measurement,
@@ -24,7 +22,6 @@ import {
   StructType,
   Supergraph,
   TraitType,
-  User,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
 
@@ -65,29 +62,15 @@ export class GaugeMetric
     return null;
   }
   readonly spacePtr: NodeReference | null;
-  get prototype():
-    | CustomEntity
-    | GaugeMeasurement
-    | CounterMeasurement
-    | HistogramMeasurement
-    | CustomView
-    | null
-    | null {
+  get prototype(): (Node & IsCustomNode) | null | null {
     const nodePtr: NodeReference | null = this.prototypePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as
-        | CustomEntity
-        | GaugeMeasurement
-        | CounterMeasurement
-        | HistogramMeasurement
-        | CustomView
-        | null
-        | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsCustomNode) | null | null;
     }
     return null;
   }
 
-  set prototype(node: CustomEntity | GaugeMeasurement | CounterMeasurement | HistogramMeasurement | CustomView | null) {
+  set prototype(node: (Node & IsCustomNode) | null) {
     if (node === null) {
       this.prototypePtr = null;
     } else {
@@ -97,19 +80,19 @@ export class GaugeMetric
   prototypePtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
@@ -129,19 +112,12 @@ export class GaugeMetric
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    prototype?:
-      | CustomEntity
-      | GaugeMeasurement
-      | CounterMeasurement
-      | HistogramMeasurement
-      | CustomView
-      | NodeReference
-      | null;
+    prototype?: (Node & IsCustomNode) | NodeReference | null;
     materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     orderKey?: string;
     name: string;
     source?: Script | NodeReference | null;
@@ -215,6 +191,7 @@ export class GaugeMetric
       _source = _source.toRef();
     }
     this.sourcePtr = _source;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();
@@ -329,19 +306,19 @@ export class GaugeMeasurement extends Node implements Spatial, Analytic, IsCusto
   }
   definitionPtr: NodeReference;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
@@ -353,9 +330,9 @@ export class GaugeMeasurement extends Node implements Spatial, Analytic, IsCusto
     space?: Space | NodeReference | null;
     definition: GaugeMetric | NodeReference;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -403,6 +380,7 @@ export class GaugeMeasurement extends Node implements Spatial, Analytic, IsCusto
       throw new Error(`GaugeMeasurement.definition is required`);
     }
     this.definitionPtr = _definition;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();
@@ -510,29 +488,15 @@ export class CounterMetric
     return null;
   }
   readonly spacePtr: NodeReference | null;
-  get prototype():
-    | CustomEntity
-    | GaugeMeasurement
-    | CounterMeasurement
-    | HistogramMeasurement
-    | CustomView
-    | null
-    | null {
+  get prototype(): (Node & IsCustomNode) | null | null {
     const nodePtr: NodeReference | null = this.prototypePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as
-        | CustomEntity
-        | GaugeMeasurement
-        | CounterMeasurement
-        | HistogramMeasurement
-        | CustomView
-        | null
-        | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsCustomNode) | null | null;
     }
     return null;
   }
 
-  set prototype(node: CustomEntity | GaugeMeasurement | CounterMeasurement | HistogramMeasurement | CustomView | null) {
+  set prototype(node: (Node & IsCustomNode) | null) {
     if (node === null) {
       this.prototypePtr = null;
     } else {
@@ -542,19 +506,19 @@ export class CounterMetric
   prototypePtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
@@ -574,19 +538,12 @@ export class CounterMetric
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    prototype?:
-      | CustomEntity
-      | GaugeMeasurement
-      | CounterMeasurement
-      | HistogramMeasurement
-      | CustomView
-      | NodeReference
-      | null;
+    prototype?: (Node & IsCustomNode) | NodeReference | null;
     materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     orderKey?: string;
     name: string;
     source?: Script | NodeReference | null;
@@ -660,6 +617,7 @@ export class CounterMetric
       _source = _source.toRef();
     }
     this.sourcePtr = _source;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();
@@ -774,19 +732,19 @@ export class CounterMeasurement extends Node implements Spatial, Analytic, IsCus
   }
   definitionPtr: NodeReference;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
@@ -798,9 +756,9 @@ export class CounterMeasurement extends Node implements Spatial, Analytic, IsCus
     space?: Space | NodeReference | null;
     definition: CounterMetric | NodeReference;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -848,6 +806,7 @@ export class CounterMeasurement extends Node implements Spatial, Analytic, IsCus
       throw new Error(`CounterMeasurement.definition is required`);
     }
     this.definitionPtr = _definition;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();
@@ -955,29 +914,15 @@ export class HistogramMetric
     return null;
   }
   readonly spacePtr: NodeReference | null;
-  get prototype():
-    | CustomEntity
-    | GaugeMeasurement
-    | CounterMeasurement
-    | HistogramMeasurement
-    | CustomView
-    | null
-    | null {
+  get prototype(): (Node & IsCustomNode) | null | null {
     const nodePtr: NodeReference | null = this.prototypePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as
-        | CustomEntity
-        | GaugeMeasurement
-        | CounterMeasurement
-        | HistogramMeasurement
-        | CustomView
-        | null
-        | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsCustomNode) | null | null;
     }
     return null;
   }
 
-  set prototype(node: CustomEntity | GaugeMeasurement | CounterMeasurement | HistogramMeasurement | CustomView | null) {
+  set prototype(node: (Node & IsCustomNode) | null) {
     if (node === null) {
       this.prototypePtr = null;
     } else {
@@ -987,19 +932,19 @@ export class HistogramMetric
   prototypePtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
@@ -1019,19 +964,12 @@ export class HistogramMetric
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    prototype?:
-      | CustomEntity
-      | GaugeMeasurement
-      | CounterMeasurement
-      | HistogramMeasurement
-      | CustomView
-      | NodeReference
-      | null;
+    prototype?: (Node & IsCustomNode) | NodeReference | null;
     materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     orderKey?: string;
     name: string;
     source?: Script | NodeReference | null;
@@ -1105,6 +1043,7 @@ export class HistogramMetric
       _source = _source.toRef();
     }
     this.sourcePtr = _source;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();
@@ -1219,19 +1158,19 @@ export class HistogramMeasurement extends Node implements Spatial, Analytic, IsC
   }
   definitionPtr: NodeReference;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
@@ -1243,9 +1182,9 @@ export class HistogramMeasurement extends Node implements Spatial, Analytic, IsC
     space?: Space | NodeReference | null;
     definition: HistogramMetric | NodeReference;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -1293,6 +1232,7 @@ export class HistogramMeasurement extends Node implements Spatial, Analytic, IsC
       throw new Error(`HistogramMeasurement.definition is required`);
     }
     this.definitionPtr = _definition;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();

@@ -1,24 +1,21 @@
 import {
-  Agent,
   Entity,
   Graph,
   IsOwnable,
+  IsOwner,
+  IsSubject,
   IsTracked,
   MaterializationType,
   Node,
   NodeReference,
   NodeType,
-  Organization,
   QueryConnection,
-  Role,
   Session,
   Space,
   Spatial,
   StructType,
   Supergraph,
-  Team,
   TraitType,
-  User,
   Vector2i,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
@@ -40,14 +37,14 @@ export enum CursorStatus {
 /* ==== DESTACK_GENERATED_START:TRAIT:3012 ==== */
 export interface Cursor {
   readonly id: string;
-  get space(): Space | null;
+  get space(): Space | null | null;
   readonly spacePtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null;
+  get createdBy(): (Node & IsSubject) | null | null;
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null;
+  get updatedBy(): (Node & IsSubject) | null | null;
   readonly updatedByPtr: NodeReference | null;
   status: CursorStatus;
   activeAt: Temporal.ZonedDateTime | null;
@@ -88,32 +85,32 @@ export class EventCursor extends Node implements Spatial, Entity, IsTracked, IsO
   readonly spacePtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
-  get ownedBy(): Role | Agent | Organization | Team | User | null | null {
+  get ownedBy(): (Node & IsOwner) | null | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Role | Agent | Organization | Team | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null | null;
     }
     return null;
   }
 
-  set ownedBy(node: Role | Agent | Organization | Team | User | null) {
+  set ownedBy(node: (Node & IsOwner) | null) {
     if (node === null) {
       this.ownedByPtr = null;
     } else {
@@ -130,10 +127,10 @@ export class EventCursor extends Node implements Spatial, Entity, IsTracked, IsO
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
-    ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
+    ownedBy?: (Node & IsOwner) | NodeReference | null;
     status?: CursorStatus;
     activeAt?: Temporal.ZonedDateTime | null;
     _session?: Session | null;
@@ -198,6 +195,7 @@ export class EventCursor extends Node implements Spatial, Entity, IsTracked, IsO
     this.status = _status;
     let _activeAt = options.activeAt ?? null;
     this.activeAt = _activeAt;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();
@@ -301,32 +299,32 @@ export class ScreenCursor extends Node implements Spatial, Entity, IsTracked, Is
   readonly spacePtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
-  get ownedBy(): Role | Agent | Organization | Team | User | null | null {
+  get ownedBy(): (Node & IsOwner) | null | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Role | Agent | Organization | Team | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null | null;
     }
     return null;
   }
 
-  set ownedBy(node: Role | Agent | Organization | Team | User | null) {
+  set ownedBy(node: (Node & IsOwner) | null) {
     if (node === null) {
       this.ownedByPtr = null;
     } else {
@@ -344,10 +342,10 @@ export class ScreenCursor extends Node implements Spatial, Entity, IsTracked, Is
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
-    ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
+    ownedBy?: (Node & IsOwner) | NodeReference | null;
     status?: CursorStatus;
     activeAt?: Temporal.ZonedDateTime | null;
     position?: Vector2i | null;
@@ -415,6 +413,7 @@ export class ScreenCursor extends Node implements Spatial, Entity, IsTracked, Is
     this.activeAt = _activeAt;
     let _position = options.position ?? null;
     this.position = _position;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();
@@ -518,32 +517,32 @@ export class ThreadCursor extends Node implements Spatial, Entity, IsTracked, Is
   readonly spacePtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
-  get ownedBy(): Role | Agent | Organization | Team | User | null | null {
+  get ownedBy(): (Node & IsOwner) | null | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Role | Agent | Organization | Team | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null | null;
     }
     return null;
   }
 
-  set ownedBy(node: Role | Agent | Organization | Team | User | null) {
+  set ownedBy(node: (Node & IsOwner) | null) {
     if (node === null) {
       this.ownedByPtr = null;
     } else {
@@ -560,10 +559,10 @@ export class ThreadCursor extends Node implements Spatial, Entity, IsTracked, Is
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
-    ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
+    ownedBy?: (Node & IsOwner) | NodeReference | null;
     status?: CursorStatus;
     activeAt?: Temporal.ZonedDateTime | null;
     _session?: Session | null;
@@ -628,6 +627,7 @@ export class ThreadCursor extends Node implements Spatial, Entity, IsTracked, Is
     this.status = _status;
     let _activeAt = options.activeAt ?? null;
     this.activeAt = _activeAt;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();

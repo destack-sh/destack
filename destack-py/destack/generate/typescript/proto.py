@@ -145,13 +145,6 @@ export * from './google/protobuf/timestamp';
     for path in Path(TEMP_TS_DIR).glob("**/*.ts"):
         path.write_text("/* eslint-disable */\n" + path.read_text())
 
-    # amend every .client.ts file with our OperationOptions
-    for path in Path(TEMP_TS_DIR).glob("**/*.client.ts"):
-        patched_file = path.read_text().replace(": RpcOptions", ": OperationOptions")
-        # append import
-        patched_file = patched_file + '\nimport type { OperationOptions } from "@/proto/services";'
-        path.write_text(patched_file)
-
     # overwrite WIRE_TS_DIR with TEMP_TS_DIR
     shutil.rmtree(TARGET_TS_DIR, ignore_errors=True)
     shutil.move(TEMP_TS_DIR, TARGET_TS_DIR)

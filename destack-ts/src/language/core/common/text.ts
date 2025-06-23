@@ -84,6 +84,7 @@ export class TextSpan extends StructFrozen {
     this.isUnderline = _isUnderline;
     let _isCode = options.isCode ?? null;
     this.isCode = _isCode;
+
     // identity
     // ...
   }
@@ -147,6 +148,7 @@ export class Text extends StructFrozen {
     this.isUnderline = _isUnderline;
     let _isCode = options.isCode ?? null;
     this.isCode = _isCode;
+
     // identity
     // ...
   }

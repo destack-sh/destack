@@ -1,45 +1,26 @@
 import {
-  Agent,
-  AnnotationShape,
-  ArrowShape,
-  Canvas,
-  CustomEntityDefinition,
-  CustomView,
-  CustomViewDefinition,
   Entity,
   Folder,
-  FrameView,
   Graph,
   IsDeletable,
   IsExtensible,
   IsOrdered,
   IsRunnable,
+  IsScriptable,
+  IsSubject,
   IsTracked,
-  LabelView,
-  Layer,
-  LineShape,
   MaterializationType,
   Node,
   NodeReference,
   NodeType,
-  NumberInputView,
-  PlaneShape,
   QueryConnection,
-  Scene,
-  Service,
   Session,
-  SliderInputView,
   Space,
   Spatial,
-  SplitView,
   StructType,
   Supergraph,
-  TextView,
-  ThreadView,
   TraitType,
-  User,
   Value,
-  WizardView,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
 
@@ -112,58 +93,10 @@ export class Script
   ];
   static __descendantTypes__: NodeType[] = [NodeType.SCRIPT, NodeType.OPTION, NodeType.TAGGING, NodeType.FIELD];
 
-  get parent():
-    | Folder
-    | CustomEntityDefinition
-    | CustomViewDefinition
-    | CustomView
-    | FrameView
-    | LabelView
-    | SplitView
-    | TextView
-    | NumberInputView
-    | SliderInputView
-    | WizardView
-    | ThreadView
-    | AnnotationShape
-    | ArrowShape
-    | Canvas
-    | LineShape
-    | PlaneShape
-    | Service
-    | Layer
-    | Scene
-    | Agent
-    | Script
-    | null
-    | null {
+  get parent(): Folder | (Node & IsScriptable) | Script | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as
-        | Folder
-        | CustomEntityDefinition
-        | CustomViewDefinition
-        | CustomView
-        | FrameView
-        | LabelView
-        | SplitView
-        | TextView
-        | NumberInputView
-        | SliderInputView
-        | WizardView
-        | ThreadView
-        | AnnotationShape
-        | ArrowShape
-        | Canvas
-        | LineShape
-        | PlaneShape
-        | Service
-        | Layer
-        | Scene
-        | Agent
-        | Script
-        | null
-        | null;
+      return this._supergraph.get(nodePtr.id) as Folder | (Node & IsScriptable) | Script | null | null;
     }
     return null;
   }
@@ -178,19 +111,19 @@ export class Script
   readonly spacePtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
@@ -203,37 +136,13 @@ export class Script
 
   constructor(options: {
     id?: string;
-    parent?:
-      | Folder
-      | CustomEntityDefinition
-      | CustomViewDefinition
-      | CustomView
-      | FrameView
-      | LabelView
-      | SplitView
-      | TextView
-      | NumberInputView
-      | SliderInputView
-      | WizardView
-      | ThreadView
-      | AnnotationShape
-      | ArrowShape
-      | Canvas
-      | LineShape
-      | PlaneShape
-      | Service
-      | Layer
-      | Scene
-      | Agent
-      | Script
-      | NodeReference
-      | null;
+    parent?: Folder | (Node & IsScriptable) | Script | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     value?: Map<string, Value>;
     orderKey?: string;
@@ -308,6 +217,7 @@ export class Script
     this.name = _name;
     let _code = options.code ?? null;
     this.code = _code;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();

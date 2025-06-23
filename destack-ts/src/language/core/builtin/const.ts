@@ -1,5 +1,5 @@
-import { Session } from "@/language";
-import { ContextVar } from "@/utils/context";
+import { Session } from "@destack/language";
+import { ContextVar } from "@destack/utils/context";
 import { Temporal } from "temporal-polyfill";
 import { v4 as uuidv4 } from "uuid";
 

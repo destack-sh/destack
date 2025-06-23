@@ -1,4 +1,4 @@
-import { uuidt } from "@/utils/uuidt";
+import { uuidt } from "@destack/utils/uuidt";
 import { describe, expect, test } from "vitest";
 
 describe("uuidt", () => {

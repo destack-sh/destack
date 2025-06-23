@@ -1,22 +1,22 @@
 import {
-  Agent,
   Analytic,
   Entity,
   Event,
-  Folder,
   Global,
   Graph,
   Indexed,
   IsDeletable,
   IsFrozen,
+  IsJoinable,
   IsOwnable,
+  IsOwner,
+  IsSubject,
   IsTracked,
   LikeInvite,
   MaterializationType,
   Node,
   NodeReference,
   NodeType,
-  Organization,
   Particle,
   QueryConnection,
   Role,
@@ -26,10 +26,7 @@ import {
   Spatial,
   StructType,
   Supergraph,
-  Team,
-  Thread,
   TraitType,
-  User,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
 
@@ -77,19 +74,19 @@ export class InviteEvent extends Node implements Spatial, Particle, Analytic, In
   }
   readonly spacePtr: NodeReference | null;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
@@ -106,27 +103,27 @@ export class InviteEvent extends Node implements Spatial, Particle, Analytic, In
     this.nodePtr = node.toRef();
   }
   nodePtr: NodeReference;
-  get joinable(): Folder | Thread | Organization | Space | Team | null {
+  get joinable(): (Node & IsJoinable) | null {
     const nodePtr: NodeReference | null = this.joinablePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Folder | Thread | Organization | Space | Team | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsJoinable) | null;
     }
     return null;
   }
 
-  set joinable(node: Folder | Thread | Organization | Space | Team) {
+  set joinable(node: Node & IsJoinable) {
     this.joinablePtr = node.toRef();
   }
   joinablePtr: NodeReference;
-  get member(): Agent | User | null {
+  get member(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.memberPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
 
-  set member(node: Agent | User) {
+  set member(node: Node & IsSubject) {
     this.memberPtr = node.toRef();
   }
   memberPtr: NodeReference;
@@ -153,12 +150,12 @@ export class InviteEvent extends Node implements Spatial, Particle, Analytic, In
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     node: Invite | NodeReference;
-    joinable: Folder | Thread | Organization | Space | Team | NodeReference;
-    member: Agent | User | NodeReference;
+    joinable: (Node & IsJoinable) | NodeReference;
+    member: (Node & IsSubject) | NodeReference;
     role?: Role | NodeReference | null;
     roleType: RoleType;
     _session?: Session | null;
@@ -234,6 +231,7 @@ export class InviteEvent extends Node implements Spatial, Particle, Analytic, In
       throw new Error(`InviteEvent.roleType is required`);
     }
     this.roleType = _roleType;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();
@@ -333,10 +331,10 @@ export class Invite extends Node implements Global, Spatial, Entity, IsTracked, 
   ];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): Folder | Thread | Organization | Space | Team | null | null {
+  get parent(): (Node & IsJoinable) | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Folder | Thread | Organization | Space | Team | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsJoinable) | null | null;
     }
     return null;
   }
@@ -351,33 +349,33 @@ export class Invite extends Node implements Global, Spatial, Entity, IsTracked, 
   readonly spacePtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
   readonly deletedAt: Temporal.ZonedDateTime | null;
-  get ownedBy(): Role | Agent | Organization | Team | User | null | null {
+  get ownedBy(): (Node & IsOwner) | null | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Role | Agent | Organization | Team | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null | null;
     }
     return null;
   }
 
-  set ownedBy(node: Role | Agent | Organization | Team | User | null) {
+  set ownedBy(node: (Node & IsOwner) | null) {
     if (node === null) {
       this.ownedByPtr = null;
     } else {
@@ -385,22 +383,18 @@ export class Invite extends Node implements Global, Spatial, Entity, IsTracked, 
     }
   }
   ownedByPtr: NodeReference | null;
-  get member(): Agent | User | null | null {
+  get member(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.memberPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
 
-  set member(node: Agent | User | null) {
-    if (node === null) {
-      this.memberPtr = null;
-    } else {
-      this.memberPtr = node.toRef();
-    }
+  set member(node: Node & IsSubject) {
+    this.memberPtr = node.toRef();
   }
-  memberPtr: NodeReference | null;
+  memberPtr: NodeReference;
   get role(): Role | null | null {
     const nodePtr: NodeReference | null = this.rolePtr;
     if (nodePtr !== null) {
@@ -421,16 +415,16 @@ export class Invite extends Node implements Global, Spatial, Entity, IsTracked, 
 
   constructor(options: {
     id?: string;
-    parent?: Folder | Thread | Organization | Space | Team | NodeReference | null;
+    parent?: (Node & IsJoinable) | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null;
-    member?: Agent | User | NodeReference | null;
+    ownedBy?: (Node & IsOwner) | NodeReference | null;
+    member: (Node & IsSubject) | NodeReference;
     role?: Role | NodeReference | null;
     roleType?: RoleType | null;
     _session?: Session | null;
@@ -487,9 +481,12 @@ export class Invite extends Node implements Global, Spatial, Entity, IsTracked, 
       _ownedBy = _ownedBy.toRef();
     }
     this.ownedByPtr = _ownedBy;
-    let _member = options.member ?? null;
+    let _member = options.member;
     if (_member != null && _member instanceof Node) {
       _member = _member.toRef();
+    }
+    if (_member === null) {
+      throw new Error(`Invite.member is required`);
     }
     this.memberPtr = _member;
     let _role = options.role ?? null;
@@ -499,6 +496,7 @@ export class Invite extends Node implements Global, Spatial, Entity, IsTracked, 
     this.rolePtr = _role;
     let _roleType = options.roleType ?? null;
     this.roleType = _roleType;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();

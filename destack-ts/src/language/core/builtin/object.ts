@@ -1,5 +1,5 @@
-import { PropertyDefinition } from "@/language";
-import { AnyNodeProto, AnyStructProto } from "@/proto";
+import { PropertyDefinition } from "@destack/language";
+import { AnyNodeProto, AnyStructProto } from "@destack/proto";
 import { Supergraph } from "../runtime/graph";
 
 /** The base for all BuiltinObjects like Structs and Nodes and all their derivatives. */

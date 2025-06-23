@@ -1,46 +1,30 @@
 import {
-  Agent,
-  AnnotationShape,
-  ArrowShape,
   Axis2,
-  Canvas,
   Color,
-  CustomView,
-  CustomViewDefinition,
   Entity,
-  FrameView,
   Graph,
   IsDeletable,
   IsOrdered,
+  IsSubject,
   IsTaggable,
   IsTracked,
   IsVisual,
-  LabelView,
-  Layer,
-  LineShape,
   MaterializationType,
   Node,
   NodeReference,
   NodeType,
-  NumberInputView,
-  PlaneShape,
   QueryConnection,
   Scene,
   Session,
-  SliderInputView,
   Space,
   Spatial,
-  SplitView,
   Struct,
   StructType,
   Style,
   Supergraph,
-  TextView,
   Theme,
-  ThreadView,
   TraitType,
-  User,
-  WizardView,
+  View,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
 
@@ -142,6 +126,7 @@ export class Shadow extends Struct {
     this.spread = _spread;
     let _diffusion = options.diffusion ?? null;
     this.diffusion = _diffusion;
+
     // identity
     // ...
   }
@@ -223,52 +208,10 @@ export class ShadowStyle
   ];
   static __descendantTypes__: NodeType[] = [NodeType.TAGGING];
 
-  get parent():
-    | Scene
-    | CustomViewDefinition
-    | CustomView
-    | FrameView
-    | LabelView
-    | SplitView
-    | TextView
-    | NumberInputView
-    | SliderInputView
-    | WizardView
-    | ThreadView
-    | AnnotationShape
-    | ArrowShape
-    | Canvas
-    | LineShape
-    | PlaneShape
-    | Layer
-    | Scene
-    | Theme
-    | null
-    | null {
+  get parent(): Scene | (Node & View) | Theme | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as
-        | Scene
-        | CustomViewDefinition
-        | CustomView
-        | FrameView
-        | LabelView
-        | SplitView
-        | TextView
-        | NumberInputView
-        | SliderInputView
-        | WizardView
-        | ThreadView
-        | AnnotationShape
-        | ArrowShape
-        | Canvas
-        | LineShape
-        | PlaneShape
-        | Layer
-        | Scene
-        | Theme
-        | null
-        | null;
+      return this._supergraph.get(nodePtr.id) as Scene | (Node & View) | Theme | null | null;
     }
     return null;
   }
@@ -283,19 +226,19 @@ export class ShadowStyle
   readonly spacePtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
@@ -313,34 +256,13 @@ export class ShadowStyle
 
   constructor(options: {
     id?: string;
-    parent?:
-      | Scene
-      | CustomViewDefinition
-      | CustomView
-      | FrameView
-      | LabelView
-      | SplitView
-      | TextView
-      | NumberInputView
-      | SliderInputView
-      | WizardView
-      | ThreadView
-      | AnnotationShape
-      | ArrowShape
-      | Canvas
-      | LineShape
-      | PlaneShape
-      | Layer
-      | Scene
-      | Theme
-      | NodeReference
-      | null;
+    parent?: Scene | (Node & View) | Theme | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;
     type?: ShadowType;
@@ -439,6 +361,7 @@ export class ShadowStyle
     this.spread = _spread;
     let _diffusion = options.diffusion ?? null;
     this.diffusion = _diffusion;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();

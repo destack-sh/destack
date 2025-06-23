@@ -162,6 +162,7 @@ export class Schedule extends Struct {
       throw new Error(`Schedule.bySecond is required`);
     }
     this.bySecond = _bySecond;
+
     // identity
     // ...
   }

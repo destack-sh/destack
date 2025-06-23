@@ -1,28 +1,4 @@
-import {
-  Agent,
-  CounterMeasurement,
-  CounterMetric,
-  CustomEntity,
-  CustomEntityDefinition,
-  CustomView,
-  CustomViewDefinition,
-  GaugeMeasurement,
-  GaugeMetric,
-  HistogramMeasurement,
-  HistogramMetric,
-  Icon,
-  MaterializationType,
-  Node,
-  NodeReference,
-  Organization,
-  ResourceStatus,
-  Role,
-  Script,
-  Space,
-  Team,
-  User,
-  Value,
-} from "@/language";
+import { Icon, MaterializationType, Node, NodeReference, ResourceStatus, Script, Space, Value } from "@/language";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:50101 ==== */
@@ -59,10 +35,10 @@ export interface HasIcon {
 export interface IsTracked {
   readonly id: string;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null;
+  get createdBy(): (Node & IsSubject) | null | null;
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null;
+  get updatedBy(): (Node & IsSubject) | null | null;
   readonly updatedByPtr: NodeReference | null;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:51 ==== */
@@ -71,10 +47,10 @@ export interface IsTracked {
 export interface IsVisual {
   readonly id: string;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null;
+  get createdBy(): (Node & IsSubject) | null | null;
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null;
+  get updatedBy(): (Node & IsSubject) | null | null;
   readonly updatedByPtr: NodeReference | null;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:9000 ==== */
@@ -102,8 +78,8 @@ export interface IsDeletable {
 /* ==== DESTACK_GENERATED_START:TRAIT:23 ==== */
 export interface IsCustomNodeDefinition {
   readonly id: string;
-  get prototype(): CustomEntity | GaugeMeasurement | CounterMeasurement | HistogramMeasurement | CustomView | null;
-  set prototype(value: CustomEntity | GaugeMeasurement | CounterMeasurement | HistogramMeasurement | CustomView | null);
+  get prototype(): (Node & IsCustomNode) | null | null;
+  set prototype(value: (Node & IsCustomNode) | null);
   prototypePtr: NodeReference | null;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:23 ==== */
@@ -111,7 +87,7 @@ export interface IsCustomNodeDefinition {
 /* ==== DESTACK_GENERATED_START:TRAIT:24 ==== */
 export interface IsCustomNode {
   readonly id: string;
-  get definition(): CustomEntityDefinition | GaugeMetric | CounterMetric | HistogramMetric | CustomViewDefinition;
+  get definition(): (Node & IsCustomNodeDefinition) | null;
   readonly definitionPtr: NodeReference;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:24 ==== */
@@ -152,7 +128,7 @@ export interface IsFollowable {
 export interface IsSourceable {
   readonly id: string;
   readonly orderKey: string;
-  get source(): Script | null;
+  get source(): Script | null | null;
   readonly sourcePtr: NodeReference | null;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:3003 ==== */
@@ -160,7 +136,7 @@ export interface IsSourceable {
 /* ==== DESTACK_GENERATED_START:TRAIT:3002 ==== */
 export interface IsScriptable {
   readonly id: string;
-  get script(): Script | null;
+  get script(): Script | null | null;
   set script(value: Script | null);
   scriptPtr: NodeReference | null;
 }
@@ -181,8 +157,8 @@ export interface IsActionable {
 /* ==== DESTACK_GENERATED_START:TRAIT:500 ==== */
 export interface IsOwnable {
   readonly id: string;
-  get ownedBy(): Role | Agent | Organization | Team | User | null;
-  set ownedBy(value: Role | Agent | Organization | Team | User | null);
+  get ownedBy(): (Node & IsOwner) | null | null;
+  set ownedBy(value: (Node & IsOwner) | null);
   ownedByPtr: NodeReference | null;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:500 ==== */
@@ -220,8 +196,8 @@ export interface IsTaggable {
 /* ==== DESTACK_GENERATED_START:TRAIT:510 ==== */
 export interface LikeMembership {
   readonly id: string;
-  get member(): Agent | User;
-  set member(value: Agent | User);
+  get member(): (Node & IsSubject) | null;
+  set member(value: Node & IsSubject);
   memberPtr: NodeReference;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:510 ==== */
@@ -229,8 +205,8 @@ export interface LikeMembership {
 /* ==== DESTACK_GENERATED_START:TRAIT:511 ==== */
 export interface LikeInvite {
   readonly id: string;
-  get member(): Agent | User;
-  set member(value: Agent | User);
+  get member(): (Node & IsSubject) | null;
+  set member(value: Node & IsSubject);
   memberPtr: NodeReference;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:511 ==== */
@@ -256,7 +232,7 @@ export interface Global {
 /* ==== DESTACK_GENERATED_START:TRAIT:2 ==== */
 export interface Spatial {
   readonly id: string;
-  get space(): Space | null;
+  get space(): Space | null | null;
   readonly spacePtr: NodeReference | null;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:2 ==== */
@@ -266,10 +242,10 @@ export interface Entity {
   readonly id: string;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null;
+  get createdBy(): (Node & IsSubject) | null | null;
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null;
+  get updatedBy(): (Node & IsSubject) | null | null;
   readonly updatedByPtr: NodeReference | null;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:10 ==== */
@@ -278,10 +254,10 @@ export interface Entity {
 export interface Particle {
   readonly id: string;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null;
+  get createdBy(): (Node & IsSubject) | null | null;
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null;
+  get updatedBy(): (Node & IsSubject) | null | null;
   readonly updatedByPtr: NodeReference | null;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:11 ==== */
@@ -290,10 +266,10 @@ export interface Particle {
 export interface Analytic {
   readonly id: string;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null;
+  get createdBy(): (Node & IsSubject) | null | null;
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null;
+  get updatedBy(): (Node & IsSubject) | null | null;
   readonly updatedByPtr: NodeReference | null;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:12 ==== */
@@ -302,10 +278,10 @@ export interface Analytic {
 export interface Indexed {
   readonly id: string;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null;
+  get createdBy(): (Node & IsSubject) | null | null;
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null;
+  get updatedBy(): (Node & IsSubject) | null | null;
   readonly updatedByPtr: NodeReference | null;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:13 ==== */
@@ -315,10 +291,10 @@ export interface Resource {
   readonly id: string;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null;
+  get createdBy(): (Node & IsSubject) | null | null;
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null;
+  get updatedBy(): (Node & IsSubject) | null | null;
   readonly updatedByPtr: NodeReference | null;
   status: ResourceStatus;
   targetStatus: Temporal.ZonedDateTime | null;
@@ -328,18 +304,18 @@ export interface Resource {
 /* ==== DESTACK_GENERATED_START:TRAIT:4010 ==== */
 export interface Metric {
   readonly id: string;
-  get prototype(): CustomEntity | GaugeMeasurement | CounterMeasurement | HistogramMeasurement | CustomView | null;
-  set prototype(value: CustomEntity | GaugeMeasurement | CounterMeasurement | HistogramMeasurement | CustomView | null);
+  get prototype(): (Node & IsCustomNode) | null | null;
+  set prototype(value: (Node & IsCustomNode) | null);
   prototypePtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null;
+  get createdBy(): (Node & IsSubject) | null | null;
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null;
+  get updatedBy(): (Node & IsSubject) | null | null;
   readonly updatedByPtr: NodeReference | null;
   readonly orderKey: string;
-  get source(): Script | null;
+  get source(): Script | null | null;
   readonly sourcePtr: NodeReference | null;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:4010 ==== */
@@ -347,13 +323,13 @@ export interface Metric {
 /* ==== DESTACK_GENERATED_START:TRAIT:4011 ==== */
 export interface Measurement {
   readonly id: string;
-  get definition(): GaugeMetric | CounterMetric | HistogramMetric;
+  get definition(): (Node & Metric) | null;
   readonly definitionPtr: NodeReference;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null;
+  get createdBy(): (Node & IsSubject) | null | null;
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null;
+  get updatedBy(): (Node & IsSubject) | null | null;
   readonly updatedByPtr: NodeReference | null;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:4011 ==== */
@@ -361,15 +337,15 @@ export interface Measurement {
 /* ==== DESTACK_GENERATED_START:TRAIT:22 ==== */
 export interface Event {
   readonly id: string;
-  get space(): Space | null;
+  get space(): Space | null | null;
   readonly spacePtr: NodeReference | null;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null;
+  get createdBy(): (Node & IsSubject) | null | null;
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null;
+  get updatedBy(): (Node & IsSubject) | null | null;
   readonly updatedByPtr: NodeReference | null;
-  get node(): Node | null;
+  get node(): Node | null | null;
   set node(value: Node | null);
   nodePtr: NodeReference | null;
 }

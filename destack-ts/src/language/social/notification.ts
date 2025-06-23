@@ -1,5 +1,4 @@
 import {
-  Agent,
   Analytic,
   Entity,
   Event,
@@ -7,24 +6,22 @@ import {
   Indexed,
   IsFrozen,
   IsOwnable,
+  IsOwner,
+  IsSubject,
   IsTracked,
   MaterializationType,
   Node,
   NodeReference,
   NodeType,
-  Organization,
   Particle,
   QueryConnection,
-  Role,
   Session,
   Space,
   Spatial,
   StructType,
   Supergraph,
-  Team,
   Text,
   TraitType,
-  User,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
 
@@ -86,19 +83,19 @@ export class NotificationEvent
   }
   readonly spacePtr: NodeReference | null;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
@@ -122,9 +119,9 @@ export class NotificationEvent
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     type: NotificationEventType;
     node: Notification | NodeReference;
     _session?: Session | null;
@@ -179,6 +176,7 @@ export class NotificationEvent
       throw new Error(`NotificationEvent.node is required`);
     }
     this.nodePtr = _node;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();
@@ -276,32 +274,32 @@ export class Notification extends Node implements Spatial, Entity, IsTracked, Is
   readonly spacePtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
-  get ownedBy(): Role | Agent | Organization | Team | User | null | null {
+  get ownedBy(): (Node & IsOwner) | null | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Role | Agent | Organization | Team | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null | null;
     }
     return null;
   }
 
-  set ownedBy(node: Role | Agent | Organization | Team | User | null) {
+  set ownedBy(node: (Node & IsOwner) | null) {
     if (node === null) {
       this.ownedByPtr = null;
     } else {
@@ -319,10 +317,10 @@ export class Notification extends Node implements Spatial, Entity, IsTracked, Is
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
-    ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
+    ownedBy?: (Node & IsOwner) | NodeReference | null;
     status: NotificationStatus;
     title: string;
     text?: Text | null;
@@ -390,6 +388,7 @@ export class Notification extends Node implements Spatial, Entity, IsTracked, Is
     this.title = _title;
     let _text = options.text ?? null;
     this.text = _text;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();

@@ -72,6 +72,7 @@ export class Icon extends StructFrozen {
     this.fileUrl = _fileUrl;
     let _color = options.color ?? null;
     this.color = _color;
+
     // identity
     // ...
   }

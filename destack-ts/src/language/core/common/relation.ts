@@ -2,7 +2,6 @@ import {
   CustomEntityDefinition,
   Field,
   Node,
-  NodeClass,
   NodeType,
   Region,
   Session,
@@ -11,7 +10,8 @@ import {
   Supergraph,
   TraitType,
 } from "@/language";
-import { assertNever } from "@/utils/functools";
+import { NodeClass } from "@destack/language";
+import { assertNever } from "@destack/utils/functools";
 
 /* ==== DESTACK_GENERATED_START:ENUM:50010 ==== */
 export enum RelationType {
@@ -62,6 +62,7 @@ export class Scope extends StructFrozen {
     this.region = _region;
     let _spaceId = options.spaceId ?? null;
     this.spaceId = _spaceId;
+
     // identity
     // ...
   }
@@ -130,6 +131,7 @@ export class RelationReference extends StructFrozen {
     this.definitionPtr = _definition;
     let _traitType = options.traitType ?? null;
     this.traitType = _traitType;
+
     // identity
     // ...
   }
@@ -207,6 +209,7 @@ export class AttributeReference extends StructFrozen {
       _field = _field.toRef();
     }
     this.fieldPtr = _field;
+
     // identity
     // ...
   }
@@ -284,6 +287,7 @@ export class PropertyReference extends StructFrozen {
       throw new Error(`PropertyReference.id is required`);
     }
     this.id = _id;
+
     // identity
     // ...
   }
@@ -342,6 +346,7 @@ export class NodeReference extends StructFrozen {
     this.spaceId = _spaceId;
     let _definitionId = options.definitionId ?? null;
     this.definitionId = _definitionId;
+
     // identity
     // ...
   }

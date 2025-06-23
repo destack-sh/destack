@@ -1,17 +1,17 @@
-import { Agent, MaterializationType, NodeReference, Space, User } from "@/language";
+import { IsSubject, MaterializationType, Node, NodeReference, Space } from "@/language";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:TRAIT:12000 ==== */
 export interface Style {
   readonly id: string;
-  get space(): Space | null;
+  get space(): Space | null | null;
   readonly spacePtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null;
+  get createdBy(): (Node & IsSubject) | null | null;
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null;
+  get updatedBy(): (Node & IsSubject) | null | null;
   readonly updatedByPtr: NodeReference | null;
   readonly deletedAt: Temporal.ZonedDateTime | null;
   readonly orderKey: string;

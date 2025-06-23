@@ -1,64 +1,25 @@
 import {
-  Action,
-  Agent,
-  AnnotationShape,
-  ArrowShape,
-  BorderStyle,
-  Canvas,
-  ColorStyle,
-  CustomEntityDefinition,
-  CustomEnumDefinition,
-  CustomStructDefinition,
-  CustomView,
-  CustomViewDefinition,
-  EditEvent,
-  EffectStyle,
   Entity,
-  Field,
-  FillStyle,
   Folder,
-  FontStyle,
-  FrameView,
-  GradientStyle,
   Graph,
   Icon,
   IsDeletable,
   IsOrdered,
+  IsSubject,
   IsTaggable,
   IsTracked,
-  LabelView,
-  Layer,
   LikeTag,
-  LineShape,
   MaterializationType,
-  Message,
   Node,
   NodeReference,
   NodeType,
-  NumberInputView,
-  Option,
-  Palette,
-  PlaneShape,
   QueryConnection,
-  Route,
-  Scene,
-  Service,
   Session,
-  ShadowStyle,
-  SliderInputView,
   Space,
   Spatial,
-  SplitView,
   StructType,
   Supergraph,
-  TextView,
-  Theme,
-  Thread,
-  ThreadView,
   TraitType,
-  TransitionStyle,
-  User,
-  WizardView,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
 
@@ -97,19 +58,19 @@ export class Tag extends Node implements Spatial, Entity, IsTracked, IsDeletable
   readonly spacePtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
@@ -125,9 +86,9 @@ export class Tag extends Node implements Spatial, Entity, IsTracked, IsDeletable
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;
     name: string;
@@ -196,6 +157,7 @@ export class Tag extends Node implements Spatial, Entity, IsTracked, IsDeletable
     this.name = _name;
     let _icon = options.icon ?? null;
     this.icon = _icon;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();
@@ -371,94 +333,10 @@ export class Tagging extends Node implements Spatial, Entity, IsTracked, IsDelet
   ];
   static __descendantTypes__: NodeType[] = [NodeType.TAGGING];
 
-  get parent():
-    | CustomEntityDefinition
-    | CustomEnumDefinition
-    | EditEvent
-    | Field
-    | Option
-    | CustomStructDefinition
-    | CustomViewDefinition
-    | CustomView
-    | FrameView
-    | LabelView
-    | SplitView
-    | TextView
-    | NumberInputView
-    | SliderInputView
-    | WizardView
-    | ThreadView
-    | AnnotationShape
-    | ArrowShape
-    | Canvas
-    | LineShape
-    | PlaneShape
-    | Folder
-    | Tagging
-    | Action
-    | Route
-    | Service
-    | Layer
-    | Scene
-    | Message
-    | Thread
-    | ColorStyle
-    | BorderStyle
-    | TransitionStyle
-    | EffectStyle
-    | GradientStyle
-    | FillStyle
-    | FontStyle
-    | Palette
-    | ShadowStyle
-    | Theme
-    | null
-    | null {
+  get parent(): (Node & IsTaggable) | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as
-        | CustomEntityDefinition
-        | CustomEnumDefinition
-        | EditEvent
-        | Field
-        | Option
-        | CustomStructDefinition
-        | CustomViewDefinition
-        | CustomView
-        | FrameView
-        | LabelView
-        | SplitView
-        | TextView
-        | NumberInputView
-        | SliderInputView
-        | WizardView
-        | ThreadView
-        | AnnotationShape
-        | ArrowShape
-        | Canvas
-        | LineShape
-        | PlaneShape
-        | Folder
-        | Tagging
-        | Action
-        | Route
-        | Service
-        | Layer
-        | Scene
-        | Message
-        | Thread
-        | ColorStyle
-        | BorderStyle
-        | TransitionStyle
-        | EffectStyle
-        | GradientStyle
-        | FillStyle
-        | FontStyle
-        | Palette
-        | ShadowStyle
-        | Theme
-        | null
-        | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsTaggable) | null | null;
     }
     return null;
   }
@@ -473,19 +351,19 @@ export class Tagging extends Node implements Spatial, Entity, IsTracked, IsDelet
   readonly spacePtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
@@ -511,55 +389,13 @@ export class Tagging extends Node implements Spatial, Entity, IsTracked, IsDelet
 
   constructor(options: {
     id?: string;
-    parent?:
-      | CustomEntityDefinition
-      | CustomEnumDefinition
-      | EditEvent
-      | Field
-      | Option
-      | CustomStructDefinition
-      | CustomViewDefinition
-      | CustomView
-      | FrameView
-      | LabelView
-      | SplitView
-      | TextView
-      | NumberInputView
-      | SliderInputView
-      | WizardView
-      | ThreadView
-      | AnnotationShape
-      | ArrowShape
-      | Canvas
-      | LineShape
-      | PlaneShape
-      | Folder
-      | Tagging
-      | Action
-      | Route
-      | Service
-      | Layer
-      | Scene
-      | Message
-      | Thread
-      | ColorStyle
-      | BorderStyle
-      | TransitionStyle
-      | EffectStyle
-      | GradientStyle
-      | FillStyle
-      | FontStyle
-      | Palette
-      | ShadowStyle
-      | Theme
-      | NodeReference
-      | null;
+    parent?: (Node & IsTaggable) | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;
     tag?: Tag | NodeReference | null;
@@ -625,6 +461,7 @@ export class Tagging extends Node implements Spatial, Entity, IsTracked, IsDelet
       _tag = _tag.toRef();
     }
     this.tagPtr = _tag;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();
