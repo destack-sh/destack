@@ -1,4 +1,4 @@
-import { Agent, IsTaggable, BuiltinObject, ACTIVE_SESSION, IsVisual, Session, Scene, StructFrozen, IsOrdered, Graph, Struct, activeSession, StructType, NodeType, Canvas, Icon, Supergraph, QueryConnection, NodeReference, MaterializationType, User, Spatial, Space, Theme, IsDeletable, Entity, EnumType, Node, IsTracked } from '@/language';
+import { IsTracked, ACTIVE_SESSION, IsVisual, Spatial, EnumType, IsOrdered, MaterializationType, Entity, Space, StructType, Struct, Theme, Icon, Scene, NodeReference, NodeType, Graph, User, Agent, IsTaggable, Node, QueryConnection, StructFrozen, Canvas, Supergraph, IsDeletable, BuiltinObject, Session, activeSession } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:12010 ==== */
@@ -49,6 +49,16 @@ export class Palette extends Node implements Spatial, Entity, IsTracked, IsDelet
   icon: Icon | null;
 
   constructor(options: {
+    id: string,
+    parent?: Scene | Theme | Canvas | NodeReference | null,
+    space?: Space | NodeReference | null,
+    materialization?: MaterializationType,
+    createdAt: Temporal.ZonedDateTime,
+    createdBy?: Agent | User | NodeReference | null,
+    updatedAt: Temporal.ZonedDateTime,
+    updatedBy?: Agent | User | NodeReference | null,
+    deletedAt?: Temporal.ZonedDateTime | null,
+    orderKey?: string,
     name: string,
     icon?: Icon | null,
     _session?: Session | null,
@@ -56,23 +66,49 @@ export class Palette extends Node implements Spatial, Entity, IsTracked, IsDelet
     _graph?: Graph | null,
     _connection?: QueryConnection | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    super(
+        // id
+        options.id,
+        // parent
+        options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null,
+        // session
+        options._session ?? null,
+        // supergraph
+        options._supergraph ?? null,
+        // graph
+        options._graph ?? null,
+        // connection
+        options._connection ?? null,
+        // is_new
+        options.id == null,
+        // is_attached
+        options.id != null,
+    );
+
+    this.id = options.id;
+    this.parentPtr = options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null;
+    this.spacePtr = options.space != null ? (options.space.metatype == StructType.NODE_REFERENCE ? (options.space as NodeReference) : (options.space as Node).toRef()) : null;
+    this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
+    this.createdAt = options.createdAt;
+    this.createdByPtr = options.createdBy != null ? (options.createdBy.metatype == StructType.NODE_REFERENCE ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
+    this.updatedAt = options.updatedAt;
+    this.updatedByPtr = options.updatedBy != null ? (options.updatedBy.metatype == StructType.NODE_REFERENCE ? (options.updatedBy as NodeReference) : (options.updatedBy as Node).toRef()) : null;
+    this.deletedAt = options.deletedAt ?? null;
+    this.orderKey = options.orderKey ?? "a0";
     this.name = options.name;
     this.icon = options.icon ?? null;
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {

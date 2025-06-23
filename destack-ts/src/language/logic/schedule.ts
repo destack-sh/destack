@@ -1,4 +1,4 @@
-import { Graph, Supergraph, Struct, QueryConnection, NodeReference, activeSession, StructType, BuiltinObject, EnumType, ACTIVE_SESSION, NodeType, Session, StructFrozen, Node } from '@/language';
+import { EnumType, Node, QueryConnection, StructFrozen, StructType, NodeReference, ACTIVE_SESSION, Supergraph, Struct, NodeType, Graph, BuiltinObject, Session, activeSession } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:3051 ==== */
@@ -80,9 +80,11 @@ export class Schedule extends Struct {
     _session?: Session | null,
     _supergraph?: Supergraph | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(supergraph);
+    super(
+        // supergraph
+        supergraph,
+    );
+
     this.frequency = options.frequency;
     this.interval = options.interval ?? 1;
     this.start = options.start ?? null;
@@ -102,15 +104,15 @@ export class Schedule extends Struct {
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:3001 ==== */

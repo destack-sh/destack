@@ -1,4 +1,4 @@
-import { Agent, IsTaggable, ContainerView, IsScriptable, BuiltinObject, ACTIVE_SESSION, IsVisual, Organization, Layout, Align, Corners, Session, Scene, View, StructFrozen, Vector2, IsOrdered, Graph, Distribute, Struct, GridSpan, activeSession, Axis2, Insets, StructType, Border, NodeType, Canvas, Role, Dimension, Icon, Direction, Supergraph, Axis3, QueryConnection, NodeReference, MaterializationType, IsOwnable, Value, User, Position, IsExtensible, Spatial, Team, Fill, Space, Shadow, IsDeletable, Entity, Grid, EnumType, Script, Node, IsTracked } from '@/language';
+import { IsTracked, Dimension, IsExtensible, ACTIVE_SESSION, Distribute, IsOwnable, IsVisual, Position, Spatial, Value, EnumType, IsOrdered, MaterializationType, Entity, Direction, Space, StructType, Vector2, Struct, Organization, Icon, ContainerView, Axis2, IsScriptable, Layout, Scene, NodeReference, GridSpan, Axis3, Border, NodeType, Graph, User, Role, Corners, Agent, Team, IsTaggable, Insets, Fill, Node, QueryConnection, Align, View, StructFrozen, Script, Canvas, Supergraph, IsDeletable, BuiltinObject, Session, activeSession, Shadow, Grid } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:9020 ==== */
@@ -118,7 +118,17 @@ export class Layer extends Node implements Spatial, Entity, IsTracked, IsDeletab
   scriptPtr: NodeReference | null
 
   constructor(options: {
+    id: string,
+    parent?: Scene | Canvas | NodeReference | null,
+    space?: Space | NodeReference | null,
+    materialization?: MaterializationType,
+    createdAt: Temporal.ZonedDateTime,
+    createdBy?: Agent | User | NodeReference | null,
+    updatedAt: Temporal.ZonedDateTime,
+    updatedBy?: Agent | User | NodeReference | null,
+    deletedAt?: Temporal.ZonedDateTime | null,
     value?: Map<string, Value>,
+    orderKey?: string,
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     type?: LayerType,
     name: string,
@@ -155,10 +165,36 @@ export class Layer extends Node implements Spatial, Entity, IsTracked, IsDeletab
     _graph?: Graph | null,
     _connection?: QueryConnection | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    super(
+        // id
+        options.id,
+        // parent
+        options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null,
+        // session
+        options._session ?? null,
+        // supergraph
+        options._supergraph ?? null,
+        // graph
+        options._graph ?? null,
+        // connection
+        options._connection ?? null,
+        // is_new
+        options.id == null,
+        // is_attached
+        options.id != null,
+    );
+
+    this.id = options.id;
+    this.parentPtr = options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null;
+    this.spacePtr = options.space != null ? (options.space.metatype == StructType.NODE_REFERENCE ? (options.space as NodeReference) : (options.space as Node).toRef()) : null;
+    this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
+    this.createdAt = options.createdAt;
+    this.createdByPtr = options.createdBy != null ? (options.createdBy.metatype == StructType.NODE_REFERENCE ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
+    this.updatedAt = options.updatedAt;
+    this.updatedByPtr = options.updatedBy != null ? (options.updatedBy.metatype == StructType.NODE_REFERENCE ? (options.updatedBy as NodeReference) : (options.updatedBy as Node).toRef()) : null;
+    this.deletedAt = options.deletedAt ?? null;
     this.value = options.value ?? new Map();
+    this.orderKey = options.orderKey ?? "a0";
     this.ownedByPtr = options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? (options.ownedBy as NodeReference) : (options.ownedBy as Node).toRef()) : null;
     this.type = options.type ?? LayerType.GENERAL;
     this.name = options.name;
@@ -193,15 +229,15 @@ export class Layer extends Node implements Spatial, Entity, IsTracked, IsDeletab
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {

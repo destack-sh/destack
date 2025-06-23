@@ -1,4 +1,4 @@
-import { Folder, Session, Timer, Snapshot, Option, ScreenCursor, ShadowStyle, Interruption, NodeType, Action, Window, EffectStyle, Trigger, EventCursor, SliderInputView, HistogramMetric, Value, CustomView, LabelView, Environment, ThreadView, Message, TransitionStyle, Space, CustomViewDefinition, Script, EnumType, Client, Layer, TextView, ColorStyle, FriendshipInviteEvent, Field, InviteEvent, Agent, Tagging, Follow, CustomEventDefinition, AnnotationShape, activeSession, StructType, RunEvent, CustomEvent, Role, Branch, HistogramMeasurement, NotificationEvent, WizardView, TriggerEvent, Variant, SceneEvent, EditEvent, Handle, Reaction, RoleEvent, CustomStructDefinition, Star, NumberInputView, Route, GaugeMetric, CustomEntityDefinition, File, ACTIVE_SESSION, DefaultFactory, LineShape, ThreadCursor, PrimitiveType, Machine, ScalarType, SanctionEvent, FrameView, Friendship, Supergraph, Database, Thread, FontStyle, Link, User, TraitType, Team, MembershipEvent, ArrowShape, BorderStyle, EntitlementEvent, SplitView, TypeCardinality, Node, CounterMeasurement, PlaneShape, BuiltinObject, Organization, Scene, StructFrozen, GradientStyle, Entitlement, Graph, Service, Struct, Permission, Sanction, Log, Canvas, Invite, Span, Palette, QueryConnection, GaugeMeasurement, NodeReference, CustomEnumDefinition, CounterMetric, TimerEvent, Membership, Run, Theme, CustomEntity, FriendshipInvite, Notification, Tag, FillStyle } from '@/language';
+import { EventCursor, Link, TraitType, ACTIVE_SESSION, Field, FriendshipInviteEvent, CustomEvent, NotificationEvent, FriendshipInvite, Value, Message, CounterMeasurement, ArrowShape, BorderStyle, StructType, CustomStructDefinition, SplitView, RunEvent, Struct, DefaultFactory, Organization, Palette, Run, InviteEvent, EntitlementEvent, CounterMetric, Agent, Team, MembershipEvent, Supergraph, Folder, SliderInputView, GaugeMeasurement, WizardView, Tag, GradientStyle, EnumType, RoleEvent, Tagging, HistogramMeasurement, AnnotationShape, CustomView, Reaction, ColorStyle, Timer, Thread, ThreadCursor, ShadowStyle, Branch, CustomEventDefinition, NodeType, Graph, User, Service, EditEvent, Script, Star, ScalarType, Canvas, Handle, Span, BuiltinObject, Session, FillStyle, Sanction, GaugeMetric, Window, Permission, Log, TriggerEvent, CustomEnumDefinition, HistogramMetric, Variant, Invite, Friendship, File, Theme, FontStyle, Trigger, PlaneShape, Snapshot, ThreadView, Scene, NodeReference, SanctionEvent, EffectStyle, PrimitiveType, Action, Node, ScreenCursor, CustomViewDefinition, StructFrozen, CustomEntity, FrameView, TypeCardinality, Database, Environment, Route, Entitlement, Follow, SceneEvent, TransitionStyle, Space, Machine, NumberInputView, CustomEntityDefinition, Membership, Client, LabelView, TimerEvent, LineShape, Option, Role, Layer, Interruption, QueryConnection, TextView, Notification, activeSession } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:2570 ==== */
@@ -37,9 +37,11 @@ export class StringConstraint extends StructFrozen {
     _session?: Session | null,
     _supergraph?: Supergraph | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(supergraph);
+    super(
+        // supergraph
+        supergraph,
+    );
+
     this.format = options.format ?? null;
     this.regex = options.regex ?? null;
     this.startsWith = options.startsWith ?? null;
@@ -47,15 +49,15 @@ export class StringConstraint extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:2503 ==== */
@@ -79,9 +81,11 @@ export class NumberConstraint extends StructFrozen {
     _session?: Session | null,
     _supergraph?: Supergraph | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(supergraph);
+    super(
+        // supergraph
+        supergraph,
+    );
+
     this.format = options.format ?? null;
     this.minValue = options.minValue ?? null;
     this.maxValue = options.maxValue ?? null;
@@ -91,15 +95,15 @@ export class NumberConstraint extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:2502 ==== */
@@ -115,23 +119,25 @@ export class CollectionConstraint extends StructFrozen {
     _session?: Session | null,
     _supergraph?: Supergraph | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(supergraph);
+    super(
+        // supergraph
+        supergraph,
+    );
+
     this.minLength = options.minLength ?? null;
     this.maxLength = options.maxLength ?? null;
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:2504 ==== */
@@ -147,23 +153,25 @@ export class NodeConstraint extends StructFrozen {
     _session?: Session | null,
     _supergraph?: Supergraph | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(supergraph);
+    super(
+        // supergraph
+        supergraph,
+    );
+
     this.nodeTypes = options.nodeTypes ?? [];
     this.nodeTraits = options.nodeTraits ?? [];
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:2505 ==== */
@@ -231,9 +239,11 @@ export class Type extends StructFrozen {
     _session?: Session | null,
     _supergraph?: Supergraph | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(supergraph);
+    super(
+        // supergraph
+        supergraph,
+    );
+
     this.cardinality = options.cardinality ?? TypeCardinality.SCALAR;
     this.scalarType = options.scalarType;
     this.primitiveType = options.primitiveType ?? null;
@@ -254,15 +264,15 @@ export class Type extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:2501 ==== */

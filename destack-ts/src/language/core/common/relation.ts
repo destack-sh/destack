@@ -1,4 +1,4 @@
-import { Graph, Supergraph, CustomEntityDefinition, Struct, QueryConnection, activeSession, StructType, BuiltinObject, EnumType, ACTIVE_SESSION, NodeType, Session, TraitType, StructFrozen, Node, Region, Field } from '@/language';
+import { EnumType, Node, QueryConnection, StructFrozen, StructType, ACTIVE_SESSION, Supergraph, TraitType, Struct, NodeType, Region, Field, Graph, BuiltinObject, Session, activeSession, CustomEntityDefinition } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:50010 ==== */
@@ -35,23 +35,25 @@ export class Scope extends StructFrozen {
     _session?: Session | null,
     _supergraph?: Supergraph | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(supergraph);
+    super(
+        // supergraph
+        supergraph,
+    );
+
     this.region = options.region ?? null;
     this.spaceId = options.spaceId ?? null;
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50000 ==== */
@@ -82,9 +84,11 @@ export class RelationReference extends StructFrozen {
     _session?: Session | null,
     _supergraph?: Supergraph | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(supergraph);
+    super(
+        // supergraph
+        supergraph,
+    );
+
     this.type = options.type;
     this.nodeType = options.nodeType ?? null;
     this.definitionPtr = options.definition != null ? (options.definition.metatype == StructType.NODE_REFERENCE ? (options.definition as NodeReference) : (options.definition as Node).toRef()) : null;
@@ -92,15 +96,15 @@ export class RelationReference extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50107 ==== */
@@ -129,24 +133,26 @@ export class AttributeReference extends StructFrozen {
     _session?: Session | null,
     _supergraph?: Supergraph | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(supergraph);
+    super(
+        // supergraph
+        supergraph,
+    );
+
     this.type = options.type;
     this.propPtr = options.propPtr ?? null;
     this.fieldPtr = options.field != null ? (options.field.metatype == StructType.NODE_REFERENCE ? (options.field as NodeReference) : (options.field as Node).toRef()) : null;
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50108 ==== */
@@ -168,9 +174,11 @@ export class PropertyReference extends StructFrozen {
     _session?: Session | null,
     _supergraph?: Supergraph | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(supergraph);
+    super(
+        // supergraph
+        supergraph,
+    );
+
     this.type = options.type;
     this.nodeType = options.nodeType ?? null;
     this.traitType = options.traitType ?? null;
@@ -179,15 +187,15 @@ export class PropertyReference extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50003 ==== */
@@ -207,9 +215,11 @@ export class NodeReference extends StructFrozen {
     _session?: Session | null,
     _supergraph?: Supergraph | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(supergraph);
+    super(
+        // supergraph
+        supergraph,
+    );
+
     this.nodeType = options.nodeType;
     this.id = options.id;
     this.spaceId = options.spaceId ?? null;
@@ -217,15 +227,15 @@ export class NodeReference extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50002 ==== */

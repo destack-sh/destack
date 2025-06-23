@@ -256,8 +256,8 @@ def _generate_init(cls: type[BuiltinObjectBase]) -> str:
 
     # constructor main properties
     for prop in properties.values():
-        if prop.is_managed:
-            continue  # ignore
+        if prop.is_computed:
+            continue  # computed, can't assign
 
         ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
         is_required = (
@@ -312,17 +312,30 @@ def _generate_init(cls: type[BuiltinObjectBase]) -> str:
     if issubclass(cls, Node):
         constructor_body_parts.append("""\
 super(
+    // id
     options.id,
-    options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference).id : (options.parent as Node).id) : null,
-    session,
-    supergraph,
-    options._graph,
-    options._connection,
+    // parent
+    options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null,
+    // session
+    options._session ?? null,
+    // supergraph
+    options._supergraph ?? null,
+    // graph
+    options._graph ?? null,
+    // connection
+    options._connection ?? null,
+    // is_new
+    options.id == null,
+    // is_attached
+    options.id != null,
 );
 """)
     else:
         constructor_body_parts.append("""\
-super(supergraph);
+super(
+    // supergraph
+    supergraph,
+);
 """)
 
     constructor_header_parts.append("_session?: Session | null")
@@ -330,10 +343,6 @@ super(supergraph);
     if issubclass(cls, Node):
         constructor_header_parts.append("_graph?: Graph | null")
         constructor_header_parts.append("_connection?: QueryConnection | null")
-
-    # constructor body setup
-    constructor_body_parts.append("const session = options._session ?? ACTIVE_SESSION.get();")
-    constructor_body_parts.append("const supergraph = options._supergraph ?? session.supergraph;")
 
     # assemble constructor
     constructor_header_str = ",\n".join(constructor_header_parts)
@@ -355,7 +364,7 @@ def _generate_equals(cls: type[BuiltinObjectBase]) -> str:
     """Generate a Typescript equals method."""
     equals_str = """\
 equals(other: any): boolean {
-  throw new Error("Not implemented");
+  throw new Error("not implemented");
 }
 """
     return equals_str.strip()
@@ -365,7 +374,7 @@ def _generate_hash(cls: type[BuiltinObjectBase]) -> str:
     """Generate a Typescript hash method."""
     hash_str = """\
 hash(): number {
-  throw new Error("Not implemented");
+  throw new Error("not implemented");
 }
 """
     return hash_str.strip()
@@ -375,7 +384,7 @@ def _generate_validate(cls: type[BuiltinObjectBase]) -> str:
     """Generate a Typescript validate method."""
     validate_str = """\
 validate(): void {
-  throw new Error("Not implemented");
+  throw new Error("not implemented");
 }
 """
     return validate_str.strip()
@@ -908,6 +917,50 @@ def generate():
         assert file.new_str, f"empty {file.path}"
         file.path.parent.mkdir(parents=True, exist_ok=True)
         file.path.write_text(file.new_str)
+
+    # update registry file
+    registry_path = Path(GENERATION_PATH) / "registry.ts"
+    registry_str_parts: list[str] = [
+        "import { Node, Struct } from '@/language';",
+        f"import {{ {', '.join(definition.cls.__name__ for definition in definition_by_cls.values())} }} from '@/language';",
+    ]
+    # node maps
+    node_map_str_parts: list[str] = ["export type NodeTypeMapping = {"]
+    node_cls_by_type_str_parts: list[str] = ["export const NODE_CLASS_BY_TYPE = {"]
+    for node_type, node_cls in NODE_CLASS_BY_TYPE.items():
+        node_map_str_parts.append(f"  [NodeType.{node_type.name}]: {node_cls.__name__},")
+        node_cls_by_type_str_parts.append(f"  [NodeType.{node_type.name}]: {node_cls.__name__},")
+    node_map_str_parts.append("} as const;")
+    node_cls_by_type_str_parts.append("};")
+    node_map_str = "\n".join(node_map_str_parts)
+    node_cls_by_type_str = "\n".join(node_cls_by_type_str_parts)
+    registry_str_parts.extend((node_map_str, node_cls_by_type_str))
+    # struct maps
+    struct_map_str_parts: list[str] = ["export type StructTypeMapping = {"]
+    struct_cls_by_type_str_parts: list[str] = ["export const STRUCT_CLASS_BY_TYPE = {"]
+    for struct_type, struct_cls in STRUCT_CLASS_BY_TYPE.items():
+        struct_map_str_parts.append(f"  [StructType.{struct_type.name}]: {struct_cls.__name__},")
+        struct_cls_by_type_str_parts.append(
+            f"  [StructType.{struct_type.name}]: {struct_cls.__name__},"
+        )
+    struct_map_str_parts.append("} as const;")
+    struct_cls_by_type_str_parts.append("};")
+    struct_map_str = "\n".join(struct_map_str_parts)
+    struct_cls_by_type_str = "\n".join(struct_cls_by_type_str_parts)
+    registry_str_parts.extend((struct_map_str, struct_cls_by_type_str))
+    # enum maps
+    enum_map_str_parts: list[str] = ["export type EnumTypeMapping = {"]
+    enum_cls_by_type_str_parts: list[str] = ["export const ENUM_CLASS_BY_TYPE = {"]
+    for enum_type, enum_cls in ENUM_CLASS_BY_TYPE.items():
+        enum_map_str_parts.append(f"  [EnumType.{enum_type.name}]: {enum_cls.__name__},")
+        enum_cls_by_type_str_parts.append(f"  [EnumType.{enum_type.name}]: {enum_cls.__name__},")
+    enum_map_str_parts.append("} as const;")
+    enum_cls_by_type_str_parts.append("};")
+    enum_map_str = "\n".join(enum_map_str_parts)
+    enum_cls_by_type_str = "\n".join(enum_cls_by_type_str_parts)
+    registry_str_parts.extend((enum_map_str, enum_cls_by_type_str))
+    registry_str = "\n\n".join(registry_str_parts)
+    registry_path.write_text(registry_str)
 
     # write index files
     module_paths = list({file.path.parent for file in files_by_module.values()})

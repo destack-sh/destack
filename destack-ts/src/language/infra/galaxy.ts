@@ -1,4 +1,4 @@
-import { Graph, Supergraph, Struct, QueryConnection, NodeReference, activeSession, StructType, BuiltinObject, EnumType, ACTIVE_SESSION, NodeType, Session, StructFrozen, Node, Region } from '@/language';
+import { EnumType, Node, QueryConnection, StructFrozen, StructType, NodeReference, ACTIVE_SESSION, Supergraph, Struct, NodeType, Region, Graph, BuiltinObject, Session, activeSession } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:STRUCT:7601 ==== */
@@ -14,24 +14,26 @@ export class GalaxyInfo extends Struct {
     _session?: Session | null,
     _supergraph?: Supergraph | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(supergraph);
+    super(
+        // supergraph
+        supergraph,
+    );
+
     this.region = options.region;
     this.name = options.name;
     this.host = options.host;
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:7601 ==== */

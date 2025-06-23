@@ -1,4 +1,4 @@
-import { Agent, BuiltinObject, ACTIVE_SESSION, Organization, Folder, Session, StructFrozen, IsFrozen, IsOrdered, Graph, Struct, Event, activeSession, Particle, Global, StructType, RoleType, NodeType, Indexed, Icon, Supergraph, QueryConnection, NodeReference, MaterializationType, Thread, User, Analytic, Spatial, Team, Space, IsDeletable, Entity, EnumType, IsOwner, Node, IsTracked } from '@/language';
+import { IsTracked, ACTIVE_SESSION, Spatial, Global, IsOwner, EnumType, IsOrdered, MaterializationType, Entity, Space, StructType, Struct, Particle, Organization, Icon, Thread, NodeReference, NodeType, Graph, User, IsFrozen, Indexed, Agent, Team, Node, QueryConnection, RoleType, StructFrozen, Supergraph, IsDeletable, Analytic, Event, Folder, BuiltinObject, Session, activeSession } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:521 ==== */
@@ -65,6 +65,13 @@ export class RoleEvent extends Node implements Spatial, Particle, Analytic, Inde
   nodePtr: NodeReference
 
   constructor(options: {
+    id: string,
+    parent?: Space | NodeReference | null,
+    space?: Space | NodeReference | null,
+    createdAt: Temporal.ZonedDateTime,
+    createdBy?: Agent | User | NodeReference | null,
+    updatedAt: Temporal.ZonedDateTime,
+    updatedBy?: Agent | User | NodeReference | null,
     type: RoleEventType,
     node: Role | NodeReference,
     _session?: Session | null,
@@ -72,23 +79,46 @@ export class RoleEvent extends Node implements Spatial, Particle, Analytic, Inde
     _graph?: Graph | null,
     _connection?: QueryConnection | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    super(
+        // id
+        options.id,
+        // parent
+        options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null,
+        // session
+        options._session ?? null,
+        // supergraph
+        options._supergraph ?? null,
+        // graph
+        options._graph ?? null,
+        // connection
+        options._connection ?? null,
+        // is_new
+        options.id == null,
+        // is_attached
+        options.id != null,
+    );
+
+    this.id = options.id;
+    this.parentPtr = options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null;
+    this.spacePtr = options.space != null ? (options.space.metatype == StructType.NODE_REFERENCE ? (options.space as NodeReference) : (options.space as Node).toRef()) : null;
+    this.createdAt = options.createdAt;
+    this.createdByPtr = options.createdBy != null ? (options.createdBy.metatype == StructType.NODE_REFERENCE ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
+    this.updatedAt = options.updatedAt;
+    this.updatedByPtr = options.updatedBy != null ? (options.updatedBy.metatype == StructType.NODE_REFERENCE ? (options.updatedBy as NodeReference) : (options.updatedBy as Node).toRef()) : null;
     this.type = options.type;
     this.nodePtr = options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? (options.node as NodeReference) : (options.node as Node).toRef()) : null;
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {
@@ -164,6 +194,16 @@ export class Role extends Node implements Global, Spatial, Entity, IsTracked, Is
   icon: Icon | null;
 
   constructor(options: {
+    id: string,
+    parent?: Folder | Thread | Organization | Space | Team | NodeReference | null,
+    space?: Space | NodeReference | null,
+    materialization?: MaterializationType,
+    createdAt: Temporal.ZonedDateTime,
+    createdBy?: Agent | User | NodeReference | null,
+    updatedAt: Temporal.ZonedDateTime,
+    updatedBy?: Agent | User | NodeReference | null,
+    deletedAt?: Temporal.ZonedDateTime | null,
+    orderKey?: string,
     type: RoleType,
     name: string,
     slug?: string | null,
@@ -173,9 +213,35 @@ export class Role extends Node implements Global, Spatial, Entity, IsTracked, Is
     _graph?: Graph | null,
     _connection?: QueryConnection | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    super(
+        // id
+        options.id,
+        // parent
+        options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null,
+        // session
+        options._session ?? null,
+        // supergraph
+        options._supergraph ?? null,
+        // graph
+        options._graph ?? null,
+        // connection
+        options._connection ?? null,
+        // is_new
+        options.id == null,
+        // is_attached
+        options.id != null,
+    );
+
+    this.id = options.id;
+    this.parentPtr = options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null;
+    this.spacePtr = options.space != null ? (options.space.metatype == StructType.NODE_REFERENCE ? (options.space as NodeReference) : (options.space as Node).toRef()) : null;
+    this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
+    this.createdAt = options.createdAt;
+    this.createdByPtr = options.createdBy != null ? (options.createdBy.metatype == StructType.NODE_REFERENCE ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
+    this.updatedAt = options.updatedAt;
+    this.updatedByPtr = options.updatedBy != null ? (options.updatedBy.metatype == StructType.NODE_REFERENCE ? (options.updatedBy as NodeReference) : (options.updatedBy as Node).toRef()) : null;
+    this.deletedAt = options.deletedAt ?? null;
+    this.orderKey = options.orderKey ?? "a0";
     this.type = options.type;
     this.name = options.name;
     this.slug = options.slug ?? null;
@@ -183,15 +249,15 @@ export class Role extends Node implements Global, Spatial, Entity, IsTracked, Is
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {

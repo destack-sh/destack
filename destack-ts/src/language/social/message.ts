@@ -1,4 +1,4 @@
-import { Folder, Session, Timer, Snapshot, Option, ScreenCursor, ShadowStyle, Interruption, NodeType, Action, Window, EffectStyle, Trigger, EventCursor, SliderInputView, HistogramMetric, CustomView, LabelView, Environment, ThreadView, TransitionStyle, Space, CustomViewDefinition, Script, EnumType, Client, Layer, TextView, ColorStyle, FriendshipInviteEvent, Field, InviteEvent, Agent, Tagging, IsTaggable, Follow, CustomEventDefinition, AnnotationShape, activeSession, StructType, RunEvent, CustomEvent, Role, Branch, HistogramMeasurement, NotificationEvent, WizardView, TriggerEvent, Variant, SceneEvent, EditEvent, IsReactable, Handle, Reaction, Text, RoleEvent, CustomStructDefinition, Star, NumberInputView, Route, GaugeMetric, CustomEntityDefinition, File, ACTIVE_SESSION, LineShape, ThreadCursor, Machine, Tag, SanctionEvent, FrameView, Friendship, Supergraph, Database, Thread, IsOwnable, FontStyle, Link, User, Spatial, Team, MembershipEvent, ArrowShape, BorderStyle, EntitlementEvent, Entity, SplitView, Node, IsTracked, CounterMeasurement, PlaneShape, BuiltinObject, Organization, Scene, StructFrozen, GradientStyle, Entitlement, Graph, Service, Struct, Permission, Sanction, Canvas, Invite, Span, Palette, QueryConnection, GaugeMeasurement, NodeReference, MaterializationType, CustomEnumDefinition, CounterMetric, TimerEvent, Membership, Run, Theme, IsDeletable, CustomEntity, FriendshipInvite, Notification, Log, FillStyle } from '@/language';
+import { EventCursor, Link, ACTIVE_SESSION, Field, FriendshipInviteEvent, CustomEvent, NotificationEvent, FriendshipInvite, Spatial, CounterMeasurement, ArrowShape, BorderStyle, StructType, CustomStructDefinition, SplitView, RunEvent, Struct, Organization, Palette, Run, InviteEvent, EntitlementEvent, CounterMetric, Agent, Team, MembershipEvent, Supergraph, Folder, SliderInputView, GaugeMeasurement, WizardView, Tag, GradientStyle, EnumType, RoleEvent, Tagging, HistogramMeasurement, AnnotationShape, CustomView, Reaction, ColorStyle, Timer, Thread, ThreadCursor, ShadowStyle, Branch, CustomEventDefinition, NodeType, Graph, User, IsTaggable, Service, EditEvent, Script, Star, Canvas, IsDeletable, Handle, Span, BuiltinObject, Session, FillStyle, Sanction, GaugeMetric, Window, Permission, Log, TriggerEvent, CustomEnumDefinition, HistogramMetric, Variant, Invite, Friendship, File, Theme, FontStyle, Trigger, PlaneShape, Snapshot, ThreadView, Scene, NodeReference, SanctionEvent, EffectStyle, Action, Node, ScreenCursor, CustomViewDefinition, StructFrozen, CustomEntity, FrameView, Database, Environment, Route, Entitlement, Follow, IsTracked, SceneEvent, IsOwnable, TransitionStyle, MaterializationType, Entity, Space, Machine, NumberInputView, CustomEntityDefinition, Membership, Client, LabelView, Text, TimerEvent, IsReactable, LineShape, Option, Role, Layer, Interruption, QueryConnection, TextView, Notification, activeSession } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:5510 ==== */
@@ -133,6 +133,15 @@ export class Message extends Node implements Spatial, Entity, IsTracked, IsDelet
   nodePtr: NodeReference | null
 
   constructor(options: {
+    id: string,
+    parent?: Thread | NodeReference | null,
+    space?: Space | NodeReference | null,
+    materialization?: MaterializationType,
+    createdAt: Temporal.ZonedDateTime,
+    createdBy?: Agent | User | NodeReference | null,
+    updatedAt: Temporal.ZonedDateTime,
+    updatedBy?: Agent | User | NodeReference | null,
+    deletedAt?: Temporal.ZonedDateTime | null,
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     thread?: Thread | NodeReference | null,
     editedAt?: Temporal.ZonedDateTime | null,
@@ -145,9 +154,34 @@ export class Message extends Node implements Spatial, Entity, IsTracked, IsDelet
     _graph?: Graph | null,
     _connection?: QueryConnection | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    super(
+        // id
+        options.id,
+        // parent
+        options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null,
+        // session
+        options._session ?? null,
+        // supergraph
+        options._supergraph ?? null,
+        // graph
+        options._graph ?? null,
+        // connection
+        options._connection ?? null,
+        // is_new
+        options.id == null,
+        // is_attached
+        options.id != null,
+    );
+
+    this.id = options.id;
+    this.parentPtr = options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null;
+    this.spacePtr = options.space != null ? (options.space.metatype == StructType.NODE_REFERENCE ? (options.space as NodeReference) : (options.space as Node).toRef()) : null;
+    this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
+    this.createdAt = options.createdAt;
+    this.createdByPtr = options.createdBy != null ? (options.createdBy.metatype == StructType.NODE_REFERENCE ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
+    this.updatedAt = options.updatedAt;
+    this.updatedByPtr = options.updatedBy != null ? (options.updatedBy.metatype == StructType.NODE_REFERENCE ? (options.updatedBy as NodeReference) : (options.updatedBy as Node).toRef()) : null;
+    this.deletedAt = options.deletedAt ?? null;
     this.ownedByPtr = options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? (options.ownedBy as NodeReference) : (options.ownedBy as Node).toRef()) : null;
     this.threadPtr = options.thread != null ? (options.thread.metatype == StructType.NODE_REFERENCE ? (options.thread as NodeReference) : (options.thread as Node).toRef()) : null;
     this.editedAt = options.editedAt ?? null;
@@ -158,15 +192,15 @@ export class Message extends Node implements Spatial, Entity, IsTracked, IsDelet
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {

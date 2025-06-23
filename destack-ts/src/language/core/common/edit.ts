@@ -1,4 +1,4 @@
-import { Folder, Session, Timer, Snapshot, Option, ScreenCursor, ShadowStyle, Interruption, NodeType, Action, Window, EffectStyle, Trigger, EventCursor, SliderInputView, HistogramMetric, Value, CustomView, LabelView, Environment, ThreadView, Message, TransitionStyle, Space, CustomViewDefinition, Script, EnumType, Client, Layer, TextView, ColorStyle, FriendshipInviteEvent, Field, InviteEvent, Agent, Tagging, Follow, CustomEventDefinition, AnnotationShape, activeSession, StructType, RunEvent, CustomEvent, Role, Branch, HistogramMeasurement, NotificationEvent, WizardView, TriggerEvent, Variant, SceneEvent, Origin, EditEvent, Handle, Reaction, RoleEvent, CustomStructDefinition, Star, NumberInputView, Route, GaugeMetric, CustomEntityDefinition, File, ACTIVE_SESSION, LineShape, ThreadCursor, Machine, Tag, SanctionEvent, FrameView, Friendship, Supergraph, Database, Thread, FontStyle, Link, User, Team, MembershipEvent, ArrowShape, BorderStyle, EntitlementEvent, SplitView, Node, CounterMeasurement, PlaneShape, BuiltinObject, Organization, Scene, StructFrozen, GradientStyle, Entitlement, Graph, Service, Struct, Permission, Sanction, Canvas, Invite, Span, Palette, QueryConnection, GaugeMeasurement, NodeReference, CustomEnumDefinition, CounterMetric, TimerEvent, Membership, PropertyReference, Run, Theme, CustomEntity, FriendshipInvite, Notification, Log, FillStyle } from '@/language';
+import { EventCursor, Link, ACTIVE_SESSION, Field, FriendshipInviteEvent, CustomEvent, NotificationEvent, FriendshipInvite, Value, Message, CounterMeasurement, ArrowShape, BorderStyle, StructType, CustomStructDefinition, SplitView, RunEvent, Struct, Organization, Palette, Run, InviteEvent, EntitlementEvent, CounterMetric, Agent, Team, MembershipEvent, Supergraph, Folder, SliderInputView, Origin, GaugeMeasurement, WizardView, Tag, GradientStyle, EnumType, RoleEvent, Tagging, HistogramMeasurement, AnnotationShape, CustomView, Reaction, ColorStyle, Timer, Thread, ThreadCursor, ShadowStyle, Branch, CustomEventDefinition, NodeType, Graph, User, Service, EditEvent, Script, Star, Canvas, Handle, Span, BuiltinObject, Session, FillStyle, Sanction, GaugeMetric, Window, Permission, Log, TriggerEvent, CustomEnumDefinition, HistogramMetric, Variant, Invite, Friendship, File, Theme, PropertyReference, FontStyle, Trigger, PlaneShape, Snapshot, ThreadView, Scene, NodeReference, SanctionEvent, EffectStyle, Action, Node, ScreenCursor, CustomViewDefinition, StructFrozen, CustomEntity, FrameView, Database, Environment, Route, Entitlement, Follow, SceneEvent, TransitionStyle, Space, Machine, NumberInputView, CustomEntityDefinition, Membership, Client, LabelView, TimerEvent, LineShape, Option, Role, Layer, Interruption, QueryConnection, TextView, Notification, activeSession } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:50050 ==== */
@@ -71,6 +71,7 @@ export class Edit extends StructFrozen {
   readonly undo: Edit | null;
 
   constructor(options: {
+    id?: string,
     type: EditType,
     operation?: EditOperation | null,
     node: Node | NodeReference,
@@ -82,9 +83,12 @@ export class Edit extends StructFrozen {
     _session?: Session | null,
     _supergraph?: Supergraph | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(supergraph);
+    super(
+        // supergraph
+        supergraph,
+    );
+
+    this.id = options.id;
     this.type = options.type;
     this.operation = options.operation ?? null;
     this.nodePtr = options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? (options.node as NodeReference) : (options.node as Node).toRef()) : null;
@@ -96,15 +100,15 @@ export class Edit extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50020 ==== */
@@ -131,28 +135,40 @@ export class Change extends StructFrozen {
   readonly edits: Array<Edit>;
 
   constructor(options: {
+    id?: string,
     name?: string | null,
+    createdAt?: Temporal.ZonedDateTime,
+    createdBy?: Agent | User | NodeReference | null,
+    origin?: Origin | null,
+    debounce?: ChangeDebounce | null,
     edits?: Array<Edit>,
     _session?: Session | null,
     _supergraph?: Supergraph | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(supergraph);
+    super(
+        // supergraph
+        supergraph,
+    );
+
+    this.id = options.id;
     this.name = options.name ?? null;
+    this.createdAt = options.createdAt;
+    this.createdByPtr = options.createdBy != null ? (options.createdBy.metatype == StructType.NODE_REFERENCE ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
+    this.origin = options.origin ?? null;
+    this.debounce = options.debounce ?? null;
     this.edits = options.edits ?? [];
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50021 ==== */
@@ -167,30 +183,38 @@ export class ChangeResult extends StructFrozen {
   readonly cascadedEdits: Array<Edit>;
 
   constructor(options: {
+    id?: string,
+    createdAt?: Temporal.ZonedDateTime,
+    debounce?: ChangeDebounce | null,
     status: ChangeStatus,
     edits?: Array<Edit>,
     cascadedEdits?: Array<Edit>,
     _session?: Session | null,
     _supergraph?: Supergraph | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(supergraph);
+    super(
+        // supergraph
+        supergraph,
+    );
+
+    this.id = options.id;
+    this.createdAt = options.createdAt;
+    this.debounce = options.debounce ?? null;
     this.status = options.status;
     this.edits = options.edits ?? [];
     this.cascadedEdits = options.cascadedEdits ?? [];
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50022 ==== */

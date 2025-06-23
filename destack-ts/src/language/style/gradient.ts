@@ -1,4 +1,4 @@
-import { PlaneShape, Agent, IsTaggable, BuiltinObject, ACTIVE_SESSION, IsVisual, Session, Scene, StructFrozen, LineShape, IsOrdered, Graph, Struct, AnnotationShape, activeSession, Axis2, StructType, NodeType, Canvas, FrameView, Supergraph, QueryConnection, SliderInputView, NodeReference, WizardView, MaterializationType, User, CustomView, Spatial, LabelView, ThreadView, Color, Space, CustomViewDefinition, NumberInputView, ArrowShape, Theme, IsDeletable, Entity, SplitView, EnumType, Layer, TextView, Style, Node, IsTracked } from '@/language';
+import { IsTracked, SliderInputView, ACTIVE_SESSION, WizardView, IsVisual, Spatial, EnumType, IsOrdered, ArrowShape, MaterializationType, Entity, AnnotationShape, Space, StructType, CustomView, SplitView, Struct, NumberInputView, Theme, Axis2, LabelView, PlaneShape, ThreadView, Scene, NodeReference, Color, NodeType, LineShape, Graph, User, Layer, Agent, IsTaggable, Node, QueryConnection, CustomViewDefinition, StructFrozen, TextView, Canvas, Supergraph, IsDeletable, FrameView, BuiltinObject, Session, activeSession, Style } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:12033 ==== */
@@ -21,23 +21,25 @@ export class GradientStop extends StructFrozen {
     _session?: Session | null,
     _supergraph?: Supergraph | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(supergraph);
+    super(
+        // supergraph
+        supergraph,
+    );
+
     this.color = options.color ?? null;
     this.position = options.position;
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:12015 ==== */
@@ -78,9 +80,11 @@ export class Gradient extends Struct {
     _session?: Session | null,
     _supergraph?: Supergraph | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(supergraph);
+    super(
+        // supergraph
+        supergraph,
+    );
+
     this.type = options.type ?? GradientType.LINEAR;
     this.stylePtr = options.style != null ? (options.style.metatype == StructType.NODE_REFERENCE ? (options.style as NodeReference) : (options.style as Node).toRef()) : null;
     this.angle = options.angle ?? null;
@@ -89,15 +93,15 @@ export class Gradient extends Struct {
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:12016 ==== */
@@ -154,6 +158,16 @@ export class GradientStyle extends Node implements Spatial, Entity, IsTracked, I
   dark: Gradient | null;
 
   constructor(options: {
+    id: string,
+    parent?: Scene | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | TextView | NumberInputView | SliderInputView | WizardView | ThreadView | AnnotationShape | ArrowShape | Canvas | LineShape | PlaneShape | Layer | Scene | Theme | NodeReference | null,
+    space?: Space | NodeReference | null,
+    materialization?: MaterializationType,
+    createdAt: Temporal.ZonedDateTime,
+    createdBy?: Agent | User | NodeReference | null,
+    updatedAt: Temporal.ZonedDateTime,
+    updatedBy?: Agent | User | NodeReference | null,
+    deletedAt?: Temporal.ZonedDateTime | null,
+    orderKey?: string,
     type?: GradientType,
     name: string,
     angle?: number | null,
@@ -165,9 +179,35 @@ export class GradientStyle extends Node implements Spatial, Entity, IsTracked, I
     _graph?: Graph | null,
     _connection?: QueryConnection | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    super(
+        // id
+        options.id,
+        // parent
+        options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null,
+        // session
+        options._session ?? null,
+        // supergraph
+        options._supergraph ?? null,
+        // graph
+        options._graph ?? null,
+        // connection
+        options._connection ?? null,
+        // is_new
+        options.id == null,
+        // is_attached
+        options.id != null,
+    );
+
+    this.id = options.id;
+    this.parentPtr = options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null;
+    this.spacePtr = options.space != null ? (options.space.metatype == StructType.NODE_REFERENCE ? (options.space as NodeReference) : (options.space as Node).toRef()) : null;
+    this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
+    this.createdAt = options.createdAt;
+    this.createdByPtr = options.createdBy != null ? (options.createdBy.metatype == StructType.NODE_REFERENCE ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
+    this.updatedAt = options.updatedAt;
+    this.updatedByPtr = options.updatedBy != null ? (options.updatedBy.metatype == StructType.NODE_REFERENCE ? (options.updatedBy as NodeReference) : (options.updatedBy as Node).toRef()) : null;
+    this.deletedAt = options.deletedAt ?? null;
+    this.orderKey = options.orderKey ?? "a0";
     this.type = options.type ?? GradientType.LINEAR;
     this.name = options.name;
     this.angle = options.angle ?? null;
@@ -177,15 +217,15 @@ export class GradientStyle extends Node implements Spatial, Entity, IsTracked, I
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {

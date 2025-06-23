@@ -1,4 +1,4 @@
-import { Agent, IsFollowable, BuiltinObject, ACTIVE_SESSION, Session, StructFrozen, ThreadCursor, Graph, Struct, ScreenCursor, activeSession, Global, StructType, NodeType, IsSubject, EventCursor, Icon, Supergraph, QueryConnection, NodeReference, MaterializationType, Handle, Space, Entity, EnumType, IsOwner, Node, IsTracked } from '@/language';
+import { IsTracked, EventCursor, ACTIVE_SESSION, Global, IsOwner, EnumType, MaterializationType, Entity, IsSubject, Space, StructType, Struct, IsFollowable, Icon, ThreadCursor, NodeReference, NodeType, Graph, Agent, Node, QueryConnection, ScreenCursor, StructFrozen, Supergraph, Handle, BuiltinObject, Session, activeSession } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:20 ==== */
@@ -79,6 +79,13 @@ export class User extends Node implements Global, Entity, IsTracked, IsSubject, 
   readonly passwordHash: Uint8Array | null;
 
   constructor(options: {
+    id: string,
+    parent?: Node | NodeReference | null,
+    materialization?: MaterializationType,
+    createdAt: Temporal.ZonedDateTime,
+    createdBy?: Agent | User | NodeReference | null,
+    updatedAt: Temporal.ZonedDateTime,
+    updatedBy?: Agent | User | NodeReference | null,
     name: string,
     slug: string,
     icon?: Icon | null,
@@ -96,9 +103,32 @@ export class User extends Node implements Global, Entity, IsTracked, IsSubject, 
     _graph?: Graph | null,
     _connection?: QueryConnection | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    super(
+        // id
+        options.id,
+        // parent
+        options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null,
+        // session
+        options._session ?? null,
+        // supergraph
+        options._supergraph ?? null,
+        // graph
+        options._graph ?? null,
+        // connection
+        options._connection ?? null,
+        // is_new
+        options.id == null,
+        // is_attached
+        options.id != null,
+    );
+
+    this.id = options.id;
+    this.parentPtr = options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null;
+    this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
+    this.createdAt = options.createdAt;
+    this.createdByPtr = options.createdBy != null ? (options.createdBy.metatype == StructType.NODE_REFERENCE ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
+    this.updatedAt = options.updatedAt;
+    this.updatedByPtr = options.updatedBy != null ? (options.updatedBy.metatype == StructType.NODE_REFERENCE ? (options.updatedBy as NodeReference) : (options.updatedBy as Node).toRef()) : null;
     this.name = options.name;
     this.slug = options.slug;
     this.icon = options.icon ?? null;
@@ -114,15 +144,15 @@ export class User extends Node implements Global, Entity, IsTracked, IsSubject, 
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {

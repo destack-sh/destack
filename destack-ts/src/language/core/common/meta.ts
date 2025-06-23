@@ -1,4 +1,4 @@
-import { BuiltinObject, ACTIVE_SESSION, Session, DefaultFactory, StructFrozen, NumberConstraint, Graph, PrimitiveType, Struct, activeSession, ScalarType, StructType, NodeType, CascadeAction, Icon, NodeConstraint, Supergraph, QueryConnection, EdgeType, NodeReference, Value, TraitType, CollectionConstraint, EnumType, Type, TypeCardinality, StringConstraint, Node } from '@/language';
+import { CollectionConstraint, NodeConstraint, TraitType, ACTIVE_SESSION, CascadeAction, Value, EnumType, StringConstraint, StructType, Type, Struct, DefaultFactory, Icon, NodeReference, NodeType, EdgeType, Graph, PrimitiveType, Node, QueryConnection, StructFrozen, ScalarType, Supergraph, TypeCardinality, BuiltinObject, Session, activeSession, NumberConstraint } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50004 ==== */
@@ -66,9 +66,11 @@ export class PropertyDefinition extends StructFrozen {
     _session?: Session | null,
     _supergraph?: Supergraph | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(supergraph);
+    super(
+        // supergraph
+        supergraph,
+    );
+
     this.id = options.id;
     this.name = options.name;
     this.icon = options.icon ?? null;
@@ -101,15 +103,15 @@ export class PropertyDefinition extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50004 ==== */
@@ -137,9 +139,11 @@ export class TraitDefinition extends StructFrozen {
     _session?: Session | null,
     _supergraph?: Supergraph | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(supergraph);
+    super(
+        // supergraph
+        supergraph,
+    );
+
     this.id = options.id;
     this.type = options.type;
     this.name = options.name;
@@ -151,15 +155,15 @@ export class TraitDefinition extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50005 ==== */
@@ -185,9 +189,11 @@ export class NodeDefinition extends StructFrozen {
     _session?: Session | null,
     _supergraph?: Supergraph | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(supergraph);
+    super(
+        // supergraph
+        supergraph,
+    );
+
     this.id = options.id;
     this.type = options.type;
     this.name = options.name;
@@ -198,15 +204,15 @@ export class NodeDefinition extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50006 ==== */
@@ -232,9 +238,11 @@ export class StructDefinition extends StructFrozen {
     _session?: Session | null,
     _supergraph?: Supergraph | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(supergraph);
+    super(
+        // supergraph
+        supergraph,
+    );
+
     this.id = options.id;
     this.type = options.type;
     this.name = options.name;
@@ -245,15 +253,15 @@ export class StructDefinition extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50007 ==== */
@@ -277,9 +285,11 @@ export class EnumDefinition extends StructFrozen {
     _session?: Session | null,
     _supergraph?: Supergraph | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(supergraph);
+    super(
+        // supergraph
+        supergraph,
+    );
+
     this.id = options.id;
     this.type = options.type;
     this.name = options.name;
@@ -289,15 +299,15 @@ export class EnumDefinition extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50008 ==== */
@@ -319,9 +329,11 @@ export class EnumOptionDefinition extends StructFrozen {
     _session?: Session | null,
     _supergraph?: Supergraph | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(supergraph);
+    super(
+        // supergraph
+        supergraph,
+    );
+
     this.id = options.id;
     this.type = options.type;
     this.name = options.name;
@@ -330,15 +342,15 @@ export class EnumOptionDefinition extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50009 ==== */
@@ -360,9 +372,11 @@ export class PermissionDefinition extends StructFrozen {
     _session?: Session | null,
     _supergraph?: Supergraph | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(supergraph);
+    super(
+        // supergraph
+        supergraph,
+    );
+
     this.id = options.id;
     this.type = options.type;
     this.name = options.name;
@@ -371,15 +385,15 @@ export class PermissionDefinition extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50010 ==== */
@@ -397,24 +411,26 @@ export class ConstantDefinition extends StructFrozen {
     _session?: Session | null,
     _supergraph?: Supergraph | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(supergraph);
+    super(
+        // supergraph
+        supergraph,
+    );
+
     this.name = options.name;
     this.path = options.path;
     this.value = options.value;
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50011 ==== */

@@ -1,4 +1,4 @@
-import { Agent, BuiltinObject, ACTIVE_SESSION, Organization, Folder, Session, StructFrozen, Graph, Struct, activeSession, StructType, NodeType, Icon, Supergraph, QueryConnection, NodeReference, MaterializationType, Thread, User, Spatial, Team, Space, IsDeletable, Entity, EnumType, Node, IsTracked } from '@/language';
+import { IsTracked, ACTIVE_SESSION, Spatial, EnumType, MaterializationType, Entity, Space, StructType, Struct, Organization, Icon, Thread, NodeReference, NodeType, Graph, User, Agent, Team, Node, QueryConnection, StructFrozen, Supergraph, IsDeletable, Folder, BuiltinObject, Session, activeSession } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:530 ==== */
@@ -56,6 +56,15 @@ export class Permission extends Node implements Spatial, Entity, IsTracked, IsDe
   icon: Icon | null;
 
   constructor(options: {
+    id: string,
+    parent?: Folder | Thread | Organization | Space | Team | Folder | NodeReference | null,
+    space?: Space | NodeReference | null,
+    materialization?: MaterializationType,
+    createdAt: Temporal.ZonedDateTime,
+    createdBy?: Agent | User | NodeReference | null,
+    updatedAt: Temporal.ZonedDateTime,
+    updatedBy?: Agent | User | NodeReference | null,
+    deletedAt?: Temporal.ZonedDateTime | null,
     type: PermissionType,
     name: string,
     slug?: string | null,
@@ -65,9 +74,34 @@ export class Permission extends Node implements Spatial, Entity, IsTracked, IsDe
     _graph?: Graph | null,
     _connection?: QueryConnection | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    super(
+        // id
+        options.id,
+        // parent
+        options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null,
+        // session
+        options._session ?? null,
+        // supergraph
+        options._supergraph ?? null,
+        // graph
+        options._graph ?? null,
+        // connection
+        options._connection ?? null,
+        // is_new
+        options.id == null,
+        // is_attached
+        options.id != null,
+    );
+
+    this.id = options.id;
+    this.parentPtr = options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null;
+    this.spacePtr = options.space != null ? (options.space.metatype == StructType.NODE_REFERENCE ? (options.space as NodeReference) : (options.space as Node).toRef()) : null;
+    this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
+    this.createdAt = options.createdAt;
+    this.createdByPtr = options.createdBy != null ? (options.createdBy.metatype == StructType.NODE_REFERENCE ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
+    this.updatedAt = options.updatedAt;
+    this.updatedByPtr = options.updatedBy != null ? (options.updatedBy.metatype == StructType.NODE_REFERENCE ? (options.updatedBy as NodeReference) : (options.updatedBy as Node).toRef()) : null;
+    this.deletedAt = options.deletedAt ?? null;
     this.type = options.type;
     this.name = options.name;
     this.slug = options.slug ?? null;
@@ -75,15 +109,15 @@ export class Permission extends Node implements Spatial, Entity, IsTracked, IsDe
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {

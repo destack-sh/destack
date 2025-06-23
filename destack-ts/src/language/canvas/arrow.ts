@@ -1,4 +1,4 @@
-import { IsShape, PlaneShape, Agent, IsTaggable, IsScriptable, BuiltinObject, ACTIVE_SESSION, IsVisual, Align, Session, Scene, View, StructFrozen, Vector2, IsOrdered, Graph, Struct, AnnotationShape, activeSession, StructType, NodeType, Window, Canvas, FrameView, Dimension, Supergraph, QueryConnection, NodeReference, MaterializationType, User, Position, CustomView, Spatial, LabelView, Space, CustomViewDefinition, IsDeletable, Entity, SplitView, EnumType, Script, Layer, Node, ContentView, IsTracked } from '@/language';
+import { IsTracked, Dimension, ACTIVE_SESSION, Window, IsVisual, Position, Spatial, EnumType, IsOrdered, MaterializationType, Entity, AnnotationShape, Space, StructType, CustomView, SplitView, Vector2, Struct, IsScriptable, LabelView, PlaneShape, Scene, NodeReference, NodeType, ContentView, Graph, User, Layer, Agent, IsTaggable, Node, QueryConnection, Align, View, CustomViewDefinition, StructFrozen, Script, Canvas, Supergraph, IsDeletable, FrameView, BuiltinObject, Session, activeSession, IsShape } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:11012 ==== */
@@ -87,6 +87,16 @@ export class ArrowShape extends Node implements Spatial, Entity, IsTracked, IsDe
   scriptPtr: NodeReference | null
 
   constructor(options: {
+    id: string,
+    parent?: Window | Scene | Layer | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | AnnotationShape | Canvas | PlaneShape | Layer | Scene | NodeReference | null,
+    space?: Space | NodeReference | null,
+    materialization?: MaterializationType,
+    createdAt: Temporal.ZonedDateTime,
+    createdBy?: Agent | User | NodeReference | null,
+    updatedAt: Temporal.ZonedDateTime,
+    updatedBy?: Agent | User | NodeReference | null,
+    deletedAt?: Temporal.ZonedDateTime | null,
+    orderKey?: string,
     name: string,
     position?: Position | null,
     width?: Dimension | null,
@@ -108,9 +118,35 @@ export class ArrowShape extends Node implements Spatial, Entity, IsTracked, IsDe
     _graph?: Graph | null,
     _connection?: QueryConnection | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    super(
+        // id
+        options.id,
+        // parent
+        options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null,
+        // session
+        options._session ?? null,
+        // supergraph
+        options._supergraph ?? null,
+        // graph
+        options._graph ?? null,
+        // connection
+        options._connection ?? null,
+        // is_new
+        options.id == null,
+        // is_attached
+        options.id != null,
+    );
+
+    this.id = options.id;
+    this.parentPtr = options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null;
+    this.spacePtr = options.space != null ? (options.space.metatype == StructType.NODE_REFERENCE ? (options.space as NodeReference) : (options.space as Node).toRef()) : null;
+    this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
+    this.createdAt = options.createdAt;
+    this.createdByPtr = options.createdBy != null ? (options.createdBy.metatype == StructType.NODE_REFERENCE ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
+    this.updatedAt = options.updatedAt;
+    this.updatedByPtr = options.updatedBy != null ? (options.updatedBy.metatype == StructType.NODE_REFERENCE ? (options.updatedBy as NodeReference) : (options.updatedBy as Node).toRef()) : null;
+    this.deletedAt = options.deletedAt ?? null;
+    this.orderKey = options.orderKey ?? "a0";
     this.name = options.name;
     this.position = options.position ?? null;
     this.width = options.width ?? null;
@@ -130,15 +166,15 @@ export class ArrowShape extends Node implements Spatial, Entity, IsTracked, IsDe
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {
