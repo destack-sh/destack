@@ -168,5 +168,4 @@ export class Span extends Node implements Spatial, Analytic, IsFrozen, IsTracked
     }
     return pathParts.reverse().join("/");
   }
-}
-/* ==== DESTACK_GENERATED_END:NODE:4010 ==== */
+} /* ==== DESTACK_GENERATED_END:NODE:4010 ==== */

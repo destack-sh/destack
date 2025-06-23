@@ -70,5 +70,4 @@ export interface ContainerView {
   get script(): Script | null;
   set script(value: Script | null);
   scriptPtr: NodeReference | null;
-}
-/* ==== DESTACK_GENERATED_END:TRAIT:10000 ==== */
+} /* ==== DESTACK_GENERATED_END:TRAIT:10000 ==== */

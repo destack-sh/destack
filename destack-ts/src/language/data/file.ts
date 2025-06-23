@@ -26,16 +26,14 @@ export enum FileSource {
   SPACE = 1,
   INLINE = 3,
   EXTERNAL = 10,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:2541 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:2541 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:2540 ==== */
 export enum FileRetentionMode {
   AUTOMATIC = 1,
   MANUAL = 2,
   TIMED = 3,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:2540 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:2540 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:2542 ==== */
 export enum FileType {
@@ -49,8 +47,7 @@ export enum FileType {
   ARCHIVE = 8,
   EXECUTABLE = 9,
   GENERIC = 99,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:2542 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:2542 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:2543 ==== */
 export enum FileFormat {
@@ -140,8 +137,7 @@ export enum FileFormat {
   MSI = 90005,
   DEB = 90006,
   RPM = 90007,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:2543 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:2543 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:2540 ==== */
 export class File extends Node implements Global, Spatial, Entity, Resource, IsTracked {
@@ -364,5 +360,4 @@ export class File extends Node implements Global, Spatial, Entity, Resource, IsT
     }
     return pathParts.reverse().join("/");
   }
-}
-/* ==== DESTACK_GENERATED_END:NODE:2540 ==== */
+} /* ==== DESTACK_GENERATED_END:NODE:2540 ==== */

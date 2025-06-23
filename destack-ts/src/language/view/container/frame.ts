@@ -472,5 +472,4 @@ export class FrameView
     }
     return pathParts.reverse().join("/");
   }
-}
-/* ==== DESTACK_GENERATED_END:NODE:10020 ==== */
+} /* ==== DESTACK_GENERATED_END:NODE:10020 ==== */

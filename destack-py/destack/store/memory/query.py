@@ -7,6 +7,7 @@ from opentelemetry import trace
 from destack.language import (
     Aggregation,
     AggregationType,
+    AttributeReference,
     AttributeType,
     Condition,
     ConditionalType,
@@ -30,10 +31,8 @@ from destack.language import (
     SortType,
     TypeCardinality,
     Value,
-    attribute_ref,
     to_value,
 )
-from destack.language import expression as to_expression
 from destack.utils.uuid import UUID
 
 from .core import MemoryContext, MemoryRow
@@ -790,10 +789,10 @@ def _execute_subquery(
             )
             subquery_where = Condition(
                 type=ConditionalType.IN,
-                left=to_expression(
-                    attribute_ref(subquery.relation.resolve_property_or_error("id"))
+                left=Expression.of(
+                    AttributeReference.of(subquery.relation.resolve_property_or_error("id"))
                 ),
-                right=to_expression(to_value([n.id for n in expanded_nodes_ptr])),
+                right=Expression.of(to_value([n.id for n in expanded_nodes_ptr])),
             )
         else:
             subquery_where = subquery.relation.resolve_property_or_error("parent").in_(

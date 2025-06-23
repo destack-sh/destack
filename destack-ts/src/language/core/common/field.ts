@@ -60,8 +60,7 @@ export enum FieldType {
   MEMBER = 1,
   INPUT = 2,
   OUTPUT = 3,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:2580 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:2580 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:2520 ==== */
 export class Field
@@ -465,5 +464,4 @@ export class Field
     }
     return pathParts.reverse().join("/");
   }
-}
-/* ==== DESTACK_GENERATED_END:NODE:2520 ==== */
+} /* ==== DESTACK_GENERATED_END:NODE:2520 ==== */

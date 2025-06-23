@@ -438,7 +438,6 @@ enum EnumTypeProto {
   ENUM_TYPE_PLATFORM_TYPE = 50030;
   ENUM_TYPE_RUNTIME_TYPE = 50031;
   ENUM_TYPE_OPERATING_SYSTEM = 50040;
-  ENUM_TYPE_ERROR_TYPE = 50041;
   ENUM_TYPE_EDIT_TYPE = 50050;
   ENUM_TYPE_EDIT_OPERATION = 50051;
   ENUM_TYPE_CHANGE_STATUS = 50052;
@@ -454,23 +453,6 @@ enum EnvironmentTypeProto {
   ENVIRONMENT_TYPE_TEST = 5;
   ENVIRONMENT_TYPE_STAGING = 7;
   ENVIRONMENT_TYPE_PRODUCTION = 10;
-}
-
-enum ErrorTypeProto {
-  ERROR_TYPE_UNSPECIFIED = 0;
-  ERROR_TYPE_ABORTED = 2;
-  ERROR_TYPE_RUNTIME_UNAVAILABLE = 3;
-  ERROR_TYPE_RUN_IMPOSSIBLE = 4;
-  ERROR_TYPE_NOT_SUPPORTED = 5;
-  ERROR_TYPE_INVALID_VALUE = 10;
-  ERROR_TYPE_INVALID_COMPUTED = 11;
-  ERROR_TYPE_CODE_INVALID = 20;
-  ERROR_TYPE_TEXT_INVALID = 21;
-  ERROR_TYPE_INCAPABLE = 100;
-  ERROR_TYPE_REFUSED = 101;
-  ERROR_TYPE_NON_RETRYABLE = 499;
-  ERROR_TYPE_INTERRUPTION_CANCELLED = 500;
-  ERROR_TYPE_MODEL_FAILED = 501;
 }
 
 enum ExpressionTypeProto {
@@ -2384,13 +2366,6 @@ message EnvironmentProto {
   optional IconProto icon = 34;
 }
 
-message ErrorProto {
-  StructTypeProto metatype = 1;
-  ErrorTypeProto type = 30;
-  optional string title = 32;
-  optional string text = 33;
-}
-
 // A EventCursor is a cursor for iterating over Events.
 message EventCursorProto {
   NodeTypeProto metatype = 1;
@@ -3182,6 +3157,11 @@ message NodeDefinitionProto {
   optional string description = 36;
   repeated PropertyDefinitionProto properties = 50;
   repeated TraitTypeProto traits = 51;
+  optional NodeTypeProto root_type = 52;
+  repeated NodeTypeProto parent_types = 53;
+  repeated NodeTypeProto child_types = 54;
+  repeated NodeTypeProto ancestor_types = 55;
+  repeated NodeTypeProto descendant_types = 56;
 }
 
 message NodeReferenceProto {
@@ -3583,7 +3563,6 @@ message RunProto {
   optional google.protobuf.Timestamp seen_at = 47;
   optional google.protobuf.Timestamp interrupted_at = 48;
   optional google.protobuf.Timestamp terminated_at = 49;
-  optional ErrorProto error = 50;
   optional NodeReferenceProto interruption_ptr = 51;
 }
 

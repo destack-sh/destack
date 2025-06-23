@@ -315,8 +315,7 @@ export class CustomEntityDefinition
     }
     return pathParts.reverse().join("/");
   }
-}
-/* ==== DESTACK_GENERATED_END:NODE:2000 ==== */
+} /* ==== DESTACK_GENERATED_END:NODE:2000 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:2001 ==== */
 export class CustomEntity extends Node implements Spatial, Entity, IsCustomNode, IsTracked, IsDeletable, IsExtensible {
@@ -504,5 +503,4 @@ export class CustomEntity extends Node implements Spatial, Entity, IsCustomNode,
     }
     return pathParts.reverse().join("/");
   }
-}
-/* ==== DESTACK_GENERATED_END:NODE:2001 ==== */
+} /* ==== DESTACK_GENERATED_END:NODE:2001 ==== */

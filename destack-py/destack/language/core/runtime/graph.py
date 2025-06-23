@@ -117,6 +117,13 @@ class Graph(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
+    def get_ancestors[N: Node = Node](
+        self, node: "Node", node_type: NodeType | TraitType | type[N] | None = None
+    ) -> Sequence[N]:
+        """Gets the ancestors of this Node (recursively up)."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def get_descendants[N: Node = Node](
         self,
         node: "Node",
@@ -193,6 +200,12 @@ class SingletonGraph(Graph):
         self,
         node: "Node",
         node_type: NodeType | TraitType | type[N] | None = None,
+    ) -> Sequence[N]:
+        return ()
+
+    @override
+    def get_ancestors[N: Node = Node](
+        self, node: "Node", node_type: NodeType | TraitType | type[N] | None = None
     ) -> Sequence[N]:
         return ()
 
@@ -380,6 +393,27 @@ class PolyGraph(Graph):
                 if children and TraitType.ORDERED in node_cls.__traits__:
                     children.sort(key=lambda n: getattr(n, "order_key", INTEGER_ZERO))
                 return children
+
+    @override
+    def get_ancestors[N: Node = Node](
+        self, node: "Node", node_type: NodeType | TraitType | type[N] | None = None
+    ) -> Sequence[N]:
+        ancestors: list[Node] = []
+        current = node.parent_ptr
+
+        # collect node types to filter by
+        node_types = get_node_types(node_type)
+
+        # traverse up the parent chain
+        while current is not None:
+            parent_node = self.get(current.id)
+            if parent_node is None:
+                break
+            if node_types is None or parent_node.metatype in node_types:
+                ancestors.append(parent_node)
+            current = parent_node.parent_ptr
+
+        return ancestors  # type: ignore (must be right type)
 
     @override
     def get_descendants[N: Node = Node](

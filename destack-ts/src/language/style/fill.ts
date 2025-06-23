@@ -51,8 +51,7 @@ export enum FillType {
   SOLID = 10,
   GRADIENT = 11,
   IMAGE = 12,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:12034 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:12034 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12035 ==== */
 export enum FillPosition {
@@ -65,8 +64,7 @@ export enum FillPosition {
   BOTTOM_LEFT = 20,
   BOTTOM_CENTER = 21,
   BOTTOM_RIGHT = 22,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:12035 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:12035 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12036 ==== */
 export enum FillSize {
@@ -74,8 +72,7 @@ export enum FillSize {
   STRETCH = 2,
   FIT = 3,
   TILE = 4,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:12036 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:12036 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12017 ==== */
 export class Fill extends Struct {
@@ -138,6 +135,8 @@ export class Fill extends Struct {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -172,8 +171,7 @@ export class Fill extends Struct {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:12017 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:12017 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:12021 ==== */
 export class FillStyle
@@ -490,5 +488,4 @@ export class FillStyle
     }
     return pathParts.reverse().join("/");
   }
-}
-/* ==== DESTACK_GENERATED_END:NODE:12021 ==== */
+} /* ==== DESTACK_GENERATED_END:NODE:12021 ==== */

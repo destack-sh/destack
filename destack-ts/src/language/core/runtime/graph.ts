@@ -50,7 +50,7 @@ export abstract class Graph {
   abstract getRoots<N extends Node = Node>(options?: {
     nodeType?: NodeType;
     traitType?: TraitType;
-    nodeClass?: new (...args: any[]) => N;
+    nodeClass?: NodeClass;
   }): N[];
 
   /** Find leaf Nodes in the graph. */
@@ -61,7 +61,7 @@ export abstract class Graph {
   abstract getLeaves<N extends Node = Node>(options?: {
     nodeType?: NodeType;
     traitType?: TraitType;
-    nodeClass?: new (...args: any[]) => N;
+    nodeClass?: NodeClass;
     node?: Node;
   }): N[];
 
@@ -78,7 +78,7 @@ export abstract class Graph {
     options?: {
       nodeType?: NodeType;
       traitType?: TraitType;
-      nodeClass?: new (...args: any[]) => N;
+      nodeClass?: NodeClass;
     },
   ): N[];
 
@@ -97,7 +97,7 @@ export abstract class Graph {
     options?: {
       nodeType?: NodeType;
       traitType?: TraitType;
-      nodeClass?: new (...args: any[]) => N;
+      nodeClass?: NodeClass;
     },
   ): N[];
 }

@@ -472,5 +472,4 @@ export class SplitView
     }
     return pathParts.reverse().join("/");
   }
-}
-/* ==== DESTACK_GENERATED_END:NODE:10040 ==== */
+} /* ==== DESTACK_GENERATED_END:NODE:10040 ==== */

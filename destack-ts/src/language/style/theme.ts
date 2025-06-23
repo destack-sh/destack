@@ -217,5 +217,4 @@ export class Theme extends Node implements Spatial, Entity, IsTracked, IsDeletab
     }
     return pathParts.reverse().join("/");
   }
-}
-/* ==== DESTACK_GENERATED_END:NODE:12000 ==== */
+} /* ==== DESTACK_GENERATED_END:NODE:12000 ==== */

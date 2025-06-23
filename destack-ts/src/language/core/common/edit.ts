@@ -25,29 +25,25 @@ export enum EditType {
   DELETE = 7,
   RESTORE = 8,
   ERASE = 9,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:50050 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:50050 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50051 ==== */
 export enum EditOperation {
   SET = 1,
   CLEAR = 2,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:50051 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:50051 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50052 ==== */
 export enum ChangeStatus {
   COMPLETED = 10,
   FAILED = 12,
   REJECTED = 13,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:50052 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:50052 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50053 ==== */
 export enum ChangeDebounce {
   LAZY = 10,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:50053 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:50053 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50020 ==== */
 export class Edit extends StructFrozen {
@@ -98,6 +94,8 @@ export class Edit extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -134,8 +132,7 @@ export class Edit extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:50020 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:50020 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50021 ==== */
 export class Change extends StructFrozen {
@@ -172,6 +169,8 @@ export class Change extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -201,8 +200,7 @@ export class Change extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:50021 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:50021 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50022 ==== */
 export class ChangeResult extends StructFrozen {
@@ -227,6 +225,8 @@ export class ChangeResult extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -250,5 +250,4 @@ export class ChangeResult extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:50022 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:50022 ==== */

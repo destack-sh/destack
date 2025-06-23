@@ -8,8 +8,7 @@ export enum TextSpanType {
   LINK = 11,
   CITATION = 12,
   EQUATION = 20,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:2521 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:2521 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2521 ==== */
 export class TextSpan extends StructFrozen {
@@ -50,6 +49,8 @@ export class TextSpan extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -81,8 +82,7 @@ export class TextSpan extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:2521 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:2521 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2520 ==== */
 export class Text extends StructFrozen {
@@ -107,6 +107,8 @@ export class Text extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -130,5 +132,4 @@ export class Text extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:2520 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:2520 ==== */

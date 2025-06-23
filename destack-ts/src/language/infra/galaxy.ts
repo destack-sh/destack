@@ -17,6 +17,8 @@ export class GalaxyInfo extends Struct {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -37,5 +39,4 @@ export class GalaxyInfo extends Struct {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:7601 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:7601 ==== */

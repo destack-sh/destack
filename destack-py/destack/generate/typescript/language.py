@@ -337,6 +337,8 @@ super(
     else:
         constructor_body_parts.append("""\
 super(
+    // session
+    options._session ?? null,
     // supergraph
     options._supergraph ?? null,
 );
@@ -721,9 +723,9 @@ def _generate_definition(definition: Definition) -> TypescriptDefinition:
     return source_definition
 
 
-DEFINITION_START_PATTERN = re.compile(r"/\* ==== DESTACK_GENERATED_START:([^:]+):([^=]+) ==== \*/")
-DEFINITION_CUSTOM_START_PATTERN = re.compile(r"/\* ==== DESTACK_GENERATED_CUSTOM_START ==== \*/")
-DEFINITION_END_PATTERN = re.compile(r"/\* ==== DESTACK_GENERATED_END:([^:]+):([^=]+) ==== \*/")
+MARKER_START_PATTERN = re.compile(r"/\* ==== DESTACK_GENERATED_START:([^:]+):([^=]+) ==== \*/")
+MARKER_CUSTOM_START_PATTERN = re.compile(r"/\* ==== DESTACK_CUSTOM_START ==== \*/")
+MARKER_END_PATTERN = re.compile(r"/\* ==== DESTACK_GENERATED_END:([^:]+):([^=]+) ==== \*/")
 
 
 def _generate_file(file: TypescriptFile) -> str:
@@ -815,7 +817,7 @@ def _generate_file(file: TypescriptFile) -> str:
     # regular blocks
     while char_pos < len(existing_content):
         # look for next start marker
-        start_match = DEFINITION_START_PATTERN.search(existing_content, char_pos)
+        start_match = MARKER_START_PATTERN.search(existing_content, char_pos)
         if start_match is None:
             # no more definition blocks, add remaining content as code block
             if char_pos < len(existing_content):
@@ -838,13 +840,13 @@ def _generate_file(file: TypescriptFile) -> str:
         id = int(id_str)
 
         # find the corresponding end marker
-        end_match = DEFINITION_END_PATTERN.search(existing_content, start_match.end())
+        end_match = MARKER_END_PATTERN.search(existing_content, start_match.end())
         if end_match is None or end_match.group(1) != kind or end_match.group(2).strip() != id_str:
             raise ValueError(f"no matching end marker for {kind}:{id_str}")
 
         # look for custom content within the definition block
         custom_content = ""
-        custom_match = DEFINITION_CUSTOM_START_PATTERN.search(existing_content, start_match.end())
+        custom_match = MARKER_CUSTOM_START_PATTERN.search(existing_content, start_match.end())
         if custom_match is not None and custom_match.start() < end_match.start():
             custom_start = custom_match.end()
             custom_end = end_match.start()
@@ -871,9 +873,11 @@ def _generate_file(file: TypescriptFile) -> str:
                     f"unknown definition: {key} in {file.path} (defines: {list(file.definitions.keys())})"
                 )
             new_block = f"{MARKER_START.format(kind=definition.kind, id=definition.id)}\n"
-            new_block += f"{definition.definition_str}\n"
+            new_block += definition.definition_str
             if block.custom_content:
-                new_block += f"{MARKER_CUSTOM_START}\n{block.custom_content}\n"
+                # trim last } if it exists (it's also in custom content)
+                new_block = new_block.strip().rstrip("}")
+                new_block += f"\n{MARKER_CUSTOM_START}\n{block.custom_content}\n"
             new_block += f"{MARKER_END.format(kind=definition.kind, id=definition.id)}"
             file_parts.append(new_block)
             seen_definitions.add(key)
@@ -1076,4 +1080,4 @@ def generate():
         index_path.write_text(index_content)
 
     # format it all
-    subprocess.run("cd destack-ts && bun run format", shell=True, check=True)
+    subprocess.run("cd destack-ts && bun run format-language", shell=True, check=True)

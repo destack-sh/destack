@@ -34,14 +34,12 @@ export enum TriggerEventType {
   STARTED = 1,
   TRIGGERED = 2,
   STOPPED = 3,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:3041 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:3041 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:3040 ==== */
 export enum TriggerType {
   EVENT = 1,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:3040 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:3040 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:3041 ==== */
 export class TriggerEvent extends Node implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked {
@@ -222,8 +220,7 @@ export class TriggerEvent extends Node implements Spatial, Particle, Analytic, I
     }
     return pathParts.reverse().join("/");
   }
-}
-/* ==== DESTACK_GENERATED_END:NODE:3041 ==== */
+} /* ==== DESTACK_GENERATED_END:NODE:3041 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:3040 ==== */
 export class Trigger extends Node implements Spatial, Entity, IsTracked {
@@ -411,5 +408,4 @@ export class Trigger extends Node implements Spatial, Entity, IsTracked {
     }
     return pathParts.reverse().join("/");
   }
-}
-/* ==== DESTACK_GENERATED_END:NODE:3040 ==== */
+} /* ==== DESTACK_GENERATED_END:NODE:3040 ==== */

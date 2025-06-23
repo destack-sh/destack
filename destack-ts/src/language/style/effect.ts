@@ -56,31 +56,27 @@ export enum EffectType {
   DRAG = 22,
   FOCUS = 23,
   LOOP = 30,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:12046 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:12046 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12047 ==== */
 export enum RepeatType {
   LOOP = 1,
   REVERSE = 2,
   MIRROR = 3,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:12047 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:12047 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12048 ==== */
 export enum TextSplitType {
   CHAR = 1,
   WORD = 2,
   LINE = 3,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:12048 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:12048 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12049 ==== */
 export enum OffscreenBehavior {
   PLAY = 1,
   PAUSE = 2,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:12049 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:12049 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12025 ==== */
 export class Effect extends Struct {
@@ -143,6 +139,8 @@ export class Effect extends Struct {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -181,8 +179,7 @@ export class Effect extends Struct {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:12025 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:12025 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:12027 ==== */
 export class EffectStyle
@@ -506,5 +503,4 @@ export class EffectStyle
     }
     return pathParts.reverse().join("/");
   }
-}
-/* ==== DESTACK_GENERATED_END:NODE:12027 ==== */
+} /* ==== DESTACK_GENERATED_END:NODE:12027 ==== */

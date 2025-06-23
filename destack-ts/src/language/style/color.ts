@@ -51,8 +51,7 @@ export enum ColorType {
   RGB = 10,
   HSL = 11,
   P3 = 12,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:12020 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:12020 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12022 ==== */
 export enum ColorHue {
@@ -74,8 +73,7 @@ export enum ColorHue {
   FUCHSIA = 45,
   PINK = 46,
   ROSE = 47,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:12022 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:12022 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12021 ==== */
 export enum ColorShade {
@@ -91,8 +89,7 @@ export enum ColorShade {
   S800 = 800,
   S900 = 900,
   S950 = 950,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:12021 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:12021 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12023 ==== */
 export enum ColorIntent {
@@ -103,8 +100,7 @@ export enum ColorIntent {
   INFO = 11,
   WARNING = 12,
   ERROR = 13,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:12023 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:12023 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12011 ==== */
 export class Color extends Struct {
@@ -153,6 +149,8 @@ export class Color extends Struct {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -184,8 +182,7 @@ export class Color extends Struct {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:12011 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:12011 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:12020 ==== */
 export class ColorStyle
@@ -496,5 +493,4 @@ export class ColorStyle
     }
     return pathParts.reverse().join("/");
   }
-}
-/* ==== DESTACK_GENERATED_END:NODE:12020 ==== */
+} /* ==== DESTACK_GENERATED_END:NODE:12020 ==== */

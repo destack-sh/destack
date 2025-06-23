@@ -19,7 +19,7 @@ from ..builtin import (
     object_,
     property_,
 )
-from .relation import AttributeReference, RelationReference, attribute_ref
+from .relation import AttributeReference, RelationReference
 from .value import Value
 
 if TYPE_CHECKING:
@@ -27,6 +27,7 @@ if TYPE_CHECKING:
 
 # pyright: reportIncompatibleVariableOverride=false
 
+type_ = type
 
 #
 # Functions
@@ -49,13 +50,14 @@ class Function(StructFrozen):
     left: "Expression" = property_(31, is_repr=True)
     right: Optional["Expression"] = property_(32, is_repr=True)
 
-
-def function(
-    type: FunctionType,
-    left: "Expression",
-    right: Optional["Expression"] = None,
-) -> Function:
-    return Function(type=type, left=left, right=right)
+    @classmethod
+    def of(
+        cls: type_["Function"],
+        type: FunctionType,
+        left: "Expression",
+        right: Optional["Expression"] = None,
+    ) -> "Function":
+        return cls(type=type, left=left, right=right)
 
 
 #
@@ -97,22 +99,27 @@ class Condition(StructFrozen):
     right: Optional["Expression"] = property_(32, is_repr=True)
 
     def __or__(self, other: "Condition") -> "Condition":
-        return Condition(type=ConditionalType.OR, left=expression(self), right=expression(other))
+        return Condition(
+            type=ConditionalType.OR, left=Expression.of(self), right=Expression.of(other)
+        )
 
     def __and__(self, other: "Condition") -> "Condition":
-        return Condition(type=ConditionalType.AND, left=expression(self), right=expression(other))
+        return Condition(
+            type=ConditionalType.AND, left=Expression.of(self), right=Expression.of(other)
+        )
 
+    @classmethod
+    def of(
+        cls: type_["Condition"],
+        attribute: Union["Field", "Property"],
+        type: ConditionalType = ConditionalType.EQUALS,
+        value: Any = None,
+    ) -> "Condition":
+        from .value import to_value
 
-def condition(
-    attribute: Union["Field", "Property"],
-    type: ConditionalType = ConditionalType.EQUALS,
-    value: Any = None,
-) -> Condition:
-    from .value import to_value
-
-    left = expression(attribute_ref(attribute))
-    right = expression(to_value(value))
-    return Condition(type=type, left=left, right=right)
+        left = Expression.of(attribute)
+        right = Expression.of(to_value(value))
+        return Condition(type=type, left=left, right=right)
 
 
 #
@@ -138,12 +145,13 @@ class Aggregation(StructFrozen):
     expression: Optional["Expression"] = property_(31, is_repr=True)
     # distinct, over, ...
 
-
-def aggregation(
-    type: AggregationType,
-    operand: Optional["Expression"] = None,
-) -> Aggregation:
-    return Aggregation(type=type, expression=operand)
+    @classmethod
+    def of(
+        cls: type_["Aggregation"],
+        type: AggregationType,
+        operand: Optional["Expression"] = None,
+    ) -> "Aggregation":
+        return Aggregation(type=type, expression=operand)
 
 
 #
@@ -173,6 +181,25 @@ class Expression(StructFrozen):
     aggregation: Optional[Aggregation] = property_(35, is_repr=True)
     # subquery?
 
+    @classmethod
+    def of(cls, thing: "ExpressionIn") -> "Expression":
+        if isinstance(thing, Value):
+            return Expression(type=ExpressionType.LITERAL, literal=thing)
+        elif isinstance(thing, AttributeReference):
+            return Expression(type=ExpressionType.ATTRIBUTE, attribute=thing)
+        elif isinstance(thing, (Node, Property)):
+            return Expression(type=ExpressionType.ATTRIBUTE, attribute=AttributeReference.of(thing))
+        elif isinstance(thing, Condition):
+            return Expression(type=ExpressionType.CONDITION, condition=thing)
+        elif isinstance(thing, Function):
+            return Expression(type=ExpressionType.FUNCTION, function=thing)
+        elif isinstance(thing, Aggregation):
+            return Expression(type=ExpressionType.AGGREGATION, aggregation=thing)
+        elif isinstance(thing, Expression):
+            return thing
+        else:
+            assert_never(thing)
+
 
 ExpressionIn = Union[
     "Value",
@@ -184,27 +211,6 @@ ExpressionIn = Union[
     "Aggregation",
     "Expression",
 ]
-
-
-def expression(
-    thing: ExpressionIn,
-) -> Expression:
-    if isinstance(thing, Value):
-        return Expression(type=ExpressionType.LITERAL, literal=thing)
-    elif isinstance(thing, AttributeReference):
-        return Expression(type=ExpressionType.ATTRIBUTE, attribute=thing)
-    elif isinstance(thing, (Node, Property)):
-        return Expression(type=ExpressionType.ATTRIBUTE, attribute=attribute_ref(thing))
-    elif isinstance(thing, Condition):
-        return Expression(type=ExpressionType.CONDITION, condition=thing)
-    elif isinstance(thing, Function):
-        return Expression(type=ExpressionType.FUNCTION, function=thing)
-    elif isinstance(thing, Aggregation):
-        return Expression(type=ExpressionType.AGGREGATION, aggregation=thing)
-    elif isinstance(thing, Expression):
-        return thing
-    else:
-        assert_never(thing)
 
 
 #
@@ -227,6 +233,9 @@ class SortMode(Enum):
     MEDIAN = 5
 
 
+SortIn = Union["Sort", "Expression", "Field", "Property"]
+
+
 @builtin_struct(StructType.SORT, frozen=True)
 class Sort(StructFrozen):
     """ORDER BY specification."""
@@ -235,17 +244,14 @@ class Sort(StructFrozen):
     by: Expression = property_(31, is_repr=True)
     mode: Optional[SortMode] = property_(32, is_repr=True)
 
-
-SortIn = Union[Sort, "Expression", "Field", "Property"]
-
-
-def sort(sort: SortIn, type: SortType = SortType.ASCENDING) -> Sort:
-    if isinstance(sort, Sort):
-        return sort
-    elif isinstance(sort, Expression):
-        return Sort(type=type, by=sort)
-    else:
-        return Sort(type=type, by=expression(attribute_ref(sort)))
+    @classmethod
+    def of(cls, attribute: "SortIn", type: SortType = SortType.ASCENDING) -> "Sort":
+        if isinstance(attribute, Sort):
+            return attribute
+        elif isinstance(attribute, Expression):
+            return Sort(type=type, by=attribute)
+        else:
+            return Sort(type=type, by=Expression.of(attribute))
 
 
 #
@@ -259,9 +265,9 @@ class Select(StructFrozen):
 
     attributes: list[AttributeReference] = property_(31, is_repr=True)
 
-
-def select(*attributes: "Property | Field") -> Select:
-    return Select(attributes=[attribute_ref(attribute) for attribute in attributes])
+    @classmethod
+    def of(cls, *attributes: "Property | Field") -> "Select":
+        return Select(attributes=[AttributeReference.of(attribute) for attribute in attributes])
 
 
 #
@@ -288,20 +294,21 @@ class Join(StructFrozen):
     depth: int | None = property_(34, default=None, is_repr=True)  # for tree joins
     on: Optional[Condition] = property_(35, is_repr=True)
 
+    @classmethod
+    def of(
+        cls,
+        join: "JoinIn",
+        on: Optional[Condition] = None,
+        recursive: bool = False,
+        depth: int | None = None,
+    ) -> "Join":
+        if isinstance(join, Join):
+            return join
+        else:
+            return Join(type=join, on=on, recursive=recursive, depth=depth)
+
 
 JoinIn = Union[Join, "JoinType"]
-
-
-def join(
-    join: JoinIn,
-    on: Optional[Condition] = None,
-    recursive: bool = False,
-    depth: int | None = None,
-) -> Join:
-    if isinstance(join, Join):
-        return join
-    else:
-        return Join(type=join, on=on, recursive=recursive, depth=depth)
 
 
 #
@@ -400,7 +407,7 @@ def to_subqueries(subqueries: dict[str, "Query"]) -> list["Query"]:
     """Turn Queries into subqueries with default names & parent joins."""
     for name, subquery in subqueries.items():
         if subquery.join is None:
-            object.__setattr__(subquery, "join", join(JoinType.CHILD))
+            object.__setattr__(subquery, "join", Join.of(JoinType.CHILD))
         object.__setattr__(subquery, "name", name)
         subquery._invalidate_frozen_cache()
     return list(subqueries.values())
@@ -473,22 +480,22 @@ class IntoQuery:
     def is_equal(self: Any, value: Any) -> "Condition":
         if value is None:
             return self.not_exists()
-        return condition(self, ConditionalType.EQUALS, value=value)
+        return Condition.of(self, ConditionalType.EQUALS, value=value)
 
     def not_equal(self: Any, value: Any) -> "Condition":
-        return condition(self, ConditionalType.NOT_EQUALS, value=value)
+        return Condition.of(self, ConditionalType.NOT_EQUALS, value=value)
 
     def greater_than(self: Any, value: Any) -> "Condition":
-        return condition(self, ConditionalType.GREATER_THAN, value=value)
+        return Condition.of(self, ConditionalType.GREATER_THAN, value=value)
 
     def greater_than_or_equals(self: Any, value: Any) -> "Condition":
-        return condition(self, ConditionalType.GREATER_THAN_OR_EQUALS, value=value)
+        return Condition.of(self, ConditionalType.GREATER_THAN_OR_EQUALS, value=value)
 
     def less_than(self: Any, value: Any) -> "Condition":
-        return condition(self, ConditionalType.LESS_THAN, value=value)
+        return Condition.of(self, ConditionalType.LESS_THAN, value=value)
 
     def less_than_or_equals(self: Any, value: Any) -> "Condition":
-        return condition(self, ConditionalType.LESS_THAN_OR_EQUALS, value=value)
+        return Condition.of(self, ConditionalType.LESS_THAN_OR_EQUALS, value=value)
 
     eq = is_equal
     neq = not_equal
@@ -498,40 +505,40 @@ class IntoQuery:
     gte = greater_than_or_equals
 
     def starts_with(self: Any, value: str) -> "Condition":
-        return condition(self, ConditionalType.STARTS_WITH, value=value)
+        return Condition.of(self, ConditionalType.STARTS_WITH, value=value)
 
     startswith = starts_with
 
     def ends_with(self: Any, value: str) -> "Condition":
-        return condition(self, ConditionalType.ENDS_WITH, value=value)
+        return Condition.of(self, ConditionalType.ENDS_WITH, value=value)
 
     endswith = ends_with
 
     def in_(self: Any, *values: Any) -> "Condition":
-        return condition(self, ConditionalType.IN, value=values)
+        return Condition.of(self, ConditionalType.IN, value=values)
 
     def not_in(self: Any, *values: Any) -> "Condition":
-        return condition(self, ConditionalType.NOT_IN, value=values)
+        return Condition.of(self, ConditionalType.NOT_IN, value=values)
 
     def exists(self: Any) -> "Condition":
-        return condition(self, ConditionalType.EXISTS)
+        return Condition.of(self, ConditionalType.EXISTS)
 
     def is_not_none(self: Any) -> "Condition":
-        return condition(self, ConditionalType.EXISTS)
+        return Condition.of(self, ConditionalType.EXISTS)
 
     def not_exists(self: Any) -> "Condition":
-        return condition(self, ConditionalType.NOT_EXISTS)
+        return Condition.of(self, ConditionalType.NOT_EXISTS)
 
     def is_none(self: Any) -> "Condition":
-        return condition(self, ConditionalType.NOT_EXISTS)
+        return Condition.of(self, ConditionalType.NOT_EXISTS)
 
     def asc(self: Any) -> "Sort":
-        return sort(self, SortType.ASCENDING)
+        return Sort.of(self, SortType.ASCENDING)
 
     ascending = asc
 
     def desc(self: Any) -> "Sort":
-        return sort(self, SortType.DESCENDING)
+        return Sort.of(self, SortType.DESCENDING)
 
     descending = desc
 

@@ -242,5 +242,4 @@ export class Route extends Node implements Spatial, Entity, IsTracked, IsDeletab
     }
     return pathParts.reverse().join("/");
   }
-}
-/* ==== DESTACK_GENERATED_END:NODE:3030 ==== */
+} /* ==== DESTACK_GENERATED_END:NODE:3030 ==== */

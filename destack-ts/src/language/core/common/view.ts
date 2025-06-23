@@ -4,23 +4,20 @@ import { Session, StructFrozen, StructType, Supergraph } from "@/language";
 export enum Layout {
   STACK = 1,
   GRID = 2,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:12038 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:12038 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12042 ==== */
 export enum Overflow {
   HIDDEN = 2,
   VISIBLE = 3,
   SCROLL = 4,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:12042 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:12042 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12041 ==== */
 export enum Direction {
   HORIZONTAL = 1,
   VERTICAL = 2,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:12041 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:12041 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12039 ==== */
 export enum Distribute {
@@ -30,16 +27,14 @@ export enum Distribute {
   SPACE_BETWEEN = 4,
   SPACE_AROUND = 5,
   SPACE_EVENLY = 6,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:12039 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:12039 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12040 ==== */
 export enum Align {
   START = 1,
   CENTER = 2,
   END = 3,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:12040 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:12040 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12037 ==== */
 export enum LengthUnit {
@@ -47,8 +42,7 @@ export enum LengthUnit {
   REM = 2,
   PERCENT = 3,
   FR = 4,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:12037 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:12037 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12000 ==== */
 export enum PositionType {
@@ -56,16 +50,14 @@ export enum PositionType {
   ABSOLUTE = 2,
   FIXED = 3,
   STICKY = 4,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:12000 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:12000 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12045 ==== */
 export enum DimensionType {
   FIXED = 2,
   FIT = 3,
   FILL = 4,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:12045 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:12045 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12018 ==== */
 export class Length extends StructFrozen {
@@ -82,6 +74,8 @@ export class Length extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -101,8 +95,7 @@ export class Length extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:12018 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:12018 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12020 ==== */
 export class Position extends StructFrozen {
@@ -125,6 +118,8 @@ export class Position extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -147,8 +142,7 @@ export class Position extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:12020 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:12020 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12022 ==== */
 export class Dimension extends StructFrozen {
@@ -167,6 +161,8 @@ export class Dimension extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -187,8 +183,7 @@ export class Dimension extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:12022 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:12022 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12030 ==== */
 export class Insets extends StructFrozen {
@@ -211,6 +206,8 @@ export class Insets extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -233,8 +230,7 @@ export class Insets extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:12030 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:12030 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12032 ==== */
 export class Corners extends StructFrozen {
@@ -257,6 +253,8 @@ export class Corners extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -279,8 +277,7 @@ export class Corners extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:12032 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:12032 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50207 ==== */
 export class Axis2 extends StructFrozen {
@@ -299,6 +296,8 @@ export class Axis2 extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -319,8 +318,7 @@ export class Axis2 extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:50207 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:50207 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50209 ==== */
 export class Axis3 extends StructFrozen {
@@ -341,6 +339,8 @@ export class Axis3 extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -362,8 +362,7 @@ export class Axis3 extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:50209 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:50209 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50200 ==== */
 export class Vector2 extends StructFrozen {
@@ -375,6 +374,8 @@ export class Vector2 extends StructFrozen {
 
   constructor(options: { x: number; y: number; _session?: Session | null; _supergraph?: Supergraph | null }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -394,8 +395,7 @@ export class Vector2 extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:50200 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:50200 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50201 ==== */
 export class Vector3 extends StructFrozen {
@@ -414,6 +414,8 @@ export class Vector3 extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -434,8 +436,7 @@ export class Vector3 extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:50201 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:50201 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50202 ==== */
 export class Vector4 extends StructFrozen {
@@ -456,6 +457,8 @@ export class Vector4 extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -477,8 +480,7 @@ export class Vector4 extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:50202 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:50202 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50203 ==== */
 export class Vector2i extends StructFrozen {
@@ -490,6 +492,8 @@ export class Vector2i extends StructFrozen {
 
   constructor(options: { x: number; y: number; _session?: Session | null; _supergraph?: Supergraph | null }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -509,8 +513,7 @@ export class Vector2i extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:50203 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:50203 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50204 ==== */
 export class Vector3i extends StructFrozen {
@@ -529,6 +532,8 @@ export class Vector3i extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -549,8 +554,7 @@ export class Vector3i extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:50204 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:50204 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50205 ==== */
 export class Vector4i extends StructFrozen {
@@ -571,6 +575,8 @@ export class Vector4i extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -592,8 +598,7 @@ export class Vector4i extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:50205 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:50205 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12026 ==== */
 export class Grid extends StructFrozen {
@@ -616,6 +621,8 @@ export class Grid extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -638,8 +645,7 @@ export class Grid extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:12026 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:12026 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12028 ==== */
 export class GridSpan extends StructFrozen {
@@ -651,6 +657,8 @@ export class GridSpan extends StructFrozen {
 
   constructor(options: { columns: number; rows: number; _session?: Session | null; _supergraph?: Supergraph | null }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -670,5 +678,4 @@ export class GridSpan extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:12028 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:12028 ==== */

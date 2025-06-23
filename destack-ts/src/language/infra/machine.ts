@@ -28,8 +28,7 @@ export enum MachineType {
   MAC = 1100,
   WINDOWS = 1200,
   CUSTOM = 9000,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:7600 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:7600 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:7600 ==== */
 export class Machine extends Node implements Spatial, Entity, Resource, IsTracked {
@@ -191,7 +190,7 @@ export class Machine extends Node implements Spatial, Entity, Resource, IsTracke
     this.type = options.type ?? MachineType.RUNTIME;
     this.status = options.status ?? ResourceStatus.PENDING;
     this.targetStatus = options.targetStatus ?? null;
-    this.version = options.version ?? "2025.06.22.0";
+    this.version = options.version ?? "2025.06.23.0";
     this.externalName = options.externalName ?? null;
     this.externalId = options.externalId ?? null;
     this.imageId = options.imageId ?? null;
@@ -248,5 +247,4 @@ export class Machine extends Node implements Spatial, Entity, Resource, IsTracke
     }
     return pathParts.reverse().join("/");
   }
-}
-/* ==== DESTACK_GENERATED_END:NODE:7600 ==== */
+} /* ==== DESTACK_GENERATED_END:NODE:7600 ==== */

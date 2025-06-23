@@ -26,16 +26,14 @@ export enum StringFormat {
   EMOJI = 12,
   MIME = 13,
   BASE64 = 20,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:2570 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:2570 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:2571 ==== */
 export enum NumberFormat {
   PERCENTAGE = 1,
   ANGLE = 2,
   CURRENCY = 3,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:2571 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:2571 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2503 ==== */
 export class StringConstraint extends StructFrozen {
@@ -56,6 +54,8 @@ export class StringConstraint extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -77,8 +77,7 @@ export class StringConstraint extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:2503 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:2503 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2502 ==== */
 export class NumberConstraint extends StructFrozen {
@@ -103,6 +102,8 @@ export class NumberConstraint extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -126,8 +127,7 @@ export class NumberConstraint extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:2502 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:2502 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2504 ==== */
 export class CollectionConstraint extends StructFrozen {
@@ -144,6 +144,8 @@ export class CollectionConstraint extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -163,8 +165,7 @@ export class CollectionConstraint extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:2504 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:2504 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2505 ==== */
 export class NodeConstraint extends StructFrozen {
@@ -181,6 +182,8 @@ export class NodeConstraint extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -200,8 +203,7 @@ export class NodeConstraint extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:2505 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:2505 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2501 ==== */
 export class Type extends StructFrozen {
@@ -268,6 +270,8 @@ export class Type extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -312,5 +316,4 @@ export class Type extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:2501 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:2501 ==== */
