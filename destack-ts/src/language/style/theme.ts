@@ -18,11 +18,51 @@ import {
   Spatial,
   StructType,
   Supergraph,
+  TraitType,
   User,
 } from "@/language";
+import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:12000 ==== */
 export class Theme extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsTaggable, IsVisual {
+  static metatype: NodeType = NodeType.THEME;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.VISUAL,
+    TraitType.TAGGABLE,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.DELETABLE,
+    TraitType.ORDERED,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [
+    NodeType.TAGGING,
+    NodeType.COLOR_STYLE,
+    NodeType.BORDER_STYLE,
+    NodeType.TRANSITION_STYLE,
+    NodeType.EFFECT_STYLE,
+    NodeType.GRADIENT_STYLE,
+    NodeType.FILL_STYLE,
+    NodeType.FONT_STYLE,
+    NodeType.PALETTE,
+    NodeType.SHADOW_STYLE,
+  ];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [
+    NodeType.PALETTE,
+    NodeType.TAGGING,
+    NodeType.COLOR_STYLE,
+    NodeType.FILL_STYLE,
+    NodeType.FONT_STYLE,
+    NodeType.BORDER_STYLE,
+    NodeType.SHADOW_STYLE,
+    NodeType.GRADIENT_STYLE,
+    NodeType.TRANSITION_STYLE,
+    NodeType.EFFECT_STYLE,
+  ];
+
   readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;

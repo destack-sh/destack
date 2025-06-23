@@ -39,6 +39,7 @@ import {
   TextView,
   Theme,
   ThreadView,
+  TraitType,
   User,
   WizardView,
 } from "@/language";
@@ -55,6 +56,9 @@ export enum GradientType {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12015 ==== */
 export class GradientStop extends StructFrozen {
+  static metatype: StructType = StructType.GRADIENT_STOP;
+  static __isFrozen__: boolean = true;
+
   readonly color: Color | null;
   readonly position: number;
 
@@ -89,6 +93,9 @@ export class GradientStop extends StructFrozen {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12016 ==== */
 export class Gradient extends Struct {
+  static metatype: StructType = StructType.GRADIENT;
+  static __isFrozen__: boolean = false;
+
   type: GradientType;
   get style(): GradientStyle | null {
     const nodePtr: NodeReference | null = this.stylePtr;
@@ -158,6 +165,64 @@ export class GradientStyle
   extends Node
   implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsTaggable, IsVisual, Style
 {
+  static metatype: NodeType = NodeType.GRADIENT_STYLE;
+  static __traits__: TraitType[] = [
+    TraitType.STYLE,
+    TraitType.SPATIAL,
+    TraitType.VISUAL,
+    TraitType.TAGGABLE,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.DELETABLE,
+    TraitType.ORDERED,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [
+    NodeType.NUMBER_INPUT_VIEW,
+    NodeType.SLIDER_INPUT_VIEW,
+    NodeType.LINE_SHAPE,
+    NodeType.PLANE_SHAPE,
+    NodeType.FRAME_VIEW,
+    NodeType.ANNOTATION_SHAPE,
+    NodeType.ARROW_SHAPE,
+    NodeType.THEME,
+    NodeType.THREAD_VIEW,
+    NodeType.LABEL_VIEW,
+    NodeType.CUSTOM_VIEW_DEFINITION,
+    NodeType.CUSTOM_VIEW,
+    NodeType.SCENE,
+    NodeType.CANVAS,
+    NodeType.TEXT_VIEW,
+    NodeType.SPLIT_VIEW,
+    NodeType.WIZARD_VIEW,
+    NodeType.LAYER,
+  ];
+  static __childTypes__: NodeType[] = [NodeType.TAGGING];
+  static __ancestorTypes__: NodeType[] = [
+    NodeType.SPACE,
+    NodeType.LINE_SHAPE,
+    NodeType.PLANE_SHAPE,
+    NodeType.ARROW_SHAPE,
+    NodeType.ANNOTATION_SHAPE,
+    NodeType.CUSTOM_VIEW_DEFINITION,
+    NodeType.CUSTOM_VIEW,
+    NodeType.WIZARD_VIEW,
+    NodeType.NUMBER_INPUT_VIEW,
+    NodeType.SLIDER_INPUT_VIEW,
+    NodeType.FRAME_VIEW,
+    NodeType.WINDOW,
+    NodeType.LABEL_VIEW,
+    NodeType.SCENE,
+    NodeType.SPLIT_VIEW,
+    NodeType.LAYER,
+    NodeType.TEXT_VIEW,
+    NodeType.THEME,
+    NodeType.FOLDER,
+    NodeType.THREAD_VIEW,
+    NodeType.CANVAS,
+  ];
+  static __descendantTypes__: NodeType[] = [NodeType.TAGGING];
+
   readonly id: string;
   get parent():
     | Scene

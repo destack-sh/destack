@@ -23,6 +23,7 @@ import {
   Spatial,
   StructType,
   Supergraph,
+  TraitType,
   User,
   Value,
 } from "@/language";
@@ -44,6 +45,22 @@ export enum TriggerType {
 
 /* ==== DESTACK_GENERATED_START:NODE:3041 ==== */
 export class TriggerEvent extends Node implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked {
+  static metatype: NodeType = NodeType.TRIGGER_EVENT;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.PARTICLE,
+    TraitType.ANALYTIC,
+    TraitType.INDEXED,
+    TraitType.FROZEN,
+    TraitType.TRACKED,
+    TraitType.EVENT,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
   readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -210,6 +227,14 @@ export class TriggerEvent extends Node implements Spatial, Particle, Analytic, I
 
 /* ==== DESTACK_GENERATED_START:NODE:3040 ==== */
 export class Trigger extends Node implements Spatial, Entity, IsTracked {
+  static metatype: NodeType = NodeType.TRIGGER;
+  static __traits__: TraitType[] = [TraitType.TRACKED, TraitType.SPATIAL, TraitType.ENTITY];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
   readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;

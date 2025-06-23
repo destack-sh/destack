@@ -23,6 +23,7 @@ import {
   StructType,
   Supergraph,
   Text,
+  TraitType,
   User,
   Value,
 } from "@/language";
@@ -39,6 +40,29 @@ export class Action
   extends Node
   implements Spatial, Entity, IsTracked, IsDeletable, IsExtensible, IsOrdered, IsTaggable, IsRunnable, IsSourceable
 {
+  static metatype: NodeType = NodeType.ACTION;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.TAGGABLE,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.DELETABLE,
+    TraitType.EXTENSIBLE,
+    TraitType.ORDERED,
+    TraitType.RUNNABLE,
+    TraitType.SOURCEABLE,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.CUSTOM_ENTITY_DEFINITION, NodeType.SERVICE];
+  static __childTypes__: NodeType[] = [NodeType.FIELD, NodeType.TAGGING];
+  static __ancestorTypes__: NodeType[] = [
+    NodeType.CUSTOM_ENTITY_DEFINITION,
+    NodeType.SPACE,
+    NodeType.SERVICE,
+    NodeType.FOLDER,
+  ];
+  static __descendantTypes__: NodeType[] = [NodeType.FIELD, NodeType.OPTION, NodeType.TAGGING];
+
   readonly id: string;
   get parent(): CustomEntityDefinition | Service | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;

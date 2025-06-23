@@ -23,6 +23,7 @@ import {
   Value,
   Vector2,
 } from "@/language";
+import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:TRAIT:10000 ==== */
 export interface ContainerView {

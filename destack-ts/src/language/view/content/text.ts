@@ -35,16 +35,87 @@ import {
   SplitView,
   StructType,
   Supergraph,
+  TraitType,
   User,
   View,
   Window,
 } from "@/language";
+import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:10200 ==== */
 export class TextView
   extends Node
   implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsTaggable, IsScriptable, IsVisual, View, ContentView
 {
+  static metatype: NodeType = NodeType.TEXT_VIEW;
+  static __traits__: TraitType[] = [
+    TraitType.SCRIPTABLE,
+    TraitType.SPATIAL,
+    TraitType.VISUAL,
+    TraitType.VIEW,
+    TraitType.ENTITY,
+    TraitType.TAGGABLE,
+    TraitType.TRACKED,
+    TraitType.DELETABLE,
+    TraitType.CONTENT_VIEW,
+    TraitType.ORDERED,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [
+    NodeType.PLANE_SHAPE,
+    NodeType.FRAME_VIEW,
+    NodeType.ANNOTATION_SHAPE,
+    NodeType.WINDOW,
+    NodeType.LABEL_VIEW,
+    NodeType.CUSTOM_VIEW_DEFINITION,
+    NodeType.CUSTOM_VIEW,
+    NodeType.SCENE,
+    NodeType.CANVAS,
+    NodeType.SPLIT_VIEW,
+    NodeType.LAYER,
+  ];
+  static __childTypes__: NodeType[] = [
+    NodeType.TAGGING,
+    NodeType.SCRIPT,
+    NodeType.COLOR_STYLE,
+    NodeType.BORDER_STYLE,
+    NodeType.TRANSITION_STYLE,
+    NodeType.EFFECT_STYLE,
+    NodeType.GRADIENT_STYLE,
+    NodeType.FILL_STYLE,
+    NodeType.FONT_STYLE,
+    NodeType.SHADOW_STYLE,
+  ];
+  static __ancestorTypes__: NodeType[] = [
+    NodeType.SPACE,
+    NodeType.PLANE_SHAPE,
+    NodeType.FRAME_VIEW,
+    NodeType.ANNOTATION_SHAPE,
+    NodeType.WINDOW,
+    NodeType.FOLDER,
+    NodeType.LABEL_VIEW,
+    NodeType.CUSTOM_VIEW_DEFINITION,
+    NodeType.CUSTOM_VIEW,
+    NodeType.SCENE,
+    NodeType.SPLIT_VIEW,
+    NodeType.CANVAS,
+    NodeType.LAYER,
+  ];
+  static __descendantTypes__: NodeType[] = [
+    NodeType.OPTION,
+    NodeType.FIELD,
+    NodeType.TAGGING,
+    NodeType.COLOR_STYLE,
+    NodeType.FILL_STYLE,
+    NodeType.FONT_STYLE,
+    NodeType.BORDER_STYLE,
+    NodeType.SHADOW_STYLE,
+    NodeType.GRADIENT_STYLE,
+    NodeType.TRANSITION_STYLE,
+    NodeType.EFFECT_STYLE,
+    NodeType.SCRIPT,
+  ];
+
   readonly id: string;
   get parent():
     | Window

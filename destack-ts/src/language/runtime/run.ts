@@ -21,6 +21,7 @@ import {
   Spatial,
   StructType,
   Supergraph,
+  TraitType,
   User,
   Value,
 } from "@/language";
@@ -57,6 +58,22 @@ export enum RunEventType {
 
 /* ==== DESTACK_GENERATED_START:NODE:4001 ==== */
 export class RunEvent extends Node implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked {
+  static metatype: NodeType = NodeType.RUN_EVENT;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.PARTICLE,
+    TraitType.ANALYTIC,
+    TraitType.INDEXED,
+    TraitType.FROZEN,
+    TraitType.TRACKED,
+    TraitType.EVENT,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
   readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -246,6 +263,27 @@ export class RunEvent extends Node implements Spatial, Particle, Analytic, Index
 
 /* ==== DESTACK_GENERATED_START:NODE:4000 ==== */
 export class Run extends Node implements Spatial, Particle, Analytic, Indexed, IsTracked, IsExtensible {
+  static metatype: NodeType = NodeType.RUN;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.PARTICLE,
+    TraitType.ANALYTIC,
+    TraitType.INDEXED,
+    TraitType.TRACKED,
+    TraitType.EXTENSIBLE,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [NodeType.FIELD, NodeType.INTERRUPTION, NodeType.SPAN];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [
+    NodeType.OPTION,
+    NodeType.SPAN,
+    NodeType.TAGGING,
+    NodeType.INTERRUPTION,
+    NodeType.FIELD,
+  ];
+
   readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;

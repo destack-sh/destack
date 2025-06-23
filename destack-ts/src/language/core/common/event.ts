@@ -26,6 +26,7 @@ import {
   Spatial,
   StructType,
   Supergraph,
+  TraitType,
   User,
   Value,
 } from "@/language";
@@ -36,6 +37,23 @@ export class EditEvent
   extends Node
   implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked, IsTaggable
 {
+  static metatype: NodeType = NodeType.EDIT_EVENT;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.TAGGABLE,
+    TraitType.PARTICLE,
+    TraitType.ANALYTIC,
+    TraitType.INDEXED,
+    TraitType.FROZEN,
+    TraitType.TRACKED,
+    TraitType.EVENT,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [NodeType.TAGGING];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [NodeType.TAGGING];
+
   readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -237,6 +255,20 @@ export class EditEvent
 
 /* ==== DESTACK_GENERATED_START:NODE:4200 ==== */
 export class CustomEventDefinition extends Node implements Spatial, Entity, IsTracked, IsOrdered, IsSourceable {
+  static metatype: NodeType = NodeType.CUSTOM_EVENT_DEFINITION;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.ORDERED,
+    TraitType.SOURCEABLE,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
   readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -405,6 +437,22 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, IsTr
 
 /* ==== DESTACK_GENERATED_START:NODE:4201 ==== */
 export class CustomEvent extends Node implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked {
+  static metatype: NodeType = NodeType.CUSTOM_EVENT;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.PARTICLE,
+    TraitType.ANALYTIC,
+    TraitType.INDEXED,
+    TraitType.FROZEN,
+    TraitType.TRACKED,
+    TraitType.EVENT,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
   readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;

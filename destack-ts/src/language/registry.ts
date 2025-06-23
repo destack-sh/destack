@@ -5,6 +5,7 @@ import {
   Aggregation,
   AggregationType,
   Align,
+  Analytic,
   AnnotationShape,
   ArrowHeadType,
   ArrowShape,
@@ -36,9 +37,12 @@ import {
   Condition,
   ConditionalType,
   ConstantDefinition,
+  ContainerView,
+  ContentView,
   Corners,
   CounterMeasurement,
   CounterMetric,
+  Cursor,
   CursorStatus,
   CustomEntity,
   CustomEntityDefinition,
@@ -70,11 +74,13 @@ import {
   EntitlementEvent,
   EntitlementEventType,
   EntitlementType,
+  Entity,
   EnumDefinition,
   EnumOptionDefinition,
   EnumType,
   Environment,
   EnvironmentType,
+  Event,
   EventCursor,
   Expression,
   ExpressionType,
@@ -108,6 +114,7 @@ import {
   GalaxyInfo,
   GaugeMeasurement,
   GaugeMetric,
+  Global,
   Gradient,
   GradientStop,
   GradientStyle,
@@ -115,12 +122,18 @@ import {
   Grid,
   GridSpan,
   Handle,
+  HasIcon,
+  HasName,
+  HasSlug,
   Histogram,
   HistogramMeasurement,
   HistogramMetric,
   Icon,
   IconType,
+  Indexed,
+  InputView,
   Insets,
+  InternalView,
   Interruption,
   InterruptionResponse,
   InterruptionStatus,
@@ -128,6 +141,29 @@ import {
   Invite,
   InviteEvent,
   InviteEventType,
+  IsActionable,
+  IsArchivable,
+  IsCustomNode,
+  IsCustomNodeDefinition,
+  IsDeletable,
+  IsExtensible,
+  IsFollowable,
+  IsFrozen,
+  IsJoinable,
+  IsOrdered,
+  IsOwnable,
+  IsOwner,
+  IsReactable,
+  IsRunnable,
+  IsScriptable,
+  IsSettings,
+  IsShape,
+  IsSourceable,
+  IsStarable,
+  IsSubject,
+  IsTaggable,
+  IsTracked,
+  IsVisual,
   Join,
   JoinablePermission,
   JoinType,
@@ -137,6 +173,10 @@ import {
   Layout,
   Length,
   LengthUnit,
+  LikeFollow,
+  LikeInvite,
+  LikeMembership,
+  LikeTag,
   LineShape,
   LineType,
   Link,
@@ -146,11 +186,13 @@ import {
   Machine,
   MachineType,
   MaterializationType,
+  Measurement,
   Membership,
   MembershipEvent,
   MembershipEventType,
   MembershipPermission,
   Message,
+  Metric,
   ModelDeveloper,
   ModelProvider,
   ModeType,
@@ -160,6 +202,7 @@ import {
   NodePermission,
   NodeReference,
   NodeType,
+  NodeView,
   Notification,
   NotificationEvent,
   NotificationEventType,
@@ -175,6 +218,7 @@ import {
   Origin,
   Overflow,
   Palette,
+  Particle,
   Permission,
   PermissionDefinition,
   PermissionType,
@@ -200,6 +244,7 @@ import {
   RelationReference,
   RelationType,
   RepeatType,
+  Resource,
   ResourceStatus,
   Role,
   RoleEvent,
@@ -239,6 +284,7 @@ import {
   Space,
   SpaceStatus,
   Span,
+  Spatial,
   SplitView,
   SpringType,
   Star,
@@ -249,6 +295,7 @@ import {
   StringFormat,
   StructDefinition,
   StructType,
+  Style,
   Tag,
   Tagging,
   Team,
@@ -294,6 +341,7 @@ import {
   Vector3i,
   Vector4,
   Vector4i,
+  View,
   Window,
   WindowType,
   WizardView,
@@ -501,6 +549,57 @@ export const NODE_CLASS_BY_TYPE = {
   [NodeType.PALETTE]: Palette,
   [NodeType.SHADOW_STYLE]: ShadowStyle,
   [NodeType.THEME]: Theme,
+};
+
+export type TraitTypeMapping = {
+  [TraitType.HAS_NAME]: HasName;
+  [TraitType.HAS_SLUG]: HasSlug;
+  [TraitType.HAS_ICON]: HasIcon;
+  [TraitType.TRACKED]: IsTracked;
+  [TraitType.VISUAL]: IsVisual;
+  [TraitType.FROZEN]: IsFrozen;
+  [TraitType.ARCHIVABLE]: IsArchivable;
+  [TraitType.DELETABLE]: IsDeletable;
+  [TraitType.CUSTOM_NODE_DEFINITION]: IsCustomNodeDefinition;
+  [TraitType.CUSTOM_NODE]: IsCustomNode;
+  [TraitType.EXTENSIBLE]: IsExtensible;
+  [TraitType.ORDERED]: IsOrdered;
+  [TraitType.REACTABLE]: IsReactable;
+  [TraitType.STARABLE]: IsStarable;
+  [TraitType.FOLLOWABLE]: IsFollowable;
+  [TraitType.SOURCEABLE]: IsSourceable;
+  [TraitType.SCRIPTABLE]: IsScriptable;
+  [TraitType.RUNNABLE]: IsRunnable;
+  [TraitType.ACTIONABLE]: IsActionable;
+  [TraitType.OWNABLE]: IsOwnable;
+  [TraitType.SETTINGS]: IsSettings;
+  [TraitType.JOINABLE]: IsJoinable;
+  [TraitType.SUBJECT]: IsSubject;
+  [TraitType.OWNER]: IsOwner;
+  [TraitType.TAGGABLE]: IsTaggable;
+  [TraitType.MEMBERSHIP]: LikeMembership;
+  [TraitType.INVITE]: LikeInvite;
+  [TraitType.TAG]: LikeTag;
+  [TraitType.FOLLOW]: LikeFollow;
+  [TraitType.GLOBAL]: Global;
+  [TraitType.SPATIAL]: Spatial;
+  [TraitType.ENTITY]: Entity;
+  [TraitType.PARTICLE]: Particle;
+  [TraitType.ANALYTIC]: Analytic;
+  [TraitType.INDEXED]: Indexed;
+  [TraitType.RESOURCE]: Resource;
+  [TraitType.METRIC]: Metric;
+  [TraitType.MEASUREMENT]: Measurement;
+  [TraitType.EVENT]: Event;
+  [TraitType.VIEW]: View;
+  [TraitType.CONTAINER_VIEW]: ContainerView;
+  [TraitType.CONTENT_VIEW]: ContentView;
+  [TraitType.INPUT_VIEW]: InputView;
+  [TraitType.INTERNAL_VIEW]: InternalView;
+  [TraitType.NODE_VIEW]: NodeView;
+  [TraitType.SHAPE]: IsShape;
+  [TraitType.CURSOR]: Cursor;
+  [TraitType.STYLE]: Style;
 };
 
 export type StructTypeMapping = {

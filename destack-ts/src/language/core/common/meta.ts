@@ -23,6 +23,9 @@ import {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50004 ==== */
 export class PropertyDefinition extends StructFrozen {
+  static metatype: StructType = StructType.PROPERTY_DEFINITION;
+  static __isFrozen__: boolean = true;
+
   readonly id: number;
   readonly name: string;
   readonly icon: Icon | null;
@@ -138,6 +141,9 @@ export class PropertyDefinition extends StructFrozen {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50005 ==== */
 export class TraitDefinition extends StructFrozen {
+  static metatype: StructType = StructType.TRAIT_DEFINITION;
+  static __isFrozen__: boolean = true;
+
   readonly id: number;
   readonly type: TraitType;
   readonly name: string;
@@ -190,6 +196,9 @@ export class TraitDefinition extends StructFrozen {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50006 ==== */
 export class NodeDefinition extends StructFrozen {
+  static metatype: StructType = StructType.NODE_DEFINITION;
+  static __isFrozen__: boolean = true;
+
   readonly id: number;
   readonly type: NodeType;
   readonly name: string;
@@ -197,6 +206,11 @@ export class NodeDefinition extends StructFrozen {
   readonly description: string | null;
   readonly properties: Array<PropertyDefinition>;
   readonly traits: Array<TraitType>;
+  readonly rootType: NodeType | null;
+  readonly parentTypes: Array<NodeType>;
+  readonly childTypes: Array<NodeType>;
+  readonly ancestorTypes: Array<NodeType>;
+  readonly descendantTypes: Array<NodeType>;
 
   constructor(options: {
     id: number;
@@ -206,6 +220,11 @@ export class NodeDefinition extends StructFrozen {
     description?: string | null;
     properties?: Array<PropertyDefinition>;
     traits?: Array<TraitType>;
+    rootType?: NodeType | null;
+    parentTypes?: Array<NodeType>;
+    childTypes?: Array<NodeType>;
+    ancestorTypes?: Array<NodeType>;
+    descendantTypes?: Array<NodeType>;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
   }) {
@@ -221,6 +240,11 @@ export class NodeDefinition extends StructFrozen {
     this.description = options.description ?? null;
     this.properties = options.properties ?? [];
     this.traits = options.traits ?? [];
+    this.rootType = options.rootType ?? null;
+    this.parentTypes = options.parentTypes ?? [];
+    this.childTypes = options.childTypes ?? [];
+    this.ancestorTypes = options.ancestorTypes ?? [];
+    this.descendantTypes = options.descendantTypes ?? [];
   }
 
   equals(other: any): boolean {
@@ -239,6 +263,9 @@ export class NodeDefinition extends StructFrozen {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50007 ==== */
 export class StructDefinition extends StructFrozen {
+  static metatype: StructType = StructType.STRUCT_DEFINITION;
+  static __isFrozen__: boolean = true;
+
   readonly id: number;
   readonly type: StructType;
   readonly name: string;
@@ -288,6 +315,9 @@ export class StructDefinition extends StructFrozen {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50008 ==== */
 export class EnumDefinition extends StructFrozen {
+  static metatype: StructType = StructType.ENUM_DEFINITION;
+  static __isFrozen__: boolean = true;
+
   readonly id: number;
   readonly type: EnumType;
   readonly name: string;
@@ -334,6 +364,9 @@ export class EnumDefinition extends StructFrozen {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50009 ==== */
 export class EnumOptionDefinition extends StructFrozen {
+  static metatype: StructType = StructType.ENUM_OPTION_DEFINITION;
+  static __isFrozen__: boolean = true;
+
   readonly id: number;
   readonly type: EnumType;
   readonly name: string;
@@ -377,6 +410,9 @@ export class EnumOptionDefinition extends StructFrozen {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50010 ==== */
 export class PermissionDefinition extends StructFrozen {
+  static metatype: StructType = StructType.PERMISSION_DEFINITION;
+  static __isFrozen__: boolean = true;
+
   readonly id: number;
   readonly type: EnumType;
   readonly name: string;
@@ -420,6 +456,9 @@ export class PermissionDefinition extends StructFrozen {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50011 ==== */
 export class ConstantDefinition extends StructFrozen {
+  static metatype: StructType = StructType.CONSTANT_DEFINITION;
+  static __isFrozen__: boolean = true;
+
   readonly name: string;
   readonly path: string;
   readonly value: Value;

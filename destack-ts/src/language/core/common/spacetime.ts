@@ -18,12 +18,27 @@ import {
   StructType,
   Supergraph,
   Team,
+  TraitType,
   User,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:1500 ==== */
 export class Snapshot extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOwnable {
+  static metatype: NodeType = NodeType.SNAPSHOT;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.OWNABLE,
+    TraitType.DELETABLE,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE, NodeType.BRANCH];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE, NodeType.BRANCH];
+  static __descendantTypes__: NodeType[] = [];
+
   readonly id: string;
   get parent(): Space | Branch | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -203,6 +218,20 @@ export class Snapshot extends Node implements Spatial, Entity, IsTracked, IsDele
 
 /* ==== DESTACK_GENERATED_START:NODE:1510 ==== */
 export class Branch extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOwnable {
+  static metatype: NodeType = NodeType.BRANCH;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.OWNABLE,
+    TraitType.DELETABLE,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [NodeType.SNAPSHOT];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [NodeType.SNAPSHOT];
+
   readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;

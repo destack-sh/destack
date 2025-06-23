@@ -36,16 +36,82 @@ import {
   Supergraph,
   TextView,
   ThreadView,
+  TraitType,
   User,
   Value,
   WizardView,
 } from "@/language";
+import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:3000 ==== */
 export class Script
   extends Node
   implements Spatial, Entity, IsTracked, IsDeletable, IsExtensible, IsOrdered, IsRunnable
 {
+  static metatype: NodeType = NodeType.SCRIPT;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.DELETABLE,
+    TraitType.EXTENSIBLE,
+    TraitType.ORDERED,
+    TraitType.RUNNABLE,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [
+    NodeType.LINE_SHAPE,
+    NodeType.PLANE_SHAPE,
+    NodeType.ARROW_SHAPE,
+    NodeType.ANNOTATION_SHAPE,
+    NodeType.CUSTOM_VIEW_DEFINITION,
+    NodeType.CUSTOM_VIEW,
+    NodeType.WIZARD_VIEW,
+    NodeType.NUMBER_INPUT_VIEW,
+    NodeType.SLIDER_INPUT_VIEW,
+    NodeType.FRAME_VIEW,
+    NodeType.LABEL_VIEW,
+    NodeType.SCENE,
+    NodeType.SPLIT_VIEW,
+    NodeType.SCRIPT,
+    NodeType.LAYER,
+    NodeType.SERVICE,
+    NodeType.CUSTOM_ENTITY_DEFINITION,
+    NodeType.TEXT_VIEW,
+    NodeType.AGENT,
+    NodeType.FOLDER,
+    NodeType.THREAD_VIEW,
+    NodeType.CANVAS,
+  ];
+  static __childTypes__: NodeType[] = [NodeType.FIELD, NodeType.SCRIPT];
+  static __ancestorTypes__: NodeType[] = [
+    NodeType.SPACE,
+    NodeType.LINE_SHAPE,
+    NodeType.PLANE_SHAPE,
+    NodeType.ARROW_SHAPE,
+    NodeType.ANNOTATION_SHAPE,
+    NodeType.CUSTOM_VIEW_DEFINITION,
+    NodeType.CUSTOM_VIEW,
+    NodeType.WIZARD_VIEW,
+    NodeType.NUMBER_INPUT_VIEW,
+    NodeType.SLIDER_INPUT_VIEW,
+    NodeType.FRAME_VIEW,
+    NodeType.WINDOW,
+    NodeType.LABEL_VIEW,
+    NodeType.SCENE,
+    NodeType.SPLIT_VIEW,
+    NodeType.SCRIPT,
+    NodeType.LAYER,
+    NodeType.SERVICE,
+    NodeType.CUSTOM_ENTITY_DEFINITION,
+    NodeType.AGENT,
+    NodeType.TEXT_VIEW,
+    NodeType.FOLDER,
+    NodeType.THREAD_VIEW,
+    NodeType.CANVAS,
+  ];
+  static __descendantTypes__: NodeType[] = [NodeType.SCRIPT, NodeType.OPTION, NodeType.TAGGING, NodeType.FIELD];
+
   readonly id: string;
   get parent():
     | Folder

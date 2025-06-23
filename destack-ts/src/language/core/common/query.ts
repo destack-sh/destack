@@ -1,4 +1,13 @@
-import { AttributeReference, RelationReference, Session, Struct, StructFrozen, Supergraph, Value } from "@/language";
+import {
+  AttributeReference,
+  RelationReference,
+  Session,
+  Struct,
+  StructFrozen,
+  StructType,
+  Supergraph,
+  Value,
+} from "@/language";
 
 /* ==== DESTACK_GENERATED_START:ENUM:108 ==== */
 export enum FunctionType {
@@ -96,6 +105,9 @@ export enum QueryUpdateType {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50101 ==== */
 export class Function extends StructFrozen {
+  static metatype: StructType = StructType.FUNCTION;
+  static __isFrozen__: boolean = true;
+
   readonly type: FunctionType;
   readonly left: Expression;
   readonly right: Expression | null;
@@ -133,6 +145,9 @@ export class Function extends StructFrozen {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50104 ==== */
 export class Condition extends StructFrozen {
+  static metatype: StructType = StructType.CONDITION;
+  static __isFrozen__: boolean = true;
+
   readonly type: ConditionalType;
   readonly left: Expression;
   readonly right: Expression | null;
@@ -170,6 +185,9 @@ export class Condition extends StructFrozen {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50103 ==== */
 export class Aggregation extends StructFrozen {
+  static metatype: StructType = StructType.AGGREGATION;
+  static __isFrozen__: boolean = true;
+
   readonly type: AggregationType;
   readonly expression: Expression | null;
 
@@ -204,6 +222,9 @@ export class Aggregation extends StructFrozen {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50100 ==== */
 export class Expression extends StructFrozen {
+  static metatype: StructType = StructType.EXPRESSION;
+  static __isFrozen__: boolean = true;
+
   readonly type: ExpressionType;
   readonly literal: Value | null;
   readonly attribute: AttributeReference | null;
@@ -250,6 +271,9 @@ export class Expression extends StructFrozen {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50105 ==== */
 export class Sort extends StructFrozen {
+  static metatype: StructType = StructType.SORT;
+  static __isFrozen__: boolean = true;
+
   readonly type: SortType;
   readonly by: Expression;
   readonly mode: SortMode | null;
@@ -287,6 +311,9 @@ export class Sort extends StructFrozen {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50106 ==== */
 export class Select extends StructFrozen {
+  static metatype: StructType = StructType.SELECT;
+  static __isFrozen__: boolean = true;
+
   readonly attributes: Array<AttributeReference>;
 
   constructor(options: {
@@ -318,6 +345,9 @@ export class Select extends StructFrozen {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50102 ==== */
 export class Join extends StructFrozen {
+  static metatype: StructType = StructType.JOIN;
+  static __isFrozen__: boolean = true;
+
   readonly type: JoinType;
   readonly relation: RelationReference | null;
   readonly recursive: boolean;
@@ -361,6 +391,9 @@ export class Join extends StructFrozen {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50110 ==== */
 export class Query extends StructFrozen {
+  static metatype: StructType = StructType.QUERY;
+  static __isFrozen__: boolean = true;
+
   readonly id: string;
   readonly type: QueryType;
   readonly name: string;
@@ -431,6 +464,9 @@ export class Query extends StructFrozen {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50114 ==== */
 export class Histogram extends StructFrozen {
+  static metatype: StructType = StructType.HISTOGRAM;
+  static __isFrozen__: boolean = true;
+
   readonly buckets: Array<Value>;
   readonly counts: Array<number>;
 
@@ -465,6 +501,9 @@ export class Histogram extends StructFrozen {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50111 ==== */
 export class QueryResult extends Struct {
+  static metatype: StructType = StructType.QUERY_RESULT;
+  static __isFrozen__: boolean = false;
+
   id: string;
   type: QueryType;
   groups: Array<QueryResultGroup>;
@@ -517,6 +556,9 @@ export class QueryResult extends Struct {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50112 ==== */
 export class QueryResultGroup extends Struct {
+  static metatype: StructType = StructType.QUERY_RESULT_GROUP;
+  static __isFrozen__: boolean = false;
+
   type: QueryType;
   discriminator: Value;
   nodes: Array<Value>;
@@ -563,6 +605,9 @@ export class QueryResultGroup extends Struct {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50113 ==== */
 export class QueryUpdate extends StructFrozen {
+  static metatype: StructType = StructType.QUERY_UPDATE;
+  static __isFrozen__: boolean = true;
+
   readonly type: QueryUpdateType;
   readonly result: QueryResult | null;
 
@@ -597,6 +642,9 @@ export class QueryUpdate extends StructFrozen {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2571 ==== */
 export class Selection extends StructFrozen {
+  static metatype: StructType = StructType.SELECTION;
+  static __isFrozen__: boolean = true;
+
   constructor(options: { _session?: Session | null; _supergraph?: Supergraph | null }) {
     super(
       // supergraph

@@ -19,6 +19,7 @@ import {
   Supergraph,
   Team,
   Thread,
+  TraitType,
   User,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
@@ -31,6 +32,26 @@ export enum PermissionType {
 
 /* ==== DESTACK_GENERATED_START:NODE:530 ==== */
 export class Permission extends Node implements Spatial, Entity, IsTracked, IsDeletable {
+  static metatype: NodeType = NodeType.PERMISSION;
+  static __traits__: TraitType[] = [TraitType.TRACKED, TraitType.SPATIAL, TraitType.ENTITY, TraitType.DELETABLE];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [
+    NodeType.SPACE,
+    NodeType.FOLDER,
+    NodeType.ORGANIZATION,
+    NodeType.TEAM,
+    NodeType.THREAD,
+  ];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [
+    NodeType.SPACE,
+    NodeType.FOLDER,
+    NodeType.ORGANIZATION,
+    NodeType.TEAM,
+    NodeType.THREAD,
+  ];
+  static __descendantTypes__: NodeType[] = [];
+
   readonly id: string;
   get parent(): Folder | Thread | Organization | Space | Team | Folder | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;

@@ -17,11 +17,28 @@ import {
   Spatial,
   StructType,
   Supergraph,
+  TraitType,
   User,
 } from "@/language";
+import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:5521 ==== */
 export class Star extends Node implements Global, Spatial, Entity, IsTracked, IsDeletable, IsOwnable {
+  static metatype: NodeType = NodeType.STAR;
+  static __traits__: TraitType[] = [
+    TraitType.GLOBAL,
+    TraitType.SPATIAL,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.OWNABLE,
+    TraitType.DELETABLE,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.FOLDER, NodeType.SPACE];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.FOLDER, NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
   readonly id: string;
   get parent(): Folder | Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;

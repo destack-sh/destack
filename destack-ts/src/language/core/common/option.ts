@@ -21,14 +21,64 @@ import {
   Spatial,
   StructType,
   Supergraph,
+  TraitType,
   User,
 } from "@/language";
+import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:2530 ==== */
 export class Option
   extends Node
   implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsTaggable, IsSourceable
 {
+  static metatype: NodeType = NodeType.OPTION;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.TAGGABLE,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.DELETABLE,
+    TraitType.ORDERED,
+    TraitType.SOURCEABLE,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.FIELD, NodeType.CUSTOM_STRUCT_DEFINITION];
+  static __childTypes__: NodeType[] = [NodeType.TAGGING];
+  static __ancestorTypes__: NodeType[] = [
+    NodeType.SPACE,
+    NodeType.LINE_SHAPE,
+    NodeType.PLANE_SHAPE,
+    NodeType.ARROW_SHAPE,
+    NodeType.ANNOTATION_SHAPE,
+    NodeType.CUSTOM_VIEW_DEFINITION,
+    NodeType.CUSTOM_VIEW,
+    NodeType.WIZARD_VIEW,
+    NodeType.NUMBER_INPUT_VIEW,
+    NodeType.SLIDER_INPUT_VIEW,
+    NodeType.RUN,
+    NodeType.FRAME_VIEW,
+    NodeType.WINDOW,
+    NodeType.LABEL_VIEW,
+    NodeType.SCENE,
+    NodeType.INTERRUPTION,
+    NodeType.SPLIT_VIEW,
+    NodeType.SCRIPT,
+    NodeType.LAYER,
+    NodeType.SERVICE,
+    NodeType.CUSTOM_STRUCT_DEFINITION,
+    NodeType.ACTION,
+    NodeType.CUSTOM_ENUM_DEFINITION,
+    NodeType.CUSTOM_ENTITY_DEFINITION,
+    NodeType.CUSTOM_ENTITY,
+    NodeType.FIELD,
+    NodeType.AGENT,
+    NodeType.TEXT_VIEW,
+    NodeType.FOLDER,
+    NodeType.THREAD_VIEW,
+    NodeType.CANVAS,
+  ];
+  static __descendantTypes__: NodeType[] = [NodeType.TAGGING];
+
   readonly id: string;
   get parent(): CustomStructDefinition | Field | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;

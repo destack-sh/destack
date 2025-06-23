@@ -1,4 +1,5 @@
 import { Agent, Dimension, MaterializationType, NodeReference, Position, Script, Space, User } from "@/language";
+import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:TRAIT:10650 ==== */
 export interface InternalView {

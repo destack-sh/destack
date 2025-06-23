@@ -51,6 +51,9 @@ export enum ChangeDebounce {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50020 ==== */
 export class Edit extends StructFrozen {
+  static metatype: StructType = StructType.EDIT;
+  static __isFrozen__: boolean = true;
+
   readonly id: string;
   readonly type: EditType;
   readonly operation: EditOperation | null;
@@ -136,6 +139,9 @@ export class Edit extends StructFrozen {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50021 ==== */
 export class Change extends StructFrozen {
+  static metatype: StructType = StructType.CHANGE;
+  static __isFrozen__: boolean = true;
+
   readonly id: string;
   readonly name: string | null;
   readonly createdAt: Temporal.ZonedDateTime;
@@ -200,6 +206,9 @@ export class Change extends StructFrozen {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50022 ==== */
 export class ChangeResult extends StructFrozen {
+  static metatype: StructType = StructType.CHANGE_RESULT;
+  static __isFrozen__: boolean = true;
+
   readonly id: string;
   readonly createdAt: Temporal.ZonedDateTime;
   readonly debounce: ChangeDebounce | null;

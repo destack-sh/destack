@@ -1,7 +1,10 @@
-import { Session, StructFrozen, Supergraph, Type } from "@/language";
+import { Session, StructFrozen, StructType, Supergraph, Type } from "@/language";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2500 ==== */
 export class Value extends StructFrozen {
+  static metatype: StructType = StructType.VALUE;
+  static __isFrozen__: boolean = true;
+
   readonly type: Type;
   readonly value: any;
 

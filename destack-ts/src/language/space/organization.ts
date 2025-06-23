@@ -17,6 +17,7 @@ import {
   Space,
   StructType,
   Supergraph,
+  TraitType,
   User,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
@@ -30,6 +31,34 @@ export enum OrganizationStatus {
 
 /* ==== DESTACK_GENERATED_START:NODE:40 ==== */
 export class Organization extends Node implements Global, Entity, IsTracked, IsJoinable, IsOwner {
+  static metatype: NodeType = NodeType.ORGANIZATION;
+  static __traits__: TraitType[] = [
+    TraitType.GLOBAL,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.JOINABLE,
+    TraitType.OWNER,
+  ];
+  static __rootType__: NodeType | null = null;
+  static __parentTypes__: NodeType[] = [];
+  static __childTypes__: NodeType[] = [
+    NodeType.ENTITLEMENT,
+    NodeType.INVITE,
+    NodeType.MEMBERSHIP,
+    NodeType.PERMISSION,
+    NodeType.ROLE,
+    NodeType.SANCTION,
+  ];
+  static __ancestorTypes__: NodeType[] = [];
+  static __descendantTypes__: NodeType[] = [
+    NodeType.ENTITLEMENT,
+    NodeType.ROLE,
+    NodeType.PERMISSION,
+    NodeType.MEMBERSHIP,
+    NodeType.SANCTION,
+    NodeType.INVITE,
+  ];
+
   readonly id: string;
   get parent(): Node | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;

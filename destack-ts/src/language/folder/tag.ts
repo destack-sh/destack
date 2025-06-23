@@ -55,6 +55,7 @@ import {
   Theme,
   Thread,
   ThreadView,
+  TraitType,
   TransitionStyle,
   User,
   WizardView,
@@ -63,6 +64,21 @@ import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:1010 ==== */
 export class Tag extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, LikeTag {
+  static metatype: NodeType = NodeType.TAG;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.TAG,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.DELETABLE,
+    TraitType.ORDERED,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.FOLDER];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.FOLDER, NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
   readonly id: string;
   get parent(): Folder | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -222,6 +238,110 @@ export class Tag extends Node implements Spatial, Entity, IsTracked, IsDeletable
 
 /* ==== DESTACK_GENERATED_START:NODE:1011 ==== */
 export class Tagging extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsTaggable {
+  static metatype: NodeType = NodeType.TAGGING;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.TAGGABLE,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.DELETABLE,
+    TraitType.ORDERED,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [
+    NodeType.LINE_SHAPE,
+    NodeType.PLANE_SHAPE,
+    NodeType.ARROW_SHAPE,
+    NodeType.ANNOTATION_SHAPE,
+    NodeType.MESSAGE,
+    NodeType.CUSTOM_VIEW_DEFINITION,
+    NodeType.CUSTOM_VIEW,
+    NodeType.WIZARD_VIEW,
+    NodeType.NUMBER_INPUT_VIEW,
+    NodeType.SLIDER_INPUT_VIEW,
+    NodeType.FRAME_VIEW,
+    NodeType.LABEL_VIEW,
+    NodeType.SCENE,
+    NodeType.SPLIT_VIEW,
+    NodeType.LAYER,
+    NodeType.SERVICE,
+    NodeType.CUSTOM_STRUCT_DEFINITION,
+    NodeType.ACTION,
+    NodeType.CUSTOM_ENUM_DEFINITION,
+    NodeType.CUSTOM_ENTITY_DEFINITION,
+    NodeType.SHADOW_STYLE,
+    NodeType.ROUTE,
+    NodeType.TEXT_VIEW,
+    NodeType.FIELD,
+    NodeType.THEME,
+    NodeType.OPTION,
+    NodeType.THREAD_VIEW,
+    NodeType.FOLDER,
+    NodeType.EDIT_EVENT,
+    NodeType.PALETTE,
+    NodeType.TAGGING,
+    NodeType.COLOR_STYLE,
+    NodeType.FILL_STYLE,
+    NodeType.FONT_STYLE,
+    NodeType.BORDER_STYLE,
+    NodeType.CANVAS,
+    NodeType.GRADIENT_STYLE,
+    NodeType.TRANSITION_STYLE,
+    NodeType.EFFECT_STYLE,
+    NodeType.THREAD,
+  ];
+  static __childTypes__: NodeType[] = [NodeType.TAGGING];
+  static __ancestorTypes__: NodeType[] = [
+    NodeType.SPACE,
+    NodeType.LINE_SHAPE,
+    NodeType.PLANE_SHAPE,
+    NodeType.ARROW_SHAPE,
+    NodeType.ANNOTATION_SHAPE,
+    NodeType.MESSAGE,
+    NodeType.CUSTOM_VIEW_DEFINITION,
+    NodeType.CUSTOM_VIEW,
+    NodeType.WIZARD_VIEW,
+    NodeType.NUMBER_INPUT_VIEW,
+    NodeType.SLIDER_INPUT_VIEW,
+    NodeType.RUN,
+    NodeType.FRAME_VIEW,
+    NodeType.WINDOW,
+    NodeType.LABEL_VIEW,
+    NodeType.SCENE,
+    NodeType.INTERRUPTION,
+    NodeType.SPLIT_VIEW,
+    NodeType.SCRIPT,
+    NodeType.LAYER,
+    NodeType.SERVICE,
+    NodeType.CUSTOM_STRUCT_DEFINITION,
+    NodeType.ACTION,
+    NodeType.CUSTOM_ENUM_DEFINITION,
+    NodeType.CUSTOM_ENTITY_DEFINITION,
+    NodeType.CUSTOM_ENTITY,
+    NodeType.SHADOW_STYLE,
+    NodeType.ROUTE,
+    NodeType.TEXT_VIEW,
+    NodeType.FIELD,
+    NodeType.AGENT,
+    NodeType.THEME,
+    NodeType.OPTION,
+    NodeType.FOLDER,
+    NodeType.THREAD_VIEW,
+    NodeType.PALETTE,
+    NodeType.EDIT_EVENT,
+    NodeType.TAGGING,
+    NodeType.COLOR_STYLE,
+    NodeType.FILL_STYLE,
+    NodeType.FONT_STYLE,
+    NodeType.BORDER_STYLE,
+    NodeType.CANVAS,
+    NodeType.GRADIENT_STYLE,
+    NodeType.TRANSITION_STYLE,
+    NodeType.EFFECT_STYLE,
+    NodeType.THREAD,
+  ];
+  static __descendantTypes__: NodeType[] = [NodeType.TAGGING];
+
   readonly id: string;
   get parent():
     | CustomEntityDefinition

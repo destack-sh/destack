@@ -36,6 +36,9 @@ export enum PropertyReferenceType {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50000 ==== */
 export class Scope extends StructFrozen {
+  static metatype: StructType = StructType.SCOPE;
+  static __isFrozen__: boolean = true;
+
   readonly region: Region | null;
   readonly spaceId: string | null;
 
@@ -70,6 +73,9 @@ export class Scope extends StructFrozen {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50107 ==== */
 export class RelationReference extends StructFrozen {
+  static metatype: StructType = StructType.RELATION_REFERENCE;
+  static __isFrozen__: boolean = true;
+
   readonly type: RelationType;
   readonly nodeType: NodeType | null;
   get definition(): CustomEntityDefinition | null {
@@ -125,6 +131,9 @@ export class RelationReference extends StructFrozen {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50108 ==== */
 export class AttributeReference extends StructFrozen {
+  static metatype: StructType = StructType.ATTRIBUTE_REFERENCE;
+  static __isFrozen__: boolean = true;
+
   readonly type: AttributeType;
   readonly propPtr: PropertyReference | null;
   get field(): Field | null {
@@ -177,6 +186,9 @@ export class AttributeReference extends StructFrozen {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50003 ==== */
 export class PropertyReference extends StructFrozen {
+  static metatype: StructType = StructType.PROPERTY_REFERENCE;
+  static __isFrozen__: boolean = true;
+
   readonly type: PropertyReferenceType;
   readonly nodeType: NodeType | null;
   readonly traitType: TraitType | null;
@@ -220,6 +232,9 @@ export class PropertyReference extends StructFrozen {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50002 ==== */
 export class NodeReference extends StructFrozen {
+  static metatype: StructType = StructType.NODE_REFERENCE;
+  static __isFrozen__: boolean = true;
+
   readonly nodeType: NodeType;
   readonly id: string;
   readonly spaceId: string | null;

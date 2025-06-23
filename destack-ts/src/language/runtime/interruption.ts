@@ -21,6 +21,7 @@ import {
   Spatial,
   StructType,
   Supergraph,
+  TraitType,
   User,
   Value,
 } from "@/language";
@@ -51,6 +52,21 @@ export enum InterruptionResponse {
 
 /* ==== DESTACK_GENERATED_START:NODE:4020 ==== */
 export class Interruption extends Node implements Spatial, Particle, Analytic, Indexed, IsTracked, IsExtensible {
+  static metatype: NodeType = NodeType.INTERRUPTION;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.PARTICLE,
+    TraitType.ANALYTIC,
+    TraitType.INDEXED,
+    TraitType.TRACKED,
+    TraitType.EXTENSIBLE,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.RUN];
+  static __childTypes__: NodeType[] = [NodeType.FIELD];
+  static __ancestorTypes__: NodeType[] = [NodeType.RUN, NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [NodeType.FIELD, NodeType.OPTION, NodeType.TAGGING];
+
   readonly id: string;
   get parent(): Run | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;

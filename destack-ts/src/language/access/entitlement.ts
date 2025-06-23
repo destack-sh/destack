@@ -23,6 +23,7 @@ import {
   Supergraph,
   Team,
   Thread,
+  TraitType,
   User,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
@@ -45,6 +46,22 @@ export enum EntitlementType {
 
 /* ==== DESTACK_GENERATED_START:NODE:551 ==== */
 export class EntitlementEvent extends Node implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked {
+  static metatype: NodeType = NodeType.ENTITLEMENT_EVENT;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.PARTICLE,
+    TraitType.ANALYTIC,
+    TraitType.INDEXED,
+    TraitType.FROZEN,
+    TraitType.TRACKED,
+    TraitType.EVENT,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
   readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -208,6 +225,30 @@ export class EntitlementEvent extends Node implements Spatial, Particle, Analyti
 
 /* ==== DESTACK_GENERATED_START:NODE:550 ==== */
 export class Entitlement extends Node implements Spatial, Entity, IsTracked, IsDeletable {
+  static metatype: NodeType = NodeType.ENTITLEMENT;
+  static __traits__: TraitType[] = [TraitType.TRACKED, TraitType.SPATIAL, TraitType.ENTITY, TraitType.DELETABLE];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [
+    NodeType.SPACE,
+    NodeType.FOLDER,
+    NodeType.ORGANIZATION,
+    NodeType.TEAM,
+    NodeType.USER,
+    NodeType.AGENT,
+    NodeType.THREAD,
+  ];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [
+    NodeType.SPACE,
+    NodeType.FOLDER,
+    NodeType.ORGANIZATION,
+    NodeType.TEAM,
+    NodeType.USER,
+    NodeType.AGENT,
+    NodeType.THREAD,
+  ];
+  static __descendantTypes__: NodeType[] = [];
+
   readonly id: string;
   get parent(): Agent | User | Folder | Thread | Organization | Space | Team | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;

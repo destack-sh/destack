@@ -18,11 +18,29 @@ import {
   Spatial,
   StructType,
   Supergraph,
+  TraitType,
   User,
 } from "@/language";
+import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:5530 ==== */
 export class Follow extends Node implements Global, Spatial, Entity, IsTracked, IsDeletable, IsOwnable, LikeFollow {
+  static metatype: NodeType = NodeType.FOLLOW;
+  static __traits__: TraitType[] = [
+    TraitType.GLOBAL,
+    TraitType.SPATIAL,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.OWNABLE,
+    TraitType.DELETABLE,
+    TraitType.FOLLOW,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.FOLDER, NodeType.SPACE, NodeType.AGENT, NodeType.USER];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.AGENT, NodeType.FOLDER, NodeType.USER, NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
   readonly id: string;
   get parent(): Folder | Agent | Space | User | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;

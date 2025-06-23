@@ -25,6 +25,7 @@ import {
   StructType,
   Supergraph,
   Team,
+  TraitType,
   User,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
@@ -54,6 +55,95 @@ export class Folder
     IsStarable,
     IsFollowable
 {
+  static metatype: NodeType = NodeType.FOLDER;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.TAGGABLE,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.OWNABLE,
+    TraitType.DELETABLE,
+    TraitType.JOINABLE,
+    TraitType.ORDERED,
+    TraitType.STARABLE,
+    TraitType.FOLLOWABLE,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.FOLDER, NodeType.SPACE];
+  static __childTypes__: NodeType[] = [
+    NodeType.CUSTOM_ENTITY_DEFINITION,
+    NodeType.ENTITLEMENT,
+    NodeType.INVITE,
+    NodeType.MEMBERSHIP,
+    NodeType.PERMISSION,
+    NodeType.ROLE,
+    NodeType.SANCTION,
+    NodeType.CUSTOM_VIEW_DEFINITION,
+    NodeType.FOLDER,
+    NodeType.TAG,
+    NodeType.TAGGING,
+    NodeType.ROUTE,
+    NodeType.SCRIPT,
+    NodeType.SCENE,
+    NodeType.FOLLOW,
+    NodeType.STAR,
+    NodeType.THREAD,
+    NodeType.AGENT,
+  ];
+  static __ancestorTypes__: NodeType[] = [NodeType.FOLDER, NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [
+    NodeType.LINE_SHAPE,
+    NodeType.PLANE_SHAPE,
+    NodeType.ARROW_SHAPE,
+    NodeType.ANNOTATION_SHAPE,
+    NodeType.MESSAGE,
+    NodeType.ROLE,
+    NodeType.REACTION,
+    NodeType.STAR,
+    NodeType.PERMISSION,
+    NodeType.CUSTOM_VIEW,
+    NodeType.CUSTOM_VIEW_DEFINITION,
+    NodeType.FOLLOW,
+    NodeType.WIZARD_VIEW,
+    NodeType.SANCTION,
+    NodeType.NUMBER_INPUT_VIEW,
+    NodeType.SLIDER_INPUT_VIEW,
+    NodeType.FRAME_VIEW,
+    NodeType.ENTITLEMENT,
+    NodeType.LABEL_VIEW,
+    NodeType.CANVAS,
+    NodeType.SCENE,
+    NodeType.SCRIPT,
+    NodeType.SPLIT_VIEW,
+    NodeType.LAYER,
+    NodeType.VARIANT,
+    NodeType.BORDER_STYLE,
+    NodeType.ACTION,
+    NodeType.CUSTOM_ENTITY_DEFINITION,
+    NodeType.CUSTOM_ENTITY,
+    NodeType.ROUTE,
+    NodeType.FIELD,
+    NodeType.AGENT,
+    NodeType.TEXT_VIEW,
+    NodeType.OPTION,
+    NodeType.CLIENT,
+    NodeType.THREAD_VIEW,
+    NodeType.FOLDER,
+    NodeType.PALETTE,
+    NodeType.TAG,
+    NodeType.TAGGING,
+    NodeType.MEMBERSHIP,
+    NodeType.COLOR_STYLE,
+    NodeType.FONT_STYLE,
+    NodeType.FILL_STYLE,
+    NodeType.SHADOW_STYLE,
+    NodeType.GRADIENT_STYLE,
+    NodeType.TRANSITION_STYLE,
+    NodeType.EFFECT_STYLE,
+    NodeType.THREAD,
+    NodeType.INVITE,
+  ];
+
   readonly id: string;
   get parent(): Space | Folder | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
