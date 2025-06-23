@@ -1,5 +1,48 @@
-import { IsDeletable, SplitView, IsOrdered, CustomView, ThreadView, Entity, MaterializationType, Canvas, NodeType, QueryConnection, StructType, Space, Style, NodeReference, Graph, NumberInputView, User, IsTaggable, Struct, FrameView, StructFrozen, PlaneShape, Spatial, BuiltinObject, EnumType, LineShape, Scene, Layer, Axis2, Agent, SliderInputView, TextView, Theme, activeSession, Node, IsTracked, Supergraph, WizardView, Color, AnnotationShape, CustomViewDefinition, ACTIVE_SESSION, IsVisual, LabelView, Session, ArrowShape } from '@/language';
-import { Temporal } from 'temporal-polyfill';
+import {
+  Agent,
+  AnnotationShape,
+  ArrowShape,
+  Axis2,
+  Canvas,
+  Color,
+  CustomView,
+  CustomViewDefinition,
+  Entity,
+  FrameView,
+  Graph,
+  IsDeletable,
+  IsOrdered,
+  IsTaggable,
+  IsTracked,
+  IsVisual,
+  LabelView,
+  Layer,
+  LineShape,
+  MaterializationType,
+  Node,
+  NodeReference,
+  NodeType,
+  NumberInputView,
+  PlaneShape,
+  QueryConnection,
+  Scene,
+  Session,
+  SliderInputView,
+  Space,
+  Spatial,
+  SplitView,
+  Struct,
+  StructFrozen,
+  StructType,
+  Style,
+  Supergraph,
+  TextView,
+  Theme,
+  ThreadView,
+  User,
+  WizardView,
+} from "@/language";
+import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12033 ==== */
 export enum GradientType {
@@ -16,14 +59,14 @@ export class GradientStop extends StructFrozen {
   readonly position: number;
 
   constructor(options: {
-    color?: Color | null,
-    position: number,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    color?: Color | null;
+    position: number;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.color = options.color ?? null;
@@ -48,45 +91,49 @@ export class GradientStop extends StructFrozen {
 export class Gradient extends Struct {
   type: GradientType;
   get style(): GradientStyle | null {
-      const nodePtr: NodeReference | null = this.stylePtr;
-      if (nodePtr !== null) {
-          if (this._supergraph === null) {
-              return null;
-          }
-          return this._supergraph.get(nodePtr.id) as GradientStyle | null;
+    const nodePtr: NodeReference | null = this.stylePtr;
+    if (nodePtr !== null) {
+      if (this._supergraph === null) {
+        return null;
       }
-      return null;
+      return this._supergraph.get(nodePtr.id) as GradientStyle | null;
+    }
+    return null;
   }
 
   set style(value: GradientStyle | null) {
-      if (value == null) {
-          this.stylePtr = null;
-      } else {
-          this.stylePtr = value.toRef();
-      }
+    if (value == null) {
+      this.stylePtr = null;
+    } else {
+      this.stylePtr = value.toRef();
+    }
   }
-  ;
-  stylePtr: NodeReference | null
+  stylePtr: NodeReference | null;
   angle: number | null;
   stops: Array<GradientStop>;
   centerAnchor: Axis2 | null;
 
   constructor(options: {
-    type?: GradientType,
-    style?: GradientStyle | NodeReference | null,
-    angle?: number | null,
-    stops?: Array<GradientStop>,
-    centerAnchor?: Axis2 | null,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    type?: GradientType;
+    style?: GradientStyle | NodeReference | null;
+    angle?: number | null;
+    stops?: Array<GradientStop>;
+    centerAnchor?: Axis2 | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.type = options.type ?? GradientType.LINEAR;
-    this.stylePtr = options.style != null ? (options.style.metatype == StructType.NODE_REFERENCE ? (options.style as NodeReference) : (options.style as Node).toRef()) : null;
+    this.stylePtr =
+      options.style != null
+        ? options.style.metatype == StructType.NODE_REFERENCE
+          ? (options.style as NodeReference)
+          : (options.style as Node).toRef()
+        : null;
     this.angle = options.angle ?? null;
     this.stops = options.stops ?? [];
     this.centerAnchor = options.centerAnchor ?? null;
@@ -107,47 +154,88 @@ export class Gradient extends Struct {
 /* ==== DESTACK_GENERATED_END:STRUCT:12016 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:12025 ==== */
-export class GradientStyle extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsTaggable, IsVisual, Style {
+export class GradientStyle
+  extends Node
+  implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsTaggable, IsVisual, Style
+{
   readonly id: string;
-  get parent(): Scene | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | TextView | NumberInputView | SliderInputView | WizardView | ThreadView | AnnotationShape | ArrowShape | Canvas | LineShape | PlaneShape | Layer | Scene | Theme | null | null {
-      const nodePtr: NodeReference | null = this.parentPtr;
-      if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Scene | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | TextView | NumberInputView | SliderInputView | WizardView | ThreadView | AnnotationShape | ArrowShape | Canvas | LineShape | PlaneShape | Layer | Scene | Theme | null | null;
-      }
-      return null;
+  get parent():
+    | Scene
+    | CustomViewDefinition
+    | CustomView
+    | FrameView
+    | LabelView
+    | SplitView
+    | TextView
+    | NumberInputView
+    | SliderInputView
+    | WizardView
+    | ThreadView
+    | AnnotationShape
+    | ArrowShape
+    | Canvas
+    | LineShape
+    | PlaneShape
+    | Layer
+    | Scene
+    | Theme
+    | null
+    | null {
+    const nodePtr: NodeReference | null = this.parentPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as
+        | Scene
+        | CustomViewDefinition
+        | CustomView
+        | FrameView
+        | LabelView
+        | SplitView
+        | TextView
+        | NumberInputView
+        | SliderInputView
+        | WizardView
+        | ThreadView
+        | AnnotationShape
+        | ArrowShape
+        | Canvas
+        | LineShape
+        | PlaneShape
+        | Layer
+        | Scene
+        | Theme
+        | null
+        | null;
+    }
+    return null;
   }
-  ;
-  readonly parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null;
   get space(): Space | null | null {
-      const nodePtr: NodeReference | null = this.spacePtr;
-      if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null | null;
-      }
-      return null;
+    const nodePtr: NodeReference | null = this.spacePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null | null;
+    }
+    return null;
   }
-  ;
-  readonly spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
-      const nodePtr: NodeReference | null = this.createdByPtr;
-      if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
-      }
-      return null;
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+    }
+    return null;
   }
-  ;
-  readonly createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
-      const nodePtr: NodeReference | null = this.updatedByPtr;
-      if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
-      }
-      return null;
+    const nodePtr: NodeReference | null = this.updatedByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+    }
+    return null;
   }
-  ;
-  readonly updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null;
   readonly deletedAt: Temporal.ZonedDateTime | null;
   readonly orderKey: string;
   type: GradientType;
@@ -158,54 +246,99 @@ export class GradientStyle extends Node implements Spatial, Entity, IsTracked, I
   dark: Gradient | null;
 
   constructor(options: {
-    id: string,
-    parent?: Scene | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | TextView | NumberInputView | SliderInputView | WizardView | ThreadView | AnnotationShape | ArrowShape | Canvas | LineShape | PlaneShape | Layer | Scene | Theme | NodeReference | null,
-    space?: Space | NodeReference | null,
-    materialization?: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdBy?: Agent | User | NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedBy?: Agent | User | NodeReference | null,
-    deletedAt?: Temporal.ZonedDateTime | null,
-    orderKey?: string,
-    type?: GradientType,
-    name: string,
-    angle?: number | null,
-    stops?: Array<GradientStop>,
-    centerAnchor?: Axis2 | null,
-    dark?: Gradient | null,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: Graph | null,
-    _connection?: QueryConnection | null
+    id: string;
+    parent?:
+      | Scene
+      | CustomViewDefinition
+      | CustomView
+      | FrameView
+      | LabelView
+      | SplitView
+      | TextView
+      | NumberInputView
+      | SliderInputView
+      | WizardView
+      | ThreadView
+      | AnnotationShape
+      | ArrowShape
+      | Canvas
+      | LineShape
+      | PlaneShape
+      | Layer
+      | Scene
+      | Theme
+      | NodeReference
+      | null;
+    space?: Space | NodeReference | null;
+    materialization?: MaterializationType;
+    createdAt: Temporal.ZonedDateTime;
+    createdBy?: Agent | User | NodeReference | null;
+    updatedAt: Temporal.ZonedDateTime;
+    updatedBy?: Agent | User | NodeReference | null;
+    deletedAt?: Temporal.ZonedDateTime | null;
+    orderKey?: string;
+    type?: GradientType;
+    name: string;
+    angle?: number | null;
+    stops?: Array<GradientStop>;
+    centerAnchor?: Axis2 | null;
+    dark?: Gradient | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _graph?: Graph | null;
+    _connection?: QueryConnection | null;
   }) {
     super(
-        // id
-        options.id,
-        // parent
-        options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null,
-        // session
-        options._session ?? null,
-        // supergraph
-        options._supergraph ?? null,
-        // graph
-        options._graph ?? null,
-        // connection
-        options._connection ?? null,
-        // is_new
-        options.id == null,
-        // is_attached
-        options.id != null,
+      // id
+      options.id,
+      // parent
+      options.parent != null
+        ? options.parent.metatype == StructType.NODE_REFERENCE
+          ? (options.parent as NodeReference)
+          : (options.parent as Node).toRef()
+        : null,
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+      // graph
+      options._graph ?? null,
+      // connection
+      options._connection ?? null,
+      // is_new
+      options.id == null,
+      // is_attached
+      options.id != null,
     );
 
     this.id = options.id;
-    this.parentPtr = options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null;
-    this.spacePtr = options.space != null ? (options.space.metatype == StructType.NODE_REFERENCE ? (options.space as NodeReference) : (options.space as Node).toRef()) : null;
+    this.parentPtr =
+      options.parent != null
+        ? options.parent.metatype == StructType.NODE_REFERENCE
+          ? (options.parent as NodeReference)
+          : (options.parent as Node).toRef()
+        : null;
+    this.spacePtr =
+      options.space != null
+        ? options.space.metatype == StructType.NODE_REFERENCE
+          ? (options.space as NodeReference)
+          : (options.space as Node).toRef()
+        : null;
     this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
     this.createdAt = options.createdAt;
-    this.createdByPtr = options.createdBy != null ? (options.createdBy.metatype == StructType.NODE_REFERENCE ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
+    this.createdByPtr =
+      options.createdBy != null
+        ? options.createdBy.metatype == StructType.NODE_REFERENCE
+          ? (options.createdBy as NodeReference)
+          : (options.createdBy as Node).toRef()
+        : null;
     this.updatedAt = options.updatedAt;
-    this.updatedByPtr = options.updatedBy != null ? (options.updatedBy.metatype == StructType.NODE_REFERENCE ? (options.updatedBy as NodeReference) : (options.updatedBy as Node).toRef()) : null;
+    this.updatedByPtr =
+      options.updatedBy != null
+        ? options.updatedBy.metatype == StructType.NODE_REFERENCE
+          ? (options.updatedBy as NodeReference)
+          : (options.updatedBy as Node).toRef()
+        : null;
     this.deletedAt = options.deletedAt ?? null;
     this.orderKey = options.orderKey ?? "a0";
     this.type = options.type ?? GradientType.LINEAR;
@@ -239,20 +372,20 @@ export class GradientStyle extends Node implements Spatial, Entity, IsTracked, I
   }
 
   get _pathKey(): string {
-      return this.name;
+    return this.name;
   }
 
   get path(): string {
-      const pathParts: string[] = [];
-      let node: Node | null = this;
-      while (node !== null) {
-          pathParts.push(node._pathKey);
-          node = node.parent;
-      }
-      if (!this._isAttached) {
-          pathParts.push("<detached>");
-      }
-      return pathParts.reverse().join("/");
+    const pathParts: string[] = [];
+    let node: Node | null = this;
+    while (node !== null) {
+      pathParts.push(node._pathKey);
+      node = node.parent;
+    }
+    if (!this._isAttached) {
+      pathParts.push("<detached>");
+    }
+    return pathParts.reverse().join("/");
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:12025 ==== */

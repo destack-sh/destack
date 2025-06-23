@@ -1,17 +1,41 @@
-import { SplitView, Border, CustomView, Dimension, MaterializationType, Canvas, NodeType, QueryConnection, Shadow, StructType, Space, NodeReference, Axis3, Graph, Script, GridSpan, Align, Value, Vector2, Insets, User, Struct, FrameView, StructFrozen, PlaneShape, Direction, BuiltinObject, EnumType, Corners, Layout, Scene, Layer, Axis2, Agent, Position, Fill, Grid, Window, activeSession, Node, Supergraph, AnnotationShape, CustomViewDefinition, ACTIVE_SESSION, Distribute, LabelView, Session } from '@/language';
+import {
+  Agent,
+  Align,
+  Axis2,
+  Axis3,
+  Border,
+  Corners,
+  Dimension,
+  Direction,
+  Distribute,
+  Fill,
+  Grid,
+  GridSpan,
+  Insets,
+  Layout,
+  MaterializationType,
+  NodeReference,
+  Position,
+  Script,
+  Shadow,
+  Space,
+  User,
+  Value,
+  Vector2,
+} from "@/language";
 
 /* ==== DESTACK_GENERATED_START:TRAIT:10000 ==== */
 export interface ContainerView {
   readonly id: string;
   get space(): Space | null;
-  readonly spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null;
-  readonly createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null;
-  readonly updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null;
   readonly deletedAt: Temporal.ZonedDateTime | null;
   value: Map<string, Value>;
   readonly orderKey: string;
@@ -42,8 +66,8 @@ export interface ContainerView {
   shadow: Shadow | null;
   border: Border | null;
   radius: Corners | null;
-  get script(): Script | null
+  get script(): Script | null;
   set script(value: Script | null);
-  scriptPtr: NodeReference | null
+  scriptPtr: NodeReference | null;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:10000 ==== */

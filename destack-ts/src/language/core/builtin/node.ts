@@ -1,8 +1,8 @@
-import { Graph, QueryConnection, Session, Supergraph } from "@/language/core/runtime";
-import { BuiltinObject } from "./object";
-import { NodeReference } from "@/language/core/common/relation";
-import { NodeTypeMapping } from "@/language/registry";
 import { activeSession, NodeType } from "@/language/core";
+import { NodeReference } from "@/language/core/common/relation";
+import { Graph, QueryConnection, Session, Supergraph } from "@/language/core/runtime";
+import { NodeTypeMapping } from "@/language/registry";
+import { BuiltinObject } from "./object";
 
 /** A Node is a collection of properties with an identity. */
 export abstract class Node extends BuiltinObject {

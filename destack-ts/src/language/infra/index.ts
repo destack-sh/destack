@@ -1,3 +1,3 @@
-export * from './database';
-export * from './galaxy';
-export * from './machine';
+export * from "./database";
+export * from "./galaxy";
+export * from "./machine";

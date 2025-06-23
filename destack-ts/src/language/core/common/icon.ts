@@ -1,4 +1,4 @@
-import { EnumType, Node, Supergraph, activeSession, Color, Session, NodeType, Struct, QueryConnection, File, StructFrozen, ACTIVE_SESSION, StructType, NodeReference, BuiltinObject, Graph } from '@/language';
+import { Color, File, Node, NodeReference, Session, StructFrozen, StructType, Supergraph } from "@/language";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2531 ==== */
 export enum IconType {
@@ -17,41 +17,45 @@ export class Icon extends StructFrozen {
   readonly faName: string | null;
   readonly vscName: string | null;
   get file(): File | null {
-      const nodePtr: NodeReference | null = this.filePtr;
-      if (nodePtr !== null) {
-          if (this._supergraph === null) {
-              return null;
-          }
-          return this._supergraph.get(nodePtr.id) as File | null;
+    const nodePtr: NodeReference | null = this.filePtr;
+    if (nodePtr !== null) {
+      if (this._supergraph === null) {
+        return null;
       }
-      return null;
+      return this._supergraph.get(nodePtr.id) as File | null;
+    }
+    return null;
   }
-  ;
-  readonly filePtr: NodeReference | null
+  readonly filePtr: NodeReference | null;
   readonly fileUrl: string | null;
   readonly color: Color | null;
 
   constructor(options: {
-    type: IconType,
-    emoji?: string | null,
-    faName?: string | null,
-    vscName?: string | null,
-    file?: File | NodeReference | null,
-    fileUrl?: string | null,
-    color?: Color | null,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    type: IconType;
+    emoji?: string | null;
+    faName?: string | null;
+    vscName?: string | null;
+    file?: File | NodeReference | null;
+    fileUrl?: string | null;
+    color?: Color | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.type = options.type;
     this.emoji = options.emoji ?? null;
     this.faName = options.faName ?? null;
     this.vscName = options.vscName ?? null;
-    this.filePtr = options.file != null ? (options.file.metatype == StructType.NODE_REFERENCE ? (options.file as NodeReference) : (options.file as Node).toRef()) : null;
+    this.filePtr =
+      options.file != null
+        ? options.file.metatype == StructType.NODE_REFERENCE
+          ? (options.file as NodeReference)
+          : (options.file as Node).toRef()
+        : null;
     this.fileUrl = options.fileUrl ?? null;
     this.color = options.color ?? null;
   }

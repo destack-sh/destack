@@ -1,4 +1,5 @@
 import re
+import subprocess
 import textwrap
 from collections import defaultdict
 from pathlib import Path
@@ -718,41 +719,71 @@ def _generate_file(file: TypescriptFile) -> str:
     existing_import_lines: list[str] = []
     existing_imports: list[TypescriptImport] = []
 
-    for line in lines:
+    import_line = 0
+    while import_line < len(lines):
+        line = lines[import_line]
         stripped = line.strip()
+
+        # skip empty lines
         if not stripped:
+            import_line += 1
             continue
+
+        # stop if we hit a non-import line
         if not stripped.startswith("import "):
             break
 
-        # parse import
-        existing_import_lines.append(line)
-        is_type = "import type " in stripped
+        # collect all lines for this import (handle multi-line imports)
+        import_lines = [line]
+        current_import = stripped
+
+        # if the line doesn't end with semicolon and contains opening brace without closing,
+        # it's likely a multi-line import
+        while (
+            not current_import.endswith(";")
+            or ("{" in current_import and "}" not in current_import)
+        ) and import_line + 1 < len(lines):
+            import_line += 1
+            next_line = lines[import_line]
+            import_lines.append(next_line)
+            current_import += " " + next_line.strip()
+
+        # add all lines for this import
+        existing_import_lines.extend(import_lines)
+
+        # parse the complete import statement
+        is_type = "import type " in current_import
 
         # extract path
-        path_match = re.search(r'from\s+["\']([^"\']+)["\']', stripped)
+        path_match = re.search(r'from\s+["\']([^"\']+)["\']', current_import)
         if not path_match:
+            import_line += 1
             continue
         path = path_match.group(1)
 
         # extract names
         names: list[str] = []
-        if "{" in stripped and "}" in stripped:  # named imports
-            names_match = re.search(r"\{\s*([^}]+)\s*\}", stripped)
+        if "{" in current_import and "}" in current_import:  # named imports
+            names_match = re.search(r"\{\s*([^}]+)\s*\}", current_import, re.DOTALL)
             if names_match:
                 names_str = names_match.group(1)
-                names = [name.strip() for name in names_str.split(",") if name.strip()]
-        elif " * as " in stripped:  # namespace import
-            namespace_match = re.search(r"\*\s+as\s+(\w+)", stripped)
+                # handle multi-line named imports by splitting on commas and cleaning whitespace
+                names = [name.strip() for name in re.split(r",\s*", names_str) if name.strip()]
+        elif " * as " in current_import:  # namespace import
+            namespace_match = re.search(r"\*\s+as\s+(\w+)", current_import)
             if namespace_match:
                 names = [namespace_match.group(1)]
         else:  # default import
-            default_match = re.search(r"import\s+(?:type\s+)?(\w+)", stripped)
+            default_match = re.search(r"import\s+(?:type\s+)?(\w+)", current_import)
             if default_match:
                 names = [default_match.group(1)]
 
-        import_ = TypescriptImport(content=line, path=path, is_type=is_type, names=names)
+        import_ = TypescriptImport(
+            content="\n".join(import_lines), path=path, is_type=is_type, names=names
+        )
         existing_imports.append(import_)
+        import_line += 1
+
     char_pos = sum(len(line) + 1 for line in existing_import_lines)  # +1 for newline
 
     # add import block
@@ -957,7 +988,7 @@ def generate():
     for node_type, node_cls in NODE_CLASS_BY_TYPE.items():
         node_map_str_parts.append(f"  [NodeType.{node_type.name}]: {node_cls.__name__},")
         node_cls_by_type_str_parts.append(f"  [NodeType.{node_type.name}]: {node_cls.__name__},")
-    node_map_str_parts.append("} as const;")
+    node_map_str_parts.append("};")
     node_cls_by_type_str_parts.append("};")
     node_map_str = "\n".join(node_map_str_parts)
     node_cls_by_type_str = "\n".join(node_cls_by_type_str_parts)
@@ -970,7 +1001,7 @@ def generate():
         struct_cls_by_type_str_parts.append(
             f"  [StructType.{struct_type.name}]: {struct_cls.__name__},"
         )
-    struct_map_str_parts.append("} as const;")
+    struct_map_str_parts.append("};")
     struct_cls_by_type_str_parts.append("};")
     struct_map_str = "\n".join(struct_map_str_parts)
     struct_cls_by_type_str = "\n".join(struct_cls_by_type_str_parts)
@@ -981,7 +1012,7 @@ def generate():
     for enum_type, enum_cls in ENUM_CLASS_BY_TYPE.items():
         enum_map_str_parts.append(f"  [EnumType.{enum_type.name}]: {enum_cls.__name__},")
         enum_cls_by_type_str_parts.append(f"  [EnumType.{enum_type.name}]: {enum_cls.__name__},")
-    enum_map_str_parts.append("} as const;")
+    enum_map_str_parts.append("};")
     enum_cls_by_type_str_parts.append("};")
     enum_map_str = "\n".join(enum_map_str_parts)
     enum_cls_by_type_str = "\n".join(enum_cls_by_type_str_parts)
@@ -1010,3 +1041,6 @@ def generate():
 
         index_content = "\n".join(index_lines) + "\n"
         index_path.write_text(index_content)
+
+    # format it all
+    subprocess.run("cd destack-ts && bun run format", shell=True, check=True)

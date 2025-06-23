@@ -1,20 +1,3 @@
-import { Node, Supergraph, activeSession, Session, Struct, QueryConnection, StructFrozen, ACTIVE_SESSION, NodeReference, BuiltinObject, Graph } from '@/language';
-
-activeSession,
-  Struct,
-  Session,
-  ACTIVE_SESSION,
-  BuiltinObject,
-  StructFrozen,
-  Supergraph,
-  NodeReference,
-  Node,
-  Graph,
-  QueryConnection,
-} from "@/language";
-import { Temporal } from "temporal-polyfill"; // until Temporal ships natively
-import { Temporal } from "temporal-polyfill"; // until Temporal ships natively
-
 /* ==== DESTACK_GENERATED_START:ENUM:50000 ==== */
 export enum EnumType {
   SPACE_STATUS = 1,

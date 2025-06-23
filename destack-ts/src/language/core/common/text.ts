@@ -1,4 +1,4 @@
-import { CustomView, FriendshipInvite, TimerEvent, Variant, SanctionEvent, Run, Space, Action, Organization, Client, Reaction, PlaneShape, EnumType, GaugeMeasurement, Agent, Thread, EventCursor, EffectStyle, CustomEntity, Theme, Notification, Supergraph, FillStyle, Invite, HistogramMeasurement, Membership, Log, InviteEvent, SplitView, Timer, Canvas, NodeType, QueryConnection, EditEvent, BorderStyle, StructType, Interruption, RunEvent, Environment, Handle, Permission, Span, FrameView, StructFrozen, Tag, Friendship, GradientStyle, Layer, ColorStyle, Star, SceneEvent, activeSession, Message, Team, Snapshot, FontStyle, CounterMetric, ArrowShape, ThreadView, RoleEvent, NodeReference, Graph, Script, NumberInputView, CustomStructDefinition, Field, ShadowStyle, Entitlement, Palette, TriggerEvent, Option, GaugeMetric, LineShape, Route, Scene, MembershipEvent, Link, CounterMeasurement, TextView, EntitlementEvent, Node, WizardView, Role, LabelView, NotificationEvent, Follow, CustomEnumDefinition, Branch, CustomEntityDefinition, Database, Folder, HistogramMetric, User, Struct, Service, BuiltinObject, FriendshipInviteEvent, SliderInputView, CustomEvent, Window, Machine, File, Tagging, Sanction, ScreenCursor, AnnotationShape, CustomViewDefinition, Trigger, CustomEventDefinition, TransitionStyle, ACTIVE_SESSION, ThreadCursor, Session } from '@/language';
+import { Node, NodeReference, Session, StructFrozen, StructType, Supergraph } from "@/language";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2521 ==== */
 export enum TextSpanType {
@@ -16,17 +16,16 @@ export class TextSpan extends StructFrozen {
   readonly type: TextSpanType;
   readonly content: string | null;
   get node(): Node | null {
-      const nodePtr: NodeReference | null = this.nodePtr;
-      if (nodePtr !== null) {
-          if (this._supergraph === null) {
-              return null;
-          }
-          return this._supergraph.get(nodePtr.id) as Node | null;
+    const nodePtr: NodeReference | null = this.nodePtr;
+    if (nodePtr !== null) {
+      if (this._supergraph === null) {
+        return null;
       }
-      return null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
+    }
+    return null;
   }
-  ;
-  readonly nodePtr: NodeReference | null
+  readonly nodePtr: NodeReference | null;
   readonly url: string | null;
   readonly isBold: boolean | null;
   readonly isItalic: boolean | null;
@@ -35,26 +34,31 @@ export class TextSpan extends StructFrozen {
   readonly isCode: boolean | null;
 
   constructor(options: {
-    type?: TextSpanType,
-    content?: string | null,
-    node?: Node | NodeReference | null,
-    url?: string | null,
-    isBold?: boolean | null,
-    isItalic?: boolean | null,
-    isStrikethrough?: boolean | null,
-    isUnderline?: boolean | null,
-    isCode?: boolean | null,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    type?: TextSpanType;
+    content?: string | null;
+    node?: Node | NodeReference | null;
+    url?: string | null;
+    isBold?: boolean | null;
+    isItalic?: boolean | null;
+    isStrikethrough?: boolean | null;
+    isUnderline?: boolean | null;
+    isCode?: boolean | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.type = options.type ?? TextSpanType.TEXT;
     this.content = options.content ?? null;
-    this.nodePtr = options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? (options.node as NodeReference) : (options.node as Node).toRef()) : null;
+    this.nodePtr =
+      options.node != null
+        ? options.node.metatype == StructType.NODE_REFERENCE
+          ? (options.node as NodeReference)
+          : (options.node as Node).toRef()
+        : null;
     this.url = options.url ?? null;
     this.isBold = options.isBold ?? null;
     this.isItalic = options.isItalic ?? null;
@@ -87,18 +91,18 @@ export class Text extends StructFrozen {
   readonly isCode: boolean | null;
 
   constructor(options: {
-    spans?: Array<TextSpan>,
-    isBold?: boolean | null,
-    isItalic?: boolean | null,
-    isStrikethrough?: boolean | null,
-    isUnderline?: boolean | null,
-    isCode?: boolean | null,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    spans?: Array<TextSpan>;
+    isBold?: boolean | null;
+    isItalic?: boolean | null;
+    isStrikethrough?: boolean | null;
+    isUnderline?: boolean | null;
+    isCode?: boolean | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.spans = options.spans ?? [];

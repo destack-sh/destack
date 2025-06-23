@@ -1,4 +1,4 @@
-import { EnumType, Node, Supergraph, Value, activeSession, RelationReference, Session, NodeType, Struct, QueryConnection, AttributeReference, StructFrozen, ACTIVE_SESSION, StructType, NodeReference, BuiltinObject, Graph } from '@/language';
+import { AttributeReference, RelationReference, Session, Struct, StructFrozen, Supergraph, Value } from "@/language";
 
 /* ==== DESTACK_GENERATED_START:ENUM:108 ==== */
 export enum FunctionType {
@@ -101,15 +101,15 @@ export class Function extends StructFrozen {
   readonly right: Expression | null;
 
   constructor(options: {
-    type: FunctionType,
-    left: Expression,
-    right?: Expression | null,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    type: FunctionType;
+    left: Expression;
+    right?: Expression | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.type = options.type;
@@ -138,15 +138,15 @@ export class Condition extends StructFrozen {
   readonly right: Expression | null;
 
   constructor(options: {
-    type: ConditionalType,
-    left: Expression,
-    right?: Expression | null,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    type: ConditionalType;
+    left: Expression;
+    right?: Expression | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.type = options.type;
@@ -174,14 +174,14 @@ export class Aggregation extends StructFrozen {
   readonly expression: Expression | null;
 
   constructor(options: {
-    type: AggregationType,
-    expression?: Expression | null,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    type: AggregationType;
+    expression?: Expression | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.type = options.type;
@@ -212,18 +212,18 @@ export class Expression extends StructFrozen {
   readonly aggregation: Aggregation | null;
 
   constructor(options: {
-    type: ExpressionType,
-    literal?: Value | null,
-    attribute?: AttributeReference | null,
-    condition?: Condition | null,
-    function?: Function | null,
-    aggregation?: Aggregation | null,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    type: ExpressionType;
+    literal?: Value | null;
+    attribute?: AttributeReference | null;
+    condition?: Condition | null;
+    function?: Function | null;
+    aggregation?: Aggregation | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.type = options.type;
@@ -255,15 +255,15 @@ export class Sort extends StructFrozen {
   readonly mode: SortMode | null;
 
   constructor(options: {
-    type: SortType,
-    by: Expression,
-    mode?: SortMode | null,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    type: SortType;
+    by: Expression;
+    mode?: SortMode | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.type = options.type;
@@ -290,13 +290,13 @@ export class Select extends StructFrozen {
   readonly attributes: Array<AttributeReference>;
 
   constructor(options: {
-    attributes?: Array<AttributeReference>,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    attributes?: Array<AttributeReference>;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.attributes = options.attributes ?? [];
@@ -325,17 +325,17 @@ export class Join extends StructFrozen {
   readonly on: Condition | null;
 
   constructor(options: {
-    type: JoinType,
-    relation?: RelationReference | null,
-    recursive?: boolean,
-    depth?: number | null,
-    on?: Condition | null,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    type: JoinType;
+    relation?: RelationReference | null;
+    recursive?: boolean;
+    depth?: number | null;
+    on?: Condition | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.type = options.type;
@@ -377,26 +377,26 @@ export class Query extends StructFrozen {
   readonly offset: number | null;
 
   constructor(options: {
-    id?: string,
-    type: QueryType,
-    name: string,
-    relation: RelationReference,
-    join?: Join | null,
-    select?: Select | null,
-    subqueries?: Array<Query>,
-    where?: Condition | null,
-    having?: Condition | null,
-    groupBy?: Array<Expression>,
-    aggregation?: Aggregation | null,
-    sort?: Array<Sort>,
-    limit?: number | null,
-    offset?: number | null,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    id?: string;
+    type: QueryType;
+    name: string;
+    relation: RelationReference;
+    join?: Join | null;
+    select?: Select | null;
+    subqueries?: Array<Query>;
+    where?: Condition | null;
+    having?: Condition | null;
+    groupBy?: Array<Expression>;
+    aggregation?: Aggregation | null;
+    sort?: Array<Sort>;
+    limit?: number | null;
+    offset?: number | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.id = options.id;
@@ -435,14 +435,14 @@ export class Histogram extends StructFrozen {
   readonly counts: Array<number>;
 
   constructor(options: {
-    buckets?: Array<Value>,
-    counts?: Array<number>,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    buckets?: Array<Value>;
+    counts?: Array<number>;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.buckets = options.buckets ?? [];
@@ -475,20 +475,20 @@ export class QueryResult extends Struct {
   scalar: Value | null;
 
   constructor(options: {
-    id: string,
-    type: QueryType,
-    groups?: Array<QueryResultGroup>,
-    subresults?: Array<QueryResult>,
-    nodes?: Array<Value>,
-    count?: number | null,
-    exists?: boolean | null,
-    scalar?: Value | null,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    id: string;
+    type: QueryType;
+    groups?: Array<QueryResultGroup>;
+    subresults?: Array<QueryResult>;
+    nodes?: Array<Value>;
+    count?: number | null;
+    exists?: boolean | null;
+    scalar?: Value | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.id = options.id;
@@ -525,18 +525,18 @@ export class QueryResultGroup extends Struct {
   scalar: Value | null;
 
   constructor(options: {
-    type: QueryType,
-    discriminator: Value,
-    nodes?: Array<Value>,
-    count?: number | null,
-    exists?: boolean | null,
-    scalar?: Value | null,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    type: QueryType;
+    discriminator: Value;
+    nodes?: Array<Value>;
+    count?: number | null;
+    exists?: boolean | null;
+    scalar?: Value | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.type = options.type;
@@ -567,14 +567,14 @@ export class QueryUpdate extends StructFrozen {
   readonly result: QueryResult | null;
 
   constructor(options: {
-    type: QueryUpdateType,
-    result?: QueryResult | null,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    type: QueryUpdateType;
+    result?: QueryResult | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.type = options.type;
@@ -597,18 +597,11 @@ export class QueryUpdate extends StructFrozen {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2571 ==== */
 export class Selection extends StructFrozen {
-
-
-  constructor(options: {
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
-  }) {
+  constructor(options: { _session?: Session | null; _supergraph?: Supergraph | null }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
-
-
   }
 
   equals(other: any): boolean {

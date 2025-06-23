@@ -1,19 +1,14 @@
-import { EnumType, Node, Supergraph, Type, activeSession, Session, NodeType, Struct, QueryConnection, StructFrozen, ACTIVE_SESSION, StructType, NodeReference, BuiltinObject, Graph } from '@/language';
+import { Session, StructFrozen, Supergraph, Type } from "@/language";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2500 ==== */
 export class Value extends StructFrozen {
   readonly type: Type;
   readonly value: any;
 
-  constructor(options: {
-    type: Type,
-    value: any,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
-  }) {
+  constructor(options: { type: Type; value: any; _session?: Session | null; _supergraph?: Supergraph | null }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.type = options.type;

@@ -1,4 +1,20 @@
-import { CustomView, FriendshipInvite, TimerEvent, Variant, PrimitiveType, SanctionEvent, Run, Space, Action, Organization, Value, Client, Reaction, PlaneShape, EnumType, GaugeMeasurement, Agent, Thread, EventCursor, EffectStyle, CustomEntity, Theme, Notification, Supergraph, FillStyle, Invite, HistogramMeasurement, Membership, Log, InviteEvent, SplitView, Timer, ScalarType, Canvas, NodeType, QueryConnection, EditEvent, BorderStyle, StructType, Interruption, RunEvent, Environment, TraitType, Handle, Permission, Span, FrameView, StructFrozen, Tag, Friendship, GradientStyle, Layer, ColorStyle, Star, SceneEvent, activeSession, Message, Team, Snapshot, FontStyle, CounterMetric, ArrowShape, DefaultFactory, ThreadView, RoleEvent, NodeReference, Graph, Script, NumberInputView, CustomStructDefinition, Field, ShadowStyle, Entitlement, Palette, TriggerEvent, Option, GaugeMetric, LineShape, Route, Scene, TypeCardinality, MembershipEvent, Link, CounterMeasurement, TextView, EntitlementEvent, Node, WizardView, Role, LabelView, NotificationEvent, Follow, CustomEnumDefinition, Branch, CustomEntityDefinition, Database, Folder, HistogramMetric, User, Struct, Service, BuiltinObject, FriendshipInviteEvent, SliderInputView, CustomEvent, Window, Machine, File, Tagging, Sanction, ScreenCursor, AnnotationShape, CustomViewDefinition, Trigger, CustomEventDefinition, TransitionStyle, ACTIVE_SESSION, ThreadCursor, Session } from '@/language';
+import {
+  CustomEntityDefinition,
+  DefaultFactory,
+  EnumType,
+  Node,
+  NodeReference,
+  NodeType,
+  PrimitiveType,
+  ScalarType,
+  Session,
+  StructFrozen,
+  StructType,
+  Supergraph,
+  TraitType,
+  TypeCardinality,
+  Value,
+} from "@/language";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2570 ==== */
 export enum StringFormat {
@@ -29,16 +45,16 @@ export class StringConstraint extends StructFrozen {
   readonly endsWith: string | null;
 
   constructor(options: {
-    format?: StringFormat | null,
-    regex?: string | null,
-    startsWith?: string | null,
-    endsWith?: string | null,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    format?: StringFormat | null;
+    regex?: string | null;
+    startsWith?: string | null;
+    endsWith?: string | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.format = options.format ?? null;
@@ -71,18 +87,18 @@ export class NumberConstraint extends StructFrozen {
   readonly scale: number | null;
 
   constructor(options: {
-    format?: NumberFormat | null,
-    minValue?: number | null,
-    maxValue?: number | null,
-    stepValue?: number | null,
-    precision?: number | null,
-    scale?: number | null,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    format?: NumberFormat | null;
+    minValue?: number | null;
+    maxValue?: number | null;
+    stepValue?: number | null;
+    precision?: number | null;
+    scale?: number | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.format = options.format ?? null;
@@ -113,14 +129,14 @@ export class CollectionConstraint extends StructFrozen {
   readonly maxLength: number | null;
 
   constructor(options: {
-    minLength?: number | null,
-    maxLength?: number | null,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    minLength?: number | null;
+    maxLength?: number | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.minLength = options.minLength ?? null;
@@ -147,14 +163,14 @@ export class NodeConstraint extends StructFrozen {
   readonly nodeTraits: Array<TraitType>;
 
   constructor(options: {
-    nodeTypes?: Array<NodeType>,
-    nodeTraits?: Array<TraitType>,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    nodeTypes?: Array<NodeType>;
+    nodeTraits?: Array<TraitType>;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.nodeTypes = options.nodeTypes ?? [];
@@ -183,30 +199,28 @@ export class Type extends StructFrozen {
   readonly enumType: EnumType | null;
   readonly nodeType: NodeType | null;
   get nodeDefinition(): CustomEntityDefinition | null {
-      const nodePtr: NodeReference | null = this.nodeDefinitionPtr;
-      if (nodePtr !== null) {
-          if (this._supergraph === null) {
-              return null;
-          }
-          return this._supergraph.get(nodePtr.id) as CustomEntityDefinition | null;
+    const nodePtr: NodeReference | null = this.nodeDefinitionPtr;
+    if (nodePtr !== null) {
+      if (this._supergraph === null) {
+        return null;
       }
-      return null;
+      return this._supergraph.get(nodePtr.id) as CustomEntityDefinition | null;
+    }
+    return null;
   }
-  ;
-  readonly nodeDefinitionPtr: NodeReference | null
+  readonly nodeDefinitionPtr: NodeReference | null;
   readonly structType: StructType | null;
   get baseType(): Node | null {
-      const nodePtr: NodeReference | null = this.baseTypePtr;
-      if (nodePtr !== null) {
-          if (this._supergraph === null) {
-              return null;
-          }
-          return this._supergraph.get(nodePtr.id) as Node | null;
+    const nodePtr: NodeReference | null = this.baseTypePtr;
+    if (nodePtr !== null) {
+      if (this._supergraph === null) {
+        return null;
       }
-      return null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
+    }
+    return null;
   }
-  ;
-  readonly baseTypePtr: NodeReference | null
+  readonly baseTypePtr: NodeReference | null;
   readonly keyType: Type | null;
   readonly isRequired: boolean | null;
   readonly isVariable: boolean | null;
@@ -218,29 +232,29 @@ export class Type extends StructFrozen {
   readonly nodeConstraint: NodeConstraint | null;
 
   constructor(options: {
-    cardinality?: TypeCardinality,
-    scalarType: ScalarType,
-    primitiveType?: PrimitiveType | null,
-    enumType?: EnumType | null,
-    nodeType?: NodeType | null,
-    nodeDefinition?: CustomEntityDefinition | NodeReference | null,
-    structType?: StructType | null,
-    baseType?: Node | NodeReference | null,
-    keyType?: Type | null,
-    isRequired?: boolean | null,
-    isVariable?: boolean | null,
-    defaultValue?: Value | null,
-    defaultFactory?: DefaultFactory | null,
-    collectionConstraint?: CollectionConstraint | null,
-    stringConstraint?: StringConstraint | null,
-    numberConstraint?: NumberConstraint | null,
-    nodeConstraint?: NodeConstraint | null,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    cardinality?: TypeCardinality;
+    scalarType: ScalarType;
+    primitiveType?: PrimitiveType | null;
+    enumType?: EnumType | null;
+    nodeType?: NodeType | null;
+    nodeDefinition?: CustomEntityDefinition | NodeReference | null;
+    structType?: StructType | null;
+    baseType?: Node | NodeReference | null;
+    keyType?: Type | null;
+    isRequired?: boolean | null;
+    isVariable?: boolean | null;
+    defaultValue?: Value | null;
+    defaultFactory?: DefaultFactory | null;
+    collectionConstraint?: CollectionConstraint | null;
+    stringConstraint?: StringConstraint | null;
+    numberConstraint?: NumberConstraint | null;
+    nodeConstraint?: NodeConstraint | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.cardinality = options.cardinality ?? TypeCardinality.SCALAR;
@@ -248,9 +262,19 @@ export class Type extends StructFrozen {
     this.primitiveType = options.primitiveType ?? null;
     this.enumType = options.enumType ?? null;
     this.nodeType = options.nodeType ?? null;
-    this.nodeDefinitionPtr = options.nodeDefinition != null ? (options.nodeDefinition.metatype == StructType.NODE_REFERENCE ? (options.nodeDefinition as NodeReference) : (options.nodeDefinition as Node).toRef()) : null;
+    this.nodeDefinitionPtr =
+      options.nodeDefinition != null
+        ? options.nodeDefinition.metatype == StructType.NODE_REFERENCE
+          ? (options.nodeDefinition as NodeReference)
+          : (options.nodeDefinition as Node).toRef()
+        : null;
     this.structType = options.structType ?? null;
-    this.baseTypePtr = options.baseType != null ? (options.baseType.metatype == StructType.NODE_REFERENCE ? (options.baseType as NodeReference) : (options.baseType as Node).toRef()) : null;
+    this.baseTypePtr =
+      options.baseType != null
+        ? options.baseType.metatype == StructType.NODE_REFERENCE
+          ? (options.baseType as NodeReference)
+          : (options.baseType as Node).toRef()
+        : null;
     this.keyType = options.keyType ?? null;
     this.isRequired = options.isRequired ?? null;
     this.isVariable = options.isVariable ?? null;

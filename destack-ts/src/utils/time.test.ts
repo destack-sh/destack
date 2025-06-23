@@ -1,5 +1,5 @@
-import { describe, expect, test } from "vitest";
 import { timedeltaFromISOFormat, timedeltaToISOFormat } from "@/utils/time";
+import { describe, expect, test } from "vitest";
 
 describe("timedeltaFromISOFormat", () => {
   test.each([
