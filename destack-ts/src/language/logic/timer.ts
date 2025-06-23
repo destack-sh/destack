@@ -19,6 +19,7 @@ import {
   Spatial,
   StructType,
   Supergraph,
+  TraitType,
   User,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
@@ -40,6 +41,22 @@ export enum TimerType {
 
 /* ==== DESTACK_GENERATED_START:NODE:3051 ==== */
 export class TimerEvent extends Node implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked {
+  static metatype: NodeType = NodeType.TIMER_EVENT;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.PARTICLE,
+    TraitType.ANALYTIC,
+    TraitType.INDEXED,
+    TraitType.FROZEN,
+    TraitType.TRACKED,
+    TraitType.EVENT,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
   readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -206,6 +223,14 @@ export class TimerEvent extends Node implements Spatial, Particle, Analytic, Ind
 
 /* ==== DESTACK_GENERATED_START:NODE:3050 ==== */
 export class Timer extends Node implements Spatial, Entity, IsTracked {
+  static metatype: NodeType = NodeType.TIMER;
+  static __traits__: TraitType[] = [TraitType.TRACKED, TraitType.SPATIAL, TraitType.ENTITY];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
   readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;

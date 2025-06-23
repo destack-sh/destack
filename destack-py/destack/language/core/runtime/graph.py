@@ -215,7 +215,7 @@ class PolyGraph(Graph):
     def __init__(self, supergraph: "Supergraph"):
         self.supergraph = supergraph
         self.nodes_by_id: dict[UUID, Node] = {}
-        self.nodes_by_parent_id: dict[UUID, dict[NodeType, list[Node]]] = {}
+        self.nodes_by_parent: dict[UUID, dict[NodeType, list[Node]]] = {}
 
     @property
     def nodes(self) -> Collection["Node"]:
@@ -240,7 +240,7 @@ class PolyGraph(Graph):
                 self.supergraph._cached_nodes_by_id.pop(node.id)
         # nodes
         self.nodes_by_id.clear()
-        self.nodes_by_parent_id.clear()
+        self.nodes_by_parent.clear()
 
     @override
     def add(self, node: "Node"):
@@ -250,12 +250,12 @@ class PolyGraph(Graph):
         self.nodes_by_id[node.id] = node
         # parent
         if (parent_ptr := node.parent_ptr) is not None:
-            if parent_ptr.id not in self.nodes_by_parent_id:
-                self.nodes_by_parent_id[parent_ptr.id] = {}
+            if parent_ptr.id not in self.nodes_by_parent:
+                self.nodes_by_parent[parent_ptr.id] = {}
             child_node_type = node.metatype
-            if child_node_type not in self.nodes_by_parent_id[parent_ptr.id]:
-                self.nodes_by_parent_id[parent_ptr.id][child_node_type] = []
-            self.nodes_by_parent_id[parent_ptr.id][child_node_type].append(node)
+            if child_node_type not in self.nodes_by_parent[parent_ptr.id]:
+                self.nodes_by_parent[parent_ptr.id][child_node_type] = []
+            self.nodes_by_parent[parent_ptr.id][child_node_type].append(node)
         # supergraph
         if (
             cached := self.supergraph._cached_nodes_by_id.get(node.id)
@@ -269,16 +269,16 @@ class PolyGraph(Graph):
             self.supergraph._cached_nodes_by_id.pop(node.id)
         # parent
         if (parent_ptr := node.parent_ptr) is not None:
-            if parent_ptr.id not in self.nodes_by_parent_id:
-                self.nodes_by_parent_id[parent_ptr.id] = {}
+            if parent_ptr.id not in self.nodes_by_parent:
+                self.nodes_by_parent[parent_ptr.id] = {}
             child_node_type = node.metatype
-            if child_node_type not in self.nodes_by_parent_id[parent_ptr.id]:
-                self.nodes_by_parent_id[parent_ptr.id][child_node_type] = []
-            self.nodes_by_parent_id[parent_ptr.id][child_node_type].remove(node)
-            if not self.nodes_by_parent_id[parent_ptr.id][child_node_type]:
-                self.nodes_by_parent_id[parent_ptr.id].pop(child_node_type)
-                if not self.nodes_by_parent_id[parent_ptr.id]:
-                    self.nodes_by_parent_id.pop(parent_ptr.id)
+            if child_node_type not in self.nodes_by_parent[parent_ptr.id]:
+                self.nodes_by_parent[parent_ptr.id][child_node_type] = []
+            self.nodes_by_parent[parent_ptr.id][child_node_type].remove(node)
+            if not self.nodes_by_parent[parent_ptr.id][child_node_type]:
+                self.nodes_by_parent[parent_ptr.id].pop(child_node_type)
+                if not self.nodes_by_parent[parent_ptr.id]:
+                    self.nodes_by_parent.pop(parent_ptr.id)
         # node
         self.nodes_by_id.pop(node.id)
 
@@ -309,18 +309,16 @@ class PolyGraph(Graph):
         if of is None:
             node_types = get_node_types(node_type)
             if node_types is None:
-                leaves = tuple(
-                    node for node in self.nodes if not self.nodes_by_parent_id.get(node.id)
-                )
+                leaves = tuple(node for node in self.nodes if not self.nodes_by_parent.get(node.id))
             else:
                 leaves = tuple(
                     node
                     for node in self.nodes
-                    if not self.nodes_by_parent_id.get(node.id) and node.metatype in node_types
+                    if not self.nodes_by_parent.get(node.id) and node.metatype in node_types
                 )
         else:
             descendants = self.get_descendants(of, node_type)
-            leaves = tuple(node for node in descendants if not self.nodes_by_parent_id.get(node.id))
+            leaves = tuple(node for node in descendants if not self.nodes_by_parent.get(node.id))
         return leaves  # type: ignore (must be right type)
 
     @override
@@ -330,9 +328,9 @@ class PolyGraph(Graph):
         node_type: NodeType | TraitType | type[N] | None = None,
     ) -> Sequence[N]:
         # bail if no children
-        if not self.nodes_by_parent_id:
+        if not self.nodes_by_parent:
             return ()
-        children_by_type = self.nodes_by_parent_id.get(node.id)
+        children_by_type = self.nodes_by_parent.get(node.id)
         if not children_by_type:
             return ()
 
@@ -389,7 +387,7 @@ class PolyGraph(Graph):
         node: "Node",
         node_type: NodeType | TraitType | type[N] | None = None,
     ) -> Sequence[N]:
-        if not self.nodes_by_parent_id:
+        if not self.nodes_by_parent:
             return ()
 
         queue: list[Node] = [node]
@@ -399,7 +397,7 @@ class PolyGraph(Graph):
         node_types = get_node_types(node_type)
         while queue:
             current = queue.pop(0)
-            children_by_type = self.nodes_by_parent_id.get(current.id)
+            children_by_type = self.nodes_by_parent.get(current.id)
             if not children_by_type:
                 continue
             for children_of_type in children_by_type.values():

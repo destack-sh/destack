@@ -13,6 +13,9 @@ export enum TextSpanType {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2521 ==== */
 export class TextSpan extends StructFrozen {
+  static metatype: StructType = StructType.TEXT_SPAN;
+  static __isFrozen__: boolean = true;
+
   readonly type: TextSpanType;
   readonly content: string | null;
   get node(): Node | null {
@@ -83,6 +86,9 @@ export class TextSpan extends StructFrozen {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2520 ==== */
 export class Text extends StructFrozen {
+  static metatype: StructType = StructType.TEXT;
+  static __isFrozen__: boolean = true;
+
   readonly spans: Array<TextSpan>;
   readonly isBold: boolean | null;
   readonly isItalic: boolean | null;

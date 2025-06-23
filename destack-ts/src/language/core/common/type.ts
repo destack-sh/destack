@@ -39,6 +39,9 @@ export enum NumberFormat {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2503 ==== */
 export class StringConstraint extends StructFrozen {
+  static metatype: StructType = StructType.STRING_CONSTRAINT;
+  static __isFrozen__: boolean = true;
+
   readonly format: StringFormat | null;
   readonly regex: string | null;
   readonly startsWith: string | null;
@@ -79,6 +82,9 @@ export class StringConstraint extends StructFrozen {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2502 ==== */
 export class NumberConstraint extends StructFrozen {
+  static metatype: StructType = StructType.NUMBER_CONSTRAINT;
+  static __isFrozen__: boolean = true;
+
   readonly format: NumberFormat | null;
   readonly minValue: number | null;
   readonly maxValue: number | null;
@@ -125,6 +131,9 @@ export class NumberConstraint extends StructFrozen {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2504 ==== */
 export class CollectionConstraint extends StructFrozen {
+  static metatype: StructType = StructType.COLLECTION_CONSTRAINT;
+  static __isFrozen__: boolean = true;
+
   readonly minLength: number | null;
   readonly maxLength: number | null;
 
@@ -159,6 +168,9 @@ export class CollectionConstraint extends StructFrozen {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2505 ==== */
 export class NodeConstraint extends StructFrozen {
+  static metatype: StructType = StructType.NODE_CONSTRAINT;
+  static __isFrozen__: boolean = true;
+
   readonly nodeTypes: Array<NodeType>;
   readonly nodeTraits: Array<TraitType>;
 
@@ -193,6 +205,9 @@ export class NodeConstraint extends StructFrozen {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2501 ==== */
 export class Type extends StructFrozen {
+  static metatype: StructType = StructType.TYPE;
+  static __isFrozen__: boolean = true;
+
   readonly cardinality: TypeCardinality;
   readonly scalarType: ScalarType;
   readonly primitiveType: PrimitiveType | null;

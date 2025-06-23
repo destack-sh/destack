@@ -47,6 +47,7 @@ import {
   StringConstraint,
   StructType,
   Supergraph,
+  TraitType,
   Type,
   TypeCardinality,
   User,
@@ -67,6 +68,74 @@ export class Field
   extends Node
   implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsTaggable, IsSourceable
 {
+  static metatype: NodeType = NodeType.FIELD;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.TAGGABLE,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.DELETABLE,
+    TraitType.ORDERED,
+    TraitType.SOURCEABLE,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [
+    NodeType.PLANE_SHAPE,
+    NodeType.ANNOTATION_SHAPE,
+    NodeType.CUSTOM_VIEW_DEFINITION,
+    NodeType.CUSTOM_VIEW,
+    NodeType.RUN,
+    NodeType.FRAME_VIEW,
+    NodeType.LABEL_VIEW,
+    NodeType.SCENE,
+    NodeType.INTERRUPTION,
+    NodeType.SCRIPT,
+    NodeType.SPLIT_VIEW,
+    NodeType.LAYER,
+    NodeType.SERVICE,
+    NodeType.CUSTOM_STRUCT_DEFINITION,
+    NodeType.ACTION,
+    NodeType.CUSTOM_ENUM_DEFINITION,
+    NodeType.CUSTOM_ENTITY,
+    NodeType.FIELD,
+    NodeType.CANVAS,
+  ];
+  static __childTypes__: NodeType[] = [NodeType.FIELD, NodeType.OPTION, NodeType.TAGGING];
+  static __ancestorTypes__: NodeType[] = [
+    NodeType.SPACE,
+    NodeType.LINE_SHAPE,
+    NodeType.PLANE_SHAPE,
+    NodeType.ARROW_SHAPE,
+    NodeType.ANNOTATION_SHAPE,
+    NodeType.CUSTOM_VIEW_DEFINITION,
+    NodeType.CUSTOM_VIEW,
+    NodeType.WIZARD_VIEW,
+    NodeType.NUMBER_INPUT_VIEW,
+    NodeType.SLIDER_INPUT_VIEW,
+    NodeType.RUN,
+    NodeType.FRAME_VIEW,
+    NodeType.WINDOW,
+    NodeType.LABEL_VIEW,
+    NodeType.SCENE,
+    NodeType.INTERRUPTION,
+    NodeType.SPLIT_VIEW,
+    NodeType.SCRIPT,
+    NodeType.LAYER,
+    NodeType.SERVICE,
+    NodeType.CUSTOM_STRUCT_DEFINITION,
+    NodeType.ACTION,
+    NodeType.CUSTOM_ENUM_DEFINITION,
+    NodeType.CUSTOM_ENTITY_DEFINITION,
+    NodeType.CUSTOM_ENTITY,
+    NodeType.FIELD,
+    NodeType.AGENT,
+    NodeType.TEXT_VIEW,
+    NodeType.FOLDER,
+    NodeType.THREAD_VIEW,
+    NodeType.CANVAS,
+  ];
+  static __descendantTypes__: NodeType[] = [NodeType.FIELD, NodeType.OPTION, NodeType.TAGGING];
+
   readonly id: string;
   get parent():
     | CustomEntity

@@ -22,11 +22,29 @@ import {
   StructType,
   Supergraph,
   Team,
+  TraitType,
   User,
 } from "@/language";
+import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:3030 ==== */
 export class Route extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsOwnable, IsTaggable {
+  static metatype: NodeType = NodeType.ROUTE;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.TAGGABLE,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.OWNABLE,
+    TraitType.DELETABLE,
+    TraitType.ORDERED,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.FOLDER];
+  static __childTypes__: NodeType[] = [NodeType.TAGGING];
+  static __ancestorTypes__: NodeType[] = [NodeType.FOLDER, NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [NodeType.TAGGING];
+
   readonly id: string;
   get parent(): Folder | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;

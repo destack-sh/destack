@@ -14,11 +14,21 @@ import {
   Spatial,
   StructType,
   Supergraph,
+  TraitType,
   User,
 } from "@/language";
+import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:4010 ==== */
 export class Span extends Node implements Spatial, Analytic, IsFrozen, IsTracked {
+  static metatype: NodeType = NodeType.SPAN;
+  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.TRACKED, TraitType.ANALYTIC, TraitType.FROZEN];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.RUN];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.RUN, NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
   readonly id: string;
   get parent(): Run | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;

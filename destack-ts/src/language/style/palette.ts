@@ -21,11 +21,44 @@ import {
   StructType,
   Supergraph,
   Theme,
+  TraitType,
   User,
 } from "@/language";
+import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:12010 ==== */
 export class Palette extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsTaggable, IsVisual {
+  static metatype: NodeType = NodeType.PALETTE;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.VISUAL,
+    TraitType.TAGGABLE,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.DELETABLE,
+    TraitType.ORDERED,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.THEME, NodeType.SCENE, NodeType.CANVAS];
+  static __childTypes__: NodeType[] = [NodeType.TAGGING, NodeType.COLOR_STYLE];
+  static __ancestorTypes__: NodeType[] = [
+    NodeType.THEME,
+    NodeType.SPACE,
+    NodeType.PLANE_SHAPE,
+    NodeType.FRAME_VIEW,
+    NodeType.ANNOTATION_SHAPE,
+    NodeType.WINDOW,
+    NodeType.FOLDER,
+    NodeType.LABEL_VIEW,
+    NodeType.CUSTOM_VIEW_DEFINITION,
+    NodeType.CUSTOM_VIEW,
+    NodeType.SCENE,
+    NodeType.SPLIT_VIEW,
+    NodeType.CANVAS,
+    NodeType.LAYER,
+  ];
+  static __descendantTypes__: NodeType[] = [NodeType.TAGGING, NodeType.COLOR_STYLE];
+
   readonly id: string;
   get parent(): Scene | Theme | Canvas | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;

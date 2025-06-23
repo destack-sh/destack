@@ -26,9 +26,11 @@ import {
   StructType,
   Supergraph,
   Team,
+  TraitType,
   User,
   Value,
 } from "@/language";
+import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:3010 ==== */
 export class Service
@@ -47,6 +49,33 @@ export class Service
     IsScriptable,
     IsSourceable
 {
+  static metatype: NodeType = NodeType.SERVICE;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.ORDERED,
+    TraitType.TAGGABLE,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.OWNABLE,
+    TraitType.DELETABLE,
+    TraitType.EXTENSIBLE,
+    TraitType.ACTIONABLE,
+    TraitType.RUNNABLE,
+    TraitType.SCRIPTABLE,
+    TraitType.SOURCEABLE,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [NodeType.FIELD, NodeType.TAGGING, NodeType.ACTION, NodeType.SCRIPT];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [
+    NodeType.OPTION,
+    NodeType.FIELD,
+    NodeType.ACTION,
+    NodeType.TAGGING,
+    NodeType.SCRIPT,
+  ];
+
   readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;

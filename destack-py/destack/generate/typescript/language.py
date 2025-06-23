@@ -514,6 +514,13 @@ def _generate_struct(definition: StructDefinition) -> str:
     struct_cls = STRUCT_CLASS_BY_TYPE[definition.type]
     struct_parts: list[str] = []
 
+    # meta
+    struct_meta_parts: list[str] = [
+        f"static metatype: StructType = StructType.{definition.type.name};",
+        f"static __isFrozen__: boolean = {'true' if definition.is_frozen else 'false'};",
+    ]
+    struct_parts.append("\n".join(struct_meta_parts))
+
     # properties
     prop_parts: list[str] = []
     for prop in _get_properties(struct_cls):
@@ -585,6 +592,18 @@ def _generate_node(definition: NodeDefinition) -> str:
 
     node_cls = NODE_CLASS_BY_TYPE[definition.type]
     node_parts: list[str] = []
+
+    # meta
+    node_meta_parts: list[str] = [
+        f"static metatype: NodeType = NodeType.{definition.type.name};",
+        f"static __traits__: TraitType[] = [{', '.join(f'TraitType.{trait_type.name}' for trait_type in definition.traits)}];",
+        f"static __rootType__: NodeType | null = {f'NodeType.{definition.root_type.name}' if definition.root_type else 'null'};",
+        f"static __parentTypes__: NodeType[] = [{', '.join(f'NodeType.{parent_type.name}' for parent_type in definition.parent_types)}];",
+        f"static __childTypes__: NodeType[] = [{', '.join(f'NodeType.{child_type.name}' for child_type in definition.child_types)}];",
+        f"static __ancestorTypes__: NodeType[] = [{', '.join(f'NodeType.{ancestor_type.name}' for ancestor_type in definition.ancestor_types)}];",
+        f"static __descendantTypes__: NodeType[] = [{', '.join(f'NodeType.{descendant_type.name}' for descendant_type in definition.descendant_types)}];",
+    ]
+    node_parts.append("\n".join(node_meta_parts))
 
     # properties
     prop_parts: list[str] = []
@@ -872,9 +891,9 @@ def _generate_file(file: TypescriptFile) -> str:
             file_parts.append(new_block)
 
     # add imports to the top (will be auto-merged by linter)
-    inner_file_content = "\n\n".join(file_parts[1:])
     imports = {
         "NodeType",
+        "TraitType",
         "StructType",
         "EnumType",
         "BuiltinObject",
@@ -893,10 +912,7 @@ def _generate_file(file: TypescriptFile) -> str:
     # remove any imports that are already defined in this file
     imports.difference_update(definition.name for definition in file.definitions.values())
     import_parts: list[str] = [f"import {{ {', '.join(imports)} }} from '@/language';"]
-    if "Temporal" in inner_file_content and not any(
-        "Temporal" in import_.content for import_ in import_block.imports
-    ):
-        # until Temporal ships natively
+    if not any("Temporal" in import_.content for import_ in import_block.imports):
         import_parts.append("import { Temporal } from 'temporal-polyfill';")
     for import_ in import_block.imports:
         if not import_.path.startswith("@/language"):
@@ -993,6 +1009,13 @@ def generate():
     node_map_str = "\n".join(node_map_str_parts)
     node_cls_by_type_str = "\n".join(node_cls_by_type_str_parts)
     registry_str_parts.extend((node_map_str, node_cls_by_type_str))
+    # trait maps
+    trait_map_str_parts: list[str] = ["export type TraitTypeMapping = {"]
+    for trait_type, trait_cls in TRAIT_CLASS_BY_TYPE.items():
+        trait_map_str_parts.append(f"  [TraitType.{trait_type.name}]: {trait_cls.__name__},")
+    trait_map_str_parts.append("};")
+    trait_map_str = "\n".join(trait_map_str_parts)
+    registry_str_parts.append(trait_map_str)
     # struct maps
     struct_map_str_parts: list[str] = ["export type StructTypeMapping = {"]
     struct_cls_by_type_str_parts: list[str] = ["export const STRUCT_CLASS_BY_TYPE = {"]

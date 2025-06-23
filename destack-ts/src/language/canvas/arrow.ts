@@ -34,6 +34,7 @@ import {
   SplitView,
   StructType,
   Supergraph,
+  TraitType,
   User,
   Vector2,
   View,
@@ -65,6 +66,76 @@ export class ArrowShape
     ContentView,
     IsShape
 {
+  static metatype: NodeType = NodeType.ARROW_SHAPE;
+  static __traits__: TraitType[] = [
+    TraitType.SCRIPTABLE,
+    TraitType.SPATIAL,
+    TraitType.VISUAL,
+    TraitType.VIEW,
+    TraitType.ENTITY,
+    TraitType.TAGGABLE,
+    TraitType.SHAPE,
+    TraitType.TRACKED,
+    TraitType.DELETABLE,
+    TraitType.CONTENT_VIEW,
+    TraitType.ORDERED,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [
+    NodeType.PLANE_SHAPE,
+    NodeType.FRAME_VIEW,
+    NodeType.ANNOTATION_SHAPE,
+    NodeType.WINDOW,
+    NodeType.LABEL_VIEW,
+    NodeType.CUSTOM_VIEW_DEFINITION,
+    NodeType.CUSTOM_VIEW,
+    NodeType.SCENE,
+    NodeType.CANVAS,
+    NodeType.SPLIT_VIEW,
+    NodeType.LAYER,
+  ];
+  static __childTypes__: NodeType[] = [
+    NodeType.TAGGING,
+    NodeType.SCRIPT,
+    NodeType.COLOR_STYLE,
+    NodeType.BORDER_STYLE,
+    NodeType.TRANSITION_STYLE,
+    NodeType.EFFECT_STYLE,
+    NodeType.GRADIENT_STYLE,
+    NodeType.FILL_STYLE,
+    NodeType.FONT_STYLE,
+    NodeType.SHADOW_STYLE,
+  ];
+  static __ancestorTypes__: NodeType[] = [
+    NodeType.SPACE,
+    NodeType.PLANE_SHAPE,
+    NodeType.FRAME_VIEW,
+    NodeType.ANNOTATION_SHAPE,
+    NodeType.WINDOW,
+    NodeType.FOLDER,
+    NodeType.LABEL_VIEW,
+    NodeType.CUSTOM_VIEW_DEFINITION,
+    NodeType.CUSTOM_VIEW,
+    NodeType.SCENE,
+    NodeType.SPLIT_VIEW,
+    NodeType.CANVAS,
+    NodeType.LAYER,
+  ];
+  static __descendantTypes__: NodeType[] = [
+    NodeType.OPTION,
+    NodeType.FIELD,
+    NodeType.TAGGING,
+    NodeType.COLOR_STYLE,
+    NodeType.FILL_STYLE,
+    NodeType.FONT_STYLE,
+    NodeType.BORDER_STYLE,
+    NodeType.SHADOW_STYLE,
+    NodeType.GRADIENT_STYLE,
+    NodeType.TRANSITION_STYLE,
+    NodeType.EFFECT_STYLE,
+    NodeType.SCRIPT,
+  ];
+
   readonly id: string;
   get parent():
     | Window

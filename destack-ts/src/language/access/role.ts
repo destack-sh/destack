@@ -28,6 +28,7 @@ import {
   Supergraph,
   Team,
   Thread,
+  TraitType,
   User,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
@@ -41,6 +42,22 @@ export enum RoleEventType {
 
 /* ==== DESTACK_GENERATED_START:NODE:521 ==== */
 export class RoleEvent extends Node implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked {
+  static metatype: NodeType = NodeType.ROLE_EVENT;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.PARTICLE,
+    TraitType.ANALYTIC,
+    TraitType.INDEXED,
+    TraitType.FROZEN,
+    TraitType.TRACKED,
+    TraitType.EVENT,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
   readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -207,6 +224,34 @@ export class RoleEvent extends Node implements Spatial, Particle, Analytic, Inde
 
 /* ==== DESTACK_GENERATED_START:NODE:520 ==== */
 export class Role extends Node implements Global, Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsOwner {
+  static metatype: NodeType = NodeType.ROLE;
+  static __traits__: TraitType[] = [
+    TraitType.GLOBAL,
+    TraitType.SPATIAL,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.DELETABLE,
+    TraitType.ORDERED,
+    TraitType.OWNER,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [
+    NodeType.SPACE,
+    NodeType.FOLDER,
+    NodeType.ORGANIZATION,
+    NodeType.TEAM,
+    NodeType.THREAD,
+  ];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [
+    NodeType.SPACE,
+    NodeType.FOLDER,
+    NodeType.ORGANIZATION,
+    NodeType.TEAM,
+    NodeType.THREAD,
+  ];
+  static __descendantTypes__: NodeType[] = [];
+
   readonly id: string;
   get parent(): Folder | Thread | Organization | Space | Team | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;

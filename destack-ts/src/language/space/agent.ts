@@ -23,14 +23,48 @@ import {
   StructType,
   Supergraph,
   ThreadCursor,
+  TraitType,
   User,
 } from "@/language";
+import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:600 ==== */
 export class Agent
   extends Node
   implements Spatial, Entity, IsTracked, IsDeletable, IsSubject, IsOwner, IsScriptable, IsFollowable
 {
+  static metatype: NodeType = NodeType.AGENT;
+  static __traits__: TraitType[] = [
+    TraitType.SCRIPTABLE,
+    TraitType.SPATIAL,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.DELETABLE,
+    TraitType.SUBJECT,
+    TraitType.OWNER,
+    TraitType.FOLLOWABLE,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.FOLDER];
+  static __childTypes__: NodeType[] = [
+    NodeType.ENTITLEMENT,
+    NodeType.SANCTION,
+    NodeType.SCRIPT,
+    NodeType.FOLLOW,
+    NodeType.CLIENT,
+  ];
+  static __ancestorTypes__: NodeType[] = [NodeType.FOLDER, NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [
+    NodeType.OPTION,
+    NodeType.CLIENT,
+    NodeType.ENTITLEMENT,
+    NodeType.FIELD,
+    NodeType.TAGGING,
+    NodeType.SCRIPT,
+    NodeType.FOLLOW,
+    NodeType.SANCTION,
+  ];
+
   readonly id: string;
   get parent(): Folder | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;

@@ -159,6 +159,11 @@ class NodeDefinition(StructFrozen):
     description: str | None = property_(36)
     properties: list["PropertyDefinition"] = property_(50)
     traits: list[TraitType] = property_(51)
+    root_type: NodeType | None = property_(52)
+    parent_types: list[NodeType] = property_(53)
+    child_types: list[NodeType] = property_(54)
+    ancestor_types: list[NodeType] = property_(55)
+    descendant_types: list[NodeType] = property_(56)
 
     @classmethod
     def from_node(cls, node_cls: _type["Node"]) -> "NodeDefinition":
@@ -175,6 +180,11 @@ class NodeDefinition(StructFrozen):
                 prop.definition for prop in node_cls.__properties__.values() if prop.is_wired
             ],
             traits=list(node_cls.__traits__),
+            root_type=node_cls.__root_type__,
+            parent_types=list(node_cls.__parent_types__),
+            child_types=list(node_cls.__child_types__),
+            ancestor_types=list(node_cls.__ancestor_types__),
+            descendant_types=list(node_cls.__descendant_types__),
         )
 
 

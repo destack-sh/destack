@@ -1,4 +1,5 @@
 import { Agent, MaterializationType, NodeReference, Space, User } from "@/language";
+import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:TRAIT:12000 ==== */
 export interface Style {

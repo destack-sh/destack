@@ -21,6 +21,7 @@ import {
   StructType,
   Supergraph,
   ThreadCursor,
+  TraitType,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
 
@@ -33,6 +34,21 @@ export enum UserStatus {
 
 /* ==== DESTACK_GENERATED_START:NODE:20 ==== */
 export class User extends Node implements Global, Entity, IsTracked, IsSubject, IsOwner, IsFollowable {
+  static metatype: NodeType = NodeType.USER;
+  static __traits__: TraitType[] = [
+    TraitType.GLOBAL,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.SUBJECT,
+    TraitType.OWNER,
+    TraitType.FOLLOWABLE,
+  ];
+  static __rootType__: NodeType | null = null;
+  static __parentTypes__: NodeType[] = [];
+  static __childTypes__: NodeType[] = [NodeType.ENTITLEMENT, NodeType.SANCTION, NodeType.FOLLOW, NodeType.CLIENT];
+  static __ancestorTypes__: NodeType[] = [];
+  static __descendantTypes__: NodeType[] = [NodeType.FOLLOW, NodeType.CLIENT, NodeType.SANCTION, NodeType.ENTITLEMENT];
+
   readonly id: string;
   get parent(): Node | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;

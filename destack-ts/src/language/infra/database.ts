@@ -18,6 +18,7 @@ import {
   StructType,
   Supergraph,
   Tenancy,
+  TraitType,
   User,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
@@ -30,6 +31,9 @@ export enum DatabaseType {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:7501 ==== */
 export class DatabaseInfo extends Struct {
+  static metatype: StructType = StructType.DATABASE_INFO;
+  static __isFrozen__: boolean = false;
+
   type: DatabaseType;
   region: Region;
   galaxyName: string | null;
@@ -79,6 +83,14 @@ export class DatabaseInfo extends Struct {
 
 /* ==== DESTACK_GENERATED_START:NODE:7500 ==== */
 export class Database extends Node implements Spatial, Entity, Resource, IsTracked {
+  static metatype: NodeType = NodeType.DATABASE;
+  static __traits__: TraitType[] = [TraitType.TRACKED, TraitType.SPATIAL, TraitType.ENTITY, TraitType.RESOURCE];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
   readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;

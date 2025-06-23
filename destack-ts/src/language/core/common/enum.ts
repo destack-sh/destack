@@ -20,15 +20,34 @@ import {
   Spatial,
   StructType,
   Supergraph,
+  TraitType,
   User,
   Value,
 } from "@/language";
+import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:2510 ==== */
 export class CustomEnumDefinition
   extends Node
   implements Spatial, Entity, IsTracked, IsDeletable, IsExtensible, IsOrdered, IsTaggable, IsSourceable
 {
+  static metatype: NodeType = NodeType.CUSTOM_ENUM_DEFINITION;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.TAGGABLE,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.DELETABLE,
+    TraitType.EXTENSIBLE,
+    TraitType.ORDERED,
+    TraitType.SOURCEABLE,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [NodeType.FIELD, NodeType.TAGGING];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [NodeType.FIELD, NodeType.OPTION, NodeType.TAGGING];
+
   readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;

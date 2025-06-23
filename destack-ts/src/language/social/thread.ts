@@ -21,6 +21,7 @@ import {
   StructType,
   Supergraph,
   Team,
+  TraitType,
   User,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
@@ -34,6 +35,43 @@ export enum ThreadStatus {
 
 /* ==== DESTACK_GENERATED_START:NODE:5500 ==== */
 export class Thread extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOwnable, IsJoinable, IsTaggable {
+  static metatype: NodeType = NodeType.THREAD;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.TAGGABLE,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.OWNABLE,
+    TraitType.DELETABLE,
+    TraitType.JOINABLE,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.FOLDER, NodeType.THREAD];
+  static __childTypes__: NodeType[] = [
+    NodeType.ENTITLEMENT,
+    NodeType.INVITE,
+    NodeType.MEMBERSHIP,
+    NodeType.PERMISSION,
+    NodeType.ROLE,
+    NodeType.SANCTION,
+    NodeType.TAGGING,
+    NodeType.MESSAGE,
+    NodeType.THREAD,
+  ];
+  static __ancestorTypes__: NodeType[] = [NodeType.FOLDER, NodeType.SPACE, NodeType.THREAD];
+  static __descendantTypes__: NodeType[] = [
+    NodeType.MESSAGE,
+    NodeType.ENTITLEMENT,
+    NodeType.ROLE,
+    NodeType.REACTION,
+    NodeType.PERMISSION,
+    NodeType.TAGGING,
+    NodeType.MEMBERSHIP,
+    NodeType.THREAD,
+    NodeType.SANCTION,
+    NodeType.INVITE,
+  ];
+
   readonly id: string;
   get parent(): Folder | Thread | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;

@@ -23,6 +23,7 @@ import {
   Spatial,
   StructType,
   Supergraph,
+  TraitType,
   User,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
@@ -32,6 +33,22 @@ export class GaugeMetric
   extends Node
   implements Spatial, Entity, IsCustomNodeDefinition, IsTracked, IsOrdered, IsSourceable, Metric
 {
+  static metatype: NodeType = NodeType.GAUGE_METRIC;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.METRIC,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.CUSTOM_NODE_DEFINITION,
+    TraitType.ORDERED,
+    TraitType.SOURCEABLE,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
   readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -244,6 +261,20 @@ export class GaugeMetric
 
 /* ==== DESTACK_GENERATED_START:NODE:4111 ==== */
 export class GaugeMeasurement extends Node implements Spatial, Analytic, IsCustomNode, IsTracked, Measurement {
+  static metatype: NodeType = NodeType.GAUGE_MEASUREMENT;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.MEASUREMENT,
+    TraitType.ANALYTIC,
+    TraitType.TRACKED,
+    TraitType.CUSTOM_NODE,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
   readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -411,6 +442,22 @@ export class CounterMetric
   extends Node
   implements Spatial, Entity, IsCustomNodeDefinition, IsTracked, IsOrdered, IsSourceable, Metric
 {
+  static metatype: NodeType = NodeType.COUNTER_METRIC;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.METRIC,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.CUSTOM_NODE_DEFINITION,
+    TraitType.ORDERED,
+    TraitType.SOURCEABLE,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
   readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -623,6 +670,20 @@ export class CounterMetric
 
 /* ==== DESTACK_GENERATED_START:NODE:4113 ==== */
 export class CounterMeasurement extends Node implements Spatial, Analytic, IsCustomNode, IsTracked, Measurement {
+  static metatype: NodeType = NodeType.COUNTER_MEASUREMENT;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.MEASUREMENT,
+    TraitType.ANALYTIC,
+    TraitType.TRACKED,
+    TraitType.CUSTOM_NODE,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
   readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -790,6 +851,22 @@ export class HistogramMetric
   extends Node
   implements Spatial, Entity, IsCustomNodeDefinition, IsTracked, IsOrdered, IsSourceable, Metric
 {
+  static metatype: NodeType = NodeType.HISTOGRAM_METRIC;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.METRIC,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.CUSTOM_NODE_DEFINITION,
+    TraitType.ORDERED,
+    TraitType.SOURCEABLE,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
   readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -1002,6 +1079,20 @@ export class HistogramMetric
 
 /* ==== DESTACK_GENERATED_START:NODE:4115 ==== */
 export class HistogramMeasurement extends Node implements Spatial, Analytic, IsCustomNode, IsTracked, Measurement {
+  static metatype: NodeType = NodeType.HISTOGRAM_MEASUREMENT;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.MEASUREMENT,
+    TraitType.ANALYTIC,
+    TraitType.TRACKED,
+    TraitType.CUSTOM_NODE,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
   readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;

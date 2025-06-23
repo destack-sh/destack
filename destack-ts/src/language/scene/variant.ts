@@ -23,6 +23,7 @@ import {
   StructType,
   Supergraph,
   Team,
+  TraitType,
   User,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
@@ -44,6 +45,34 @@ export enum VariantStateType {
 
 /* ==== DESTACK_GENERATED_START:NODE:9030 ==== */
 export class Variant extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOwnable {
+  static metatype: NodeType = NodeType.VARIANT;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.OWNABLE,
+    TraitType.DELETABLE,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.CUSTOM_VIEW_DEFINITION, NodeType.SCENE, NodeType.LAYER];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [
+    NodeType.SPACE,
+    NodeType.PLANE_SHAPE,
+    NodeType.FRAME_VIEW,
+    NodeType.ANNOTATION_SHAPE,
+    NodeType.WINDOW,
+    NodeType.FOLDER,
+    NodeType.LABEL_VIEW,
+    NodeType.CUSTOM_VIEW_DEFINITION,
+    NodeType.CUSTOM_VIEW,
+    NodeType.SCENE,
+    NodeType.SPLIT_VIEW,
+    NodeType.CANVAS,
+    NodeType.LAYER,
+  ];
+  static __descendantTypes__: NodeType[] = [];
+
   readonly id: string;
   get parent(): Scene | Layer | CustomViewDefinition | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;

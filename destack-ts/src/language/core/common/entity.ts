@@ -50,6 +50,33 @@ export class CustomEntityDefinition
     IsScriptable,
     IsSourceable
 {
+  static metatype: NodeType = NodeType.CUSTOM_ENTITY_DEFINITION;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.TAGGABLE,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.OWNABLE,
+    TraitType.DELETABLE,
+    TraitType.ACTIONABLE,
+    TraitType.CUSTOM_NODE_DEFINITION,
+    TraitType.ORDERED,
+    TraitType.SCRIPTABLE,
+    TraitType.SOURCEABLE,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.FOLDER];
+  static __childTypes__: NodeType[] = [NodeType.CUSTOM_ENTITY, NodeType.TAGGING, NodeType.ACTION, NodeType.SCRIPT];
+  static __ancestorTypes__: NodeType[] = [NodeType.FOLDER, NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [
+    NodeType.OPTION,
+    NodeType.FIELD,
+    NodeType.ACTION,
+    NodeType.CUSTOM_ENTITY,
+    NodeType.TAGGING,
+    NodeType.SCRIPT,
+  ];
+
   readonly id: string;
   get parent(): Folder | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -293,6 +320,26 @@ export class CustomEntityDefinition
 
 /* ==== DESTACK_GENERATED_START:NODE:2001 ==== */
 export class CustomEntity extends Node implements Spatial, Entity, IsCustomNode, IsTracked, IsDeletable, IsExtensible {
+  static metatype: NodeType = NodeType.CUSTOM_ENTITY;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.DELETABLE,
+    TraitType.EXTENSIBLE,
+    TraitType.CUSTOM_NODE,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.CUSTOM_ENTITY_DEFINITION, NodeType.CUSTOM_ENTITY];
+  static __childTypes__: NodeType[] = [NodeType.CUSTOM_ENTITY, NodeType.FIELD];
+  static __ancestorTypes__: NodeType[] = [
+    NodeType.CUSTOM_ENTITY_DEFINITION,
+    NodeType.CUSTOM_ENTITY,
+    NodeType.FOLDER,
+    NodeType.SPACE,
+  ];
+  static __descendantTypes__: NodeType[] = [NodeType.FIELD, NodeType.CUSTOM_ENTITY, NodeType.OPTION, NodeType.TAGGING];
+
   readonly id: string;
   get parent(): CustomEntityDefinition | CustomEntity | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;

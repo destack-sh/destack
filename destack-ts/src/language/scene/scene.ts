@@ -56,6 +56,7 @@ import {
   StructType,
   Supergraph,
   Team,
+  TraitType,
   User,
   Value,
   Vector2,
@@ -73,6 +74,22 @@ export enum SceneEventType {
 
 /* ==== DESTACK_GENERATED_START:NODE:9011 ==== */
 export class SceneEvent extends Node implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked {
+  static metatype: NodeType = NodeType.SCENE_EVENT;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.PARTICLE,
+    TraitType.ANALYTIC,
+    TraitType.INDEXED,
+    TraitType.FROZEN,
+    TraitType.TRACKED,
+    TraitType.EVENT,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
   readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -254,6 +271,90 @@ export class Scene
     View,
     ContainerView
 {
+  static metatype: NodeType = NodeType.SCENE;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.VISUAL,
+    TraitType.VIEW,
+    TraitType.ENTITY,
+    TraitType.TAGGABLE,
+    TraitType.CONTAINER_VIEW,
+    TraitType.TRACKED,
+    TraitType.OWNABLE,
+    TraitType.DELETABLE,
+    TraitType.EXTENSIBLE,
+    TraitType.ORDERED,
+    TraitType.SCRIPTABLE,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.FOLDER, NodeType.SCENE, NodeType.WINDOW];
+  static __childTypes__: NodeType[] = [
+    NodeType.FIELD,
+    NodeType.CUSTOM_VIEW_DEFINITION,
+    NodeType.CUSTOM_VIEW,
+    NodeType.FRAME_VIEW,
+    NodeType.LABEL_VIEW,
+    NodeType.SPLIT_VIEW,
+    NodeType.TEXT_VIEW,
+    NodeType.NUMBER_INPUT_VIEW,
+    NodeType.SLIDER_INPUT_VIEW,
+    NodeType.WIZARD_VIEW,
+    NodeType.THREAD_VIEW,
+    NodeType.ANNOTATION_SHAPE,
+    NodeType.ARROW_SHAPE,
+    NodeType.CANVAS,
+    NodeType.LINE_SHAPE,
+    NodeType.PLANE_SHAPE,
+    NodeType.TAGGING,
+    NodeType.SCRIPT,
+    NodeType.LAYER,
+    NodeType.SCENE,
+    NodeType.VARIANT,
+    NodeType.COLOR_STYLE,
+    NodeType.BORDER_STYLE,
+    NodeType.TRANSITION_STYLE,
+    NodeType.EFFECT_STYLE,
+    NodeType.GRADIENT_STYLE,
+    NodeType.FILL_STYLE,
+    NodeType.FONT_STYLE,
+    NodeType.PALETTE,
+    NodeType.SHADOW_STYLE,
+  ];
+  static __ancestorTypes__: NodeType[] = [NodeType.WINDOW, NodeType.SPACE, NodeType.SCENE, NodeType.FOLDER];
+  static __descendantTypes__: NodeType[] = [
+    NodeType.LINE_SHAPE,
+    NodeType.PLANE_SHAPE,
+    NodeType.ARROW_SHAPE,
+    NodeType.ANNOTATION_SHAPE,
+    NodeType.CUSTOM_VIEW_DEFINITION,
+    NodeType.CUSTOM_VIEW,
+    NodeType.WIZARD_VIEW,
+    NodeType.NUMBER_INPUT_VIEW,
+    NodeType.SLIDER_INPUT_VIEW,
+    NodeType.FRAME_VIEW,
+    NodeType.LABEL_VIEW,
+    NodeType.SCENE,
+    NodeType.SCRIPT,
+    NodeType.SPLIT_VIEW,
+    NodeType.LAYER,
+    NodeType.VARIANT,
+    NodeType.SHADOW_STYLE,
+    NodeType.FIELD,
+    NodeType.TEXT_VIEW,
+    NodeType.OPTION,
+    NodeType.THREAD_VIEW,
+    NodeType.PALETTE,
+    NodeType.TAGGING,
+    NodeType.COLOR_STYLE,
+    NodeType.FILL_STYLE,
+    NodeType.FONT_STYLE,
+    NodeType.BORDER_STYLE,
+    NodeType.CANVAS,
+    NodeType.GRADIENT_STYLE,
+    NodeType.TRANSITION_STYLE,
+    NodeType.EFFECT_STYLE,
+  ];
+
   readonly id: string;
   get parent(): Folder | Scene | Window | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;

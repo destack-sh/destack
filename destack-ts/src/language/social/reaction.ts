@@ -18,11 +18,35 @@ import {
   Spatial,
   StructType,
   Supergraph,
+  TraitType,
   User,
 } from "@/language";
+import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:5520 ==== */
 export class Reaction extends Node implements Global, Spatial, Entity, IsTracked, IsDeletable, IsOwnable, IsReactable {
+  static metatype: NodeType = NodeType.REACTION;
+  static __traits__: TraitType[] = [
+    TraitType.GLOBAL,
+    TraitType.SPATIAL,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.OWNABLE,
+    TraitType.DELETABLE,
+    TraitType.REACTABLE,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.REACTION, NodeType.MESSAGE];
+  static __childTypes__: NodeType[] = [NodeType.REACTION];
+  static __ancestorTypes__: NodeType[] = [
+    NodeType.SPACE,
+    NodeType.MESSAGE,
+    NodeType.FOLDER,
+    NodeType.REACTION,
+    NodeType.THREAD,
+  ];
+  static __descendantTypes__: NodeType[] = [NodeType.REACTION];
+
   readonly id: string;
   get parent(): Message | Reaction | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;

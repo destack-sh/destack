@@ -22,14 +22,32 @@ import {
   Team,
   Text,
   Thread,
+  TraitType,
   User,
 } from "@/language";
+import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:5510 ==== */
 export class Message
   extends Node
   implements Spatial, Entity, IsTracked, IsDeletable, IsOwnable, IsTaggable, IsReactable
 {
+  static metatype: NodeType = NodeType.MESSAGE;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.TAGGABLE,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.OWNABLE,
+    TraitType.DELETABLE,
+    TraitType.REACTABLE,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.THREAD];
+  static __childTypes__: NodeType[] = [NodeType.TAGGING, NodeType.REACTION];
+  static __ancestorTypes__: NodeType[] = [NodeType.FOLDER, NodeType.SPACE, NodeType.THREAD];
+  static __descendantTypes__: NodeType[] = [NodeType.REACTION, NodeType.TAGGING];
+
   readonly id: string;
   get parent(): Thread | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;

@@ -19,12 +19,16 @@ import {
   StructType,
   Supergraph,
   ThreadCursor,
+  TraitType,
   User,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50001 ==== */
 export class Origin extends StructFrozen {
+  static metatype: StructType = StructType.ORIGIN;
+  static __isFrozen__: boolean = true;
+
   readonly type: ClientType;
   readonly id: string | null;
   readonly ck: string | null;
@@ -65,6 +69,14 @@ export class Origin extends StructFrozen {
 
 /* ==== DESTACK_GENERATED_START:NODE:100 ==== */
 export class Client extends Node implements Global, Entity, IsTracked, IsDeletable {
+  static metatype: NodeType = NodeType.CLIENT;
+  static __traits__: TraitType[] = [TraitType.GLOBAL, TraitType.ENTITY, TraitType.TRACKED, TraitType.DELETABLE];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.AGENT, NodeType.USER];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.AGENT, NodeType.FOLDER, NodeType.USER, NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
   readonly id: string;
   get parent(): Agent | User | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;

@@ -1,7 +1,10 @@
-import { Region, Session, Struct, Supergraph } from "@/language";
+import { Region, Session, Struct, StructType, Supergraph } from "@/language";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:7601 ==== */
 export class GalaxyInfo extends Struct {
+  static metatype: StructType = StructType.GALAXY_INFO;
+  static __isFrozen__: boolean = false;
+
   region: Region;
   name: string;
   host: string;

@@ -12,6 +12,9 @@ export enum IconType {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2531 ==== */
 export class Icon extends StructFrozen {
+  static metatype: StructType = StructType.ICON;
+  static __isFrozen__: boolean = true;
+
   readonly type: IconType;
   readonly emoji: string | null;
   readonly faName: string | null;

@@ -20,6 +20,7 @@ import {
   StructType,
   Supergraph,
   Team,
+  TraitType,
   User,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
@@ -34,6 +35,70 @@ export enum WindowType {
 
 /* ==== DESTACK_GENERATED_START:NODE:9000 ==== */
 export class Window extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsOwnable, IsVisual {
+  static metatype: NodeType = NodeType.WINDOW;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.VISUAL,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.OWNABLE,
+    TraitType.DELETABLE,
+    TraitType.ORDERED,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [
+    NodeType.CUSTOM_VIEW,
+    NodeType.FRAME_VIEW,
+    NodeType.LABEL_VIEW,
+    NodeType.SPLIT_VIEW,
+    NodeType.TEXT_VIEW,
+    NodeType.NUMBER_INPUT_VIEW,
+    NodeType.SLIDER_INPUT_VIEW,
+    NodeType.WIZARD_VIEW,
+    NodeType.THREAD_VIEW,
+    NodeType.ANNOTATION_SHAPE,
+    NodeType.ARROW_SHAPE,
+    NodeType.CANVAS,
+    NodeType.LINE_SHAPE,
+    NodeType.PLANE_SHAPE,
+    NodeType.SCENE,
+  ];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [
+    NodeType.LINE_SHAPE,
+    NodeType.PLANE_SHAPE,
+    NodeType.ARROW_SHAPE,
+    NodeType.ANNOTATION_SHAPE,
+    NodeType.CUSTOM_VIEW_DEFINITION,
+    NodeType.CUSTOM_VIEW,
+    NodeType.WIZARD_VIEW,
+    NodeType.NUMBER_INPUT_VIEW,
+    NodeType.SLIDER_INPUT_VIEW,
+    NodeType.FRAME_VIEW,
+    NodeType.LABEL_VIEW,
+    NodeType.SCENE,
+    NodeType.SCRIPT,
+    NodeType.SPLIT_VIEW,
+    NodeType.LAYER,
+    NodeType.VARIANT,
+    NodeType.SHADOW_STYLE,
+    NodeType.FIELD,
+    NodeType.TEXT_VIEW,
+    NodeType.OPTION,
+    NodeType.THREAD_VIEW,
+    NodeType.PALETTE,
+    NodeType.TAGGING,
+    NodeType.COLOR_STYLE,
+    NodeType.FILL_STYLE,
+    NodeType.FONT_STYLE,
+    NodeType.BORDER_STYLE,
+    NodeType.CANVAS,
+    NodeType.GRADIENT_STYLE,
+    NodeType.TRANSITION_STYLE,
+    NodeType.EFFECT_STYLE,
+  ];
+
   readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;

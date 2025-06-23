@@ -1,4 +1,4 @@
-import { Session, Struct, Supergraph } from "@/language";
+import { Session, Struct, StructType, Supergraph } from "@/language";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:3051 ==== */
@@ -43,6 +43,9 @@ export enum ScheduleFrequency {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:3001 ==== */
 export class Schedule extends Struct {
+  static metatype: StructType = StructType.SCHEDULE;
+  static __isFrozen__: boolean = false;
+
   frequency: ScheduleFrequency;
   interval: number;
   start: Temporal.ZonedDateTime | null;

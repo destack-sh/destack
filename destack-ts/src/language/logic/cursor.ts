@@ -17,6 +17,7 @@ import {
   StructType,
   Supergraph,
   Team,
+  TraitType,
   User,
   Vector2i,
 } from "@/language";
@@ -55,6 +56,20 @@ export interface Cursor {
 
 /* ==== DESTACK_GENERATED_START:NODE:3100 ==== */
 export class EventCursor extends Node implements Spatial, Entity, IsTracked, IsOwnable, Cursor {
+  static metatype: NodeType = NodeType.EVENT_CURSOR;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.CURSOR,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.OWNABLE,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
   readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -231,6 +246,20 @@ export class EventCursor extends Node implements Spatial, Entity, IsTracked, IsO
 
 /* ==== DESTACK_GENERATED_START:NODE:3101 ==== */
 export class ScreenCursor extends Node implements Spatial, Entity, IsTracked, IsOwnable, Cursor {
+  static metatype: NodeType = NodeType.SCREEN_CURSOR;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.CURSOR,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.OWNABLE,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
   readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -410,6 +439,20 @@ export class ScreenCursor extends Node implements Spatial, Entity, IsTracked, Is
 
 /* ==== DESTACK_GENERATED_START:NODE:3102 ==== */
 export class ThreadCursor extends Node implements Spatial, Entity, IsTracked, IsOwnable, Cursor {
+  static metatype: NodeType = NodeType.THREAD_CURSOR;
+  static __traits__: TraitType[] = [
+    TraitType.SPATIAL,
+    TraitType.CURSOR,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.OWNABLE,
+  ];
+  static __rootType__: NodeType | null = NodeType.SPACE;
+  static __parentTypes__: NodeType[] = [NodeType.SPACE];
+  static __childTypes__: NodeType[] = [];
+  static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
+  static __descendantTypes__: NodeType[] = [];
+
   readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
