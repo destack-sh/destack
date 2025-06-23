@@ -236,7 +236,7 @@ export abstract class Node extends BuiltinObject {
     const { where, name, join, ...subqueries } = options;
     const query = new Query({
       type: QueryType.NODE,
-      relation: RelationReference.of(this),
+      relation: RelationReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
       join,
       where,
@@ -261,7 +261,7 @@ export abstract class Node extends BuiltinObject {
     const { where, name, join, having, groupBy, sort, limit, offset, ...subqueries } = options;
     const query = new Query({
       type: groupBy ? QueryType.GROUPED_NODE : QueryType.NODE,
-      relation: RelationReference.of(this),
+      relation: RelationReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
       join,
       where,
@@ -286,7 +286,7 @@ export abstract class Node extends BuiltinObject {
     const { where, name, join, ...subqueries } = options;
     const query = new Query({
       type: QueryType.SCALAR,
-      relation: RelationReference.of(this),
+      relation: RelationReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
       join,
       where,
@@ -310,7 +310,7 @@ export abstract class Node extends BuiltinObject {
     const { where, name, join, groupBy, having, sort, ...subqueries } = options;
     const query = new Query({
       type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
-      relation: RelationReference.of(this),
+      relation: RelationReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
       join,
       where,
@@ -338,7 +338,7 @@ export abstract class Node extends BuiltinObject {
     const { expression, where, name, join, groupBy, having, sort, ...subqueries } = options;
     const query = new Query({
       type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
-      relation: RelationReference.of(this),
+      relation: RelationReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
       join,
       where,
@@ -366,7 +366,7 @@ export abstract class Node extends BuiltinObject {
     const { expression, where, name, join, groupBy, having, sort, ...subqueries } = options;
     const query = new Query({
       type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
-      relation: RelationReference.of(this),
+      relation: RelationReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
       join,
       where,
@@ -394,7 +394,7 @@ export abstract class Node extends BuiltinObject {
     const { expression, where, name, join, groupBy, having, sort, ...subqueries } = options;
     const query = new Query({
       type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
-      relation: RelationReference.of(this),
+      relation: RelationReference.of(this as unknown as NodeClass),
       name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
       join,
       where,
