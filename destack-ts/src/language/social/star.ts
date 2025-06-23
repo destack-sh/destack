@@ -1,5 +1,4 @@
-import { IsTracked, ACTIVE_SESSION, IsOwnable, Spatial, Global, EnumType, MaterializationType, Entity, Space, StructType, Struct, NodeReference, NodeType, Graph, User, Agent, Node, QueryConnection, StructFrozen, Supergraph, IsDeletable, Folder, BuiltinObject, Session, activeSession } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { IsDeletable, Entity, MaterializationType, NodeType, QueryConnection, StructType, Space, NodeReference, Graph, IsOwnable, Folder, User, Struct, StructFrozen, Spatial, BuiltinObject, EnumType, Agent, activeSession, Node, IsTracked, Supergraph, Global, ACTIVE_SESSION, Session } from '@/language';
 
 /* ==== DESTACK_GENERATED_START:NODE:5521 ==== */
 export class Star extends Node implements Global, Spatial, Entity, IsTracked, IsDeletable, IsOwnable {
@@ -12,7 +11,7 @@ export class Star extends Node implements Global, Spatial, Entity, IsTracked, Is
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -21,7 +20,7 @@ export class Star extends Node implements Global, Spatial, Entity, IsTracked, Is
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
@@ -32,7 +31,7 @@ export class Star extends Node implements Global, Spatial, Entity, IsTracked, Is
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -42,7 +41,7 @@ export class Star extends Node implements Global, Spatial, Entity, IsTracked, Is
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   readonly deletedAt: Temporal.ZonedDateTime | null;
   get ownedBy(): Agent | User | null {
       const nodePtr: NodeReference | null = this.ownedByPtr;
@@ -118,7 +117,13 @@ export class Star extends Node implements Global, Spatial, Entity, IsTracked, Is
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.STAR, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.STAR,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {

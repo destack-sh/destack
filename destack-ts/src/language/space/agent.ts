@@ -1,5 +1,4 @@
-import { IsTracked, EventCursor, ACTIVE_SESSION, Spatial, IsOwner, EnumType, MaterializationType, Entity, IsSubject, Space, StructType, Struct, IsFollowable, Icon, ThreadCursor, IsScriptable, NodeReference, NodeType, Graph, User, Node, QueryConnection, ScreenCursor, StructFrozen, Script, Supergraph, IsDeletable, Folder, BuiltinObject, Session, activeSession } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { IsDeletable, Entity, MaterializationType, NodeType, QueryConnection, StructType, Space, NodeReference, Graph, Script, Icon, Folder, User, Struct, IsOwner, StructFrozen, Spatial, BuiltinObject, EnumType, IsFollowable, IsScriptable, EventCursor, IsSubject, activeSession, Node, IsTracked, Supergraph, ScreenCursor, ACTIVE_SESSION, ThreadCursor, Session } from '@/language';
 
 /* ==== DESTACK_GENERATED_START:NODE:600 ==== */
 export class Agent extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsSubject, IsOwner, IsScriptable, IsFollowable {
@@ -12,7 +11,7 @@ export class Agent extends Node implements Spatial, Entity, IsTracked, IsDeletab
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -21,7 +20,7 @@ export class Agent extends Node implements Spatial, Entity, IsTracked, IsDeletab
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
@@ -32,7 +31,7 @@ export class Agent extends Node implements Spatial, Entity, IsTracked, IsDeletab
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -42,7 +41,7 @@ export class Agent extends Node implements Spatial, Entity, IsTracked, IsDeletab
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   readonly deletedAt: Temporal.ZonedDateTime | null;
   name: string;
   slug: string;
@@ -150,7 +149,13 @@ export class Agent extends Node implements Spatial, Entity, IsTracked, IsDeletab
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.AGENT, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.AGENT,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {

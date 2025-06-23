@@ -1,5 +1,4 @@
-import { CollectionConstraint, NodeConstraint, TraitType, ACTIVE_SESSION, CascadeAction, Value, EnumType, StringConstraint, StructType, Type, Struct, DefaultFactory, Icon, NodeReference, NodeType, EdgeType, Graph, PrimitiveType, Node, QueryConnection, StructFrozen, ScalarType, Supergraph, TypeCardinality, BuiltinObject, Session, activeSession, NumberConstraint } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { CollectionConstraint, NumberConstraint, DefaultFactory, ScalarType, PrimitiveType, NodeType, QueryConnection, Type, StructType, NodeReference, StringConstraint, Graph, Icon, TraitType, Value, Struct, StructFrozen, BuiltinObject, EnumType, TypeCardinality, EdgeType, NodeConstraint, activeSession, Node, Supergraph, CascadeAction, ACTIVE_SESSION, Session } from '@/language';
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50004 ==== */
 export class PropertyDefinition extends StructFrozen {
@@ -68,7 +67,7 @@ export class PropertyDefinition extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.id = options.id;
@@ -141,7 +140,7 @@ export class TraitDefinition extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.id = options.id;
@@ -191,7 +190,7 @@ export class NodeDefinition extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.id = options.id;
@@ -240,7 +239,7 @@ export class StructDefinition extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.id = options.id;
@@ -287,7 +286,7 @@ export class EnumDefinition extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.id = options.id;
@@ -331,7 +330,7 @@ export class EnumOptionDefinition extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.id = options.id;
@@ -374,7 +373,7 @@ export class PermissionDefinition extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.id = options.id;
@@ -413,7 +412,7 @@ export class ConstantDefinition extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.name = options.name;

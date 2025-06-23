@@ -1,5 +1,5 @@
-import { IsTracked, IsSourceable, TraitType, IsExtensible, ACTIVE_SESSION, IsCustomNodeDefinition, IsOwnable, Spatial, IsActionable, Value, EnumType, IsOrdered, MaterializationType, Entity, Space, StructType, Struct, Organization, IsScriptable, NodeReference, NodeType, IsCustomNode, Graph, User, Role, Agent, Team, IsTaggable, Node, QueryConnection, StructFrozen, Script, Supergraph, IsDeletable, Folder, BuiltinObject, Session, activeSession } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { IsDeletable, IsOrdered, Entity, MaterializationType, IsActionable, NodeType, QueryConnection, StructType, Space, NodeReference, Graph, IsOwnable, Script, TraitType, Organization, Folder, IsSourceable, IsCustomNode, Value, User, IsTaggable, Struct, StructFrozen, Spatial, BuiltinObject, EnumType, Agent, IsScriptable, activeSession, Team, Node, IsTracked, IsCustomNodeDefinition, Supergraph, Role, IsExtensible, ACTIVE_SESSION, Session } from '@/language';
+import { Temporal } from 'temporal-polyfill';
 
 /* ==== DESTACK_GENERATED_START:NODE:2000 ==== */
 export class CustomEntityDefinition extends Node implements Spatial, Entity, IsCustomNodeDefinition, IsTracked, IsDeletable, IsOrdered, IsOwnable, IsTaggable, IsActionable, IsScriptable, IsSourceable {
@@ -12,7 +12,7 @@ export class CustomEntityDefinition extends Node implements Spatial, Entity, IsC
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -21,7 +21,7 @@ export class CustomEntityDefinition extends Node implements Spatial, Entity, IsC
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   get prototype(): CustomEntity | null | null {
       const nodePtr: NodeReference | null = this.prototypePtr;
       if (nodePtr !== null) {
@@ -49,7 +49,7 @@ export class CustomEntityDefinition extends Node implements Spatial, Entity, IsC
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -59,7 +59,7 @@ export class CustomEntityDefinition extends Node implements Spatial, Entity, IsC
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   readonly deletedAt: Temporal.ZonedDateTime | null;
   readonly orderKey: string;
   get ownedBy(): Role | Agent | Organization | Team | User | null | null {
@@ -106,7 +106,7 @@ export class CustomEntityDefinition extends Node implements Spatial, Entity, IsC
       return null;
   }
   ;
-  sourcePtr: NodeReference | null
+  readonly sourcePtr: NodeReference | null
 
   constructor(options: {
     id: string,
@@ -180,7 +180,13 @@ export class CustomEntityDefinition extends Node implements Spatial, Entity, IsC
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.CUSTOM_ENTITY_DEFINITION, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.CUSTOM_ENTITY_DEFINITION,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {
@@ -213,7 +219,7 @@ export class CustomEntity extends Node implements Spatial, Entity, IsCustomNode,
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -222,7 +228,7 @@ export class CustomEntity extends Node implements Spatial, Entity, IsCustomNode,
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   get definition(): CustomEntityDefinition | null {
       const nodePtr: NodeReference | null = this.definitionPtr;
       if (nodePtr !== null) {
@@ -231,7 +237,7 @@ export class CustomEntity extends Node implements Spatial, Entity, IsCustomNode,
       return null;
   }
   ;
-  definitionPtr: NodeReference
+  readonly definitionPtr: NodeReference
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
@@ -242,7 +248,7 @@ export class CustomEntity extends Node implements Spatial, Entity, IsCustomNode,
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -252,7 +258,7 @@ export class CustomEntity extends Node implements Spatial, Entity, IsCustomNode,
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   readonly deletedAt: Temporal.ZonedDateTime | null;
   value: Map<string, Value>;
 
@@ -318,7 +324,14 @@ export class CustomEntity extends Node implements Spatial, Entity, IsCustomNode,
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.CUSTOM_ENTITY, this.id, this.spacePtr?.id ?? null, this.definitionPtr?.id ?? null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.CUSTOM_ENTITY,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {

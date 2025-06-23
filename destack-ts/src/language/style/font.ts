@@ -1,5 +1,5 @@
-import { IsTracked, SliderInputView, ACTIVE_SESSION, WizardView, IsVisual, Length, Spatial, EnumType, IsOrdered, ArrowShape, MaterializationType, Entity, AnnotationShape, Space, StructType, CustomView, SplitView, Struct, NumberInputView, Theme, LabelView, PlaneShape, ThreadView, Scene, NodeReference, NodeType, LineShape, Graph, User, Layer, Agent, IsTaggable, Fill, Node, QueryConnection, CustomViewDefinition, StructFrozen, TextView, Canvas, Supergraph, IsDeletable, FrameView, BuiltinObject, Session, activeSession, Style } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { IsDeletable, SplitView, IsOrdered, CustomView, ThreadView, Entity, MaterializationType, Canvas, NodeType, QueryConnection, StructType, Space, Style, NodeReference, Graph, Length, NumberInputView, User, IsTaggable, Struct, FrameView, StructFrozen, PlaneShape, Spatial, BuiltinObject, EnumType, LineShape, Scene, Layer, Fill, Agent, SliderInputView, TextView, Theme, activeSession, Node, IsTracked, Supergraph, WizardView, AnnotationShape, CustomViewDefinition, ACTIVE_SESSION, IsVisual, LabelView, Session, ArrowShape } from '@/language';
+import { Temporal } from 'temporal-polyfill';
 
 /* ==== DESTACK_GENERATED_START:ENUM:12026 ==== */
 export enum FontType {
@@ -114,7 +114,7 @@ export class Font extends Struct {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.type = options.type ?? FontType.SANS;
@@ -154,7 +154,7 @@ export class FontStyle extends Node implements Spatial, Entity, IsTracked, IsDel
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -163,7 +163,7 @@ export class FontStyle extends Node implements Spatial, Entity, IsTracked, IsDel
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
@@ -174,7 +174,7 @@ export class FontStyle extends Node implements Spatial, Entity, IsTracked, IsDel
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -184,7 +184,7 @@ export class FontStyle extends Node implements Spatial, Entity, IsTracked, IsDel
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   readonly deletedAt: Temporal.ZonedDateTime | null;
   readonly orderKey: string;
   type: FontType;
@@ -278,7 +278,13 @@ export class FontStyle extends Node implements Spatial, Entity, IsTracked, IsDel
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.FONT_STYLE, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.FONT_STYLE,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {

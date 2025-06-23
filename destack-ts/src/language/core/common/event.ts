@@ -1,5 +1,5 @@
-import { EventCursor, Link, ACTIVE_SESSION, Field, FriendshipInviteEvent, NotificationEvent, FriendshipInvite, Spatial, Value, Message, CounterMeasurement, ArrowShape, BorderStyle, StructType, CustomStructDefinition, SplitView, RunEvent, Struct, EditType, Particle, Organization, Palette, Run, InviteEvent, EntitlementEvent, CounterMetric, Agent, Team, MembershipEvent, Supergraph, Folder, SliderInputView, IsSourceable, GaugeMeasurement, WizardView, Tag, GradientStyle, EnumType, IsOrdered, RoleEvent, Tagging, HistogramMeasurement, AnnotationShape, CustomView, Reaction, ColorStyle, Timer, Thread, ThreadCursor, ShadowStyle, Branch, NodeType, Graph, User, IsTaggable, Service, Script, Star, Canvas, Handle, Span, BuiltinObject, Session, FillStyle, Sanction, GaugeMetric, Window, Permission, Log, TriggerEvent, CustomEnumDefinition, HistogramMetric, Variant, Invite, Friendship, File, Theme, PropertyReference, FontStyle, Trigger, EditOperation, PlaneShape, Snapshot, ThreadView, Scene, NodeReference, SanctionEvent, EffectStyle, Action, IsFrozen, Indexed, Node, ScreenCursor, CustomViewDefinition, StructFrozen, CustomEntity, FrameView, Database, Analytic, Environment, Route, Entitlement, Follow, IsTracked, SceneEvent, TransitionStyle, MaterializationType, Entity, Space, Machine, NumberInputView, CustomEntityDefinition, Membership, Client, LabelView, TimerEvent, LineShape, Option, Role, Layer, Interruption, QueryConnection, TextView, Event, Notification, activeSession } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { IsOrdered, CustomView, FriendshipInvite, TimerEvent, Variant, SanctionEvent, Run, Space, Action, Organization, Value, IsTaggable, Client, Reaction, PlaneShape, Spatial, EnumType, GaugeMeasurement, Agent, Thread, EventCursor, EffectStyle, CustomEntity, Theme, Notification, Supergraph, FillStyle, Invite, HistogramMeasurement, Membership, Log, InviteEvent, SplitView, Timer, Indexed, EditOperation, Canvas, NodeType, QueryConnection, BorderStyle, StructType, Interruption, RunEvent, Environment, Handle, Permission, Span, FrameView, StructFrozen, Event, Tag, Friendship, GradientStyle, Layer, ColorStyle, Star, SceneEvent, activeSession, Message, Team, IsTracked, Snapshot, FontStyle, IsFrozen, CounterMetric, ArrowShape, ThreadView, RoleEvent, NodeReference, Graph, Analytic, Script, NumberInputView, CustomStructDefinition, Field, ShadowStyle, IsSourceable, Entitlement, Palette, TriggerEvent, Option, GaugeMetric, LineShape, Route, Scene, MembershipEvent, Link, CounterMeasurement, Particle, TextView, EntitlementEvent, Node, WizardView, EditType, Role, PropertyReference, LabelView, NotificationEvent, Follow, CustomEnumDefinition, Branch, Entity, MaterializationType, CustomEntityDefinition, Database, Folder, HistogramMetric, User, Struct, Service, BuiltinObject, FriendshipInviteEvent, SliderInputView, Window, Machine, File, Tagging, Sanction, ScreenCursor, AnnotationShape, CustomViewDefinition, Trigger, TransitionStyle, ACTIVE_SESSION, ThreadCursor, Session } from '@/language';
+import { Temporal } from 'temporal-polyfill';
 
 /* ==== DESTACK_GENERATED_START:NODE:4202 ==== */
 export class EditEvent extends Node implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked, IsTaggable {
@@ -12,7 +12,7 @@ export class EditEvent extends Node implements Spatial, Particle, Analytic, Inde
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -21,7 +21,7 @@ export class EditEvent extends Node implements Spatial, Particle, Analytic, Inde
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
@@ -31,7 +31,7 @@ export class EditEvent extends Node implements Spatial, Particle, Analytic, Inde
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -41,7 +41,7 @@ export class EditEvent extends Node implements Spatial, Particle, Analytic, Inde
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   type: EditType;
   operation: EditOperation | null;
   get node(): Node | null {
@@ -146,7 +146,13 @@ export class EditEvent extends Node implements Spatial, Particle, Analytic, Inde
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.EDIT_EVENT, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.EDIT_EVENT,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {
@@ -179,7 +185,7 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, IsTr
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -188,7 +194,7 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, IsTr
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
@@ -199,7 +205,7 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, IsTr
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -209,7 +215,7 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, IsTr
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   readonly orderKey: string;
   name: string;
   get source(): Script | null | null {
@@ -220,7 +226,7 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, IsTr
       return null;
   }
   ;
-  sourcePtr: NodeReference | null
+  readonly sourcePtr: NodeReference | null
 
   constructor(options: {
     id: string,
@@ -284,7 +290,13 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, IsTr
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.CUSTOM_EVENT_DEFINITION, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.CUSTOM_EVENT_DEFINITION,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {
@@ -317,7 +329,7 @@ export class CustomEvent extends Node implements Spatial, Particle, Analytic, In
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -326,7 +338,7 @@ export class CustomEvent extends Node implements Spatial, Particle, Analytic, In
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
@@ -336,7 +348,7 @@ export class CustomEvent extends Node implements Spatial, Particle, Analytic, In
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -346,7 +358,7 @@ export class CustomEvent extends Node implements Spatial, Particle, Analytic, In
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   get node(): Node | null | null {
       const nodePtr: NodeReference | null = this.nodePtr;
       if (nodePtr !== null) {
@@ -436,7 +448,13 @@ export class CustomEvent extends Node implements Spatial, Particle, Analytic, In
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.CUSTOM_EVENT, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.CUSTOM_EVENT,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {

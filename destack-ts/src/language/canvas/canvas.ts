@@ -1,5 +1,5 @@
-import { IsTracked, Dimension, IsExtensible, ACTIVE_SESSION, Distribute, Window, IsVisual, Position, Spatial, Value, EnumType, IsOrdered, MaterializationType, Entity, AnnotationShape, Direction, Space, StructType, CustomView, SplitView, Vector2, Struct, Axis2, ContainerView, IsScriptable, LabelView, PlaneShape, Layout, Scene, NodeReference, GridSpan, Axis3, Border, NodeType, Graph, User, Corners, Layer, Agent, IsTaggable, Insets, Fill, Node, QueryConnection, Align, View, CustomViewDefinition, StructFrozen, Script, Supergraph, IsDeletable, FrameView, BuiltinObject, Session, activeSession, Shadow, Grid } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { IsDeletable, SplitView, Border, IsOrdered, CustomView, Dimension, View, Entity, MaterializationType, NodeType, QueryConnection, Shadow, StructType, Space, NodeReference, Axis3, Graph, Script, GridSpan, Align, Value, Vector2, Insets, User, IsTaggable, Struct, FrameView, StructFrozen, PlaneShape, Spatial, BuiltinObject, Direction, Distribute, EnumType, Corners, Layout, Scene, Layer, Axis2, ContainerView, Agent, IsScriptable, Position, Fill, Grid, Window, activeSession, Node, IsTracked, Supergraph, AnnotationShape, CustomViewDefinition, IsExtensible, ACTIVE_SESSION, IsVisual, LabelView, Session } from '@/language';
+import { Temporal } from 'temporal-polyfill';
 
 /* ==== DESTACK_GENERATED_START:ENUM:11000 ==== */
 export enum CanvasType {
@@ -18,7 +18,7 @@ export class Canvas extends Node implements Spatial, Entity, IsTracked, IsDeleta
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -27,7 +27,7 @@ export class Canvas extends Node implements Spatial, Entity, IsTracked, IsDeleta
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
@@ -38,7 +38,7 @@ export class Canvas extends Node implements Spatial, Entity, IsTracked, IsDeleta
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -48,7 +48,7 @@ export class Canvas extends Node implements Spatial, Entity, IsTracked, IsDeleta
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   readonly deletedAt: Temporal.ZonedDateTime | null;
   value: Map<string, Value>;
   readonly orderKey: string;
@@ -218,7 +218,13 @@ export class Canvas extends Node implements Spatial, Entity, IsTracked, IsDeleta
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.CANVAS, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.CANVAS,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {

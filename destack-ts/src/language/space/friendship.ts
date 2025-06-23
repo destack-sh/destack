@@ -1,5 +1,5 @@
-import { IsTracked, ACTIVE_SESSION, IsOwnable, Spatial, Global, EnumType, MaterializationType, Entity, Space, StructType, Struct, Particle, LikeInvite, NodeReference, NodeType, Graph, User, IsFrozen, Agent, Indexed, Node, QueryConnection, StructFrozen, Supergraph, Analytic, Event, BuiltinObject, Session, activeSession } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { Entity, Indexed, MaterializationType, NodeType, QueryConnection, StructType, Space, NodeReference, LikeInvite, Graph, Analytic, IsOwnable, User, Struct, StructFrozen, Event, Spatial, BuiltinObject, EnumType, Agent, Particle, activeSession, Node, IsTracked, Supergraph, Global, IsFrozen, ACTIVE_SESSION, Session } from '@/language';
+import { Temporal } from 'temporal-polyfill';
 
 /* ==== DESTACK_GENERATED_START:ENUM:31 ==== */
 export enum FriendshipInviteEventType {
@@ -21,7 +21,7 @@ export class Friendship extends Node implements Global, Entity, IsTracked {
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
@@ -32,7 +32,7 @@ export class Friendship extends Node implements Global, Entity, IsTracked {
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -42,7 +42,7 @@ export class Friendship extends Node implements Global, Entity, IsTracked {
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   get userA(): User | null {
       const nodePtr: NodeReference | null = this.userAPtr;
       if (nodePtr !== null) {
@@ -51,7 +51,7 @@ export class Friendship extends Node implements Global, Entity, IsTracked {
       return null;
   }
   ;
-  userAPtr: NodeReference
+  readonly userAPtr: NodeReference
   get userB(): User | null {
       const nodePtr: NodeReference | null = this.userBPtr;
       if (nodePtr !== null) {
@@ -60,7 +60,7 @@ export class Friendship extends Node implements Global, Entity, IsTracked {
       return null;
   }
   ;
-  userBPtr: NodeReference
+  readonly userBPtr: NodeReference
 
   constructor(options: {
     id: string,
@@ -120,7 +120,13 @@ export class Friendship extends Node implements Global, Entity, IsTracked {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.FRIENDSHIP, this.id, null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.FRIENDSHIP,
+      id: this.id,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
+  }
 
   get _pathKey(): string {
       return "Friendship[id={this.id}]";
@@ -143,7 +149,7 @@ export class FriendshipInviteEvent extends Node implements Spatial, Particle, An
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -152,7 +158,7 @@ export class FriendshipInviteEvent extends Node implements Spatial, Particle, An
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
@@ -162,7 +168,7 @@ export class FriendshipInviteEvent extends Node implements Spatial, Particle, An
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -172,7 +178,7 @@ export class FriendshipInviteEvent extends Node implements Spatial, Particle, An
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   type: FriendshipInviteEventType;
   get node(): FriendshipInvite | null {
       const nodePtr: NodeReference | null = this.nodePtr;
@@ -246,7 +252,13 @@ export class FriendshipInviteEvent extends Node implements Spatial, Particle, An
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.FRIENDSHIP_INVITE_EVENT, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.FRIENDSHIP_INVITE_EVENT,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {
@@ -279,7 +291,7 @@ export class FriendshipInvite extends Node implements Global, Entity, IsTracked,
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
@@ -290,7 +302,7 @@ export class FriendshipInvite extends Node implements Global, Entity, IsTracked,
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -300,7 +312,7 @@ export class FriendshipInvite extends Node implements Global, Entity, IsTracked,
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   get ownedBy(): Agent | User | null {
       const nodePtr: NodeReference | null = this.ownedByPtr;
       if (nodePtr !== null) {
@@ -386,7 +398,13 @@ export class FriendshipInvite extends Node implements Global, Entity, IsTracked,
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.FRIENDSHIP_INVITE, this.id, null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.FRIENDSHIP_INVITE,
+      id: this.id,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
+  }
 
   get _pathKey(): string {
       return "FriendshipInvite[id={this.id}]";

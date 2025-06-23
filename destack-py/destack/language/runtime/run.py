@@ -21,7 +21,7 @@ from destack.language.core import (
 from destack.proto import RunEventProto, RunProto
 
 if TYPE_CHECKING:
-    from destack.language import Error, Interruption, NodeReference, Space
+    from destack.language import Interruption, NodeReference, Space
 
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -133,7 +133,6 @@ class Run(
     terminated_at: Optional[datetime] = property_(
         49, description="When the Run was last terminated."
     )
-    error: Optional["Error"] = property_(50, is_repr=True)
     interruption: Optional["Interruption"] = property_(
         51,
         node_space_from="self",

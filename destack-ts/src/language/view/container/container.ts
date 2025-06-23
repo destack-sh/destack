@@ -1,18 +1,17 @@
-import { Dimension, ACTIVE_SESSION, Distribute, Window, Position, Value, EnumType, MaterializationType, AnnotationShape, Direction, Space, StructType, CustomView, SplitView, Vector2, Struct, Axis2, LabelView, PlaneShape, Layout, Scene, NodeReference, GridSpan, Axis3, Border, NodeType, Graph, User, Corners, Layer, Agent, Insets, Fill, Node, QueryConnection, Align, CustomViewDefinition, StructFrozen, Script, Canvas, Supergraph, FrameView, BuiltinObject, Session, activeSession, Shadow, Grid } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { SplitView, Border, CustomView, Dimension, MaterializationType, Canvas, NodeType, QueryConnection, Shadow, StructType, Space, NodeReference, Axis3, Graph, Script, GridSpan, Align, Value, Vector2, Insets, User, Struct, FrameView, StructFrozen, PlaneShape, Direction, BuiltinObject, EnumType, Corners, Layout, Scene, Layer, Axis2, Agent, Position, Fill, Grid, Window, activeSession, Node, Supergraph, AnnotationShape, CustomViewDefinition, ACTIVE_SESSION, Distribute, LabelView, Session } from '@/language';
 
 /* ==== DESTACK_GENERATED_START:TRAIT:10000 ==== */
 export interface ContainerView {
   readonly id: string;
   get space(): Space | null;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   readonly deletedAt: Temporal.ZonedDateTime | null;
   value: Map<string, Value>;
   readonly orderKey: string;

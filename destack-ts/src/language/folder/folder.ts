@@ -1,5 +1,5 @@
-import { IsTracked, ACTIVE_SESSION, IsOwnable, Spatial, EnumType, IsOrdered, MaterializationType, Entity, Space, StructType, Struct, IsFollowable, IsJoinable, Organization, Icon, Scene, NodeReference, NodeType, Graph, User, Role, Agent, Team, IsTaggable, Node, QueryConnection, IsStarable, StructFrozen, Supergraph, IsDeletable, BuiltinObject, Session, activeSession } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { IsDeletable, IsOrdered, Entity, MaterializationType, NodeType, QueryConnection, StructType, Space, NodeReference, Graph, IsOwnable, Icon, Organization, User, IsTaggable, Struct, StructFrozen, IsStarable, Spatial, BuiltinObject, EnumType, Scene, IsFollowable, Agent, IsJoinable, activeSession, Team, Node, IsTracked, Supergraph, Role, ACTIVE_SESSION, Session } from '@/language';
+import { Temporal } from 'temporal-polyfill';
 
 /* ==== DESTACK_GENERATED_START:ENUM:1000 ==== */
 export enum FolderType {
@@ -22,7 +22,7 @@ export class Folder extends Node implements Spatial, Entity, IsTracked, IsDeleta
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -31,7 +31,7 @@ export class Folder extends Node implements Spatial, Entity, IsTracked, IsDeleta
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
@@ -42,7 +42,7 @@ export class Folder extends Node implements Spatial, Entity, IsTracked, IsDeleta
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -52,7 +52,7 @@ export class Folder extends Node implements Spatial, Entity, IsTracked, IsDeleta
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   readonly deletedAt: Temporal.ZonedDateTime | null;
   readonly orderKey: string;
   get ownedBy(): Role | Agent | Organization | Team | User | null | null {
@@ -166,7 +166,13 @@ export class Folder extends Node implements Spatial, Entity, IsTracked, IsDeleta
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.FOLDER, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.FOLDER,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {

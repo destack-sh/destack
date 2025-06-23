@@ -1,5 +1,5 @@
-import { IsTracked, Dimension, IsExtensible, ACTIVE_SESSION, Distribute, IsCustomNodeDefinition, Window, IsVisual, Position, Spatial, Value, EnumType, IsOrdered, MaterializationType, Entity, Direction, AnnotationShape, Space, StructType, Vector2, SplitView, Struct, Axis2, ContainerView, IsScriptable, LabelView, Layout, PlaneShape, Scene, NodeReference, GridSpan, Axis3, Border, NodeType, IsCustomNode, Graph, User, Corners, Agent, Layer, IsTaggable, Insets, Fill, Node, QueryConnection, Align, View, StructFrozen, Script, Canvas, Supergraph, IsDeletable, FrameView, Folder, BuiltinObject, Session, activeSession, Shadow, Grid } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { IsDeletable, Border, SplitView, IsOrdered, Dimension, View, Entity, MaterializationType, Canvas, NodeType, QueryConnection, Shadow, StructType, Space, NodeReference, Axis3, Graph, Script, GridSpan, IsCustomNode, Align, Folder, Value, Vector2, Insets, User, IsTaggable, Struct, FrameView, StructFrozen, PlaneShape, Spatial, BuiltinObject, Direction, Distribute, EnumType, Corners, Layout, Scene, Layer, Axis2, ContainerView, Agent, IsScriptable, Position, Fill, Grid, Window, activeSession, Node, IsTracked, IsCustomNodeDefinition, Supergraph, AnnotationShape, IsExtensible, ACTIVE_SESSION, IsVisual, LabelView, Session } from '@/language';
+import { Temporal } from 'temporal-polyfill';
 
 /* ==== DESTACK_GENERATED_START:NODE:10000 ==== */
 export class CustomViewDefinition extends Node implements Spatial, Entity, IsCustomNodeDefinition, IsTracked, IsDeletable, IsExtensible, IsOrdered, IsTaggable, IsScriptable, IsVisual, View, ContainerView {
@@ -12,7 +12,7 @@ export class CustomViewDefinition extends Node implements Spatial, Entity, IsCus
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -21,7 +21,7 @@ export class CustomViewDefinition extends Node implements Spatial, Entity, IsCus
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   get prototype(): CustomView | null | null {
       const nodePtr: NodeReference | null = this.prototypePtr;
       if (nodePtr !== null) {
@@ -49,7 +49,7 @@ export class CustomViewDefinition extends Node implements Spatial, Entity, IsCus
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -59,7 +59,7 @@ export class CustomViewDefinition extends Node implements Spatial, Entity, IsCus
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   readonly deletedAt: Temporal.ZonedDateTime | null;
   value: Map<string, Value>;
   readonly orderKey: string;
@@ -228,7 +228,13 @@ export class CustomViewDefinition extends Node implements Spatial, Entity, IsCus
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.CUSTOM_VIEW_DEFINITION, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.CUSTOM_VIEW_DEFINITION,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {
@@ -261,7 +267,7 @@ export class CustomView extends Node implements Spatial, Entity, IsCustomNode, I
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -270,7 +276,7 @@ export class CustomView extends Node implements Spatial, Entity, IsCustomNode, I
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   get definition(): CustomViewDefinition | null {
       const nodePtr: NodeReference | null = this.definitionPtr;
       if (nodePtr !== null) {
@@ -279,7 +285,7 @@ export class CustomView extends Node implements Spatial, Entity, IsCustomNode, I
       return null;
   }
   ;
-  definitionPtr: NodeReference
+  readonly definitionPtr: NodeReference
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
@@ -290,7 +296,7 @@ export class CustomView extends Node implements Spatial, Entity, IsCustomNode, I
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -300,7 +306,7 @@ export class CustomView extends Node implements Spatial, Entity, IsCustomNode, I
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   readonly deletedAt: Temporal.ZonedDateTime | null;
   value: Map<string, Value>;
   readonly orderKey: string;
@@ -469,7 +475,14 @@ export class CustomView extends Node implements Spatial, Entity, IsCustomNode, I
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.CUSTOM_VIEW, this.id, this.spacePtr?.id ?? null, this.definitionPtr?.id ?? null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.CUSTOM_VIEW,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {

@@ -1,5 +1,4 @@
-import { EventCursor, Link, TraitType, ACTIVE_SESSION, Field, FriendshipInviteEvent, CustomEvent, NotificationEvent, FriendshipInvite, Value, Message, CounterMeasurement, ArrowShape, BorderStyle, StructType, CustomStructDefinition, SplitView, RunEvent, Struct, DefaultFactory, Organization, Palette, Run, InviteEvent, EntitlementEvent, CounterMetric, Agent, Team, MembershipEvent, Supergraph, Folder, SliderInputView, GaugeMeasurement, WizardView, Tag, GradientStyle, EnumType, RoleEvent, Tagging, HistogramMeasurement, AnnotationShape, CustomView, Reaction, ColorStyle, Timer, Thread, ThreadCursor, ShadowStyle, Branch, CustomEventDefinition, NodeType, Graph, User, Service, EditEvent, Script, Star, ScalarType, Canvas, Handle, Span, BuiltinObject, Session, FillStyle, Sanction, GaugeMetric, Window, Permission, Log, TriggerEvent, CustomEnumDefinition, HistogramMetric, Variant, Invite, Friendship, File, Theme, FontStyle, Trigger, PlaneShape, Snapshot, ThreadView, Scene, NodeReference, SanctionEvent, EffectStyle, PrimitiveType, Action, Node, ScreenCursor, CustomViewDefinition, StructFrozen, CustomEntity, FrameView, TypeCardinality, Database, Environment, Route, Entitlement, Follow, SceneEvent, TransitionStyle, Space, Machine, NumberInputView, CustomEntityDefinition, Membership, Client, LabelView, TimerEvent, LineShape, Option, Role, Layer, Interruption, QueryConnection, TextView, Notification, activeSession } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { CustomView, FriendshipInvite, TimerEvent, Variant, PrimitiveType, SanctionEvent, Run, Space, Action, Organization, Value, Client, Reaction, PlaneShape, EnumType, GaugeMeasurement, Agent, Thread, EventCursor, EffectStyle, CustomEntity, Theme, Notification, Supergraph, FillStyle, Invite, HistogramMeasurement, Membership, Log, InviteEvent, SplitView, Timer, ScalarType, Canvas, NodeType, QueryConnection, EditEvent, BorderStyle, StructType, Interruption, RunEvent, Environment, TraitType, Handle, Permission, Span, FrameView, StructFrozen, Tag, Friendship, GradientStyle, Layer, ColorStyle, Star, SceneEvent, activeSession, Message, Team, Snapshot, FontStyle, CounterMetric, ArrowShape, DefaultFactory, ThreadView, RoleEvent, NodeReference, Graph, Script, NumberInputView, CustomStructDefinition, Field, ShadowStyle, Entitlement, Palette, TriggerEvent, Option, GaugeMetric, LineShape, Route, Scene, TypeCardinality, MembershipEvent, Link, CounterMeasurement, TextView, EntitlementEvent, Node, WizardView, Role, LabelView, NotificationEvent, Follow, CustomEnumDefinition, Branch, CustomEntityDefinition, Database, Folder, HistogramMetric, User, Struct, Service, BuiltinObject, FriendshipInviteEvent, SliderInputView, CustomEvent, Window, Machine, File, Tagging, Sanction, ScreenCursor, AnnotationShape, CustomViewDefinition, Trigger, CustomEventDefinition, TransitionStyle, ACTIVE_SESSION, ThreadCursor, Session } from '@/language';
 
 /* ==== DESTACK_GENERATED_START:ENUM:2570 ==== */
 export enum StringFormat {
@@ -39,7 +38,7 @@ export class StringConstraint extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.format = options.format ?? null;
@@ -83,7 +82,7 @@ export class NumberConstraint extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.format = options.format ?? null;
@@ -121,7 +120,7 @@ export class CollectionConstraint extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.minLength = options.minLength ?? null;
@@ -155,7 +154,7 @@ export class NodeConstraint extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.nodeTypes = options.nodeTypes ?? [];
@@ -194,7 +193,7 @@ export class Type extends StructFrozen {
       return null;
   }
   ;
-  nodeDefinitionPtr: NodeReference | null
+  readonly nodeDefinitionPtr: NodeReference | null
   readonly structType: StructType | null;
   get baseType(): Node | null {
       const nodePtr: NodeReference | null = this.baseTypePtr;
@@ -207,7 +206,7 @@ export class Type extends StructFrozen {
       return null;
   }
   ;
-  baseTypePtr: NodeReference | null
+  readonly baseTypePtr: NodeReference | null
   readonly keyType: Type | null;
   readonly isRequired: boolean | null;
   readonly isVariable: boolean | null;
@@ -241,7 +240,7 @@ export class Type extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.cardinality = options.cardinality ?? TypeCardinality.SCALAR;

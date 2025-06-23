@@ -158,7 +158,6 @@ def _generate_property(
         )
         ptr_type_str = _generate_property_type(prop, as_ptr=True)
         ptr_prop_name = f"{ts_name}Ptr"
-        ptr_prop_str = f"{ptr_prop_name}: {ptr_type_str}"
         node_type_str = _generate_property_scalar_type(prop, as_ptr=False)
         if prop.is_optional:
             node_type_str = f"{node_type_str} | null"
@@ -232,6 +231,9 @@ set {ts_name}(value: {node_type_str}) {{
                 else:
                     node_prop_str = node_getter_str
 
+        ptr_prop_str = f"{ptr_prop_name}: {ptr_type_str}"
+        if is_readonly:
+            ptr_prop_str = f"readonly {ptr_prop_str}"
         return f"{node_prop_str};\n{ptr_prop_str}"
 
     else:
@@ -334,7 +336,7 @@ super(
         constructor_body_parts.append("""\
 super(
     // supergraph
-    supergraph,
+    options._supergraph ?? null,
 );
 """)
 
@@ -397,25 +399,50 @@ def _generate_to_ref(cls: type["Node"]) -> str:
     if node_type == NodeType.SPACE:
         ref_impl = f"""\
 __toRef__(): NodeReference {{
-  return new NodeReference(NodeType.{node_type.name}, this.id, this.id, null, this._supergraph);
+  return new NodeReference({{
+    nodeType: NodeType.{node_type.name},
+    id: this.id,
+    spaceId: this.id,
+    _session: this._session,
+    _supergraph: this._supergraph,
+  }});
 }}
 """
     elif TraitType.CUSTOM_NODE in cls.__traits__:
         ref_impl = f"""\
 __toRef__(): NodeReference {{
-  return new NodeReference(NodeType.{node_type.name}, this.id, this.spacePtr?.id ?? null, this.definitionPtr?.id ?? null, this._supergraph);
+  return new NodeReference({{
+    nodeType: NodeType.{node_type.name},
+    id: this.id,
+    spaceId: this.spacePtr?.id ?? null,
+    definitionId: this.definitionPtr?.id ?? null,
+    _session: this._session,
+    _supergraph: this._supergraph,
+  }});
 }}
 """
     elif TraitType.SPATIAL in cls.__traits__:
         ref_impl = f"""\
 __toRef__(): NodeReference {{
-  return new NodeReference(NodeType.{node_type.name}, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+  return new NodeReference({{
+    nodeType: NodeType.{node_type.name},
+    id: this.id,
+    spaceId: this.spacePtr?.id ?? null,
+    _session: this._session,
+    _supergraph: this._supergraph,
+  }});
 }}
 """
     else:
         ref_impl = f"""\
 __toRef__(): NodeReference {{
-  return new NodeReference(NodeType.{node_type.name}, this.id, null, null, this._supergraph);
+  return new NodeReference({{
+    nodeType: NodeType.{node_type.name},
+    id: this.id,
+    _session: this._session,
+    _supergraph: this._supergraph,
+  }});
+}}
 """
     return ref_impl.strip()
 

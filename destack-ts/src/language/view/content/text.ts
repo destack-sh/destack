@@ -1,5 +1,4 @@
-import { IsTracked, Dimension, ACTIVE_SESSION, Window, IsVisual, Position, Spatial, EnumType, IsOrdered, MaterializationType, Entity, AnnotationShape, Space, StructType, CustomView, SplitView, Struct, IsScriptable, LabelView, PlaneShape, Scene, NodeReference, NodeType, ContentView, Graph, User, Layer, Agent, IsTaggable, Fill, Node, QueryConnection, Align, View, CustomViewDefinition, StructFrozen, Script, Canvas, Supergraph, IsDeletable, FrameView, Font, BuiltinObject, Session, activeSession } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { IsDeletable, SplitView, IsOrdered, CustomView, Dimension, View, Entity, MaterializationType, Canvas, NodeType, ContentView, QueryConnection, StructType, Space, NodeReference, Graph, Font, Script, Align, User, IsTaggable, Struct, FrameView, StructFrozen, PlaneShape, Spatial, BuiltinObject, EnumType, Scene, Layer, Agent, IsScriptable, Position, Fill, Window, activeSession, Node, IsTracked, Supergraph, AnnotationShape, CustomViewDefinition, ACTIVE_SESSION, IsVisual, LabelView, Session } from '@/language';
 
 /* ==== DESTACK_GENERATED_START:NODE:10200 ==== */
 export class TextView extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsTaggable, IsScriptable, IsVisual, View, ContentView {
@@ -12,7 +11,7 @@ export class TextView extends Node implements Spatial, Entity, IsTracked, IsDele
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -21,7 +20,7 @@ export class TextView extends Node implements Spatial, Entity, IsTracked, IsDele
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
@@ -32,7 +31,7 @@ export class TextView extends Node implements Spatial, Entity, IsTracked, IsDele
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -42,7 +41,7 @@ export class TextView extends Node implements Spatial, Entity, IsTracked, IsDele
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   readonly deletedAt: Temporal.ZonedDateTime | null;
   readonly orderKey: string;
   name: string;
@@ -170,7 +169,13 @@ export class TextView extends Node implements Spatial, Entity, IsTracked, IsDele
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.TEXT_VIEW, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.TEXT_VIEW,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {

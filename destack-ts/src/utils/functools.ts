@@ -197,4 +197,4 @@ export function groupByScalar<T, K extends string | number>(
     result[key] = item;
   }
   return result;
-} 
+}

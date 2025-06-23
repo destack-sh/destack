@@ -1,7 +1,6 @@
 export * from './edit';
 export * from './entity';
 export * from './enum';
-export * from './error';
 export * from './event';
 export * from './field';
 export * from './icon';

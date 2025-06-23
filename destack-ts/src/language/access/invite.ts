@@ -1,5 +1,5 @@
-import { IsTracked, ACTIVE_SESSION, IsOwnable, Spatial, Global, EnumType, MaterializationType, Entity, Space, StructType, Struct, Particle, Organization, Thread, LikeInvite, NodeReference, NodeType, Graph, User, Role, IsFrozen, Indexed, Agent, Team, Node, QueryConnection, RoleType, StructFrozen, Supergraph, IsDeletable, Analytic, Event, Folder, BuiltinObject, Session, activeSession } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { IsDeletable, Entity, Indexed, MaterializationType, NodeType, QueryConnection, StructType, Space, NodeReference, LikeInvite, Graph, Analytic, IsOwnable, Organization, Folder, User, Struct, StructFrozen, Event, Spatial, BuiltinObject, EnumType, RoleType, Agent, Particle, Thread, activeSession, Team, Node, IsTracked, Supergraph, Role, Global, IsFrozen, ACTIVE_SESSION, Session } from '@/language';
+import { Temporal } from 'temporal-polyfill';
 
 /* ==== DESTACK_GENERATED_START:ENUM:510 ==== */
 export enum InviteEventType {
@@ -21,7 +21,7 @@ export class InviteEvent extends Node implements Spatial, Particle, Analytic, In
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -30,7 +30,7 @@ export class InviteEvent extends Node implements Spatial, Particle, Analytic, In
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
@@ -40,7 +40,7 @@ export class InviteEvent extends Node implements Spatial, Particle, Analytic, In
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -50,7 +50,7 @@ export class InviteEvent extends Node implements Spatial, Particle, Analytic, In
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   get node(): Invite | null {
       const nodePtr: NodeReference | null = this.nodePtr;
       if (nodePtr !== null) {
@@ -173,7 +173,13 @@ export class InviteEvent extends Node implements Spatial, Particle, Analytic, In
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.INVITE_EVENT, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.INVITE_EVENT,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {
@@ -206,7 +212,7 @@ export class Invite extends Node implements Global, Spatial, Entity, IsTracked, 
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -215,7 +221,7 @@ export class Invite extends Node implements Global, Spatial, Entity, IsTracked, 
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
@@ -226,7 +232,7 @@ export class Invite extends Node implements Global, Spatial, Entity, IsTracked, 
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -236,7 +242,7 @@ export class Invite extends Node implements Global, Spatial, Entity, IsTracked, 
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   readonly deletedAt: Temporal.ZonedDateTime | null;
   get ownedBy(): Role | Agent | Organization | Team | User | null | null {
       const nodePtr: NodeReference | null = this.ownedByPtr;
@@ -357,7 +363,13 @@ export class Invite extends Node implements Global, Spatial, Entity, IsTracked, 
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.INVITE, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.INVITE,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {

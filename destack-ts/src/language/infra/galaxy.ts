@@ -1,5 +1,4 @@
-import { EnumType, Node, QueryConnection, StructFrozen, StructType, NodeReference, ACTIVE_SESSION, Supergraph, Struct, NodeType, Region, Graph, BuiltinObject, Session, activeSession } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { EnumType, Node, Supergraph, activeSession, Session, Region, NodeType, Struct, QueryConnection, StructFrozen, ACTIVE_SESSION, StructType, NodeReference, BuiltinObject, Graph } from '@/language';
 
 /* ==== DESTACK_GENERATED_START:STRUCT:7601 ==== */
 export class GalaxyInfo extends Struct {
@@ -16,7 +15,7 @@ export class GalaxyInfo extends Struct {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.region = options.region;

@@ -25,37 +25,46 @@ import type { RpcOptions } from "@protobuf-ts/runtime-rpc";
  * @generated from protobuf service symbol.destack.Space
  */
 export interface ISpaceClient {
-    /**
-     * NOTE :Architecture: maybe separate methods for non-Entity commits? (Event/Analytic/... upserts?)
-     * Query the Space.
-     *
-     * @generated from protobuf rpc: Query
-     */
-    query(input: QueryRequest, options?: OperationOptions): UnaryCall<QueryRequest, QueryResponse>;
-    /**
-     * Commit Changes to the Space.
-     *
-     * @generated from protobuf rpc: Commit
-     */
-    commit(input: CommitRequest, options?: OperationOptions): UnaryCall<CommitRequest, CommitResponse>;
-    /**
-     * Subscribe to updates from the Space.
-     *
-     * @generated from protobuf rpc: Subscribe
-     */
-    subscribe(input: SubscribeRequest, options?: OperationOptions): ServerStreamingCall<SubscribeRequest, SubscribeResponse>;
-    /**
-     * 'Upload' some files (get URLs to upload them to).
-     *
-     * @generated from protobuf rpc: UploadFiles
-     */
-    uploadFiles(input: UploadFilesRequest, options?: OperationOptions): UnaryCall<UploadFilesRequest, UploadFilesResponse>;
-    /**
-     * 'Download' some files (get URLs to download them from).
-     *
-     * @generated from protobuf rpc: DownloadFiles
-     */
-    downloadFiles(input: DownloadFilesRequest, options?: OperationOptions): UnaryCall<DownloadFilesRequest, DownloadFilesResponse>;
+  /**
+   * NOTE :Architecture: maybe separate methods for non-Entity commits? (Event/Analytic/... upserts?)
+   * Query the Space.
+   *
+   * @generated from protobuf rpc: Query
+   */
+  query(input: QueryRequest, options?: OperationOptions): UnaryCall<QueryRequest, QueryResponse>;
+  /**
+   * Commit Changes to the Space.
+   *
+   * @generated from protobuf rpc: Commit
+   */
+  commit(input: CommitRequest, options?: OperationOptions): UnaryCall<CommitRequest, CommitResponse>;
+  /**
+   * Subscribe to updates from the Space.
+   *
+   * @generated from protobuf rpc: Subscribe
+   */
+  subscribe(
+    input: SubscribeRequest,
+    options?: OperationOptions,
+  ): ServerStreamingCall<SubscribeRequest, SubscribeResponse>;
+  /**
+   * 'Upload' some files (get URLs to upload them to).
+   *
+   * @generated from protobuf rpc: UploadFiles
+   */
+  uploadFiles(
+    input: UploadFilesRequest,
+    options?: OperationOptions,
+  ): UnaryCall<UploadFilesRequest, UploadFilesResponse>;
+  /**
+   * 'Download' some files (get URLs to download them from).
+   *
+   * @generated from protobuf rpc: DownloadFiles
+   */
+  downloadFiles(
+    input: DownloadFilesRequest,
+    options?: OperationOptions,
+  ): UnaryCall<DownloadFilesRequest, DownloadFilesResponse>;
 }
 /**
  * A Host provides the operating system of a Space.
@@ -63,57 +72,70 @@ export interface ISpaceClient {
  * @generated from protobuf service symbol.destack.Space
  */
 export class SpaceClient implements ISpaceClient, ServiceInfo {
-    typeName = Space.typeName;
-    methods = Space.methods;
-    options = Space.options;
-    constructor(private readonly _transport: RpcTransport) {
-    }
-    /**
-     * NOTE :Architecture: maybe separate methods for non-Entity commits? (Event/Analytic/... upserts?)
-     * Query the Space.
-     *
-     * @generated from protobuf rpc: Query
-     */
-    query(input: QueryRequest, options?: OperationOptions): UnaryCall<QueryRequest, QueryResponse> {
-        const method = this.methods[0], opt = this._transport.mergeOptions(options);
-        return stackIntercept<QueryRequest, QueryResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Commit Changes to the Space.
-     *
-     * @generated from protobuf rpc: Commit
-     */
-    commit(input: CommitRequest, options?: OperationOptions): UnaryCall<CommitRequest, CommitResponse> {
-        const method = this.methods[1], opt = this._transport.mergeOptions(options);
-        return stackIntercept<CommitRequest, CommitResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Subscribe to updates from the Space.
-     *
-     * @generated from protobuf rpc: Subscribe
-     */
-    subscribe(input: SubscribeRequest, options?: OperationOptions): ServerStreamingCall<SubscribeRequest, SubscribeResponse> {
-        const method = this.methods[2], opt = this._transport.mergeOptions(options);
-        return stackIntercept<SubscribeRequest, SubscribeResponse>("serverStreaming", this._transport, method, opt, input);
-    }
-    /**
-     * 'Upload' some files (get URLs to upload them to).
-     *
-     * @generated from protobuf rpc: UploadFiles
-     */
-    uploadFiles(input: UploadFilesRequest, options?: OperationOptions): UnaryCall<UploadFilesRequest, UploadFilesResponse> {
-        const method = this.methods[3], opt = this._transport.mergeOptions(options);
-        return stackIntercept<UploadFilesRequest, UploadFilesResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * 'Download' some files (get URLs to download them from).
-     *
-     * @generated from protobuf rpc: DownloadFiles
-     */
-    downloadFiles(input: DownloadFilesRequest, options?: OperationOptions): UnaryCall<DownloadFilesRequest, DownloadFilesResponse> {
-        const method = this.methods[4], opt = this._transport.mergeOptions(options);
-        return stackIntercept<DownloadFilesRequest, DownloadFilesResponse>("unary", this._transport, method, opt, input);
-    }
+  typeName = Space.typeName;
+  methods = Space.methods;
+  options = Space.options;
+  constructor(private readonly _transport: RpcTransport) {}
+  /**
+   * NOTE :Architecture: maybe separate methods for non-Entity commits? (Event/Analytic/... upserts?)
+   * Query the Space.
+   *
+   * @generated from protobuf rpc: Query
+   */
+  query(input: QueryRequest, options?: OperationOptions): UnaryCall<QueryRequest, QueryResponse> {
+    const method = this.methods[0],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<QueryRequest, QueryResponse>("unary", this._transport, method, opt, input);
+  }
+  /**
+   * Commit Changes to the Space.
+   *
+   * @generated from protobuf rpc: Commit
+   */
+  commit(input: CommitRequest, options?: OperationOptions): UnaryCall<CommitRequest, CommitResponse> {
+    const method = this.methods[1],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<CommitRequest, CommitResponse>("unary", this._transport, method, opt, input);
+  }
+  /**
+   * Subscribe to updates from the Space.
+   *
+   * @generated from protobuf rpc: Subscribe
+   */
+  subscribe(
+    input: SubscribeRequest,
+    options?: OperationOptions,
+  ): ServerStreamingCall<SubscribeRequest, SubscribeResponse> {
+    const method = this.methods[2],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<SubscribeRequest, SubscribeResponse>("serverStreaming", this._transport, method, opt, input);
+  }
+  /**
+   * 'Upload' some files (get URLs to upload them to).
+   *
+   * @generated from protobuf rpc: UploadFiles
+   */
+  uploadFiles(
+    input: UploadFilesRequest,
+    options?: OperationOptions,
+  ): UnaryCall<UploadFilesRequest, UploadFilesResponse> {
+    const method = this.methods[3],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<UploadFilesRequest, UploadFilesResponse>("unary", this._transport, method, opt, input);
+  }
+  /**
+   * 'Download' some files (get URLs to download them from).
+   *
+   * @generated from protobuf rpc: DownloadFiles
+   */
+  downloadFiles(
+    input: DownloadFilesRequest,
+    options?: OperationOptions,
+  ): UnaryCall<DownloadFilesRequest, DownloadFilesResponse> {
+    const method = this.methods[4],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<DownloadFilesRequest, DownloadFilesResponse>("unary", this._transport, method, opt, input);
+  }
 }
 
 import type { OperationOptions } from "@/proto/services";

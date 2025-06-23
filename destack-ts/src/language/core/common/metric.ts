@@ -1,5 +1,5 @@
-import { IsTracked, IsSourceable, ACTIVE_SESSION, IsCustomNodeDefinition, Spatial, EnumType, IsOrdered, MaterializationType, Measurement, Entity, Space, StructType, CustomView, Struct, NodeReference, NodeType, IsCustomNode, Graph, User, Agent, Node, QueryConnection, StructFrozen, Script, CustomEntity, Supergraph, Metric, Analytic, BuiltinObject, Session, activeSession } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { IsOrdered, CustomView, Entity, MaterializationType, NodeType, QueryConnection, StructType, Space, NodeReference, Graph, Script, Analytic, IsCustomNode, IsSourceable, User, Struct, StructFrozen, Metric, Spatial, BuiltinObject, EnumType, Agent, CustomEntity, activeSession, Node, IsTracked, IsCustomNodeDefinition, Supergraph, Measurement, ACTIVE_SESSION, Session } from '@/language';
+import { Temporal } from 'temporal-polyfill';
 
 /* ==== DESTACK_GENERATED_START:NODE:4110 ==== */
 export class GaugeMetric extends Node implements Spatial, Entity, IsCustomNodeDefinition, IsTracked, IsOrdered, IsSourceable, Metric {
@@ -12,7 +12,7 @@ export class GaugeMetric extends Node implements Spatial, Entity, IsCustomNodeDe
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -21,7 +21,7 @@ export class GaugeMetric extends Node implements Spatial, Entity, IsCustomNodeDe
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   get prototype(): CustomEntity | GaugeMeasurement | CounterMeasurement | HistogramMeasurement | CustomView | null | null {
       const nodePtr: NodeReference | null = this.prototypePtr;
       if (nodePtr !== null) {
@@ -49,7 +49,7 @@ export class GaugeMetric extends Node implements Spatial, Entity, IsCustomNodeDe
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -59,7 +59,7 @@ export class GaugeMetric extends Node implements Spatial, Entity, IsCustomNodeDe
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   readonly orderKey: string;
   name: string;
   get source(): Script | null | null {
@@ -70,7 +70,7 @@ export class GaugeMetric extends Node implements Spatial, Entity, IsCustomNodeDe
       return null;
   }
   ;
-  sourcePtr: NodeReference | null
+  readonly sourcePtr: NodeReference | null
 
   constructor(options: {
     id: string,
@@ -136,7 +136,13 @@ export class GaugeMetric extends Node implements Spatial, Entity, IsCustomNodeDe
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.GAUGE_METRIC, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.GAUGE_METRIC,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {
@@ -169,7 +175,7 @@ export class GaugeMeasurement extends Node implements Spatial, Analytic, IsCusto
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -178,7 +184,7 @@ export class GaugeMeasurement extends Node implements Spatial, Analytic, IsCusto
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   get definition(): GaugeMetric | null {
       const nodePtr: NodeReference | null = this.definitionPtr;
       if (nodePtr !== null) {
@@ -201,7 +207,7 @@ export class GaugeMeasurement extends Node implements Spatial, Analytic, IsCusto
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -211,7 +217,7 @@ export class GaugeMeasurement extends Node implements Spatial, Analytic, IsCusto
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
 
   constructor(options: {
     id: string,
@@ -269,7 +275,14 @@ export class GaugeMeasurement extends Node implements Spatial, Analytic, IsCusto
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.GAUGE_MEASUREMENT, this.id, this.spacePtr?.id ?? null, this.definitionPtr?.id ?? null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.GAUGE_MEASUREMENT,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {
@@ -302,7 +315,7 @@ export class CounterMetric extends Node implements Spatial, Entity, IsCustomNode
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -311,7 +324,7 @@ export class CounterMetric extends Node implements Spatial, Entity, IsCustomNode
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   get prototype(): CustomEntity | GaugeMeasurement | CounterMeasurement | HistogramMeasurement | CustomView | null | null {
       const nodePtr: NodeReference | null = this.prototypePtr;
       if (nodePtr !== null) {
@@ -339,7 +352,7 @@ export class CounterMetric extends Node implements Spatial, Entity, IsCustomNode
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -349,7 +362,7 @@ export class CounterMetric extends Node implements Spatial, Entity, IsCustomNode
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   readonly orderKey: string;
   name: string;
   get source(): Script | null | null {
@@ -360,7 +373,7 @@ export class CounterMetric extends Node implements Spatial, Entity, IsCustomNode
       return null;
   }
   ;
-  sourcePtr: NodeReference | null
+  readonly sourcePtr: NodeReference | null
 
   constructor(options: {
     id: string,
@@ -426,7 +439,13 @@ export class CounterMetric extends Node implements Spatial, Entity, IsCustomNode
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.COUNTER_METRIC, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.COUNTER_METRIC,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {
@@ -459,7 +478,7 @@ export class CounterMeasurement extends Node implements Spatial, Analytic, IsCus
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -468,7 +487,7 @@ export class CounterMeasurement extends Node implements Spatial, Analytic, IsCus
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   get definition(): CounterMetric | null {
       const nodePtr: NodeReference | null = this.definitionPtr;
       if (nodePtr !== null) {
@@ -491,7 +510,7 @@ export class CounterMeasurement extends Node implements Spatial, Analytic, IsCus
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -501,7 +520,7 @@ export class CounterMeasurement extends Node implements Spatial, Analytic, IsCus
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
 
   constructor(options: {
     id: string,
@@ -559,7 +578,14 @@ export class CounterMeasurement extends Node implements Spatial, Analytic, IsCus
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.COUNTER_MEASUREMENT, this.id, this.spacePtr?.id ?? null, this.definitionPtr?.id ?? null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.COUNTER_MEASUREMENT,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {
@@ -592,7 +618,7 @@ export class HistogramMetric extends Node implements Spatial, Entity, IsCustomNo
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -601,7 +627,7 @@ export class HistogramMetric extends Node implements Spatial, Entity, IsCustomNo
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   get prototype(): CustomEntity | GaugeMeasurement | CounterMeasurement | HistogramMeasurement | CustomView | null | null {
       const nodePtr: NodeReference | null = this.prototypePtr;
       if (nodePtr !== null) {
@@ -629,7 +655,7 @@ export class HistogramMetric extends Node implements Spatial, Entity, IsCustomNo
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -639,7 +665,7 @@ export class HistogramMetric extends Node implements Spatial, Entity, IsCustomNo
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   readonly orderKey: string;
   name: string;
   get source(): Script | null | null {
@@ -650,7 +676,7 @@ export class HistogramMetric extends Node implements Spatial, Entity, IsCustomNo
       return null;
   }
   ;
-  sourcePtr: NodeReference | null
+  readonly sourcePtr: NodeReference | null
 
   constructor(options: {
     id: string,
@@ -716,7 +742,13 @@ export class HistogramMetric extends Node implements Spatial, Entity, IsCustomNo
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.HISTOGRAM_METRIC, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.HISTOGRAM_METRIC,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {
@@ -749,7 +781,7 @@ export class HistogramMeasurement extends Node implements Spatial, Analytic, IsC
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -758,7 +790,7 @@ export class HistogramMeasurement extends Node implements Spatial, Analytic, IsC
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   get definition(): HistogramMetric | null {
       const nodePtr: NodeReference | null = this.definitionPtr;
       if (nodePtr !== null) {
@@ -781,7 +813,7 @@ export class HistogramMeasurement extends Node implements Spatial, Analytic, IsC
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -791,7 +823,7 @@ export class HistogramMeasurement extends Node implements Spatial, Analytic, IsC
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
 
   constructor(options: {
     id: string,
@@ -849,7 +881,14 @@ export class HistogramMeasurement extends Node implements Spatial, Analytic, IsC
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.HISTOGRAM_MEASUREMENT, this.id, this.spacePtr?.id ?? null, this.definitionPtr?.id ?? null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.HISTOGRAM_MEASUREMENT,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {

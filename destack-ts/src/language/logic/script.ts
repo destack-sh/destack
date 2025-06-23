@@ -1,5 +1,4 @@
-import { IsTracked, SliderInputView, IsExtensible, ACTIVE_SESSION, WizardView, Spatial, Value, EnumType, IsOrdered, ArrowShape, MaterializationType, Entity, AnnotationShape, Space, StructType, CustomView, SplitView, Struct, NumberInputView, CustomEntityDefinition, LabelView, PlaneShape, ThreadView, Scene, NodeReference, NodeType, LineShape, Graph, User, Layer, Agent, Node, QueryConnection, CustomViewDefinition, StructFrozen, IsRunnable, TextView, Canvas, Supergraph, IsDeletable, FrameView, Service, Folder, BuiltinObject, Session, activeSession } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { IsDeletable, SplitView, IsOrdered, CustomView, ThreadView, Entity, MaterializationType, Canvas, NodeType, QueryConnection, StructType, Space, NodeReference, CustomEntityDefinition, Graph, NumberInputView, Folder, Value, User, Struct, FrameView, Service, StructFrozen, PlaneShape, Spatial, BuiltinObject, EnumType, LineShape, Scene, Layer, Agent, SliderInputView, TextView, activeSession, Node, IsTracked, IsRunnable, Supergraph, WizardView, AnnotationShape, CustomViewDefinition, IsExtensible, ACTIVE_SESSION, LabelView, Session, ArrowShape } from '@/language';
 
 /* ==== DESTACK_GENERATED_START:NODE:3000 ==== */
 export class Script extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsExtensible, IsOrdered, IsRunnable {
@@ -12,7 +11,7 @@ export class Script extends Node implements Spatial, Entity, IsTracked, IsDeleta
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -21,7 +20,7 @@ export class Script extends Node implements Spatial, Entity, IsTracked, IsDeleta
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
@@ -32,7 +31,7 @@ export class Script extends Node implements Spatial, Entity, IsTracked, IsDeleta
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -42,7 +41,7 @@ export class Script extends Node implements Spatial, Entity, IsTracked, IsDeleta
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   readonly deletedAt: Temporal.ZonedDateTime | null;
   value: Map<string, Value>;
   readonly orderKey: string;
@@ -115,7 +114,13 @@ export class Script extends Node implements Spatial, Entity, IsTracked, IsDeleta
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.SCRIPT, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.SCRIPT,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {

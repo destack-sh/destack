@@ -1,18 +1,17 @@
-import { Dimension, ACTIVE_SESSION, Window, Position, EnumType, MaterializationType, AnnotationShape, Space, StructType, CustomView, SplitView, Struct, LabelView, PlaneShape, Scene, NodeReference, NodeType, Graph, User, Layer, Agent, Node, QueryConnection, CustomViewDefinition, StructFrozen, Script, Canvas, Supergraph, FrameView, BuiltinObject, Session, activeSession } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { SplitView, CustomView, Dimension, MaterializationType, Canvas, NodeType, QueryConnection, StructType, Space, NodeReference, Graph, Script, User, Struct, FrameView, StructFrozen, PlaneShape, BuiltinObject, EnumType, Scene, Layer, Agent, Position, Window, activeSession, Node, Supergraph, AnnotationShape, CustomViewDefinition, ACTIVE_SESSION, LabelView, Session } from '@/language';
 
 /* ==== DESTACK_GENERATED_START:TRAIT:10400 ==== */
 export interface InputView {
   readonly id: string;
   get space(): Space | null;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   readonly deletedAt: Temporal.ZonedDateTime | null;
   readonly orderKey: string;
   name: string;

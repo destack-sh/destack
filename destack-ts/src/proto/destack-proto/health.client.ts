@@ -15,38 +15,51 @@ import type { RpcOptions } from "@protobuf-ts/runtime-rpc";
  * @generated from protobuf service grpc.health.v1.Health
  */
 export interface IHealthClient {
-    /**
-     * @generated from protobuf rpc: Check
-     */
-    check(input: HealthCheckRequest, options?: OperationOptions): UnaryCall<HealthCheckRequest, HealthCheckResponse>;
-    /**
-     * @generated from protobuf rpc: Watch
-     */
-    watch(input: HealthCheckRequest, options?: OperationOptions): ServerStreamingCall<HealthCheckRequest, HealthCheckResponse>;
+  /**
+   * @generated from protobuf rpc: Check
+   */
+  check(input: HealthCheckRequest, options?: OperationOptions): UnaryCall<HealthCheckRequest, HealthCheckResponse>;
+  /**
+   * @generated from protobuf rpc: Watch
+   */
+  watch(
+    input: HealthCheckRequest,
+    options?: OperationOptions,
+  ): ServerStreamingCall<HealthCheckRequest, HealthCheckResponse>;
 }
 /**
  * @generated from protobuf service grpc.health.v1.Health
  */
 export class HealthClient implements IHealthClient, ServiceInfo {
-    typeName = Health.typeName;
-    methods = Health.methods;
-    options = Health.options;
-    constructor(private readonly _transport: RpcTransport) {
-    }
-    /**
-     * @generated from protobuf rpc: Check
-     */
-    check(input: HealthCheckRequest, options?: OperationOptions): UnaryCall<HealthCheckRequest, HealthCheckResponse> {
-        const method = this.methods[0], opt = this._transport.mergeOptions(options);
-        return stackIntercept<HealthCheckRequest, HealthCheckResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * @generated from protobuf rpc: Watch
-     */
-    watch(input: HealthCheckRequest, options?: OperationOptions): ServerStreamingCall<HealthCheckRequest, HealthCheckResponse> {
-        const method = this.methods[1], opt = this._transport.mergeOptions(options);
-        return stackIntercept<HealthCheckRequest, HealthCheckResponse>("serverStreaming", this._transport, method, opt, input);
-    }
+  typeName = Health.typeName;
+  methods = Health.methods;
+  options = Health.options;
+  constructor(private readonly _transport: RpcTransport) {}
+  /**
+   * @generated from protobuf rpc: Check
+   */
+  check(input: HealthCheckRequest, options?: OperationOptions): UnaryCall<HealthCheckRequest, HealthCheckResponse> {
+    const method = this.methods[0],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<HealthCheckRequest, HealthCheckResponse>("unary", this._transport, method, opt, input);
+  }
+  /**
+   * @generated from protobuf rpc: Watch
+   */
+  watch(
+    input: HealthCheckRequest,
+    options?: OperationOptions,
+  ): ServerStreamingCall<HealthCheckRequest, HealthCheckResponse> {
+    const method = this.methods[1],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<HealthCheckRequest, HealthCheckResponse>(
+      "serverStreaming",
+      this._transport,
+      method,
+      opt,
+      input,
+    );
+  }
 }
 
 import type { OperationOptions } from "@/proto/services";

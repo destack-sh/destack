@@ -1,5 +1,5 @@
-import { IsTracked, EventCursor, ACTIVE_SESSION, Global, EnumType, MaterializationType, Entity, StructType, Struct, Machine, ThreadCursor, NodeReference, NodeType, ClientType, Graph, User, Agent, Node, QueryConnection, ScreenCursor, StructFrozen, Supergraph, IsDeletable, BuiltinObject, Session, activeSession } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { IsDeletable, Entity, MaterializationType, NodeType, QueryConnection, StructType, NodeReference, Graph, ClientType, User, Struct, StructFrozen, BuiltinObject, EnumType, Agent, EventCursor, Machine, activeSession, Node, IsTracked, Supergraph, ScreenCursor, Global, ACTIVE_SESSION, ThreadCursor, Session } from '@/language';
+import { Temporal } from 'temporal-polyfill';
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50001 ==== */
 export class Origin extends StructFrozen {
@@ -18,7 +18,7 @@ export class Origin extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.type = options.type;
@@ -52,7 +52,7 @@ export class Client extends Node implements Global, Entity, IsTracked, IsDeletab
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
@@ -63,7 +63,7 @@ export class Client extends Node implements Global, Entity, IsTracked, IsDeletab
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -73,7 +73,7 @@ export class Client extends Node implements Global, Entity, IsTracked, IsDeletab
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   readonly deletedAt: Temporal.ZonedDateTime | null;
   type: ClientType;
   name: string;
@@ -219,7 +219,13 @@ export class Client extends Node implements Global, Entity, IsTracked, IsDeletab
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.CLIENT, this.id, null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.CLIENT,
+      id: this.id,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
+  }
 
   get _pathKey(): string {
       return this.name;

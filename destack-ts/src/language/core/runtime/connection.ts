@@ -1,9 +1,3 @@
+export class QueryContainer {}
 
-
-export class QueryContainer {
-	
-}
-
-export class QueryConnection {
-
-}
+export class QueryConnection {}
