@@ -1006,17 +1006,17 @@ def _generate_file(file: TypescriptFile) -> str:
     }
     # add any previous language imports
     for import_ in import_block.imports:
-        if import_.path.startswith("@/language"):
+        if import_.path.startswith("@destack/language"):
             language_imports.update(import_.names)
     # remove any imports that are already defined in this file
     language_imports.difference_update(definition.name for definition in file.definitions.values())
     import_parts: list[str] = [
-        f"import {{ {', '.join(sorted(language_imports))} }} from '@/language';",
+        f"import {{ {', '.join(sorted(language_imports))} }} from '@destack/language';",
         "import { Temporal } from 'temporal-polyfill';",
         "import { v4 as uuid4 } from 'uuid';",
     ]
     for import_ in import_block.imports:
-        if not import_.path.startswith("@/language"):
+        if not import_.path.startswith("@destack/language"):
             import_parts.append(import_.content)
     file_parts.insert(0, "\n".join(import_parts))
 
@@ -1096,8 +1096,8 @@ def generate():
     # update registry file
     registry_path = Path(GENERATION_PATH) / "registry.ts"
     registry_str_parts: list[str] = [
-        "import { Node, Struct } from '@/language';",
-        f"import {{ {', '.join(definition.cls.__name__ for definition in definition_by_cls.values())} }} from '@/language';",
+        "import { Node, Struct } from '@destack/language';",
+        f"import {{ {', '.join(definition.cls.__name__ for definition in definition_by_cls.values())} }} from '@destack/language';",
     ]
     # node maps
     node_map_str_parts: list[str] = ["export type NodeTypeMapping = {"]
