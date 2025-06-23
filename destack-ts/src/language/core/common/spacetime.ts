@@ -39,7 +39,6 @@ export class Snapshot extends Node implements Spatial, Entity, IsTracked, IsDele
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE, NodeType.BRANCH];
   static __descendantTypes__: NodeType[] = [];
 
-  readonly id: string;
   get parent(): Space | Branch | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
@@ -96,13 +95,13 @@ export class Snapshot extends Node implements Spatial, Entity, IsTracked, IsDele
   slug: string | null;
 
   constructor(options: {
-    id: string;
+    id?: string;
     parent?: Space | Branch | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
-    createdAt: Temporal.ZonedDateTime;
+    createdAt?: Temporal.ZonedDateTime;
     createdBy?: Agent | User | NodeReference | null;
-    updatedAt: Temporal.ZonedDateTime;
+    updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: Agent | User | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null;
@@ -115,7 +114,7 @@ export class Snapshot extends Node implements Spatial, Entity, IsTracked, IsDele
   }) {
     super(
       // id
-      options.id,
+      options.id ?? null,
       // parent
       options.parent != null
         ? options.parent.metatype == StructType.NODE_REFERENCE
@@ -133,46 +132,68 @@ export class Snapshot extends Node implements Spatial, Entity, IsTracked, IsDele
       // is_new
       options.id == null,
       // is_attached
-      options.id != null,
+      options.id != null || options._graph != null,
     );
 
-    this.id = options.id;
-    this.parentPtr =
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null;
-    this.spacePtr =
-      options.space != null
-        ? options.space.metatype == StructType.NODE_REFERENCE
-          ? (options.space as NodeReference)
-          : (options.space as Node).toRef()
-        : null;
-    this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
-    this.createdAt = options.createdAt;
-    this.createdByPtr =
-      options.createdBy != null
-        ? options.createdBy.metatype == StructType.NODE_REFERENCE
-          ? (options.createdBy as NodeReference)
-          : (options.createdBy as Node).toRef()
-        : null;
-    this.updatedAt = options.updatedAt;
-    this.updatedByPtr =
-      options.updatedBy != null
-        ? options.updatedBy.metatype == StructType.NODE_REFERENCE
-          ? (options.updatedBy as NodeReference)
-          : (options.updatedBy as Node).toRef()
-        : null;
-    this.deletedAt = options.deletedAt ?? null;
-    this.ownedByPtr =
-      options.ownedBy != null
-        ? options.ownedBy.metatype == StructType.NODE_REFERENCE
-          ? (options.ownedBy as NodeReference)
-          : (options.ownedBy as Node).toRef()
-        : null;
-    this.name = options.name;
-    this.slug = options.slug ?? null;
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space instanceof Node) {
+      _space = _space.toRef();
+    }
+    this.spacePtr = _space;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = MaterializationType.FULL_GRAPH;
+    }
+    if (_materialization === null) {
+      throw new Error(`Snapshot.materialization is required`);
+    }
+    this.materialization = _materialization;
+    let _deletedAt = options.deletedAt ?? null;
+    this.deletedAt = _deletedAt;
+    let _ownedBy = options.ownedBy ?? null;
+    if (_ownedBy != null && _ownedBy instanceof Node) {
+      _ownedBy = _ownedBy.toRef();
+    }
+    this.ownedByPtr = _ownedBy;
+    let _name = options.name;
+    if (_name === null) {
+      throw new Error(`Snapshot.name is required`);
+    }
+    this.name = _name;
+    let _slug = options.slug ?? null;
+    this.slug = _slug;
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO();
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
   }
 
   equals(other: any): boolean {
@@ -232,7 +253,6 @@ export class Branch extends Node implements Spatial, Entity, IsTracked, IsDeleta
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [NodeType.SNAPSHOT];
 
-  readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
@@ -305,13 +325,13 @@ export class Branch extends Node implements Spatial, Entity, IsTracked, IsDeleta
   headPtr: NodeReference | null;
 
   constructor(options: {
-    id: string;
+    id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
-    createdAt: Temporal.ZonedDateTime;
+    createdAt?: Temporal.ZonedDateTime;
     createdBy?: Agent | User | NodeReference | null;
-    updatedAt: Temporal.ZonedDateTime;
+    updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: Agent | User | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null;
@@ -325,7 +345,7 @@ export class Branch extends Node implements Spatial, Entity, IsTracked, IsDeleta
   }) {
     super(
       // id
-      options.id,
+      options.id ?? null,
       // parent
       options.parent != null
         ? options.parent.metatype == StructType.NODE_REFERENCE
@@ -343,52 +363,73 @@ export class Branch extends Node implements Spatial, Entity, IsTracked, IsDeleta
       // is_new
       options.id == null,
       // is_attached
-      options.id != null,
+      options.id != null || options._graph != null,
     );
 
-    this.id = options.id;
-    this.parentPtr =
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null;
-    this.spacePtr =
-      options.space != null
-        ? options.space.metatype == StructType.NODE_REFERENCE
-          ? (options.space as NodeReference)
-          : (options.space as Node).toRef()
-        : null;
-    this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
-    this.createdAt = options.createdAt;
-    this.createdByPtr =
-      options.createdBy != null
-        ? options.createdBy.metatype == StructType.NODE_REFERENCE
-          ? (options.createdBy as NodeReference)
-          : (options.createdBy as Node).toRef()
-        : null;
-    this.updatedAt = options.updatedAt;
-    this.updatedByPtr =
-      options.updatedBy != null
-        ? options.updatedBy.metatype == StructType.NODE_REFERENCE
-          ? (options.updatedBy as NodeReference)
-          : (options.updatedBy as Node).toRef()
-        : null;
-    this.deletedAt = options.deletedAt ?? null;
-    this.ownedByPtr =
-      options.ownedBy != null
-        ? options.ownedBy.metatype == StructType.NODE_REFERENCE
-          ? (options.ownedBy as NodeReference)
-          : (options.ownedBy as Node).toRef()
-        : null;
-    this.name = options.name;
-    this.slug = options.slug ?? null;
-    this.headPtr =
-      options.head != null
-        ? options.head.metatype == StructType.NODE_REFERENCE
-          ? (options.head as NodeReference)
-          : (options.head as Node).toRef()
-        : null;
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space instanceof Node) {
+      _space = _space.toRef();
+    }
+    this.spacePtr = _space;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = MaterializationType.FULL_GRAPH;
+    }
+    if (_materialization === null) {
+      throw new Error(`Branch.materialization is required`);
+    }
+    this.materialization = _materialization;
+    let _deletedAt = options.deletedAt ?? null;
+    this.deletedAt = _deletedAt;
+    let _ownedBy = options.ownedBy ?? null;
+    if (_ownedBy != null && _ownedBy instanceof Node) {
+      _ownedBy = _ownedBy.toRef();
+    }
+    this.ownedByPtr = _ownedBy;
+    let _name = options.name;
+    if (_name === null) {
+      throw new Error(`Branch.name is required`);
+    }
+    this.name = _name;
+    let _slug = options.slug ?? null;
+    this.slug = _slug;
+    let _head = options.head ?? null;
+    if (_head != null && _head instanceof Node) {
+      _head = _head.toRef();
+    }
+    this.headPtr = _head;
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO();
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
   }
 
   equals(other: any): boolean {

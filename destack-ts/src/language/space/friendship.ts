@@ -45,7 +45,6 @@ export class Friendship extends Node implements Global, Entity, IsTracked {
   static __ancestorTypes__: NodeType[] = [];
   static __descendantTypes__: NodeType[] = [];
 
-  readonly id: string;
   get parent(): Node | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
@@ -91,12 +90,12 @@ export class Friendship extends Node implements Global, Entity, IsTracked {
   readonly userBPtr: NodeReference;
 
   constructor(options: {
-    id: string;
+    id?: string;
     parent?: Node | NodeReference | null;
     materialization?: MaterializationType;
-    createdAt: Temporal.ZonedDateTime;
+    createdAt?: Temporal.ZonedDateTime;
     createdBy?: Agent | User | NodeReference | null;
-    updatedAt: Temporal.ZonedDateTime;
+    updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: Agent | User | NodeReference | null;
     userA: User | NodeReference;
     userB: User | NodeReference;
@@ -107,7 +106,7 @@ export class Friendship extends Node implements Global, Entity, IsTracked {
   }) {
     super(
       // id
-      options.id,
+      options.id ?? null,
       // parent
       options.parent != null
         ? options.parent.metatype == StructType.NODE_REFERENCE
@@ -125,43 +124,65 @@ export class Friendship extends Node implements Global, Entity, IsTracked {
       // is_new
       options.id == null,
       // is_attached
-      options.id != null,
+      true,
     );
 
-    this.id = options.id;
-    this.parentPtr =
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null;
-    this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
-    this.createdAt = options.createdAt;
-    this.createdByPtr =
-      options.createdBy != null
-        ? options.createdBy.metatype == StructType.NODE_REFERENCE
-          ? (options.createdBy as NodeReference)
-          : (options.createdBy as Node).toRef()
-        : null;
-    this.updatedAt = options.updatedAt;
-    this.updatedByPtr =
-      options.updatedBy != null
-        ? options.updatedBy.metatype == StructType.NODE_REFERENCE
-          ? (options.updatedBy as NodeReference)
-          : (options.updatedBy as Node).toRef()
-        : null;
-    this.userAPtr =
-      options.userA != null
-        ? options.userA.metatype == StructType.NODE_REFERENCE
-          ? (options.userA as NodeReference)
-          : (options.userA as Node).toRef()
-        : null;
-    this.userBPtr =
-      options.userB != null
-        ? options.userB.metatype == StructType.NODE_REFERENCE
-          ? (options.userB as NodeReference)
-          : (options.userB as Node).toRef()
-        : null;
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = MaterializationType.FULL_GRAPH;
+    }
+    if (_materialization === null) {
+      throw new Error(`Friendship.materialization is required`);
+    }
+    this.materialization = _materialization;
+    let _userA = options.userA;
+    if (_userA != null && _userA instanceof Node) {
+      _userA = _userA.toRef();
+    }
+    if (_userA === null) {
+      throw new Error(`Friendship.userA is required`);
+    }
+    this.userAPtr = _userA;
+    let _userB = options.userB;
+    if (_userB != null && _userB instanceof Node) {
+      _userB = _userB.toRef();
+    }
+    if (_userB === null) {
+      throw new Error(`Friendship.userB is required`);
+    }
+    this.userBPtr = _userB;
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO();
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
   }
 
   equals(other: any): boolean {
@@ -216,7 +237,6 @@ export class FriendshipInviteEvent
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
@@ -266,12 +286,12 @@ export class FriendshipInviteEvent
   nodePtr: NodeReference;
 
   constructor(options: {
-    id: string;
+    id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt: Temporal.ZonedDateTime;
+    createdAt?: Temporal.ZonedDateTime;
     createdBy?: Agent | User | NodeReference | null;
-    updatedAt: Temporal.ZonedDateTime;
+    updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: Agent | User | NodeReference | null;
     type: FriendshipInviteEventType;
     node: FriendshipInvite | NodeReference;
@@ -282,7 +302,7 @@ export class FriendshipInviteEvent
   }) {
     super(
       // id
-      options.id,
+      options.id ?? null,
       // parent
       options.parent != null
         ? options.parent.metatype == StructType.NODE_REFERENCE
@@ -300,43 +320,59 @@ export class FriendshipInviteEvent
       // is_new
       options.id == null,
       // is_attached
-      options.id != null,
+      options.id != null || options._graph != null,
     );
 
-    this.id = options.id;
-    this.parentPtr =
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null;
-    this.spacePtr =
-      options.space != null
-        ? options.space.metatype == StructType.NODE_REFERENCE
-          ? (options.space as NodeReference)
-          : (options.space as Node).toRef()
-        : null;
-    this.createdAt = options.createdAt;
-    this.createdByPtr =
-      options.createdBy != null
-        ? options.createdBy.metatype == StructType.NODE_REFERENCE
-          ? (options.createdBy as NodeReference)
-          : (options.createdBy as Node).toRef()
-        : null;
-    this.updatedAt = options.updatedAt;
-    this.updatedByPtr =
-      options.updatedBy != null
-        ? options.updatedBy.metatype == StructType.NODE_REFERENCE
-          ? (options.updatedBy as NodeReference)
-          : (options.updatedBy as Node).toRef()
-        : null;
-    this.type = options.type;
-    this.nodePtr =
-      options.node != null
-        ? options.node.metatype == StructType.NODE_REFERENCE
-          ? (options.node as NodeReference)
-          : (options.node as Node).toRef()
-        : null;
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space instanceof Node) {
+      _space = _space.toRef();
+    }
+    this.spacePtr = _space;
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`FriendshipInviteEvent.type is required`);
+    }
+    this.type = _type;
+    let _node = options.node;
+    if (_node != null && _node instanceof Node) {
+      _node = _node.toRef();
+    }
+    if (_node === null) {
+      throw new Error(`FriendshipInviteEvent.node is required`);
+    }
+    this.nodePtr = _node;
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO();
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
   }
 
   equals(other: any): boolean {
@@ -396,7 +432,6 @@ export class FriendshipInvite extends Node implements Global, Entity, IsTracked,
   static __ancestorTypes__: NodeType[] = [];
   static __descendantTypes__: NodeType[] = [];
 
-  readonly id: string;
   get parent(): Node | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
@@ -450,12 +485,12 @@ export class FriendshipInvite extends Node implements Global, Entity, IsTracked,
   memberPtr: NodeReference;
 
   constructor(options: {
-    id: string;
+    id?: string;
     parent?: Node | NodeReference | null;
     materialization?: MaterializationType;
-    createdAt: Temporal.ZonedDateTime;
+    createdAt?: Temporal.ZonedDateTime;
     createdBy?: Agent | User | NodeReference | null;
-    updatedAt: Temporal.ZonedDateTime;
+    updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: Agent | User | NodeReference | null;
     ownedBy: Agent | User | NodeReference;
     member: Agent | User | NodeReference;
@@ -466,7 +501,7 @@ export class FriendshipInvite extends Node implements Global, Entity, IsTracked,
   }) {
     super(
       // id
-      options.id,
+      options.id ?? null,
       // parent
       options.parent != null
         ? options.parent.metatype == StructType.NODE_REFERENCE
@@ -484,43 +519,65 @@ export class FriendshipInvite extends Node implements Global, Entity, IsTracked,
       // is_new
       options.id == null,
       // is_attached
-      options.id != null,
+      true,
     );
 
-    this.id = options.id;
-    this.parentPtr =
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null;
-    this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
-    this.createdAt = options.createdAt;
-    this.createdByPtr =
-      options.createdBy != null
-        ? options.createdBy.metatype == StructType.NODE_REFERENCE
-          ? (options.createdBy as NodeReference)
-          : (options.createdBy as Node).toRef()
-        : null;
-    this.updatedAt = options.updatedAt;
-    this.updatedByPtr =
-      options.updatedBy != null
-        ? options.updatedBy.metatype == StructType.NODE_REFERENCE
-          ? (options.updatedBy as NodeReference)
-          : (options.updatedBy as Node).toRef()
-        : null;
-    this.ownedByPtr =
-      options.ownedBy != null
-        ? options.ownedBy.metatype == StructType.NODE_REFERENCE
-          ? (options.ownedBy as NodeReference)
-          : (options.ownedBy as Node).toRef()
-        : null;
-    this.memberPtr =
-      options.member != null
-        ? options.member.metatype == StructType.NODE_REFERENCE
-          ? (options.member as NodeReference)
-          : (options.member as Node).toRef()
-        : null;
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = MaterializationType.FULL_GRAPH;
+    }
+    if (_materialization === null) {
+      throw new Error(`FriendshipInvite.materialization is required`);
+    }
+    this.materialization = _materialization;
+    let _ownedBy = options.ownedBy;
+    if (_ownedBy != null && _ownedBy instanceof Node) {
+      _ownedBy = _ownedBy.toRef();
+    }
+    if (_ownedBy === null) {
+      throw new Error(`FriendshipInvite.ownedBy is required`);
+    }
+    this.ownedByPtr = _ownedBy;
+    let _member = options.member;
+    if (_member != null && _member instanceof Node) {
+      _member = _member.toRef();
+    }
+    if (_member === null) {
+      throw new Error(`FriendshipInvite.member is required`);
+    }
+    this.memberPtr = _member;
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO();
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
   }
 
   equals(other: any): boolean {

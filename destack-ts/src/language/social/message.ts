@@ -48,7 +48,6 @@ export class Message
   static __ancestorTypes__: NodeType[] = [NodeType.FOLDER, NodeType.SPACE, NodeType.THREAD];
   static __descendantTypes__: NodeType[] = [NodeType.REACTION, NodeType.TAGGING];
 
-  readonly id: string;
   get parent(): Thread | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
@@ -169,13 +168,13 @@ export class Message
   nodePtr: NodeReference | null;
 
   constructor(options: {
-    id: string;
+    id?: string;
     parent?: Thread | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
-    createdAt: Temporal.ZonedDateTime;
+    createdAt?: Temporal.ZonedDateTime;
     createdBy?: Agent | User | NodeReference | null;
-    updatedAt: Temporal.ZonedDateTime;
+    updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: Agent | User | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null;
@@ -192,7 +191,7 @@ export class Message
   }) {
     super(
       // id
-      options.id,
+      options.id ?? null,
       // parent
       options.parent != null
         ? options.parent.metatype == StructType.NODE_REFERENCE
@@ -210,70 +209,85 @@ export class Message
       // is_new
       options.id == null,
       // is_attached
-      options.id != null,
+      options.id != null || options._graph != null,
     );
 
-    this.id = options.id;
-    this.parentPtr =
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null;
-    this.spacePtr =
-      options.space != null
-        ? options.space.metatype == StructType.NODE_REFERENCE
-          ? (options.space as NodeReference)
-          : (options.space as Node).toRef()
-        : null;
-    this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
-    this.createdAt = options.createdAt;
-    this.createdByPtr =
-      options.createdBy != null
-        ? options.createdBy.metatype == StructType.NODE_REFERENCE
-          ? (options.createdBy as NodeReference)
-          : (options.createdBy as Node).toRef()
-        : null;
-    this.updatedAt = options.updatedAt;
-    this.updatedByPtr =
-      options.updatedBy != null
-        ? options.updatedBy.metatype == StructType.NODE_REFERENCE
-          ? (options.updatedBy as NodeReference)
-          : (options.updatedBy as Node).toRef()
-        : null;
-    this.deletedAt = options.deletedAt ?? null;
-    this.ownedByPtr =
-      options.ownedBy != null
-        ? options.ownedBy.metatype == StructType.NODE_REFERENCE
-          ? (options.ownedBy as NodeReference)
-          : (options.ownedBy as Node).toRef()
-        : null;
-    this.threadPtr =
-      options.thread != null
-        ? options.thread.metatype == StructType.NODE_REFERENCE
-          ? (options.thread as NodeReference)
-          : (options.thread as Node).toRef()
-        : null;
-    this.editedAt = options.editedAt ?? null;
-    this.replyToPtr =
-      options.replyTo != null
-        ? options.replyTo.metatype == StructType.NODE_REFERENCE
-          ? (options.replyTo as NodeReference)
-          : (options.replyTo as Node).toRef()
-        : null;
-    this.forwardedFromPtr =
-      options.forwardedFrom != null
-        ? options.forwardedFrom.metatype == StructType.NODE_REFERENCE
-          ? (options.forwardedFrom as NodeReference)
-          : (options.forwardedFrom as Node).toRef()
-        : null;
-    this.text = options.text ?? null;
-    this.nodePtr =
-      options.node != null
-        ? options.node.metatype == StructType.NODE_REFERENCE
-          ? (options.node as NodeReference)
-          : (options.node as Node).toRef()
-        : null;
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space instanceof Node) {
+      _space = _space.toRef();
+    }
+    this.spacePtr = _space;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = MaterializationType.FULL_GRAPH;
+    }
+    if (_materialization === null) {
+      throw new Error(`Message.materialization is required`);
+    }
+    this.materialization = _materialization;
+    let _deletedAt = options.deletedAt ?? null;
+    this.deletedAt = _deletedAt;
+    let _ownedBy = options.ownedBy ?? null;
+    if (_ownedBy != null && _ownedBy instanceof Node) {
+      _ownedBy = _ownedBy.toRef();
+    }
+    this.ownedByPtr = _ownedBy;
+    let _thread = options.thread ?? null;
+    if (_thread != null && _thread instanceof Node) {
+      _thread = _thread.toRef();
+    }
+    this.threadPtr = _thread;
+    let _editedAt = options.editedAt ?? null;
+    this.editedAt = _editedAt;
+    let _replyTo = options.replyTo ?? null;
+    if (_replyTo != null && _replyTo instanceof Node) {
+      _replyTo = _replyTo.toRef();
+    }
+    this.replyToPtr = _replyTo;
+    let _forwardedFrom = options.forwardedFrom ?? null;
+    if (_forwardedFrom != null && _forwardedFrom instanceof Node) {
+      _forwardedFrom = _forwardedFrom.toRef();
+    }
+    this.forwardedFromPtr = _forwardedFrom;
+    let _text = options.text ?? null;
+    this.text = _text;
+    let _node = options.node ?? null;
+    if (_node != null && _node instanceof Node) {
+      _node = _node.toRef();
+    }
+    this.nodePtr = _node;
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO();
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
   }
 
   equals(other: any): boolean {

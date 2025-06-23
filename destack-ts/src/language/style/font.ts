@@ -164,21 +164,53 @@ export class Font extends Struct {
       options._supergraph ?? null,
     );
 
-    this.type = options.type ?? FontType.SANS;
-    this.stylePtr =
-      options.style != null
-        ? options.style.metatype == StructType.NODE_REFERENCE
-          ? (options.style as NodeReference)
-          : (options.style as Node).toRef()
-        : null;
-    this.weight = options.weight ?? FontWeight.NORMAL;
-    this.color = options.color ?? null;
-    this.size = options.size ?? FontSize.BASE;
-    this.align = options.align ?? TextAlign.LEFT;
-    this.lineHeight = options.lineHeight ?? null;
-    this.letterSpacing = options.letterSpacing ?? null;
-    this.decoration = options.decoration ?? TextDecoration.NONE;
-    this.transform = options.transform ?? TextTransform.NONE;
+    // properties
+    let _type = options.type ?? null;
+    if (_type === null) {
+      _type = FontType.SANS;
+    }
+    if (_type === null) {
+      throw new Error(`Font.type is required`);
+    }
+    this.type = _type;
+    let _style = options.style ?? null;
+    if (_style != null && _style instanceof Node) {
+      _style = _style.toRef();
+    }
+    this.stylePtr = _style;
+    let _weight = options.weight ?? null;
+    if (_weight === null) {
+      _weight = FontWeight.NORMAL;
+    }
+    this.weight = _weight;
+    let _color = options.color ?? null;
+    this.color = _color;
+    let _size = options.size ?? null;
+    if (_size === null) {
+      _size = FontSize.BASE;
+    }
+    this.size = _size;
+    let _align = options.align ?? null;
+    if (_align === null) {
+      _align = TextAlign.LEFT;
+    }
+    this.align = _align;
+    let _lineHeight = options.lineHeight ?? null;
+    this.lineHeight = _lineHeight;
+    let _letterSpacing = options.letterSpacing ?? null;
+    this.letterSpacing = _letterSpacing;
+    let _decoration = options.decoration ?? null;
+    if (_decoration === null) {
+      _decoration = TextDecoration.NONE;
+    }
+    this.decoration = _decoration;
+    let _transform = options.transform ?? null;
+    if (_transform === null) {
+      _transform = TextTransform.NONE;
+    }
+    this.transform = _transform;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -258,7 +290,6 @@ export class FontStyle
   ];
   static __descendantTypes__: NodeType[] = [NodeType.TAGGING];
 
-  readonly id: string;
   get parent():
     | Scene
     | CustomViewDefinition
@@ -350,7 +381,7 @@ export class FontStyle
   transform: TextTransform | null;
 
   constructor(options: {
-    id: string;
+    id?: string;
     parent?:
       | Scene
       | CustomViewDefinition
@@ -375,9 +406,9 @@ export class FontStyle
       | null;
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
-    createdAt: Temporal.ZonedDateTime;
+    createdAt?: Temporal.ZonedDateTime;
     createdBy?: Agent | User | NodeReference | null;
-    updatedAt: Temporal.ZonedDateTime;
+    updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: Agent | User | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;
@@ -398,7 +429,7 @@ export class FontStyle
   }) {
     super(
       // id
-      options.id,
+      options.id ?? null,
       // parent
       options.parent != null
         ? options.parent.metatype == StructType.NODE_REFERENCE
@@ -416,49 +447,108 @@ export class FontStyle
       // is_new
       options.id == null,
       // is_attached
-      options.id != null,
+      options.id != null || options._graph != null,
     );
 
-    this.id = options.id;
-    this.parentPtr =
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null;
-    this.spacePtr =
-      options.space != null
-        ? options.space.metatype == StructType.NODE_REFERENCE
-          ? (options.space as NodeReference)
-          : (options.space as Node).toRef()
-        : null;
-    this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
-    this.createdAt = options.createdAt;
-    this.createdByPtr =
-      options.createdBy != null
-        ? options.createdBy.metatype == StructType.NODE_REFERENCE
-          ? (options.createdBy as NodeReference)
-          : (options.createdBy as Node).toRef()
-        : null;
-    this.updatedAt = options.updatedAt;
-    this.updatedByPtr =
-      options.updatedBy != null
-        ? options.updatedBy.metatype == StructType.NODE_REFERENCE
-          ? (options.updatedBy as NodeReference)
-          : (options.updatedBy as Node).toRef()
-        : null;
-    this.deletedAt = options.deletedAt ?? null;
-    this.orderKey = options.orderKey ?? "a0";
-    this.type = options.type ?? FontType.SANS;
-    this.name = options.name;
-    this.weight = options.weight ?? FontWeight.NORMAL;
-    this.color = options.color ?? null;
-    this.size = options.size ?? FontSize.BASE;
-    this.align = options.align ?? TextAlign.LEFT;
-    this.lineHeight = options.lineHeight ?? null;
-    this.letterSpacing = options.letterSpacing ?? null;
-    this.decoration = options.decoration ?? TextDecoration.NONE;
-    this.transform = options.transform ?? TextTransform.NONE;
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space instanceof Node) {
+      _space = _space.toRef();
+    }
+    this.spacePtr = _space;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = MaterializationType.FULL_GRAPH;
+    }
+    if (_materialization === null) {
+      throw new Error(`FontStyle.materialization is required`);
+    }
+    this.materialization = _materialization;
+    let _deletedAt = options.deletedAt ?? null;
+    this.deletedAt = _deletedAt;
+    let _orderKey = options.orderKey ?? null;
+    if (_orderKey === null) {
+      _orderKey = "a0";
+    }
+    if (_orderKey === null) {
+      throw new Error(`FontStyle.orderKey is required`);
+    }
+    this.orderKey = _orderKey;
+    let _type = options.type ?? null;
+    if (_type === null) {
+      _type = FontType.SANS;
+    }
+    if (_type === null) {
+      throw new Error(`FontStyle.type is required`);
+    }
+    this.type = _type;
+    let _name = options.name;
+    if (_name === null) {
+      throw new Error(`FontStyle.name is required`);
+    }
+    this.name = _name;
+    let _weight = options.weight ?? null;
+    if (_weight === null) {
+      _weight = FontWeight.NORMAL;
+    }
+    this.weight = _weight;
+    let _color = options.color ?? null;
+    this.color = _color;
+    let _size = options.size ?? null;
+    if (_size === null) {
+      _size = FontSize.BASE;
+    }
+    this.size = _size;
+    let _align = options.align ?? null;
+    if (_align === null) {
+      _align = TextAlign.LEFT;
+    }
+    this.align = _align;
+    let _lineHeight = options.lineHeight ?? null;
+    this.lineHeight = _lineHeight;
+    let _letterSpacing = options.letterSpacing ?? null;
+    this.letterSpacing = _letterSpacing;
+    let _decoration = options.decoration ?? null;
+    if (_decoration === null) {
+      _decoration = TextDecoration.NONE;
+    }
+    this.decoration = _decoration;
+    let _transform = options.transform ?? null;
+    if (_transform === null) {
+      _transform = TextTransform.NONE;
+    }
+    this.transform = _transform;
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO();
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
   }
 
   equals(other: any): boolean {

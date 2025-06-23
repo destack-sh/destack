@@ -23,9 +23,24 @@ export class GalaxyInfo extends Struct {
       options._supergraph ?? null,
     );
 
-    this.region = options.region;
-    this.name = options.name;
-    this.host = options.host;
+    // properties
+    let _region = options.region;
+    if (_region === null) {
+      throw new Error(`GalaxyInfo.region is required`);
+    }
+    this.region = _region;
+    let _name = options.name;
+    if (_name === null) {
+      throw new Error(`GalaxyInfo.name is required`);
+    }
+    this.name = _name;
+    let _host = options.host;
+    if (_host === null) {
+      throw new Error(`GalaxyInfo.host is required`);
+    }
+    this.host = _host;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {

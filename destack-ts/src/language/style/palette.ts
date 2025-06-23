@@ -59,7 +59,6 @@ export class Palette extends Node implements Spatial, Entity, IsTracked, IsDelet
   ];
   static __descendantTypes__: NodeType[] = [NodeType.TAGGING, NodeType.COLOR_STYLE];
 
-  readonly id: string;
   get parent(): Scene | Theme | Canvas | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
@@ -101,13 +100,13 @@ export class Palette extends Node implements Spatial, Entity, IsTracked, IsDelet
   icon: Icon | null;
 
   constructor(options: {
-    id: string;
+    id?: string;
     parent?: Scene | Theme | Canvas | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
-    createdAt: Temporal.ZonedDateTime;
+    createdAt?: Temporal.ZonedDateTime;
     createdBy?: Agent | User | NodeReference | null;
-    updatedAt: Temporal.ZonedDateTime;
+    updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: Agent | User | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;
@@ -120,7 +119,7 @@ export class Palette extends Node implements Spatial, Entity, IsTracked, IsDelet
   }) {
     super(
       // id
-      options.id,
+      options.id ?? null,
       // parent
       options.parent != null
         ? options.parent.metatype == StructType.NODE_REFERENCE
@@ -138,41 +137,71 @@ export class Palette extends Node implements Spatial, Entity, IsTracked, IsDelet
       // is_new
       options.id == null,
       // is_attached
-      options.id != null,
+      options.id != null || options._graph != null,
     );
 
-    this.id = options.id;
-    this.parentPtr =
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null;
-    this.spacePtr =
-      options.space != null
-        ? options.space.metatype == StructType.NODE_REFERENCE
-          ? (options.space as NodeReference)
-          : (options.space as Node).toRef()
-        : null;
-    this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
-    this.createdAt = options.createdAt;
-    this.createdByPtr =
-      options.createdBy != null
-        ? options.createdBy.metatype == StructType.NODE_REFERENCE
-          ? (options.createdBy as NodeReference)
-          : (options.createdBy as Node).toRef()
-        : null;
-    this.updatedAt = options.updatedAt;
-    this.updatedByPtr =
-      options.updatedBy != null
-        ? options.updatedBy.metatype == StructType.NODE_REFERENCE
-          ? (options.updatedBy as NodeReference)
-          : (options.updatedBy as Node).toRef()
-        : null;
-    this.deletedAt = options.deletedAt ?? null;
-    this.orderKey = options.orderKey ?? "a0";
-    this.name = options.name;
-    this.icon = options.icon ?? null;
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space instanceof Node) {
+      _space = _space.toRef();
+    }
+    this.spacePtr = _space;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = MaterializationType.FULL_GRAPH;
+    }
+    if (_materialization === null) {
+      throw new Error(`Palette.materialization is required`);
+    }
+    this.materialization = _materialization;
+    let _deletedAt = options.deletedAt ?? null;
+    this.deletedAt = _deletedAt;
+    let _orderKey = options.orderKey ?? null;
+    if (_orderKey === null) {
+      _orderKey = "a0";
+    }
+    if (_orderKey === null) {
+      throw new Error(`Palette.orderKey is required`);
+    }
+    this.orderKey = _orderKey;
+    let _name = options.name;
+    if (_name === null) {
+      throw new Error(`Palette.name is required`);
+    }
+    this.name = _name;
+    let _icon = options.icon ?? null;
+    this.icon = _icon;
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO();
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
   }
 
   equals(other: any): boolean {

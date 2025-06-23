@@ -59,7 +59,6 @@ export class Organization extends Node implements Global, Entity, IsTracked, IsJ
     NodeType.INVITE,
   ];
 
-  readonly id: string;
   get parent(): Node | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
@@ -109,12 +108,12 @@ export class Organization extends Node implements Global, Entity, IsTracked, IsJ
   readonly handlePtr: NodeReference | null;
 
   constructor(options: {
-    id: string;
+    id?: string;
     parent?: Node | NodeReference | null;
     materialization?: MaterializationType;
-    createdAt: Temporal.ZonedDateTime;
+    createdAt?: Temporal.ZonedDateTime;
     createdBy?: Agent | User | NodeReference | null;
-    updatedAt: Temporal.ZonedDateTime;
+    updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: Agent | User | NodeReference | null;
     name: string;
     slug: string;
@@ -129,7 +128,7 @@ export class Organization extends Node implements Global, Entity, IsTracked, IsJ
   }) {
     super(
       // id
-      options.id,
+      options.id ?? null,
       // parent
       options.parent != null
         ? options.parent.metatype == StructType.NODE_REFERENCE
@@ -147,47 +146,82 @@ export class Organization extends Node implements Global, Entity, IsTracked, IsJ
       // is_new
       options.id == null,
       // is_attached
-      options.id != null,
+      true,
     );
 
-    this.id = options.id;
-    this.parentPtr =
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null;
-    this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
-    this.createdAt = options.createdAt;
-    this.createdByPtr =
-      options.createdBy != null
-        ? options.createdBy.metatype == StructType.NODE_REFERENCE
-          ? (options.createdBy as NodeReference)
-          : (options.createdBy as Node).toRef()
-        : null;
-    this.updatedAt = options.updatedAt;
-    this.updatedByPtr =
-      options.updatedBy != null
-        ? options.updatedBy.metatype == StructType.NODE_REFERENCE
-          ? (options.updatedBy as NodeReference)
-          : (options.updatedBy as Node).toRef()
-        : null;
-    this.name = options.name;
-    this.slug = options.slug;
-    this.icon = options.icon ?? null;
-    this.status = options.status ?? OrganizationStatus.CREATING;
-    this.spacePtr =
-      options.space != null
-        ? options.space.metatype == StructType.NODE_REFERENCE
-          ? (options.space as NodeReference)
-          : (options.space as Node).toRef()
-        : null;
-    this.handlePtr =
-      options.handle != null
-        ? options.handle.metatype == StructType.NODE_REFERENCE
-          ? (options.handle as NodeReference)
-          : (options.handle as Node).toRef()
-        : null;
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = MaterializationType.FULL_GRAPH;
+    }
+    if (_materialization === null) {
+      throw new Error(`Organization.materialization is required`);
+    }
+    this.materialization = _materialization;
+    let _name = options.name;
+    if (_name === null) {
+      throw new Error(`Organization.name is required`);
+    }
+    this.name = _name;
+    let _slug = options.slug;
+    if (_slug === null) {
+      throw new Error(`Organization.slug is required`);
+    }
+    this.slug = _slug;
+    let _icon = options.icon ?? null;
+    this.icon = _icon;
+    let _status = options.status ?? null;
+    if (_status === null) {
+      _status = OrganizationStatus.CREATING;
+    }
+    if (_status === null) {
+      throw new Error(`Organization.status is required`);
+    }
+    this.status = _status;
+    let _space = options.space;
+    if (_space != null && _space instanceof Node) {
+      _space = _space.toRef();
+    }
+    if (_space === null) {
+      throw new Error(`Organization.space is required`);
+    }
+    this.spacePtr = _space;
+    let _handle = options.handle ?? null;
+    if (_handle != null && _handle instanceof Node) {
+      _handle = _handle.toRef();
+    }
+    this.handlePtr = _handle;
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO();
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
   }
 
   equals(other: any): boolean {

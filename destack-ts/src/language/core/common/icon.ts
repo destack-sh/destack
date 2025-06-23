@@ -51,18 +51,29 @@ export class Icon extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.type = options.type;
-    this.emoji = options.emoji ?? null;
-    this.faName = options.faName ?? null;
-    this.vscName = options.vscName ?? null;
-    this.filePtr =
-      options.file != null
-        ? options.file.metatype == StructType.NODE_REFERENCE
-          ? (options.file as NodeReference)
-          : (options.file as Node).toRef()
-        : null;
-    this.fileUrl = options.fileUrl ?? null;
-    this.color = options.color ?? null;
+    // properties
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`Icon.type is required`);
+    }
+    this.type = _type;
+    let _emoji = options.emoji ?? null;
+    this.emoji = _emoji;
+    let _faName = options.faName ?? null;
+    this.faName = _faName;
+    let _vscName = options.vscName ?? null;
+    this.vscName = _vscName;
+    let _file = options.file ?? null;
+    if (_file != null && _file instanceof Node) {
+      _file = _file.toRef();
+    }
+    this.filePtr = _file;
+    let _fileUrl = options.fileUrl ?? null;
+    this.fileUrl = _fileUrl;
+    let _color = options.color ?? null;
+    this.color = _color;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {

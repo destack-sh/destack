@@ -67,7 +67,6 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
   static __ancestorTypes__: NodeType[] = [NodeType.RUN, NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [NodeType.FIELD, NodeType.OPTION, NodeType.TAGGING];
 
-  readonly id: string;
   get parent(): Run | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
@@ -158,12 +157,12 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
   messagePtr: NodeReference | null;
 
   constructor(options: {
-    id: string;
+    id?: string;
     parent?: Run | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt: Temporal.ZonedDateTime;
+    createdAt?: Temporal.ZonedDateTime;
     createdBy?: Agent | User | NodeReference | null;
-    updatedAt: Temporal.ZonedDateTime;
+    updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: Agent | User | NodeReference | null;
     value?: Map<string, Value>;
     type: InterruptionType;
@@ -181,7 +180,7 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
   }) {
     super(
       // id
-      options.id,
+      options.id ?? null,
       // parent
       options.parent != null
         ? options.parent.metatype == StructType.NODE_REFERENCE
@@ -199,60 +198,85 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
       // is_new
       options.id == null,
       // is_attached
-      options.id != null,
+      options.id != null || options._graph != null,
     );
 
-    this.id = options.id;
-    this.parentPtr =
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null;
-    this.spacePtr =
-      options.space != null
-        ? options.space.metatype == StructType.NODE_REFERENCE
-          ? (options.space as NodeReference)
-          : (options.space as Node).toRef()
-        : null;
-    this.createdAt = options.createdAt;
-    this.createdByPtr =
-      options.createdBy != null
-        ? options.createdBy.metatype == StructType.NODE_REFERENCE
-          ? (options.createdBy as NodeReference)
-          : (options.createdBy as Node).toRef()
-        : null;
-    this.updatedAt = options.updatedAt;
-    this.updatedByPtr =
-      options.updatedBy != null
-        ? options.updatedBy.metatype == StructType.NODE_REFERENCE
-          ? (options.updatedBy as NodeReference)
-          : (options.updatedBy as Node).toRef()
-        : null;
-    this.value = options.value ?? new Map();
-    this.type = options.type;
-    this.runnablePtr =
-      options.runnable != null
-        ? options.runnable.metatype == StructType.NODE_REFERENCE
-          ? (options.runnable as NodeReference)
-          : (options.runnable as Node).toRef()
-        : null;
-    this.spanPtr =
-      options.span != null
-        ? options.span.metatype == StructType.NODE_REFERENCE
-          ? (options.span as NodeReference)
-          : (options.span as Node).toRef()
-        : null;
-    this.status = options.status ?? InterruptionStatus.OPEN;
-    this.duration = options.duration ?? null;
-    this.closedAt = options.closedAt ?? null;
-    this.response = options.response ?? null;
-    this.messagePtr =
-      options.message != null
-        ? options.message.metatype == StructType.NODE_REFERENCE
-          ? (options.message as NodeReference)
-          : (options.message as Node).toRef()
-        : null;
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space instanceof Node) {
+      _space = _space.toRef();
+    }
+    this.spacePtr = _space;
+    let _value = options.value ?? null;
+    if (_value === null) {
+      throw new Error(`Interruption.value is required`);
+    }
+    this.value = _value;
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`Interruption.type is required`);
+    }
+    this.type = _type;
+    let _runnable = options.runnable ?? null;
+    if (_runnable != null && _runnable instanceof Node) {
+      _runnable = _runnable.toRef();
+    }
+    this.runnablePtr = _runnable;
+    let _span = options.span ?? null;
+    if (_span != null && _span instanceof Node) {
+      _span = _span.toRef();
+    }
+    this.spanPtr = _span;
+    let _status = options.status ?? null;
+    if (_status === null) {
+      _status = InterruptionStatus.OPEN;
+    }
+    if (_status === null) {
+      throw new Error(`Interruption.status is required`);
+    }
+    this.status = _status;
+    let _duration = options.duration ?? null;
+    this.duration = _duration;
+    let _closedAt = options.closedAt ?? null;
+    this.closedAt = _closedAt;
+    let _response = options.response ?? null;
+    this.response = _response;
+    let _message = options.message ?? null;
+    if (_message != null && _message instanceof Node) {
+      _message = _message.toRef();
+    }
+    this.messagePtr = _message;
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO();
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
   }
 
   equals(other: any): boolean {

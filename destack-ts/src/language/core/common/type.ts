@@ -62,10 +62,17 @@ export class StringConstraint extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.format = options.format ?? null;
-    this.regex = options.regex ?? null;
-    this.startsWith = options.startsWith ?? null;
-    this.endsWith = options.endsWith ?? null;
+    // properties
+    let _format = options.format ?? null;
+    this.format = _format;
+    let _regex = options.regex ?? null;
+    this.regex = _regex;
+    let _startsWith = options.startsWith ?? null;
+    this.startsWith = _startsWith;
+    let _endsWith = options.endsWith ?? null;
+    this.endsWith = _endsWith;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -111,12 +118,21 @@ export class NumberConstraint extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.format = options.format ?? null;
-    this.minValue = options.minValue ?? null;
-    this.maxValue = options.maxValue ?? null;
-    this.stepValue = options.stepValue ?? null;
-    this.precision = options.precision ?? null;
-    this.scale = options.scale ?? null;
+    // properties
+    let _format = options.format ?? null;
+    this.format = _format;
+    let _minValue = options.minValue ?? null;
+    this.minValue = _minValue;
+    let _maxValue = options.maxValue ?? null;
+    this.maxValue = _maxValue;
+    let _stepValue = options.stepValue ?? null;
+    this.stepValue = _stepValue;
+    let _precision = options.precision ?? null;
+    this.precision = _precision;
+    let _scale = options.scale ?? null;
+    this.scale = _scale;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -154,8 +170,13 @@ export class CollectionConstraint extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.minLength = options.minLength ?? null;
-    this.maxLength = options.maxLength ?? null;
+    // properties
+    let _minLength = options.minLength ?? null;
+    this.minLength = _minLength;
+    let _maxLength = options.maxLength ?? null;
+    this.maxLength = _maxLength;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -193,8 +214,19 @@ export class NodeConstraint extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.nodeTypes = options.nodeTypes ?? [];
-    this.nodeTraits = options.nodeTraits ?? [];
+    // properties
+    let _nodeTypes = options.nodeTypes ?? null;
+    if (_nodeTypes === null) {
+      throw new Error(`NodeConstraint.nodeTypes is required`);
+    }
+    this.nodeTypes = _nodeTypes;
+    let _nodeTraits = options.nodeTraits ?? null;
+    if (_nodeTraits === null) {
+      throw new Error(`NodeConstraint.nodeTraits is required`);
+    }
+    this.nodeTraits = _nodeTraits;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -282,33 +314,58 @@ export class Type extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.cardinality = options.cardinality ?? TypeCardinality.SCALAR;
-    this.scalarType = options.scalarType;
-    this.primitiveType = options.primitiveType ?? null;
-    this.enumType = options.enumType ?? null;
-    this.nodeType = options.nodeType ?? null;
-    this.nodeDefinitionPtr =
-      options.nodeDefinition != null
-        ? options.nodeDefinition.metatype == StructType.NODE_REFERENCE
-          ? (options.nodeDefinition as NodeReference)
-          : (options.nodeDefinition as Node).toRef()
-        : null;
-    this.structType = options.structType ?? null;
-    this.baseTypePtr =
-      options.baseType != null
-        ? options.baseType.metatype == StructType.NODE_REFERENCE
-          ? (options.baseType as NodeReference)
-          : (options.baseType as Node).toRef()
-        : null;
-    this.keyType = options.keyType ?? null;
-    this.isRequired = options.isRequired ?? null;
-    this.isVariable = options.isVariable ?? null;
-    this.defaultValue = options.defaultValue ?? null;
-    this.defaultFactory = options.defaultFactory ?? null;
-    this.collectionConstraint = options.collectionConstraint ?? null;
-    this.stringConstraint = options.stringConstraint ?? null;
-    this.numberConstraint = options.numberConstraint ?? null;
-    this.nodeConstraint = options.nodeConstraint ?? null;
+    // properties
+    let _cardinality = options.cardinality ?? null;
+    if (_cardinality === null) {
+      _cardinality = TypeCardinality.SCALAR;
+    }
+    if (_cardinality === null) {
+      throw new Error(`Type.cardinality is required`);
+    }
+    this.cardinality = _cardinality;
+    let _scalarType = options.scalarType;
+    if (_scalarType === null) {
+      throw new Error(`Type.scalarType is required`);
+    }
+    this.scalarType = _scalarType;
+    let _primitiveType = options.primitiveType ?? null;
+    this.primitiveType = _primitiveType;
+    let _enumType = options.enumType ?? null;
+    this.enumType = _enumType;
+    let _nodeType = options.nodeType ?? null;
+    this.nodeType = _nodeType;
+    let _nodeDefinition = options.nodeDefinition ?? null;
+    if (_nodeDefinition != null && _nodeDefinition instanceof Node) {
+      _nodeDefinition = _nodeDefinition.toRef();
+    }
+    this.nodeDefinitionPtr = _nodeDefinition;
+    let _structType = options.structType ?? null;
+    this.structType = _structType;
+    let _baseType = options.baseType ?? null;
+    if (_baseType != null && _baseType instanceof Node) {
+      _baseType = _baseType.toRef();
+    }
+    this.baseTypePtr = _baseType;
+    let _keyType = options.keyType ?? null;
+    this.keyType = _keyType;
+    let _isRequired = options.isRequired ?? null;
+    this.isRequired = _isRequired;
+    let _isVariable = options.isVariable ?? null;
+    this.isVariable = _isVariable;
+    let _defaultValue = options.defaultValue ?? null;
+    this.defaultValue = _defaultValue;
+    let _defaultFactory = options.defaultFactory ?? null;
+    this.defaultFactory = _defaultFactory;
+    let _collectionConstraint = options.collectionConstraint ?? null;
+    this.collectionConstraint = _collectionConstraint;
+    let _stringConstraint = options.stringConstraint ?? null;
+    this.stringConstraint = _stringConstraint;
+    let _numberConstraint = options.numberConstraint ?? null;
+    this.numberConstraint = _numberConstraint;
+    let _nodeConstraint = options.nodeConstraint ?? null;
+    this.nodeConstraint = _nodeConstraint;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {

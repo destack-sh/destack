@@ -60,13 +60,38 @@ export class DatabaseInfo extends Struct {
       options._supergraph ?? null,
     );
 
-    this.type = options.type;
-    this.region = options.region;
-    this.galaxyName = options.galaxyName ?? null;
-    this.externalName = options.externalName;
-    this.customSchemaName = options.customSchemaName ?? null;
-    this.tenancy = options.tenancy ?? Tenancy.DEDICATED;
-    this.connectionUrl = options.connectionUrl ?? null;
+    // properties
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`DatabaseInfo.type is required`);
+    }
+    this.type = _type;
+    let _region = options.region;
+    if (_region === null) {
+      throw new Error(`DatabaseInfo.region is required`);
+    }
+    this.region = _region;
+    let _galaxyName = options.galaxyName ?? null;
+    this.galaxyName = _galaxyName;
+    let _externalName = options.externalName;
+    if (_externalName === null) {
+      throw new Error(`DatabaseInfo.externalName is required`);
+    }
+    this.externalName = _externalName;
+    let _customSchemaName = options.customSchemaName ?? null;
+    this.customSchemaName = _customSchemaName;
+    let _tenancy = options.tenancy ?? null;
+    if (_tenancy === null) {
+      _tenancy = Tenancy.DEDICATED;
+    }
+    if (_tenancy === null) {
+      throw new Error(`DatabaseInfo.tenancy is required`);
+    }
+    this.tenancy = _tenancy;
+    let _connectionUrl = options.connectionUrl ?? null;
+    this.connectionUrl = _connectionUrl;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -93,7 +118,6 @@ export class Database extends Node implements Spatial, Entity, Resource, IsTrack
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
@@ -141,13 +165,13 @@ export class Database extends Node implements Spatial, Entity, Resource, IsTrack
   readonly connectionUrl: string | null;
 
   constructor(options: {
-    id: string;
+    id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
-    createdAt: Temporal.ZonedDateTime;
+    createdAt?: Temporal.ZonedDateTime;
     createdBy?: Agent | User | NodeReference | null;
-    updatedAt: Temporal.ZonedDateTime;
+    updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: Agent | User | NodeReference | null;
     type: DatabaseType;
     name: string;
@@ -166,7 +190,7 @@ export class Database extends Node implements Spatial, Entity, Resource, IsTrack
   }) {
     super(
       // id
-      options.id,
+      options.id ?? null,
       // parent
       options.parent != null
         ? options.parent.metatype == StructType.NODE_REFERENCE
@@ -184,47 +208,98 @@ export class Database extends Node implements Spatial, Entity, Resource, IsTrack
       // is_new
       options.id == null,
       // is_attached
-      options.id != null,
+      options.id != null || options._graph != null,
     );
 
-    this.id = options.id;
-    this.parentPtr =
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null;
-    this.spacePtr =
-      options.space != null
-        ? options.space.metatype == StructType.NODE_REFERENCE
-          ? (options.space as NodeReference)
-          : (options.space as Node).toRef()
-        : null;
-    this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
-    this.createdAt = options.createdAt;
-    this.createdByPtr =
-      options.createdBy != null
-        ? options.createdBy.metatype == StructType.NODE_REFERENCE
-          ? (options.createdBy as NodeReference)
-          : (options.createdBy as Node).toRef()
-        : null;
-    this.updatedAt = options.updatedAt;
-    this.updatedByPtr =
-      options.updatedBy != null
-        ? options.updatedBy.metatype == StructType.NODE_REFERENCE
-          ? (options.updatedBy as NodeReference)
-          : (options.updatedBy as Node).toRef()
-        : null;
-    this.type = options.type;
-    this.name = options.name;
-    this.status = options.status ?? ResourceStatus.PENDING;
-    this.targetStatus = options.targetStatus ?? null;
-    this.region = options.region;
-    this.galaxyName = options.galaxyName ?? null;
-    this.externalName = options.externalName;
-    this.customSchemaName = options.customSchemaName ?? null;
-    this.tenancy = options.tenancy ?? Tenancy.DEDICATED;
-    this.connectionUrl = options.connectionUrl ?? null;
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space instanceof Node) {
+      _space = _space.toRef();
+    }
+    this.spacePtr = _space;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = MaterializationType.FULL_GRAPH;
+    }
+    if (_materialization === null) {
+      throw new Error(`Database.materialization is required`);
+    }
+    this.materialization = _materialization;
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`Database.type is required`);
+    }
+    this.type = _type;
+    let _name = options.name;
+    if (_name === null) {
+      throw new Error(`Database.name is required`);
+    }
+    this.name = _name;
+    let _status = options.status ?? null;
+    if (_status === null) {
+      _status = ResourceStatus.PENDING;
+    }
+    if (_status === null) {
+      throw new Error(`Database.status is required`);
+    }
+    this.status = _status;
+    let _targetStatus = options.targetStatus ?? null;
+    this.targetStatus = _targetStatus;
+    let _region = options.region;
+    if (_region === null) {
+      throw new Error(`Database.region is required`);
+    }
+    this.region = _region;
+    let _galaxyName = options.galaxyName ?? null;
+    this.galaxyName = _galaxyName;
+    let _externalName = options.externalName;
+    if (_externalName === null) {
+      throw new Error(`Database.externalName is required`);
+    }
+    this.externalName = _externalName;
+    let _customSchemaName = options.customSchemaName ?? null;
+    this.customSchemaName = _customSchemaName;
+    let _tenancy = options.tenancy ?? null;
+    if (_tenancy === null) {
+      _tenancy = Tenancy.DEDICATED;
+    }
+    if (_tenancy === null) {
+      throw new Error(`Database.tenancy is required`);
+    }
+    this.tenancy = _tenancy;
+    let _connectionUrl = options.connectionUrl ?? null;
+    this.connectionUrl = _connectionUrl;
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO();
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
   }
 
   equals(other: any): boolean {

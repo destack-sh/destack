@@ -110,19 +110,40 @@ export class Shadow extends Struct {
       options._supergraph ?? null,
     );
 
-    this.type = options.type ?? ShadowType.BOX;
-    this.stylePtr =
-      options.style != null
-        ? options.style.metatype == StructType.NODE_REFERENCE
-          ? (options.style as NodeReference)
-          : (options.style as Node).toRef()
-        : null;
-    this.color = options.color ?? null;
-    this.position = options.position ?? ShadowPosition.OUTSIDE;
-    this.offset = options.offset ?? null;
-    this.blur = options.blur ?? null;
-    this.spread = options.spread ?? null;
-    this.diffusion = options.diffusion ?? null;
+    // properties
+    let _type = options.type ?? null;
+    if (_type === null) {
+      _type = ShadowType.BOX;
+    }
+    if (_type === null) {
+      throw new Error(`Shadow.type is required`);
+    }
+    this.type = _type;
+    let _style = options.style ?? null;
+    if (_style != null && _style instanceof Node) {
+      _style = _style.toRef();
+    }
+    this.stylePtr = _style;
+    let _color = options.color ?? null;
+    this.color = _color;
+    let _position = options.position ?? null;
+    if (_position === null) {
+      _position = ShadowPosition.OUTSIDE;
+    }
+    if (_position === null) {
+      throw new Error(`Shadow.position is required`);
+    }
+    this.position = _position;
+    let _offset = options.offset ?? null;
+    this.offset = _offset;
+    let _blur = options.blur ?? null;
+    this.blur = _blur;
+    let _spread = options.spread ?? null;
+    this.spread = _spread;
+    let _diffusion = options.diffusion ?? null;
+    this.diffusion = _diffusion;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -202,7 +223,6 @@ export class ShadowStyle
   ];
   static __descendantTypes__: NodeType[] = [NodeType.TAGGING];
 
-  readonly id: string;
   get parent():
     | Scene
     | CustomViewDefinition
@@ -292,7 +312,7 @@ export class ShadowStyle
   diffusion: number | null;
 
   constructor(options: {
-    id: string;
+    id?: string;
     parent?:
       | Scene
       | CustomViewDefinition
@@ -317,9 +337,9 @@ export class ShadowStyle
       | null;
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
-    createdAt: Temporal.ZonedDateTime;
+    createdAt?: Temporal.ZonedDateTime;
     createdBy?: Agent | User | NodeReference | null;
-    updatedAt: Temporal.ZonedDateTime;
+    updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: Agent | User | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;
@@ -338,7 +358,7 @@ export class ShadowStyle
   }) {
     super(
       // id
-      options.id,
+      options.id ?? null,
       // parent
       options.parent != null
         ? options.parent.metatype == StructType.NODE_REFERENCE
@@ -356,47 +376,95 @@ export class ShadowStyle
       // is_new
       options.id == null,
       // is_attached
-      options.id != null,
+      options.id != null || options._graph != null,
     );
 
-    this.id = options.id;
-    this.parentPtr =
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null;
-    this.spacePtr =
-      options.space != null
-        ? options.space.metatype == StructType.NODE_REFERENCE
-          ? (options.space as NodeReference)
-          : (options.space as Node).toRef()
-        : null;
-    this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
-    this.createdAt = options.createdAt;
-    this.createdByPtr =
-      options.createdBy != null
-        ? options.createdBy.metatype == StructType.NODE_REFERENCE
-          ? (options.createdBy as NodeReference)
-          : (options.createdBy as Node).toRef()
-        : null;
-    this.updatedAt = options.updatedAt;
-    this.updatedByPtr =
-      options.updatedBy != null
-        ? options.updatedBy.metatype == StructType.NODE_REFERENCE
-          ? (options.updatedBy as NodeReference)
-          : (options.updatedBy as Node).toRef()
-        : null;
-    this.deletedAt = options.deletedAt ?? null;
-    this.orderKey = options.orderKey ?? "a0";
-    this.type = options.type ?? ShadowType.BOX;
-    this.name = options.name;
-    this.color = options.color ?? null;
-    this.position = options.position ?? ShadowPosition.OUTSIDE;
-    this.offset = options.offset ?? null;
-    this.blur = options.blur ?? null;
-    this.spread = options.spread ?? null;
-    this.diffusion = options.diffusion ?? null;
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space instanceof Node) {
+      _space = _space.toRef();
+    }
+    this.spacePtr = _space;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = MaterializationType.FULL_GRAPH;
+    }
+    if (_materialization === null) {
+      throw new Error(`ShadowStyle.materialization is required`);
+    }
+    this.materialization = _materialization;
+    let _deletedAt = options.deletedAt ?? null;
+    this.deletedAt = _deletedAt;
+    let _orderKey = options.orderKey ?? null;
+    if (_orderKey === null) {
+      _orderKey = "a0";
+    }
+    if (_orderKey === null) {
+      throw new Error(`ShadowStyle.orderKey is required`);
+    }
+    this.orderKey = _orderKey;
+    let _type = options.type ?? null;
+    if (_type === null) {
+      _type = ShadowType.BOX;
+    }
+    if (_type === null) {
+      throw new Error(`ShadowStyle.type is required`);
+    }
+    this.type = _type;
+    let _name = options.name;
+    if (_name === null) {
+      throw new Error(`ShadowStyle.name is required`);
+    }
+    this.name = _name;
+    let _color = options.color ?? null;
+    this.color = _color;
+    let _position = options.position ?? null;
+    if (_position === null) {
+      _position = ShadowPosition.OUTSIDE;
+    }
+    if (_position === null) {
+      throw new Error(`ShadowStyle.position is required`);
+    }
+    this.position = _position;
+    let _offset = options.offset ?? null;
+    this.offset = _offset;
+    let _blur = options.blur ?? null;
+    this.blur = _blur;
+    let _spread = options.spread ?? null;
+    this.spread = _spread;
+    let _diffusion = options.diffusion ?? null;
+    this.diffusion = _diffusion;
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO();
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
   }
 
   equals(other: any): boolean {

@@ -41,7 +41,6 @@ export class Machine extends Node implements Spatial, Entity, Resource, IsTracke
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
@@ -109,13 +108,13 @@ export class Machine extends Node implements Spatial, Entity, Resource, IsTracke
   readonly isHeadless: boolean;
 
   constructor(options: {
-    id: string;
+    id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
-    createdAt: Temporal.ZonedDateTime;
+    createdAt?: Temporal.ZonedDateTime;
     createdBy?: Agent | User | NodeReference | null;
-    updatedAt: Temporal.ZonedDateTime;
+    updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: Agent | User | NodeReference | null;
     type?: MachineType;
     status?: ResourceStatus;
@@ -139,7 +138,7 @@ export class Machine extends Node implements Spatial, Entity, Resource, IsTracke
   }) {
     super(
       // id
-      options.id,
+      options.id ?? null,
       // parent
       options.parent != null
         ? options.parent.metatype == StructType.NODE_REFERENCE
@@ -157,57 +156,135 @@ export class Machine extends Node implements Spatial, Entity, Resource, IsTracke
       // is_new
       options.id == null,
       // is_attached
-      options.id != null,
+      options.id != null || options._graph != null,
     );
 
-    this.id = options.id;
-    this.parentPtr =
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null;
-    this.spacePtr =
-      options.space != null
-        ? options.space.metatype == StructType.NODE_REFERENCE
-          ? (options.space as NodeReference)
-          : (options.space as Node).toRef()
-        : null;
-    this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
-    this.createdAt = options.createdAt;
-    this.createdByPtr =
-      options.createdBy != null
-        ? options.createdBy.metatype == StructType.NODE_REFERENCE
-          ? (options.createdBy as NodeReference)
-          : (options.createdBy as Node).toRef()
-        : null;
-    this.updatedAt = options.updatedAt;
-    this.updatedByPtr =
-      options.updatedBy != null
-        ? options.updatedBy.metatype == StructType.NODE_REFERENCE
-          ? (options.updatedBy as NodeReference)
-          : (options.updatedBy as Node).toRef()
-        : null;
-    this.type = options.type ?? MachineType.RUNTIME;
-    this.status = options.status ?? ResourceStatus.PENDING;
-    this.targetStatus = options.targetStatus ?? null;
-    this.version = options.version ?? "2025.06.23.0";
-    this.externalName = options.externalName ?? null;
-    this.externalId = options.externalId ?? null;
-    this.imageId = options.imageId ?? null;
-    this.grpcUrl = options.grpcUrl ?? null;
-    this.vncUrl = options.vncUrl ?? null;
-    this.clientPtr =
-      options.client != null
-        ? options.client.metatype == StructType.NODE_REFERENCE
-          ? (options.client as NodeReference)
-          : (options.client as Node).toRef()
-        : null;
-    this.cpu = options.cpu ?? 1.0;
-    this.ram = options.ram ?? 1.0;
-    this.width = options.width ?? 1280;
-    this.height = options.height ?? 960;
-    this.isHeadless = options.isHeadless ?? false;
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space instanceof Node) {
+      _space = _space.toRef();
+    }
+    this.spacePtr = _space;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = MaterializationType.FULL_GRAPH;
+    }
+    if (_materialization === null) {
+      throw new Error(`Machine.materialization is required`);
+    }
+    this.materialization = _materialization;
+    let _type = options.type ?? null;
+    if (_type === null) {
+      _type = MachineType.RUNTIME;
+    }
+    if (_type === null) {
+      throw new Error(`Machine.type is required`);
+    }
+    this.type = _type;
+    let _status = options.status ?? null;
+    if (_status === null) {
+      _status = ResourceStatus.PENDING;
+    }
+    if (_status === null) {
+      throw new Error(`Machine.status is required`);
+    }
+    this.status = _status;
+    let _targetStatus = options.targetStatus ?? null;
+    this.targetStatus = _targetStatus;
+    let _version = options.version ?? null;
+    if (_version === null) {
+      _version = "2025.06.23.0";
+    }
+    if (_version === null) {
+      throw new Error(`Machine.version is required`);
+    }
+    this.version = _version;
+    let _externalName = options.externalName ?? null;
+    this.externalName = _externalName;
+    let _externalId = options.externalId ?? null;
+    this.externalId = _externalId;
+    let _imageId = options.imageId ?? null;
+    this.imageId = _imageId;
+    let _grpcUrl = options.grpcUrl ?? null;
+    this.grpcUrl = _grpcUrl;
+    let _vncUrl = options.vncUrl ?? null;
+    this.vncUrl = _vncUrl;
+    let _client = options.client ?? null;
+    if (_client != null && _client instanceof Node) {
+      _client = _client.toRef();
+    }
+    this.clientPtr = _client;
+    let _cpu = options.cpu ?? null;
+    if (_cpu === null) {
+      _cpu = 1.0;
+    }
+    if (_cpu === null) {
+      throw new Error(`Machine.cpu is required`);
+    }
+    this.cpu = _cpu;
+    let _ram = options.ram ?? null;
+    if (_ram === null) {
+      _ram = 1.0;
+    }
+    if (_ram === null) {
+      throw new Error(`Machine.ram is required`);
+    }
+    this.ram = _ram;
+    let _width = options.width ?? null;
+    if (_width === null) {
+      _width = 1280;
+    }
+    if (_width === null) {
+      throw new Error(`Machine.width is required`);
+    }
+    this.width = _width;
+    let _height = options.height ?? null;
+    if (_height === null) {
+      _height = 960;
+    }
+    if (_height === null) {
+      throw new Error(`Machine.height is required`);
+    }
+    this.height = _height;
+    let _isHeadless = options.isHeadless ?? null;
+    if (_isHeadless === null) {
+      _isHeadless = false;
+    }
+    if (_isHeadless === null) {
+      throw new Error(`Machine.isHeadless is required`);
+    }
+    this.isHeadless = _isHeadless;
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO();
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
   }
 
   equals(other: any): boolean {
