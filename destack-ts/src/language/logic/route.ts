@@ -1,5 +1,4 @@
-import { IsTracked, ACTIVE_SESSION, IsOwnable, Spatial, EnumType, IsOrdered, MaterializationType, Entity, Space, StructType, Struct, Organization, Scene, NodeReference, NodeType, Graph, User, Role, Agent, Team, IsTaggable, Node, QueryConnection, StructFrozen, Supergraph, IsDeletable, Folder, BuiltinObject, Session, activeSession } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { IsDeletable, IsOrdered, Entity, MaterializationType, NodeType, QueryConnection, StructType, Space, NodeReference, Graph, IsOwnable, Organization, Folder, User, IsTaggable, Struct, StructFrozen, Spatial, BuiltinObject, EnumType, Scene, Agent, activeSession, Team, Node, IsTracked, Supergraph, Role, ACTIVE_SESSION, Session } from '@/language';
 
 /* ==== DESTACK_GENERATED_START:NODE:3030 ==== */
 export class Route extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsOwnable, IsTaggable {
@@ -12,7 +11,7 @@ export class Route extends Node implements Spatial, Entity, IsTracked, IsDeletab
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -21,7 +20,7 @@ export class Route extends Node implements Spatial, Entity, IsTracked, IsDeletab
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
@@ -32,7 +31,7 @@ export class Route extends Node implements Spatial, Entity, IsTracked, IsDeletab
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -42,7 +41,7 @@ export class Route extends Node implements Spatial, Entity, IsTracked, IsDeletab
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   readonly deletedAt: Temporal.ZonedDateTime | null;
   readonly orderKey: string;
   get ownedBy(): Role | Agent | Organization | Team | User | null | null {
@@ -147,7 +146,13 @@ export class Route extends Node implements Spatial, Entity, IsTracked, IsDeletab
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.ROUTE, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.ROUTE,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {

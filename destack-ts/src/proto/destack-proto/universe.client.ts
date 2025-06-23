@@ -22,91 +22,113 @@ import type { RpcOptions } from "@protobuf-ts/runtime-rpc";
  * @generated from protobuf service symbol.destack.Universe
  */
 export interface IUniverseClient {
-    /**
-     * Create User.
-     *
-     * @generated from protobuf rpc: SignupUser
-     */
-    signupUser(input: SignupUserRequest, options?: OperationOptions): UnaryCall<SignupUserRequest, SignupUserResponse>;
-    /**
-     * Change User.password.
-     *
-     * @generated from protobuf rpc: ChangeUserPassword
-     */
-    changeUserPassword(input: ChangeUserPasswordRequest, options?: OperationOptions): UnaryCall<ChangeUserPasswordRequest, ChangeUserPasswordResponse>;
-    /**
-     * Login User with a new or existing Client.
-     *
-     * @generated from protobuf rpc: LoginUser
-     */
-    loginUser(input: LoginUserRequest, options?: OperationOptions): UnaryCall<LoginUserRequest, LoginUserResponse>;
-    /**
-     * Logout User with the current or other owned Clients.
-     *
-     * @generated from protobuf rpc: LogoutUser
-     */
-    logoutUser(input: LogoutUserRequest, options?: OperationOptions): UnaryCall<LogoutUserRequest, LogoutUserResponse>;
-    /**
-     * Gets Space space information.
-     *
-     * @generated from protobuf rpc: ResolveSpaces
-     */
-    resolveSpaces(input: ResolveSpacesRequest, options?: OperationOptions): UnaryCall<ResolveSpacesRequest, ResolveSpacesResponse>;
+  /**
+   * Create User.
+   *
+   * @generated from protobuf rpc: SignupUser
+   */
+  signupUser(input: SignupUserRequest, options?: OperationOptions): UnaryCall<SignupUserRequest, SignupUserResponse>;
+  /**
+   * Change User.password.
+   *
+   * @generated from protobuf rpc: ChangeUserPassword
+   */
+  changeUserPassword(
+    input: ChangeUserPasswordRequest,
+    options?: OperationOptions,
+  ): UnaryCall<ChangeUserPasswordRequest, ChangeUserPasswordResponse>;
+  /**
+   * Login User with a new or existing Client.
+   *
+   * @generated from protobuf rpc: LoginUser
+   */
+  loginUser(input: LoginUserRequest, options?: OperationOptions): UnaryCall<LoginUserRequest, LoginUserResponse>;
+  /**
+   * Logout User with the current or other owned Clients.
+   *
+   * @generated from protobuf rpc: LogoutUser
+   */
+  logoutUser(input: LogoutUserRequest, options?: OperationOptions): UnaryCall<LogoutUserRequest, LogoutUserResponse>;
+  /**
+   * Gets Space space information.
+   *
+   * @generated from protobuf rpc: ResolveSpaces
+   */
+  resolveSpaces(
+    input: ResolveSpacesRequest,
+    options?: OperationOptions,
+  ): UnaryCall<ResolveSpacesRequest, ResolveSpacesResponse>;
 }
 /**
  * @generated from protobuf service symbol.destack.Universe
  */
 export class UniverseClient implements IUniverseClient, ServiceInfo {
-    typeName = Universe.typeName;
-    methods = Universe.methods;
-    options = Universe.options;
-    constructor(private readonly _transport: RpcTransport) {
-    }
-    /**
-     * Create User.
-     *
-     * @generated from protobuf rpc: SignupUser
-     */
-    signupUser(input: SignupUserRequest, options?: OperationOptions): UnaryCall<SignupUserRequest, SignupUserResponse> {
-        const method = this.methods[0], opt = this._transport.mergeOptions(options);
-        return stackIntercept<SignupUserRequest, SignupUserResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Change User.password.
-     *
-     * @generated from protobuf rpc: ChangeUserPassword
-     */
-    changeUserPassword(input: ChangeUserPasswordRequest, options?: OperationOptions): UnaryCall<ChangeUserPasswordRequest, ChangeUserPasswordResponse> {
-        const method = this.methods[1], opt = this._transport.mergeOptions(options);
-        return stackIntercept<ChangeUserPasswordRequest, ChangeUserPasswordResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Login User with a new or existing Client.
-     *
-     * @generated from protobuf rpc: LoginUser
-     */
-    loginUser(input: LoginUserRequest, options?: OperationOptions): UnaryCall<LoginUserRequest, LoginUserResponse> {
-        const method = this.methods[2], opt = this._transport.mergeOptions(options);
-        return stackIntercept<LoginUserRequest, LoginUserResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Logout User with the current or other owned Clients.
-     *
-     * @generated from protobuf rpc: LogoutUser
-     */
-    logoutUser(input: LogoutUserRequest, options?: OperationOptions): UnaryCall<LogoutUserRequest, LogoutUserResponse> {
-        const method = this.methods[3], opt = this._transport.mergeOptions(options);
-        return stackIntercept<LogoutUserRequest, LogoutUserResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Gets Space space information.
-     *
-     * @generated from protobuf rpc: ResolveSpaces
-     */
-    resolveSpaces(input: ResolveSpacesRequest, options?: OperationOptions): UnaryCall<ResolveSpacesRequest, ResolveSpacesResponse> {
-        const method = this.methods[4], opt = this._transport.mergeOptions(options);
-        return stackIntercept<ResolveSpacesRequest, ResolveSpacesResponse>("unary", this._transport, method, opt, input);
-    }
+  typeName = Universe.typeName;
+  methods = Universe.methods;
+  options = Universe.options;
+  constructor(private readonly _transport: RpcTransport) {}
+  /**
+   * Create User.
+   *
+   * @generated from protobuf rpc: SignupUser
+   */
+  signupUser(input: SignupUserRequest, options?: OperationOptions): UnaryCall<SignupUserRequest, SignupUserResponse> {
+    const method = this.methods[0],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<SignupUserRequest, SignupUserResponse>("unary", this._transport, method, opt, input);
+  }
+  /**
+   * Change User.password.
+   *
+   * @generated from protobuf rpc: ChangeUserPassword
+   */
+  changeUserPassword(
+    input: ChangeUserPasswordRequest,
+    options?: OperationOptions,
+  ): UnaryCall<ChangeUserPasswordRequest, ChangeUserPasswordResponse> {
+    const method = this.methods[1],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<ChangeUserPasswordRequest, ChangeUserPasswordResponse>(
+      "unary",
+      this._transport,
+      method,
+      opt,
+      input,
+    );
+  }
+  /**
+   * Login User with a new or existing Client.
+   *
+   * @generated from protobuf rpc: LoginUser
+   */
+  loginUser(input: LoginUserRequest, options?: OperationOptions): UnaryCall<LoginUserRequest, LoginUserResponse> {
+    const method = this.methods[2],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<LoginUserRequest, LoginUserResponse>("unary", this._transport, method, opt, input);
+  }
+  /**
+   * Logout User with the current or other owned Clients.
+   *
+   * @generated from protobuf rpc: LogoutUser
+   */
+  logoutUser(input: LogoutUserRequest, options?: OperationOptions): UnaryCall<LogoutUserRequest, LogoutUserResponse> {
+    const method = this.methods[3],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<LogoutUserRequest, LogoutUserResponse>("unary", this._transport, method, opt, input);
+  }
+  /**
+   * Gets Space space information.
+   *
+   * @generated from protobuf rpc: ResolveSpaces
+   */
+  resolveSpaces(
+    input: ResolveSpacesRequest,
+    options?: OperationOptions,
+  ): UnaryCall<ResolveSpacesRequest, ResolveSpacesResponse> {
+    const method = this.methods[4],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<ResolveSpacesRequest, ResolveSpacesResponse>("unary", this._transport, method, opt, input);
+  }
 }
 
 import type { OperationOptions } from "@/proto/services";

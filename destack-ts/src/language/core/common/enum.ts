@@ -1,5 +1,4 @@
-import { IsTracked, IsSourceable, IsExtensible, ACTIVE_SESSION, Spatial, Value, EnumType, IsOrdered, MaterializationType, Entity, Space, StructType, Struct, Icon, NodeReference, NodeType, Graph, User, Agent, IsTaggable, Node, QueryConnection, StructFrozen, Script, Supergraph, IsDeletable, BuiltinObject, Session, activeSession } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { IsDeletable, IsOrdered, Entity, MaterializationType, NodeType, QueryConnection, StructType, Space, NodeReference, Graph, Script, Icon, IsSourceable, Value, User, IsTaggable, Struct, StructFrozen, Spatial, BuiltinObject, EnumType, Agent, activeSession, Node, IsTracked, Supergraph, IsExtensible, ACTIVE_SESSION, Session } from '@/language';
 
 /* ==== DESTACK_GENERATED_START:NODE:2510 ==== */
 export class CustomEnumDefinition extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsExtensible, IsOrdered, IsTaggable, IsSourceable {
@@ -12,7 +11,7 @@ export class CustomEnumDefinition extends Node implements Spatial, Entity, IsTra
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -21,7 +20,7 @@ export class CustomEnumDefinition extends Node implements Spatial, Entity, IsTra
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
@@ -32,7 +31,7 @@ export class CustomEnumDefinition extends Node implements Spatial, Entity, IsTra
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -42,7 +41,7 @@ export class CustomEnumDefinition extends Node implements Spatial, Entity, IsTra
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   readonly deletedAt: Temporal.ZonedDateTime | null;
   value: Map<string, Value>;
   readonly orderKey: string;
@@ -56,7 +55,7 @@ export class CustomEnumDefinition extends Node implements Spatial, Entity, IsTra
       return null;
   }
   ;
-  sourcePtr: NodeReference | null
+  readonly sourcePtr: NodeReference | null
 
   constructor(options: {
     id: string,
@@ -126,7 +125,13 @@ export class CustomEnumDefinition extends Node implements Spatial, Entity, IsTra
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.CUSTOM_ENUM_DEFINITION, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.CUSTOM_ENUM_DEFINITION,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {

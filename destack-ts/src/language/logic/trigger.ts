@@ -1,5 +1,5 @@
-import { IsTracked, ACTIVE_SESSION, Spatial, Value, EnumType, MaterializationType, Entity, Space, StructType, Struct, Condition, Particle, RelationReference, NodeReference, NodeType, Graph, Action, User, IsFrozen, Indexed, Agent, Node, QueryConnection, Service, StructFrozen, Script, Supergraph, Analytic, Event, BuiltinObject, Session, activeSession } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { Entity, Indexed, MaterializationType, NodeType, QueryConnection, StructType, Space, NodeReference, Action, Graph, Analytic, Script, Value, User, Struct, Service, StructFrozen, Event, Spatial, BuiltinObject, EnumType, Condition, RelationReference, Agent, Particle, activeSession, Node, IsTracked, Supergraph, IsFrozen, ACTIVE_SESSION, Session } from '@/language';
+import { Temporal } from 'temporal-polyfill';
 
 /* ==== DESTACK_GENERATED_START:ENUM:3041 ==== */
 export enum TriggerEventType {
@@ -26,7 +26,7 @@ export class TriggerEvent extends Node implements Spatial, Particle, Analytic, I
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -35,7 +35,7 @@ export class TriggerEvent extends Node implements Spatial, Particle, Analytic, I
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
@@ -45,7 +45,7 @@ export class TriggerEvent extends Node implements Spatial, Particle, Analytic, I
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -55,7 +55,7 @@ export class TriggerEvent extends Node implements Spatial, Particle, Analytic, I
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   type: TriggerEventType;
   get node(): Trigger | null {
       const nodePtr: NodeReference | null = this.nodePtr;
@@ -129,7 +129,13 @@ export class TriggerEvent extends Node implements Spatial, Particle, Analytic, I
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.TRIGGER_EVENT, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.TRIGGER_EVENT,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {
@@ -162,7 +168,7 @@ export class Trigger extends Node implements Spatial, Entity, IsTracked {
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -171,7 +177,7 @@ export class Trigger extends Node implements Spatial, Entity, IsTracked {
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
@@ -182,7 +188,7 @@ export class Trigger extends Node implements Spatial, Entity, IsTracked {
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -192,7 +198,7 @@ export class Trigger extends Node implements Spatial, Entity, IsTracked {
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   type: TriggerType;
   name: string;
   event: RelationReference | null;
@@ -280,7 +286,13 @@ export class Trigger extends Node implements Spatial, Entity, IsTracked {
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.TRIGGER, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.TRIGGER,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {

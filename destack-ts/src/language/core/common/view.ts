@@ -1,5 +1,4 @@
-import { EnumType, Node, QueryConnection, StructFrozen, StructType, NodeReference, ACTIVE_SESSION, Supergraph, Struct, NodeType, Graph, BuiltinObject, Session, activeSession } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { EnumType, Node, Supergraph, activeSession, Session, NodeType, Struct, QueryConnection, StructFrozen, ACTIVE_SESSION, StructType, NodeReference, BuiltinObject, Graph } from '@/language';
 
 /* ==== DESTACK_GENERATED_START:ENUM:12038 ==== */
 export enum Layout {
@@ -81,7 +80,7 @@ export class Length extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.unit = options.unit;
@@ -121,7 +120,7 @@ export class Position extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.type = options.type;
@@ -160,7 +159,7 @@ export class Dimension extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.type = options.type;
@@ -201,7 +200,7 @@ export class Insets extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.base = options.base ?? null;
@@ -244,7 +243,7 @@ export class Corners extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.base = options.base ?? null;
@@ -283,7 +282,7 @@ export class Axis2 extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.base = options.base ?? null;
@@ -322,7 +321,7 @@ export class Axis3 extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.base = options.base ?? null;
@@ -358,7 +357,7 @@ export class Vector2 extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.x = options.x;
@@ -394,7 +393,7 @@ export class Vector3 extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.x = options.x;
@@ -433,7 +432,7 @@ export class Vector4 extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.x = options.x;
@@ -469,7 +468,7 @@ export class Vector2i extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.x = options.x;
@@ -505,7 +504,7 @@ export class Vector3i extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.x = options.x;
@@ -544,7 +543,7 @@ export class Vector4i extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.x = options.x;
@@ -586,7 +585,7 @@ export class Grid extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.columns = options.columns;
@@ -623,7 +622,7 @@ export class GridSpan extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.columns = options.columns;

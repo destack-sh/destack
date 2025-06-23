@@ -1,5 +1,5 @@
-import { IsTracked, ACTIVE_SESSION, Global, IsOwner, EnumType, MaterializationType, Entity, Space, StructType, Struct, IsJoinable, Icon, NodeReference, NodeType, Graph, User, Agent, Node, QueryConnection, StructFrozen, Supergraph, Handle, BuiltinObject, Session, activeSession } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { Entity, MaterializationType, NodeType, QueryConnection, StructType, Space, NodeReference, Graph, Icon, Handle, User, Struct, IsOwner, StructFrozen, BuiltinObject, EnumType, Agent, IsJoinable, activeSession, Node, IsTracked, Supergraph, Global, ACTIVE_SESSION, Session } from '@/language';
+import { Temporal } from 'temporal-polyfill';
 
 /* ==== DESTACK_GENERATED_START:ENUM:40 ==== */
 export enum OrganizationStatus {
@@ -19,7 +19,7 @@ export class Organization extends Node implements Global, Entity, IsTracked, IsJ
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
@@ -30,7 +30,7 @@ export class Organization extends Node implements Global, Entity, IsTracked, IsJ
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -40,7 +40,7 @@ export class Organization extends Node implements Global, Entity, IsTracked, IsJ
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   name: string;
   slug: string;
   icon: Icon | null;
@@ -53,7 +53,7 @@ export class Organization extends Node implements Global, Entity, IsTracked, IsJ
       return null;
   }
   ;
-  spacePtr: NodeReference
+  readonly spacePtr: NodeReference
   get handle(): Handle | null | null {
       const nodePtr: NodeReference | null = this.handlePtr;
       if (nodePtr !== null) {
@@ -62,7 +62,7 @@ export class Organization extends Node implements Global, Entity, IsTracked, IsJ
       return null;
   }
   ;
-  handlePtr: NodeReference | null
+  readonly handlePtr: NodeReference | null
 
   constructor(options: {
     id: string,
@@ -130,7 +130,13 @@ export class Organization extends Node implements Global, Entity, IsTracked, IsJ
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.ORGANIZATION, this.id, null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.ORGANIZATION,
+      id: this.id,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
+  }
 
   get _pathKey(): string {
       return this.slug ?? this.name;

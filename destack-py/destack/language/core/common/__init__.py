@@ -9,7 +9,6 @@ from .edit import (
 )
 from .entity import CustomEntity, CustomEntityDefinition
 from .enum import CustomEnumDefinition
-from .error import Error, ErrorType
 from .event import CustomEvent, CustomEventDefinition, EditEvent
 from .field import Field, FieldType
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
@@ -174,8 +173,6 @@ __all__ = [
     "EditType",
     "EnumDefinition",
     "EnumOptionDefinition",
-    "Error",
-    "ErrorType",
     "Expression",
     "ExpressionIn",
     "ExpressionType",

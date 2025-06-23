@@ -1,5 +1,5 @@
-import { IsTracked, IsExtensible, ACTIVE_SESSION, Spatial, Value, EnumType, Space, StructType, Struct, Particle, NodeReference, NodeType, Graph, Action, Error, User, IsFrozen, Indexed, Agent, Interruption, Node, QueryConnection, Service, StructFrozen, Script, Supergraph, Analytic, Event, BuiltinObject, Session, activeSession } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { Indexed, NodeType, QueryConnection, StructType, Space, NodeReference, Interruption, Action, Graph, Analytic, Script, Value, User, Struct, Service, StructFrozen, Event, Spatial, BuiltinObject, EnumType, Agent, Particle, activeSession, Node, IsTracked, Supergraph, IsExtensible, IsFrozen, ACTIVE_SESSION, Session } from '@/language';
+import { Temporal } from 'temporal-polyfill';
 
 /* ==== DESTACK_GENERATED_START:ENUM:4000 ==== */
 export enum RunStatus {
@@ -41,7 +41,7 @@ export class RunEvent extends Node implements Spatial, Particle, Analytic, Index
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -50,7 +50,7 @@ export class RunEvent extends Node implements Spatial, Particle, Analytic, Index
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
@@ -60,7 +60,7 @@ export class RunEvent extends Node implements Spatial, Particle, Analytic, Index
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -70,7 +70,7 @@ export class RunEvent extends Node implements Spatial, Particle, Analytic, Index
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   type: RunEventType;
   get node(): Run | null {
       const nodePtr: NodeReference | null = this.nodePtr;
@@ -163,7 +163,13 @@ export class RunEvent extends Node implements Spatial, Particle, Analytic, Index
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.RUN_EVENT, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.RUN_EVENT,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {
@@ -196,7 +202,7 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -205,7 +211,7 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
@@ -215,7 +221,7 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -225,7 +231,7 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   value: Map<string, Value>;
   get target(): Action | Script | Service | null | null {
       const nodePtr: NodeReference | null = this.targetPtr;
@@ -251,7 +257,6 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
   seenAt: Temporal.ZonedDateTime | null;
   interruptedAt: Temporal.ZonedDateTime | null;
   terminatedAt: Temporal.ZonedDateTime | null;
-  error: Error | null;
   get interruption(): Interruption | null | null {
       const nodePtr: NodeReference | null = this.interruptionPtr;
       if (nodePtr !== null) {
@@ -287,7 +292,6 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
     seenAt?: Temporal.ZonedDateTime | null,
     interruptedAt?: Temporal.ZonedDateTime | null,
     terminatedAt?: Temporal.ZonedDateTime | null,
-    error?: Error | null,
     interruption?: Interruption | NodeReference | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
@@ -329,7 +333,6 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
     this.seenAt = options.seenAt ?? null;
     this.interruptedAt = options.interruptedAt ?? null;
     this.terminatedAt = options.terminatedAt ?? null;
-    this.error = options.error ?? null;
     this.interruptionPtr = options.interruption != null ? (options.interruption.metatype == StructType.NODE_REFERENCE ? (options.interruption as NodeReference) : (options.interruption as Node).toRef()) : null;
   }
 
@@ -346,7 +349,13 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.RUN, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.RUN,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {

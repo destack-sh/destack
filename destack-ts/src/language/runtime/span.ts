@@ -1,5 +1,4 @@
-import { IsTracked, ACTIVE_SESSION, Spatial, EnumType, Space, StructType, Struct, Run, NodeReference, NodeType, Graph, User, IsFrozen, Agent, Node, QueryConnection, StructFrozen, Supergraph, Analytic, BuiltinObject, Session, activeSession } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { NodeType, Run, QueryConnection, StructType, Space, NodeReference, Graph, Analytic, User, Struct, StructFrozen, Spatial, BuiltinObject, EnumType, Agent, activeSession, Node, IsTracked, Supergraph, IsFrozen, ACTIVE_SESSION, Session } from '@/language';
 
 /* ==== DESTACK_GENERATED_START:NODE:4010 ==== */
 export class Span extends Node implements Spatial, Analytic, IsFrozen, IsTracked {
@@ -12,7 +11,7 @@ export class Span extends Node implements Spatial, Analytic, IsFrozen, IsTracked
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -21,7 +20,7 @@ export class Span extends Node implements Spatial, Analytic, IsFrozen, IsTracked
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
@@ -31,7 +30,7 @@ export class Span extends Node implements Spatial, Analytic, IsFrozen, IsTracked
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -41,7 +40,7 @@ export class Span extends Node implements Spatial, Analytic, IsFrozen, IsTracked
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
 
   constructor(options: {
     id: string,
@@ -97,7 +96,13 @@ export class Span extends Node implements Spatial, Analytic, IsFrozen, IsTracked
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.SPAN, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.SPAN,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {

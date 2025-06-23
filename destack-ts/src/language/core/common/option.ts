@@ -1,5 +1,4 @@
-import { IsTracked, IsSourceable, ACTIVE_SESSION, Field, Spatial, EnumType, IsOrdered, MaterializationType, Entity, Space, StructType, CustomStructDefinition, Struct, Icon, NodeReference, NodeType, Graph, User, Agent, IsTaggable, Node, QueryConnection, StructFrozen, Script, Supergraph, IsDeletable, BuiltinObject, Session, activeSession } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { IsDeletable, IsOrdered, Entity, MaterializationType, NodeType, QueryConnection, StructType, Space, NodeReference, Graph, Script, Icon, CustomStructDefinition, Field, IsSourceable, User, IsTaggable, Struct, StructFrozen, Spatial, BuiltinObject, EnumType, Agent, activeSession, Node, IsTracked, Supergraph, ACTIVE_SESSION, Session } from '@/language';
 
 /* ==== DESTACK_GENERATED_START:NODE:2530 ==== */
 export class Option extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsTaggable, IsSourceable {
@@ -12,7 +11,7 @@ export class Option extends Node implements Spatial, Entity, IsTracked, IsDeleta
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -21,7 +20,7 @@ export class Option extends Node implements Spatial, Entity, IsTracked, IsDeleta
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
@@ -32,7 +31,7 @@ export class Option extends Node implements Spatial, Entity, IsTracked, IsDeleta
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -42,7 +41,7 @@ export class Option extends Node implements Spatial, Entity, IsTracked, IsDeleta
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   readonly deletedAt: Temporal.ZonedDateTime | null;
   readonly orderKey: string;
   name: string;
@@ -55,7 +54,7 @@ export class Option extends Node implements Spatial, Entity, IsTracked, IsDeleta
       return null;
   }
   ;
-  sourcePtr: NodeReference | null
+  readonly sourcePtr: NodeReference | null
 
   constructor(options: {
     id: string,
@@ -123,7 +122,13 @@ export class Option extends Node implements Spatial, Entity, IsTracked, IsDeleta
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.OPTION, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.OPTION,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {

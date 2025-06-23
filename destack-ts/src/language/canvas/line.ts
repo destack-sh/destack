@@ -1,5 +1,5 @@
-import { IsTracked, Dimension, ACTIVE_SESSION, Window, IsVisual, Position, Spatial, EnumType, IsOrdered, MaterializationType, Entity, AnnotationShape, Space, StructType, CustomView, SplitView, Vector2, Struct, IsScriptable, LabelView, PlaneShape, Scene, NodeReference, Color, NodeType, ContentView, Graph, User, Layer, Agent, IsTaggable, Node, QueryConnection, Align, View, CustomViewDefinition, StructFrozen, Script, Canvas, Supergraph, IsDeletable, FrameView, BuiltinObject, Session, activeSession, IsShape } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { IsDeletable, SplitView, IsOrdered, CustomView, Dimension, View, Entity, MaterializationType, Canvas, NodeType, ContentView, QueryConnection, StructType, Space, NodeReference, Graph, Script, Align, Vector2, User, IsTaggable, Struct, FrameView, StructFrozen, PlaneShape, Spatial, BuiltinObject, EnumType, Scene, Layer, Agent, IsScriptable, Position, Window, activeSession, Node, IsTracked, Supergraph, Color, IsShape, AnnotationShape, CustomViewDefinition, ACTIVE_SESSION, IsVisual, LabelView, Session } from '@/language';
+import { Temporal } from 'temporal-polyfill';
 
 /* ==== DESTACK_GENERATED_START:ENUM:11010 ==== */
 export enum LineType {
@@ -20,7 +20,7 @@ export class LineShape extends Node implements Spatial, Entity, IsTracked, IsDel
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -29,7 +29,7 @@ export class LineShape extends Node implements Spatial, Entity, IsTracked, IsDel
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
@@ -40,7 +40,7 @@ export class LineShape extends Node implements Spatial, Entity, IsTracked, IsDel
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -50,7 +50,7 @@ export class LineShape extends Node implements Spatial, Entity, IsTracked, IsDel
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   readonly deletedAt: Temporal.ZonedDateTime | null;
   readonly orderKey: string;
   type: LineType;
@@ -175,7 +175,13 @@ export class LineShape extends Node implements Spatial, Entity, IsTracked, IsDel
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.LINE_SHAPE, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.LINE_SHAPE,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {

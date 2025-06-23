@@ -1,5 +1,125 @@
-import { EventCursor, Link, ACTIVE_SESSION, Field, FriendshipInviteEvent, CustomEvent, NotificationEvent, FriendshipInvite, Value, Message, CounterMeasurement, ArrowShape, BorderStyle, StructType, CustomStructDefinition, SplitView, RunEvent, Struct, Organization, Palette, Run, InviteEvent, EntitlementEvent, CounterMetric, Agent, Team, MembershipEvent, Supergraph, Folder, SliderInputView, GaugeMeasurement, WizardView, Tag, GradientStyle, EnumType, RoleEvent, Tagging, HistogramMeasurement, AnnotationShape, CustomView, Reaction, ColorStyle, Timer, Thread, ThreadCursor, ShadowStyle, Branch, CustomEventDefinition, NodeType, Graph, User, Service, EditEvent, Script, Star, Canvas, Handle, Span, BuiltinObject, Session, FillStyle, Sanction, GaugeMetric, ResourceStatus, Window, Permission, Log, TriggerEvent, CustomEnumDefinition, HistogramMetric, Variant, Invite, Friendship, File, Theme, Icon, FontStyle, Trigger, PlaneShape, Snapshot, ThreadView, Scene, NodeReference, SanctionEvent, EffectStyle, Action, Node, ScreenCursor, CustomViewDefinition, StructFrozen, CustomEntity, FrameView, Database, Environment, Route, Entitlement, Follow, SceneEvent, TransitionStyle, MaterializationType, Space, Machine, NumberInputView, CustomEntityDefinition, Membership, Client, LabelView, TimerEvent, LineShape, Option, Role, Layer, Interruption, QueryConnection, TextView, Notification, activeSession } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { CustomView, FriendshipInvite, TimerEvent, Variant, SanctionEvent, Run, Space, Action, Organization, Value, Client, Reaction, PlaneShape, EnumType, GaugeMeasurement, Agent, Thread, EventCursor, EffectStyle, CustomEntity, Theme, Notification, Supergraph, FillStyle, Invite, HistogramMeasurement, Membership, Log, InviteEvent, SplitView, Timer, Canvas, NodeType, QueryConnection, EditEvent, BorderStyle, StructType, Interruption, RunEvent, Environment, Handle, Permission, Span, FrameView, ResourceStatus, StructFrozen, Tag, Friendship, GradientStyle, Layer, ColorStyle, Star, SceneEvent, activeSession, Message, Team, Snapshot, FontStyle, CounterMetric, ArrowShape, ThreadView, RoleEvent, NodeReference, Graph, Script, NumberInputView, Icon, CustomStructDefinition, Field, ShadowStyle, Entitlement, Palette, TriggerEvent, Option, GaugeMetric, LineShape, Route, Scene, MembershipEvent, Link, CounterMeasurement, TextView, EntitlementEvent, Node, WizardView, Role, LabelView, NotificationEvent, Follow, CustomEnumDefinition, Branch, MaterializationType, CustomEntityDefinition, Database, Folder, HistogramMetric, User, Struct, Service, BuiltinObject, FriendshipInviteEvent, SliderInputView, CustomEvent, Window, Machine, File, Tagging, Sanction, ScreenCursor, AnnotationShape, CustomViewDefinition, Trigger, CustomEventDefinition, TransitionStyle, ACTIVE_SESSION, ThreadCursor, Session } from '@/language';
+import { Temporal } from 'temporal-polyfill';
+
+RoleEvent,
+  Session,
+  Environment,
+  NotificationEvent,
+  CounterMetric,
+  ScreenCursor,
+  Tagging,
+  Handle,
+  ShadowStyle,
+  LabelView,
+  Friendship,
+  NodeReference,
+  File,
+  PlaneShape,
+  Option,
+  CustomStructDefinition,
+  ColorStyle,
+  SplitView,
+  ArrowShape,
+  Value,
+  Membership,
+  User,
+  ResourceStatus,
+  TimerEvent,
+  SceneEvent,
+  CustomEntityDefinition,
+  StructFrozen,
+  Supergraph,
+  Client,
+  Theme,
+  Action,
+  Entitlement,
+  Graph,
+  EntitlementEvent,
+  HistogramMeasurement,
+  CustomEventDefinition,
+  Scene,
+  Database,
+  Machine,
+  Timer,
+  Window,
+  Space,
+  activeSession,
+  Struct,
+  FriendshipInviteEvent,
+  Palette,
+  ThreadCursor,
+  Field,
+  Reaction,
+  InviteEvent,
+  Service,
+  Interruption,
+  GradientStyle,
+  Snapshot,
+  Run,
+  Folder,
+  TransitionStyle,
+  Agent,
+  CustomEvent,
+  FillStyle,
+  RunEvent,
+  Branch,
+  SanctionEvent,
+  Variant,
+  Log,
+  Link,
+  ThreadView,
+  Canvas,
+  QueryConnection,
+  Team,
+  Icon,
+  BuiltinObject,
+  Trigger,
+  NumberInputView,
+  TriggerEvent,
+  HistogramMetric,
+  Role,
+  Star,
+  Route,
+  FrameView,
+  Script,
+  BorderStyle,
+  EnumType,
+  Sanction,
+  FriendshipInvite,
+  Follow,
+  LineShape,
+  WizardView,
+  CounterMeasurement,
+  Node,
+  EventCursor,
+  NodeType,
+  ACTIVE_SESSION,
+  FontStyle,
+  GaugeMeasurement,
+  Tag,
+  MembershipEvent,
+  Invite,
+  GaugeMetric,
+  CustomViewDefinition,
+  SliderInputView,
+  StructType,
+  Layer,
+  TextView,
+  Organization,
+  Thread,
+  EffectStyle,
+  Notification,
+  AnnotationShape,
+  CustomEnumDefinition,
+  Span,
+  EditEvent,
+  CustomEntity,
+  Permission,
+  CustomView,
+  Message,
+  MaterializationType,
+} from "@/language";
+import { Temporal } from "temporal-polyfill"; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:50101 ==== */
 export enum JoinablePermission {
@@ -36,10 +156,10 @@ export interface IsTracked {
   readonly id: string;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:51 ==== */
 
@@ -48,10 +168,10 @@ export interface IsVisual {
   readonly id: string;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:9000 ==== */
 
@@ -88,7 +208,7 @@ export interface IsCustomNodeDefinition {
 export interface IsCustomNode {
   readonly id: string;
   get definition(): CustomEntityDefinition | GaugeMetric | CounterMetric | HistogramMetric | CustomViewDefinition;
-  definitionPtr: NodeReference
+  readonly definitionPtr: NodeReference
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:24 ==== */
 
@@ -129,7 +249,7 @@ export interface IsSourceable {
   readonly id: string;
   readonly orderKey: string;
   get source(): Script | null;
-  sourcePtr: NodeReference | null
+  readonly sourcePtr: NodeReference | null
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:3003 ==== */
 
@@ -233,7 +353,7 @@ export interface Global {
 export interface Spatial {
   readonly id: string;
   get space(): Space | null;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:2 ==== */
 
@@ -243,10 +363,10 @@ export interface Entity {
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:10 ==== */
 
@@ -255,10 +375,10 @@ export interface Particle {
   readonly id: string;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:11 ==== */
 
@@ -267,10 +387,10 @@ export interface Analytic {
   readonly id: string;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:12 ==== */
 
@@ -279,10 +399,10 @@ export interface Indexed {
   readonly id: string;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:13 ==== */
 
@@ -292,10 +412,10 @@ export interface Resource {
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   status: ResourceStatus;
   targetStatus: Temporal.ZonedDateTime | null;
 }
@@ -310,13 +430,13 @@ export interface Metric {
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   readonly orderKey: string;
   get source(): Script | null;
-  sourcePtr: NodeReference | null
+  readonly sourcePtr: NodeReference | null
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:4010 ==== */
 
@@ -324,13 +444,13 @@ export interface Metric {
 export interface Measurement {
   readonly id: string;
   get definition(): GaugeMetric | CounterMetric | HistogramMetric;
-  definitionPtr: NodeReference
+  readonly definitionPtr: NodeReference
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:4011 ==== */
 
@@ -338,13 +458,13 @@ export interface Measurement {
 export interface Event {
   readonly id: string;
   get space(): Space | null;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   get node(): Node | null
   set node(value: Node | null);
   nodePtr: NodeReference | null

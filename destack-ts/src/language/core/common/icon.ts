@@ -1,5 +1,4 @@
-import { EnumType, Node, QueryConnection, StructFrozen, StructType, NodeReference, ACTIVE_SESSION, Supergraph, Color, Struct, NodeType, Graph, BuiltinObject, Session, activeSession, File } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { EnumType, Node, Supergraph, activeSession, Color, Session, NodeType, Struct, QueryConnection, File, StructFrozen, ACTIVE_SESSION, StructType, NodeReference, BuiltinObject, Graph } from '@/language';
 
 /* ==== DESTACK_GENERATED_START:ENUM:2531 ==== */
 export enum IconType {
@@ -28,7 +27,7 @@ export class Icon extends StructFrozen {
       return null;
   }
   ;
-  filePtr: NodeReference | null
+  readonly filePtr: NodeReference | null
   readonly fileUrl: string | null;
   readonly color: Color | null;
 
@@ -45,7 +44,7 @@ export class Icon extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.type = options.type;

@@ -1,5 +1,4 @@
-import { EnumType, Node, QueryConnection, StructFrozen, StructType, ACTIVE_SESSION, Supergraph, TraitType, Struct, NodeType, Region, Field, Graph, BuiltinObject, Session, activeSession, CustomEntityDefinition } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { EnumType, Node, Supergraph, TraitType, Field, activeSession, Session, Region, NodeType, Struct, QueryConnection, StructFrozen, ACTIVE_SESSION, StructType, CustomEntityDefinition, BuiltinObject, Graph } from '@/language';
 
 /* ==== DESTACK_GENERATED_START:ENUM:50010 ==== */
 export enum RelationType {
@@ -37,7 +36,7 @@ export class Scope extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.region = options.region ?? null;
@@ -73,7 +72,7 @@ export class RelationReference extends StructFrozen {
       return null;
   }
   ;
-  definitionPtr: NodeReference | null
+  readonly definitionPtr: NodeReference | null
   readonly traitType: TraitType | null;
 
   constructor(options: {
@@ -86,7 +85,7 @@ export class RelationReference extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.type = options.type;
@@ -124,7 +123,7 @@ export class AttributeReference extends StructFrozen {
       return null;
   }
   ;
-  fieldPtr: NodeReference | null
+  readonly fieldPtr: NodeReference | null
 
   constructor(options: {
     type: AttributeType,
@@ -135,7 +134,7 @@ export class AttributeReference extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.type = options.type;
@@ -176,7 +175,7 @@ export class PropertyReference extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.type = options.type;
@@ -217,7 +216,7 @@ export class NodeReference extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.nodeType = options.nodeType;

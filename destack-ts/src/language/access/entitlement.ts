@@ -1,5 +1,5 @@
-import { IsTracked, ACTIVE_SESSION, Spatial, EnumType, MaterializationType, Entity, Space, StructType, Struct, Particle, Organization, Thread, NodeReference, NodeType, Graph, User, IsFrozen, Indexed, Agent, Team, Node, QueryConnection, StructFrozen, Supergraph, IsDeletable, Analytic, Event, Folder, BuiltinObject, Session, activeSession } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { IsDeletable, Entity, Indexed, MaterializationType, NodeType, QueryConnection, StructType, Space, NodeReference, Graph, Analytic, Organization, Folder, User, Struct, StructFrozen, Event, Spatial, BuiltinObject, EnumType, Agent, Particle, Thread, activeSession, Team, Node, IsTracked, Supergraph, IsFrozen, ACTIVE_SESSION, Session } from '@/language';
+import { Temporal } from 'temporal-polyfill';
 
 /* ==== DESTACK_GENERATED_START:ENUM:551 ==== */
 export enum EntitlementEventType {
@@ -28,7 +28,7 @@ export class EntitlementEvent extends Node implements Spatial, Particle, Analyti
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -37,7 +37,7 @@ export class EntitlementEvent extends Node implements Spatial, Particle, Analyti
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
@@ -47,7 +47,7 @@ export class EntitlementEvent extends Node implements Spatial, Particle, Analyti
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -57,7 +57,7 @@ export class EntitlementEvent extends Node implements Spatial, Particle, Analyti
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   get node(): Entitlement | null {
       const nodePtr: NodeReference | null = this.nodePtr;
       if (nodePtr !== null) {
@@ -128,7 +128,13 @@ export class EntitlementEvent extends Node implements Spatial, Particle, Analyti
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.ENTITLEMENT_EVENT, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.ENTITLEMENT_EVENT,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {
@@ -161,7 +167,7 @@ export class Entitlement extends Node implements Spatial, Entity, IsTracked, IsD
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -170,7 +176,7 @@ export class Entitlement extends Node implements Spatial, Entity, IsTracked, IsD
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
@@ -181,7 +187,7 @@ export class Entitlement extends Node implements Spatial, Entity, IsTracked, IsD
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -191,7 +197,7 @@ export class Entitlement extends Node implements Spatial, Entity, IsTracked, IsD
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   readonly deletedAt: Temporal.ZonedDateTime | null;
   type: EntitlementType;
   expiresAt: Temporal.ZonedDateTime | null;
@@ -273,7 +279,13 @@ export class Entitlement extends Node implements Spatial, Entity, IsTracked, IsD
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.ENTITLEMENT, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.ENTITLEMENT,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {

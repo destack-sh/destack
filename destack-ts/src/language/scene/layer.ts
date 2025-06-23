@@ -1,5 +1,5 @@
-import { IsTracked, Dimension, IsExtensible, ACTIVE_SESSION, Distribute, IsOwnable, IsVisual, Position, Spatial, Value, EnumType, IsOrdered, MaterializationType, Entity, Direction, Space, StructType, Vector2, Struct, Organization, Icon, ContainerView, Axis2, IsScriptable, Layout, Scene, NodeReference, GridSpan, Axis3, Border, NodeType, Graph, User, Role, Corners, Agent, Team, IsTaggable, Insets, Fill, Node, QueryConnection, Align, View, StructFrozen, Script, Canvas, Supergraph, IsDeletable, BuiltinObject, Session, activeSession, Shadow, Grid } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { IsDeletable, Border, IsOrdered, Dimension, View, Entity, MaterializationType, Canvas, NodeType, QueryConnection, Shadow, StructType, Space, NodeReference, Axis3, Graph, IsOwnable, Script, Icon, GridSpan, Organization, Align, Value, Vector2, Insets, User, IsTaggable, Struct, StructFrozen, Spatial, BuiltinObject, Direction, Distribute, EnumType, Corners, Layout, Scene, Axis2, ContainerView, Agent, IsScriptable, Position, Fill, Grid, activeSession, Team, Node, IsTracked, Supergraph, Role, IsExtensible, ACTIVE_SESSION, IsVisual, Session } from '@/language';
+import { Temporal } from 'temporal-polyfill';
 
 /* ==== DESTACK_GENERATED_START:ENUM:9020 ==== */
 export enum LayerType {
@@ -19,7 +19,7 @@ export class Layer extends Node implements Spatial, Entity, IsTracked, IsDeletab
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -28,7 +28,7 @@ export class Layer extends Node implements Spatial, Entity, IsTracked, IsDeletab
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
@@ -39,7 +39,7 @@ export class Layer extends Node implements Spatial, Entity, IsTracked, IsDeletab
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -49,7 +49,7 @@ export class Layer extends Node implements Spatial, Entity, IsTracked, IsDeletab
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   readonly deletedAt: Temporal.ZonedDateTime | null;
   value: Map<string, Value>;
   readonly orderKey: string;
@@ -241,7 +241,13 @@ export class Layer extends Node implements Spatial, Entity, IsTracked, IsDeletab
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.LAYER, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.LAYER,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {

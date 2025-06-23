@@ -1,5 +1,5 @@
-import { IsTracked, ACTIVE_SESSION, IsOwnable, IsVisual, Spatial, EnumType, IsOrdered, MaterializationType, Entity, Space, StructType, Struct, Organization, NodeReference, NodeType, Graph, User, Role, Agent, Team, Node, QueryConnection, StructFrozen, Supergraph, IsDeletable, BuiltinObject, Session, activeSession } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { IsDeletable, IsOrdered, Entity, MaterializationType, NodeType, QueryConnection, StructType, Space, NodeReference, Graph, IsOwnable, Organization, User, Struct, StructFrozen, Spatial, BuiltinObject, EnumType, Agent, activeSession, Team, Node, IsTracked, Supergraph, Role, ACTIVE_SESSION, IsVisual, Session } from '@/language';
+import { Temporal } from 'temporal-polyfill';
 
 /* ==== DESTACK_GENERATED_START:ENUM:9000 ==== */
 export enum WindowType {
@@ -20,7 +20,7 @@ export class Window extends Node implements Spatial, Entity, IsTracked, IsDeleta
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -29,7 +29,7 @@ export class Window extends Node implements Spatial, Entity, IsTracked, IsDeleta
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
@@ -40,7 +40,7 @@ export class Window extends Node implements Spatial, Entity, IsTracked, IsDeleta
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -50,7 +50,7 @@ export class Window extends Node implements Spatial, Entity, IsTracked, IsDeleta
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   readonly deletedAt: Temporal.ZonedDateTime | null;
   readonly orderKey: string;
   get ownedBy(): Role | Agent | Organization | Team | User | null | null {
@@ -139,7 +139,13 @@ export class Window extends Node implements Spatial, Entity, IsTracked, IsDeleta
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.WINDOW, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.WINDOW,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {

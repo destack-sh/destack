@@ -1,5 +1,5 @@
-import { IsTracked, ACTIVE_SESSION, IsOwnable, Spatial, Global, EnumType, MaterializationType, Entity, Space, StructType, Struct, Particle, Organization, Thread, LikeMembership, NodeReference, NodeType, Graph, User, Role, IsFrozen, Indexed, Agent, Team, Node, QueryConnection, RoleType, StructFrozen, Supergraph, IsDeletable, Analytic, Event, Folder, BuiltinObject, Session, activeSession } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { IsDeletable, Entity, Indexed, MaterializationType, NodeType, QueryConnection, StructType, Space, NodeReference, Graph, Analytic, IsOwnable, Organization, Folder, User, Struct, StructFrozen, Event, Spatial, BuiltinObject, EnumType, LikeMembership, RoleType, Agent, Particle, Thread, activeSession, Team, Node, IsTracked, Supergraph, Role, Global, IsFrozen, ACTIVE_SESSION, Session } from '@/language';
+import { Temporal } from 'temporal-polyfill';
 
 /* ==== DESTACK_GENERATED_START:ENUM:500 ==== */
 export enum MembershipEventType {
@@ -28,7 +28,7 @@ export class MembershipEvent extends Node implements Spatial, Particle, Analytic
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -37,7 +37,7 @@ export class MembershipEvent extends Node implements Spatial, Particle, Analytic
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
@@ -47,7 +47,7 @@ export class MembershipEvent extends Node implements Spatial, Particle, Analytic
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -57,7 +57,7 @@ export class MembershipEvent extends Node implements Spatial, Particle, Analytic
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   get node(): Membership | null {
       const nodePtr: NodeReference | null = this.nodePtr;
       if (nodePtr !== null) {
@@ -180,7 +180,13 @@ export class MembershipEvent extends Node implements Spatial, Particle, Analytic
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.MEMBERSHIP_EVENT, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.MEMBERSHIP_EVENT,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {
@@ -213,7 +219,7 @@ export class Membership extends Node implements Global, Spatial, Entity, IsTrack
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -222,7 +228,7 @@ export class Membership extends Node implements Global, Spatial, Entity, IsTrack
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
@@ -233,7 +239,7 @@ export class Membership extends Node implements Global, Spatial, Entity, IsTrack
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -243,7 +249,7 @@ export class Membership extends Node implements Global, Spatial, Entity, IsTrack
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   readonly deletedAt: Temporal.ZonedDateTime | null;
   get ownedBy(): Role | Agent | Organization | Team | User | null | null {
       const nodePtr: NodeReference | null = this.ownedByPtr;
@@ -364,7 +370,13 @@ export class Membership extends Node implements Global, Spatial, Entity, IsTrack
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.MEMBERSHIP, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.MEMBERSHIP,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {

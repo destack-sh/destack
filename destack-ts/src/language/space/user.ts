@@ -1,5 +1,5 @@
-import { IsTracked, EventCursor, ACTIVE_SESSION, Global, IsOwner, EnumType, MaterializationType, Entity, IsSubject, Space, StructType, Struct, IsFollowable, Icon, ThreadCursor, NodeReference, NodeType, Graph, Agent, Node, QueryConnection, ScreenCursor, StructFrozen, Supergraph, Handle, BuiltinObject, Session, activeSession } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { Entity, MaterializationType, NodeType, QueryConnection, StructType, Space, NodeReference, Graph, Icon, Handle, Struct, IsOwner, StructFrozen, BuiltinObject, EnumType, IsFollowable, Agent, EventCursor, IsSubject, activeSession, Node, IsTracked, Supergraph, ScreenCursor, Global, ACTIVE_SESSION, ThreadCursor, Session } from '@/language';
+import { Temporal } from 'temporal-polyfill';
 
 /* ==== DESTACK_GENERATED_START:ENUM:20 ==== */
 export enum UserStatus {
@@ -19,7 +19,7 @@ export class User extends Node implements Global, Entity, IsTracked, IsSubject, 
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
@@ -30,7 +30,7 @@ export class User extends Node implements Global, Entity, IsTracked, IsSubject, 
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -40,7 +40,7 @@ export class User extends Node implements Global, Entity, IsTracked, IsSubject, 
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   name: string;
   slug: string;
   icon: Icon | null;
@@ -55,7 +55,7 @@ export class User extends Node implements Global, Entity, IsTracked, IsSubject, 
       return null;
   }
   ;
-  spacePtr: NodeReference
+  readonly spacePtr: NodeReference
   get handle(): Handle | null | null {
       const nodePtr: NodeReference | null = this.handlePtr;
       if (nodePtr !== null) {
@@ -64,7 +64,7 @@ export class User extends Node implements Global, Entity, IsTracked, IsSubject, 
       return null;
   }
   ;
-  handlePtr: NodeReference | null
+  readonly handlePtr: NodeReference | null
   get cursor(): EventCursor | ScreenCursor | ThreadCursor | null | null {
       const nodePtr: NodeReference | null = this.cursorPtr;
       if (nodePtr !== null) {
@@ -73,7 +73,7 @@ export class User extends Node implements Global, Entity, IsTracked, IsSubject, 
       return null;
   }
   ;
-  cursorPtr: NodeReference | null
+  readonly cursorPtr: NodeReference | null
   readonly email: string | null;
   readonly passwordSalt: Uint8Array | null;
   readonly passwordHash: Uint8Array | null;
@@ -156,7 +156,13 @@ export class User extends Node implements Global, Entity, IsTracked, IsSubject, 
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.USER, this.id, null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.USER,
+      id: this.id,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
+  }
 
   get _pathKey(): string {
       return this.slug ?? this.name;

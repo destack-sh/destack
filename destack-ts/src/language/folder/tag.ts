@@ -1,5 +1,5 @@
-import { IsTracked, SliderInputView, FillStyle, ACTIVE_SESSION, Field, WizardView, Spatial, Message, EnumType, IsOrdered, ArrowShape, TransitionStyle, MaterializationType, CustomEnumDefinition, BorderStyle, Entity, AnnotationShape, Space, StructType, CustomView, CustomStructDefinition, SplitView, ColorStyle, Struct, LikeTag, NumberInputView, Palette, Icon, CustomEntityDefinition, Thread, FontStyle, ShadowStyle, Theme, LabelView, PlaneShape, ThreadView, Scene, NodeReference, NodeType, LineShape, EffectStyle, Graph, Option, Action, GradientStyle, User, Agent, Layer, IsTaggable, Node, QueryConnection, EditEvent, StructFrozen, CustomViewDefinition, TextView, Canvas, Supergraph, IsDeletable, FrameView, Service, Folder, BuiltinObject, Session, activeSession, Route } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { IsDeletable, SplitView, IsOrdered, CustomView, ThreadView, Entity, MaterializationType, Canvas, NodeType, QueryConnection, EditEvent, BorderStyle, StructType, Space, NodeReference, CustomEntityDefinition, Action, Graph, NumberInputView, Icon, Field, CustomStructDefinition, ShadowStyle, Folder, LikeTag, User, IsTaggable, Struct, FrameView, Service, Palette, StructFrozen, PlaneShape, Spatial, BuiltinObject, EnumType, Option, LineShape, GradientStyle, Route, Scene, Layer, Agent, SliderInputView, TextView, Thread, EffectStyle, ColorStyle, Theme, activeSession, Message, Node, IsTracked, Supergraph, FillStyle, FontStyle, WizardView, AnnotationShape, CustomViewDefinition, TransitionStyle, ACTIVE_SESSION, LabelView, Session, CustomEnumDefinition, ArrowShape } from '@/language';
+import { Temporal } from 'temporal-polyfill';
 
 /* ==== DESTACK_GENERATED_START:NODE:1010 ==== */
 export class Tag extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, LikeTag {
@@ -12,7 +12,7 @@ export class Tag extends Node implements Spatial, Entity, IsTracked, IsDeletable
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -21,7 +21,7 @@ export class Tag extends Node implements Spatial, Entity, IsTracked, IsDeletable
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
@@ -32,7 +32,7 @@ export class Tag extends Node implements Spatial, Entity, IsTracked, IsDeletable
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -42,7 +42,7 @@ export class Tag extends Node implements Spatial, Entity, IsTracked, IsDeletable
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   readonly deletedAt: Temporal.ZonedDateTime | null;
   readonly orderKey: string;
   name: string;
@@ -112,7 +112,13 @@ export class Tag extends Node implements Spatial, Entity, IsTracked, IsDeletable
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.TAG, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.TAG,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {
@@ -145,7 +151,7 @@ export class Tagging extends Node implements Spatial, Entity, IsTracked, IsDelet
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -154,7 +160,7 @@ export class Tagging extends Node implements Spatial, Entity, IsTracked, IsDelet
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
@@ -165,7 +171,7 @@ export class Tagging extends Node implements Spatial, Entity, IsTracked, IsDelet
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -175,7 +181,7 @@ export class Tagging extends Node implements Spatial, Entity, IsTracked, IsDelet
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   readonly deletedAt: Temporal.ZonedDateTime | null;
   readonly orderKey: string;
   get tag(): Tag | null | null {
@@ -258,7 +264,13 @@ export class Tagging extends Node implements Spatial, Entity, IsTracked, IsDelet
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.TAGGING, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.TAGGING,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {

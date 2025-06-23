@@ -1,6 +1,6 @@
 import { AnyStructProto } from "@/proto";
 import { BuiltinObject } from "./object";
-import { StructType } from "@/language";
+import { StructType, StructTypeMapping } from "@/language";
 
 /** A Struct is an ordered collection of Properties. */
 export abstract class Struct extends BuiltinObject {
@@ -12,6 +12,7 @@ export abstract class Struct extends BuiltinObject {
   }
 }
 
+/** A frozen Struct is a Struct that is immutable. */
 export abstract class StructFrozen extends Struct {
   static readonly __isFrozen__: boolean = true;
 
@@ -19,4 +20,9 @@ export abstract class StructFrozen extends Struct {
   readonly _repr: string | null = null;
   readonly _proto: AnyStructProto | null = null;
   readonly _value: Record<string, any> | null = null;
+}
+
+/** Check if a value is a Struct of a specific type. */
+export function isStruct<T extends StructType>(value: any, structType?: T): value is StructTypeMapping[T] {
+  return value instanceof Struct && (structType === undefined || value.metatype === structType);
 }

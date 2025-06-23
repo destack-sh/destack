@@ -1,5 +1,5 @@
-import { IsTracked, ACTIVE_SESSION, Spatial, Global, IsOwner, EnumType, IsOrdered, MaterializationType, Entity, Space, StructType, Struct, Particle, Organization, Icon, Thread, NodeReference, NodeType, Graph, User, IsFrozen, Indexed, Agent, Team, Node, QueryConnection, RoleType, StructFrozen, Supergraph, IsDeletable, Analytic, Event, Folder, BuiltinObject, Session, activeSession } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { IsDeletable, IsOrdered, Entity, Indexed, MaterializationType, NodeType, QueryConnection, StructType, Space, NodeReference, Graph, Analytic, Icon, Organization, Folder, User, Struct, IsOwner, StructFrozen, Event, Spatial, BuiltinObject, EnumType, RoleType, Agent, Particle, Thread, activeSession, Team, Node, IsTracked, Supergraph, Global, IsFrozen, ACTIVE_SESSION, Session } from '@/language';
+import { Temporal } from 'temporal-polyfill';
 
 /* ==== DESTACK_GENERATED_START:ENUM:521 ==== */
 export enum RoleEventType {
@@ -19,7 +19,7 @@ export class RoleEvent extends Node implements Spatial, Particle, Analytic, Inde
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -28,7 +28,7 @@ export class RoleEvent extends Node implements Spatial, Particle, Analytic, Inde
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
@@ -38,7 +38,7 @@ export class RoleEvent extends Node implements Spatial, Particle, Analytic, Inde
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -48,7 +48,7 @@ export class RoleEvent extends Node implements Spatial, Particle, Analytic, Inde
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   type: RoleEventType;
   get node(): Role | null {
       const nodePtr: NodeReference | null = this.nodePtr;
@@ -122,7 +122,13 @@ export class RoleEvent extends Node implements Spatial, Particle, Analytic, Inde
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.ROLE_EVENT, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.ROLE_EVENT,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {
@@ -155,7 +161,7 @@ export class Role extends Node implements Global, Spatial, Entity, IsTracked, Is
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -164,7 +170,7 @@ export class Role extends Node implements Global, Spatial, Entity, IsTracked, Is
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
@@ -175,7 +181,7 @@ export class Role extends Node implements Global, Spatial, Entity, IsTracked, Is
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -185,7 +191,7 @@ export class Role extends Node implements Global, Spatial, Entity, IsTracked, Is
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   readonly deletedAt: Temporal.ZonedDateTime | null;
   readonly orderKey: string;
   type: RoleType;
@@ -261,7 +267,13 @@ export class Role extends Node implements Global, Spatial, Entity, IsTracked, Is
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.ROLE, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.ROLE,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {

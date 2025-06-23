@@ -1,5 +1,4 @@
-import { EnumType, Node, QueryConnection, StructFrozen, StructType, NodeReference, ACTIVE_SESSION, Supergraph, Type, Struct, NodeType, Graph, BuiltinObject, Session, activeSession } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { EnumType, Node, Supergraph, Type, activeSession, Session, NodeType, Struct, QueryConnection, StructFrozen, ACTIVE_SESSION, StructType, NodeReference, BuiltinObject, Graph } from '@/language';
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2500 ==== */
 export class Value extends StructFrozen {
@@ -14,7 +13,7 @@ export class Value extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.type = options.type;

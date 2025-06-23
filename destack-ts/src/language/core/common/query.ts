@@ -1,5 +1,4 @@
-import { EnumType, AttributeReference, Node, QueryConnection, StructFrozen, StructType, NodeReference, ACTIVE_SESSION, Supergraph, RelationReference, Struct, NodeType, Graph, BuiltinObject, Session, activeSession, Value } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { EnumType, Node, Supergraph, Value, activeSession, RelationReference, Session, NodeType, Struct, QueryConnection, AttributeReference, StructFrozen, ACTIVE_SESSION, StructType, NodeReference, BuiltinObject, Graph } from '@/language';
 
 /* ==== DESTACK_GENERATED_START:ENUM:108 ==== */
 export enum FunctionType {
@@ -110,7 +109,7 @@ export class Function extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.type = options.type;
@@ -147,7 +146,7 @@ export class Condition extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.type = options.type;
@@ -182,7 +181,7 @@ export class Aggregation extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.type = options.type;
@@ -224,7 +223,7 @@ export class Expression extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.type = options.type;
@@ -264,7 +263,7 @@ export class Sort extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.type = options.type;
@@ -297,7 +296,7 @@ export class Select extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.attributes = options.attributes ?? [];
@@ -336,7 +335,7 @@ export class Join extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.type = options.type;
@@ -397,7 +396,7 @@ export class Query extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.id = options.id;
@@ -443,7 +442,7 @@ export class Histogram extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.buckets = options.buckets ?? [];
@@ -489,7 +488,7 @@ export class QueryResult extends Struct {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.id = options.id;
@@ -537,7 +536,7 @@ export class QueryResultGroup extends Struct {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.type = options.type;
@@ -575,7 +574,7 @@ export class QueryUpdate extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
     this.type = options.type;
@@ -606,7 +605,7 @@ export class Selection extends StructFrozen {
   }) {
     super(
         // supergraph
-        supergraph,
+        options._supergraph ?? null,
     );
 
 

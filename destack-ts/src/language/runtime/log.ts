@@ -1,5 +1,5 @@
-import { IsTracked, ACTIVE_SESSION, Spatial, EnumType, Space, StructType, Struct, NodeReference, NodeType, Graph, User, IsFrozen, Agent, Node, QueryConnection, StructFrozen, Supergraph, Analytic, BuiltinObject, Session, activeSession } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { NodeType, QueryConnection, StructType, Space, NodeReference, Graph, Analytic, User, Struct, StructFrozen, Spatial, BuiltinObject, EnumType, Agent, activeSession, Node, IsTracked, Supergraph, IsFrozen, ACTIVE_SESSION, Session } from '@/language';
+import { Temporal } from 'temporal-polyfill';
 
 /* ==== DESTACK_GENERATED_START:ENUM:4100 ==== */
 export enum LogLevel {
@@ -23,7 +23,7 @@ export class Log extends Node implements Spatial, Analytic, IsFrozen, IsTracked 
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -32,7 +32,7 @@ export class Log extends Node implements Spatial, Analytic, IsFrozen, IsTracked 
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
@@ -42,7 +42,7 @@ export class Log extends Node implements Spatial, Analytic, IsFrozen, IsTracked 
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -52,7 +52,7 @@ export class Log extends Node implements Spatial, Analytic, IsFrozen, IsTracked 
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   content: string;
   attributes: Map<string, any>;
   level: LogLevel;
@@ -117,7 +117,13 @@ export class Log extends Node implements Spatial, Analytic, IsFrozen, IsTracked 
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.LOG, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.LOG,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {

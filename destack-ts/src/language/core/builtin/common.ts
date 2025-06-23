@@ -1,6 +1,19 @@
-import { Node, QueryConnection, StructFrozen, NodeReference, ACTIVE_SESSION, Supergraph, Struct, Graph, BuiltinObject, Session, activeSession } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { Node, Supergraph, activeSession, Session, Struct, QueryConnection, StructFrozen, ACTIVE_SESSION, NodeReference, BuiltinObject, Graph } from '@/language';
+
+activeSession,
+  Struct,
+  Session,
+  ACTIVE_SESSION,
+  BuiltinObject,
+  StructFrozen,
+  Supergraph,
+  NodeReference,
+  Node,
+  Graph,
+  QueryConnection,
+} from "@/language";
+import { Temporal } from "temporal-polyfill"; // until Temporal ships natively
+import { Temporal } from "temporal-polyfill"; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:50000 ==== */
 export enum EnumType {
@@ -131,7 +144,6 @@ export enum EnumType {
   PLATFORM_TYPE = 50030,
   RUNTIME_TYPE = 50031,
   OPERATING_SYSTEM = 50040,
-  ERROR_TYPE = 50041,
   EDIT_TYPE = 50050,
   EDIT_OPERATION = 50051,
   CHANGE_STATUS = 50052,

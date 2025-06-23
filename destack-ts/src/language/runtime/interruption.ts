@@ -1,5 +1,5 @@
-import { IsTracked, IsExtensible, ACTIVE_SESSION, Spatial, Value, Message, EnumType, Space, StructType, Struct, Particle, Run, NodeReference, NodeType, Graph, Action, User, Indexed, Agent, Node, QueryConnection, Service, StructFrozen, Script, Supergraph, Span, Analytic, BuiltinObject, Session, activeSession } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { Indexed, NodeType, Run, QueryConnection, StructType, Space, NodeReference, Action, Graph, Analytic, Script, Value, User, Span, Struct, Service, StructFrozen, Spatial, BuiltinObject, EnumType, Agent, Particle, activeSession, Message, Node, IsTracked, Supergraph, IsExtensible, ACTIVE_SESSION, Session } from '@/language';
+import { Temporal } from 'temporal-polyfill';
 
 /* ==== DESTACK_GENERATED_START:ENUM:4020 ==== */
 export enum InterruptionType {
@@ -35,7 +35,7 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   get space(): Space | null | null {
       const nodePtr: NodeReference | null = this.spacePtr;
       if (nodePtr !== null) {
@@ -44,7 +44,7 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
       return null;
   }
   ;
-  spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.createdByPtr;
@@ -54,7 +54,7 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -64,7 +64,7 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   value: Map<string, Value>;
   type: InterruptionType;
   get runnable(): Action | Script | Service | null | null {
@@ -195,7 +195,13 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.INTERRUPTION, this.id, this.spacePtr?.id ?? null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.INTERRUPTION,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
   }
 
   get _pathKey(): string {

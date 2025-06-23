@@ -1,5 +1,4 @@
-import { IsTracked, ACTIVE_SESSION, Global, IsOwner, EnumType, MaterializationType, Entity, StructType, Struct, IsJoinable, Icon, NodeReference, NodeType, Graph, User, Agent, Node, QueryConnection, StructFrozen, Supergraph, BuiltinObject, Session, activeSession } from '@/language';
-import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
+import { Entity, MaterializationType, NodeType, QueryConnection, StructType, NodeReference, Graph, Icon, User, Struct, IsOwner, StructFrozen, BuiltinObject, EnumType, Agent, IsJoinable, activeSession, Node, IsTracked, Supergraph, Global, ACTIVE_SESSION, Session } from '@/language';
 
 /* ==== DESTACK_GENERATED_START:NODE:50 ==== */
 export class Team extends Node implements Global, Entity, IsTracked, IsJoinable, IsOwner {
@@ -12,7 +11,7 @@ export class Team extends Node implements Global, Entity, IsTracked, IsJoinable,
       return null;
   }
   ;
-  parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
@@ -23,7 +22,7 @@ export class Team extends Node implements Global, Entity, IsTracked, IsJoinable,
       return null;
   }
   ;
-  createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
       const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -33,7 +32,7 @@ export class Team extends Node implements Global, Entity, IsTracked, IsJoinable,
       return null;
   }
   ;
-  updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null
   name: string;
   slug: string | null;
   icon: Icon | null;
@@ -98,7 +97,13 @@ export class Team extends Node implements Global, Entity, IsTracked, IsJoinable,
   }
 
   __toRef__(): NodeReference {
-    return new NodeReference(NodeType.TEAM, this.id, null, null, this._supergraph);
+    return new NodeReference({
+      nodeType: NodeType.TEAM,
+      id: this.id,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
+  }
 
   get _pathKey(): string {
       return this.slug ?? this.name;
