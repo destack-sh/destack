@@ -220,4 +220,5 @@ export class CustomStructDefinition
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:2500 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:2500 ==== */

@@ -16,4 +16,5 @@ export interface Style {
   readonly deletedAt: Temporal.ZonedDateTime | null;
   readonly orderKey: string;
   name: string;
-} /* ==== DESTACK_GENERATED_END:TRAIT:12000 ==== */
+}
+/* ==== DESTACK_GENERATED_END:TRAIT:12000 ==== */

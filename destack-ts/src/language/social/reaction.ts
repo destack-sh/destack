@@ -214,4 +214,5 @@ export class Reaction extends Node implements Global, Spatial, Entity, IsTracked
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:5520 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:5520 ==== */

@@ -47,7 +47,8 @@ export enum ArrowHeadType {
   ARROW = 1,
   TRIANGLE = 2,
   DOT = 3,
-} /* ==== DESTACK_GENERATED_END:ENUM:11012 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:11012 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:11012 ==== */
 export class ArrowShape
@@ -396,4 +397,5 @@ export class ArrowShape
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:11012 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:11012 ==== */

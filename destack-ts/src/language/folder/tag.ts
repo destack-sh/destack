@@ -233,7 +233,8 @@ export class Tag extends Node implements Spatial, Entity, IsTracked, IsDeletable
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:1010 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:1010 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:1011 ==== */
 export class Tagging extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsTaggable {
@@ -638,4 +639,5 @@ export class Tagging extends Node implements Spatial, Entity, IsTracked, IsDelet
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:1011 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:1011 ==== */

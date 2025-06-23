@@ -29,4 +29,5 @@ export interface ContentView {
   get script(): Script | null;
   set script(value: Script | null);
   scriptPtr: NodeReference | null;
-} /* ==== DESTACK_GENERATED_END:TRAIT:10200 ==== */
+}
+/* ==== DESTACK_GENERATED_END:TRAIT:10200 ==== */

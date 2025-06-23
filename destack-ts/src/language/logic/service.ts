@@ -291,4 +291,5 @@ export class Service
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:3010 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:3010 ==== */

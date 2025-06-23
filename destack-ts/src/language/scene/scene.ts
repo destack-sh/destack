@@ -69,7 +69,8 @@ import { Temporal } from "temporal-polyfill";
 export enum SceneEventType {
   ENTERED = 1,
   EXITED = 2,
-} /* ==== DESTACK_GENERATED_END:ENUM:9011 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:9011 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:9011 ==== */
 export class SceneEvent extends Node implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked {
@@ -250,7 +251,8 @@ export class SceneEvent extends Node implements Spatial, Particle, Analytic, Ind
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:9011 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:9011 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:9010 ==== */
 export class Scene
@@ -706,4 +708,5 @@ export class Scene
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:9010 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:9010 ==== */

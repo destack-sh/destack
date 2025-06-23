@@ -2,6 +2,7 @@ import {
   CustomEntityDefinition,
   Field,
   Node,
+  NodeClass,
   NodeType,
   Region,
   Session,
@@ -10,26 +11,30 @@ import {
   Supergraph,
   TraitType,
 } from "@/language";
+import { assertNever } from "@/utils/functools";
 
 /* ==== DESTACK_GENERATED_START:ENUM:50010 ==== */
 export enum RelationType {
   BUILTIN_NODE = 1,
   CUSTOM_NODE = 2,
   TRAIT = 3,
-} /* ==== DESTACK_GENERATED_END:ENUM:50010 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:50010 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50011 ==== */
 export enum AttributeType {
   PROPERTY = 1,
   FIELD = 2,
-} /* ==== DESTACK_GENERATED_END:ENUM:50011 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:50011 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50012 ==== */
 export enum PropertyReferenceType {
   NODE = 1,
   TRAIT = 2,
   STRUCT = 3,
-} /* ==== DESTACK_GENERATED_END:ENUM:50012 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:50012 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50000 ==== */
 export class Scope extends StructFrozen {
@@ -67,7 +72,8 @@ export class Scope extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-} /* ==== DESTACK_GENERATED_END:STRUCT:50000 ==== */
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:50000 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50107 ==== */
 export class RelationReference extends StructFrozen {
@@ -76,7 +82,7 @@ export class RelationReference extends StructFrozen {
 
   readonly type: RelationType;
   readonly nodeType: NodeType | null;
-  get definition(): CustomEntityDefinition | null {
+  get definition(): CustomEntityDefinition | null | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr !== null) {
       if (this._supergraph === null) {
@@ -128,10 +134,18 @@ export class RelationReference extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-  static of() {
-    throw new Error("not implemented");
+
+  static of(base: NodeType | NodeClass | CustomEntityDefinition) {
+    if (typeof base == "number") {
+      return new RelationReference({ type: RelationType.BUILTIN_NODE, nodeType: base });
+    } else if (base instanceof CustomEntityDefinition) {
+      return new RelationReference({ type: RelationType.CUSTOM_NODE, definition: base });
+    } else {
+      return new RelationReference({ type: RelationType.BUILTIN_NODE, nodeType: base.metatype });
+    }
   }
 }
+
 /* ==== DESTACK_GENERATED_END:STRUCT:50107 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50108 ==== */
@@ -141,7 +155,7 @@ export class AttributeReference extends StructFrozen {
 
   readonly type: AttributeType;
   readonly propPtr: PropertyReference | null;
-  get field(): Field | null {
+  get field(): Field | null | null {
     const nodePtr: NodeReference | null = this.fieldPtr;
     if (nodePtr !== null) {
       if (this._supergraph === null) {
@@ -188,7 +202,23 @@ export class AttributeReference extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-} /* ==== DESTACK_GENERATED_END:STRUCT:50108 ==== */
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  static of(attribute: Field | PropertyReference | AttributeReference) {
+    if (attribute instanceof PropertyReference) {
+      return new AttributeReference({ type: AttributeType.PROPERTY, propPtr: attribute });
+    } else if (attribute instanceof Field) {
+      return new AttributeReference({ type: AttributeType.FIELD, field: attribute });
+    } else if (attribute instanceof AttributeReference) {
+      return attribute;
+    } else {
+      assertNever(attribute);
+    }
+  }
+}
+
+/* ==== DESTACK_GENERATED_END:STRUCT:50108 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50003 ==== */
 export class PropertyReference extends StructFrozen {
@@ -235,7 +265,8 @@ export class PropertyReference extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-} /* ==== DESTACK_GENERATED_END:STRUCT:50003 ==== */
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:50003 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50002 ==== */
 export class NodeReference extends StructFrozen {
@@ -279,4 +310,5 @@ export class NodeReference extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-} /* ==== DESTACK_GENERATED_END:STRUCT:50002 ==== */
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:50002 ==== */

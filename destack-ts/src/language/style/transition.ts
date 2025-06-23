@@ -47,13 +47,15 @@ export enum TransitionType {
   STYLE = 2,
   TWEEN = 10,
   SPRING = 11,
-} /* ==== DESTACK_GENERATED_END:ENUM:12043 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:12043 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12044 ==== */
 export enum SpringType {
   TIME = 1,
   PHYSICS = 2,
-} /* ==== DESTACK_GENERATED_END:ENUM:12044 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:12044 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12024 ==== */
 export class Transition extends Struct {
@@ -61,7 +63,7 @@ export class Transition extends Struct {
   static __isFrozen__: boolean = false;
 
   type: TransitionType;
-  get style(): TransitionStyle | null {
+  get style(): TransitionStyle | null | null {
     const nodePtr: NodeReference | null = this.stylePtr;
     if (nodePtr !== null) {
       if (this._supergraph === null) {
@@ -138,7 +140,8 @@ export class Transition extends Struct {
   validate(): void {
     throw new Error("not implemented");
   }
-} /* ==== DESTACK_GENERATED_END:STRUCT:12024 ==== */
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:12024 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:12026 ==== */
 export class TransitionStyle
@@ -444,4 +447,5 @@ export class TransitionStyle
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:12026 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:12026 ==== */

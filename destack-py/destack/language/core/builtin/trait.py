@@ -37,7 +37,6 @@ from .property import _PROPERTY_SPECIFIERS, Property, property_, property_parent
 
 if TYPE_CHECKING:
     from destack.language import (
-        AggregationType,
         Condition,
         ExpressionIn,
         Folder,
@@ -218,37 +217,6 @@ class NodeBase[NodeProtoT: AnyObjectProto](BuiltinObjectMutable[NodeProtoT]):
         return query  # type: ignore
 
     @classmethod
-    def scalar(
-        cls: type["Self"],
-        type: "AggregationType",
-        *,
-        name: str | None = None,
-        join: Optional["JoinIn"] = None,
-        expression: "ExpressionIn | None" = None,
-        where: Optional["Condition"] = None,
-        sort: Optional[list["Sort"]] = None,
-        group_by: Optional[list["ExpressionIn"]] = None,
-        having: Optional["Condition"] = None,
-    ) -> "Query[Self]":  # type: ignore
-        """Make an exists Query for this Node/Trait type."""
-        from ..common.query import Aggregation, Expression, Join, Query, QueryType
-
-        query = Query(
-            type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
-            relation=RELATION_REF_BY_CLASS[cls],
-            name=name or cls.metatype.camel_name,
-            join=Join.of(join) if join is not None else None,
-            where=where,
-            having=having,
-            group_by=[Expression.of(expr) for expr in group_by or ()],
-            aggregation=Aggregation(
-                type=type, expression=Expression.of(expression) if expression else None
-            ),
-            sort=sort or [],
-        )
-        return query  # type: ignore
-
-    @classmethod
     def exists(
         cls: type["Self"],
         where: Optional["Condition"] = None,
@@ -358,7 +326,7 @@ class NodeBase[NodeProtoT: AnyObjectProto](BuiltinObjectMutable[NodeProtoT]):
         return query  # type: ignore
 
     @classmethod
-    def average(
+    def sum(
         cls: type["Self"],
         expression: "ExpressionIn",
         *,
@@ -369,7 +337,7 @@ class NodeBase[NodeProtoT: AnyObjectProto](BuiltinObjectMutable[NodeProtoT]):
         group_by: Optional[list["ExpressionIn"]] = None,
         sort: Optional[list["Sort"]] = None,
     ) -> "Query[Self]":  # type: ignore
-        """Make a sum Query for this Node/Trait type."""
+        """Make an average Query for this Node/Trait type."""
         from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
 
         query = Query(
@@ -380,9 +348,7 @@ class NodeBase[NodeProtoT: AnyObjectProto](BuiltinObjectMutable[NodeProtoT]):
             where=where,
             having=having,
             group_by=[Expression.of(expr) for expr in group_by or ()],
-            aggregation=Aggregation(
-                type=AggregationType.AVERAGE, expression=Expression.of(expression)
-            ),
+            aggregation=Aggregation(type=AggregationType.SUM, expression=Expression.of(expression)),
             sort=sort or [],
         )
         return query  # type: ignore

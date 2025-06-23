@@ -66,7 +66,8 @@ export class Origin extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-} /* ==== DESTACK_GENERATED_END:STRUCT:50001 ==== */
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:50001 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:100 ==== */
 export class Client extends Node implements Global, Entity, IsTracked, IsDeletable {
@@ -306,4 +307,5 @@ export class Client extends Node implements Global, Entity, IsTracked, IsDeletab
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:100 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:100 ==== */

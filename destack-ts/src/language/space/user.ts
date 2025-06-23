@@ -29,7 +29,8 @@ import { Temporal } from "temporal-polyfill";
 export enum UserStatus {
   CREATING = 2,
   ACTIVE = 10,
-} /* ==== DESTACK_GENERATED_END:ENUM:20 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:20 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:20 ==== */
 export class User extends Node implements Global, Entity, IsTracked, IsSubject, IsOwner, IsFollowable {
@@ -237,4 +238,5 @@ export class User extends Node implements Global, Entity, IsTracked, IsSubject, 
   get path(): string {
     return this.slug ?? this.name;
   }
-} /* ==== DESTACK_GENERATED_END:NODE:20 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:20 ==== */

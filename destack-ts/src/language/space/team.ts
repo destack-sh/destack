@@ -176,4 +176,5 @@ export class Team extends Node implements Global, Entity, IsTracked, IsJoinable,
   get path(): string {
     return this.slug ?? this.name;
   }
-} /* ==== DESTACK_GENERATED_END:NODE:50 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:50 ==== */

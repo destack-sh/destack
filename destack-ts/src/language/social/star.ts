@@ -203,4 +203,5 @@ export class Star extends Node implements Global, Spatial, Entity, IsTracked, Is
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:5521 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:5521 ==== */

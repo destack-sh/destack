@@ -256,7 +256,8 @@ export class GaugeMetric
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:4110 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:4110 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:4111 ==== */
 export class GaugeMeasurement extends Node implements Spatial, Analytic, IsCustomNode, IsTracked, Measurement {
@@ -433,7 +434,8 @@ export class GaugeMeasurement extends Node implements Spatial, Analytic, IsCusto
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:4111 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:4111 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:4112 ==== */
 export class CounterMetric
@@ -663,7 +665,8 @@ export class CounterMetric
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:4112 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:4112 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:4113 ==== */
 export class CounterMeasurement extends Node implements Spatial, Analytic, IsCustomNode, IsTracked, Measurement {
@@ -840,7 +843,8 @@ export class CounterMeasurement extends Node implements Spatial, Analytic, IsCus
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:4113 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:4113 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:4114 ==== */
 export class HistogramMetric
@@ -1070,7 +1074,8 @@ export class HistogramMetric
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:4114 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:4114 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:4115 ==== */
 export class HistogramMeasurement extends Node implements Spatial, Analytic, IsCustomNode, IsTracked, Measurement {
@@ -1247,4 +1252,5 @@ export class HistogramMeasurement extends Node implements Spatial, Analytic, IsC
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:4115 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:4115 ==== */

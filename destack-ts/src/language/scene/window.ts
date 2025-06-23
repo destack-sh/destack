@@ -30,7 +30,8 @@ export enum WindowType {
   BROWSER = 10,
   DESKTOP = 20,
   MOBILE = 30,
-} /* ==== DESTACK_GENERATED_END:ENUM:9000 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:9000 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:9000 ==== */
 export class Window extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsOwnable, IsVisual {
@@ -275,4 +276,5 @@ export class Window extends Node implements Spatial, Entity, IsTracked, IsDeleta
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:9000 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:9000 ==== */

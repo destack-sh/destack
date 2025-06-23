@@ -23,7 +23,8 @@ import { Temporal } from "temporal-polyfill";
 /* ==== DESTACK_GENERATED_START:ENUM:2550 ==== */
 export enum LinkType {
   WEB = 1,
-} /* ==== DESTACK_GENERATED_END:ENUM:2550 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:2550 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:2550 ==== */
 export class Link extends Node implements Spatial, Entity, Resource, IsTracked {
@@ -225,4 +226,5 @@ export class Link extends Node implements Spatial, Entity, Resource, IsTracked {
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:2550 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:2550 ==== */

@@ -29,13 +29,15 @@ export enum TimerEventType {
   STARTED = 1,
   STOPPED = 2,
   EXPIRED = 3,
-} /* ==== DESTACK_GENERATED_END:ENUM:3054 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:3054 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:3053 ==== */
 export enum TimerType {
   ONCE = 1,
   RECURRING = 2,
-} /* ==== DESTACK_GENERATED_END:ENUM:3053 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:3053 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:3051 ==== */
 export class TimerEvent extends Node implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked {
@@ -216,7 +218,8 @@ export class TimerEvent extends Node implements Spatial, Particle, Analytic, Ind
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:3051 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:3051 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:3050 ==== */
 export class Timer extends Node implements Spatial, Entity, IsTracked {
@@ -379,4 +382,5 @@ export class Timer extends Node implements Spatial, Entity, IsTracked {
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:3050 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:3050 ==== */

@@ -208,7 +208,7 @@ set {ts_name}(node: {node_type_str}) {{
 
             else:
                 node_getter_str = f"""\
-get {ts_name}(): {node_type_str} {{
+get {ts_name}(): {node_type_str} | null {{
     const nodePtr: NodeReference | null = this.{ptr_prop_name};
     if (nodePtr !== null) {{
         if (this._supergraph === null) {{
@@ -877,8 +877,8 @@ def _generate_file(file: TypescriptFile) -> str:
             if block.custom_content:
                 # trim last } if it exists (it's also in custom content)
                 new_block = new_block.strip().rstrip("}")
-                new_block += f"\n{MARKER_CUSTOM_START}\n{block.custom_content}\n"
-            new_block += f"{MARKER_END.format(kind=definition.kind, id=definition.id)}"
+                new_block += f"\n{MARKER_CUSTOM_START}\n\n{block.custom_content}\n"
+            new_block += f"\n{MARKER_END.format(kind=definition.kind, id=definition.id)}"
             file_parts.append(new_block)
             seen_definitions.add(key)
         elif isinstance(block, TypescriptImportBlock):
@@ -896,7 +896,7 @@ def _generate_file(file: TypescriptFile) -> str:
             file_parts.append(new_block)
 
     # add imports to the top (will be auto-merged by linter)
-    imports = {
+    language_imports = {
         "NodeType",
         "TraitType",
         "StructType",
@@ -914,9 +914,15 @@ def _generate_file(file: TypescriptFile) -> str:
         "activeSession",
         *(d.name for d in file.dependencies.values() if d.module != file.module),
     }
+    # add any previous language imports
+    for import_ in import_block.imports:
+        if import_.path.startswith("@/language"):
+            language_imports.update(import_.names)
     # remove any imports that are already defined in this file
-    imports.difference_update(definition.name for definition in file.definitions.values())
-    import_parts: list[str] = [f"import {{ {', '.join(imports)} }} from '@/language';"]
+    language_imports.difference_update(definition.name for definition in file.definitions.values())
+    import_parts: list[str] = [
+        f"import {{ {', '.join(sorted(language_imports))} }} from '@/language';"
+    ]
     if not any("Temporal" in import_.content for import_ in import_block.imports):
         import_parts.append("import { Temporal } from 'temporal-polyfill';")
     for import_ in import_block.imports:

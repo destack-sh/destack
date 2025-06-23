@@ -377,4 +377,5 @@ export class TextView
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:10200 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:10200 ==== */

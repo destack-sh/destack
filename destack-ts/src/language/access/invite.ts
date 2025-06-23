@@ -39,7 +39,8 @@ export enum InviteEventType {
   RESCINDED = 2,
   ACCEPTED = 3,
   REJECTED = 4,
-} /* ==== DESTACK_GENERATED_END:ENUM:510 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:510 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:511 ==== */
 export class InviteEvent extends Node implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked {
@@ -281,7 +282,8 @@ export class InviteEvent extends Node implements Spatial, Particle, Analytic, In
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:511 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:511 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:510 ==== */
 export class Invite extends Node implements Global, Spatial, Entity, IsTracked, IsDeletable, IsOwnable, LikeInvite {
@@ -530,4 +532,5 @@ export class Invite extends Node implements Global, Spatial, Entity, IsTracked, 
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:510 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:510 ==== */

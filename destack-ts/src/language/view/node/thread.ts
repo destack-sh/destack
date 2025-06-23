@@ -381,4 +381,5 @@ export class ThreadView
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:10600 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:10600 ==== */
