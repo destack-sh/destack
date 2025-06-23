@@ -1,4 +1,4 @@
-import { Folder, Session, Timer, Snapshot, Option, ScreenCursor, ShadowStyle, Interruption, NodeType, Action, Window, EffectStyle, Trigger, EventCursor, Icon, SliderInputView, HistogramMetric, Value, CustomView, LabelView, Environment, ThreadView, Message, TransitionStyle, IsSourceable, Space, CustomViewDefinition, Script, EnumType, Client, Layer, TextView, ColorStyle, FriendshipInviteEvent, InviteEvent, Agent, Tagging, IsTaggable, Follow, CustomEventDefinition, AnnotationShape, activeSession, StructType, RunEvent, CustomEvent, CascadeAction, Role, Branch, HistogramMeasurement, NotificationEvent, EdgeType, WizardView, TriggerEvent, Variant, SceneEvent, EditEvent, Handle, Reaction, RoleEvent, CustomStructDefinition, Star, NumberInputView, Route, StringConstraint, GaugeMetric, CustomEntityDefinition, File, ACTIVE_SESSION, DefaultFactory, LineShape, ThreadCursor, IsOrdered, NumberConstraint, PrimitiveType, Machine, ScalarType, SanctionEvent, FrameView, Friendship, NodeConstraint, Supergraph, Database, Thread, FontStyle, Link, User, Spatial, Team, MembershipEvent, ArrowShape, BorderStyle, EntitlementEvent, Entity, SplitView, Type, TypeCardinality, Node, IsTracked, CounterMeasurement, PlaneShape, BuiltinObject, Organization, Scene, StructFrozen, GradientStyle, Entitlement, Graph, Service, Struct, Permission, Sanction, Log, Canvas, Invite, Span, Palette, QueryConnection, GaugeMeasurement, NodeReference, CustomEnumDefinition, MaterializationType, CounterMetric, TimerEvent, CollectionConstraint, Membership, Run, Theme, IsDeletable, CustomEntity, FriendshipInvite, Notification, Tag, FillStyle } from '@/language';
+import { CollectionConstraint, EventCursor, Link, ACTIVE_SESSION, FriendshipInviteEvent, CustomEvent, NotificationEvent, FriendshipInvite, Spatial, Value, Message, CounterMeasurement, ArrowShape, BorderStyle, StructType, CustomStructDefinition, SplitView, RunEvent, Struct, DefaultFactory, Organization, Palette, Run, InviteEvent, EdgeType, EntitlementEvent, CounterMetric, Agent, Team, MembershipEvent, Supergraph, Folder, SliderInputView, IsSourceable, GaugeMeasurement, WizardView, Tag, GradientStyle, EnumType, IsOrdered, RoleEvent, Tagging, AnnotationShape, HistogramMeasurement, CustomView, Reaction, ColorStyle, Timer, Thread, ThreadCursor, ShadowStyle, Branch, CustomEventDefinition, NodeType, Graph, User, IsTaggable, Service, EditEvent, Script, Canvas, ScalarType, Star, IsDeletable, Handle, Span, BuiltinObject, Session, FillStyle, Sanction, GaugeMetric, Window, Permission, Log, TriggerEvent, CustomEnumDefinition, HistogramMetric, Variant, Invite, Type, Friendship, File, Theme, Icon, FontStyle, Trigger, PlaneShape, Snapshot, ThreadView, Scene, NodeReference, SanctionEvent, EffectStyle, PrimitiveType, Action, Node, ScreenCursor, CustomViewDefinition, StructFrozen, CustomEntity, FrameView, TypeCardinality, Database, Environment, Route, Entitlement, Follow, NodeConstraint, IsTracked, SceneEvent, CascadeAction, TransitionStyle, MaterializationType, Entity, StringConstraint, Space, Machine, NumberInputView, CustomEntityDefinition, Membership, Client, LabelView, TimerEvent, LineShape, Option, Role, Layer, Interruption, QueryConnection, TextView, Notification, activeSession, NumberConstraint } from '@/language';
 import { Temporal } from 'temporal-polyfill';
 
 /* ==== DESTACK_GENERATED_START:ENUM:2580 ==== */
@@ -117,6 +117,16 @@ export class Field extends Node implements Spatial, Entity, IsTracked, IsDeletab
   sourcePtr: NodeReference | null
 
   constructor(options: {
+    id: string,
+    parent?: CustomEntity | CustomEnumDefinition | CustomStructDefinition | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | AnnotationShape | Canvas | PlaneShape | Action | Script | Service | Interruption | Run | Layer | Scene | Field | NodeReference | null,
+    space?: Space | NodeReference | null,
+    materialization?: MaterializationType,
+    createdAt: Temporal.ZonedDateTime,
+    createdBy?: Agent | User | NodeReference | null,
+    updatedAt: Temporal.ZonedDateTime,
+    updatedBy?: Agent | User | NodeReference | null,
+    deletedAt?: Temporal.ZonedDateTime | null,
+    orderKey?: string,
     type?: FieldType,
     name: string,
     icon?: Icon | null,
@@ -138,14 +148,41 @@ export class Field extends Node implements Spatial, Entity, IsTracked, IsDeletab
     nodeConstraint?: NodeConstraint | null,
     edgeType?: EdgeType | null,
     cascade?: CascadeAction | null,
+    source?: Script | NodeReference | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    super(
+        // id
+        options.id,
+        // parent
+        options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null,
+        // session
+        options._session ?? null,
+        // supergraph
+        options._supergraph ?? null,
+        // graph
+        options._graph ?? null,
+        // connection
+        options._connection ?? null,
+        // is_new
+        options.id == null,
+        // is_attached
+        options.id != null,
+    );
+
+    this.id = options.id;
+    this.parentPtr = options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null;
+    this.spacePtr = options.space != null ? (options.space.metatype == StructType.NODE_REFERENCE ? (options.space as NodeReference) : (options.space as Node).toRef()) : null;
+    this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
+    this.createdAt = options.createdAt;
+    this.createdByPtr = options.createdBy != null ? (options.createdBy.metatype == StructType.NODE_REFERENCE ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
+    this.updatedAt = options.updatedAt;
+    this.updatedByPtr = options.updatedBy != null ? (options.updatedBy.metatype == StructType.NODE_REFERENCE ? (options.updatedBy as NodeReference) : (options.updatedBy as Node).toRef()) : null;
+    this.deletedAt = options.deletedAt ?? null;
+    this.orderKey = options.orderKey ?? "a0";
     this.type = options.type ?? FieldType.MEMBER;
     this.name = options.name;
     this.icon = options.icon ?? null;
@@ -167,18 +204,19 @@ export class Field extends Node implements Spatial, Entity, IsTracked, IsDeletab
     this.nodeConstraint = options.nodeConstraint ?? null;
     this.edgeType = options.edgeType ?? null;
     this.cascade = options.cascade ?? null;
+    this.sourcePtr = options.source != null ? (options.source.metatype == StructType.NODE_REFERENCE ? (options.source as NodeReference) : (options.source as Node).toRef()) : null;
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {

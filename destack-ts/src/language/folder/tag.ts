@@ -1,4 +1,4 @@
-import { PlaneShape, CustomEntityDefinition, Agent, IsTaggable, BuiltinObject, ACTIVE_SESSION, Folder, Session, Scene, StructFrozen, LineShape, IsOrdered, GradientStyle, Graph, Service, Struct, Option, AnnotationShape, ShadowStyle, activeSession, StructType, NodeType, Action, Canvas, EffectStyle, FrameView, Icon, Palette, Supergraph, QueryConnection, SliderInputView, NodeReference, MaterializationType, CustomEnumDefinition, WizardView, Thread, FontStyle, User, CustomView, Spatial, LabelView, ThreadView, EditEvent, Message, TransitionStyle, Space, CustomStructDefinition, CustomViewDefinition, NumberInputView, ArrowShape, LikeTag, IsDeletable, Entity, SplitView, EnumType, BorderStyle, Theme, Layer, Route, TextView, ColorStyle, Node, FillStyle, Field, IsTracked } from '@/language';
+import { IsTracked, SliderInputView, FillStyle, ACTIVE_SESSION, Field, WizardView, Spatial, Message, EnumType, IsOrdered, ArrowShape, TransitionStyle, MaterializationType, CustomEnumDefinition, BorderStyle, Entity, AnnotationShape, Space, StructType, CustomView, CustomStructDefinition, SplitView, ColorStyle, Struct, LikeTag, NumberInputView, Palette, Icon, CustomEntityDefinition, Thread, FontStyle, ShadowStyle, Theme, LabelView, PlaneShape, ThreadView, Scene, NodeReference, NodeType, LineShape, EffectStyle, Graph, Option, Action, GradientStyle, User, Agent, Layer, IsTaggable, Node, QueryConnection, EditEvent, StructFrozen, CustomViewDefinition, TextView, Canvas, Supergraph, IsDeletable, FrameView, Service, Folder, BuiltinObject, Session, activeSession, Route } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:1010 ==== */
@@ -49,6 +49,16 @@ export class Tag extends Node implements Spatial, Entity, IsTracked, IsDeletable
   icon: Icon | null;
 
   constructor(options: {
+    id: string,
+    parent?: Folder | NodeReference | null,
+    space?: Space | NodeReference | null,
+    materialization?: MaterializationType,
+    createdAt: Temporal.ZonedDateTime,
+    createdBy?: Agent | User | NodeReference | null,
+    updatedAt: Temporal.ZonedDateTime,
+    updatedBy?: Agent | User | NodeReference | null,
+    deletedAt?: Temporal.ZonedDateTime | null,
+    orderKey?: string,
     name: string,
     icon?: Icon | null,
     _session?: Session | null,
@@ -56,23 +66,49 @@ export class Tag extends Node implements Spatial, Entity, IsTracked, IsDeletable
     _graph?: Graph | null,
     _connection?: QueryConnection | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    super(
+        // id
+        options.id,
+        // parent
+        options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null,
+        // session
+        options._session ?? null,
+        // supergraph
+        options._supergraph ?? null,
+        // graph
+        options._graph ?? null,
+        // connection
+        options._connection ?? null,
+        // is_new
+        options.id == null,
+        // is_attached
+        options.id != null,
+    );
+
+    this.id = options.id;
+    this.parentPtr = options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null;
+    this.spacePtr = options.space != null ? (options.space.metatype == StructType.NODE_REFERENCE ? (options.space as NodeReference) : (options.space as Node).toRef()) : null;
+    this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
+    this.createdAt = options.createdAt;
+    this.createdByPtr = options.createdBy != null ? (options.createdBy.metatype == StructType.NODE_REFERENCE ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
+    this.updatedAt = options.updatedAt;
+    this.updatedByPtr = options.updatedBy != null ? (options.updatedBy.metatype == StructType.NODE_REFERENCE ? (options.updatedBy as NodeReference) : (options.updatedBy as Node).toRef()) : null;
+    this.deletedAt = options.deletedAt ?? null;
+    this.orderKey = options.orderKey ?? "a0";
     this.name = options.name;
     this.icon = options.icon ?? null;
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {
@@ -161,28 +197,64 @@ export class Tagging extends Node implements Spatial, Entity, IsTracked, IsDelet
   tagPtr: NodeReference | null
 
   constructor(options: {
+    id: string,
+    parent?: CustomEntityDefinition | CustomEnumDefinition | EditEvent | Field | Option | CustomStructDefinition | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | TextView | NumberInputView | SliderInputView | WizardView | ThreadView | AnnotationShape | ArrowShape | Canvas | LineShape | PlaneShape | Folder | Tagging | Action | Route | Service | Layer | Scene | Message | Thread | ColorStyle | BorderStyle | TransitionStyle | EffectStyle | GradientStyle | FillStyle | FontStyle | Palette | ShadowStyle | Theme | NodeReference | null,
+    space?: Space | NodeReference | null,
+    materialization?: MaterializationType,
+    createdAt: Temporal.ZonedDateTime,
+    createdBy?: Agent | User | NodeReference | null,
+    updatedAt: Temporal.ZonedDateTime,
+    updatedBy?: Agent | User | NodeReference | null,
+    deletedAt?: Temporal.ZonedDateTime | null,
+    orderKey?: string,
     tag?: Tag | NodeReference | null,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    super(
+        // id
+        options.id,
+        // parent
+        options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null,
+        // session
+        options._session ?? null,
+        // supergraph
+        options._supergraph ?? null,
+        // graph
+        options._graph ?? null,
+        // connection
+        options._connection ?? null,
+        // is_new
+        options.id == null,
+        // is_attached
+        options.id != null,
+    );
+
+    this.id = options.id;
+    this.parentPtr = options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null;
+    this.spacePtr = options.space != null ? (options.space.metatype == StructType.NODE_REFERENCE ? (options.space as NodeReference) : (options.space as Node).toRef()) : null;
+    this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
+    this.createdAt = options.createdAt;
+    this.createdByPtr = options.createdBy != null ? (options.createdBy.metatype == StructType.NODE_REFERENCE ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
+    this.updatedAt = options.updatedAt;
+    this.updatedByPtr = options.updatedBy != null ? (options.updatedBy.metatype == StructType.NODE_REFERENCE ? (options.updatedBy as NodeReference) : (options.updatedBy as Node).toRef()) : null;
+    this.deletedAt = options.deletedAt ?? null;
+    this.orderKey = options.orderKey ?? "a0";
     this.tagPtr = options.tag != null ? (options.tag.metatype == StructType.NODE_REFERENCE ? (options.tag as NodeReference) : (options.tag as Node).toRef()) : null;
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {

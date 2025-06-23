@@ -1,4 +1,4 @@
-import { PlaneShape, Agent, IsTaggable, ContainerView, IsScriptable, BuiltinObject, ACTIVE_SESSION, IsVisual, Folder, Layout, Align, Corners, Session, Scene, View, StructFrozen, Vector2, IsOrdered, Graph, Distribute, Struct, GridSpan, AnnotationShape, activeSession, IsCustomNodeDefinition, Axis2, StructType, Insets, Border, NodeType, Window, Canvas, FrameView, Dimension, Direction, Supergraph, Axis3, QueryConnection, NodeReference, MaterializationType, Value, User, Position, IsExtensible, Spatial, IsCustomNode, LabelView, Fill, Space, Shadow, IsDeletable, Entity, Grid, EnumType, Script, SplitView, Layer, Node, IsTracked } from '@/language';
+import { IsTracked, Dimension, IsExtensible, ACTIVE_SESSION, Distribute, IsCustomNodeDefinition, Window, IsVisual, Position, Spatial, Value, EnumType, IsOrdered, MaterializationType, Entity, Direction, AnnotationShape, Space, StructType, Vector2, SplitView, Struct, Axis2, ContainerView, IsScriptable, LabelView, Layout, PlaneShape, Scene, NodeReference, GridSpan, Axis3, Border, NodeType, IsCustomNode, Graph, User, Corners, Agent, Layer, IsTaggable, Insets, Fill, Node, QueryConnection, Align, View, StructFrozen, Script, Canvas, Supergraph, IsDeletable, FrameView, Folder, BuiltinObject, Session, activeSession, Shadow, Grid } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:NODE:10000 ==== */
@@ -109,8 +109,18 @@ export class CustomViewDefinition extends Node implements Spatial, Entity, IsCus
   scriptPtr: NodeReference | null
 
   constructor(options: {
+    id: string,
+    parent?: Folder | Scene | NodeReference | null,
+    space?: Space | NodeReference | null,
     prototype?: CustomView | NodeReference | null,
+    materialization?: MaterializationType,
+    createdAt: Temporal.ZonedDateTime,
+    createdBy?: Agent | User | NodeReference | null,
+    updatedAt: Temporal.ZonedDateTime,
+    updatedBy?: Agent | User | NodeReference | null,
+    deletedAt?: Temporal.ZonedDateTime | null,
     value?: Map<string, Value>,
+    orderKey?: string,
     name: string,
     position?: Position | null,
     width?: Dimension | null,
@@ -144,11 +154,37 @@ export class CustomViewDefinition extends Node implements Spatial, Entity, IsCus
     _graph?: Graph | null,
     _connection?: QueryConnection | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    super(
+        // id
+        options.id,
+        // parent
+        options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null,
+        // session
+        options._session ?? null,
+        // supergraph
+        options._supergraph ?? null,
+        // graph
+        options._graph ?? null,
+        // connection
+        options._connection ?? null,
+        // is_new
+        options.id == null,
+        // is_attached
+        options.id != null,
+    );
+
+    this.id = options.id;
+    this.parentPtr = options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null;
+    this.spacePtr = options.space != null ? (options.space.metatype == StructType.NODE_REFERENCE ? (options.space as NodeReference) : (options.space as Node).toRef()) : null;
     this.prototypePtr = options.prototype != null ? (options.prototype.metatype == StructType.NODE_REFERENCE ? (options.prototype as NodeReference) : (options.prototype as Node).toRef()) : null;
+    this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
+    this.createdAt = options.createdAt;
+    this.createdByPtr = options.createdBy != null ? (options.createdBy.metatype == StructType.NODE_REFERENCE ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
+    this.updatedAt = options.updatedAt;
+    this.updatedByPtr = options.updatedBy != null ? (options.updatedBy.metatype == StructType.NODE_REFERENCE ? (options.updatedBy as NodeReference) : (options.updatedBy as Node).toRef()) : null;
+    this.deletedAt = options.deletedAt ?? null;
     this.value = options.value ?? new Map();
+    this.orderKey = options.orderKey ?? "a0";
     this.name = options.name;
     this.position = options.position ?? null;
     this.width = options.width ?? null;
@@ -180,15 +216,15 @@ export class CustomViewDefinition extends Node implements Spatial, Entity, IsCus
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {
@@ -314,7 +350,18 @@ export class CustomView extends Node implements Spatial, Entity, IsCustomNode, I
   scriptPtr: NodeReference | null
 
   constructor(options: {
+    id: string,
+    parent?: Window | Scene | Layer | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | AnnotationShape | Canvas | PlaneShape | Layer | Scene | NodeReference | null,
+    space?: Space | NodeReference | null,
+    definition: CustomViewDefinition | NodeReference,
+    materialization?: MaterializationType,
+    createdAt: Temporal.ZonedDateTime,
+    createdBy?: Agent | User | NodeReference | null,
+    updatedAt: Temporal.ZonedDateTime,
+    updatedBy?: Agent | User | NodeReference | null,
+    deletedAt?: Temporal.ZonedDateTime | null,
     value?: Map<string, Value>,
+    orderKey?: string,
     name: string,
     position?: Position | null,
     width?: Dimension | null,
@@ -348,10 +395,37 @@ export class CustomView extends Node implements Spatial, Entity, IsCustomNode, I
     _graph?: Graph | null,
     _connection?: QueryConnection | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    super(
+        // id
+        options.id,
+        // parent
+        options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null,
+        // session
+        options._session ?? null,
+        // supergraph
+        options._supergraph ?? null,
+        // graph
+        options._graph ?? null,
+        // connection
+        options._connection ?? null,
+        // is_new
+        options.id == null,
+        // is_attached
+        options.id != null,
+    );
+
+    this.id = options.id;
+    this.parentPtr = options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null;
+    this.spacePtr = options.space != null ? (options.space.metatype == StructType.NODE_REFERENCE ? (options.space as NodeReference) : (options.space as Node).toRef()) : null;
+    this.definitionPtr = options.definition != null ? (options.definition.metatype == StructType.NODE_REFERENCE ? (options.definition as NodeReference) : (options.definition as Node).toRef()) : null;
+    this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
+    this.createdAt = options.createdAt;
+    this.createdByPtr = options.createdBy != null ? (options.createdBy.metatype == StructType.NODE_REFERENCE ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
+    this.updatedAt = options.updatedAt;
+    this.updatedByPtr = options.updatedBy != null ? (options.updatedBy.metatype == StructType.NODE_REFERENCE ? (options.updatedBy as NodeReference) : (options.updatedBy as Node).toRef()) : null;
+    this.deletedAt = options.deletedAt ?? null;
     this.value = options.value ?? new Map();
+    this.orderKey = options.orderKey ?? "a0";
     this.name = options.name;
     this.position = options.position ?? null;
     this.width = options.width ?? null;
@@ -383,15 +457,15 @@ export class CustomView extends Node implements Spatial, Entity, IsCustomNode, I
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {

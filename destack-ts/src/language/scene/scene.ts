@@ -1,4 +1,4 @@
-import { PlaneShape, Agent, IsTaggable, ContainerView, IsScriptable, BuiltinObject, ACTIVE_SESSION, IsVisual, Folder, Organization, Layout, Align, Session, Corners, View, StructFrozen, Vector2, IsFrozen, IsOrdered, Graph, Distribute, Struct, GridSpan, AnnotationShape, Event, activeSession, Particle, Axis2, StructType, Insets, Border, NodeType, Window, Indexed, Canvas, Role, FrameView, Dimension, Icon, Direction, Supergraph, Axis3, QueryConnection, NodeReference, MaterializationType, IsOwnable, Value, User, Analytic, Position, CustomView, IsExtensible, Spatial, LabelView, Team, Fill, Space, CustomViewDefinition, Shadow, IsDeletable, Entity, Grid, EnumType, SplitView, Script, Layer, Node, IsTracked } from '@/language';
+import { IsTracked, Dimension, IsExtensible, ACTIVE_SESSION, Distribute, Window, IsOwnable, IsVisual, Position, Spatial, Value, EnumType, IsOrdered, MaterializationType, Entity, Direction, AnnotationShape, Space, StructType, CustomView, Vector2, SplitView, Struct, Particle, Organization, Icon, ContainerView, Axis2, IsScriptable, LabelView, Layout, PlaneShape, NodeReference, GridSpan, Axis3, Border, NodeType, Graph, User, Role, Corners, IsFrozen, Indexed, Agent, IsTaggable, Team, Insets, Fill, Node, QueryConnection, Align, Layer, View, CustomViewDefinition, StructFrozen, Script, Canvas, Supergraph, IsDeletable, FrameView, Analytic, Event, Folder, BuiltinObject, Session, activeSession, Shadow, Grid } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:ENUM:9011 ==== */
@@ -65,6 +65,13 @@ export class SceneEvent extends Node implements Spatial, Particle, Analytic, Ind
   nodePtr: NodeReference
 
   constructor(options: {
+    id: string,
+    parent?: Space | NodeReference | null,
+    space?: Space | NodeReference | null,
+    createdAt: Temporal.ZonedDateTime,
+    createdBy?: Agent | User | NodeReference | null,
+    updatedAt: Temporal.ZonedDateTime,
+    updatedBy?: Agent | User | NodeReference | null,
     type: SceneEventType,
     node: Scene | NodeReference,
     _session?: Session | null,
@@ -72,23 +79,46 @@ export class SceneEvent extends Node implements Spatial, Particle, Analytic, Ind
     _graph?: Graph | null,
     _connection?: QueryConnection | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    super(
+        // id
+        options.id,
+        // parent
+        options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null,
+        // session
+        options._session ?? null,
+        // supergraph
+        options._supergraph ?? null,
+        // graph
+        options._graph ?? null,
+        // connection
+        options._connection ?? null,
+        // is_new
+        options.id == null,
+        // is_attached
+        options.id != null,
+    );
+
+    this.id = options.id;
+    this.parentPtr = options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null;
+    this.spacePtr = options.space != null ? (options.space.metatype == StructType.NODE_REFERENCE ? (options.space as NodeReference) : (options.space as Node).toRef()) : null;
+    this.createdAt = options.createdAt;
+    this.createdByPtr = options.createdBy != null ? (options.createdBy.metatype == StructType.NODE_REFERENCE ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
+    this.updatedAt = options.updatedAt;
+    this.updatedByPtr = options.updatedBy != null ? (options.updatedBy.metatype == StructType.NODE_REFERENCE ? (options.updatedBy as NodeReference) : (options.updatedBy as Node).toRef()) : null;
     this.type = options.type;
     this.nodePtr = options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? (options.node as NodeReference) : (options.node as Node).toRef()) : null;
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {
@@ -240,7 +270,17 @@ export class Scene extends Node implements Spatial, Entity, IsTracked, IsDeletab
   scriptPtr: NodeReference | null
 
   constructor(options: {
+    id: string,
+    parent?: Folder | Scene | Window | NodeReference | null,
+    space?: Space | NodeReference | null,
+    materialization?: MaterializationType,
+    createdAt: Temporal.ZonedDateTime,
+    createdBy?: Agent | User | NodeReference | null,
+    updatedAt: Temporal.ZonedDateTime,
+    updatedBy?: Agent | User | NodeReference | null,
+    deletedAt?: Temporal.ZonedDateTime | null,
     value?: Map<string, Value>,
+    orderKey?: string,
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null,
     name: string,
     icon?: Icon | null,
@@ -277,10 +317,36 @@ export class Scene extends Node implements Spatial, Entity, IsTracked, IsDeletab
     _graph?: Graph | null,
     _connection?: QueryConnection | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    super(
+        // id
+        options.id,
+        // parent
+        options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null,
+        // session
+        options._session ?? null,
+        // supergraph
+        options._supergraph ?? null,
+        // graph
+        options._graph ?? null,
+        // connection
+        options._connection ?? null,
+        // is_new
+        options.id == null,
+        // is_attached
+        options.id != null,
+    );
+
+    this.id = options.id;
+    this.parentPtr = options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null;
+    this.spacePtr = options.space != null ? (options.space.metatype == StructType.NODE_REFERENCE ? (options.space as NodeReference) : (options.space as Node).toRef()) : null;
+    this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
+    this.createdAt = options.createdAt;
+    this.createdByPtr = options.createdBy != null ? (options.createdBy.metatype == StructType.NODE_REFERENCE ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
+    this.updatedAt = options.updatedAt;
+    this.updatedByPtr = options.updatedBy != null ? (options.updatedBy.metatype == StructType.NODE_REFERENCE ? (options.updatedBy as NodeReference) : (options.updatedBy as Node).toRef()) : null;
+    this.deletedAt = options.deletedAt ?? null;
     this.value = options.value ?? new Map();
+    this.orderKey = options.orderKey ?? "a0";
     this.ownedByPtr = options.ownedBy != null ? (options.ownedBy.metatype == StructType.NODE_REFERENCE ? (options.ownedBy as NodeReference) : (options.ownedBy as Node).toRef()) : null;
     this.name = options.name;
     this.icon = options.icon ?? null;
@@ -315,15 +381,15 @@ export class Scene extends Node implements Spatial, Entity, IsTracked, IsDeletab
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {

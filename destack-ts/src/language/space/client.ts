@@ -1,4 +1,4 @@
-import { Agent, BuiltinObject, ACTIVE_SESSION, Session, StructFrozen, ThreadCursor, Graph, ClientType, Machine, Struct, ScreenCursor, activeSession, Global, StructType, NodeType, EventCursor, Supergraph, QueryConnection, NodeReference, MaterializationType, User, IsDeletable, Entity, EnumType, Node, IsTracked } from '@/language';
+import { IsTracked, EventCursor, ACTIVE_SESSION, Global, EnumType, MaterializationType, Entity, StructType, Struct, Machine, ThreadCursor, NodeReference, NodeType, ClientType, Graph, User, Agent, Node, QueryConnection, ScreenCursor, StructFrozen, Supergraph, IsDeletable, BuiltinObject, Session, activeSession } from '@/language';
 import { Temporal } from 'temporal-polyfill'; // until Temporal ships natively
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50001 ==== */
@@ -16,9 +16,11 @@ export class Origin extends StructFrozen {
     _session?: Session | null,
     _supergraph?: Supergraph | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(supergraph);
+    super(
+        // supergraph
+        supergraph,
+    );
+
     this.type = options.type;
     this.id = options.id ?? null;
     this.ck = options.ck ?? null;
@@ -26,15 +28,15 @@ export class Origin extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50001 ==== */
@@ -136,6 +138,14 @@ export class Client extends Node implements Global, Entity, IsTracked, IsDeletab
   cursorPtr: NodeReference | null
 
   constructor(options: {
+    id: string,
+    parent?: Agent | User | NodeReference | null,
+    materialization?: MaterializationType,
+    createdAt: Temporal.ZonedDateTime,
+    createdBy?: Agent | User | NodeReference | null,
+    updatedAt: Temporal.ZonedDateTime,
+    updatedBy?: Agent | User | NodeReference | null,
+    deletedAt?: Temporal.ZonedDateTime | null,
     type: ClientType,
     name: string,
     machine?: Machine | NodeReference | null,
@@ -154,9 +164,33 @@ export class Client extends Node implements Global, Entity, IsTracked, IsDeletab
     _graph?: Graph | null,
     _connection?: QueryConnection | null
   }) {
-    const session = options._session ?? ACTIVE_SESSION.get();
-    const supergraph = options._supergraph ?? session.supergraph;
-    super(options.id, options.parent, session, supergraph, options._graph, options._connection);
+    super(
+        // id
+        options.id,
+        // parent
+        options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null,
+        // session
+        options._session ?? null,
+        // supergraph
+        options._supergraph ?? null,
+        // graph
+        options._graph ?? null,
+        // connection
+        options._connection ?? null,
+        // is_new
+        options.id == null,
+        // is_attached
+        options.id != null,
+    );
+
+    this.id = options.id;
+    this.parentPtr = options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null;
+    this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
+    this.createdAt = options.createdAt;
+    this.createdByPtr = options.createdBy != null ? (options.createdBy.metatype == StructType.NODE_REFERENCE ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
+    this.updatedAt = options.updatedAt;
+    this.updatedByPtr = options.updatedBy != null ? (options.updatedBy.metatype == StructType.NODE_REFERENCE ? (options.updatedBy as NodeReference) : (options.updatedBy as Node).toRef()) : null;
+    this.deletedAt = options.deletedAt ?? null;
     this.type = options.type;
     this.name = options.name;
     this.machinePtr = options.machine != null ? (options.machine.metatype == StructType.NODE_REFERENCE ? (options.machine as NodeReference) : (options.machine as Node).toRef()) : null;
@@ -173,15 +207,15 @@ export class Client extends Node implements Global, Entity, IsTracked, IsDeletab
   }
 
   equals(other: any): boolean {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   hash(): number {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   validate(): void {
-    throw new Error("Not implemented");
+    throw new Error("not implemented");
   }
 
   __toRef__(): NodeReference {
