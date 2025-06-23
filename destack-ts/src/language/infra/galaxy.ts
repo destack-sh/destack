@@ -1,4 +1,4 @@
-import { Region, Session, Struct, StructType, Supergraph } from "@/language";
+import { Region, Session, Struct, StructType, Supergraph } from "@destack/language";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:7601 ==== */
 export class GalaxyInfo extends Struct {

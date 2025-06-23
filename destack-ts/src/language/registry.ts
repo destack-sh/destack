@@ -345,7 +345,7 @@ import {
   Window,
   WindowType,
   WizardView,
-} from "@/language";
+} from "@destack/language";
 
 export type NodeTypeMapping = {
   [NodeType.CUSTOM_ENTITY_DEFINITION]: CustomEntityDefinition;

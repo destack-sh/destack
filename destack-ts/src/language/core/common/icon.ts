@@ -1,4 +1,4 @@
-import { Color, File, Node, NodeReference, Session, StructFrozen, StructType, Supergraph } from "@/language";
+import { Color, File, Node, NodeReference, Session, StructFrozen, StructType, Supergraph } from "@destack/language";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2531 ==== */
 export enum IconType {

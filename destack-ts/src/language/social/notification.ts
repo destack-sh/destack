@@ -22,7 +22,7 @@ import {
   Supergraph,
   Text,
   TraitType,
-} from "@/language";
+} from "@destack/language";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:5600 ==== */

@@ -1,6 +1,10 @@
 import {
   AttributeReference,
+  CustomEntityDefinition,
+  Field,
+  NodeClass,
   NodeType,
+  PropertyReference,
   RelationReference,
   Session,
   Struct,
@@ -8,8 +12,8 @@ import {
   StructType,
   Supergraph,
   Value,
-} from "@/language";
-import { CustomEntityDefinition, Field, NodeClass, PropertyReference, toValue } from "@destack/language";
+  toValue,
+} from "@destack/language";
 import { assertNever } from "@destack/utils/functools";
 import { v4 as uuid4 } from "uuid";
 

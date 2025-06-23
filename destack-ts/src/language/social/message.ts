@@ -21,7 +21,7 @@ import {
   Text,
   Thread,
   TraitType,
-} from "@/language";
+} from "@destack/language";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:5510 ==== */

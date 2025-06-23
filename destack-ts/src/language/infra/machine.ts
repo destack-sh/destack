@@ -17,7 +17,7 @@ import {
   StructType,
   Supergraph,
   TraitType,
-} from "@/language";
+} from "@destack/language";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:7600 ==== */

@@ -28,7 +28,7 @@ import {
   Supergraph,
   TraitType,
   Value,
-} from "@/language";
+} from "@destack/language";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:4202 ==== */

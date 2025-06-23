@@ -19,7 +19,7 @@ import {
   Supergraph,
   TraitType,
   User,
-} from "@/language";
+} from "@destack/language";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50001 ==== */
