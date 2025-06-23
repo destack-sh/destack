@@ -1,4 +1,4 @@
-import { EnumType, Node, Supergraph, activeSession, Session, Region, NodeType, Struct, QueryConnection, StructFrozen, ACTIVE_SESSION, StructType, NodeReference, BuiltinObject, Graph } from '@/language';
+import { Region, Session, Struct, Supergraph } from "@/language";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:7601 ==== */
 export class GalaxyInfo extends Struct {
@@ -7,15 +7,15 @@ export class GalaxyInfo extends Struct {
   host: string;
 
   constructor(options: {
-    region: Region,
-    name: string,
-    host: string,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    region: Region;
+    name: string;
+    host: string;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.region = options.region;

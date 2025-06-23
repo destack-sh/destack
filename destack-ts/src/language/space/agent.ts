@@ -1,139 +1,196 @@
-import { IsDeletable, Entity, MaterializationType, NodeType, QueryConnection, StructType, Space, NodeReference, Graph, Script, Icon, Folder, User, Struct, IsOwner, StructFrozen, Spatial, BuiltinObject, EnumType, IsFollowable, IsScriptable, EventCursor, IsSubject, activeSession, Node, IsTracked, Supergraph, ScreenCursor, ACTIVE_SESSION, ThreadCursor, Session } from '@/language';
+import {
+  Entity,
+  EventCursor,
+  Folder,
+  Graph,
+  Icon,
+  IsDeletable,
+  IsFollowable,
+  IsOwner,
+  IsScriptable,
+  IsSubject,
+  IsTracked,
+  MaterializationType,
+  Node,
+  NodeReference,
+  NodeType,
+  QueryConnection,
+  ScreenCursor,
+  Script,
+  Session,
+  Space,
+  Spatial,
+  StructType,
+  Supergraph,
+  ThreadCursor,
+  User,
+} from "@/language";
 
 /* ==== DESTACK_GENERATED_START:NODE:600 ==== */
-export class Agent extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsSubject, IsOwner, IsScriptable, IsFollowable {
+export class Agent
+  extends Node
+  implements Spatial, Entity, IsTracked, IsDeletable, IsSubject, IsOwner, IsScriptable, IsFollowable
+{
   readonly id: string;
   get parent(): Folder | null | null {
-      const nodePtr: NodeReference | null = this.parentPtr;
-      if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Folder | null | null;
-      }
-      return null;
+    const nodePtr: NodeReference | null = this.parentPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Folder | null | null;
+    }
+    return null;
   }
-  ;
-  readonly parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null;
   get space(): Space | null | null {
-      const nodePtr: NodeReference | null = this.spacePtr;
-      if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null | null;
-      }
-      return null;
+    const nodePtr: NodeReference | null = this.spacePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null | null;
+    }
+    return null;
   }
-  ;
-  readonly spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
-      const nodePtr: NodeReference | null = this.createdByPtr;
-      if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
-      }
-      return null;
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+    }
+    return null;
   }
-  ;
-  readonly createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
-      const nodePtr: NodeReference | null = this.updatedByPtr;
-      if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
-      }
-      return null;
+    const nodePtr: NodeReference | null = this.updatedByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+    }
+    return null;
   }
-  ;
-  readonly updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null;
   readonly deletedAt: Temporal.ZonedDateTime | null;
   name: string;
   slug: string;
   icon: Icon | null;
   get cursor(): EventCursor | ScreenCursor | ThreadCursor | null | null {
-      const nodePtr: NodeReference | null = this.cursorPtr;
-      if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as EventCursor | ScreenCursor | ThreadCursor | null | null;
-      }
-      return null;
+    const nodePtr: NodeReference | null = this.cursorPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as EventCursor | ScreenCursor | ThreadCursor | null | null;
+    }
+    return null;
   }
 
   set cursor(node: EventCursor | ScreenCursor | ThreadCursor | null) {
-      if (node === null) {
-          this.cursorPtr = null;
-      } else {
-          this.cursorPtr = node.toRef();
-      }
+    if (node === null) {
+      this.cursorPtr = null;
+    } else {
+      this.cursorPtr = node.toRef();
+    }
   }
-  ;
-  cursorPtr: NodeReference | null
+  cursorPtr: NodeReference | null;
   get script(): Script | null | null {
-      const nodePtr: NodeReference | null = this.scriptPtr;
-      if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Script | null | null;
-      }
-      return null;
+    const nodePtr: NodeReference | null = this.scriptPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Script | null | null;
+    }
+    return null;
   }
 
   set script(node: Script | null) {
-      if (node === null) {
-          this.scriptPtr = null;
-      } else {
-          this.scriptPtr = node.toRef();
-      }
+    if (node === null) {
+      this.scriptPtr = null;
+    } else {
+      this.scriptPtr = node.toRef();
+    }
   }
-  ;
-  scriptPtr: NodeReference | null
+  scriptPtr: NodeReference | null;
 
   constructor(options: {
-    id: string,
-    parent?: Folder | NodeReference | null,
-    space?: Space | NodeReference | null,
-    materialization?: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdBy?: Agent | User | NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedBy?: Agent | User | NodeReference | null,
-    deletedAt?: Temporal.ZonedDateTime | null,
-    name: string,
-    slug: string,
-    icon?: Icon | null,
-    cursor?: EventCursor | ScreenCursor | ThreadCursor | NodeReference | null,
-    script?: Script | NodeReference | null,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: Graph | null,
-    _connection?: QueryConnection | null
+    id: string;
+    parent?: Folder | NodeReference | null;
+    space?: Space | NodeReference | null;
+    materialization?: MaterializationType;
+    createdAt: Temporal.ZonedDateTime;
+    createdBy?: Agent | User | NodeReference | null;
+    updatedAt: Temporal.ZonedDateTime;
+    updatedBy?: Agent | User | NodeReference | null;
+    deletedAt?: Temporal.ZonedDateTime | null;
+    name: string;
+    slug: string;
+    icon?: Icon | null;
+    cursor?: EventCursor | ScreenCursor | ThreadCursor | NodeReference | null;
+    script?: Script | NodeReference | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _graph?: Graph | null;
+    _connection?: QueryConnection | null;
   }) {
     super(
-        // id
-        options.id,
-        // parent
-        options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null,
-        // session
-        options._session ?? null,
-        // supergraph
-        options._supergraph ?? null,
-        // graph
-        options._graph ?? null,
-        // connection
-        options._connection ?? null,
-        // is_new
-        options.id == null,
-        // is_attached
-        options.id != null,
+      // id
+      options.id,
+      // parent
+      options.parent != null
+        ? options.parent.metatype == StructType.NODE_REFERENCE
+          ? (options.parent as NodeReference)
+          : (options.parent as Node).toRef()
+        : null,
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+      // graph
+      options._graph ?? null,
+      // connection
+      options._connection ?? null,
+      // is_new
+      options.id == null,
+      // is_attached
+      options.id != null,
     );
 
     this.id = options.id;
-    this.parentPtr = options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null;
-    this.spacePtr = options.space != null ? (options.space.metatype == StructType.NODE_REFERENCE ? (options.space as NodeReference) : (options.space as Node).toRef()) : null;
+    this.parentPtr =
+      options.parent != null
+        ? options.parent.metatype == StructType.NODE_REFERENCE
+          ? (options.parent as NodeReference)
+          : (options.parent as Node).toRef()
+        : null;
+    this.spacePtr =
+      options.space != null
+        ? options.space.metatype == StructType.NODE_REFERENCE
+          ? (options.space as NodeReference)
+          : (options.space as Node).toRef()
+        : null;
     this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
     this.createdAt = options.createdAt;
-    this.createdByPtr = options.createdBy != null ? (options.createdBy.metatype == StructType.NODE_REFERENCE ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
+    this.createdByPtr =
+      options.createdBy != null
+        ? options.createdBy.metatype == StructType.NODE_REFERENCE
+          ? (options.createdBy as NodeReference)
+          : (options.createdBy as Node).toRef()
+        : null;
     this.updatedAt = options.updatedAt;
-    this.updatedByPtr = options.updatedBy != null ? (options.updatedBy.metatype == StructType.NODE_REFERENCE ? (options.updatedBy as NodeReference) : (options.updatedBy as Node).toRef()) : null;
+    this.updatedByPtr =
+      options.updatedBy != null
+        ? options.updatedBy.metatype == StructType.NODE_REFERENCE
+          ? (options.updatedBy as NodeReference)
+          : (options.updatedBy as Node).toRef()
+        : null;
     this.deletedAt = options.deletedAt ?? null;
     this.name = options.name;
     this.slug = options.slug;
     this.icon = options.icon ?? null;
-    this.cursorPtr = options.cursor != null ? (options.cursor.metatype == StructType.NODE_REFERENCE ? (options.cursor as NodeReference) : (options.cursor as Node).toRef()) : null;
-    this.scriptPtr = options.script != null ? (options.script.metatype == StructType.NODE_REFERENCE ? (options.script as NodeReference) : (options.script as Node).toRef()) : null;
+    this.cursorPtr =
+      options.cursor != null
+        ? options.cursor.metatype == StructType.NODE_REFERENCE
+          ? (options.cursor as NodeReference)
+          : (options.cursor as Node).toRef()
+        : null;
+    this.scriptPtr =
+      options.script != null
+        ? options.script.metatype == StructType.NODE_REFERENCE
+          ? (options.script as NodeReference)
+          : (options.script as Node).toRef()
+        : null;
   }
 
   equals(other: any): boolean {
@@ -159,20 +216,20 @@ export class Agent extends Node implements Spatial, Entity, IsTracked, IsDeletab
   }
 
   get _pathKey(): string {
-      return this.slug ?? this.name;
+    return this.slug ?? this.name;
   }
 
   get path(): string {
-      const pathParts: string[] = [];
-      let node: Node | null = this;
-      while (node !== null) {
-          pathParts.push(node._pathKey);
-          node = node.parent;
-      }
-      if (!this._isAttached) {
-          pathParts.push("<detached>");
-      }
-      return pathParts.reverse().join("/");
+    const pathParts: string[] = [];
+    let node: Node | null = this;
+    while (node !== null) {
+      pathParts.push(node._pathKey);
+      node = node.parent;
+    }
+    if (!this._isAttached) {
+      pathParts.push("<detached>");
+    }
+    return pathParts.reverse().join("/");
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:600 ==== */

@@ -1,5 +1,5 @@
-import { EnumType, Node, Supergraph, activeSession, Session, NodeType, Struct, QueryConnection, StructFrozen, ACTIVE_SESSION, StructType, NodeReference, BuiltinObject, Graph } from '@/language';
-import { Temporal } from 'temporal-polyfill';
+import { Session, Struct, Supergraph } from "@/language";
+import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:3051 ==== */
 export enum DayOfWeek {
@@ -61,28 +61,28 @@ export class Schedule extends Struct {
   bySecond: Array<number>;
 
   constructor(options: {
-    frequency: ScheduleFrequency,
-    interval?: number,
-    start?: Temporal.ZonedDateTime | null,
-    end?: Temporal.ZonedDateTime | null,
-    count?: number | null,
-    weekStart?: DayOfWeek | null,
-    bySetPos?: Array<number>,
-    byMonth?: Array<Month>,
-    byMonthDay?: Array<number>,
-    byYearDay?: Array<number>,
-    byEaster?: Array<number>,
-    byWeekNo?: Array<number>,
-    byWeekDay?: Array<DayOfWeek>,
-    byHour?: Array<number>,
-    byMinute?: Array<number>,
-    bySecond?: Array<number>,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    frequency: ScheduleFrequency;
+    interval?: number;
+    start?: Temporal.ZonedDateTime | null;
+    end?: Temporal.ZonedDateTime | null;
+    count?: number | null;
+    weekStart?: DayOfWeek | null;
+    bySetPos?: Array<number>;
+    byMonth?: Array<Month>;
+    byMonthDay?: Array<number>;
+    byYearDay?: Array<number>;
+    byEaster?: Array<number>;
+    byWeekNo?: Array<number>;
+    byWeekDay?: Array<DayOfWeek>;
+    byHour?: Array<number>;
+    byMinute?: Array<number>;
+    bySecond?: Array<number>;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.frequency = options.frequency;

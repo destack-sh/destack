@@ -1,4 +1,4 @@
-import { EnumType, Node, Supergraph, activeSession, Session, NodeType, Struct, QueryConnection, StructFrozen, ACTIVE_SESSION, StructType, NodeReference, BuiltinObject, Graph } from '@/language';
+import { Session, StructFrozen, Supergraph } from "@/language";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12038 ==== */
 export enum Layout {
@@ -73,14 +73,14 @@ export class Length extends StructFrozen {
   readonly value: number;
 
   constructor(options: {
-    unit: LengthUnit,
-    value: number,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    unit: LengthUnit;
+    value: number;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.unit = options.unit;
@@ -110,17 +110,17 @@ export class Position extends StructFrozen {
   readonly height: Length | null;
 
   constructor(options: {
-    type: PositionType,
-    top?: Length | null,
-    left?: Length | null,
-    width?: Length | null,
-    height?: Length | null,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    type: PositionType;
+    top?: Length | null;
+    left?: Length | null;
+    width?: Length | null;
+    height?: Length | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.type = options.type;
@@ -151,15 +151,15 @@ export class Dimension extends StructFrozen {
   readonly value: number;
 
   constructor(options: {
-    type: DimensionType,
-    unit: LengthUnit,
-    value: number,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    type: DimensionType;
+    unit: LengthUnit;
+    value: number;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.type = options.type;
@@ -190,17 +190,17 @@ export class Insets extends StructFrozen {
   readonly bottom: number | null;
 
   constructor(options: {
-    base?: number | null,
-    top?: number | null,
-    left?: number | null,
-    right?: number | null,
-    bottom?: number | null,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    base?: number | null;
+    top?: number | null;
+    left?: number | null;
+    right?: number | null;
+    bottom?: number | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.base = options.base ?? null;
@@ -233,17 +233,17 @@ export class Corners extends StructFrozen {
   readonly bottomRight: number | null;
 
   constructor(options: {
-    base?: number | null,
-    topLeft?: number | null,
-    topRight?: number | null,
-    bottomLeft?: number | null,
-    bottomRight?: number | null,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    base?: number | null;
+    topLeft?: number | null;
+    topRight?: number | null;
+    bottomLeft?: number | null;
+    bottomRight?: number | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.base = options.base ?? null;
@@ -274,15 +274,15 @@ export class Axis2 extends StructFrozen {
   readonly y: number | null;
 
   constructor(options: {
-    base?: number | null,
-    x?: number | null,
-    y?: number | null,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    base?: number | null;
+    x?: number | null;
+    y?: number | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.base = options.base ?? null;
@@ -312,16 +312,16 @@ export class Axis3 extends StructFrozen {
   readonly z: number | null;
 
   constructor(options: {
-    base?: number | null,
-    x?: number | null,
-    y?: number | null,
-    z?: number | null,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    base?: number | null;
+    x?: number | null;
+    y?: number | null;
+    z?: number | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.base = options.base ?? null;
@@ -349,15 +349,10 @@ export class Vector2 extends StructFrozen {
   readonly x: number;
   readonly y: number;
 
-  constructor(options: {
-    x: number,
-    y: number,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
-  }) {
+  constructor(options: { x: number; y: number; _session?: Session | null; _supergraph?: Supergraph | null }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.x = options.x;
@@ -385,15 +380,15 @@ export class Vector3 extends StructFrozen {
   readonly z: number;
 
   constructor(options: {
-    x: number,
-    y: number,
-    z: number,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    x: number;
+    y: number;
+    z: number;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.x = options.x;
@@ -423,16 +418,16 @@ export class Vector4 extends StructFrozen {
   readonly w: number;
 
   constructor(options: {
-    x: number,
-    y: number,
-    z: number,
-    w: number,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    x: number;
+    y: number;
+    z: number;
+    w: number;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.x = options.x;
@@ -460,15 +455,10 @@ export class Vector2i extends StructFrozen {
   readonly x: number;
   readonly y: number;
 
-  constructor(options: {
-    x: number,
-    y: number,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
-  }) {
+  constructor(options: { x: number; y: number; _session?: Session | null; _supergraph?: Supergraph | null }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.x = options.x;
@@ -496,15 +486,15 @@ export class Vector3i extends StructFrozen {
   readonly z: number;
 
   constructor(options: {
-    x: number,
-    y: number,
-    z: number,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    x: number;
+    y: number;
+    z: number;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.x = options.x;
@@ -534,16 +524,16 @@ export class Vector4i extends StructFrozen {
   readonly w: number;
 
   constructor(options: {
-    x: number,
-    y: number,
-    z: number,
-    w: number,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    x: number;
+    y: number;
+    z: number;
+    w: number;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.x = options.x;
@@ -575,17 +565,17 @@ export class Grid extends StructFrozen {
   readonly rowHeight: Dimension | null;
 
   constructor(options: {
-    columns: number,
-    rows: number,
-    columnWidth?: Dimension | null,
-    columnMinWidth?: Dimension | null,
-    rowHeight?: Dimension | null,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    columns: number;
+    rows: number;
+    columnWidth?: Dimension | null;
+    columnMinWidth?: Dimension | null;
+    rowHeight?: Dimension | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.columns = options.columns;
@@ -614,15 +604,10 @@ export class GridSpan extends StructFrozen {
   readonly columns: number;
   readonly rows: number;
 
-  constructor(options: {
-    columns: number,
-    rows: number,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
-  }) {
+  constructor(options: { columns: number; rows: number; _session?: Session | null; _supergraph?: Supergraph | null }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.columns = options.columns;

@@ -1,4 +1,4 @@
-import { Query, QueryResult, Change, ChangeResult, QueryUpdate } from "@/language";
+import { Change, ChangeResult, Query, QueryResult, QueryUpdate } from "@/language";
 
 /**
  * The read/write Store backing (part of) the Supergraph.

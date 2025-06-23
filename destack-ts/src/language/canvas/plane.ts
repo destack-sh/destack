@@ -1,5 +1,58 @@
-import { IsDeletable, SplitView, Border, IsOrdered, CustomView, Dimension, View, Entity, MaterializationType, Canvas, NodeType, QueryConnection, Shadow, StructType, Space, NodeReference, Axis3, Graph, Script, GridSpan, Align, Value, Vector2, Insets, User, IsTaggable, Struct, FrameView, StructFrozen, Spatial, BuiltinObject, Direction, Distribute, EnumType, Corners, Layout, Scene, Layer, Axis2, ContainerView, Agent, IsScriptable, Position, Fill, Grid, Window, activeSession, Node, IsTracked, Supergraph, IsShape, AnnotationShape, CustomViewDefinition, IsExtensible, ACTIVE_SESSION, IsVisual, LabelView, Session } from '@/language';
-import { Temporal } from 'temporal-polyfill';
+import {
+  Agent,
+  Align,
+  AnnotationShape,
+  Axis2,
+  Axis3,
+  Border,
+  Canvas,
+  ContainerView,
+  Corners,
+  CustomView,
+  CustomViewDefinition,
+  Dimension,
+  Direction,
+  Distribute,
+  Entity,
+  Fill,
+  FrameView,
+  Graph,
+  Grid,
+  GridSpan,
+  Insets,
+  IsDeletable,
+  IsExtensible,
+  IsOrdered,
+  IsScriptable,
+  IsShape,
+  IsTaggable,
+  IsTracked,
+  IsVisual,
+  LabelView,
+  Layer,
+  Layout,
+  MaterializationType,
+  Node,
+  NodeReference,
+  NodeType,
+  Position,
+  QueryConnection,
+  Scene,
+  Script,
+  Session,
+  Shadow,
+  Space,
+  Spatial,
+  SplitView,
+  StructType,
+  Supergraph,
+  User,
+  Value,
+  Vector2,
+  View,
+  Window,
+} from "@/language";
+import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:11011 ==== */
 export enum PlaneShapeType {
@@ -12,47 +65,88 @@ export enum PlaneShapeType {
 /* ==== DESTACK_GENERATED_END:ENUM:11011 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:11011 ==== */
-export class PlaneShape extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsExtensible, IsOrdered, IsTaggable, IsScriptable, IsVisual, View, ContainerView, IsShape {
+export class PlaneShape
+  extends Node
+  implements
+    Spatial,
+    Entity,
+    IsTracked,
+    IsDeletable,
+    IsExtensible,
+    IsOrdered,
+    IsTaggable,
+    IsScriptable,
+    IsVisual,
+    View,
+    ContainerView,
+    IsShape
+{
   readonly id: string;
-  get parent(): Window | Scene | Layer | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | AnnotationShape | Canvas | PlaneShape | Layer | Scene | null | null {
-      const nodePtr: NodeReference | null = this.parentPtr;
-      if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Window | Scene | Layer | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | AnnotationShape | Canvas | PlaneShape | Layer | Scene | null | null;
-      }
-      return null;
+  get parent():
+    | Window
+    | Scene
+    | Layer
+    | CustomViewDefinition
+    | CustomView
+    | FrameView
+    | LabelView
+    | SplitView
+    | AnnotationShape
+    | Canvas
+    | PlaneShape
+    | Layer
+    | Scene
+    | null
+    | null {
+    const nodePtr: NodeReference | null = this.parentPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as
+        | Window
+        | Scene
+        | Layer
+        | CustomViewDefinition
+        | CustomView
+        | FrameView
+        | LabelView
+        | SplitView
+        | AnnotationShape
+        | Canvas
+        | PlaneShape
+        | Layer
+        | Scene
+        | null
+        | null;
+    }
+    return null;
   }
-  ;
-  readonly parentPtr: NodeReference | null
+  readonly parentPtr: NodeReference | null;
   get space(): Space | null | null {
-      const nodePtr: NodeReference | null = this.spacePtr;
-      if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Space | null | null;
-      }
-      return null;
+    const nodePtr: NodeReference | null = this.spacePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null | null;
+    }
+    return null;
   }
-  ;
-  readonly spacePtr: NodeReference | null
+  readonly spacePtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null | null {
-      const nodePtr: NodeReference | null = this.createdByPtr;
-      if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
-      }
-      return null;
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+    }
+    return null;
   }
-  ;
-  readonly createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
   get updatedBy(): Agent | User | null | null {
-      const nodePtr: NodeReference | null = this.updatedByPtr;
-      if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
-      }
-      return null;
+    const nodePtr: NodeReference | null = this.updatedByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+    }
+    return null;
   }
-  ;
-  readonly updatedByPtr: NodeReference | null
+  readonly updatedByPtr: NodeReference | null;
   readonly deletedAt: Temporal.ZonedDateTime | null;
   value: Map<string, Value>;
   readonly orderKey: string;
@@ -85,96 +179,134 @@ export class PlaneShape extends Node implements Spatial, Entity, IsTracked, IsDe
   radius: Corners | null;
   points: Array<Vector2>;
   get script(): Script | null | null {
-      const nodePtr: NodeReference | null = this.scriptPtr;
-      if (nodePtr !== null) {
-          return this._supergraph.get(nodePtr.id) as Script | null | null;
-      }
-      return null;
+    const nodePtr: NodeReference | null = this.scriptPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Script | null | null;
+    }
+    return null;
   }
 
   set script(node: Script | null) {
-      if (node === null) {
-          this.scriptPtr = null;
-      } else {
-          this.scriptPtr = node.toRef();
-      }
+    if (node === null) {
+      this.scriptPtr = null;
+    } else {
+      this.scriptPtr = node.toRef();
+    }
   }
-  ;
-  scriptPtr: NodeReference | null
+  scriptPtr: NodeReference | null;
 
   constructor(options: {
-    id: string,
-    parent?: Window | Scene | Layer | CustomViewDefinition | CustomView | FrameView | LabelView | SplitView | AnnotationShape | Canvas | PlaneShape | Layer | Scene | NodeReference | null,
-    space?: Space | NodeReference | null,
-    materialization?: MaterializationType,
-    createdAt: Temporal.ZonedDateTime,
-    createdBy?: Agent | User | NodeReference | null,
-    updatedAt: Temporal.ZonedDateTime,
-    updatedBy?: Agent | User | NodeReference | null,
-    deletedAt?: Temporal.ZonedDateTime | null,
-    value?: Map<string, Value>,
-    orderKey?: string,
-    name: string,
-    position?: Position | null,
-    width?: Dimension | null,
-    height?: Dimension | null,
-    minWidth?: Dimension | null,
-    minHeight?: Dimension | null,
-    maxWidth?: Dimension | null,
-    maxHeight?: Dimension | null,
-    layout?: Layout | null,
-    direction?: Direction | null,
-    distribute?: Distribute | null,
-    align?: Align | null,
-    gap?: Axis2 | null,
-    padding?: Insets | null,
-    grid?: Grid | null,
-    gridSpan?: GridSpan | null,
-    aspectRatio?: number | null,
-    isWrap?: boolean | null,
-    isVisible?: boolean | null,
-    opacity?: number | null,
-    fill?: Fill | null,
-    rotation?: Axis3 | null,
-    skew?: Vector2 | null,
-    scale?: number | null,
-    shadow?: Shadow | null,
-    border?: Border | null,
-    radius?: Corners | null,
-    points?: Array<Vector2>,
-    script?: Script | NodeReference | null,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: Graph | null,
-    _connection?: QueryConnection | null
+    id: string;
+    parent?:
+      | Window
+      | Scene
+      | Layer
+      | CustomViewDefinition
+      | CustomView
+      | FrameView
+      | LabelView
+      | SplitView
+      | AnnotationShape
+      | Canvas
+      | PlaneShape
+      | Layer
+      | Scene
+      | NodeReference
+      | null;
+    space?: Space | NodeReference | null;
+    materialization?: MaterializationType;
+    createdAt: Temporal.ZonedDateTime;
+    createdBy?: Agent | User | NodeReference | null;
+    updatedAt: Temporal.ZonedDateTime;
+    updatedBy?: Agent | User | NodeReference | null;
+    deletedAt?: Temporal.ZonedDateTime | null;
+    value?: Map<string, Value>;
+    orderKey?: string;
+    name: string;
+    position?: Position | null;
+    width?: Dimension | null;
+    height?: Dimension | null;
+    minWidth?: Dimension | null;
+    minHeight?: Dimension | null;
+    maxWidth?: Dimension | null;
+    maxHeight?: Dimension | null;
+    layout?: Layout | null;
+    direction?: Direction | null;
+    distribute?: Distribute | null;
+    align?: Align | null;
+    gap?: Axis2 | null;
+    padding?: Insets | null;
+    grid?: Grid | null;
+    gridSpan?: GridSpan | null;
+    aspectRatio?: number | null;
+    isWrap?: boolean | null;
+    isVisible?: boolean | null;
+    opacity?: number | null;
+    fill?: Fill | null;
+    rotation?: Axis3 | null;
+    skew?: Vector2 | null;
+    scale?: number | null;
+    shadow?: Shadow | null;
+    border?: Border | null;
+    radius?: Corners | null;
+    points?: Array<Vector2>;
+    script?: Script | NodeReference | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _graph?: Graph | null;
+    _connection?: QueryConnection | null;
   }) {
     super(
-        // id
-        options.id,
-        // parent
-        options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null,
-        // session
-        options._session ?? null,
-        // supergraph
-        options._supergraph ?? null,
-        // graph
-        options._graph ?? null,
-        // connection
-        options._connection ?? null,
-        // is_new
-        options.id == null,
-        // is_attached
-        options.id != null,
+      // id
+      options.id,
+      // parent
+      options.parent != null
+        ? options.parent.metatype == StructType.NODE_REFERENCE
+          ? (options.parent as NodeReference)
+          : (options.parent as Node).toRef()
+        : null,
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+      // graph
+      options._graph ?? null,
+      // connection
+      options._connection ?? null,
+      // is_new
+      options.id == null,
+      // is_attached
+      options.id != null,
     );
 
     this.id = options.id;
-    this.parentPtr = options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null;
-    this.spacePtr = options.space != null ? (options.space.metatype == StructType.NODE_REFERENCE ? (options.space as NodeReference) : (options.space as Node).toRef()) : null;
+    this.parentPtr =
+      options.parent != null
+        ? options.parent.metatype == StructType.NODE_REFERENCE
+          ? (options.parent as NodeReference)
+          : (options.parent as Node).toRef()
+        : null;
+    this.spacePtr =
+      options.space != null
+        ? options.space.metatype == StructType.NODE_REFERENCE
+          ? (options.space as NodeReference)
+          : (options.space as Node).toRef()
+        : null;
     this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
     this.createdAt = options.createdAt;
-    this.createdByPtr = options.createdBy != null ? (options.createdBy.metatype == StructType.NODE_REFERENCE ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
+    this.createdByPtr =
+      options.createdBy != null
+        ? options.createdBy.metatype == StructType.NODE_REFERENCE
+          ? (options.createdBy as NodeReference)
+          : (options.createdBy as Node).toRef()
+        : null;
     this.updatedAt = options.updatedAt;
-    this.updatedByPtr = options.updatedBy != null ? (options.updatedBy.metatype == StructType.NODE_REFERENCE ? (options.updatedBy as NodeReference) : (options.updatedBy as Node).toRef()) : null;
+    this.updatedByPtr =
+      options.updatedBy != null
+        ? options.updatedBy.metatype == StructType.NODE_REFERENCE
+          ? (options.updatedBy as NodeReference)
+          : (options.updatedBy as Node).toRef()
+        : null;
     this.deletedAt = options.deletedAt ?? null;
     this.value = options.value ?? new Map();
     this.orderKey = options.orderKey ?? "a0";
@@ -206,7 +338,12 @@ export class PlaneShape extends Node implements Spatial, Entity, IsTracked, IsDe
     this.border = options.border ?? null;
     this.radius = options.radius ?? null;
     this.points = options.points ?? [];
-    this.scriptPtr = options.script != null ? (options.script.metatype == StructType.NODE_REFERENCE ? (options.script as NodeReference) : (options.script as Node).toRef()) : null;
+    this.scriptPtr =
+      options.script != null
+        ? options.script.metatype == StructType.NODE_REFERENCE
+          ? (options.script as NodeReference)
+          : (options.script as Node).toRef()
+        : null;
   }
 
   equals(other: any): boolean {
@@ -232,20 +369,20 @@ export class PlaneShape extends Node implements Spatial, Entity, IsTracked, IsDe
   }
 
   get _pathKey(): string {
-      return this.name;
+    return this.name;
   }
 
   get path(): string {
-      const pathParts: string[] = [];
-      let node: Node | null = this;
-      while (node !== null) {
-          pathParts.push(node._pathKey);
-          node = node.parent;
-      }
-      if (!this._isAttached) {
-          pathParts.push("<detached>");
-      }
-      return pathParts.reverse().join("/");
+    const pathParts: string[] = [];
+    let node: Node | null = this;
+    while (node !== null) {
+      pathParts.push(node._pathKey);
+      node = node.parent;
+    }
+    if (!this._isAttached) {
+      pathParts.push("<detached>");
+    }
+    return pathParts.reverse().join("/");
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:11011 ==== */

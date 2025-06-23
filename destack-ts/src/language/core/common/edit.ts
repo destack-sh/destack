@@ -1,5 +1,18 @@
-import { CustomView, FriendshipInvite, TimerEvent, Variant, SanctionEvent, Run, Space, Action, Organization, Value, Client, Reaction, PlaneShape, EnumType, GaugeMeasurement, Agent, Thread, EventCursor, EffectStyle, CustomEntity, Theme, Notification, Supergraph, FillStyle, Invite, HistogramMeasurement, Membership, Log, InviteEvent, SplitView, Timer, Canvas, NodeType, QueryConnection, EditEvent, BorderStyle, StructType, Interruption, RunEvent, Environment, Handle, Permission, Span, FrameView, StructFrozen, Tag, Origin, Friendship, GradientStyle, Layer, ColorStyle, Star, SceneEvent, activeSession, Message, Team, Snapshot, FontStyle, CounterMetric, ArrowShape, ThreadView, RoleEvent, NodeReference, Graph, Script, NumberInputView, CustomStructDefinition, Field, ShadowStyle, Entitlement, Palette, TriggerEvent, Option, GaugeMetric, LineShape, Route, Scene, MembershipEvent, Link, CounterMeasurement, TextView, EntitlementEvent, Node, WizardView, Role, PropertyReference, LabelView, NotificationEvent, Follow, CustomEnumDefinition, Branch, CustomEntityDefinition, Database, Folder, HistogramMetric, User, Struct, Service, BuiltinObject, FriendshipInviteEvent, SliderInputView, CustomEvent, Window, Machine, File, Tagging, Sanction, ScreenCursor, AnnotationShape, CustomViewDefinition, Trigger, CustomEventDefinition, TransitionStyle, ACTIVE_SESSION, ThreadCursor, Session } from '@/language';
-import { Temporal } from 'temporal-polyfill';
+import {
+  Agent,
+  Field,
+  Node,
+  NodeReference,
+  Origin,
+  PropertyReference,
+  Session,
+  StructFrozen,
+  StructType,
+  Supergraph,
+  User,
+  Value,
+} from "@/language";
+import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:50050 ==== */
 export enum EditType {
@@ -42,58 +55,66 @@ export class Edit extends StructFrozen {
   readonly type: EditType;
   readonly operation: EditOperation | null;
   get node(): Node {
-      const nodePtr: NodeReference | null = this.nodePtr;
-      if (nodePtr !== null) {
-          if (this._supergraph === null) {
-              return null;
-          }
-          return this._supergraph.get(nodePtr.id) as Node;
+    const nodePtr: NodeReference | null = this.nodePtr;
+    if (nodePtr !== null) {
+      if (this._supergraph === null) {
+        return null;
       }
-      return null;
+      return this._supergraph.get(nodePtr.id) as Node;
+    }
+    return null;
   }
-  ;
-  readonly nodePtr: NodeReference
+  readonly nodePtr: NodeReference;
   readonly propPtr: PropertyReference | null;
   get field(): Field | null {
-      const nodePtr: NodeReference | null = this.fieldPtr;
-      if (nodePtr !== null) {
-          if (this._supergraph === null) {
-              return null;
-          }
-          return this._supergraph.get(nodePtr.id) as Field | null;
+    const nodePtr: NodeReference | null = this.fieldPtr;
+    if (nodePtr !== null) {
+      if (this._supergraph === null) {
+        return null;
       }
-      return null;
+      return this._supergraph.get(nodePtr.id) as Field | null;
+    }
+    return null;
   }
-  ;
-  readonly fieldPtr: NodeReference | null
+  readonly fieldPtr: NodeReference | null;
   readonly key: Value | null;
   readonly value: Value | null;
   readonly undo: Edit | null;
 
   constructor(options: {
-    id?: string,
-    type: EditType,
-    operation?: EditOperation | null,
-    node: Node | NodeReference,
-    propPtr?: PropertyReference | null,
-    field?: Field | NodeReference | null,
-    key?: Value | null,
-    value?: Value | null,
-    undo?: Edit | null,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    id?: string;
+    type: EditType;
+    operation?: EditOperation | null;
+    node: Node | NodeReference;
+    propPtr?: PropertyReference | null;
+    field?: Field | NodeReference | null;
+    key?: Value | null;
+    value?: Value | null;
+    undo?: Edit | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.id = options.id;
     this.type = options.type;
     this.operation = options.operation ?? null;
-    this.nodePtr = options.node != null ? (options.node.metatype == StructType.NODE_REFERENCE ? (options.node as NodeReference) : (options.node as Node).toRef()) : null;
+    this.nodePtr =
+      options.node != null
+        ? options.node.metatype == StructType.NODE_REFERENCE
+          ? (options.node as NodeReference)
+          : (options.node as Node).toRef()
+        : null;
     this.propPtr = options.propPtr ?? null;
-    this.fieldPtr = options.field != null ? (options.field.metatype == StructType.NODE_REFERENCE ? (options.field as NodeReference) : (options.field as Node).toRef()) : null;
+    this.fieldPtr =
+      options.field != null
+        ? options.field.metatype == StructType.NODE_REFERENCE
+          ? (options.field as NodeReference)
+          : (options.field as Node).toRef()
+        : null;
     this.key = options.key ?? null;
     this.value = options.value ?? null;
     this.undo = options.undo ?? null;
@@ -119,41 +140,45 @@ export class Change extends StructFrozen {
   readonly name: string | null;
   readonly createdAt: Temporal.ZonedDateTime;
   get createdBy(): Agent | User | null {
-      const nodePtr: NodeReference | null = this.createdByPtr;
-      if (nodePtr !== null) {
-          if (this._supergraph === null) {
-              return null;
-          }
-          return this._supergraph.get(nodePtr.id) as Agent | User | null;
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      if (this._supergraph === null) {
+        return null;
       }
-      return null;
+      return this._supergraph.get(nodePtr.id) as Agent | User | null;
+    }
+    return null;
   }
-  ;
-  readonly createdByPtr: NodeReference | null
+  readonly createdByPtr: NodeReference | null;
   readonly origin: Origin | null;
   readonly debounce: ChangeDebounce | null;
   readonly edits: Array<Edit>;
 
   constructor(options: {
-    id?: string,
-    name?: string | null,
-    createdAt?: Temporal.ZonedDateTime,
-    createdBy?: Agent | User | NodeReference | null,
-    origin?: Origin | null,
-    debounce?: ChangeDebounce | null,
-    edits?: Array<Edit>,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    id?: string;
+    name?: string | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: Agent | User | NodeReference | null;
+    origin?: Origin | null;
+    debounce?: ChangeDebounce | null;
+    edits?: Array<Edit>;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.id = options.id;
     this.name = options.name ?? null;
     this.createdAt = options.createdAt;
-    this.createdByPtr = options.createdBy != null ? (options.createdBy.metatype == StructType.NODE_REFERENCE ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
+    this.createdByPtr =
+      options.createdBy != null
+        ? options.createdBy.metatype == StructType.NODE_REFERENCE
+          ? (options.createdBy as NodeReference)
+          : (options.createdBy as Node).toRef()
+        : null;
     this.origin = options.origin ?? null;
     this.debounce = options.debounce ?? null;
     this.edits = options.edits ?? [];
@@ -183,18 +208,18 @@ export class ChangeResult extends StructFrozen {
   readonly cascadedEdits: Array<Edit>;
 
   constructor(options: {
-    id?: string,
-    createdAt?: Temporal.ZonedDateTime,
-    debounce?: ChangeDebounce | null,
-    status: ChangeStatus,
-    edits?: Array<Edit>,
-    cascadedEdits?: Array<Edit>,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null
+    id?: string;
+    createdAt?: Temporal.ZonedDateTime;
+    debounce?: ChangeDebounce | null;
+    status: ChangeStatus;
+    edits?: Array<Edit>;
+    cascadedEdits?: Array<Edit>;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
   }) {
     super(
-        // supergraph
-        options._supergraph ?? null,
+      // supergraph
+      options._supergraph ?? null,
     );
 
     this.id = options.id;

@@ -17,16 +17,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-import type { BinaryWriteOptions } from "@protobuf-ts/runtime";
-import type { IBinaryWriter } from "@protobuf-ts/runtime";
-import { WireType } from "@protobuf-ts/runtime";
-import type { BinaryReadOptions } from "@protobuf-ts/runtime";
-import type { IBinaryReader } from "@protobuf-ts/runtime";
-import { UnknownFieldHandler } from "@protobuf-ts/runtime";
-import type { PartialMessage } from "@protobuf-ts/runtime";
-import { reflectionMergePartial } from "@protobuf-ts/runtime";
-import { PbLong } from "@protobuf-ts/runtime";
-import { MessageType } from "@protobuf-ts/runtime";
+import type {
+  BinaryReadOptions,
+  BinaryWriteOptions,
+  IBinaryReader,
+  IBinaryWriter,
+  PartialMessage,
+} from "@protobuf-ts/runtime";
+import { MessageType, PbLong, reflectionMergePartial, UnknownFieldHandler, WireType } from "@protobuf-ts/runtime";
 import { Duration } from "../../../google/protobuf/duration";
 /**
  * Represents civil time (or occasionally physical time).

@@ -1,3 +1,3 @@
-export * from './input';
-export * from './number';
-export * from './slider';
+export * from "./input";
+export * from "./number";
+export * from "./slider";

@@ -2,8 +2,8 @@
  * Simple logging with our log levels (trace, debug, info, warn, error)
  */
 
-import { LogLevel } from "destack-ts";
 import { IS_DEV, IS_DEVELOPER_MODE } from "@/utils/globals";
+import { LogLevel } from "destack-ts";
 
 const CONSOLE_METHOD_MAP: Record<LogLevel, keyof typeof console> = {
   [LogLevel.UNSPECIFIED]: "log",

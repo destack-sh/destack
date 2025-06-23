@@ -1,5 +1,5 @@
-import { Session } from "./session";
 import { Node } from "../builtin";
+import { Session } from "./session";
 
 /** A Graph is a collection of Nodes. */
 export abstract class Graph {
