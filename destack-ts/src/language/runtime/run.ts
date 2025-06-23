@@ -37,7 +37,8 @@ export enum RunStatus {
   ABORTED = 52,
   FAILED = 53,
   COMPLETED = 54,
-} /* ==== DESTACK_GENERATED_END:ENUM:4000 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:4000 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:4001 ==== */
 export enum RunEventType {
@@ -52,7 +53,8 @@ export enum RunEventType {
   ABORTED = 52,
   FAILED = 53,
   COMPLETED = 54,
-} /* ==== DESTACK_GENERATED_END:ENUM:4001 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:4001 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:4001 ==== */
 export class RunEvent extends Node implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked {
@@ -256,7 +258,8 @@ export class RunEvent extends Node implements Spatial, Particle, Analytic, Index
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:4001 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:4001 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:4000 ==== */
 export class Run extends Node implements Spatial, Particle, Analytic, Indexed, IsTracked, IsExtensible {
@@ -490,4 +493,5 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:4000 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:4000 ==== */

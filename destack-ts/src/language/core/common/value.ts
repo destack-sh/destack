@@ -31,4 +31,27 @@ export class Value extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-} /* ==== DESTACK_GENERATED_END:STRUCT:2500 ==== */
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:2500 ==== */
+
+/**
+ * Convert an arbitrary (legal) value to a Value.
+ * If Type isn't provided, it will be inferred from the value.
+ */
+export function toValue(valueUnpacked: any, type: Type | null = null, nodeAsValue: boolean = false): Value {
+  throw new Error("not implemented");
+}
+
+/**
+ * Pack a generic typed value to a JSON object.
+ */
+export function packValue(value: any, type: Type): any {
+  throw new Error("not implemented");
+}
+
+/**
+ * Unpack a JSON object to a generic typed value.
+ */
+export function unpackValue(value: any, type: Type): any {
+  throw new Error("not implemented");
+}

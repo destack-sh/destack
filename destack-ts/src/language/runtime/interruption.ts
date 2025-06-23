@@ -32,20 +32,23 @@ export enum InterruptionType {
   PAUSE = 10,
   YIELD = 20,
   WAIT = 30,
-} /* ==== DESTACK_GENERATED_END:ENUM:4020 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:4020 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:4021 ==== */
 export enum InterruptionStatus {
   OPEN = 10,
   CANGALAXYED = 30,
   COMPLETED = 33,
-} /* ==== DESTACK_GENERATED_END:ENUM:4021 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:4021 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:4022 ==== */
 export enum InterruptionResponse {
   ACCEPT = 10,
   REJECT = 20,
-} /* ==== DESTACK_GENERATED_END:ENUM:4022 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:4022 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:4020 ==== */
 export class Interruption extends Node implements Spatial, Particle, Analytic, Indexed, IsTracked, IsExtensible {
@@ -290,4 +293,5 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:4020 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:4020 ==== */

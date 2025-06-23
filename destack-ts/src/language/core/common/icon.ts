@@ -7,7 +7,8 @@ export enum IconType {
   VS_CODE = 4,
   FILE = 10,
   FILE_URL = 11,
-} /* ==== DESTACK_GENERATED_END:ENUM:2531 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:2531 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2531 ==== */
 export class Icon extends StructFrozen {
@@ -18,7 +19,7 @@ export class Icon extends StructFrozen {
   readonly emoji: string | null;
   readonly faName: string | null;
   readonly vscName: string | null;
-  get file(): File | null {
+  get file(): File | null | null {
     const nodePtr: NodeReference | null = this.filePtr;
     if (nodePtr !== null) {
       if (this._supergraph === null) {
@@ -75,4 +76,5 @@ export class Icon extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-} /* ==== DESTACK_GENERATED_END:STRUCT:2531 ==== */
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:2531 ==== */

@@ -213,4 +213,5 @@ export class Palette extends Node implements Spatial, Entity, IsTracked, IsDelet
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:12010 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:12010 ==== */

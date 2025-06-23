@@ -138,7 +138,8 @@ export class PropertyDefinition extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-} /* ==== DESTACK_GENERATED_END:STRUCT:50004 ==== */
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:50004 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50005 ==== */
 export class TraitDefinition extends StructFrozen {
@@ -194,7 +195,8 @@ export class TraitDefinition extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-} /* ==== DESTACK_GENERATED_END:STRUCT:50005 ==== */
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:50005 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50006 ==== */
 export class NodeDefinition extends StructFrozen {
@@ -262,7 +264,8 @@ export class NodeDefinition extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-} /* ==== DESTACK_GENERATED_END:STRUCT:50006 ==== */
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:50006 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50007 ==== */
 export class StructDefinition extends StructFrozen {
@@ -315,7 +318,8 @@ export class StructDefinition extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-} /* ==== DESTACK_GENERATED_END:STRUCT:50007 ==== */
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:50007 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50008 ==== */
 export class EnumDefinition extends StructFrozen {
@@ -365,7 +369,8 @@ export class EnumDefinition extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-} /* ==== DESTACK_GENERATED_END:STRUCT:50008 ==== */
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:50008 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50009 ==== */
 export class EnumOptionDefinition extends StructFrozen {
@@ -412,7 +417,8 @@ export class EnumOptionDefinition extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-} /* ==== DESTACK_GENERATED_END:STRUCT:50009 ==== */
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:50009 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50010 ==== */
 export class PermissionDefinition extends StructFrozen {
@@ -459,7 +465,8 @@ export class PermissionDefinition extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-} /* ==== DESTACK_GENERATED_END:STRUCT:50010 ==== */
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:50010 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50011 ==== */
 export class ConstantDefinition extends StructFrozen {
@@ -500,4 +507,5 @@ export class ConstantDefinition extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-} /* ==== DESTACK_GENERATED_END:STRUCT:50011 ==== */
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:50011 ==== */

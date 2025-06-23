@@ -1,4 +1,4 @@
-import { ACTIVE_SESSION, Session, StructType, StructTypeMapping, Supergraph } from "@/language";
+import { ACTIVE_SESSION, Session, StructType, Supergraph } from "@/language";
 import { AnyStructProto } from "@/proto";
 import { BuiltinObject } from "./object";
 
@@ -40,8 +40,3 @@ export abstract class StructFrozen extends Struct {
 
 /** A Struct constructor. */
 export type StructClass = { new (...args: any[]): Struct } & { metatype: StructType };
-
-/** Check if a value is a Struct of a specific type. */
-export function isStruct<T extends StructType>(value: any, structType?: T): value is StructTypeMapping[T] {
-  return value instanceof Struct && (structType === undefined || value.metatype === structType);
-}

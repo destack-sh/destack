@@ -39,13 +39,15 @@ export enum MembershipEventType {
   LEAVE = 2,
   KICK = 3,
   BAN = 4,
-} /* ==== DESTACK_GENERATED_END:ENUM:500 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:500 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:501 ==== */
 export enum MembershipPermission {
   KICK = 10,
   BAN = 11,
-} /* ==== DESTACK_GENERATED_END:ENUM:501 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:501 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:501 ==== */
 export class MembershipEvent extends Node implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked {
@@ -287,7 +289,8 @@ export class MembershipEvent extends Node implements Spatial, Particle, Analytic
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:501 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:501 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:500 ==== */
 export class Membership
@@ -539,4 +542,5 @@ export class Membership
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:500 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:500 ==== */

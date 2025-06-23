@@ -250,7 +250,8 @@ export class EditEvent
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:4202 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:4202 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:4200 ==== */
 export class CustomEventDefinition extends Node implements Spatial, Entity, IsTracked, IsOrdered, IsSourceable {
@@ -431,7 +432,8 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, IsTr
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:4200 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:4200 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:4201 ==== */
 export class CustomEvent extends Node implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked {
@@ -632,4 +634,5 @@ export class CustomEvent extends Node implements Spatial, Particle, Analytic, In
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:4201 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:4201 ==== */

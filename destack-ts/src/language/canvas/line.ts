@@ -48,7 +48,8 @@ export enum LineType {
   SOLID = 1,
   DASHED = 2,
   DOTTED = 3,
-} /* ==== DESTACK_GENERATED_END:ENUM:11010 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:11010 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:11010 ==== */
 export class LineShape
@@ -394,4 +395,5 @@ export class LineShape
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:11010 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:11010 ==== */

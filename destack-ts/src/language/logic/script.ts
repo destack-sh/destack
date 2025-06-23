@@ -341,4 +341,5 @@ export class Script
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:3000 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:3000 ==== */

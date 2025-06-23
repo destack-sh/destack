@@ -479,4 +479,5 @@ export class AnnotationShape
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:11013 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:11013 ==== */

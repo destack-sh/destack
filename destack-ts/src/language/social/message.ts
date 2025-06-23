@@ -314,4 +314,5 @@ export class Message
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:5510 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:5510 ==== */

@@ -26,7 +26,8 @@ export enum LogLevel {
   WARNING = 4,
   ERROR = 5,
   PANIC = 6,
-} /* ==== DESTACK_GENERATED_END:ENUM:4100 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:4100 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:4100 ==== */
 export class Log extends Node implements Spatial, Analytic, IsFrozen, IsTracked {
@@ -186,4 +187,5 @@ export class Log extends Node implements Spatial, Analytic, IsFrozen, IsTracked 
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:4100 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:4100 ==== */

@@ -51,7 +51,8 @@ export enum GradientType {
   LINEAR = 10,
   RADIAL = 11,
   CONIC = 12,
-} /* ==== DESTACK_GENERATED_END:ENUM:12033 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:12033 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12015 ==== */
 export class GradientStop extends StructFrozen {
@@ -89,7 +90,8 @@ export class GradientStop extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-} /* ==== DESTACK_GENERATED_END:STRUCT:12015 ==== */
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:12015 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12016 ==== */
 export class Gradient extends Struct {
@@ -97,7 +99,7 @@ export class Gradient extends Struct {
   static __isFrozen__: boolean = false;
 
   type: GradientType;
-  get style(): GradientStyle | null {
+  get style(): GradientStyle | null | null {
     const nodePtr: NodeReference | null = this.stylePtr;
     if (nodePtr !== null) {
       if (this._supergraph === null) {
@@ -159,7 +161,8 @@ export class Gradient extends Struct {
   validate(): void {
     throw new Error("not implemented");
   }
-} /* ==== DESTACK_GENERATED_END:STRUCT:12016 ==== */
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:12016 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:12025 ==== */
 export class GradientStyle
@@ -453,4 +456,5 @@ export class GradientStyle
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:12025 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:12025 ==== */

@@ -157,4 +157,5 @@ export class Handle extends Node implements Global, Entity, IsTracked {
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:10 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:10 ==== */

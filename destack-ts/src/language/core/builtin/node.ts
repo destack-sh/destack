@@ -1,6 +1,24 @@
-import { activeSession, Condition, Join, JoinType, NodeType, Query, QueryType, TraitType } from "@/language/core";
-import { NodeReference } from "@/language/core/common/relation";
-import { Graph, QueryConnection, Session, Supergraph } from "@/language/core/runtime";
+import {
+  activeSession,
+  Aggregation,
+  AggregationType,
+  Condition,
+  Expression,
+  ExpressionIn,
+  Graph,
+  Join,
+  JoinType,
+  NodeReference,
+  NodeType,
+  Query,
+  QueryConnection,
+  QueryType,
+  RelationReference,
+  Session,
+  Sort,
+  Supergraph,
+  TraitType,
+} from "@/language";
 import { NodeTypeMapping, TraitTypeMapping } from "@/language/registry";
 import { Casing, toCasing } from "@/utils/string";
 import { BuiltinObject } from "./object";
@@ -213,15 +231,177 @@ export abstract class Node extends BuiltinObject {
       where?: Condition;
       name?: string;
       join?: Join;
-    } & Subqueries,
+    } & SubqueriesIn,
   ): Query {
     const { where, name, join, ...subqueries } = options;
     const query = new Query({
       type: QueryType.NODE,
-      relation: this.metatype,
+      relation: RelationReference.of(this),
       name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
       join,
       where,
+      subqueries: toSubqueries(subqueries),
+    });
+    return query;
+  }
+
+  /** Make a search Query for this Node/Trait type. */
+  static search(
+    options: {
+      where?: Condition;
+      name?: string;
+      join?: Join;
+      having?: Condition;
+      groupBy?: ExpressionIn[];
+      sort?: Sort[];
+      limit?: number;
+      offset?: number;
+    } & SubqueriesIn,
+  ): Query {
+    const { where, name, join, having, groupBy, sort, limit, offset, ...subqueries } = options;
+    const query = new Query({
+      type: groupBy ? QueryType.GROUPED_NODE : QueryType.NODE,
+      relation: RelationReference.of(this),
+      name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
+      join,
+      where,
+      having,
+      groupBy: groupBy?.map(Expression.of),
+      sort,
+      limit,
+      offset,
+      subqueries: toSubqueries(subqueries),
+    });
+    return query;
+  }
+
+  /** Make an exists Query for this Node/Trait type. */
+  static exists(
+    options: {
+      where?: Condition;
+      name?: string;
+      join?: Join;
+    } & SubqueriesIn,
+  ): Query {
+    const { where, name, join, ...subqueries } = options;
+    const query = new Query({
+      type: QueryType.SCALAR,
+      relation: RelationReference.of(this),
+      name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
+      join,
+      where,
+      aggregation: Aggregation.of(AggregationType.EXISTS),
+      subqueries: toSubqueries(subqueries),
+    });
+    return query;
+  }
+
+  /** Make a count Query for this Node/Trait type. */
+  static count(
+    options: {
+      where?: Condition;
+      name?: string;
+      join?: Join;
+      groupBy?: ExpressionIn[];
+      having?: Condition;
+      sort?: Sort[];
+    } & SubqueriesIn,
+  ): Query {
+    const { where, name, join, groupBy, having, sort, ...subqueries } = options;
+    const query = new Query({
+      type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
+      relation: RelationReference.of(this),
+      name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
+      join,
+      where,
+      having,
+      groupBy: groupBy?.map(Expression.of),
+      aggregation: Aggregation.of(AggregationType.COUNT),
+      sort,
+      subqueries: toSubqueries(subqueries),
+    });
+    return query;
+  }
+
+  /** Make a min Query for this Node/Trait type. */
+  static min(
+    options: {
+      expression: ExpressionIn;
+      where?: Condition;
+      name?: string;
+      join?: Join;
+      groupBy?: ExpressionIn[];
+      having?: Condition;
+      sort?: Sort[];
+    } & SubqueriesIn,
+  ): Query {
+    const { expression, where, name, join, groupBy, having, sort, ...subqueries } = options;
+    const query = new Query({
+      type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
+      relation: RelationReference.of(this),
+      name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
+      join,
+      where,
+      having,
+      groupBy: groupBy?.map(Expression.of),
+      aggregation: Aggregation.of(AggregationType.MIN, Expression.of(expression)),
+      sort,
+      subqueries: toSubqueries(subqueries),
+    });
+    return query;
+  }
+
+  /** Make a max Query for this Node/Trait type. */
+  static max(
+    options: {
+      expression: ExpressionIn;
+      where?: Condition;
+      name?: string;
+      join?: Join;
+      groupBy?: ExpressionIn[];
+      having?: Condition;
+      sort?: Sort[];
+    } & SubqueriesIn,
+  ): Query {
+    const { expression, where, name, join, groupBy, having, sort, ...subqueries } = options;
+    const query = new Query({
+      type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
+      relation: RelationReference.of(this),
+      name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
+      join,
+      where,
+      having,
+      groupBy: groupBy?.map(Expression.of),
+      aggregation: Aggregation.of(AggregationType.MAX, Expression.of(expression)),
+      sort,
+      subqueries: toSubqueries(subqueries),
+    });
+    return query;
+  }
+
+  /** Make a sum Query for this Node/Trait type. */
+  static sum(
+    options: {
+      expression: ExpressionIn;
+      where?: Condition;
+      name?: string;
+      join?: Join;
+      groupBy?: ExpressionIn[];
+      having?: Condition;
+      sort?: Sort[];
+    } & SubqueriesIn,
+  ): Query {
+    const { expression, where, name, join, groupBy, having, sort, ...subqueries } = options;
+    const query = new Query({
+      type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
+      relation: RelationReference.of(this),
+      name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
+      join,
+      where,
+      having,
+      groupBy: groupBy?.map(Expression.of),
+      aggregation: Aggregation.of(AggregationType.SUM, Expression.of(expression)),
+      sort,
       subqueries: toSubqueries(subqueries),
     });
     return query;
@@ -249,9 +429,9 @@ export function isNodeWithTrait<T extends TraitType>(value: any, traitType: T): 
   return value instanceof Node && value.__traits__.includes(traitType);
 }
 
-type Subqueries = Record<string, Query | undefined>;
+type SubqueriesIn = Record<string, Query | undefined>;
 
-function toSubqueries(subqueries: Subqueries): Query[] {
+function toSubqueries(subqueries: SubqueriesIn): Query[] {
   const queries: Query[] = [];
   for (const [name, subquery] of Object.entries(subqueries)) {
     if (subquery === undefined) {

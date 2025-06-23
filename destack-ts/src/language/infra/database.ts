@@ -26,7 +26,8 @@ import { Temporal } from "temporal-polyfill";
 /* ==== DESTACK_GENERATED_START:ENUM:7505 ==== */
 export enum DatabaseType {
   POSTGRES = 1,
-} /* ==== DESTACK_GENERATED_END:ENUM:7505 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:7505 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:7501 ==== */
 export class DatabaseInfo extends Struct {
@@ -79,7 +80,8 @@ export class DatabaseInfo extends Struct {
   validate(): void {
     throw new Error("not implemented");
   }
-} /* ==== DESTACK_GENERATED_END:STRUCT:7501 ==== */
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:7501 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:7500 ==== */
 export class Database extends Node implements Spatial, Entity, Resource, IsTracked {
@@ -263,4 +265,5 @@ export class Database extends Node implements Spatial, Entity, Resource, IsTrack
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:7500 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:7500 ==== */

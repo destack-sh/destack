@@ -37,7 +37,8 @@ export enum FolderType {
   GENERAL = 3,
   MODULE = 4,
   APP = 5,
-} /* ==== DESTACK_GENERATED_END:ENUM:1000 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:1000 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:1000 ==== */
 export class Folder
@@ -349,4 +350,5 @@ export class Folder
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:1000 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:1000 ==== */

@@ -57,7 +57,8 @@ import { Temporal } from "temporal-polyfill";
 /* ==== DESTACK_GENERATED_START:ENUM:11000 ==== */
 export enum CanvasType {
   SHAPE = 1,
-} /* ==== DESTACK_GENERATED_END:ENUM:11000 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:11000 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:11000 ==== */
 export class Canvas
@@ -482,4 +483,5 @@ export class Canvas
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:11000 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:11000 ==== */

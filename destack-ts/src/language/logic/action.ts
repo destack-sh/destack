@@ -32,7 +32,8 @@ import { Temporal } from "temporal-polyfill";
 /* ==== DESTACK_GENERATED_START:ENUM:3020 ==== */
 export enum ActionCardinality {
   UNARY = 1,
-} /* ==== DESTACK_GENERATED_END:ENUM:3020 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:3020 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:3020 ==== */
 export class Action
@@ -237,4 +238,5 @@ export class Action
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:3020 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:3020 ==== */

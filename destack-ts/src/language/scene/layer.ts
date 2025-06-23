@@ -55,7 +55,8 @@ import { Temporal } from "temporal-polyfill";
 export enum LayerType {
   GENERAL = 1,
   SHAPE = 2,
-} /* ==== DESTACK_GENERATED_END:ENUM:9020 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:9020 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:9020 ==== */
 export class Layer
@@ -450,4 +451,5 @@ export class Layer
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:9020 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:9020 ==== */

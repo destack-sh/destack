@@ -26,7 +26,8 @@ import { Temporal } from "temporal-polyfill";
 export enum OrganizationStatus {
   CREATING = 1,
   ACTIVE = 10,
-} /* ==== DESTACK_GENERATED_END:ENUM:40 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:40 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:40 ==== */
 export class Organization extends Node implements Global, Entity, IsTracked, IsJoinable, IsOwner {
@@ -217,4 +218,5 @@ export class Organization extends Node implements Global, Entity, IsTracked, IsJ
   get path(): string {
     return this.slug ?? this.name;
   }
-} /* ==== DESTACK_GENERATED_END:NODE:40 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:40 ==== */

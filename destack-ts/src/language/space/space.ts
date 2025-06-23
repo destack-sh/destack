@@ -36,7 +36,8 @@ export enum SpaceStatus {
   QUEUED = 3,
   RUNNING = 10,
   PAUSED = 20,
-} /* ==== DESTACK_GENERATED_END:ENUM:1 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:1 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:1 ==== */
 export class Space
@@ -439,4 +440,5 @@ export class Space
   get path(): string {
     return this.slug ?? this.name;
   }
-} /* ==== DESTACK_GENERATED_END:NODE:1 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:1 ==== */

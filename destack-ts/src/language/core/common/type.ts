@@ -26,14 +26,16 @@ export enum StringFormat {
   EMOJI = 12,
   MIME = 13,
   BASE64 = 20,
-} /* ==== DESTACK_GENERATED_END:ENUM:2570 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:2570 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:2571 ==== */
 export enum NumberFormat {
   PERCENTAGE = 1,
   ANGLE = 2,
   CURRENCY = 3,
-} /* ==== DESTACK_GENERATED_END:ENUM:2571 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:2571 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2503 ==== */
 export class StringConstraint extends StructFrozen {
@@ -77,7 +79,8 @@ export class StringConstraint extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-} /* ==== DESTACK_GENERATED_END:STRUCT:2503 ==== */
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:2503 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2502 ==== */
 export class NumberConstraint extends StructFrozen {
@@ -127,7 +130,8 @@ export class NumberConstraint extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-} /* ==== DESTACK_GENERATED_END:STRUCT:2502 ==== */
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:2502 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2504 ==== */
 export class CollectionConstraint extends StructFrozen {
@@ -165,7 +169,8 @@ export class CollectionConstraint extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-} /* ==== DESTACK_GENERATED_END:STRUCT:2504 ==== */
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:2504 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2505 ==== */
 export class NodeConstraint extends StructFrozen {
@@ -203,7 +208,8 @@ export class NodeConstraint extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-} /* ==== DESTACK_GENERATED_END:STRUCT:2505 ==== */
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:2505 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2501 ==== */
 export class Type extends StructFrozen {
@@ -215,7 +221,7 @@ export class Type extends StructFrozen {
   readonly primitiveType: PrimitiveType | null;
   readonly enumType: EnumType | null;
   readonly nodeType: NodeType | null;
-  get nodeDefinition(): CustomEntityDefinition | null {
+  get nodeDefinition(): CustomEntityDefinition | null | null {
     const nodePtr: NodeReference | null = this.nodeDefinitionPtr;
     if (nodePtr !== null) {
       if (this._supergraph === null) {
@@ -227,7 +233,7 @@ export class Type extends StructFrozen {
   }
   readonly nodeDefinitionPtr: NodeReference | null;
   readonly structType: StructType | null;
-  get baseType(): Node | null {
+  get baseType(): Node | null | null {
     const nodePtr: NodeReference | null = this.baseTypePtr;
     if (nodePtr !== null) {
       if (this._supergraph === null) {
@@ -316,4 +322,5 @@ export class Type extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-} /* ==== DESTACK_GENERATED_END:STRUCT:2501 ==== */
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:2501 ==== */

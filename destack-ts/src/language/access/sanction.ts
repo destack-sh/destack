@@ -34,13 +34,15 @@ export enum SanctionEventType {
   GRANTED = 2,
   REVOKED = 3,
   EXPIRED = 4,
-} /* ==== DESTACK_GENERATED_END:ENUM:541 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:541 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:540 ==== */
 export enum SanctionType {
   BAN = 1,
   MUTE = 2,
-} /* ==== DESTACK_GENERATED_END:ENUM:540 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:540 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:541 ==== */
 export class SanctionEvent extends Node implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked {
@@ -218,7 +220,8 @@ export class SanctionEvent extends Node implements Spatial, Particle, Analytic, 
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:541 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:541 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:540 ==== */
 export class Sanction extends Node implements Spatial, Entity, IsTracked, IsDeletable {
@@ -425,4 +428,5 @@ export class Sanction extends Node implements Spatial, Entity, IsTracked, IsDele
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:540 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:540 ==== */

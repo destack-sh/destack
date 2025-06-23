@@ -181,4 +181,5 @@ export class Environment extends Node implements Spatial, Entity, IsTracked, IsD
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:4500 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:4500 ==== */

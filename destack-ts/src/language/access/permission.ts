@@ -27,7 +27,8 @@ import { Temporal } from "temporal-polyfill";
 /* ==== DESTACK_GENERATED_START:ENUM:530 ==== */
 export enum PermissionType {
   GENERAL = 1,
-} /* ==== DESTACK_GENERATED_END:ENUM:530 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:530 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:530 ==== */
 export class Permission extends Node implements Spatial, Entity, IsTracked, IsDeletable {
@@ -208,4 +209,5 @@ export class Permission extends Node implements Spatial, Entity, IsTracked, IsDe
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:530 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:530 ==== */

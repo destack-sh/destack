@@ -213,7 +213,8 @@ export class Snapshot extends Node implements Spatial, Entity, IsTracked, IsDele
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:1500 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:1500 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:1510 ==== */
 export class Branch extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOwnable {
@@ -428,4 +429,5 @@ export class Branch extends Node implements Spatial, Entity, IsTracked, IsDeleta
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:1510 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:1510 ==== */

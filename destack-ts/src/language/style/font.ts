@@ -50,7 +50,8 @@ export enum FontType {
   SERIF = 10,
   SANS = 11,
   MONO = 12,
-} /* ==== DESTACK_GENERATED_END:ENUM:12026 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:12026 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12024 ==== */
 export enum FontWeight {
@@ -63,7 +64,8 @@ export enum FontWeight {
   BOLD = 700,
   EXTRA_BOLD = 800,
   BLACK = 900,
-} /* ==== DESTACK_GENERATED_END:ENUM:12024 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:12024 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12025 ==== */
 export enum FontSize {
@@ -78,7 +80,8 @@ export enum FontSize {
   XL5 = 48,
   XL6 = 60,
   XL7 = 72,
-} /* ==== DESTACK_GENERATED_END:ENUM:12025 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:12025 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12027 ==== */
 export enum TextAlign {
@@ -86,14 +89,16 @@ export enum TextAlign {
   CENTER = 2,
   RIGHT = 3,
   JUSTIFY = 4,
-} /* ==== DESTACK_GENERATED_END:ENUM:12027 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:12027 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12028 ==== */
 export enum TextDecoration {
   NONE = 1,
   UNDERLINE = 2,
   STRIKETHROUGH = 3,
-} /* ==== DESTACK_GENERATED_END:ENUM:12028 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:12028 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12029 ==== */
 export enum TextTransform {
@@ -101,7 +106,8 @@ export enum TextTransform {
   UPPERCASE = 2,
   LOWERCASE = 3,
   CAPITALIZE = 4,
-} /* ==== DESTACK_GENERATED_END:ENUM:12029 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:12029 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12014 ==== */
 export class Font extends Struct {
@@ -109,7 +115,7 @@ export class Font extends Struct {
   static __isFrozen__: boolean = false;
 
   type: FontType;
-  get style(): FontStyle | null {
+  get style(): FontStyle | null | null {
     const nodePtr: NodeReference | null = this.stylePtr;
     if (nodePtr !== null) {
       if (this._supergraph === null) {
@@ -186,7 +192,8 @@ export class Font extends Struct {
   validate(): void {
     throw new Error("not implemented");
   }
-} /* ==== DESTACK_GENERATED_END:STRUCT:12014 ==== */
+}
+/* ==== DESTACK_GENERATED_END:STRUCT:12014 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:12022 ==== */
 export class FontStyle
@@ -492,4 +499,5 @@ export class FontStyle
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:12022 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:12022 ==== */

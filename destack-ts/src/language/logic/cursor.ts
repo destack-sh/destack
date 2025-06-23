@@ -34,7 +34,8 @@ export enum CursorStatus {
   IDLE = 30,
   CANGALAXYED = 50,
   COMPLETED = 53,
-} /* ==== DESTACK_GENERATED_END:ENUM:3100 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:3100 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:3012 ==== */
 export interface Cursor {
@@ -50,7 +51,8 @@ export interface Cursor {
   readonly updatedByPtr: NodeReference | null;
   status: CursorStatus;
   activeAt: Temporal.ZonedDateTime | null;
-} /* ==== DESTACK_GENERATED_END:TRAIT:3012 ==== */
+}
+/* ==== DESTACK_GENERATED_END:TRAIT:3012 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:3100 ==== */
 export class EventCursor extends Node implements Spatial, Entity, IsTracked, IsOwnable, Cursor {
@@ -239,7 +241,8 @@ export class EventCursor extends Node implements Spatial, Entity, IsTracked, IsO
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:3100 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:3100 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:3101 ==== */
 export class ScreenCursor extends Node implements Spatial, Entity, IsTracked, IsOwnable, Cursor {
@@ -431,7 +434,8 @@ export class ScreenCursor extends Node implements Spatial, Entity, IsTracked, Is
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:3101 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:3101 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:3102 ==== */
 export class ThreadCursor extends Node implements Spatial, Entity, IsTracked, IsOwnable, Cursor {
@@ -620,4 +624,5 @@ export class ThreadCursor extends Node implements Spatial, Entity, IsTracked, Is
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:3102 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:3102 ==== */

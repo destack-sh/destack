@@ -4,7 +4,8 @@ export enum ModelDeveloper {
   ANTHROPIC = 1020,
   GOOGLE = 1030,
   XAI = 1060,
-} /* ==== DESTACK_GENERATED_END:ENUM:8000 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:8000 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:8001 ==== */
 export enum ModelProvider {
@@ -13,4 +14,5 @@ export enum ModelProvider {
   ANTHROPIC = 1020,
   GOOGLE = 1030,
   XAI = 1040,
-} /* ==== DESTACK_GENERATED_END:ENUM:8001 ==== */
+}
+/* ==== DESTACK_GENERATED_END:ENUM:8001 ==== */

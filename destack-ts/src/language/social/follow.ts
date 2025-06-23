@@ -205,4 +205,5 @@ export class Follow extends Node implements Global, Spatial, Entity, IsTracked, 
     }
     return pathParts.reverse().join("/");
   }
-} /* ==== DESTACK_GENERATED_END:NODE:5530 ==== */
+}
+/* ==== DESTACK_GENERATED_END:NODE:5530 ==== */
