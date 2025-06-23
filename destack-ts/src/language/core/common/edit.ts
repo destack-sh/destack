@@ -13,6 +13,7 @@ import {
   Value,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
+import { v4 as uuid4 } from "uuid";
 
 /* ==== DESTACK_GENERATED_START:ENUM:50050 ==== */
 export enum EditType {
@@ -104,25 +105,45 @@ export class Edit extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.id = options.id;
-    this.type = options.type;
-    this.operation = options.operation ?? null;
-    this.nodePtr =
-      options.node != null
-        ? options.node.metatype == StructType.NODE_REFERENCE
-          ? (options.node as NodeReference)
-          : (options.node as Node).toRef()
-        : null;
-    this.propPtr = options.propPtr ?? null;
-    this.fieldPtr =
-      options.field != null
-        ? options.field.metatype == StructType.NODE_REFERENCE
-          ? (options.field as NodeReference)
-          : (options.field as Node).toRef()
-        : null;
-    this.key = options.key ?? null;
-    this.value = options.value ?? null;
-    this.undo = options.undo ?? null;
+    // properties
+    let _id = options.id ?? null;
+    if (_id === null) {
+      _id = uuid4();
+    }
+    if (_id === null) {
+      throw new Error(`Edit.id is required`);
+    }
+    this.id = _id;
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`Edit.type is required`);
+    }
+    this.type = _type;
+    let _operation = options.operation ?? null;
+    this.operation = _operation;
+    let _node = options.node;
+    if (_node != null && _node instanceof Node) {
+      _node = _node.toRef();
+    }
+    if (_node === null) {
+      throw new Error(`Edit.node is required`);
+    }
+    this.nodePtr = _node;
+    let _propPtr = options.propPtr ?? null;
+    this.propPtr = _propPtr;
+    let _field = options.field ?? null;
+    if (_field != null && _field instanceof Node) {
+      _field = _field.toRef();
+    }
+    this.fieldPtr = _field;
+    let _key = options.key ?? null;
+    this.key = _key;
+    let _value = options.value ?? null;
+    this.value = _value;
+    let _undo = options.undo ?? null;
+    this.undo = _undo;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -180,18 +201,41 @@ export class Change extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.id = options.id;
-    this.name = options.name ?? null;
-    this.createdAt = options.createdAt;
-    this.createdByPtr =
-      options.createdBy != null
-        ? options.createdBy.metatype == StructType.NODE_REFERENCE
-          ? (options.createdBy as NodeReference)
-          : (options.createdBy as Node).toRef()
-        : null;
-    this.origin = options.origin ?? null;
-    this.debounce = options.debounce ?? null;
-    this.edits = options.edits ?? [];
+    // properties
+    let _id = options.id ?? null;
+    if (_id === null) {
+      _id = uuid4();
+    }
+    if (_id === null) {
+      throw new Error(`Change.id is required`);
+    }
+    this.id = _id;
+    let _name = options.name ?? null;
+    this.name = _name;
+    let _createdAt = options.createdAt ?? null;
+    if (_createdAt === null) {
+      _createdAt = Temporal.Now.zonedDateTimeISO();
+    }
+    if (_createdAt === null) {
+      throw new Error(`Change.createdAt is required`);
+    }
+    this.createdAt = _createdAt;
+    let _createdBy = options.createdBy ?? null;
+    if (_createdBy != null && _createdBy instanceof Node) {
+      _createdBy = _createdBy.toRef();
+    }
+    this.createdByPtr = _createdBy;
+    let _origin = options.origin ?? null;
+    this.origin = _origin;
+    let _debounce = options.debounce ?? null;
+    this.debounce = _debounce;
+    let _edits = options.edits ?? null;
+    if (_edits === null) {
+      throw new Error(`Change.edits is required`);
+    }
+    this.edits = _edits;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -237,12 +281,42 @@ export class ChangeResult extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.id = options.id;
-    this.createdAt = options.createdAt;
-    this.debounce = options.debounce ?? null;
-    this.status = options.status;
-    this.edits = options.edits ?? [];
-    this.cascadedEdits = options.cascadedEdits ?? [];
+    // properties
+    let _id = options.id ?? null;
+    if (_id === null) {
+      _id = uuid4();
+    }
+    if (_id === null) {
+      throw new Error(`ChangeResult.id is required`);
+    }
+    this.id = _id;
+    let _createdAt = options.createdAt ?? null;
+    if (_createdAt === null) {
+      _createdAt = Temporal.Now.zonedDateTimeISO();
+    }
+    if (_createdAt === null) {
+      throw new Error(`ChangeResult.createdAt is required`);
+    }
+    this.createdAt = _createdAt;
+    let _debounce = options.debounce ?? null;
+    this.debounce = _debounce;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`ChangeResult.status is required`);
+    }
+    this.status = _status;
+    let _edits = options.edits ?? null;
+    if (_edits === null) {
+      throw new Error(`ChangeResult.edits is required`);
+    }
+    this.edits = _edits;
+    let _cascadedEdits = options.cascadedEdits ?? null;
+    if (_cascadedEdits === null) {
+      throw new Error(`ChangeResult.cascadedEdits is required`);
+    }
+    this.cascadedEdits = _cascadedEdits;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {

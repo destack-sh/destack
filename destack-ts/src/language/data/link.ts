@@ -36,7 +36,6 @@ export class Link extends Node implements Spatial, Entity, Resource, IsTracked {
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
@@ -90,13 +89,13 @@ export class Link extends Node implements Spatial, Entity, Resource, IsTracked {
   imageUrls: Array<string>;
 
   constructor(options: {
-    id: string;
+    id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
-    createdAt: Temporal.ZonedDateTime;
+    createdAt?: Temporal.ZonedDateTime;
     createdBy?: Agent | User | NodeReference | null;
-    updatedAt: Temporal.ZonedDateTime;
+    updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: Agent | User | NodeReference | null;
     type: LinkType;
     status?: ResourceStatus;
@@ -121,7 +120,7 @@ export class Link extends Node implements Spatial, Entity, Resource, IsTracked {
   }) {
     super(
       // id
-      options.id,
+      options.id ?? null,
       // parent
       options.parent != null
         ? options.parent.metatype == StructType.NODE_REFERENCE
@@ -139,53 +138,98 @@ export class Link extends Node implements Spatial, Entity, Resource, IsTracked {
       // is_new
       options.id == null,
       // is_attached
-      options.id != null,
+      options.id != null || options._graph != null,
     );
 
-    this.id = options.id;
-    this.parentPtr =
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null;
-    this.spacePtr =
-      options.space != null
-        ? options.space.metatype == StructType.NODE_REFERENCE
-          ? (options.space as NodeReference)
-          : (options.space as Node).toRef()
-        : null;
-    this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
-    this.createdAt = options.createdAt;
-    this.createdByPtr =
-      options.createdBy != null
-        ? options.createdBy.metatype == StructType.NODE_REFERENCE
-          ? (options.createdBy as NodeReference)
-          : (options.createdBy as Node).toRef()
-        : null;
-    this.updatedAt = options.updatedAt;
-    this.updatedByPtr =
-      options.updatedBy != null
-        ? options.updatedBy.metatype == StructType.NODE_REFERENCE
-          ? (options.updatedBy as NodeReference)
-          : (options.updatedBy as Node).toRef()
-        : null;
-    this.type = options.type;
-    this.status = options.status ?? ResourceStatus.PENDING;
-    this.targetStatus = options.targetStatus ?? null;
-    this.url = options.url ?? null;
-    this.domain = options.domain ?? null;
-    this.contentUrl = options.contentUrl ?? null;
-    this.thumbnailUrl = options.thumbnailUrl ?? null;
-    this.faviconUrl = options.faviconUrl ?? null;
-    this.thumbnailWidth = options.thumbnailWidth ?? null;
-    this.thumbnailHeight = options.thumbnailHeight ?? null;
-    this.content = options.content ?? null;
-    this.attribution = options.attribution ?? null;
-    this.attributionTag = options.attributionTag ?? null;
-    this.publishedAt = options.publishedAt ?? null;
-    this.expiresAt = options.expiresAt ?? null;
-    this.imageUrls = options.imageUrls ?? [];
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space instanceof Node) {
+      _space = _space.toRef();
+    }
+    this.spacePtr = _space;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = MaterializationType.FULL_GRAPH;
+    }
+    if (_materialization === null) {
+      throw new Error(`Link.materialization is required`);
+    }
+    this.materialization = _materialization;
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`Link.type is required`);
+    }
+    this.type = _type;
+    let _status = options.status ?? null;
+    if (_status === null) {
+      _status = ResourceStatus.PENDING;
+    }
+    if (_status === null) {
+      throw new Error(`Link.status is required`);
+    }
+    this.status = _status;
+    let _targetStatus = options.targetStatus ?? null;
+    this.targetStatus = _targetStatus;
+    let _url = options.url ?? null;
+    this.url = _url;
+    let _domain = options.domain ?? null;
+    this.domain = _domain;
+    let _contentUrl = options.contentUrl ?? null;
+    this.contentUrl = _contentUrl;
+    let _thumbnailUrl = options.thumbnailUrl ?? null;
+    this.thumbnailUrl = _thumbnailUrl;
+    let _faviconUrl = options.faviconUrl ?? null;
+    this.faviconUrl = _faviconUrl;
+    let _thumbnailWidth = options.thumbnailWidth ?? null;
+    this.thumbnailWidth = _thumbnailWidth;
+    let _thumbnailHeight = options.thumbnailHeight ?? null;
+    this.thumbnailHeight = _thumbnailHeight;
+    let _content = options.content ?? null;
+    this.content = _content;
+    let _attribution = options.attribution ?? null;
+    this.attribution = _attribution;
+    let _attributionTag = options.attributionTag ?? null;
+    this.attributionTag = _attributionTag;
+    let _publishedAt = options.publishedAt ?? null;
+    this.publishedAt = _publishedAt;
+    let _expiresAt = options.expiresAt ?? null;
+    this.expiresAt = _expiresAt;
+    let _imageUrls = options.imageUrls ?? null;
+    if (_imageUrls === null) {
+      throw new Error(`Link.imageUrls is required`);
+    }
+    this.imageUrls = _imageUrls;
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO();
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
   }
 
   equals(other: any): boolean {

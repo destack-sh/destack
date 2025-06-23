@@ -76,7 +76,6 @@ export class Service
     NodeType.SCRIPT,
   ];
 
-  readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
@@ -158,13 +157,13 @@ export class Service
   readonly sourcePtr: NodeReference | null;
 
   constructor(options: {
-    id: string;
+    id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
-    createdAt: Temporal.ZonedDateTime;
+    createdAt?: Temporal.ZonedDateTime;
     createdBy?: Agent | User | NodeReference | null;
-    updatedAt: Temporal.ZonedDateTime;
+    updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: Agent | User | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     value?: Map<string, Value>;
@@ -180,7 +179,7 @@ export class Service
   }) {
     super(
       // id
-      options.id,
+      options.id ?? null,
       // parent
       options.parent != null
         ? options.parent.metatype == StructType.NODE_REFERENCE
@@ -198,59 +197,89 @@ export class Service
       // is_new
       options.id == null,
       // is_attached
-      options.id != null,
+      options.id != null || options._graph != null,
     );
 
-    this.id = options.id;
-    this.parentPtr =
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null;
-    this.spacePtr =
-      options.space != null
-        ? options.space.metatype == StructType.NODE_REFERENCE
-          ? (options.space as NodeReference)
-          : (options.space as Node).toRef()
-        : null;
-    this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
-    this.createdAt = options.createdAt;
-    this.createdByPtr =
-      options.createdBy != null
-        ? options.createdBy.metatype == StructType.NODE_REFERENCE
-          ? (options.createdBy as NodeReference)
-          : (options.createdBy as Node).toRef()
-        : null;
-    this.updatedAt = options.updatedAt;
-    this.updatedByPtr =
-      options.updatedBy != null
-        ? options.updatedBy.metatype == StructType.NODE_REFERENCE
-          ? (options.updatedBy as NodeReference)
-          : (options.updatedBy as Node).toRef()
-        : null;
-    this.deletedAt = options.deletedAt ?? null;
-    this.value = options.value ?? new Map();
-    this.orderKey = options.orderKey ?? "a0";
-    this.ownedByPtr =
-      options.ownedBy != null
-        ? options.ownedBy.metatype == StructType.NODE_REFERENCE
-          ? (options.ownedBy as NodeReference)
-          : (options.ownedBy as Node).toRef()
-        : null;
-    this.name = options.name;
-    this.scriptPtr =
-      options.script != null
-        ? options.script.metatype == StructType.NODE_REFERENCE
-          ? (options.script as NodeReference)
-          : (options.script as Node).toRef()
-        : null;
-    this.sourcePtr =
-      options.source != null
-        ? options.source.metatype == StructType.NODE_REFERENCE
-          ? (options.source as NodeReference)
-          : (options.source as Node).toRef()
-        : null;
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space instanceof Node) {
+      _space = _space.toRef();
+    }
+    this.spacePtr = _space;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = MaterializationType.FULL_GRAPH;
+    }
+    if (_materialization === null) {
+      throw new Error(`Service.materialization is required`);
+    }
+    this.materialization = _materialization;
+    let _deletedAt = options.deletedAt ?? null;
+    this.deletedAt = _deletedAt;
+    let _value = options.value ?? null;
+    if (_value === null) {
+      throw new Error(`Service.value is required`);
+    }
+    this.value = _value;
+    let _orderKey = options.orderKey ?? null;
+    if (_orderKey === null) {
+      _orderKey = "a0";
+    }
+    if (_orderKey === null) {
+      throw new Error(`Service.orderKey is required`);
+    }
+    this.orderKey = _orderKey;
+    let _ownedBy = options.ownedBy ?? null;
+    if (_ownedBy != null && _ownedBy instanceof Node) {
+      _ownedBy = _ownedBy.toRef();
+    }
+    this.ownedByPtr = _ownedBy;
+    let _name = options.name;
+    if (_name === null) {
+      throw new Error(`Service.name is required`);
+    }
+    this.name = _name;
+    let _script = options.script ?? null;
+    if (_script != null && _script instanceof Node) {
+      _script = _script.toRef();
+    }
+    this.scriptPtr = _script;
+    let _source = options.source ?? null;
+    if (_source != null && _source instanceof Node) {
+      _source = _source.toRef();
+    }
+    this.sourcePtr = _source;
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO();
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
   }
 
   equals(other: any): boolean {

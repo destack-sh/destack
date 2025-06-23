@@ -56,20 +56,36 @@ export class TextSpan extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.type = options.type ?? TextSpanType.TEXT;
-    this.content = options.content ?? null;
-    this.nodePtr =
-      options.node != null
-        ? options.node.metatype == StructType.NODE_REFERENCE
-          ? (options.node as NodeReference)
-          : (options.node as Node).toRef()
-        : null;
-    this.url = options.url ?? null;
-    this.isBold = options.isBold ?? null;
-    this.isItalic = options.isItalic ?? null;
-    this.isStrikethrough = options.isStrikethrough ?? null;
-    this.isUnderline = options.isUnderline ?? null;
-    this.isCode = options.isCode ?? null;
+    // properties
+    let _type = options.type ?? null;
+    if (_type === null) {
+      _type = TextSpanType.TEXT;
+    }
+    if (_type === null) {
+      throw new Error(`TextSpan.type is required`);
+    }
+    this.type = _type;
+    let _content = options.content ?? null;
+    this.content = _content;
+    let _node = options.node ?? null;
+    if (_node != null && _node instanceof Node) {
+      _node = _node.toRef();
+    }
+    this.nodePtr = _node;
+    let _url = options.url ?? null;
+    this.url = _url;
+    let _isBold = options.isBold ?? null;
+    this.isBold = _isBold;
+    let _isItalic = options.isItalic ?? null;
+    this.isItalic = _isItalic;
+    let _isStrikethrough = options.isStrikethrough ?? null;
+    this.isStrikethrough = _isStrikethrough;
+    let _isUnderline = options.isUnderline ?? null;
+    this.isUnderline = _isUnderline;
+    let _isCode = options.isCode ?? null;
+    this.isCode = _isCode;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -115,12 +131,24 @@ export class Text extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.spans = options.spans ?? [];
-    this.isBold = options.isBold ?? null;
-    this.isItalic = options.isItalic ?? null;
-    this.isStrikethrough = options.isStrikethrough ?? null;
-    this.isUnderline = options.isUnderline ?? null;
-    this.isCode = options.isCode ?? null;
+    // properties
+    let _spans = options.spans ?? null;
+    if (_spans === null) {
+      throw new Error(`Text.spans is required`);
+    }
+    this.spans = _spans;
+    let _isBold = options.isBold ?? null;
+    this.isBold = _isBold;
+    let _isItalic = options.isItalic ?? null;
+    this.isItalic = _isItalic;
+    let _isStrikethrough = options.isStrikethrough ?? null;
+    this.isStrikethrough = _isStrikethrough;
+    let _isUnderline = options.isUnderline ?? null;
+    this.isUnderline = _isUnderline;
+    let _isCode = options.isCode ?? null;
+    this.isCode = _isCode;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {

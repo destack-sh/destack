@@ -73,7 +73,6 @@ export class Variant extends Node implements Spatial, Entity, IsTracked, IsDelet
   ];
   static __descendantTypes__: NodeType[] = [];
 
-  readonly id: string;
   get parent(): Scene | Layer | CustomViewDefinition | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
@@ -136,13 +135,13 @@ export class Variant extends Node implements Spatial, Entity, IsTracked, IsDelet
   minHeight: Length | null;
 
   constructor(options: {
-    id: string;
+    id?: string;
     parent?: Scene | Layer | CustomViewDefinition | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
-    createdAt: Temporal.ZonedDateTime;
+    createdAt?: Temporal.ZonedDateTime;
     createdBy?: Agent | User | NodeReference | null;
-    updatedAt: Temporal.ZonedDateTime;
+    updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: Agent | User | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null;
@@ -161,7 +160,7 @@ export class Variant extends Node implements Spatial, Entity, IsTracked, IsDelet
   }) {
     super(
       // id
-      options.id,
+      options.id ?? null,
       // parent
       options.parent != null
         ? options.parent.metatype == StructType.NODE_REFERENCE
@@ -179,52 +178,83 @@ export class Variant extends Node implements Spatial, Entity, IsTracked, IsDelet
       // is_new
       options.id == null,
       // is_attached
-      options.id != null,
+      options.id != null || options._graph != null,
     );
 
-    this.id = options.id;
-    this.parentPtr =
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null;
-    this.spacePtr =
-      options.space != null
-        ? options.space.metatype == StructType.NODE_REFERENCE
-          ? (options.space as NodeReference)
-          : (options.space as Node).toRef()
-        : null;
-    this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
-    this.createdAt = options.createdAt;
-    this.createdByPtr =
-      options.createdBy != null
-        ? options.createdBy.metatype == StructType.NODE_REFERENCE
-          ? (options.createdBy as NodeReference)
-          : (options.createdBy as Node).toRef()
-        : null;
-    this.updatedAt = options.updatedAt;
-    this.updatedByPtr =
-      options.updatedBy != null
-        ? options.updatedBy.metatype == StructType.NODE_REFERENCE
-          ? (options.updatedBy as NodeReference)
-          : (options.updatedBy as Node).toRef()
-        : null;
-    this.deletedAt = options.deletedAt ?? null;
-    this.ownedByPtr =
-      options.ownedBy != null
-        ? options.ownedBy.metatype == StructType.NODE_REFERENCE
-          ? (options.ownedBy as NodeReference)
-          : (options.ownedBy as Node).toRef()
-        : null;
-    this.type = options.type;
-    this.name = options.name;
-    this.slug = options.slug ?? null;
-    this.icon = options.icon ?? null;
-    this.maxWidth = options.maxWidth ?? null;
-    this.maxHeight = options.maxHeight ?? null;
-    this.minWidth = options.minWidth ?? null;
-    this.minHeight = options.minHeight ?? null;
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space instanceof Node) {
+      _space = _space.toRef();
+    }
+    this.spacePtr = _space;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = MaterializationType.FULL_GRAPH;
+    }
+    if (_materialization === null) {
+      throw new Error(`Variant.materialization is required`);
+    }
+    this.materialization = _materialization;
+    let _deletedAt = options.deletedAt ?? null;
+    this.deletedAt = _deletedAt;
+    let _ownedBy = options.ownedBy ?? null;
+    if (_ownedBy != null && _ownedBy instanceof Node) {
+      _ownedBy = _ownedBy.toRef();
+    }
+    this.ownedByPtr = _ownedBy;
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`Variant.type is required`);
+    }
+    this.type = _type;
+    let _name = options.name;
+    if (_name === null) {
+      throw new Error(`Variant.name is required`);
+    }
+    this.name = _name;
+    let _slug = options.slug ?? null;
+    this.slug = _slug;
+    let _icon = options.icon ?? null;
+    this.icon = _icon;
+    let _maxWidth = options.maxWidth ?? null;
+    this.maxWidth = _maxWidth;
+    let _maxHeight = options.maxHeight ?? null;
+    this.maxHeight = _maxHeight;
+    let _minWidth = options.minWidth ?? null;
+    this.minWidth = _minWidth;
+    let _minHeight = options.minHeight ?? null;
+    this.minHeight = _minHeight;
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO();
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
   }
 
   equals(other: any): boolean {

@@ -15,12 +15,14 @@ import {
   QueryType,
   RelationReference,
   Session,
+  SingletonGraph,
   Sort,
   Supergraph,
   TraitType,
 } from "@/language";
 import { NodeTypeMapping, TraitTypeMapping } from "@/language/registry";
 import { Casing, toCasing } from "@/utils/string";
+import { v4 as uuid4 } from "uuid";
 import { BuiltinObject } from "./object";
 
 /** A Node is a collection of properties with an identity. */
@@ -55,7 +57,7 @@ export abstract class Node extends BuiltinObject {
   _dirty: Record<string, any> | null;
 
   constructor(
-    id: string,
+    id: string | null,
     parentPtr: NodeReference | null,
     _session: Session | null,
     _supergraph: Supergraph | null,
@@ -65,10 +67,15 @@ export abstract class Node extends BuiltinObject {
     _isAttached: boolean,
   ) {
     super(_supergraph);
-    this.id = id;
+    this.id = id ?? uuid4();
     this.parentPtr = parentPtr;
     this._session = _session ?? activeSession();
     this._supergraph = _supergraph ?? this._session.supergraph;
+    if (_graph == null) {
+      _graph = new SingletonGraph(this._supergraph, this);
+    } else {
+      _graph.add(this);
+    }
     this._graph = _graph;
     this._connection = _connection;
     this._hash = this.id;

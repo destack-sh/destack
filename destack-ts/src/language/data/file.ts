@@ -159,7 +159,6 @@ export class File extends Node implements Global, Spatial, Entity, Resource, IsT
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
@@ -218,13 +217,13 @@ export class File extends Node implements Global, Spatial, Entity, Resource, IsT
   content: Uint8Array | null;
 
   constructor(options: {
-    id: string;
+    id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
-    createdAt: Temporal.ZonedDateTime;
+    createdAt?: Temporal.ZonedDateTime;
     createdBy?: Agent | User | NodeReference | null;
-    updatedAt: Temporal.ZonedDateTime;
+    updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: Agent | User | NodeReference | null;
     type: FileType;
     name: string;
@@ -254,7 +253,7 @@ export class File extends Node implements Global, Spatial, Entity, Resource, IsT
   }) {
     super(
       // id
-      options.id,
+      options.id ?? null,
       // parent
       options.parent != null
         ? options.parent.metatype == StructType.NODE_REFERENCE
@@ -272,58 +271,111 @@ export class File extends Node implements Global, Spatial, Entity, Resource, IsT
       // is_new
       options.id == null,
       // is_attached
-      options.id != null,
+      options.id != null || options._graph != null,
     );
 
-    this.id = options.id;
-    this.parentPtr =
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null;
-    this.spacePtr =
-      options.space != null
-        ? options.space.metatype == StructType.NODE_REFERENCE
-          ? (options.space as NodeReference)
-          : (options.space as Node).toRef()
-        : null;
-    this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
-    this.createdAt = options.createdAt;
-    this.createdByPtr =
-      options.createdBy != null
-        ? options.createdBy.metatype == StructType.NODE_REFERENCE
-          ? (options.createdBy as NodeReference)
-          : (options.createdBy as Node).toRef()
-        : null;
-    this.updatedAt = options.updatedAt;
-    this.updatedByPtr =
-      options.updatedBy != null
-        ? options.updatedBy.metatype == StructType.NODE_REFERENCE
-          ? (options.updatedBy as NodeReference)
-          : (options.updatedBy as Node).toRef()
-        : null;
-    this.type = options.type;
-    this.name = options.name;
-    this.status = options.status ?? ResourceStatus.PENDING;
-    this.targetStatus = options.targetStatus ?? null;
-    this.source = options.source;
-    this.mimeType = options.mimeType ?? null;
-    this.format = options.format ?? null;
-    this.size = options.size ?? null;
-    this.sha256 = options.sha256 ?? null;
-    this.width = options.width ?? null;
-    this.height = options.height ?? null;
-    this.aspectRatio = options.aspectRatio ?? null;
-    this.codec = options.codec ?? null;
-    this.duration = options.duration ?? null;
-    this.url = options.url ?? null;
-    this.contentUrl = options.contentUrl ?? null;
-    this.thumbnailUrl = options.thumbnailUrl ?? null;
-    this.faviconUrl = options.faviconUrl ?? null;
-    this.thumbnailWidth = options.thumbnailWidth ?? null;
-    this.thumbnailHeight = options.thumbnailHeight ?? null;
-    this.content = options.content ?? null;
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space instanceof Node) {
+      _space = _space.toRef();
+    }
+    this.spacePtr = _space;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = MaterializationType.FULL_GRAPH;
+    }
+    if (_materialization === null) {
+      throw new Error(`File.materialization is required`);
+    }
+    this.materialization = _materialization;
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`File.type is required`);
+    }
+    this.type = _type;
+    let _name = options.name;
+    if (_name === null) {
+      throw new Error(`File.name is required`);
+    }
+    this.name = _name;
+    let _status = options.status ?? null;
+    if (_status === null) {
+      _status = ResourceStatus.PENDING;
+    }
+    if (_status === null) {
+      throw new Error(`File.status is required`);
+    }
+    this.status = _status;
+    let _targetStatus = options.targetStatus ?? null;
+    this.targetStatus = _targetStatus;
+    let _source = options.source;
+    if (_source === null) {
+      throw new Error(`File.source is required`);
+    }
+    this.source = _source;
+    let _mimeType = options.mimeType ?? null;
+    this.mimeType = _mimeType;
+    let _format = options.format ?? null;
+    this.format = _format;
+    let _size = options.size ?? null;
+    this.size = _size;
+    let _sha256 = options.sha256 ?? null;
+    this.sha256 = _sha256;
+    let _width = options.width ?? null;
+    this.width = _width;
+    let _height = options.height ?? null;
+    this.height = _height;
+    let _aspectRatio = options.aspectRatio ?? null;
+    this.aspectRatio = _aspectRatio;
+    let _codec = options.codec ?? null;
+    this.codec = _codec;
+    let _duration = options.duration ?? null;
+    this.duration = _duration;
+    let _url = options.url ?? null;
+    this.url = _url;
+    let _contentUrl = options.contentUrl ?? null;
+    this.contentUrl = _contentUrl;
+    let _thumbnailUrl = options.thumbnailUrl ?? null;
+    this.thumbnailUrl = _thumbnailUrl;
+    let _faviconUrl = options.faviconUrl ?? null;
+    this.faviconUrl = _faviconUrl;
+    let _thumbnailWidth = options.thumbnailWidth ?? null;
+    this.thumbnailWidth = _thumbnailWidth;
+    let _thumbnailHeight = options.thumbnailHeight ?? null;
+    this.thumbnailHeight = _thumbnailHeight;
+    let _content = options.content ?? null;
+    this.content = _content;
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO();
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
   }
 
   equals(other: any): boolean {

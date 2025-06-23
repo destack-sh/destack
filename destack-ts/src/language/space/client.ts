@@ -49,10 +49,20 @@ export class Origin extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.type = options.type;
-    this.id = options.id ?? null;
-    this.ck = options.ck ?? null;
-    this.nonce = options.nonce ?? null;
+    // properties
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`Origin.type is required`);
+    }
+    this.type = _type;
+    let _id = options.id ?? null;
+    this.id = _id;
+    let _ck = options.ck ?? null;
+    this.ck = _ck;
+    let _nonce = options.nonce ?? null;
+    this.nonce = _nonce;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -79,7 +89,6 @@ export class Client extends Node implements Global, Entity, IsTracked, IsDeletab
   static __ancestorTypes__: NodeType[] = [NodeType.AGENT, NodeType.FOLDER, NodeType.USER, NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  readonly id: string;
   get parent(): Agent | User | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
@@ -168,12 +177,12 @@ export class Client extends Node implements Global, Entity, IsTracked, IsDeletab
   cursorPtr: NodeReference | null;
 
   constructor(options: {
-    id: string;
+    id?: string;
     parent?: Agent | User | NodeReference | null;
     materialization?: MaterializationType;
-    createdAt: Temporal.ZonedDateTime;
+    createdAt?: Temporal.ZonedDateTime;
     createdBy?: Agent | User | NodeReference | null;
-    updatedAt: Temporal.ZonedDateTime;
+    updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: Agent | User | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     type: ClientType;
@@ -196,7 +205,7 @@ export class Client extends Node implements Global, Entity, IsTracked, IsDeletab
   }) {
     super(
       // id
-      options.id,
+      options.id ?? null,
       // parent
       options.parent != null
         ? options.parent.metatype == StructType.NODE_REFERENCE
@@ -214,60 +223,92 @@ export class Client extends Node implements Global, Entity, IsTracked, IsDeletab
       // is_new
       options.id == null,
       // is_attached
-      options.id != null,
+      options.id != null || options._graph != null,
     );
 
-    this.id = options.id;
-    this.parentPtr =
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null;
-    this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
-    this.createdAt = options.createdAt;
-    this.createdByPtr =
-      options.createdBy != null
-        ? options.createdBy.metatype == StructType.NODE_REFERENCE
-          ? (options.createdBy as NodeReference)
-          : (options.createdBy as Node).toRef()
-        : null;
-    this.updatedAt = options.updatedAt;
-    this.updatedByPtr =
-      options.updatedBy != null
-        ? options.updatedBy.metatype == StructType.NODE_REFERENCE
-          ? (options.updatedBy as NodeReference)
-          : (options.updatedBy as Node).toRef()
-        : null;
-    this.deletedAt = options.deletedAt ?? null;
-    this.type = options.type;
-    this.name = options.name;
-    this.machinePtr =
-      options.machine != null
-        ? options.machine.metatype == StructType.NODE_REFERENCE
-          ? (options.machine as NodeReference)
-          : (options.machine as Node).toRef()
-        : null;
-    this.userPtr =
-      options.user != null
-        ? options.user.metatype == StructType.NODE_REFERENCE
-          ? (options.user as NodeReference)
-          : (options.user as Node).toRef()
-        : null;
-    this.deviceType = options.deviceType ?? null;
-    this.deviceName = options.deviceName ?? null;
-    this.operatingSystem = options.operatingSystem ?? null;
-    this.browserName = options.browserName ?? null;
-    this.browserVersion = options.browserVersion ?? null;
-    this.accessToken = options.accessToken ?? null;
-    this.seenAt = options.seenAt ?? null;
-    this.loggedInAt = options.loggedInAt ?? null;
-    this.cursorPtr =
-      options.cursor != null
-        ? options.cursor.metatype == StructType.NODE_REFERENCE
-          ? (options.cursor as NodeReference)
-          : (options.cursor as Node).toRef()
-        : null;
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = MaterializationType.FULL_GRAPH;
+    }
+    if (_materialization === null) {
+      throw new Error(`Client.materialization is required`);
+    }
+    this.materialization = _materialization;
+    let _deletedAt = options.deletedAt ?? null;
+    this.deletedAt = _deletedAt;
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`Client.type is required`);
+    }
+    this.type = _type;
+    let _name = options.name;
+    if (_name === null) {
+      throw new Error(`Client.name is required`);
+    }
+    this.name = _name;
+    let _machine = options.machine ?? null;
+    if (_machine != null && _machine instanceof Node) {
+      _machine = _machine.toRef();
+    }
+    this.machinePtr = _machine;
+    let _user = options.user ?? null;
+    if (_user != null && _user instanceof Node) {
+      _user = _user.toRef();
+    }
+    this.userPtr = _user;
+    let _deviceType = options.deviceType ?? null;
+    this.deviceType = _deviceType;
+    let _deviceName = options.deviceName ?? null;
+    this.deviceName = _deviceName;
+    let _operatingSystem = options.operatingSystem ?? null;
+    this.operatingSystem = _operatingSystem;
+    let _browserName = options.browserName ?? null;
+    this.browserName = _browserName;
+    let _browserVersion = options.browserVersion ?? null;
+    this.browserVersion = _browserVersion;
+    let _accessToken = options.accessToken ?? null;
+    this.accessToken = _accessToken;
+    let _seenAt = options.seenAt ?? null;
+    this.seenAt = _seenAt;
+    let _loggedInAt = options.loggedInAt ?? null;
+    this.loggedInAt = _loggedInAt;
+    let _cursor = options.cursor ?? null;
+    if (_cursor != null && _cursor instanceof Node) {
+      _cursor = _cursor.toRef();
+    }
+    this.cursorPtr = _cursor;
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO();
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
   }
 
   equals(other: any): boolean {

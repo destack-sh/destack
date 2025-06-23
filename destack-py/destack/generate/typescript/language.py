@@ -10,6 +10,7 @@ from destack.language import (
     NODE_TYPES,
     UNSET,
     BuiltinObjectBase,
+    DefaultFactory,
     Enum,
     EnumDefinition,
     IntoType,
@@ -251,26 +252,31 @@ set {ts_name}(value: {node_type_str}) {{
 def _generate_init(cls: type[BuiltinObjectBase]) -> str:
     """Generate a Typescript constructor with options-style parameters."""
 
-    properties = {p.name: p for p in _get_properties(cls)}
-
-    # constructor header parts
-    constructor_header_parts: list[str] = []
-    constructor_body_parts: list[str] = []
-    constructor_assignment_parts: list[str] = []
-
-    # constructor main properties
-    for prop in properties.values():
-        if prop.is_computed:
-            continue  # computed, can't assign
-
-        ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
-        is_required = (
+    def _is_property_required(prop: Property) -> bool:
+        return (
             prop.is_required
             and prop.default is UNSET
             and prop.default_factory is None
             and prop.cardinality == TypeCardinality.SCALAR
+            and not prop.is_managed
         )
 
+    properties = {p.name: p for p in _get_properties(cls)}
+    header_properties = dict(properties)
+    body_properties = dict(properties)
+    if issubclass(cls, Node):
+        body_properties.pop("id", None)
+        body_properties.pop("created_at", None)
+        body_properties.pop("created_by", None)
+        body_properties.pop("updated_at", None)
+        body_properties.pop("updated_by", None)
+
+    # header
+    header_parts: list[str] = []
+    for prop in header_properties.values():
+        if prop.is_computed:
+            continue  # computed, can't assign
+        ts_name_in = to_casing(prop.name, Casing.LOWER_CAMEL)
         if prop.scalar_type == ScalarType.NODE_REFERENCE:
             # can be passed either as Node or NodeReference
             node_type_str = _generate_property_scalar_type(prop, as_ptr=False)
@@ -278,46 +284,25 @@ def _generate_init(cls: type[BuiltinObjectBase]) -> str:
             type_str = f"{node_type_str} | {ptr_type_str}"
             if prop.is_optional:
                 type_str = f"{type_str} | null"
-
-            # use ptr_prop for assignment
-            if prop.ptr_prop is not None:
-                ptr_prop_name = to_casing(prop.ptr_prop.name, Casing.LOWER_CAMEL)
-                constructor_assignment_parts.append(
-                    f"this.{ptr_prop_name} = options.{ts_name} != null ? (options.{ts_name}.metatype == StructType.NODE_REFERENCE ? (options.{ts_name} as NodeReference) : (options.{ts_name} as Node).toRef()) : null;"
-                )
         else:
             # can be passed as value
             type_str = _generate_property_type(prop)
-            if prop.default is not UNSET and prop.default is not None:
-                constructor_assignment_parts.append(
-                    f"this.{ts_name} = options.{ts_name} ?? {_generate_value(prop, prop.default)};"
-                )
-            elif prop.default_factory is not None:
-                constructor_assignment_parts.append(
-                    f"this.{ts_name} = options.{ts_name};"
-                )  # nocheckin: Typescript default factory
-            elif prop.cardinality == TypeCardinality.LIST:
-                constructor_assignment_parts.append(f"this.{ts_name} = options.{ts_name} ?? [];")
-            elif prop.cardinality == TypeCardinality.MAP:
-                constructor_assignment_parts.append(
-                    f"this.{ts_name} = options.{ts_name} ?? new Map();"
-                )
-            elif not is_required:
-                constructor_assignment_parts.append(f"this.{ts_name} = options.{ts_name} ?? null;")
-            else:
-                constructor_assignment_parts.append(f"this.{ts_name} = options.{ts_name};")
-
-        if is_required:
-            constructor_header_parts.append(f"{ts_name}: {type_str}")
+        if _is_property_required(prop):
+            header_parts.append(f"{ts_name_in}: {type_str}")
         else:
-            constructor_header_parts.append(f"{ts_name}?: {type_str}")
-
-    # constructor super call
+            header_parts.append(f"{ts_name_in}?: {type_str}")
+    header_parts.extend(("_session?: Session | null", "_supergraph?: Supergraph | null"))
     if issubclass(cls, Node):
-        constructor_body_parts.append("""\
+        header_parts.extend(("_graph?: Graph | null", "_connection?: QueryConnection | null"))
+    header_str = ",\n".join(header_parts)
+
+    # super
+    if issubclass(cls, Node):
+        is_root_node = cls.__root_type__ is None
+        super_str = f"""\
 super(
     // id
-    options.id,
+    options.id ?? null,
     // parent
     options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null,
     // session
@@ -331,39 +316,130 @@ super(
     // is_new
     options.id == null,
     // is_attached
-    options.id != null,
+    {"options.id != null || options._graph != null" if not is_root_node else "true"},
 );
-""")
+"""
     else:
-        constructor_body_parts.append("""\
+        super_str = """\
 super(
     // session
     options._session ?? null,
     // supergraph
     options._supergraph ?? null,
 );
-""")
+"""
 
-    constructor_header_parts.append("_session?: Session | null")
-    constructor_header_parts.append("_supergraph?: Supergraph | null")
+    # body
+    body_parts: list[str] = []
+    body_properties_in_order = list(body_properties.values())
+    body_properties_in_order.sort(key=lambda p: (p.id is None, p.id, p.name))
+    for prop in body_properties_in_order:
+        if prop.is_computed:
+            continue  # computed, can't assign
+        ts_name_in = to_casing(prop.name, Casing.LOWER_CAMEL)
+        ts_name_self = ts_name_in
+        if prop.ptr_prop is not None:
+            ts_name_self = ts_name_in + "Ptr"
+
+        if _is_property_required(prop):
+            body_parts.append(f"let _{ts_name_in} = options.{ts_name_in};")
+        else:
+            body_parts.append(f"let _{ts_name_in} = options.{ts_name_in} ?? null;")
+
+        # convert node to node reference
+        if prop.scalar_type == ScalarType.NODE_REFERENCE:
+            body_parts.append(f"""\
+if (_{ts_name_in} != null && _{ts_name_in} instanceof Node) {{
+    _{ts_name_in} = _{ts_name_in}.toRef();
+}}""")
+        # init default
+        if prop.default is not UNSET:
+            default_str: str | None = None
+            if isinstance(prop.default, Enum):
+                default_str = f"{prop.default.__class__.__name__}.{prop.default.name}"
+            elif prop.default is None:
+                default_str = None
+            elif isinstance(prop.default, bool):
+                default_str = "true" if prop.default else "false"
+            elif isinstance(prop.default, (int, float, str, bytes)):
+                default_str = repr(prop.default)
+            else:
+                raise ValueError(
+                    f"unsupported default for {prop!r}: {prop.default!r} ({type(prop.default)})"
+                )
+
+            if default_str is not None:
+                body_parts.append(f"""\
+if (_{ts_name_in} === null) {{
+    _{ts_name_in} = {default_str};
+}}""")
+
+        # init default factory
+        if prop.default_factory is not None:
+            if prop.default_factory == DefaultFactory.UUID:
+                body_parts.append(f"""\
+if (_{ts_name_in} === null) {{
+    _{ts_name_in} = uuid4();
+}}""")
+            elif prop.default_factory == DefaultFactory.NOW:
+                body_parts.append(f"""\
+if (_{ts_name_in} === null) {{
+    _{ts_name_in} = Temporal.Now.zonedDateTimeISO();
+}}""")
+            else:
+                raise ValueError(
+                    f"unsupported default factory for {prop!r}: {prop.default_factory!r}"
+                )
+
+        # raise on missing value
+        if prop.is_required:
+            body_parts.append(f"""\
+if (_{ts_name_in} === null) {{
+    throw new Error(`{cls.__name__}.{ts_name_in} is required`);
+}}""")
+
+        body_parts.append(f"this.{ts_name_self} = _{ts_name_in};")
+
+    body_str = "\n".join(body_parts)
+
+    # node identity
     if issubclass(cls, Node):
-        constructor_header_parts.append("_graph?: Graph | null")
-        constructor_header_parts.append("_connection?: QueryConnection | null")
+        identity_str = """\
+if (options.id == null) {
+  const now = Temporal.Now.zonedDateTimeISO();
+  this.createdAt = now;
+  this.createdByPtr = null;
+  this.updatedAt = now;
+  this.updatedByPtr = null;
+} else {
+  if (options.createdAt == null || options.updatedAt == null) {
+    throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+  }
+  this.createdAt = options.createdAt;
+  this.createdByPtr = options.createdBy != null ? (options.createdBy instanceof Node ? options.createdBy.toRef() : options.createdBy) : null;
+  this.updatedAt = options.updatedAt; 
+  this.updatedByPtr = options.updatedBy != null ? (options.updatedBy instanceof Node ? options.updatedBy.toRef() : options.updatedBy) : null;
+}
+"""
+    else:
+        identity_str = """\
+// ...
+"""
 
     # assemble constructor
-    constructor_header_str = ",\n".join(constructor_header_parts)
-    constructor_body_str = "\n".join(constructor_body_parts)
-    constructor_assignment_str = "\n".join(constructor_assignment_parts)
-    constructor_str = f"""\
+    init_str = f"""\
 constructor(options: {{
-{textwrap.indent(constructor_header_str, "  ")}
+{textwrap.indent(header_str, "  ")}
 }}) {{
-{textwrap.indent(constructor_body_str, "  ")}
-{textwrap.indent(constructor_assignment_str, "  ")}
+{textwrap.indent(super_str, "  ")}
+  // properties
+{textwrap.indent(body_str, "  ")}
+  // identity
+{textwrap.indent(identity_str, "  ")}
 }}
 """
 
-    return constructor_str.strip()
+    return init_str.strip()
 
 
 def _generate_equals(cls: type[BuiltinObjectBase]) -> str:
@@ -611,6 +687,8 @@ def _generate_node(definition: NodeDefinition) -> str:
     # properties
     prop_parts: list[str] = []
     for prop in _get_properties(node_cls):
+        if prop.name == "id":
+            continue  # ignore id for nodes (already defined in Node superclass)
         prop_str = _generate_property(
             prop,
             is_readonly=_is_property_readonly(prop),
@@ -921,10 +999,10 @@ def _generate_file(file: TypescriptFile) -> str:
     # remove any imports that are already defined in this file
     language_imports.difference_update(definition.name for definition in file.definitions.values())
     import_parts: list[str] = [
-        f"import {{ {', '.join(sorted(language_imports))} }} from '@/language';"
+        f"import {{ {', '.join(sorted(language_imports))} }} from '@/language';",
+        "import { Temporal } from 'temporal-polyfill';",
+        "import { v4 as uuid4 } from 'uuid';",
     ]
-    if not any("Temporal" in import_.content for import_ in import_block.imports):
-        import_parts.append("import { Temporal } from 'temporal-polyfill';")
     for import_ in import_block.imports:
         if not import_.path.startswith("@/language"):
             import_parts.append(import_.content)

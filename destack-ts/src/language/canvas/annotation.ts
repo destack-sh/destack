@@ -176,7 +176,6 @@ export class AnnotationShape
     NodeType.EFFECT_STYLE,
   ];
 
-  readonly id: string;
   get parent():
     | Window
     | Scene
@@ -291,7 +290,7 @@ export class AnnotationShape
   scriptPtr: NodeReference | null;
 
   constructor(options: {
-    id: string;
+    id?: string;
     parent?:
       | Window
       | Scene
@@ -310,9 +309,9 @@ export class AnnotationShape
       | null;
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
-    createdAt: Temporal.ZonedDateTime;
+    createdAt?: Temporal.ZonedDateTime;
     createdBy?: Agent | User | NodeReference | null;
-    updatedAt: Temporal.ZonedDateTime;
+    updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: Agent | User | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     value?: Map<string, Value>;
@@ -353,7 +352,7 @@ export class AnnotationShape
   }) {
     super(
       // id
-      options.id,
+      options.id ?? null,
       // parent
       options.parent != null
         ? options.parent.metatype == StructType.NODE_REFERENCE
@@ -371,74 +370,133 @@ export class AnnotationShape
       // is_new
       options.id == null,
       // is_attached
-      options.id != null,
+      options.id != null || options._graph != null,
     );
 
-    this.id = options.id;
-    this.parentPtr =
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null;
-    this.spacePtr =
-      options.space != null
-        ? options.space.metatype == StructType.NODE_REFERENCE
-          ? (options.space as NodeReference)
-          : (options.space as Node).toRef()
-        : null;
-    this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
-    this.createdAt = options.createdAt;
-    this.createdByPtr =
-      options.createdBy != null
-        ? options.createdBy.metatype == StructType.NODE_REFERENCE
-          ? (options.createdBy as NodeReference)
-          : (options.createdBy as Node).toRef()
-        : null;
-    this.updatedAt = options.updatedAt;
-    this.updatedByPtr =
-      options.updatedBy != null
-        ? options.updatedBy.metatype == StructType.NODE_REFERENCE
-          ? (options.updatedBy as NodeReference)
-          : (options.updatedBy as Node).toRef()
-        : null;
-    this.deletedAt = options.deletedAt ?? null;
-    this.value = options.value ?? new Map();
-    this.orderKey = options.orderKey ?? "a0";
-    this.name = options.name;
-    this.position = options.position ?? null;
-    this.width = options.width ?? null;
-    this.height = options.height ?? null;
-    this.minWidth = options.minWidth ?? null;
-    this.minHeight = options.minHeight ?? null;
-    this.maxWidth = options.maxWidth ?? null;
-    this.maxHeight = options.maxHeight ?? null;
-    this.layout = options.layout ?? null;
-    this.direction = options.direction ?? null;
-    this.distribute = options.distribute ?? null;
-    this.align = options.align ?? null;
-    this.gap = options.gap ?? null;
-    this.padding = options.padding ?? null;
-    this.grid = options.grid ?? null;
-    this.gridSpan = options.gridSpan ?? null;
-    this.aspectRatio = options.aspectRatio ?? null;
-    this.isWrap = options.isWrap ?? null;
-    this.isVisible = options.isVisible ?? null;
-    this.opacity = options.opacity ?? null;
-    this.fill = options.fill ?? null;
-    this.rotation = options.rotation ?? null;
-    this.skew = options.skew ?? null;
-    this.scale = options.scale ?? null;
-    this.shadow = options.shadow ?? null;
-    this.border = options.border ?? null;
-    this.radius = options.radius ?? null;
-    this.text = options.text ?? null;
-    this.scriptPtr =
-      options.script != null
-        ? options.script.metatype == StructType.NODE_REFERENCE
-          ? (options.script as NodeReference)
-          : (options.script as Node).toRef()
-        : null;
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space instanceof Node) {
+      _space = _space.toRef();
+    }
+    this.spacePtr = _space;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = MaterializationType.FULL_GRAPH;
+    }
+    if (_materialization === null) {
+      throw new Error(`AnnotationShape.materialization is required`);
+    }
+    this.materialization = _materialization;
+    let _deletedAt = options.deletedAt ?? null;
+    this.deletedAt = _deletedAt;
+    let _value = options.value ?? null;
+    if (_value === null) {
+      throw new Error(`AnnotationShape.value is required`);
+    }
+    this.value = _value;
+    let _orderKey = options.orderKey ?? null;
+    if (_orderKey === null) {
+      _orderKey = "a0";
+    }
+    if (_orderKey === null) {
+      throw new Error(`AnnotationShape.orderKey is required`);
+    }
+    this.orderKey = _orderKey;
+    let _name = options.name;
+    if (_name === null) {
+      throw new Error(`AnnotationShape.name is required`);
+    }
+    this.name = _name;
+    let _position = options.position ?? null;
+    this.position = _position;
+    let _width = options.width ?? null;
+    this.width = _width;
+    let _height = options.height ?? null;
+    this.height = _height;
+    let _minWidth = options.minWidth ?? null;
+    this.minWidth = _minWidth;
+    let _minHeight = options.minHeight ?? null;
+    this.minHeight = _minHeight;
+    let _maxWidth = options.maxWidth ?? null;
+    this.maxWidth = _maxWidth;
+    let _maxHeight = options.maxHeight ?? null;
+    this.maxHeight = _maxHeight;
+    let _layout = options.layout ?? null;
+    this.layout = _layout;
+    let _direction = options.direction ?? null;
+    this.direction = _direction;
+    let _distribute = options.distribute ?? null;
+    this.distribute = _distribute;
+    let _align = options.align ?? null;
+    this.align = _align;
+    let _gap = options.gap ?? null;
+    this.gap = _gap;
+    let _padding = options.padding ?? null;
+    this.padding = _padding;
+    let _grid = options.grid ?? null;
+    this.grid = _grid;
+    let _gridSpan = options.gridSpan ?? null;
+    this.gridSpan = _gridSpan;
+    let _aspectRatio = options.aspectRatio ?? null;
+    this.aspectRatio = _aspectRatio;
+    let _isWrap = options.isWrap ?? null;
+    this.isWrap = _isWrap;
+    let _isVisible = options.isVisible ?? null;
+    this.isVisible = _isVisible;
+    let _opacity = options.opacity ?? null;
+    this.opacity = _opacity;
+    let _fill = options.fill ?? null;
+    this.fill = _fill;
+    let _rotation = options.rotation ?? null;
+    this.rotation = _rotation;
+    let _skew = options.skew ?? null;
+    this.skew = _skew;
+    let _scale = options.scale ?? null;
+    this.scale = _scale;
+    let _shadow = options.shadow ?? null;
+    this.shadow = _shadow;
+    let _border = options.border ?? null;
+    this.border = _border;
+    let _radius = options.radius ?? null;
+    this.radius = _radius;
+    let _text = options.text ?? null;
+    this.text = _text;
+    let _script = options.script ?? null;
+    if (_script != null && _script instanceof Node) {
+      _script = _script.toRef();
+    }
+    this.scriptPtr = _script;
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO();
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
   }
 
   equals(other: any): boolean {

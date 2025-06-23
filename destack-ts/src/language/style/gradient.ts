@@ -75,8 +75,16 @@ export class GradientStop extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.color = options.color ?? null;
-    this.position = options.position;
+    // properties
+    let _color = options.color ?? null;
+    this.color = _color;
+    let _position = options.position;
+    if (_position === null) {
+      throw new Error(`GradientStop.position is required`);
+    }
+    this.position = _position;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -138,16 +146,31 @@ export class Gradient extends Struct {
       options._supergraph ?? null,
     );
 
-    this.type = options.type ?? GradientType.LINEAR;
-    this.stylePtr =
-      options.style != null
-        ? options.style.metatype == StructType.NODE_REFERENCE
-          ? (options.style as NodeReference)
-          : (options.style as Node).toRef()
-        : null;
-    this.angle = options.angle ?? null;
-    this.stops = options.stops ?? [];
-    this.centerAnchor = options.centerAnchor ?? null;
+    // properties
+    let _type = options.type ?? null;
+    if (_type === null) {
+      _type = GradientType.LINEAR;
+    }
+    if (_type === null) {
+      throw new Error(`Gradient.type is required`);
+    }
+    this.type = _type;
+    let _style = options.style ?? null;
+    if (_style != null && _style instanceof Node) {
+      _style = _style.toRef();
+    }
+    this.stylePtr = _style;
+    let _angle = options.angle ?? null;
+    this.angle = _angle;
+    let _stops = options.stops ?? null;
+    if (_stops === null) {
+      throw new Error(`Gradient.stops is required`);
+    }
+    this.stops = _stops;
+    let _centerAnchor = options.centerAnchor ?? null;
+    this.centerAnchor = _centerAnchor;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -227,7 +250,6 @@ export class GradientStyle
   ];
   static __descendantTypes__: NodeType[] = [NodeType.TAGGING];
 
-  readonly id: string;
   get parent():
     | Scene
     | CustomViewDefinition
@@ -315,7 +337,7 @@ export class GradientStyle
   dark: Gradient | null;
 
   constructor(options: {
-    id: string;
+    id?: string;
     parent?:
       | Scene
       | CustomViewDefinition
@@ -340,9 +362,9 @@ export class GradientStyle
       | null;
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
-    createdAt: Temporal.ZonedDateTime;
+    createdAt?: Temporal.ZonedDateTime;
     createdBy?: Agent | User | NodeReference | null;
-    updatedAt: Temporal.ZonedDateTime;
+    updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: Agent | User | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;
@@ -359,7 +381,7 @@ export class GradientStyle
   }) {
     super(
       // id
-      options.id,
+      options.id ?? null,
       // parent
       options.parent != null
         ? options.parent.metatype == StructType.NODE_REFERENCE
@@ -377,45 +399,88 @@ export class GradientStyle
       // is_new
       options.id == null,
       // is_attached
-      options.id != null,
+      options.id != null || options._graph != null,
     );
 
-    this.id = options.id;
-    this.parentPtr =
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null;
-    this.spacePtr =
-      options.space != null
-        ? options.space.metatype == StructType.NODE_REFERENCE
-          ? (options.space as NodeReference)
-          : (options.space as Node).toRef()
-        : null;
-    this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
-    this.createdAt = options.createdAt;
-    this.createdByPtr =
-      options.createdBy != null
-        ? options.createdBy.metatype == StructType.NODE_REFERENCE
-          ? (options.createdBy as NodeReference)
-          : (options.createdBy as Node).toRef()
-        : null;
-    this.updatedAt = options.updatedAt;
-    this.updatedByPtr =
-      options.updatedBy != null
-        ? options.updatedBy.metatype == StructType.NODE_REFERENCE
-          ? (options.updatedBy as NodeReference)
-          : (options.updatedBy as Node).toRef()
-        : null;
-    this.deletedAt = options.deletedAt ?? null;
-    this.orderKey = options.orderKey ?? "a0";
-    this.type = options.type ?? GradientType.LINEAR;
-    this.name = options.name;
-    this.angle = options.angle ?? null;
-    this.stops = options.stops ?? [];
-    this.centerAnchor = options.centerAnchor ?? null;
-    this.dark = options.dark ?? null;
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space instanceof Node) {
+      _space = _space.toRef();
+    }
+    this.spacePtr = _space;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = MaterializationType.FULL_GRAPH;
+    }
+    if (_materialization === null) {
+      throw new Error(`GradientStyle.materialization is required`);
+    }
+    this.materialization = _materialization;
+    let _deletedAt = options.deletedAt ?? null;
+    this.deletedAt = _deletedAt;
+    let _orderKey = options.orderKey ?? null;
+    if (_orderKey === null) {
+      _orderKey = "a0";
+    }
+    if (_orderKey === null) {
+      throw new Error(`GradientStyle.orderKey is required`);
+    }
+    this.orderKey = _orderKey;
+    let _type = options.type ?? null;
+    if (_type === null) {
+      _type = GradientType.LINEAR;
+    }
+    if (_type === null) {
+      throw new Error(`GradientStyle.type is required`);
+    }
+    this.type = _type;
+    let _name = options.name;
+    if (_name === null) {
+      throw new Error(`GradientStyle.name is required`);
+    }
+    this.name = _name;
+    let _angle = options.angle ?? null;
+    this.angle = _angle;
+    let _stops = options.stops ?? null;
+    if (_stops === null) {
+      throw new Error(`GradientStyle.stops is required`);
+    }
+    this.stops = _stops;
+    let _centerAnchor = options.centerAnchor ?? null;
+    this.centerAnchor = _centerAnchor;
+    let _dark = options.dark ?? null;
+    this.dark = _dark;
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO();
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
   }
 
   equals(other: any): boolean {

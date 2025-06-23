@@ -15,6 +15,7 @@ import {
   toValue,
 } from "@/language";
 import { assertNever } from "@/utils/functools";
+import { v4 as uuid4 } from "uuid";
 
 /* ==== DESTACK_GENERATED_START:ENUM:108 ==== */
 export enum FunctionType {
@@ -133,9 +134,21 @@ export class Function extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.type = options.type;
-    this.left = options.left;
-    this.right = options.right ?? null;
+    // properties
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`Function.type is required`);
+    }
+    this.type = _type;
+    let _left = options.left;
+    if (_left === null) {
+      throw new Error(`Function.left is required`);
+    }
+    this.left = _left;
+    let _right = options.right ?? null;
+    this.right = _right;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -183,9 +196,21 @@ export class Condition extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.type = options.type;
-    this.left = options.left;
-    this.right = options.right ?? null;
+    // properties
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`Condition.type is required`);
+    }
+    this.type = _type;
+    let _left = options.left;
+    if (_left === null) {
+      throw new Error(`Condition.left is required`);
+    }
+    this.left = _left;
+    let _right = options.right ?? null;
+    this.right = _right;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -237,8 +262,16 @@ export class Aggregation extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.type = options.type;
-    this.expression = options.expression ?? null;
+    // properties
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`Aggregation.type is required`);
+    }
+    this.type = _type;
+    let _expression = options.expression ?? null;
+    this.expression = _expression;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -292,12 +325,24 @@ export class Expression extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.type = options.type;
-    this.literal = options.literal ?? null;
-    this.attribute = options.attribute ?? null;
-    this.condition = options.condition ?? null;
-    this.function = options.function ?? null;
-    this.aggregation = options.aggregation ?? null;
+    // properties
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`Expression.type is required`);
+    }
+    this.type = _type;
+    let _literal = options.literal ?? null;
+    this.literal = _literal;
+    let _attribute = options.attribute ?? null;
+    this.attribute = _attribute;
+    let _condition = options.condition ?? null;
+    this.condition = _condition;
+    let _function = options.function ?? null;
+    this.function = _function;
+    let _aggregation = options.aggregation ?? null;
+    this.aggregation = _aggregation;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -373,9 +418,21 @@ export class Sort extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.type = options.type;
-    this.by = options.by;
-    this.mode = options.mode ?? null;
+    // properties
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`Sort.type is required`);
+    }
+    this.type = _type;
+    let _by = options.by;
+    if (_by === null) {
+      throw new Error(`Sort.by is required`);
+    }
+    this.by = _by;
+    let _mode = options.mode ?? null;
+    this.mode = _mode;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -419,7 +476,14 @@ export class Select extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.attributes = options.attributes ?? [];
+    // properties
+    let _attributes = options.attributes ?? null;
+    if (_attributes === null) {
+      throw new Error(`Select.attributes is required`);
+    }
+    this.attributes = _attributes;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -471,11 +535,28 @@ export class Join extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.type = options.type;
-    this.relation = options.relation ?? null;
-    this.recursive = options.recursive ?? false;
-    this.depth = options.depth ?? null;
-    this.on = options.on ?? null;
+    // properties
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`Join.type is required`);
+    }
+    this.type = _type;
+    let _relation = options.relation ?? null;
+    this.relation = _relation;
+    let _recursive = options.recursive ?? null;
+    if (_recursive === null) {
+      _recursive = false;
+    }
+    if (_recursive === null) {
+      throw new Error(`Join.recursive is required`);
+    }
+    this.recursive = _recursive;
+    let _depth = options.depth ?? null;
+    this.depth = _depth;
+    let _on = options.on ?? null;
+    this.on = _on;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -556,20 +637,61 @@ export class Query extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.id = options.id;
-    this.type = options.type;
-    this.name = options.name;
-    this.relation = options.relation;
-    this.join = options.join ?? null;
-    this.select = options.select ?? null;
-    this.subqueries = options.subqueries ?? [];
-    this.where = options.where ?? null;
-    this.having = options.having ?? null;
-    this.groupBy = options.groupBy ?? [];
-    this.aggregation = options.aggregation ?? null;
-    this.sort = options.sort ?? [];
-    this.limit = options.limit ?? null;
-    this.offset = options.offset ?? null;
+    // properties
+    let _id = options.id ?? null;
+    if (_id === null) {
+      _id = uuid4();
+    }
+    if (_id === null) {
+      throw new Error(`Query.id is required`);
+    }
+    this.id = _id;
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`Query.type is required`);
+    }
+    this.type = _type;
+    let _name = options.name;
+    if (_name === null) {
+      throw new Error(`Query.name is required`);
+    }
+    this.name = _name;
+    let _relation = options.relation;
+    if (_relation === null) {
+      throw new Error(`Query.relation is required`);
+    }
+    this.relation = _relation;
+    let _join = options.join ?? null;
+    this.join = _join;
+    let _select = options.select ?? null;
+    this.select = _select;
+    let _subqueries = options.subqueries ?? null;
+    if (_subqueries === null) {
+      throw new Error(`Query.subqueries is required`);
+    }
+    this.subqueries = _subqueries;
+    let _where = options.where ?? null;
+    this.where = _where;
+    let _having = options.having ?? null;
+    this.having = _having;
+    let _groupBy = options.groupBy ?? null;
+    if (_groupBy === null) {
+      throw new Error(`Query.groupBy is required`);
+    }
+    this.groupBy = _groupBy;
+    let _aggregation = options.aggregation ?? null;
+    this.aggregation = _aggregation;
+    let _sort = options.sort ?? null;
+    if (_sort === null) {
+      throw new Error(`Query.sort is required`);
+    }
+    this.sort = _sort;
+    let _limit = options.limit ?? null;
+    this.limit = _limit;
+    let _offset = options.offset ?? null;
+    this.offset = _offset;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -607,8 +729,19 @@ export class Histogram extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.buckets = options.buckets ?? [];
-    this.counts = options.counts ?? [];
+    // properties
+    let _buckets = options.buckets ?? null;
+    if (_buckets === null) {
+      throw new Error(`Histogram.buckets is required`);
+    }
+    this.buckets = _buckets;
+    let _counts = options.counts ?? null;
+    if (_counts === null) {
+      throw new Error(`Histogram.counts is required`);
+    }
+    this.counts = _counts;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -658,14 +791,40 @@ export class QueryResult extends Struct {
       options._supergraph ?? null,
     );
 
-    this.id = options.id;
-    this.type = options.type;
-    this.groups = options.groups ?? [];
-    this.subresults = options.subresults ?? [];
-    this.nodes = options.nodes ?? [];
-    this.count = options.count ?? null;
-    this.exists = options.exists ?? null;
-    this.scalar = options.scalar ?? null;
+    // properties
+    let _id = options.id;
+    if (_id === null) {
+      throw new Error(`QueryResult.id is required`);
+    }
+    this.id = _id;
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`QueryResult.type is required`);
+    }
+    this.type = _type;
+    let _groups = options.groups ?? null;
+    if (_groups === null) {
+      throw new Error(`QueryResult.groups is required`);
+    }
+    this.groups = _groups;
+    let _subresults = options.subresults ?? null;
+    if (_subresults === null) {
+      throw new Error(`QueryResult.subresults is required`);
+    }
+    this.subresults = _subresults;
+    let _nodes = options.nodes ?? null;
+    if (_nodes === null) {
+      throw new Error(`QueryResult.nodes is required`);
+    }
+    this.nodes = _nodes;
+    let _count = options.count ?? null;
+    this.count = _count;
+    let _exists = options.exists ?? null;
+    this.exists = _exists;
+    let _scalar = options.scalar ?? null;
+    this.scalar = _scalar;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -711,12 +870,30 @@ export class QueryResultGroup extends Struct {
       options._supergraph ?? null,
     );
 
-    this.type = options.type;
-    this.discriminator = options.discriminator;
-    this.nodes = options.nodes ?? [];
-    this.count = options.count ?? null;
-    this.exists = options.exists ?? null;
-    this.scalar = options.scalar ?? null;
+    // properties
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`QueryResultGroup.type is required`);
+    }
+    this.type = _type;
+    let _discriminator = options.discriminator;
+    if (_discriminator === null) {
+      throw new Error(`QueryResultGroup.discriminator is required`);
+    }
+    this.discriminator = _discriminator;
+    let _nodes = options.nodes ?? null;
+    if (_nodes === null) {
+      throw new Error(`QueryResultGroup.nodes is required`);
+    }
+    this.nodes = _nodes;
+    let _count = options.count ?? null;
+    this.count = _count;
+    let _exists = options.exists ?? null;
+    this.exists = _exists;
+    let _scalar = options.scalar ?? null;
+    this.scalar = _scalar;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -754,8 +931,16 @@ export class QueryUpdate extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.type = options.type;
-    this.result = options.result ?? null;
+    // properties
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`QueryUpdate.type is required`);
+    }
+    this.type = _type;
+    let _result = options.result ?? null;
+    this.result = _result;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -784,6 +969,11 @@ export class Selection extends StructFrozen {
       // supergraph
       options._supergraph ?? null,
     );
+
+    // properties
+
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {

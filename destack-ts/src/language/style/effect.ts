@@ -149,27 +149,47 @@ export class Effect extends Struct {
       options._supergraph ?? null,
     );
 
-    this.type = options.type;
-    this.stylePtr =
-      options.style != null
-        ? options.style.metatype == StructType.NODE_REFERENCE
-          ? (options.style as NodeReference)
-          : (options.style as Node).toRef()
-        : null;
-    this.opacity = options.opacity ?? null;
-    this.offset = options.offset ?? null;
-    this.scale = options.scale ?? null;
-    this.rotate = options.rotate ?? null;
-    this.skew = options.skew ?? null;
-    this.perspective = options.perspective ?? null;
-    this.delay = options.delay ?? null;
-    this.duration = options.duration ?? null;
-    this.threshold = options.threshold ?? null;
-    this.once = options.once ?? null;
-    this.repeat = options.repeat ?? null;
-    this.split = options.split ?? null;
-    this.offscreen = options.offscreen ?? null;
-    this.transition = options.transition ?? null;
+    // properties
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`Effect.type is required`);
+    }
+    this.type = _type;
+    let _style = options.style ?? null;
+    if (_style != null && _style instanceof Node) {
+      _style = _style.toRef();
+    }
+    this.stylePtr = _style;
+    let _opacity = options.opacity ?? null;
+    this.opacity = _opacity;
+    let _offset = options.offset ?? null;
+    this.offset = _offset;
+    let _scale = options.scale ?? null;
+    this.scale = _scale;
+    let _rotate = options.rotate ?? null;
+    this.rotate = _rotate;
+    let _skew = options.skew ?? null;
+    this.skew = _skew;
+    let _perspective = options.perspective ?? null;
+    this.perspective = _perspective;
+    let _delay = options.delay ?? null;
+    this.delay = _delay;
+    let _duration = options.duration ?? null;
+    this.duration = _duration;
+    let _threshold = options.threshold ?? null;
+    this.threshold = _threshold;
+    let _once = options.once ?? null;
+    this.once = _once;
+    let _repeat = options.repeat ?? null;
+    this.repeat = _repeat;
+    let _split = options.split ?? null;
+    this.split = _split;
+    let _offscreen = options.offscreen ?? null;
+    this.offscreen = _offscreen;
+    let _transition = options.transition ?? null;
+    this.transition = _transition;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -249,7 +269,6 @@ export class EffectStyle
   ];
   static __descendantTypes__: NodeType[] = [NodeType.TAGGING];
 
-  readonly id: string;
   get parent():
     | Scene
     | CustomViewDefinition
@@ -347,7 +366,7 @@ export class EffectStyle
   transition: Transition | null;
 
   constructor(options: {
-    id: string;
+    id?: string;
     parent?:
       | Scene
       | CustomViewDefinition
@@ -372,9 +391,9 @@ export class EffectStyle
       | null;
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
-    createdAt: Temporal.ZonedDateTime;
+    createdAt?: Temporal.ZonedDateTime;
     createdBy?: Agent | User | NodeReference | null;
-    updatedAt: Temporal.ZonedDateTime;
+    updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: Agent | User | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;
@@ -401,7 +420,7 @@ export class EffectStyle
   }) {
     super(
       // id
-      options.id,
+      options.id ?? null,
       // parent
       options.parent != null
         ? options.parent.metatype == StructType.NODE_REFERENCE
@@ -419,55 +438,102 @@ export class EffectStyle
       // is_new
       options.id == null,
       // is_attached
-      options.id != null,
+      options.id != null || options._graph != null,
     );
 
-    this.id = options.id;
-    this.parentPtr =
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null;
-    this.spacePtr =
-      options.space != null
-        ? options.space.metatype == StructType.NODE_REFERENCE
-          ? (options.space as NodeReference)
-          : (options.space as Node).toRef()
-        : null;
-    this.materialization = options.materialization ?? MaterializationType.FULL_GRAPH;
-    this.createdAt = options.createdAt;
-    this.createdByPtr =
-      options.createdBy != null
-        ? options.createdBy.metatype == StructType.NODE_REFERENCE
-          ? (options.createdBy as NodeReference)
-          : (options.createdBy as Node).toRef()
-        : null;
-    this.updatedAt = options.updatedAt;
-    this.updatedByPtr =
-      options.updatedBy != null
-        ? options.updatedBy.metatype == StructType.NODE_REFERENCE
-          ? (options.updatedBy as NodeReference)
-          : (options.updatedBy as Node).toRef()
-        : null;
-    this.deletedAt = options.deletedAt ?? null;
-    this.orderKey = options.orderKey ?? "a0";
-    this.type = options.type;
-    this.name = options.name;
-    this.opacity = options.opacity ?? null;
-    this.offset = options.offset ?? null;
-    this.scale = options.scale ?? null;
-    this.rotate = options.rotate ?? null;
-    this.skew = options.skew ?? null;
-    this.perspective = options.perspective ?? null;
-    this.delay = options.delay ?? null;
-    this.duration = options.duration ?? null;
-    this.threshold = options.threshold ?? null;
-    this.once = options.once ?? null;
-    this.repeat = options.repeat ?? null;
-    this.split = options.split ?? null;
-    this.offscreen = options.offscreen ?? null;
-    this.transition = options.transition ?? null;
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space instanceof Node) {
+      _space = _space.toRef();
+    }
+    this.spacePtr = _space;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = MaterializationType.FULL_GRAPH;
+    }
+    if (_materialization === null) {
+      throw new Error(`EffectStyle.materialization is required`);
+    }
+    this.materialization = _materialization;
+    let _deletedAt = options.deletedAt ?? null;
+    this.deletedAt = _deletedAt;
+    let _orderKey = options.orderKey ?? null;
+    if (_orderKey === null) {
+      _orderKey = "a0";
+    }
+    if (_orderKey === null) {
+      throw new Error(`EffectStyle.orderKey is required`);
+    }
+    this.orderKey = _orderKey;
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`EffectStyle.type is required`);
+    }
+    this.type = _type;
+    let _name = options.name;
+    if (_name === null) {
+      throw new Error(`EffectStyle.name is required`);
+    }
+    this.name = _name;
+    let _opacity = options.opacity ?? null;
+    this.opacity = _opacity;
+    let _offset = options.offset ?? null;
+    this.offset = _offset;
+    let _scale = options.scale ?? null;
+    this.scale = _scale;
+    let _rotate = options.rotate ?? null;
+    this.rotate = _rotate;
+    let _skew = options.skew ?? null;
+    this.skew = _skew;
+    let _perspective = options.perspective ?? null;
+    this.perspective = _perspective;
+    let _delay = options.delay ?? null;
+    this.delay = _delay;
+    let _duration = options.duration ?? null;
+    this.duration = _duration;
+    let _threshold = options.threshold ?? null;
+    this.threshold = _threshold;
+    let _once = options.once ?? null;
+    this.once = _once;
+    let _repeat = options.repeat ?? null;
+    this.repeat = _repeat;
+    let _split = options.split ?? null;
+    this.split = _split;
+    let _offscreen = options.offscreen ?? null;
+    this.offscreen = _offscreen;
+    let _transition = options.transition ?? null;
+    this.transition = _transition;
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO();
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
   }
 
   equals(other: any): boolean {

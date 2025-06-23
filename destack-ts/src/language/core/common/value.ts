@@ -16,8 +16,19 @@ export class Value extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.type = options.type;
-    this.value = options.value;
+    // properties
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`Value.type is required`);
+    }
+    this.type = _type;
+    let _value = options.value;
+    if (_value === null) {
+      throw new Error(`Value.value is required`);
+    }
+    this.value = _value;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {

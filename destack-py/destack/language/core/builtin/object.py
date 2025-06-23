@@ -166,7 +166,6 @@ def _generate_init[ObjectT: BuiltinObjectBase](
     if is_node:
         # node setup
         body_properties.pop("id")
-        body_properties.pop("ck", None)
         if TraitType.TRACKED in traits:
             body_properties.pop("created_at")
             body_properties.pop("updated_at")
@@ -257,7 +256,6 @@ if {prop.name}:
         # check if node is passed if required and scalar
         if (
             prop.is_required
-            and prop.cardinality == TypeCardinality.SCALAR
             and prop.scalar_type == ScalarType.NODE_REFERENCE
         ):
             method_body_lines.append(f"""\

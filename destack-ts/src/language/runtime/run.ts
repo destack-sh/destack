@@ -74,7 +74,6 @@ export class RunEvent extends Node implements Spatial, Particle, Analytic, Index
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
@@ -140,12 +139,12 @@ export class RunEvent extends Node implements Spatial, Particle, Analytic, Index
   targetPtr: NodeReference | null;
 
   constructor(options: {
-    id: string;
+    id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt: Temporal.ZonedDateTime;
+    createdAt?: Temporal.ZonedDateTime;
     createdBy?: Agent | User | NodeReference | null;
-    updatedAt: Temporal.ZonedDateTime;
+    updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: Agent | User | NodeReference | null;
     type: RunEventType;
     node: Run | NodeReference;
@@ -157,7 +156,7 @@ export class RunEvent extends Node implements Spatial, Particle, Analytic, Index
   }) {
     super(
       // id
-      options.id,
+      options.id ?? null,
       // parent
       options.parent != null
         ? options.parent.metatype == StructType.NODE_REFERENCE
@@ -175,49 +174,64 @@ export class RunEvent extends Node implements Spatial, Particle, Analytic, Index
       // is_new
       options.id == null,
       // is_attached
-      options.id != null,
+      options.id != null || options._graph != null,
     );
 
-    this.id = options.id;
-    this.parentPtr =
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null;
-    this.spacePtr =
-      options.space != null
-        ? options.space.metatype == StructType.NODE_REFERENCE
-          ? (options.space as NodeReference)
-          : (options.space as Node).toRef()
-        : null;
-    this.createdAt = options.createdAt;
-    this.createdByPtr =
-      options.createdBy != null
-        ? options.createdBy.metatype == StructType.NODE_REFERENCE
-          ? (options.createdBy as NodeReference)
-          : (options.createdBy as Node).toRef()
-        : null;
-    this.updatedAt = options.updatedAt;
-    this.updatedByPtr =
-      options.updatedBy != null
-        ? options.updatedBy.metatype == StructType.NODE_REFERENCE
-          ? (options.updatedBy as NodeReference)
-          : (options.updatedBy as Node).toRef()
-        : null;
-    this.type = options.type;
-    this.nodePtr =
-      options.node != null
-        ? options.node.metatype == StructType.NODE_REFERENCE
-          ? (options.node as NodeReference)
-          : (options.node as Node).toRef()
-        : null;
-    this.targetPtr =
-      options.target != null
-        ? options.target.metatype == StructType.NODE_REFERENCE
-          ? (options.target as NodeReference)
-          : (options.target as Node).toRef()
-        : null;
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space instanceof Node) {
+      _space = _space.toRef();
+    }
+    this.spacePtr = _space;
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`RunEvent.type is required`);
+    }
+    this.type = _type;
+    let _node = options.node;
+    if (_node != null && _node instanceof Node) {
+      _node = _node.toRef();
+    }
+    if (_node === null) {
+      throw new Error(`RunEvent.node is required`);
+    }
+    this.nodePtr = _node;
+    let _target = options.target ?? null;
+    if (_target != null && _target instanceof Node) {
+      _target = _target.toRef();
+    }
+    this.targetPtr = _target;
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO();
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
   }
 
   equals(other: any): boolean {
@@ -284,7 +298,6 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
     NodeType.FIELD,
   ];
 
-  readonly id: string;
   get parent(): Space | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
@@ -361,12 +374,12 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
   interruptionPtr: NodeReference | null;
 
   constructor(options: {
-    id: string;
+    id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt: Temporal.ZonedDateTime;
+    createdAt?: Temporal.ZonedDateTime;
     createdBy?: Agent | User | NodeReference | null;
-    updatedAt: Temporal.ZonedDateTime;
+    updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: Agent | User | NodeReference | null;
     value?: Map<string, Value>;
     target?: Action | Script | Service | NodeReference | null;
@@ -385,7 +398,7 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
   }) {
     super(
       // id
-      options.id,
+      options.id ?? null,
       // parent
       options.parent != null
         ? options.parent.metatype == StructType.NODE_REFERENCE
@@ -403,56 +416,78 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
       // is_new
       options.id == null,
       // is_attached
-      options.id != null,
+      options.id != null || options._graph != null,
     );
 
-    this.id = options.id;
-    this.parentPtr =
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null;
-    this.spacePtr =
-      options.space != null
-        ? options.space.metatype == StructType.NODE_REFERENCE
-          ? (options.space as NodeReference)
-          : (options.space as Node).toRef()
-        : null;
-    this.createdAt = options.createdAt;
-    this.createdByPtr =
-      options.createdBy != null
-        ? options.createdBy.metatype == StructType.NODE_REFERENCE
-          ? (options.createdBy as NodeReference)
-          : (options.createdBy as Node).toRef()
-        : null;
-    this.updatedAt = options.updatedAt;
-    this.updatedByPtr =
-      options.updatedBy != null
-        ? options.updatedBy.metatype == StructType.NODE_REFERENCE
-          ? (options.updatedBy as NodeReference)
-          : (options.updatedBy as Node).toRef()
-        : null;
-    this.value = options.value ?? new Map();
-    this.targetPtr =
-      options.target != null
-        ? options.target.metatype == StructType.NODE_REFERENCE
-          ? (options.target as NodeReference)
-          : (options.target as Node).toRef()
-        : null;
-    this.status = options.status;
-    this.duration = options.duration ?? null;
-    this.scheduledAt = options.scheduledAt ?? null;
-    this.startedAt = options.startedAt ?? null;
-    this.seenAt = options.seenAt ?? null;
-    this.interruptedAt = options.interruptedAt ?? null;
-    this.terminatedAt = options.terminatedAt ?? null;
-    this.interruptionPtr =
-      options.interruption != null
-        ? options.interruption.metatype == StructType.NODE_REFERENCE
-          ? (options.interruption as NodeReference)
-          : (options.interruption as Node).toRef()
-        : null;
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent instanceof Node) {
+      _parent = _parent.toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space instanceof Node) {
+      _space = _space.toRef();
+    }
+    this.spacePtr = _space;
+    let _value = options.value ?? null;
+    if (_value === null) {
+      throw new Error(`Run.value is required`);
+    }
+    this.value = _value;
+    let _target = options.target ?? null;
+    if (_target != null && _target instanceof Node) {
+      _target = _target.toRef();
+    }
+    this.targetPtr = _target;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`Run.status is required`);
+    }
+    this.status = _status;
+    let _duration = options.duration ?? null;
+    this.duration = _duration;
+    let _scheduledAt = options.scheduledAt ?? null;
+    this.scheduledAt = _scheduledAt;
+    let _startedAt = options.startedAt ?? null;
+    this.startedAt = _startedAt;
+    let _seenAt = options.seenAt ?? null;
+    this.seenAt = _seenAt;
+    let _interruptedAt = options.interruptedAt ?? null;
+    this.interruptedAt = _interruptedAt;
+    let _terminatedAt = options.terminatedAt ?? null;
+    this.terminatedAt = _terminatedAt;
+    let _interruption = options.interruption ?? null;
+    if (_interruption != null && _interruption instanceof Node) {
+      _interruption = _interruption.toRef();
+    }
+    this.interruptionPtr = _interruption;
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO();
+      this.createdAt = now;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedByPtr = null;
+    } else {
+      if (options.createdAt == null || options.updatedAt == null) {
+        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy instanceof Node
+            ? options.createdBy.toRef()
+            : options.createdBy
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy instanceof Node
+            ? options.updatedBy.toRef()
+            : options.updatedBy
+          : null;
+    }
   }
 
   equals(other: any): boolean {

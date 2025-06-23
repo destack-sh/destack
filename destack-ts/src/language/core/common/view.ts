@@ -88,8 +88,19 @@ export class Length extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.unit = options.unit;
-    this.value = options.value;
+    // properties
+    let _unit = options.unit;
+    if (_unit === null) {
+      throw new Error(`Length.unit is required`);
+    }
+    this.unit = _unit;
+    let _value = options.value;
+    if (_value === null) {
+      throw new Error(`Length.value is required`);
+    }
+    this.value = _value;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -133,11 +144,22 @@ export class Position extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.type = options.type;
-    this.top = options.top ?? null;
-    this.left = options.left ?? null;
-    this.width = options.width ?? null;
-    this.height = options.height ?? null;
+    // properties
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`Position.type is required`);
+    }
+    this.type = _type;
+    let _top = options.top ?? null;
+    this.top = _top;
+    let _left = options.left ?? null;
+    this.left = _left;
+    let _width = options.width ?? null;
+    this.width = _width;
+    let _height = options.height ?? null;
+    this.height = _height;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -177,9 +199,24 @@ export class Dimension extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.type = options.type;
-    this.unit = options.unit;
-    this.value = options.value;
+    // properties
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`Dimension.type is required`);
+    }
+    this.type = _type;
+    let _unit = options.unit;
+    if (_unit === null) {
+      throw new Error(`Dimension.unit is required`);
+    }
+    this.unit = _unit;
+    let _value = options.value;
+    if (_value === null) {
+      throw new Error(`Dimension.value is required`);
+    }
+    this.value = _value;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -223,11 +260,19 @@ export class Insets extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.base = options.base ?? null;
-    this.top = options.top ?? null;
-    this.left = options.left ?? null;
-    this.right = options.right ?? null;
-    this.bottom = options.bottom ?? null;
+    // properties
+    let _base = options.base ?? null;
+    this.base = _base;
+    let _top = options.top ?? null;
+    this.top = _top;
+    let _left = options.left ?? null;
+    this.left = _left;
+    let _right = options.right ?? null;
+    this.right = _right;
+    let _bottom = options.bottom ?? null;
+    this.bottom = _bottom;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -271,11 +316,19 @@ export class Corners extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.base = options.base ?? null;
-    this.topLeft = options.topLeft ?? null;
-    this.topRight = options.topRight ?? null;
-    this.bottomLeft = options.bottomLeft ?? null;
-    this.bottomRight = options.bottomRight ?? null;
+    // properties
+    let _base = options.base ?? null;
+    this.base = _base;
+    let _topLeft = options.topLeft ?? null;
+    this.topLeft = _topLeft;
+    let _topRight = options.topRight ?? null;
+    this.topRight = _topRight;
+    let _bottomLeft = options.bottomLeft ?? null;
+    this.bottomLeft = _bottomLeft;
+    let _bottomRight = options.bottomRight ?? null;
+    this.bottomRight = _bottomRight;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -315,9 +368,15 @@ export class Axis2 extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.base = options.base ?? null;
-    this.x = options.x ?? null;
-    this.y = options.y ?? null;
+    // properties
+    let _base = options.base ?? null;
+    this.base = _base;
+    let _x = options.x ?? null;
+    this.x = _x;
+    let _y = options.y ?? null;
+    this.y = _y;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -359,10 +418,17 @@ export class Axis3 extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.base = options.base ?? null;
-    this.x = options.x ?? null;
-    this.y = options.y ?? null;
-    this.z = options.z ?? null;
+    // properties
+    let _base = options.base ?? null;
+    this.base = _base;
+    let _x = options.x ?? null;
+    this.x = _x;
+    let _y = options.y ?? null;
+    this.y = _y;
+    let _z = options.z ?? null;
+    this.z = _z;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -395,8 +461,19 @@ export class Vector2 extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.x = options.x;
-    this.y = options.y;
+    // properties
+    let _x = options.x;
+    if (_x === null) {
+      throw new Error(`Vector2.x is required`);
+    }
+    this.x = _x;
+    let _y = options.y;
+    if (_y === null) {
+      throw new Error(`Vector2.y is required`);
+    }
+    this.y = _y;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -436,9 +513,24 @@ export class Vector3 extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.x = options.x;
-    this.y = options.y;
-    this.z = options.z;
+    // properties
+    let _x = options.x;
+    if (_x === null) {
+      throw new Error(`Vector3.x is required`);
+    }
+    this.x = _x;
+    let _y = options.y;
+    if (_y === null) {
+      throw new Error(`Vector3.y is required`);
+    }
+    this.y = _y;
+    let _z = options.z;
+    if (_z === null) {
+      throw new Error(`Vector3.z is required`);
+    }
+    this.z = _z;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -480,10 +572,29 @@ export class Vector4 extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.x = options.x;
-    this.y = options.y;
-    this.z = options.z;
-    this.w = options.w;
+    // properties
+    let _x = options.x;
+    if (_x === null) {
+      throw new Error(`Vector4.x is required`);
+    }
+    this.x = _x;
+    let _y = options.y;
+    if (_y === null) {
+      throw new Error(`Vector4.y is required`);
+    }
+    this.y = _y;
+    let _z = options.z;
+    if (_z === null) {
+      throw new Error(`Vector4.z is required`);
+    }
+    this.z = _z;
+    let _w = options.w;
+    if (_w === null) {
+      throw new Error(`Vector4.w is required`);
+    }
+    this.w = _w;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -516,8 +627,19 @@ export class Vector2i extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.x = options.x;
-    this.y = options.y;
+    // properties
+    let _x = options.x;
+    if (_x === null) {
+      throw new Error(`Vector2i.x is required`);
+    }
+    this.x = _x;
+    let _y = options.y;
+    if (_y === null) {
+      throw new Error(`Vector2i.y is required`);
+    }
+    this.y = _y;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -557,9 +679,24 @@ export class Vector3i extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.x = options.x;
-    this.y = options.y;
-    this.z = options.z;
+    // properties
+    let _x = options.x;
+    if (_x === null) {
+      throw new Error(`Vector3i.x is required`);
+    }
+    this.x = _x;
+    let _y = options.y;
+    if (_y === null) {
+      throw new Error(`Vector3i.y is required`);
+    }
+    this.y = _y;
+    let _z = options.z;
+    if (_z === null) {
+      throw new Error(`Vector3i.z is required`);
+    }
+    this.z = _z;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -601,10 +738,29 @@ export class Vector4i extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.x = options.x;
-    this.y = options.y;
-    this.z = options.z;
-    this.w = options.w;
+    // properties
+    let _x = options.x;
+    if (_x === null) {
+      throw new Error(`Vector4i.x is required`);
+    }
+    this.x = _x;
+    let _y = options.y;
+    if (_y === null) {
+      throw new Error(`Vector4i.y is required`);
+    }
+    this.y = _y;
+    let _z = options.z;
+    if (_z === null) {
+      throw new Error(`Vector4i.z is required`);
+    }
+    this.z = _z;
+    let _w = options.w;
+    if (_w === null) {
+      throw new Error(`Vector4i.w is required`);
+    }
+    this.w = _w;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -648,11 +804,25 @@ export class Grid extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.columns = options.columns;
-    this.rows = options.rows;
-    this.columnWidth = options.columnWidth ?? null;
-    this.columnMinWidth = options.columnMinWidth ?? null;
-    this.rowHeight = options.rowHeight ?? null;
+    // properties
+    let _columns = options.columns;
+    if (_columns === null) {
+      throw new Error(`Grid.columns is required`);
+    }
+    this.columns = _columns;
+    let _rows = options.rows;
+    if (_rows === null) {
+      throw new Error(`Grid.rows is required`);
+    }
+    this.rows = _rows;
+    let _columnWidth = options.columnWidth ?? null;
+    this.columnWidth = _columnWidth;
+    let _columnMinWidth = options.columnMinWidth ?? null;
+    this.columnMinWidth = _columnMinWidth;
+    let _rowHeight = options.rowHeight ?? null;
+    this.rowHeight = _rowHeight;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -685,8 +855,19 @@ export class GridSpan extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.columns = options.columns;
-    this.rows = options.rows;
+    // properties
+    let _columns = options.columns;
+    if (_columns === null) {
+      throw new Error(`GridSpan.columns is required`);
+    }
+    this.columns = _columns;
+    let _rows = options.rows;
+    if (_rows === null) {
+      throw new Error(`GridSpan.rows is required`);
+    }
+    this.rows = _rows;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {

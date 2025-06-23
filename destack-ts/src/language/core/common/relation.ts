@@ -57,8 +57,13 @@ export class Scope extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.region = options.region ?? null;
-    this.spaceId = options.spaceId ?? null;
+    // properties
+    let _region = options.region ?? null;
+    this.region = _region;
+    let _spaceId = options.spaceId ?? null;
+    this.spaceId = _spaceId;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -110,15 +115,23 @@ export class RelationReference extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.type = options.type;
-    this.nodeType = options.nodeType ?? null;
-    this.definitionPtr =
-      options.definition != null
-        ? options.definition.metatype == StructType.NODE_REFERENCE
-          ? (options.definition as NodeReference)
-          : (options.definition as Node).toRef()
-        : null;
-    this.traitType = options.traitType ?? null;
+    // properties
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`RelationReference.type is required`);
+    }
+    this.type = _type;
+    let _nodeType = options.nodeType ?? null;
+    this.nodeType = _nodeType;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition instanceof Node) {
+      _definition = _definition.toRef();
+    }
+    this.definitionPtr = _definition;
+    let _traitType = options.traitType ?? null;
+    this.traitType = _traitType;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -181,14 +194,21 @@ export class AttributeReference extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.type = options.type;
-    this.propPtr = options.propPtr ?? null;
-    this.fieldPtr =
-      options.field != null
-        ? options.field.metatype == StructType.NODE_REFERENCE
-          ? (options.field as NodeReference)
-          : (options.field as Node).toRef()
-        : null;
+    // properties
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`AttributeReference.type is required`);
+    }
+    this.type = _type;
+    let _propPtr = options.propPtr ?? null;
+    this.propPtr = _propPtr;
+    let _field = options.field ?? null;
+    if (_field != null && _field instanceof Node) {
+      _field = _field.toRef();
+    }
+    this.fieldPtr = _field;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -247,11 +267,25 @@ export class PropertyReference extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.type = options.type;
-    this.nodeType = options.nodeType ?? null;
-    this.traitType = options.traitType ?? null;
-    this.structType = options.structType ?? null;
-    this.id = options.id;
+    // properties
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`PropertyReference.type is required`);
+    }
+    this.type = _type;
+    let _nodeType = options.nodeType ?? null;
+    this.nodeType = _nodeType;
+    let _traitType = options.traitType ?? null;
+    this.traitType = _traitType;
+    let _structType = options.structType ?? null;
+    this.structType = _structType;
+    let _id = options.id;
+    if (_id === null) {
+      throw new Error(`PropertyReference.id is required`);
+    }
+    this.id = _id;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
@@ -293,10 +327,23 @@ export class NodeReference extends StructFrozen {
       options._supergraph ?? null,
     );
 
-    this.nodeType = options.nodeType;
-    this.id = options.id;
-    this.spaceId = options.spaceId ?? null;
-    this.definitionId = options.definitionId ?? null;
+    // properties
+    let _nodeType = options.nodeType;
+    if (_nodeType === null) {
+      throw new Error(`NodeReference.nodeType is required`);
+    }
+    this.nodeType = _nodeType;
+    let _id = options.id;
+    if (_id === null) {
+      throw new Error(`NodeReference.id is required`);
+    }
+    this.id = _id;
+    let _spaceId = options.spaceId ?? null;
+    this.spaceId = _spaceId;
+    let _definitionId = options.definitionId ?? null;
+    this.definitionId = _definitionId;
+    // identity
+    // ...
   }
 
   equals(other: any): boolean {
