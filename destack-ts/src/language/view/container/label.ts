@@ -472,5 +472,4 @@ export class LabelView
     }
     return pathParts.reverse().join("/");
   }
-}
-/* ==== DESTACK_GENERATED_END:NODE:10030 ==== */
+} /* ==== DESTACK_GENERATED_END:NODE:10030 ==== */

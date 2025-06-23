@@ -26,5 +26,4 @@ export interface NodeView {
   get script(): Script | null;
   set script(value: Script | null);
   scriptPtr: NodeReference | null;
-}
-/* ==== DESTACK_GENERATED_END:TRAIT:10600 ==== */
+} /* ==== DESTACK_GENERATED_END:TRAIT:10600 ==== */

@@ -492,8 +492,8 @@ def __to_ref__(self) -> "NodeReference":
     return NodeReference(
         node_type=NodeType.{node_type.name},
         id=self.id,
-        definition_id=self.definition_id,
-        space_id=self.space_id,
+        definition_id=definition_ptr.id if (definition_ptr := self.definition_ptr) is not None else None,
+        space_id=space_ptr.id if (space_ptr := self.space_ptr) is not None else None,
     )
 """
     elif TraitType.SPATIAL in cls.__traits__:
@@ -502,7 +502,7 @@ def __to_ref__(self) -> "NodeReference":
     return NodeReference(
         node_type=NodeType.{node_type.name},
         id=self.id,
-        space_id=self.space_id,
+        space_id=space_ptr.id if (space_ptr := self.space_ptr) is not None else None,
     )
 """
     else:

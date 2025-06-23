@@ -51,8 +51,7 @@ export enum BorderType {
   DASHED = 11,
   DOTTED = 12,
   DOUBLE = 13,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:12032 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:12032 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12013 ==== */
 export class Border extends Struct {
@@ -91,6 +90,8 @@ export class Border extends Struct {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -117,8 +118,7 @@ export class Border extends Struct {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:12013 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:12013 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:12023 ==== */
 export class BorderStyle
@@ -406,5 +406,4 @@ export class BorderStyle
     }
     return pathParts.reverse().join("/");
   }
-}
-/* ==== DESTACK_GENERATED_END:NODE:12023 ==== */
+} /* ==== DESTACK_GENERATED_END:NODE:12023 ==== */

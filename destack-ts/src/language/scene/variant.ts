@@ -33,15 +33,13 @@ export enum VariantType {
   DYNAMIC = 1,
   BREAKPOINT = 2,
   PLATFORM = 3,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:9030 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:9030 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:9031 ==== */
 export enum VariantStateType {
   LOADING = 10,
   ERROR = 11,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:9031 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:9031 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:9030 ==== */
 export class Variant extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOwnable {
@@ -265,5 +263,4 @@ export class Variant extends Node implements Spatial, Entity, IsTracked, IsDelet
     }
     return pathParts.reverse().join("/");
   }
-}
-/* ==== DESTACK_GENERATED_END:NODE:9030 ==== */
+} /* ==== DESTACK_GENERATED_END:NODE:9030 ==== */

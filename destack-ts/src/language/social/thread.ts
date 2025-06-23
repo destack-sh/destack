@@ -30,8 +30,7 @@ import { Temporal } from "temporal-polyfill";
 export enum ThreadStatus {
   OPEN = 10,
   CLOSED = 30,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:5500 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:5500 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:5500 ==== */
 export class Thread extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOwnable, IsJoinable, IsTaggable {
@@ -243,5 +242,4 @@ export class Thread extends Node implements Spatial, Entity, IsTracked, IsDeleta
     }
     return pathParts.reverse().join("/");
   }
-}
-/* ==== DESTACK_GENERATED_END:NODE:5500 ==== */
+} /* ==== DESTACK_GENERATED_END:NODE:5500 ==== */

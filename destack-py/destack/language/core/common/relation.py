@@ -101,31 +101,34 @@ class RelationReference(StructFrozen):
             raise LookupError(f"could not find property {name!r} in {self!r}")
         return resolved
 
-
-def relation_ref(base: "NodeType | type[NodeBase] | CustomEntityDefinition") -> RelationReference:
-    if isinstance(base, NodeType):
-        return RelationReference(type=RelationType.BUILTIN_NODE, node_type=base)
-    elif isinstance(base, type):
-        if issubclass(base, Node):
-            return RelationReference(type=RelationType.BUILTIN_NODE, node_type=base.metatype)
-        elif issubclass(base, Trait):
-            return RelationReference(type=RelationType.TRAIT, trait_type=base.metatype)
+    @classmethod
+    def of(cls, base: "NodeType | type[NodeBase] | CustomEntityDefinition") -> "RelationReference":
+        if isinstance(base, NodeType):
+            return RelationReference(type=RelationType.BUILTIN_NODE, node_type=base)
+        elif isinstance(base, type):
+            if issubclass(base, Node):
+                return RelationReference(type=RelationType.BUILTIN_NODE, node_type=base.metatype)
+            elif issubclass(base, Trait):
+                return RelationReference(type=RelationType.TRAIT, trait_type=base.metatype)
+            else:
+                raise ValueError(f"invalid relation reference type: {base!r}")
+        elif isinstance(base, Node):
+            return RelationReference(
+                type=RelationType.CUSTOM_NODE,
+                node_type=NodeType.CUSTOM_ENTITY,
+                definition=base,
+            )
         else:
-            raise ValueError(f"invalid relation reference type: {base!r}")
-    elif isinstance(base, Node):
-        return RelationReference(
-            type=RelationType.CUSTOM_NODE,
-            node_type=NodeType.CUSTOM_ENTITY,
-            definition=base,
-        )
-    else:
-        assert_never(base)
+            assert_never(base)
 
 
 @builtin_enum(EnumType.ATTRIBUTE_TYPE)
 class AttributeType(Enum):
     PROPERTY = 1
     FIELD = 2
+
+
+AttributeReferenceIn = Union["Field", "Property", "AttributeReference"]
 
 
 @builtin_struct(StructType.ATTRIBUTE_REFERENCE, frozen=True)
@@ -138,19 +141,16 @@ class AttributeReference(StructFrozen):
     if TYPE_CHECKING:
         field_ptr: Optional["NodeReference"] = None
 
-
-AttributeReferenceIn = Union["Field", "Property", "AttributeReference"]
-
-
-def attribute_ref(attribute: AttributeReferenceIn) -> AttributeReference:
-    if isinstance(attribute, Property):
-        return AttributeReference(type=AttributeType.PROPERTY, prop_ptr=attribute.to_ref())
-    elif isinstance(attribute, Node):
-        return AttributeReference(type=AttributeType.FIELD, field=attribute)
-    elif isinstance(attribute, AttributeReference):
-        return attribute
-    else:
-        assert_never(attribute)
+    @classmethod
+    def of(cls, attribute: AttributeReferenceIn) -> "AttributeReference":
+        if isinstance(attribute, Property):
+            return AttributeReference(type=AttributeType.PROPERTY, prop_ptr=attribute.to_ref())
+        elif isinstance(attribute, Node):
+            return AttributeReference(type=AttributeType.FIELD, field=attribute)
+        elif isinstance(attribute, AttributeReference):
+            return attribute
+        else:
+            assert_never(attribute)
 
 
 @builtin_enum(EnumType.PROPERTY_REFERENCE_TYPE)

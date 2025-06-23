@@ -49,15 +49,13 @@ export enum ShadowType {
   STYLE = 2,
   BOX = 10,
   REALISTIC = 11,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:12030 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:12030 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12031 ==== */
 export enum ShadowPosition {
   OUTSIDE = 1,
   INSIDE = 2,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:12031 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:12031 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12012 ==== */
 export class Shadow extends Struct {
@@ -104,6 +102,8 @@ export class Shadow extends Struct {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -134,8 +134,7 @@ export class Shadow extends Struct {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:12012 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:12012 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:12024 ==== */
 export class ShadowStyle
@@ -435,5 +434,4 @@ export class ShadowStyle
     }
     return pathParts.reverse().join("/");
   }
-}
-/* ==== DESTACK_GENERATED_END:NODE:12024 ==== */
+} /* ==== DESTACK_GENERATED_END:NODE:12024 ==== */

@@ -2721,27 +2721,6 @@ export interface EnvironmentProto {
   icon?: IconProto;
 }
 /**
- * @generated from protobuf message symbol.destack.ErrorProto
- */
-export interface ErrorProto {
-  /**
-   * @generated from protobuf field: symbol.destack.StructTypeProto metatype = 1
-   */
-  metatype: StructTypeProto;
-  /**
-   * @generated from protobuf field: symbol.destack.ErrorTypeProto type = 30
-   */
-  type: ErrorTypeProto;
-  /**
-   * @generated from protobuf field: optional string title = 32
-   */
-  title?: string;
-  /**
-   * @generated from protobuf field: optional string text = 33
-   */
-  text?: string;
-}
-/**
  * A EventCursor is a cursor for iterating over Events.
  *
  * @generated from protobuf message symbol.destack.EventCursorProto
@@ -5546,6 +5525,26 @@ export interface NodeDefinitionProto {
    * @generated from protobuf field: repeated symbol.destack.TraitTypeProto traits = 51
    */
   traits: TraitTypeProto[];
+  /**
+   * @generated from protobuf field: optional symbol.destack.NodeTypeProto root_type = 52
+   */
+  rootType?: NodeTypeProto;
+  /**
+   * @generated from protobuf field: repeated symbol.destack.NodeTypeProto parent_types = 53
+   */
+  parentTypes: NodeTypeProto[];
+  /**
+   * @generated from protobuf field: repeated symbol.destack.NodeTypeProto child_types = 54
+   */
+  childTypes: NodeTypeProto[];
+  /**
+   * @generated from protobuf field: repeated symbol.destack.NodeTypeProto ancestor_types = 55
+   */
+  ancestorTypes: NodeTypeProto[];
+  /**
+   * @generated from protobuf field: repeated symbol.destack.NodeTypeProto descendant_types = 56
+   */
+  descendantTypes: NodeTypeProto[];
 }
 /**
  * @generated from protobuf message symbol.destack.NodeReferenceProto
@@ -6957,10 +6956,6 @@ export interface RunProto {
    * @generated from protobuf field: optional google.protobuf.Timestamp terminated_at = 49
    */
   terminatedAt?: Timestamp;
-  /**
-   * @generated from protobuf field: optional symbol.destack.ErrorProto error = 50
-   */
-  error?: ErrorProto;
   /**
    * @generated from protobuf field: optional symbol.destack.NodeReferenceProto interruption_ptr = 51
    */
@@ -12109,10 +12104,6 @@ export enum EnumTypeProto {
    */
   ENUM_TYPE_OPERATING_SYSTEM = 50040,
   /**
-   * @generated from protobuf enum value: ENUM_TYPE_ERROR_TYPE = 50041;
-   */
-  ENUM_TYPE_ERROR_TYPE = 50041,
-  /**
    * @generated from protobuf enum value: ENUM_TYPE_EDIT_TYPE = 50050;
    */
   ENUM_TYPE_EDIT_TYPE = 50050,
@@ -12165,67 +12156,6 @@ export enum EnvironmentTypeProto {
    * @generated from protobuf enum value: ENVIRONMENT_TYPE_PRODUCTION = 10;
    */
   ENVIRONMENT_TYPE_PRODUCTION = 10,
-}
-/**
- * @generated from protobuf enum symbol.destack.ErrorTypeProto
- */
-export enum ErrorTypeProto {
-  /**
-   * @generated from protobuf enum value: ERROR_TYPE_UNSPECIFIED = 0;
-   */
-  ERROR_TYPE_UNSPECIFIED = 0,
-  /**
-   * @generated from protobuf enum value: ERROR_TYPE_ABORTED = 2;
-   */
-  ERROR_TYPE_ABORTED = 2,
-  /**
-   * @generated from protobuf enum value: ERROR_TYPE_RUNTIME_UNAVAILABLE = 3;
-   */
-  ERROR_TYPE_RUNTIME_UNAVAILABLE = 3,
-  /**
-   * @generated from protobuf enum value: ERROR_TYPE_RUN_IMPOSSIBLE = 4;
-   */
-  ERROR_TYPE_RUN_IMPOSSIBLE = 4,
-  /**
-   * @generated from protobuf enum value: ERROR_TYPE_NOT_SUPPORTED = 5;
-   */
-  ERROR_TYPE_NOT_SUPPORTED = 5,
-  /**
-   * @generated from protobuf enum value: ERROR_TYPE_INVALID_VALUE = 10;
-   */
-  ERROR_TYPE_INVALID_VALUE = 10,
-  /**
-   * @generated from protobuf enum value: ERROR_TYPE_INVALID_COMPUTED = 11;
-   */
-  ERROR_TYPE_INVALID_COMPUTED = 11,
-  /**
-   * @generated from protobuf enum value: ERROR_TYPE_CODE_INVALID = 20;
-   */
-  ERROR_TYPE_CODE_INVALID = 20,
-  /**
-   * @generated from protobuf enum value: ERROR_TYPE_TEXT_INVALID = 21;
-   */
-  ERROR_TYPE_TEXT_INVALID = 21,
-  /**
-   * @generated from protobuf enum value: ERROR_TYPE_INCAPABLE = 100;
-   */
-  ERROR_TYPE_INCAPABLE = 100,
-  /**
-   * @generated from protobuf enum value: ERROR_TYPE_REFUSED = 101;
-   */
-  ERROR_TYPE_REFUSED = 101,
-  /**
-   * @generated from protobuf enum value: ERROR_TYPE_NON_RETRYABLE = 499;
-   */
-  ERROR_TYPE_NON_RETRYABLE = 499,
-  /**
-   * @generated from protobuf enum value: ERROR_TYPE_INTERRUPTION_CANCELLED = 500;
-   */
-  ERROR_TYPE_INTERRUPTION_CANCELLED = 500,
-  /**
-   * @generated from protobuf enum value: ERROR_TYPE_MODEL_FAILED = 501;
-   */
-  ERROR_TYPE_MODEL_FAILED = 501,
 }
 /**
  * @generated from protobuf enum symbol.destack.ExpressionTypeProto
@@ -23780,74 +23710,6 @@ class EnvironmentProto$Type extends MessageType<EnvironmentProto> {
  */
 export const EnvironmentProto = new EnvironmentProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class ErrorProto$Type extends MessageType<ErrorProto> {
-  constructor() {
-    super("symbol.destack.ErrorProto", [
-      { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
-      { no: 30, name: "type", kind: "enum", T: () => ["symbol.destack.ErrorTypeProto", ErrorTypeProto] },
-      { no: 32, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-      { no: 33, name: "text", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-    ]);
-  }
-  create(value?: PartialMessage<ErrorProto>): ErrorProto {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    message.metatype = 0;
-    message.type = 0;
-    if (value !== undefined) reflectionMergePartial<ErrorProto>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: ErrorProto,
-  ): ErrorProto {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* symbol.destack.StructTypeProto metatype */ 1:
-          message.metatype = reader.int32();
-          break;
-        case /* symbol.destack.ErrorTypeProto type */ 30:
-          message.type = reader.int32();
-          break;
-        case /* optional string title */ 32:
-          message.title = reader.string();
-          break;
-        case /* optional string text */ 33:
-          message.text = reader.string();
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
-    }
-    return message;
-  }
-  internalBinaryWrite(message: ErrorProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-    /* symbol.destack.StructTypeProto metatype = 1; */
-    if (message.metatype !== 0) writer.tag(1, WireType.Varint).int32(message.metatype);
-    /* symbol.destack.ErrorTypeProto type = 30; */
-    if (message.type !== 0) writer.tag(30, WireType.Varint).int32(message.type);
-    /* optional string title = 32; */
-    if (message.title !== undefined) writer.tag(32, WireType.LengthDelimited).string(message.title);
-    /* optional string text = 33; */
-    if (message.text !== undefined) writer.tag(33, WireType.LengthDelimited).string(message.text);
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
-}
-/**
- * @generated MessageType for protobuf message symbol.destack.ErrorProto
- */
-export const ErrorProto = new ErrorProto$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class EventCursorProto$Type extends MessageType<EventCursorProto> {
   constructor() {
     super("symbol.destack.EventCursorProto", [
@@ -31940,6 +31802,35 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
         repeat: 1 /*RepeatType.PACKED*/,
         T: () => ["symbol.destack.TraitTypeProto", TraitTypeProto],
       },
+      { no: 52, name: "root_type", kind: "enum", opt: true, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+      {
+        no: 53,
+        name: "parent_types",
+        kind: "enum",
+        repeat: 1 /*RepeatType.PACKED*/,
+        T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto],
+      },
+      {
+        no: 54,
+        name: "child_types",
+        kind: "enum",
+        repeat: 1 /*RepeatType.PACKED*/,
+        T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto],
+      },
+      {
+        no: 55,
+        name: "ancestor_types",
+        kind: "enum",
+        repeat: 1 /*RepeatType.PACKED*/,
+        T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto],
+      },
+      {
+        no: 56,
+        name: "descendant_types",
+        kind: "enum",
+        repeat: 1 /*RepeatType.PACKED*/,
+        T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto],
+      },
     ]);
   }
   create(value?: PartialMessage<NodeDefinitionProto>): NodeDefinitionProto {
@@ -31950,6 +31841,10 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
     message.name = "";
     message.properties = [];
     message.traits = [];
+    message.parentTypes = [];
+    message.childTypes = [];
+    message.ancestorTypes = [];
+    message.descendantTypes = [];
     if (value !== undefined) reflectionMergePartial<NodeDefinitionProto>(this, message, value);
     return message;
   }
@@ -31990,6 +31885,29 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
             for (let e = reader.int32() + reader.pos; reader.pos < e; ) message.traits.push(reader.int32());
           else message.traits.push(reader.int32());
           break;
+        case /* optional symbol.destack.NodeTypeProto root_type */ 52:
+          message.rootType = reader.int32();
+          break;
+        case /* repeated symbol.destack.NodeTypeProto parent_types */ 53:
+          if (wireType === WireType.LengthDelimited)
+            for (let e = reader.int32() + reader.pos; reader.pos < e; ) message.parentTypes.push(reader.int32());
+          else message.parentTypes.push(reader.int32());
+          break;
+        case /* repeated symbol.destack.NodeTypeProto child_types */ 54:
+          if (wireType === WireType.LengthDelimited)
+            for (let e = reader.int32() + reader.pos; reader.pos < e; ) message.childTypes.push(reader.int32());
+          else message.childTypes.push(reader.int32());
+          break;
+        case /* repeated symbol.destack.NodeTypeProto ancestor_types */ 55:
+          if (wireType === WireType.LengthDelimited)
+            for (let e = reader.int32() + reader.pos; reader.pos < e; ) message.ancestorTypes.push(reader.int32());
+          else message.ancestorTypes.push(reader.int32());
+          break;
+        case /* repeated symbol.destack.NodeTypeProto descendant_types */ 56:
+          if (wireType === WireType.LengthDelimited)
+            for (let e = reader.int32() + reader.pos; reader.pos < e; ) message.descendantTypes.push(reader.int32());
+          else message.descendantTypes.push(reader.int32());
+          break;
         default:
           let u = options.readUnknownField;
           if (u === "throw")
@@ -32025,6 +31943,32 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
     if (message.traits.length) {
       writer.tag(51, WireType.LengthDelimited).fork();
       for (let i = 0; i < message.traits.length; i++) writer.int32(message.traits[i]);
+      writer.join();
+    }
+    /* optional symbol.destack.NodeTypeProto root_type = 52; */
+    if (message.rootType !== undefined) writer.tag(52, WireType.Varint).int32(message.rootType);
+    /* repeated symbol.destack.NodeTypeProto parent_types = 53; */
+    if (message.parentTypes.length) {
+      writer.tag(53, WireType.LengthDelimited).fork();
+      for (let i = 0; i < message.parentTypes.length; i++) writer.int32(message.parentTypes[i]);
+      writer.join();
+    }
+    /* repeated symbol.destack.NodeTypeProto child_types = 54; */
+    if (message.childTypes.length) {
+      writer.tag(54, WireType.LengthDelimited).fork();
+      for (let i = 0; i < message.childTypes.length; i++) writer.int32(message.childTypes[i]);
+      writer.join();
+    }
+    /* repeated symbol.destack.NodeTypeProto ancestor_types = 55; */
+    if (message.ancestorTypes.length) {
+      writer.tag(55, WireType.LengthDelimited).fork();
+      for (let i = 0; i < message.ancestorTypes.length; i++) writer.int32(message.ancestorTypes[i]);
+      writer.join();
+    }
+    /* repeated symbol.destack.NodeTypeProto descendant_types = 56; */
+    if (message.descendantTypes.length) {
+      writer.tag(56, WireType.LengthDelimited).fork();
+      for (let i = 0; i < message.descendantTypes.length; i++) writer.int32(message.descendantTypes[i]);
       writer.join();
     }
     let u = options.writeUnknownFields;
@@ -35914,7 +35858,6 @@ class RunProto$Type extends MessageType<RunProto> {
       { no: 47, name: "seen_at", kind: "message", T: () => Timestamp },
       { no: 48, name: "interrupted_at", kind: "message", T: () => Timestamp },
       { no: 49, name: "terminated_at", kind: "message", T: () => Timestamp },
-      { no: 50, name: "error", kind: "message", T: () => ErrorProto },
       { no: 51, name: "interruption_ptr", kind: "message", T: () => NodeReferenceProto },
     ]);
   }
@@ -36003,9 +35946,6 @@ class RunProto$Type extends MessageType<RunProto> {
           break;
         case /* optional google.protobuf.Timestamp terminated_at */ 49:
           message.terminatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.terminatedAt);
-          break;
-        case /* optional symbol.destack.ErrorProto error */ 50:
-          message.error = ErrorProto.internalBinaryRead(reader, reader.uint32(), options, message.error);
           break;
         case /* optional symbol.destack.NodeReferenceProto interruption_ptr */ 51:
           message.interruptionPtr = NodeReferenceProto.internalBinaryRead(
@@ -36130,9 +36070,6 @@ class RunProto$Type extends MessageType<RunProto> {
         writer.tag(49, WireType.LengthDelimited).fork(),
         options,
       ).join();
-    /* optional symbol.destack.ErrorProto error = 50; */
-    if (message.error)
-      ErrorProto.internalBinaryWrite(message.error, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
     /* optional symbol.destack.NodeReferenceProto interruption_ptr = 51; */
     if (message.interruptionPtr)
       NodeReferenceProto.internalBinaryWrite(
@@ -46795,7 +46732,6 @@ export type AnyStructProto =
   | EditProto
   | ChangeProto
   | ChangeResultProto
-  | ErrorProto
   | StringConstraintProto
   | NumberConstraintProto
   | CollectionConstraintProto

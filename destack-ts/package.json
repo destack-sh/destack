@@ -1,6 +1,6 @@
 {
   "name": "destack-ts",
-  "version": "2025.06.22.0",
+  "version": "2025.06.23.0",
   "private": false,
   "type": "module",
   "main": "dist/index.js",
@@ -12,7 +12,8 @@
     "build": "tsc",
     "test": "vitest",
     "lint": "eslint .",
-    "format": "prettier --write src/"
+    "format": "prettier --write src/",
+    "format-language": "prettier --write src/language/"
   },
   "engines": {
     "node": ">=18.0.0"

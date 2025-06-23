@@ -10,6 +10,8 @@ export class Value extends StructFrozen {
 
   constructor(options: { type: Type; value: any; _session?: Session | null; _supergraph?: Supergraph | null }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -29,5 +31,4 @@ export class Value extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:2500 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:2500 ==== */

@@ -34,15 +34,13 @@ export enum EntitlementEventType {
   GRANTED = 2,
   REVOKED = 3,
   EXPIRED = 4,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:551 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:551 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:550 ==== */
 export enum EntitlementType {
   PERMISSION = 1,
   ROLE = 2,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:550 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:550 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:551 ==== */
 export class EntitlementEvent extends Node implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked {
@@ -220,8 +218,7 @@ export class EntitlementEvent extends Node implements Spatial, Particle, Analyti
     }
     return pathParts.reverse().join("/");
   }
-}
-/* ==== DESTACK_GENERATED_END:NODE:551 ==== */
+} /* ==== DESTACK_GENERATED_END:NODE:551 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:550 ==== */
 export class Entitlement extends Node implements Spatial, Entity, IsTracked, IsDeletable {
@@ -428,5 +425,4 @@ export class Entitlement extends Node implements Spatial, Entity, IsTracked, IsD
     }
     return pathParts.reverse().join("/");
   }
-}
-/* ==== DESTACK_GENERATED_END:NODE:550 ==== */
+} /* ==== DESTACK_GENERATED_END:NODE:550 ==== */

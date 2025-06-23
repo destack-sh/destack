@@ -265,5 +265,4 @@ export class Agent
     }
     return pathParts.reverse().join("/");
   }
-}
-/* ==== DESTACK_GENERATED_END:NODE:600 ==== */
+} /* ==== DESTACK_GENERATED_END:NODE:600 ==== */

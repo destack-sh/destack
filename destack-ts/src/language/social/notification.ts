@@ -35,8 +35,7 @@ export enum NotificationStatus {
   DISMISSED = 3,
   EXPIRED = 4,
   RESCINDED = 5,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:5600 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:5600 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:5601 ==== */
 export enum NotificationEventType {
@@ -45,8 +44,7 @@ export enum NotificationEventType {
   READ = 3,
   DISMISSED = 4,
   EXPIRED = 5,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:5601 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:5601 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:5601 ==== */
 export class NotificationEvent
@@ -230,8 +228,7 @@ export class NotificationEvent
     }
     return pathParts.reverse().join("/");
   }
-}
-/* ==== DESTACK_GENERATED_END:NODE:5601 ==== */
+} /* ==== DESTACK_GENERATED_END:NODE:5601 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:5600 ==== */
 export class Notification extends Node implements Spatial, Entity, IsTracked, IsOwnable {
@@ -417,5 +414,4 @@ export class Notification extends Node implements Spatial, Entity, IsTracked, Is
     }
     return pathParts.reverse().join("/");
   }
-}
-/* ==== DESTACK_GENERATED_END:NODE:5600 ==== */
+} /* ==== DESTACK_GENERATED_END:NODE:5600 ==== */

@@ -436,7 +436,6 @@ class EnumTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_PLATFORM_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_RUNTIME_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_OPERATING_SYSTEM: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_ERROR_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_EDIT_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_EDIT_OPERATION: _ClassVar[EnumTypeProto]
     ENUM_TYPE_CHANGE_STATUS: _ClassVar[EnumTypeProto]
@@ -452,23 +451,6 @@ class EnvironmentTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENVIRONMENT_TYPE_TEST: _ClassVar[EnvironmentTypeProto]
     ENVIRONMENT_TYPE_STAGING: _ClassVar[EnvironmentTypeProto]
     ENVIRONMENT_TYPE_PRODUCTION: _ClassVar[EnvironmentTypeProto]
-
-class ErrorTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    ERROR_TYPE_UNSPECIFIED: _ClassVar[ErrorTypeProto]
-    ERROR_TYPE_ABORTED: _ClassVar[ErrorTypeProto]
-    ERROR_TYPE_RUNTIME_UNAVAILABLE: _ClassVar[ErrorTypeProto]
-    ERROR_TYPE_RUN_IMPOSSIBLE: _ClassVar[ErrorTypeProto]
-    ERROR_TYPE_NOT_SUPPORTED: _ClassVar[ErrorTypeProto]
-    ERROR_TYPE_INVALID_VALUE: _ClassVar[ErrorTypeProto]
-    ERROR_TYPE_INVALID_COMPUTED: _ClassVar[ErrorTypeProto]
-    ERROR_TYPE_CODE_INVALID: _ClassVar[ErrorTypeProto]
-    ERROR_TYPE_TEXT_INVALID: _ClassVar[ErrorTypeProto]
-    ERROR_TYPE_INCAPABLE: _ClassVar[ErrorTypeProto]
-    ERROR_TYPE_REFUSED: _ClassVar[ErrorTypeProto]
-    ERROR_TYPE_NON_RETRYABLE: _ClassVar[ErrorTypeProto]
-    ERROR_TYPE_INTERRUPTION_CANCELLED: _ClassVar[ErrorTypeProto]
-    ERROR_TYPE_MODEL_FAILED: _ClassVar[ErrorTypeProto]
 
 class ExpressionTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1899,7 +1881,6 @@ ENUM_TYPE_STORE_IMPLEMENTATION: EnumTypeProto
 ENUM_TYPE_PLATFORM_TYPE: EnumTypeProto
 ENUM_TYPE_RUNTIME_TYPE: EnumTypeProto
 ENUM_TYPE_OPERATING_SYSTEM: EnumTypeProto
-ENUM_TYPE_ERROR_TYPE: EnumTypeProto
 ENUM_TYPE_EDIT_TYPE: EnumTypeProto
 ENUM_TYPE_EDIT_OPERATION: EnumTypeProto
 ENUM_TYPE_CHANGE_STATUS: EnumTypeProto
@@ -1912,20 +1893,6 @@ ENVIRONMENT_TYPE_DEVELOPMENT: EnvironmentTypeProto
 ENVIRONMENT_TYPE_TEST: EnvironmentTypeProto
 ENVIRONMENT_TYPE_STAGING: EnvironmentTypeProto
 ENVIRONMENT_TYPE_PRODUCTION: EnvironmentTypeProto
-ERROR_TYPE_UNSPECIFIED: ErrorTypeProto
-ERROR_TYPE_ABORTED: ErrorTypeProto
-ERROR_TYPE_RUNTIME_UNAVAILABLE: ErrorTypeProto
-ERROR_TYPE_RUN_IMPOSSIBLE: ErrorTypeProto
-ERROR_TYPE_NOT_SUPPORTED: ErrorTypeProto
-ERROR_TYPE_INVALID_VALUE: ErrorTypeProto
-ERROR_TYPE_INVALID_COMPUTED: ErrorTypeProto
-ERROR_TYPE_CODE_INVALID: ErrorTypeProto
-ERROR_TYPE_TEXT_INVALID: ErrorTypeProto
-ERROR_TYPE_INCAPABLE: ErrorTypeProto
-ERROR_TYPE_REFUSED: ErrorTypeProto
-ERROR_TYPE_NON_RETRYABLE: ErrorTypeProto
-ERROR_TYPE_INTERRUPTION_CANCELLED: ErrorTypeProto
-ERROR_TYPE_MODEL_FAILED: ErrorTypeProto
 EXPRESSION_TYPE_UNSPECIFIED: ExpressionTypeProto
 EXPRESSION_TYPE_LITERAL: ExpressionTypeProto
 EXPRESSION_TYPE_ATTRIBUTE: ExpressionTypeProto
@@ -4181,18 +4148,6 @@ class EnvironmentProto(_message.Message):
     icon: IconProto
     def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., materialization: _Optional[_Union[MaterializationTypeProto, str]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconProto, _Mapping]] = ...) -> None: ...
 
-class ErrorProto(_message.Message):
-    __slots__ = ("metatype", "type", "title", "text")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
-    TITLE_FIELD_NUMBER: _ClassVar[int]
-    TEXT_FIELD_NUMBER: _ClassVar[int]
-    metatype: StructTypeProto
-    type: ErrorTypeProto
-    title: str
-    text: str
-    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., type: _Optional[_Union[ErrorTypeProto, str]] = ..., title: _Optional[str] = ..., text: _Optional[str] = ...) -> None: ...
-
 class EventCursorProto(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "materialization", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "owned_by_ptr", "status", "active_at")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -5645,7 +5600,7 @@ class NodeConstraintProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., node_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., node_traits: _Optional[_Iterable[_Union[TraitTypeProto, str]]] = ...) -> None: ...
 
 class NodeDefinitionProto(_message.Message):
-    __slots__ = ("metatype", "id", "type", "name", "icon", "description", "properties", "traits")
+    __slots__ = ("metatype", "id", "type", "name", "icon", "description", "properties", "traits", "root_type", "parent_types", "child_types", "ancestor_types", "descendant_types")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -5654,6 +5609,11 @@ class NodeDefinitionProto(_message.Message):
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     TRAITS_FIELD_NUMBER: _ClassVar[int]
+    ROOT_TYPE_FIELD_NUMBER: _ClassVar[int]
+    PARENT_TYPES_FIELD_NUMBER: _ClassVar[int]
+    CHILD_TYPES_FIELD_NUMBER: _ClassVar[int]
+    ANCESTOR_TYPES_FIELD_NUMBER: _ClassVar[int]
+    DESCENDANT_TYPES_FIELD_NUMBER: _ClassVar[int]
     metatype: StructTypeProto
     id: int
     type: NodeTypeProto
@@ -5662,7 +5622,12 @@ class NodeDefinitionProto(_message.Message):
     description: str
     properties: _containers.RepeatedCompositeFieldContainer[PropertyDefinitionProto]
     traits: _containers.RepeatedScalarFieldContainer[TraitTypeProto]
-    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[int] = ..., type: _Optional[_Union[NodeTypeProto, str]] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconProto, _Mapping]] = ..., description: _Optional[str] = ..., properties: _Optional[_Iterable[_Union[PropertyDefinitionProto, _Mapping]]] = ..., traits: _Optional[_Iterable[_Union[TraitTypeProto, str]]] = ...) -> None: ...
+    root_type: NodeTypeProto
+    parent_types: _containers.RepeatedScalarFieldContainer[NodeTypeProto]
+    child_types: _containers.RepeatedScalarFieldContainer[NodeTypeProto]
+    ancestor_types: _containers.RepeatedScalarFieldContainer[NodeTypeProto]
+    descendant_types: _containers.RepeatedScalarFieldContainer[NodeTypeProto]
+    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[int] = ..., type: _Optional[_Union[NodeTypeProto, str]] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconProto, _Mapping]] = ..., description: _Optional[str] = ..., properties: _Optional[_Iterable[_Union[PropertyDefinitionProto, _Mapping]]] = ..., traits: _Optional[_Iterable[_Union[TraitTypeProto, str]]] = ..., root_type: _Optional[_Union[NodeTypeProto, str]] = ..., parent_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., child_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., ancestor_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., descendant_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ...) -> None: ...
 
 class NodeReferenceProto(_message.Message):
     __slots__ = ("metatype", "node_type", "id", "space_id", "definition_id")
@@ -6364,7 +6329,7 @@ class RouteProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., materialization: _Optional[_Union[MaterializationTypeProto, str]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., order_key: _Optional[str] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., name: _Optional[str] = ..., scene_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ...) -> None: ...
 
 class RunProto(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "value", "target_ptr", "status", "duration", "scheduled_at", "started_at", "seen_at", "interrupted_at", "terminated_at", "error", "interruption_ptr")
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "value", "target_ptr", "status", "duration", "scheduled_at", "started_at", "seen_at", "interrupted_at", "terminated_at", "interruption_ptr")
     class ValueEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -6389,7 +6354,6 @@ class RunProto(_message.Message):
     SEEN_AT_FIELD_NUMBER: _ClassVar[int]
     INTERRUPTED_AT_FIELD_NUMBER: _ClassVar[int]
     TERMINATED_AT_FIELD_NUMBER: _ClassVar[int]
-    ERROR_FIELD_NUMBER: _ClassVar[int]
     INTERRUPTION_PTR_FIELD_NUMBER: _ClassVar[int]
     metatype: NodeTypeProto
     id: str
@@ -6408,9 +6372,8 @@ class RunProto(_message.Message):
     seen_at: _timestamp_pb2.Timestamp
     interrupted_at: _timestamp_pb2.Timestamp
     terminated_at: _timestamp_pb2.Timestamp
-    error: ErrorProto
     interruption_ptr: NodeReferenceProto
-    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., value: _Optional[_Mapping[str, ValueProto]] = ..., target_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., status: _Optional[_Union[RunStatusProto, str]] = ..., duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., scheduled_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., started_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., seen_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., interrupted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., terminated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., error: _Optional[_Union[ErrorProto, _Mapping]] = ..., interruption_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., value: _Optional[_Mapping[str, ValueProto]] = ..., target_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., status: _Optional[_Union[RunStatusProto, str]] = ..., duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., scheduled_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., started_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., seen_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., interrupted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., terminated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., interruption_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ...) -> None: ...
 
 class RunEventProto(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "type", "node_ptr", "target_ptr")

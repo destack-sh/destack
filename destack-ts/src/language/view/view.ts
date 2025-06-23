@@ -26,5 +26,4 @@ export interface View {
   get script(): Script | null;
   set script(value: Script | null);
   scriptPtr: NodeReference | null;
-}
-/* ==== DESTACK_GENERATED_END:TRAIT:9001 ==== */
+} /* ==== DESTACK_GENERATED_END:TRAIT:9001 ==== */

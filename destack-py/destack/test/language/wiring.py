@@ -5,6 +5,7 @@ from hypothesis import HealthCheck, given, settings
 from destack.grpc import AnyObjectProto
 from destack.language import (
     BuiltinObjectBase,
+    Join,
     JoinType,
     NodeReference,
     NodeType,
@@ -14,7 +15,6 @@ from destack.language import (
     ThreadCursor,
     User,
     UserStatus,
-    join,
 )
 from destack.test.fixtures import BUILTIN_OBJECTS
 from destack.test.strategies import builtin_objects, examples
@@ -53,7 +53,7 @@ def test_roundtrip_query_proto(session: Session):
         sort=[Thread.property("created_at").asc()],
         limit=25,
         Cursor=ThreadCursor.get(
-            join=join(JoinType.LEFT, on=ThreadCursor.property("owned_by").eq(5)),
+            join=Join.of(JoinType.LEFT, on=ThreadCursor.property("owned_by").eq(5)),
             # UnreadCount=Message.scalar(
             #     type=AggregationType.COUNT,
             #     where=Message.property("read_at").greater_than(

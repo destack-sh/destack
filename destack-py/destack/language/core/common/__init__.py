@@ -55,12 +55,6 @@ from .query import (
     Sort,
     SortMode,
     SortType,
-    aggregation,
-    condition,
-    expression,
-    join,
-    select,
-    sort,
 )
 from .relation import (
     AttributeReference,
@@ -72,8 +66,6 @@ from .relation import (
     RelationReference,
     RelationType,
     Scope,
-    attribute_ref,
-    relation_ref,
 )
 from .spacetime import Branch, Snapshot
 from .struct import CustomStructDefinition
@@ -243,18 +235,10 @@ __all__ = [
     "Vector3i",
     "Vector4",
     "Vector4i",
-    "aggregation",
-    "attribute_ref",
-    "condition",
-    "expression",
     "icon",
-    "join",
     "markdown_to_text",
     "pack_value",
-    "relation_ref",
     "reverse_icon",
-    "select",
-    "sort",
     "text",
     "text_to_markdown",
     "title",

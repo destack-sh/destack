@@ -248,5 +248,4 @@ export class Option
     }
     return pathParts.reverse().join("/");
   }
-}
-/* ==== DESTACK_GENERATED_END:NODE:2530 ==== */
+} /* ==== DESTACK_GENERATED_END:NODE:2530 ==== */

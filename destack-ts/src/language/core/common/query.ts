@@ -17,8 +17,7 @@ export enum FunctionType {
   DIVIDE = 4,
   MODULO = 5,
   POWER = 6,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:108 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:108 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:103 ==== */
 export enum ConditionalType {
@@ -38,8 +37,7 @@ export enum ConditionalType {
   NOT_IN = 31,
   EXISTS = 40,
   NOT_EXISTS = 41,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:103 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:103 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:104 ==== */
 export enum AggregationType {
@@ -49,8 +47,7 @@ export enum AggregationType {
   MIN = 4,
   MAX = 5,
   AVERAGE = 6,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:104 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:104 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:109 ==== */
 export enum ExpressionType {
@@ -59,15 +56,13 @@ export enum ExpressionType {
   CONDITION = 3,
   FUNCTION = 4,
   AGGREGATION = 5,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:109 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:109 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:106 ==== */
 export enum SortType {
   ASCENDING = 1,
   DESCENDING = 2,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:106 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:106 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:105 ==== */
 export enum SortMode {
@@ -76,16 +71,14 @@ export enum SortMode {
   AVERAGE = 3,
   SUM = 4,
   MEDIAN = 5,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:105 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:105 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:107 ==== */
 export enum JoinType {
   LEFT = 1,
   PARENT = 10,
   CHILD = 11,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:107 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:107 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:120 ==== */
 export enum QueryType {
@@ -93,15 +86,13 @@ export enum QueryType {
   SCALAR = 2,
   GROUPED_NODE = 10,
   GROUPED_SCALAR = 11,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:120 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:120 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:121 ==== */
 export enum QueryUpdateType {
   FULL_RESULT = 1,
   PARTIAL_RESULT = 2,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:121 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:121 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50101 ==== */
 export class Function extends StructFrozen {
@@ -120,6 +111,8 @@ export class Function extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -140,8 +133,7 @@ export class Function extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:50101 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:50101 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50104 ==== */
 export class Condition extends StructFrozen {
@@ -160,6 +152,8 @@ export class Condition extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -180,8 +174,7 @@ export class Condition extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:50104 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:50104 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50103 ==== */
 export class Aggregation extends StructFrozen {
@@ -198,6 +191,8 @@ export class Aggregation extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -217,8 +212,7 @@ export class Aggregation extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:50103 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:50103 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50100 ==== */
 export class Expression extends StructFrozen {
@@ -243,6 +237,8 @@ export class Expression extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -266,8 +262,7 @@ export class Expression extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:50100 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:50100 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50105 ==== */
 export class Sort extends StructFrozen {
@@ -286,6 +281,8 @@ export class Sort extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -306,8 +303,7 @@ export class Sort extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:50105 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:50105 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50106 ==== */
 export class Select extends StructFrozen {
@@ -322,6 +318,8 @@ export class Select extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -340,8 +338,7 @@ export class Select extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:50106 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:50106 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50102 ==== */
 export class Join extends StructFrozen {
@@ -364,6 +361,8 @@ export class Join extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -386,8 +385,7 @@ export class Join extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:50102 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:50102 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50110 ==== */
 export class Query extends StructFrozen {
@@ -428,6 +426,8 @@ export class Query extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -459,8 +459,7 @@ export class Query extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:50110 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:50110 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50114 ==== */
 export class Histogram extends StructFrozen {
@@ -477,6 +476,8 @@ export class Histogram extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -496,8 +497,7 @@ export class Histogram extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:50114 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:50114 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50111 ==== */
 export class QueryResult extends Struct {
@@ -526,6 +526,8 @@ export class QueryResult extends Struct {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -551,8 +553,7 @@ export class QueryResult extends Struct {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:50111 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:50111 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50112 ==== */
 export class QueryResultGroup extends Struct {
@@ -577,6 +578,8 @@ export class QueryResultGroup extends Struct {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -600,8 +603,7 @@ export class QueryResultGroup extends Struct {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:50112 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:50112 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50113 ==== */
 export class QueryUpdate extends StructFrozen {
@@ -618,6 +620,8 @@ export class QueryUpdate extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -637,8 +641,7 @@ export class QueryUpdate extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:50113 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:50113 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2571 ==== */
 export class Selection extends StructFrozen {
@@ -647,6 +650,8 @@ export class Selection extends StructFrozen {
 
   constructor(options: { _session?: Session | null; _supergraph?: Supergraph | null }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -663,5 +668,4 @@ export class Selection extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:2571 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:2571 ==== */

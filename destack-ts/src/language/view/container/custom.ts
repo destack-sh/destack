@@ -429,8 +429,7 @@ export class CustomViewDefinition
     }
     return pathParts.reverse().join("/");
   }
-}
-/* ==== DESTACK_GENERATED_END:NODE:10000 ==== */
+} /* ==== DESTACK_GENERATED_END:NODE:10000 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:10001 ==== */
 export class CustomView
@@ -868,5 +867,4 @@ export class CustomView
     }
     return pathParts.reverse().join("/");
   }
-}
-/* ==== DESTACK_GENERATED_END:NODE:10001 ==== */
+} /* ==== DESTACK_GENERATED_END:NODE:10001 ==== */

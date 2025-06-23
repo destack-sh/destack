@@ -7,8 +7,7 @@ export enum IconType {
   VS_CODE = 4,
   FILE = 10,
   FILE_URL = 11,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:2531 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:2531 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2531 ==== */
 export class Icon extends StructFrozen {
@@ -45,6 +44,8 @@ export class Icon extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -74,5 +75,4 @@ export class Icon extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:2531 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:2531 ==== */

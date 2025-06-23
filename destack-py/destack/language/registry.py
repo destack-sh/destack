@@ -245,12 +245,12 @@ def _complete_setup():
             setattr(Property, name, attr)
 
     # generate relation refs
-    from destack.language.core import relation_ref
+    from destack.language.core import RelationReference
 
     for cls in NODE_CLASS_BY_TYPE.values():
-        RELATION_REF_BY_CLASS[cls] = relation_ref(cls)
+        RELATION_REF_BY_CLASS[cls] = RelationReference.of(cls)
     for cls in TRAIT_TYPE_BY_CLASS:
-        RELATION_REF_BY_CLASS[cls] = relation_ref(cls)
+        RELATION_REF_BY_CLASS[cls] = RelationReference.of(cls)
 
     # generate meta info
     from destack.language.core import (

@@ -37,8 +37,7 @@ import { Temporal } from "temporal-polyfill";
 export enum RoleEventType {
   ASSIGNED = 1,
   REMOVED = 2,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:521 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:521 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:521 ==== */
 export class RoleEvent extends Node implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked {
@@ -219,8 +218,7 @@ export class RoleEvent extends Node implements Spatial, Particle, Analytic, Inde
     }
     return pathParts.reverse().join("/");
   }
-}
-/* ==== DESTACK_GENERATED_END:NODE:521 ==== */
+} /* ==== DESTACK_GENERATED_END:NODE:521 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:520 ==== */
 export class Role extends Node implements Global, Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsOwner {
@@ -412,5 +410,4 @@ export class Role extends Node implements Global, Spatial, Entity, IsTracked, Is
     }
     return pathParts.reverse().join("/");
   }
-}
-/* ==== DESTACK_GENERATED_END:NODE:520 ==== */
+} /* ==== DESTACK_GENERATED_END:NODE:520 ==== */

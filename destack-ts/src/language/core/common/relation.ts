@@ -16,23 +16,20 @@ export enum RelationType {
   BUILTIN_NODE = 1,
   CUSTOM_NODE = 2,
   TRAIT = 3,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:50010 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:50010 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50011 ==== */
 export enum AttributeType {
   PROPERTY = 1,
   FIELD = 2,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:50011 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:50011 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50012 ==== */
 export enum PropertyReferenceType {
   NODE = 1,
   TRAIT = 2,
   STRUCT = 3,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:50012 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:50012 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50000 ==== */
 export class Scope extends StructFrozen {
@@ -49,6 +46,8 @@ export class Scope extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -68,8 +67,7 @@ export class Scope extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:50000 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:50000 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50107 ==== */
 export class RelationReference extends StructFrozen {
@@ -100,6 +98,8 @@ export class RelationReference extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -124,6 +124,11 @@ export class RelationReference extends StructFrozen {
   }
 
   validate(): void {
+    throw new Error("not implemented");
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  static of() {
     throw new Error("not implemented");
   }
 }
@@ -156,6 +161,8 @@ export class AttributeReference extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -181,8 +188,7 @@ export class AttributeReference extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:50108 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:50108 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50003 ==== */
 export class PropertyReference extends StructFrozen {
@@ -205,6 +211,8 @@ export class PropertyReference extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -227,8 +235,7 @@ export class PropertyReference extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:50003 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:50003 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50002 ==== */
 export class NodeReference extends StructFrozen {
@@ -249,6 +256,8 @@ export class NodeReference extends StructFrozen {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -270,5 +279,4 @@ export class NodeReference extends StructFrozen {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:50002 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:50002 ==== */

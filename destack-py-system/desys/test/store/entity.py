@@ -10,6 +10,7 @@ from destack.language import (
     Folder,
     FolderType,
     FrameView,
+    Join,
     JoinType,
     LabelView,
     Message,
@@ -24,7 +25,6 @@ from destack.language import (
     User,
     UserStatus,
     View,
-    join,
 )
 from destack.test.fixtures import NODES
 from destack.test.strategies import examples, nodes
@@ -137,7 +137,7 @@ async def test_create_folders_recursive(session: Session):
         # query folder down (parent, recursive)
         connection = await Folder.get(
             where=Folder.property("id").eq(folder.id),
-            Folders=Folder.search(join=join(JoinType.CHILD, recursive=True)),
+            Folders=Folder.search(join=Join.of(JoinType.CHILD, recursive=True)),
         ).execute()
         folder_unpacked = connection.to_one()
         folder_tree_unpacked = folder_unpacked.get_descendants(Folder)
@@ -148,7 +148,7 @@ async def test_create_folders_recursive(session: Session):
         connection = await Folder.get(
             where=Folder.property("id").eq(folder_leaves[0].id),
             Folders=Folder.search(
-                join=join(JoinType.PARENT, recursive=True),
+                join=Join.of(JoinType.PARENT, recursive=True),
             ),
         ).execute()
         folders_unpacked = connection.graph.get_roots(Folder)
@@ -186,7 +186,7 @@ async def test_create_scene_with_heterogeneous_views(session: Session):
     # query view (child, non-recursive)
     scene_tree = await FrameView.get(
         where=FrameView.property("id").eq(root_view.id),
-        Views=View.search(join=join(JoinType.CHILD)),
+        Views=View.search(join=Join.of(JoinType.CHILD)),
     ).execute()
     scene_unpacked = scene_tree.to_one()
     view_tree_unpacked = scene_unpacked.get_descendants(View)
@@ -195,7 +195,7 @@ async def test_create_scene_with_heterogeneous_views(session: Session):
     # query view (child, recursive)
     scene_tree = await FrameView.get(
         where=FrameView.property("id").eq(root_view.id),
-        Views=View.search(join=join(JoinType.CHILD, recursive=True)),
+        Views=View.search(join=Join.of(JoinType.CHILD, recursive=True)),
     ).execute()
     scene_unpacked = scene_tree.to_one()
     view_tree_unpacked = scene_unpacked.get_descendants(View)
@@ -205,7 +205,7 @@ async def test_create_scene_with_heterogeneous_views(session: Session):
     view_leaves = scene._graph.get_leaves(TextView, scene)
     scene_tree = await TextView.get(
         where=TextView.property("id").eq(view_leaves[0].id),
-        Parents=View.search(join=join(JoinType.PARENT, recursive=True)),
+        Parents=View.search(join=Join.of(JoinType.PARENT, recursive=True)),
     ).execute()
     scene_unpacked = scene_tree.graph.get_roots(View)
     assert len(scene_unpacked) == 1

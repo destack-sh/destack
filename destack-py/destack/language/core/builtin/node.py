@@ -281,6 +281,12 @@ class Node[NodeProtoT: AnyNodeProto](NodeBase[NodeProtoT]):
             raise LookupError(f"no child {name} of {self!r}")
         return cast(N, child)
 
+    def get_ancestors[N: Node = Node](
+        self, node_type: NodeType | TraitType | type[N] | None = None
+    ) -> Sequence[N]:
+        """Gets the ancestors of this Node."""
+        return self._graph.get_ancestors(self, node_type=node_type)
+
     def get_descendants[N: Node = Node](
         self, node_type: NodeType | TraitType | type[N] | None = None
     ) -> Sequence[N]:

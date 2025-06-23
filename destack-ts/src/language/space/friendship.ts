@@ -32,8 +32,7 @@ export enum FriendshipInviteEventType {
   RESCINDED = 2,
   ACCEPTED = 3,
   REJECTED = 4,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:31 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:31 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:30 ==== */
 export class Friendship extends Node implements Global, Entity, IsTracked {
@@ -192,8 +191,7 @@ export class Friendship extends Node implements Global, Entity, IsTracked {
   get path(): string {
     return "Friendship[id={this.id}]";
   }
-}
-/* ==== DESTACK_GENERATED_END:NODE:30 ==== */
+} /* ==== DESTACK_GENERATED_END:NODE:30 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:32 ==== */
 export class FriendshipInviteEvent
@@ -377,8 +375,7 @@ export class FriendshipInviteEvent
     }
     return pathParts.reverse().join("/");
   }
-}
-/* ==== DESTACK_GENERATED_END:NODE:32 ==== */
+} /* ==== DESTACK_GENERATED_END:NODE:32 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:31 ==== */
 export class FriendshipInvite extends Node implements Global, Entity, IsTracked, IsOwnable, LikeInvite {
@@ -551,5 +548,4 @@ export class FriendshipInvite extends Node implements Global, Entity, IsTracked,
   get path(): string {
     return "FriendshipInvite[id={this.id}]";
   }
-}
-/* ==== DESTACK_GENERATED_END:NODE:31 ==== */
+} /* ==== DESTACK_GENERATED_END:NODE:31 ==== */

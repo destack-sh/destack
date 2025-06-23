@@ -171,14 +171,14 @@ class NodeBase[NodeProtoT: AnyObjectProto](BuiltinObjectMutable[NodeProtoT]):
         join: Optional["JoinIn"] = None,
         **subqueries: "Query",
     ) -> "Query[Self]":  # type: ignore
-        from ..common.query import Query, QueryType, to_subqueries
-        from ..common.query import join as to_join
+        """Make a get Query for this Node/Trait type."""
+        from ..common.query import Join, Query, QueryType, to_subqueries
 
         query = Query(
             type=QueryType.NODE,
             relation=RELATION_REF_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
-            join=to_join(join) if join is not None else None,
+            join=Join.of(join) if join is not None else None,
             where=where,
             subqueries=to_subqueries(subqueries),
             # limit=1?
@@ -199,18 +199,17 @@ class NodeBase[NodeProtoT: AnyObjectProto](BuiltinObjectMutable[NodeProtoT]):
         offset: Optional[int] = None,
         **subqueries: "Query",
     ) -> "Query[Self]":  # type: ignore
-        from ..common.query import Query, QueryType, to_subqueries
-        from ..common.query import expression as to_expression
-        from ..common.query import join as to_join
+        """Make a search Query for this Node/Trait type."""
+        from ..common.query import Expression, Join, Query, QueryType, to_subqueries
 
         query = Query(
             type=QueryType.NODE if not group_by else QueryType.GROUPED_NODE,
             relation=RELATION_REF_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
-            join=to_join(join) if join is not None else None,
+            join=Join.of(join) if join is not None else None,
             where=where,
             having=having,
-            group_by=[to_expression(expr) for expr in group_by or ()],
+            group_by=[Expression.of(expr) for expr in group_by or ()],
             sort=sort or [],
             limit=limit,
             offset=offset,
@@ -231,20 +230,19 @@ class NodeBase[NodeProtoT: AnyObjectProto](BuiltinObjectMutable[NodeProtoT]):
         group_by: Optional[list["ExpressionIn"]] = None,
         having: Optional["Condition"] = None,
     ) -> "Query[Self]":  # type: ignore
-        from ..common.query import Aggregation, Query, QueryType
-        from ..common.query import expression as to_expression
-        from ..common.query import join as to_join
+        """Make an exists Query for this Node/Trait type."""
+        from ..common.query import Aggregation, Expression, Join, Query, QueryType
 
         query = Query(
             type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
             relation=RELATION_REF_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
-            join=to_join(join) if join is not None else None,
+            join=Join.of(join) if join is not None else None,
             where=where,
             having=having,
-            group_by=[to_expression(expr) for expr in group_by or ()],
+            group_by=[Expression.of(expr) for expr in group_by or ()],
             aggregation=Aggregation(
-                type=type, expression=to_expression(expression) if expression else None
+                type=type, expression=Expression.of(expression) if expression else None
             ),
             sort=sort or [],
         )
@@ -258,14 +256,20 @@ class NodeBase[NodeProtoT: AnyObjectProto](BuiltinObjectMutable[NodeProtoT]):
         name: str | None = None,
         join: Optional["JoinIn"] = None,
     ) -> "Query[Self]":  # type: ignore
-        from ..common.query import Aggregation, AggregationType, Query, QueryType
-        from ..common.query import join as to_join
+        """Make a count Query for this Node/Trait type."""
+        from ..common.query import (
+            Aggregation,
+            AggregationType,
+            Join,
+            Query,
+            QueryType,
+        )
 
         query = Query(
             type=QueryType.SCALAR,
             relation=RELATION_REF_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
-            join=to_join(join) if join is not None else None,
+            join=Join.of(join) if join is not None else None,
             where=where,
             aggregation=Aggregation(type=AggregationType.EXISTS),
         )
@@ -282,18 +286,17 @@ class NodeBase[NodeProtoT: AnyObjectProto](BuiltinObjectMutable[NodeProtoT]):
         group_by: Optional[list["ExpressionIn"]] = None,
         having: Optional["Condition"] = None,
     ) -> "Query[Self]":  # type: ignore
-        from ..common.query import Aggregation, AggregationType, Query, QueryType
-        from ..common.query import expression as to_expression
-        from ..common.query import join as to_join
+        """Make a min Query for this Node/Trait type."""
+        from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
 
         query = Query(
             type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
             relation=RELATION_REF_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
-            join=to_join(join) if join is not None else None,
+            join=Join.of(join) if join is not None else None,
             where=where,
             having=having,
-            group_by=[to_expression(expr) for expr in group_by or ()],
+            group_by=[Expression.of(expr) for expr in group_by or ()],
             aggregation=Aggregation(type=AggregationType.COUNT),
             sort=sort or [],
         )
@@ -311,19 +314,17 @@ class NodeBase[NodeProtoT: AnyObjectProto](BuiltinObjectMutable[NodeProtoT]):
         group_by: Optional[list["ExpressionIn"]] = None,
         sort: Optional[list["Sort"]] = None,
     ) -> "Query[Self]":  # type: ignore
-        from ..common.query import Aggregation, AggregationType, Query, QueryType
-        from ..common.query import expression as to_expression
-        from ..common.query import join as to_join
+        from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
 
         query = Query(
             type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
             relation=RELATION_REF_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
-            join=to_join(join) if join is not None else None,
+            join=Join.of(join) if join is not None else None,
             where=where,
             having=having,
-            group_by=[to_expression(expr) for expr in group_by or ()],
-            aggregation=Aggregation(type=AggregationType.MIN, expression=to_expression(expression)),
+            group_by=[Expression.of(expr) for expr in group_by or ()],
+            aggregation=Aggregation(type=AggregationType.MIN, expression=Expression.of(expression)),
             sort=sort or [],
         )
         return query  # type: ignore
@@ -340,19 +341,18 @@ class NodeBase[NodeProtoT: AnyObjectProto](BuiltinObjectMutable[NodeProtoT]):
         group_by: Optional[list["ExpressionIn"]] = None,
         sort: Optional[list["Sort"]] = None,
     ) -> "Query[Self]":  # type: ignore
-        from ..common.query import Aggregation, AggregationType, Query, QueryType
-        from ..common.query import expression as to_expression
-        from ..common.query import join as to_join
+        """Make an average Query for this Node/Trait type."""
+        from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
 
         query = Query(
             type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
             relation=RELATION_REF_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
-            join=to_join(join) if join is not None else None,
+            join=Join.of(join) if join is not None else None,
             where=where,
             having=having,
-            group_by=[to_expression(expr) for expr in group_by or ()],
-            aggregation=Aggregation(type=AggregationType.MAX, expression=to_expression(expression)),
+            group_by=[Expression.of(expr) for expr in group_by or ()],
+            aggregation=Aggregation(type=AggregationType.MAX, expression=Expression.of(expression)),
             sort=sort or [],
         )
         return query  # type: ignore
@@ -369,20 +369,19 @@ class NodeBase[NodeProtoT: AnyObjectProto](BuiltinObjectMutable[NodeProtoT]):
         group_by: Optional[list["ExpressionIn"]] = None,
         sort: Optional[list["Sort"]] = None,
     ) -> "Query[Self]":  # type: ignore
-        from ..common.query import Aggregation, AggregationType, Query, QueryType
-        from ..common.query import expression as to_expression
-        from ..common.query import join as to_join
+        """Make a sum Query for this Node/Trait type."""
+        from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
 
         query = Query(
             type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
             relation=RELATION_REF_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
-            join=to_join(join) if join is not None else None,
+            join=Join.of(join) if join is not None else None,
             where=where,
             having=having,
-            group_by=[to_expression(expr) for expr in group_by or ()],
+            group_by=[Expression.of(expr) for expr in group_by or ()],
             aggregation=Aggregation(
-                type=AggregationType.AVERAGE, expression=to_expression(expression)
+                type=AggregationType.AVERAGE, expression=Expression.of(expression)
             ),
             sort=sort or [],
         )

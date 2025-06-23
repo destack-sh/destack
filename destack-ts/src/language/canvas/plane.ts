@@ -62,8 +62,7 @@ export enum PlaneShapeType {
   CIRCLE = 3,
   ELLIPSE = 4,
   POLYGON = 5,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:11011 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:11011 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:11011 ==== */
 export class PlaneShape
@@ -488,5 +487,4 @@ export class PlaneShape
     }
     return pathParts.reverse().join("/");
   }
-}
-/* ==== DESTACK_GENERATED_END:NODE:11011 ==== */
+} /* ==== DESTACK_GENERATED_END:NODE:11011 ==== */

@@ -1,7 +1,8 @@
-import { activeSession, NodeType, TraitType } from "@/language/core";
+import { activeSession, Condition, Join, JoinType, NodeType, Query, QueryType, TraitType } from "@/language/core";
 import { NodeReference } from "@/language/core/common/relation";
 import { Graph, QueryConnection, Session, Supergraph } from "@/language/core/runtime";
 import { NodeTypeMapping, TraitTypeMapping } from "@/language/registry";
+import { Casing, toCasing } from "@/utils/string";
 import { BuiltinObject } from "./object";
 
 /** A Node is a collection of properties with an identity. */
@@ -106,6 +107,14 @@ export abstract class Node extends BuiltinObject {
     return this._ref;
   }
 
+  erase(): void {
+    this._session.erase(this);
+  }
+
+  moveTo(parent: Node): void {
+    throw new Error("not implemented");
+  }
+
   /** Append a child to this Node. */
   addChild(child: Node, after?: Node, before?: Node): void {
     throw new Error("not implemented");
@@ -122,23 +131,100 @@ export abstract class Node extends BuiltinObject {
   }
 
   /** Get the children of this Node. */
-  getChildren(node_type?: Node): Node[] {
-    throw new Error("not implemented");
+  getChildren(): Node[];
+  getChildren<T extends NodeType>(options: { nodeType: T }): NodeTypeMapping[T][];
+  getChildren<T extends TraitType>(options: { traitType: T }): (Node & TraitTypeMapping[T])[];
+  getChildren<N extends Node>(options: { nodeClass: NodeClass }): N[];
+  getChildren<N extends Node = Node>(options?: {
+    nodeType?: NodeType;
+    traitType?: TraitType;
+    nodeClass?: NodeClass;
+  }): N[] {
+    return this._graph.getChildren(this, options);
   }
 
   /** Get a specific child of this Node by name. */
-  getChild(node_type: Node, name: string): Node | null {
-    throw new Error("not implemented");
+  getChild<T extends NodeType>(options: { nodeType: T; name: string }): NodeTypeMapping[T] | null;
+  getChild<T extends TraitType>(options: { traitType: T; name: string }): (Node & TraitTypeMapping[T]) | null;
+  getChild<N extends Node>(options: { nodeClass: NodeClass; name: string }): N | null;
+  getChild<N extends Node>(options: {
+    nodeType?: NodeType;
+    traitType?: TraitType;
+    nodeClass?: NodeClass;
+    name?: string;
+  }): N | null;
+  getChild<N extends Node = Node>(options: {
+    nodeType?: NodeType;
+    traitType?: TraitType;
+    nodeClass?: NodeClass;
+    name?: string;
+  }): N | null {
+    const children = this._graph.getChildren(this, options);
+    if (options.name === undefined) {
+      return children[0] as N | null;
+    }
+    for (const child of children) {
+      if ((child as any).name === options.name) {
+        return child as N;
+      }
+    }
+    return null;
   }
 
   /** Get a specific child of this Node by name, or raises an error if not found. */
-  child(node_type: Node, name: string): Node {
-    throw new Error("not implemented");
+  child<T extends NodeType>(options: { nodeType: T; name: string }): NodeTypeMapping[T];
+  child<T extends TraitType>(options: { traitType: T; name: string }): Node & TraitTypeMapping[T];
+  child<N extends Node>(options: { nodeClass: NodeClass; name: string }): N;
+  child<N extends Node>(options: {
+    nodeType?: NodeType;
+    traitType?: TraitType;
+    nodeClass?: NodeClass;
+    name?: string;
+  }): N;
+  child<N extends Node = Node>(options: {
+    nodeType?: NodeType;
+    traitType?: TraitType;
+    nodeClass?: NodeClass;
+    name?: string;
+  }): N {
+    const child = this.getChild(options);
+    if (child === null) {
+      throw new Error(`no child ${options.name} of ${this}`);
+    }
+    return child as N;
   }
 
   /** Get the descendants of this Node. */
-  getDescendants(node_type?: Node): Node[] {
-    throw new Error("not implemented");
+  getDescendants(): Node[];
+  getDescendants<T extends NodeType>(options: { nodeType: T }): NodeTypeMapping[T][];
+  getDescendants<T extends TraitType>(options: { traitType: T }): (Node & TraitTypeMapping[T])[];
+  getDescendants<N extends Node>(options: { nodeClass: NodeClass }): N[];
+  getDescendants<N extends Node = Node>(options?: {
+    nodeType?: NodeType;
+    traitType?: TraitType;
+    nodeClass?: NodeClass;
+  }): N[] {
+    return this._graph.getDescendants(this, options);
+  }
+
+  /** Make a get Query for this Node/Trait type. */
+  static get(
+    options: {
+      where?: Condition;
+      name?: string;
+      join?: Join;
+    } & Subqueries,
+  ): Query {
+    const { where, name, join, ...subqueries } = options;
+    const query = new Query({
+      type: QueryType.NODE,
+      relation: this.metatype,
+      name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
+      join,
+      where,
+      subqueries: toSubqueries(subqueries),
+    });
+    return query;
   }
 }
 
@@ -161,4 +247,25 @@ export function isNode<T extends NodeType>(value: any, nodeType?: T): value is N
 /** Check if a value is a Node with a specific trait. */
 export function isNodeWithTrait<T extends TraitType>(value: any, traitType: T): value is Node & TraitTypeMapping[T] {
   return value instanceof Node && value.__traits__.includes(traitType);
+}
+
+type Subqueries = Record<string, Query | undefined>;
+
+function toSubqueries(subqueries: Subqueries): Query[] {
+  const queries: Query[] = [];
+  for (const [name, subquery] of Object.entries(subqueries)) {
+    if (subquery === undefined) {
+      continue;
+    }
+    if (subquery.join === undefined) {
+      const join = new Join({ type: JoinType.CHILD });
+      // @ts-expect-error(readonly)
+      subquery.join = join;
+    }
+    // @ts-expect-error(readonly)
+    subquery.name = name;
+    subquery._invalidateFrozenCache();
+    queries.push(subquery);
+  }
+  return queries;
 }

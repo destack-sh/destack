@@ -10,8 +10,7 @@ export enum DayOfWeek {
   FRIDAY = 5,
   SATURDAY = 6,
   SUNDAY = 7,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:3051 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:3051 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:3052 ==== */
 export enum Month {
@@ -27,8 +26,7 @@ export enum Month {
   OCTOBER = 10,
   NOVEMBER = 11,
   DECEMBER = 12,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:3052 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:3052 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:3050 ==== */
 export enum ScheduleFrequency {
@@ -38,8 +36,7 @@ export enum ScheduleFrequency {
   DAY = 4,
   HOUR = 5,
   MINUTE = 6,
-}
-/* ==== DESTACK_GENERATED_END:ENUM:3050 ==== */
+} /* ==== DESTACK_GENERATED_END:ENUM:3050 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:3001 ==== */
 export class Schedule extends Struct {
@@ -84,6 +81,8 @@ export class Schedule extends Struct {
     _supergraph?: Supergraph | null;
   }) {
     super(
+      // session
+      options._session ?? null,
       // supergraph
       options._supergraph ?? null,
     );
@@ -117,5 +116,4 @@ export class Schedule extends Struct {
   validate(): void {
     throw new Error("not implemented");
   }
-}
-/* ==== DESTACK_GENERATED_END:STRUCT:3001 ==== */
+} /* ==== DESTACK_GENERATED_END:STRUCT:3001 ==== */
