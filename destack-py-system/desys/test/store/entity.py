@@ -144,7 +144,7 @@ async def test_create_folders_recursive(session: Session):
         assert len(folder_tree_unpacked) == target_folder_count
 
         # query folder up (parent, recursive)
-        folder_leaves = folder._graph.get_leaves(Folder, of=folder)
+        folder_leaves = folder._graph.get_leaves(Folder, folder)
         connection = await Folder.get(
             where=Folder.property("id").eq(folder_leaves[0].id),
             Folders=Folder.search(
@@ -202,7 +202,7 @@ async def test_create_scene_with_heterogeneous_views(session: Session):
     assert len(view_tree_unpacked) == 4 + 4 * (1 + 4 * (1 + 4))
 
     # query view (parent, recursive)
-    view_leaves = scene._graph.get_leaves(TextView, of=scene)
+    view_leaves = scene._graph.get_leaves(TextView, scene)
     scene_tree = await TextView.get(
         where=TextView.property("id").eq(view_leaves[0].id),
         Parents=View.search(join=join(JoinType.PARENT, recursive=True)),

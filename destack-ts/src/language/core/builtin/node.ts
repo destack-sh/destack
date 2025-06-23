@@ -142,6 +142,17 @@ export abstract class Node extends BuiltinObject {
   }
 }
 
+/** A Node constructor. */
+export type NodeClass = { new (...args: any[]): Node } & {
+  metatype: NodeType;
+  __traits__: TraitType[];
+  __rootType__: NodeType | null;
+  __parentTypes__: NodeType[];
+  __childTypes__: NodeType[];
+  __ancestorTypes__: NodeType[];
+  __descendantTypes__: NodeType[];
+};
+
 /** Check if a value is a Node of a specific type. */
 export function isNode<T extends NodeType>(value: any, nodeType?: T): value is NodeTypeMapping[T] {
   return value instanceof Node && (nodeType === undefined || value.metatype === nodeType);

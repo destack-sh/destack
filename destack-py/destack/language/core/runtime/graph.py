@@ -17,7 +17,7 @@ from destack.language.registry import (
     TRAIT_CLASS_BY_TYPE,
     TRAIT_TYPE_BY_CLASS,
 )
-from destack.utils.fractional import INTEGER_MAX, INTEGER_ZERO
+from destack.utils.fractional import INTEGER_ZERO
 from destack.utils.uuid import UUID
 
 from ..builtin import EMPTY_LIST, UNSET, NodeType, TraitType
@@ -99,7 +99,7 @@ class Graph(abc.ABC):
 
     @abc.abstractmethod
     def get_leaves[N: Node = Node](
-        self, node_type: NodeType | TraitType | type[N] | None = None, of: "Node | None" = None
+        self, node_type: NodeType | TraitType | type[N] | None = None, node: "Node | None" = None
     ) -> Sequence[N]:
         """Find leaf Nodes in the graph."""
         raise NotImplementedError
@@ -184,7 +184,7 @@ class SingletonGraph(Graph):
 
     @override
     def get_leaves[N: Node = Node](
-        self, node_type: NodeType | TraitType | type[N] | None = None, of: "Node | None" = None
+        self, node_type: NodeType | TraitType | type[N] | None = None, node: "Node | None" = None
     ) -> Sequence[N]:
         return ()
 
@@ -210,7 +210,7 @@ class PolyGraph(Graph):
     A Graph with an arbitrary set of Nodes.
     """
 
-    __slots__ = ("nodes_by_id", "nodes_by_parent_id", "supergraph")
+    __slots__ = ("nodes_by_id", "nodes_by_parent", "supergraph")
 
     def __init__(self, supergraph: "Supergraph"):
         self.supergraph = supergraph
@@ -304,9 +304,9 @@ class PolyGraph(Graph):
 
     @override
     def get_leaves[N: Node = Node](
-        self, node_type: NodeType | TraitType | type[N] | None = None, of: "Node | None" = None
+        self, node_type: NodeType | TraitType | type[N] | None = None, node: "Node | None" = None
     ) -> Sequence[N]:
-        if of is None:
+        if node is None:
             node_types = get_node_types(node_type)
             if node_types is None:
                 leaves = tuple(node for node in self.nodes if not self.nodes_by_parent.get(node.id))
@@ -317,7 +317,7 @@ class PolyGraph(Graph):
                     if not self.nodes_by_parent.get(node.id) and node.metatype in node_types
                 )
         else:
-            descendants = self.get_descendants(of, node_type)
+            descendants = self.get_descendants(node, node_type)
             leaves = tuple(node for node in descendants if not self.nodes_by_parent.get(node.id))
         return leaves  # type: ignore (must be right type)
 
@@ -378,7 +378,7 @@ class PolyGraph(Graph):
                 for node_type in node_types:
                     children.extend(children_by_type.get(node_type, EMPTY_LIST))
                 if children and TraitType.ORDERED in node_cls.__traits__:
-                    children.sort(key=lambda n: getattr(n, "order_key", INTEGER_MAX))
+                    children.sort(key=lambda n: getattr(n, "order_key", INTEGER_ZERO))
                 return children
 
     @override
@@ -411,7 +411,7 @@ class PolyGraph(Graph):
                 for node_t in node_types:
                     descendants.extend(children_by_type.get(node_t, ()))
 
-        return descendants  # type: ignore (must be right type@)
+        return descendants  # type: ignore (must be right type)
 
 
 _MISSING = object()

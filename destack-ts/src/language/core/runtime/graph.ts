@@ -1,5 +1,6 @@
-import { NodeTypeMapping, TraitTypeMapping } from "@/language/registry";
-import { Node, NodeType, TraitType } from "../builtin";
+import { NODE_TYPES_BY_TRAIT_TYPE, NodeTypeMapping, TraitTypeMapping } from "@/language/registry";
+import { INTEGER_ZERO } from "@/utils/fractional";
+import { IsOrdered, Node, NodeClass, NodeType, TraitType } from "../builtin";
 import { Session } from "./session";
 
 /** A Graph is a collection of Nodes. */
@@ -45,7 +46,7 @@ export abstract class Graph {
   abstract getRoots(): Node[];
   abstract getRoots<T extends NodeType>(options: { nodeType: T }): NodeTypeMapping[T][];
   abstract getRoots<T extends TraitType>(options: { traitType: T }): (Node & TraitTypeMapping[T])[];
-  abstract getRoots<N extends Node>(options: { nodeClass: new (...args: any[]) => N }): N[];
+  abstract getRoots<N extends Node>(options: { nodeClass: NodeClass }): N[];
   abstract getRoots<N extends Node = Node>(options?: {
     nodeType?: NodeType;
     traitType?: TraitType;
@@ -53,15 +54,15 @@ export abstract class Graph {
   }): N[];
 
   /** Find leaf Nodes in the graph. */
-  abstract getLeaves(options?: { of?: Node }): Node[];
-  abstract getLeaves<T extends NodeType>(options: { nodeType: T; of?: Node }): NodeTypeMapping[T][];
-  abstract getLeaves<T extends TraitType>(options: { traitType: T; of?: Node }): (Node & TraitTypeMapping[T])[];
-  abstract getLeaves<N extends Node>(options: { nodeClass: new (...args: any[]) => N; of?: Node }): N[];
+  abstract getLeaves(options?: { node?: Node }): Node[];
+  abstract getLeaves<T extends NodeType>(options: { nodeType: T; node?: Node }): NodeTypeMapping[T][];
+  abstract getLeaves<T extends TraitType>(options: { traitType: T; node?: Node }): (Node & TraitTypeMapping[T])[];
+  abstract getLeaves<N extends Node>(options: { nodeClass: NodeClass; node?: Node }): N[];
   abstract getLeaves<N extends Node = Node>(options?: {
     nodeType?: NodeType;
     traitType?: TraitType;
     nodeClass?: new (...args: any[]) => N;
-    of?: Node;
+    node?: Node;
   }): N[];
 
   /**
@@ -71,7 +72,7 @@ export abstract class Graph {
   abstract getChildren(node: Node): Node[];
   abstract getChildren<T extends NodeType>(node: Node, options: { nodeType: T }): NodeTypeMapping[T][];
   abstract getChildren<T extends TraitType>(node: Node, options: { traitType: T }): (Node & TraitTypeMapping[T])[];
-  abstract getChildren<N extends Node>(node: Node, options: { nodeClass: new (...args: any[]) => N }): N[];
+  abstract getChildren<N extends Node>(node: Node, options: { nodeClass: NodeClass }): N[];
   abstract getChildren<N extends Node = Node>(
     node: Node,
     options?: {
@@ -90,7 +91,7 @@ export abstract class Graph {
   abstract getDescendants(node: Node): Node[];
   abstract getDescendants<T extends NodeType>(node: Node, options: { nodeType: T }): NodeTypeMapping[T][];
   abstract getDescendants<T extends TraitType>(node: Node, options: { traitType: T }): (Node & TraitTypeMapping[T])[];
-  abstract getDescendants<N extends Node>(node: Node, options: { nodeClass: new (...args: any[]) => N }): N[];
+  abstract getDescendants<N extends Node>(node: Node, options: { nodeClass: NodeClass }): N[];
   abstract getDescendants<N extends Node = Node>(
     node: Node,
     options?: {
@@ -251,41 +252,167 @@ export class PolyGraph extends Graph {
     this.nodesById.delete(node.id);
   }
 
-  override getRoots(options?: {
-    nodeType?: NodeType;
-    traitType?: TraitType;
-    nodeClass?: new (...args: any[]) => Node;
-  }): Node[] {
-    throw new Error("not implemented");
+  override getRoots(options?: { nodeType?: NodeType; traitType?: TraitType; nodeClass?: NodeClass }): Node[] {
+    const nodeTypes = getNodeTypes(options);
+    if (nodeTypes === null) {
+      return this.nodes.filter((node) => node.parentPtr === null);
+    }
+    return this.nodes.filter((node) => node.parentPtr === null && nodeTypes.includes(node.metatype));
   }
 
   override getLeaves(options?: {
+    node?: Node;
     nodeType?: NodeType;
     traitType?: TraitType;
-    nodeClass?: new (...args: any[]) => Node;
-    of?: Node;
+    nodeClass?: NodeClass;
   }): Node[] {
-    throw new Error("not implemented");
+    if (options?.node === undefined) {
+      const nodeTypes = getNodeTypes(options);
+      if (nodeTypes === null) {
+        return this.nodes.filter((node) => !this.nodesByParent.has(node.id));
+      }
+      return this.nodes.filter((node) => !this.nodesByParent.has(node.id) && nodeTypes.includes(node.metatype));
+    } else {
+      const descendants = this.getDescendants(options.node, options);
+      return descendants.filter((node) => !this.nodesByParent.has(node.id));
+    }
   }
 
-  override getChildren(node: Node, options?: {
-    nodeType?: NodeType;
-    traitType?: TraitType;
-    nodeClass?: new (...args: any[]) => Node;
-  }): Node[] {
-    throw new Error("not implemented");
+  override getChildren(
+    node: Node,
+    options?: {
+      nodeType?: NodeType;
+      traitType?: TraitType;
+      nodeClass?: NodeClass;
+    },
+  ): Node[] {
+    // bail if no children
+    if (this.nodesByParent.size === 0) {
+      return [];
+    }
+    const childrenByType = this.nodesByParent.get(node.id);
+    if (!childrenByType) {
+      return [];
+    }
+
+    if (options === undefined) {
+      // collect children across all types
+      const children: Node[] = [];
+      let isOrdered = false;
+      for (const childrenOfType of childrenByType.values()) {
+        const nodeClass = childrenOfType[0].constructor as NodeClass;
+        if (nodeClass.__traits__.includes(TraitType.ORDERED)) {
+          isOrdered = true;
+        }
+        children.push(...childrenOfType);
+      }
+      if (isOrdered) {
+        children.sort((a, b) => {
+          const aOrderKey = (a as any).orderKey || 0;
+          const bOrderKey = (b as any).orderKey || 0;
+          return aOrderKey - bOrderKey;
+        });
+      }
+      return children;
+    } else {
+      // turn into type
+      const nodeTypes = getNodeTypes(options);
+      if (nodeTypes === null) {
+        // collect children across all types
+        const children: Node[] = [];
+        let isOrdered = false;
+        for (const childrenOfType of childrenByType.values()) {
+          const nodeClass = childrenOfType[0].constructor as NodeClass;
+          if (nodeClass.__traits__.includes(TraitType.ORDERED)) {
+            isOrdered = true;
+          }
+          children.push(...childrenOfType);
+        }
+        if (isOrdered) {
+          children.sort((a, b) => {
+            const aOrderKey = (a as any).orderKey || 0;
+            const bOrderKey = (b as any).orderKey || 0;
+            return aOrderKey - bOrderKey;
+          });
+        }
+        return children;
+      } else {
+        if (nodeTypes.length === 1) {
+          // collect for single node type
+          const children = childrenByType.get(nodeTypes[0]) || [];
+          if (children.length > 0) {
+            const nodeClass = children[0].constructor as NodeClass;
+            if (nodeClass.__traits__.includes(TraitType.ORDERED)) {
+              children.sort((a, b) => {
+                const aOrderKey = (a as unknown as IsOrdered).orderKey || INTEGER_ZERO;
+                const bOrderKey = (b as unknown as IsOrdered).orderKey || INTEGER_ZERO;
+                return aOrderKey.localeCompare(bOrderKey);
+              });
+            }
+          }
+          return children;
+        } else {
+          // collect for trait (multiple node types)
+          const children: Node[] = [];
+          for (const nodeType of nodeTypes) {
+            children.push(...(childrenByType.get(nodeType) || []));
+          }
+          if (children.length > 0) {
+            const nodeClass = children[0].constructor as NodeClass;
+            if (nodeClass.__traits__.includes(TraitType.ORDERED)) {
+              children.sort((a, b) => {
+                const aOrderKey = (a as unknown as IsOrdered).orderKey || INTEGER_ZERO;
+                const bOrderKey = (b as unknown as IsOrdered).orderKey || INTEGER_ZERO;
+                return aOrderKey.localeCompare(bOrderKey);
+              });
+            }
+          }
+          return children;
+        }
+      }
+    }
   }
 
-  override getDescendants(node: Node, options?: {
-    nodeType?: NodeType;
-    traitType?: TraitType;
-    nodeClass?: new (...args: any[]) => Node;
-  }): Node[] {
+  override getDescendants(
+    node: Node,
+    options?: {
+      nodeType?: NodeType;
+      traitType?: TraitType;
+      nodeClass?: NodeClass;
+    },
+  ): Node[] {
     if (this.nodesByParent.size === 0) {
       return [];
     }
 
-    throw new Error("not implemented");
+    const queue: Node[] = [node];
+    const descendants: Node[] = [];
+
+    // collect
+    const nodeTypes = getNodeTypes(options);
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      const childrenByType = this.nodesByParent.get(current.id);
+      if (!childrenByType) {
+        continue;
+      }
+      for (const childrenOfType of childrenByType.values()) {
+        queue.push(...childrenOfType);
+      }
+
+      // collect level
+      if (nodeTypes === null) {
+        for (const childrenOfType of childrenByType.values()) {
+          descendants.push(...childrenOfType);
+        }
+      } else {
+        for (const nodeType of nodeTypes) {
+          descendants.push(...(childrenByType.get(nodeType) || []));
+        }
+      }
+    }
+
+    return descendants;
   }
 }
 
@@ -365,4 +492,26 @@ export class Supergraph {
     }
     return node;
   }
+}
+
+/** Resolve the NodeTypes for a NodeType, TraitType, or Node class. */
+export function getNodeTypes(options?: {
+  nodeType?: NodeType;
+  traitType?: TraitType;
+  nodeClass?: NodeClass;
+}): NodeType[] | null {
+  if (options == null) {
+    return null;
+  }
+  const nodeTypes: NodeType[] = [];
+  if (options?.nodeType) {
+    nodeTypes.push(options.nodeType);
+  }
+  if (options?.traitType) {
+    nodeTypes.push(...NODE_TYPES_BY_TRAIT_TYPE[options.traitType]);
+  }
+  if (options?.nodeClass) {
+    nodeTypes.push(options.nodeClass.metatype);
+  }
+  return nodeTypes;
 }
