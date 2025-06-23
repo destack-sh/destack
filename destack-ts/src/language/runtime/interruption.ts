@@ -1,10 +1,10 @@
 import {
-  Action,
-  Agent,
   Analytic,
   Graph,
   Indexed,
   IsExtensible,
+  IsRunnable,
+  IsSubject,
   IsTracked,
   Message,
   Node,
@@ -13,8 +13,6 @@ import {
   Particle,
   QueryConnection,
   Run,
-  Script,
-  Service,
   Session,
   Space,
   Span,
@@ -22,7 +20,6 @@ import {
   StructType,
   Supergraph,
   TraitType,
-  User,
   Value,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
@@ -84,34 +81,34 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
   }
   readonly spacePtr: NodeReference | null;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
   value: Map<string, Value>;
   type: InterruptionType;
-  get runnable(): Action | Script | Service | null | null {
+  get runnable(): (Node & IsRunnable) | null | null {
     const nodePtr: NodeReference | null = this.runnablePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Action | Script | Service | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsRunnable) | null | null;
     }
     return null;
   }
 
-  set runnable(node: Action | Script | Service | null) {
+  set runnable(node: (Node & IsRunnable) | null) {
     if (node === null) {
       this.runnablePtr = null;
     } else {
@@ -161,12 +158,12 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
     parent?: Run | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     value?: Map<string, Value>;
     type: InterruptionType;
-    runnable?: Action | Script | Service | NodeReference | null;
+    runnable?: (Node & IsRunnable) | NodeReference | null;
     span?: Span | NodeReference | null;
     status?: InterruptionStatus;
     duration?: Temporal.Duration | null;
@@ -251,6 +248,7 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
       _message = _message.toRef();
     }
     this.messagePtr = _message;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();

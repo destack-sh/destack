@@ -1,7 +1,6 @@
 /* eslint-disable no-console */
 import "./assets/index.css";
 
-import { keytrap } from "@/ui/keymap";
 import { ENV, IS_DEV, SUPERVISOR_URL, TELEMETRY, VERSION } from "./utils/globals";
 import posthog from "posthog-js";
 import React from "react";
@@ -42,9 +41,6 @@ async function init() {
   // prevent opening files that are dragged over the window
   window.addEventListener("dragover", (e) => e.preventDefault(), false);
   window.addEventListener("drop", (e) => e.preventDefault(), false);
-
-  // setup our own stuff
-  keytrap.track(document);
 
   const root = ReactDOM.createRoot(document.getElementById("app")!);
   root.render(

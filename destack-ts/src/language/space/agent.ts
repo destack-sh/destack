@@ -1,6 +1,6 @@
 import {
+  Cursor,
   Entity,
-  EventCursor,
   Folder,
   Graph,
   Icon,
@@ -15,16 +15,13 @@ import {
   NodeReference,
   NodeType,
   QueryConnection,
-  ScreenCursor,
   Script,
   Session,
   Space,
   Spatial,
   StructType,
   Supergraph,
-  ThreadCursor,
   TraitType,
-  User,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
 
@@ -83,19 +80,19 @@ export class Agent
   readonly spacePtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
@@ -104,15 +101,15 @@ export class Agent
   name: string;
   slug: string;
   icon: Icon | null;
-  get cursor(): EventCursor | ScreenCursor | ThreadCursor | null | null {
+  get cursor(): (Node & Cursor) | null | null {
     const nodePtr: NodeReference | null = this.cursorPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as EventCursor | ScreenCursor | ThreadCursor | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & Cursor) | null | null;
     }
     return null;
   }
 
-  set cursor(node: EventCursor | ScreenCursor | ThreadCursor | null) {
+  set cursor(node: (Node & Cursor) | null) {
     if (node === null) {
       this.cursorPtr = null;
     } else {
@@ -143,14 +140,14 @@ export class Agent
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     name: string;
     slug: string;
     icon?: Icon | null;
-    cursor?: EventCursor | ScreenCursor | ThreadCursor | NodeReference | null;
+    cursor?: (Node & Cursor) | NodeReference | null;
     script?: Script | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -223,6 +220,7 @@ export class Agent
       _script = _script.toRef();
     }
     this.scriptPtr = _script;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();

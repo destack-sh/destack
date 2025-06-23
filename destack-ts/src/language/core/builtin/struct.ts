@@ -1,5 +1,5 @@
-import { ACTIVE_SESSION, Session, StructType, Supergraph } from "@/language";
-import { AnyStructProto } from "@/proto";
+import { ACTIVE_SESSION, Session, StructType, Supergraph } from "@destack/language";
+import { AnyStructProto } from "@destack/proto";
 import { BuiltinObject } from "./object";
 
 /** A Struct is an ordered collection of Properties. */

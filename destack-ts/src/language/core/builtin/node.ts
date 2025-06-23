@@ -19,9 +19,9 @@ import {
   Sort,
   Supergraph,
   TraitType,
-} from "@/language";
-import { NodeTypeMapping, TraitTypeMapping } from "@/language/registry";
-import { Casing, toCasing } from "@/utils/string";
+} from "@destack/language";
+import { NodeTypeMapping, TraitTypeMapping } from "@destack/language/registry";
+import { Casing, toCasing } from "@destack/utils/string";
 import { v4 as uuid4 } from "uuid";
 import { BuiltinObject } from "./object";
 

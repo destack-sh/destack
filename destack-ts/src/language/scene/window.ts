@@ -1,27 +1,24 @@
 import {
-  Agent,
   Entity,
   Graph,
   IsDeletable,
   IsOrdered,
   IsOwnable,
+  IsOwner,
+  IsSubject,
   IsTracked,
   IsVisual,
   MaterializationType,
   Node,
   NodeReference,
   NodeType,
-  Organization,
   QueryConnection,
-  Role,
   Session,
   Space,
   Spatial,
   StructType,
   Supergraph,
-  Team,
   TraitType,
-  User,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
 
@@ -117,34 +114,34 @@ export class Window extends Node implements Spatial, Entity, IsTracked, IsDeleta
   readonly spacePtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
   readonly deletedAt: Temporal.ZonedDateTime | null;
   readonly orderKey: string;
-  get ownedBy(): Role | Agent | Organization | Team | User | null | null {
+  get ownedBy(): (Node & IsOwner) | null | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Role | Agent | Organization | Team | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null | null;
     }
     return null;
   }
 
-  set ownedBy(node: Role | Agent | Organization | Team | User | null) {
+  set ownedBy(node: (Node & IsOwner) | null) {
     if (node === null) {
       this.ownedByPtr = null;
     } else {
@@ -153,7 +150,7 @@ export class Window extends Node implements Spatial, Entity, IsTracked, IsDeleta
   }
   ownedByPtr: NodeReference | null;
   type: WindowType;
-  name: string | null;
+  name: string;
 
   constructor(options: {
     id?: string;
@@ -161,14 +158,14 @@ export class Window extends Node implements Spatial, Entity, IsTracked, IsDeleta
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;
-    ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null;
+    ownedBy?: (Node & IsOwner) | NodeReference | null;
     type: WindowType;
-    name?: string | null;
+    name: string;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -236,8 +233,12 @@ export class Window extends Node implements Spatial, Entity, IsTracked, IsDeleta
       throw new Error(`Window.type is required`);
     }
     this.type = _type;
-    let _name = options.name ?? null;
+    let _name = options.name;
+    if (_name === null) {
+      throw new Error(`Window.name is required`);
+    }
     this.name = _name;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();

@@ -1,6 +1,4 @@
 import {
-  Action,
-  Agent,
   Analytic,
   Condition,
   Entity,
@@ -8,6 +6,8 @@ import {
   Graph,
   Indexed,
   IsFrozen,
+  IsRunnable,
+  IsSubject,
   IsTracked,
   MaterializationType,
   Node,
@@ -16,15 +16,12 @@ import {
   Particle,
   QueryConnection,
   RelationReference,
-  Script,
-  Service,
   Session,
   Space,
   Spatial,
   StructType,
   Supergraph,
   TraitType,
-  User,
   Value,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
@@ -78,19 +75,19 @@ export class TriggerEvent extends Node implements Spatial, Particle, Analytic, I
   }
   readonly spacePtr: NodeReference | null;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
@@ -114,9 +111,9 @@ export class TriggerEvent extends Node implements Spatial, Particle, Analytic, I
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     type: TriggerEventType;
     node: Trigger | NodeReference;
     _session?: Session | null;
@@ -171,6 +168,7 @@ export class TriggerEvent extends Node implements Spatial, Particle, Analytic, I
       throw new Error(`TriggerEvent.node is required`);
     }
     this.nodePtr = _node;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();
@@ -268,19 +266,19 @@ export class Trigger extends Node implements Spatial, Entity, IsTracked {
   readonly spacePtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
@@ -289,15 +287,15 @@ export class Trigger extends Node implements Spatial, Entity, IsTracked {
   name: string;
   event: RelationReference | null;
   where: Condition | null;
-  get target(): Action | Script | Service | null {
+  get target(): (Node & IsRunnable) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Action | Script | Service | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsRunnable) | null;
     }
     return null;
   }
 
-  set target(node: Action | Script | Service) {
+  set target(node: Node & IsRunnable) {
     this.targetPtr = node.toRef();
   }
   targetPtr: NodeReference;
@@ -309,14 +307,14 @@ export class Trigger extends Node implements Spatial, Entity, IsTracked {
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     type: TriggerType;
     name: string;
     event?: RelationReference | null;
     where?: Condition | null;
-    target: Action | Script | Service | NodeReference;
+    target: (Node & IsRunnable) | NodeReference;
     arguments?: Map<string, Value>;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -392,6 +390,7 @@ export class Trigger extends Node implements Spatial, Entity, IsTracked {
       throw new Error(`Trigger.arguments is required`);
     }
     this.arguments = _arguments;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();

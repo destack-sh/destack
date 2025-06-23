@@ -39,6 +39,7 @@ export class GalaxyInfo extends Struct {
       throw new Error(`GalaxyInfo.host is required`);
     }
     this.host = _host;
+
     // identity
     // ...
   }

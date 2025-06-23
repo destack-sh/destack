@@ -1,5 +1,4 @@
 import {
-  Agent,
   Analytic,
   Entity,
   Event,
@@ -8,6 +7,7 @@ import {
   Indexed,
   IsFrozen,
   IsOwnable,
+  IsSubject,
   IsTracked,
   LikeInvite,
   MaterializationType,
@@ -55,19 +55,19 @@ export class Friendship extends Node implements Global, Entity, IsTracked {
   readonly parentPtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
@@ -94,9 +94,9 @@ export class Friendship extends Node implements Global, Entity, IsTracked {
     parent?: Node | NodeReference | null;
     materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     userA: User | NodeReference;
     userB: User | NodeReference;
     _session?: Session | null;
@@ -157,6 +157,7 @@ export class Friendship extends Node implements Global, Entity, IsTracked {
       throw new Error(`Friendship.userB is required`);
     }
     this.userBPtr = _userB;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();
@@ -254,19 +255,19 @@ export class FriendshipInviteEvent
   }
   readonly spacePtr: NodeReference | null;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
@@ -290,9 +291,9 @@ export class FriendshipInviteEvent
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     type: FriendshipInviteEventType;
     node: FriendshipInvite | NodeReference;
     _session?: Session | null;
@@ -347,6 +348,7 @@ export class FriendshipInviteEvent
       throw new Error(`FriendshipInviteEvent.node is required`);
     }
     this.nodePtr = _node;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();
@@ -442,44 +444,44 @@ export class FriendshipInvite extends Node implements Global, Entity, IsTracked,
   readonly parentPtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
-  get ownedBy(): Agent | User | null {
+  get ownedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
 
-  set ownedBy(node: Agent | User) {
+  set ownedBy(node: Node & IsSubject) {
     this.ownedByPtr = node.toRef();
   }
   ownedByPtr: NodeReference;
-  get member(): Agent | User | null {
+  get member(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.memberPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
 
-  set member(node: Agent | User) {
+  set member(node: Node & IsSubject) {
     this.memberPtr = node.toRef();
   }
   memberPtr: NodeReference;
@@ -489,11 +491,11 @@ export class FriendshipInvite extends Node implements Global, Entity, IsTracked,
     parent?: Node | NodeReference | null;
     materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
-    ownedBy: Agent | User | NodeReference;
-    member: Agent | User | NodeReference;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
+    ownedBy: (Node & IsSubject) | NodeReference;
+    member: (Node & IsSubject) | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -552,6 +554,7 @@ export class FriendshipInvite extends Node implements Global, Entity, IsTracked,
       throw new Error(`FriendshipInvite.member is required`);
     }
     this.memberPtr = _member;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();

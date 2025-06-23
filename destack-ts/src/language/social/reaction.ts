@@ -1,14 +1,13 @@
 import {
-  Agent,
   Entity,
   Global,
   Graph,
   IsDeletable,
   IsOwnable,
   IsReactable,
+  IsSubject,
   IsTracked,
   MaterializationType,
-  Message,
   Node,
   NodeReference,
   NodeType,
@@ -19,7 +18,6 @@ import {
   StructType,
   Supergraph,
   TraitType,
-  User,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
 
@@ -47,10 +45,10 @@ export class Reaction extends Node implements Global, Spatial, Entity, IsTracked
   ];
   static __descendantTypes__: NodeType[] = [NodeType.REACTION];
 
-  get parent(): Message | Reaction | null | null {
+  get parent(): (Node & IsReactable) | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Message | Reaction | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsReactable) | null | null;
     }
     return null;
   }
@@ -65,33 +63,33 @@ export class Reaction extends Node implements Global, Spatial, Entity, IsTracked
   readonly spacePtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
   readonly deletedAt: Temporal.ZonedDateTime | null;
-  get ownedBy(): Agent | User | null {
+  get ownedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
 
-  set ownedBy(node: Agent | User) {
+  set ownedBy(node: Node & IsSubject) {
     this.ownedByPtr = node.toRef();
   }
   ownedByPtr: NodeReference;
@@ -99,15 +97,15 @@ export class Reaction extends Node implements Global, Spatial, Entity, IsTracked
 
   constructor(options: {
     id?: string;
-    parent?: Message | Reaction | NodeReference | null;
+    parent?: (Node & IsReactable) | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    ownedBy: Agent | User | NodeReference;
+    ownedBy: (Node & IsSubject) | NodeReference;
     content: string;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -171,6 +169,7 @@ export class Reaction extends Node implements Global, Spatial, Entity, IsTracked
       throw new Error(`Reaction.content is required`);
     }
     this.content = _content;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();

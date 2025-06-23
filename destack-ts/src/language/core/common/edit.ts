@@ -1,6 +1,6 @@
 import {
-  Agent,
   Field,
+  IsSubject,
   Node,
   NodeReference,
   Origin,
@@ -9,7 +9,6 @@ import {
   StructFrozen,
   StructType,
   Supergraph,
-  User,
   Value,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
@@ -142,6 +141,7 @@ export class Edit extends StructFrozen {
     this.value = _value;
     let _undo = options.undo ?? null;
     this.undo = _undo;
+
     // identity
     // ...
   }
@@ -168,13 +168,13 @@ export class Change extends StructFrozen {
   readonly id: string;
   readonly name: string | null;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
       if (this._supergraph === null) {
         return null;
       }
-      return this._supergraph.get(nodePtr.id) as Agent | User | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
@@ -187,7 +187,7 @@ export class Change extends StructFrozen {
     id?: string;
     name?: string | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     origin?: Origin | null;
     debounce?: ChangeDebounce | null;
     edits?: Array<Edit>;
@@ -234,6 +234,7 @@ export class Change extends StructFrozen {
       throw new Error(`Change.edits is required`);
     }
     this.edits = _edits;
+
     // identity
     // ...
   }
@@ -315,6 +316,7 @@ export class ChangeResult extends StructFrozen {
       throw new Error(`ChangeResult.cascadedEdits is required`);
     }
     this.cascadedEdits = _cascadedEdits;
+
     // identity
     // ...
   }

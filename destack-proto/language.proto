@@ -2855,7 +2855,7 @@ message InviteProto {
   optional NodeReferenceProto updated_by_ptr = 18;
   optional google.protobuf.Timestamp deleted_at = 20;
   optional NodeReferenceProto owned_by_ptr = 25;
-  optional NodeReferenceProto member_ptr = 40;
+  NodeReferenceProto member_ptr = 40;
   optional NodeReferenceProto role_ptr = 41;
   optional RoleTypeProto role_type = 42;
 }
@@ -3099,7 +3099,7 @@ message MembershipProto {
   optional NodeReferenceProto updated_by_ptr = 18;
   optional google.protobuf.Timestamp deleted_at = 20;
   optional NodeReferenceProto owned_by_ptr = 25;
-  optional NodeReferenceProto member_ptr = 40;
+  NodeReferenceProto member_ptr = 40;
   optional NodeReferenceProto role_ptr = 41;
   optional RoleTypeProto role_type = 42;
 }

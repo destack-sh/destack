@@ -1,8 +1,8 @@
 import {
-  Agent,
   Entity,
   Global,
   Graph,
+  IsSubject,
   IsTracked,
   MaterializationType,
   Node,
@@ -14,7 +14,6 @@ import {
   StructType,
   Supergraph,
   TraitType,
-  User,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
 
@@ -38,19 +37,19 @@ export class Handle extends Node implements Global, Entity, IsTracked {
   readonly parentPtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
@@ -62,9 +61,9 @@ export class Handle extends Node implements Global, Entity, IsTracked {
     parent?: Space | NodeReference | null;
     materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     slug: string;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -113,6 +112,7 @@ export class Handle extends Node implements Global, Entity, IsTracked {
       throw new Error(`Handle.slug is required`);
     }
     this.slug = _slug;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();

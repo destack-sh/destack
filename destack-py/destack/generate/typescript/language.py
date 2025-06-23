@@ -7,7 +7,6 @@ from typing import Any, assert_never, cast
 
 from destack.language import (
     EMPTY_DICT,
-    NODE_TYPES,
     UNSET,
     BuiltinObjectBase,
     DefaultFactory,
@@ -79,12 +78,18 @@ def _generate_property_scalar_type(prop: IntoType, as_ptr: bool = True) -> str:
         if as_ptr:
             return "NodeReference"
         else:
-            node_types = get_node_types(prop.node_types)
-            node_classes = tuple(NODE_CLASS_BY_TYPE[node_type] for node_type in node_types or ())
-            if node_classes and len(node_classes) < len(NODE_TYPES):
-                return " | ".join(node_cls.__name__ for node_cls in node_classes)
-            else:
+            resolved_node_types = get_node_types(prop.node_types)
+            if not resolved_node_types or len(resolved_node_types) == len(NodeType):
                 return "Node"
+            node_classes: list[str] = []
+            for node_type in prop.node_types or ():
+                if isinstance(node_type, NodeType):
+                    node_classes.append(NODE_CLASS_BY_TYPE[node_type].__name__)
+                elif isinstance(node_type, TraitType):
+                    node_classes.append(f"(Node & {TRAIT_CLASS_BY_TYPE[node_type].__name__})")
+                else:
+                    assert_never(node_type)
+            return " | ".join(node_classes)
     elif prop.scalar_type == ScalarType.ENUM:
         assert prop.enum_type is not None, f"no enum_type for {prop!r}"
         enum_cls = ENUM_CLASS_BY_TYPE[prop.enum_type]
@@ -168,7 +173,7 @@ def _generate_property(
         # node getter/setter
         if is_interface:
             # interface declaration
-            node_getter_str = f"get {ts_name}(): {node_type_str}"
+            node_getter_str = f"get {ts_name}(): {node_type_str} | null"
             if not is_readonly:
                 node_setter_str = f"set {ts_name}(value: {node_type_str})"
                 node_prop_str = f"{node_getter_str}\n{node_setter_str}"
@@ -429,13 +434,15 @@ if (options.id == null) {
     # assemble constructor
     init_str = f"""\
 constructor(options: {{
-{textwrap.indent(header_str, "  ")}
+{textwrap.indent(header_str.strip(), "  ")}
 }}) {{
-{textwrap.indent(super_str, "  ")}
+{textwrap.indent(super_str.strip(), "  ")}
+
   // properties
-{textwrap.indent(body_str, "  ")}
+{textwrap.indent(body_str.strip(), "  ")}
+
   // identity
-{textwrap.indent(identity_str, "  ")}
+{textwrap.indent(identity_str.strip(), "  ")}
 }}
 """
 
@@ -743,10 +750,15 @@ def _get_definition_dependencies(cls: type[BuiltinObjectBase]) -> dict[str, Defi
     # properties
     for prop in _get_properties(cls):
         if prop.scalar_type == ScalarType.NODE_REFERENCE:
-            node_types = get_node_types(prop.node_types)
-            for node_type in node_types or ():
-                node_cls = NODE_CLASS_BY_TYPE[node_type]
-                dependencies[node_cls.__name__] = NODE_DEFINITION_BY_TYPE[node_type]
+            for node_type in prop.node_types or ():
+                if isinstance(node_type, NodeType):
+                    node_cls = NODE_CLASS_BY_TYPE[node_type]
+                    dependencies[node_cls.__name__] = NODE_DEFINITION_BY_TYPE[node_type]
+                elif isinstance(node_type, TraitType):
+                    trait_cls = TRAIT_CLASS_BY_TYPE[node_type]
+                    dependencies[trait_cls.__name__] = TRAIT_DEFINITION_BY_TYPE[node_type]
+                else:
+                    assert_never(node_type)
         elif prop.scalar_type == ScalarType.STRUCT:
             assert prop.struct_type is not None, f"no struct_type for {prop!r}"
             struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]

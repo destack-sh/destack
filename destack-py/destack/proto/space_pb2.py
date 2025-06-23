@@ -1,3 +1,4 @@
+
 # type: ignore
 # ruff: noqa
 
@@ -5,6 +6,7 @@ from typing import TYPE_CHECKING, Union, AsyncIterator, Mapping
 
 if TYPE_CHECKING:
     from destack.language import Session, Session, IsSubject, Client
+
 
 
 # -*- coding: utf-8 -*-
@@ -26,41 +28,39 @@ from . import common_pb2 as common__pb2
 from . import language_pb2 as language__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(
-    b'\n\x0bspace.proto\x12\x0esymbol.destack\x1a\x1cgoogle/protobuf/struct.proto\x1a\x0c\x63ommon.proto\x1a\x0elanguage.proto"d\n\x0cQueryRequest\x12)\n\x05scope\x18\x01 \x01(\x0b\x32\x1a.symbol.destack.ScopeProto\x12)\n\x05query\x18\x02 \x01(\x0b\x32\x1a.symbol.destack.QueryProto"A\n\rQueryResponse\x12\x30\n\x06result\x18\x01 \x01(\x0b\x32 .symbol.destack.QueryResultProto"h\n\rCommitRequest\x12)\n\x05scope\x18\x01 \x01(\x0b\x32\x1a.symbol.destack.ScopeProto\x12,\n\x07\x63hanges\x18\x03 \x03(\x0b\x32\x1b.symbol.destack.ChangeProto"S\n\x0e\x43ommitResponse\x12\r\n\x05\x65poch\x18\x03 \x01(\x04\x12\x32\n\x07results\x18\x04 \x03(\x0b\x32!.symbol.destack.ChangeResultProto"=\n\x10SubscribeRequest\x12)\n\x05query\x18\x01 \x01(\x0b\x32\x1a.symbol.destack.QueryProto"E\n\x11SubscribeResponse\x12\x30\n\x06update\x18\x01 \x01(\x0b\x32 .symbol.destack.QueryUpdateProto"i\n\x12UploadFilesRequest\x12)\n\x05scope\x18\x01 \x01(\x0b\x32\x1a.symbol.destack.ScopeProto\x12(\n\x05\x66iles\x18\x02 \x03(\x0b\x32\x19.symbol.destack.FileProto"\xde\x01\n\x13UploadFilesResponse\x12\x41\n\x07handles\x18\x01 \x03(\x0b\x32\x30.symbol.destack.UploadFilesResponse.UploadHandle\x1a\x83\x01\n\x0cUploadHandle\x12\'\n\x04\x66ile\x18\x01 \x01(\x0b\x32\x19.symbol.destack.FileProto\x12\x10\n\x08post_url\x18\x02 \x01(\t\x12\'\n\x06\x66ields\x18\x03 \x01(\x0b\x32\x17.google.protobuf.Struct\x12\x0f\n\x07get_url\x18\x04 \x01(\t"t\n\x14\x44ownloadFilesRequest\x12)\n\x05scope\x18\x01 \x01(\x0b\x32\x1a.symbol.destack.ScopeProto\x12\x31\n\x05\x66iles\x18\x02 \x03(\x0b\x32".symbol.destack.NodeReferenceProto"\xaa\x01\n\x15\x44ownloadFilesResponse\x12\x45\n\x07handles\x18\x01 \x03(\x0b\x32\x34.symbol.destack.DownloadFilesResponse.DownloadHandle\x1aJ\n\x0e\x44ownloadHandle\x12\'\n\x04\x66ile\x18\x01 \x01(\x0b\x32\x19.symbol.destack.FileProto\x12\x0f\n\x07get_url\x18\x02 \x01(\t2\xa6\x03\n\x05Space\x12\x44\n\x05Query\x12\x1c.symbol.destack.QueryRequest\x1a\x1d.symbol.destack.QueryResponse\x12G\n\x06\x43ommit\x12\x1d.symbol.destack.CommitRequest\x1a\x1e.symbol.destack.CommitResponse\x12R\n\tSubscribe\x12 .symbol.destack.SubscribeRequest\x1a!.symbol.destack.SubscribeResponse0\x01\x12V\n\x0bUploadFiles\x12".symbol.destack.UploadFilesRequest\x1a#.symbol.destack.UploadFilesResponse\x12\\\n\rDownloadFiles\x12$.symbol.destack.DownloadFilesRequest\x1a%.symbol.destack.DownloadFilesResponse\x1a\x04\x80\xb5\x18\x02\x62\x06proto3'
-)
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0bspace.proto\x12\x0esymbol.destack\x1a\x1cgoogle/protobuf/struct.proto\x1a\x0c\x63ommon.proto\x1a\x0elanguage.proto\"d\n\x0cQueryRequest\x12)\n\x05scope\x18\x01 \x01(\x0b\x32\x1a.symbol.destack.ScopeProto\x12)\n\x05query\x18\x02 \x01(\x0b\x32\x1a.symbol.destack.QueryProto\"A\n\rQueryResponse\x12\x30\n\x06result\x18\x01 \x01(\x0b\x32 .symbol.destack.QueryResultProto\"h\n\rCommitRequest\x12)\n\x05scope\x18\x01 \x01(\x0b\x32\x1a.symbol.destack.ScopeProto\x12,\n\x07\x63hanges\x18\x03 \x03(\x0b\x32\x1b.symbol.destack.ChangeProto\"S\n\x0e\x43ommitResponse\x12\r\n\x05\x65poch\x18\x03 \x01(\x04\x12\x32\n\x07results\x18\x04 \x03(\x0b\x32!.symbol.destack.ChangeResultProto\"=\n\x10SubscribeRequest\x12)\n\x05query\x18\x01 \x01(\x0b\x32\x1a.symbol.destack.QueryProto\"E\n\x11SubscribeResponse\x12\x30\n\x06update\x18\x01 \x01(\x0b\x32 .symbol.destack.QueryUpdateProto\"i\n\x12UploadFilesRequest\x12)\n\x05scope\x18\x01 \x01(\x0b\x32\x1a.symbol.destack.ScopeProto\x12(\n\x05\x66iles\x18\x02 \x03(\x0b\x32\x19.symbol.destack.FileProto\"\xde\x01\n\x13UploadFilesResponse\x12\x41\n\x07handles\x18\x01 \x03(\x0b\x32\x30.symbol.destack.UploadFilesResponse.UploadHandle\x1a\x83\x01\n\x0cUploadHandle\x12\'\n\x04\x66ile\x18\x01 \x01(\x0b\x32\x19.symbol.destack.FileProto\x12\x10\n\x08post_url\x18\x02 \x01(\t\x12\'\n\x06\x66ields\x18\x03 \x01(\x0b\x32\x17.google.protobuf.Struct\x12\x0f\n\x07get_url\x18\x04 \x01(\t\"t\n\x14\x44ownloadFilesRequest\x12)\n\x05scope\x18\x01 \x01(\x0b\x32\x1a.symbol.destack.ScopeProto\x12\x31\n\x05\x66iles\x18\x02 \x03(\x0b\x32\".symbol.destack.NodeReferenceProto\"\xaa\x01\n\x15\x44ownloadFilesResponse\x12\x45\n\x07handles\x18\x01 \x03(\x0b\x32\x34.symbol.destack.DownloadFilesResponse.DownloadHandle\x1aJ\n\x0e\x44ownloadHandle\x12\'\n\x04\x66ile\x18\x01 \x01(\x0b\x32\x19.symbol.destack.FileProto\x12\x0f\n\x07get_url\x18\x02 \x01(\t2\xa6\x03\n\x05Space\x12\x44\n\x05Query\x12\x1c.symbol.destack.QueryRequest\x1a\x1d.symbol.destack.QueryResponse\x12G\n\x06\x43ommit\x12\x1d.symbol.destack.CommitRequest\x1a\x1e.symbol.destack.CommitResponse\x12R\n\tSubscribe\x12 .symbol.destack.SubscribeRequest\x1a!.symbol.destack.SubscribeResponse0\x01\x12V\n\x0bUploadFiles\x12\".symbol.destack.UploadFilesRequest\x1a#.symbol.destack.UploadFilesResponse\x12\\\n\rDownloadFiles\x12$.symbol.destack.DownloadFilesRequest\x1a%.symbol.destack.DownloadFilesResponse\x1a\x04\x80\xb5\x18\x02\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
-_builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, "space_pb2", _globals)
+_builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'space_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
-    DESCRIPTOR._loaded_options = None
-    _globals["_SPACE"]._loaded_options = None
-    _globals["_SPACE"]._serialized_options = b"\200\265\030\002"
-    _globals["_QUERYREQUEST"]._serialized_start = 91
-    _globals["_QUERYREQUEST"]._serialized_end = 191
-    _globals["_QUERYRESPONSE"]._serialized_start = 193
-    _globals["_QUERYRESPONSE"]._serialized_end = 258
-    _globals["_COMMITREQUEST"]._serialized_start = 260
-    _globals["_COMMITREQUEST"]._serialized_end = 364
-    _globals["_COMMITRESPONSE"]._serialized_start = 366
-    _globals["_COMMITRESPONSE"]._serialized_end = 449
-    _globals["_SUBSCRIBEREQUEST"]._serialized_start = 451
-    _globals["_SUBSCRIBEREQUEST"]._serialized_end = 512
-    _globals["_SUBSCRIBERESPONSE"]._serialized_start = 514
-    _globals["_SUBSCRIBERESPONSE"]._serialized_end = 583
-    _globals["_UPLOADFILESREQUEST"]._serialized_start = 585
-    _globals["_UPLOADFILESREQUEST"]._serialized_end = 690
-    _globals["_UPLOADFILESRESPONSE"]._serialized_start = 693
-    _globals["_UPLOADFILESRESPONSE"]._serialized_end = 915
-    _globals["_UPLOADFILESRESPONSE_UPLOADHANDLE"]._serialized_start = 784
-    _globals["_UPLOADFILESRESPONSE_UPLOADHANDLE"]._serialized_end = 915
-    _globals["_DOWNLOADFILESREQUEST"]._serialized_start = 917
-    _globals["_DOWNLOADFILESREQUEST"]._serialized_end = 1033
-    _globals["_DOWNLOADFILESRESPONSE"]._serialized_start = 1036
-    _globals["_DOWNLOADFILESRESPONSE"]._serialized_end = 1206
-    _globals["_DOWNLOADFILESRESPONSE_DOWNLOADHANDLE"]._serialized_start = 1132
-    _globals["_DOWNLOADFILESRESPONSE_DOWNLOADHANDLE"]._serialized_end = 1206
-    _globals["_SPACE"]._serialized_start = 1209
-    _globals["_SPACE"]._serialized_end = 1631
+  DESCRIPTOR._loaded_options = None
+  _globals['_SPACE']._loaded_options = None
+  _globals['_SPACE']._serialized_options = b'\200\265\030\002'
+  _globals['_QUERYREQUEST']._serialized_start=91
+  _globals['_QUERYREQUEST']._serialized_end=191
+  _globals['_QUERYRESPONSE']._serialized_start=193
+  _globals['_QUERYRESPONSE']._serialized_end=258
+  _globals['_COMMITREQUEST']._serialized_start=260
+  _globals['_COMMITREQUEST']._serialized_end=364
+  _globals['_COMMITRESPONSE']._serialized_start=366
+  _globals['_COMMITRESPONSE']._serialized_end=449
+  _globals['_SUBSCRIBEREQUEST']._serialized_start=451
+  _globals['_SUBSCRIBEREQUEST']._serialized_end=512
+  _globals['_SUBSCRIBERESPONSE']._serialized_start=514
+  _globals['_SUBSCRIBERESPONSE']._serialized_end=583
+  _globals['_UPLOADFILESREQUEST']._serialized_start=585
+  _globals['_UPLOADFILESREQUEST']._serialized_end=690
+  _globals['_UPLOADFILESRESPONSE']._serialized_start=693
+  _globals['_UPLOADFILESRESPONSE']._serialized_end=915
+  _globals['_UPLOADFILESRESPONSE_UPLOADHANDLE']._serialized_start=784
+  _globals['_UPLOADFILESRESPONSE_UPLOADHANDLE']._serialized_end=915
+  _globals['_DOWNLOADFILESREQUEST']._serialized_start=917
+  _globals['_DOWNLOADFILESREQUEST']._serialized_end=1033
+  _globals['_DOWNLOADFILESRESPONSE']._serialized_start=1036
+  _globals['_DOWNLOADFILESRESPONSE']._serialized_end=1206
+  _globals['_DOWNLOADFILESRESPONSE_DOWNLOADHANDLE']._serialized_start=1132
+  _globals['_DOWNLOADFILESRESPONSE_DOWNLOADHANDLE']._serialized_end=1206
+  _globals['_SPACE']._serialized_start=1209
+  _globals['_SPACE']._serialized_end=1631
 # @@protoc_insertion_point(module_scope)

@@ -72,6 +72,6 @@ class Membership(
     """A Membership of a Subject in a Joinable."""
 
     parent: Optional["IsJoinable"] = property_parent_(node_is_customizable=False)
-    member: Optional["IsSubject"] = property_(40)
+    member: "IsSubject" = property_(40)
     role: Optional["Role"] = property_(41)
     role_type: Optional["RoleType"] = property_(42)

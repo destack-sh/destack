@@ -194,6 +194,7 @@ export class PropertyDefinition extends StructFrozen {
       throw new Error(`PropertyDefinition.isComputed is required`);
     }
     this.isComputed = _isComputed;
+
     // identity
     // ...
   }
@@ -280,6 +281,7 @@ export class TraitDefinition extends StructFrozen {
       throw new Error(`TraitDefinition.traits is required`);
     }
     this.traits = _traits;
+
     // identity
     // ...
   }
@@ -391,6 +393,7 @@ export class NodeDefinition extends StructFrozen {
       throw new Error(`NodeDefinition.descendantTypes is required`);
     }
     this.descendantTypes = _descendantTypes;
+
     // identity
     // ...
   }
@@ -470,6 +473,7 @@ export class StructDefinition extends StructFrozen {
       throw new Error(`StructDefinition.isFrozen is required`);
     }
     this.isFrozen = _isFrozen;
+
     // identity
     // ...
   }
@@ -542,6 +546,7 @@ export class EnumDefinition extends StructFrozen {
       throw new Error(`EnumDefinition.options is required`);
     }
     this.options = _options;
+
     // identity
     // ...
   }
@@ -607,6 +612,7 @@ export class EnumOptionDefinition extends StructFrozen {
     this.icon = _icon;
     let _description = options.description ?? null;
     this.description = _description;
+
     // identity
     // ...
   }
@@ -675,6 +681,7 @@ export class PermissionDefinition extends StructFrozen {
     this.nodeType = _nodeType;
     let _icon = options.icon ?? null;
     this.icon = _icon;
+
     // identity
     // ...
   }
@@ -732,6 +739,7 @@ export class ConstantDefinition extends StructFrozen {
       throw new Error(`ConstantDefinition.value is required`);
     }
     this.value = _value;
+
     // identity
     // ...
   }

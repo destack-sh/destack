@@ -1,11 +1,12 @@
 import {
-  Agent,
   CustomViewDefinition,
   Entity,
   Graph,
   Icon,
   IsDeletable,
   IsOwnable,
+  IsOwner,
+  IsSubject,
   IsTracked,
   Layer,
   Length,
@@ -13,18 +14,14 @@ import {
   Node,
   NodeReference,
   NodeType,
-  Organization,
   QueryConnection,
-  Role,
   Scene,
   Session,
   Space,
   Spatial,
   StructType,
   Supergraph,
-  Team,
   TraitType,
-  User,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
 
@@ -91,33 +88,33 @@ export class Variant extends Node implements Spatial, Entity, IsTracked, IsDelet
   readonly spacePtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
   readonly deletedAt: Temporal.ZonedDateTime | null;
-  get ownedBy(): Role | Agent | Organization | Team | User | null | null {
+  get ownedBy(): (Node & IsOwner) | null | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Role | Agent | Organization | Team | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null | null;
     }
     return null;
   }
 
-  set ownedBy(node: Role | Agent | Organization | Team | User | null) {
+  set ownedBy(node: (Node & IsOwner) | null) {
     if (node === null) {
       this.ownedByPtr = null;
     } else {
@@ -140,11 +137,11 @@ export class Variant extends Node implements Spatial, Entity, IsTracked, IsDelet
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null;
+    ownedBy?: (Node & IsOwner) | NodeReference | null;
     type: VariantType;
     name: string;
     slug?: string | null;
@@ -229,6 +226,7 @@ export class Variant extends Node implements Spatial, Entity, IsTracked, IsDelet
     this.minWidth = _minWidth;
     let _minHeight = options.minHeight ?? null;
     this.minHeight = _minHeight;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();

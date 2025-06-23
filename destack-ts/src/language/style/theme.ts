@@ -1,10 +1,10 @@
 import {
-  Agent,
   Entity,
   Graph,
   Icon,
   IsDeletable,
   IsOrdered,
+  IsSubject,
   IsTaggable,
   IsTracked,
   IsVisual,
@@ -19,7 +19,6 @@ import {
   StructType,
   Supergraph,
   TraitType,
-  User,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
 
@@ -81,19 +80,19 @@ export class Theme extends Node implements Spatial, Entity, IsTracked, IsDeletab
   readonly spacePtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
@@ -109,9 +108,9 @@ export class Theme extends Node implements Spatial, Entity, IsTracked, IsDeletab
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;
     name: string;
@@ -180,6 +179,7 @@ export class Theme extends Node implements Spatial, Entity, IsTracked, IsDeletab
     this.name = _name;
     let _icon = options.icon ?? null;
     this.icon = _icon;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();

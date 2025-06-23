@@ -1,5 +1,4 @@
 import {
-  Agent,
   Entity,
   Graph,
   IsActionable,
@@ -7,27 +6,25 @@ import {
   IsExtensible,
   IsOrdered,
   IsOwnable,
+  IsOwner,
   IsRunnable,
   IsScriptable,
   IsSourceable,
+  IsSubject,
   IsTaggable,
   IsTracked,
   MaterializationType,
   Node,
   NodeReference,
   NodeType,
-  Organization,
   QueryConnection,
-  Role,
   Script,
   Session,
   Space,
   Spatial,
   StructType,
   Supergraph,
-  Team,
   TraitType,
-  User,
   Value,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
@@ -94,19 +91,19 @@ export class Service
   readonly spacePtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
@@ -114,15 +111,15 @@ export class Service
   readonly deletedAt: Temporal.ZonedDateTime | null;
   value: Map<string, Value>;
   readonly orderKey: string;
-  get ownedBy(): Role | Agent | Organization | Team | User | null | null {
+  get ownedBy(): (Node & IsOwner) | null | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Role | Agent | Organization | Team | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null | null;
     }
     return null;
   }
 
-  set ownedBy(node: Role | Agent | Organization | Team | User | null) {
+  set ownedBy(node: (Node & IsOwner) | null) {
     if (node === null) {
       this.ownedByPtr = null;
     } else {
@@ -162,13 +159,13 @@ export class Service
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     value?: Map<string, Value>;
     orderKey?: string;
-    ownedBy?: Role | Agent | Organization | Team | User | NodeReference | null;
+    ownedBy?: (Node & IsOwner) | NodeReference | null;
     name: string;
     script?: Script | NodeReference | null;
     source?: Script | NodeReference | null;
@@ -254,6 +251,7 @@ export class Service
       _source = _source.toRef();
     }
     this.sourcePtr = _source;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();

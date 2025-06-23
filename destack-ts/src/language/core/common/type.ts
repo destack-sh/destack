@@ -71,6 +71,7 @@ export class StringConstraint extends StructFrozen {
     this.startsWith = _startsWith;
     let _endsWith = options.endsWith ?? null;
     this.endsWith = _endsWith;
+
     // identity
     // ...
   }
@@ -131,6 +132,7 @@ export class NumberConstraint extends StructFrozen {
     this.precision = _precision;
     let _scale = options.scale ?? null;
     this.scale = _scale;
+
     // identity
     // ...
   }
@@ -175,6 +177,7 @@ export class CollectionConstraint extends StructFrozen {
     this.minLength = _minLength;
     let _maxLength = options.maxLength ?? null;
     this.maxLength = _maxLength;
+
     // identity
     // ...
   }
@@ -225,6 +228,7 @@ export class NodeConstraint extends StructFrozen {
       throw new Error(`NodeConstraint.nodeTraits is required`);
     }
     this.nodeTraits = _nodeTraits;
+
     // identity
     // ...
   }
@@ -364,6 +368,7 @@ export class Type extends StructFrozen {
     this.numberConstraint = _numberConstraint;
     let _nodeConstraint = options.nodeConstraint ?? null;
     this.nodeConstraint = _nodeConstraint;
+
     // identity
     // ...
   }

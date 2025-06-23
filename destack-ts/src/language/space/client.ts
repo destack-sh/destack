@@ -1,11 +1,11 @@
 import {
-  Agent,
   ClientType,
+  Cursor,
   Entity,
-  EventCursor,
   Global,
   Graph,
   IsDeletable,
+  IsSubject,
   IsTracked,
   Machine,
   MaterializationType,
@@ -13,12 +13,10 @@ import {
   NodeReference,
   NodeType,
   QueryConnection,
-  ScreenCursor,
   Session,
   StructFrozen,
   StructType,
   Supergraph,
-  ThreadCursor,
   TraitType,
   User,
 } from "@/language";
@@ -61,6 +59,7 @@ export class Origin extends StructFrozen {
     this.ck = _ck;
     let _nonce = options.nonce ?? null;
     this.nonce = _nonce;
+
     // identity
     // ...
   }
@@ -89,29 +88,29 @@ export class Client extends Node implements Global, Entity, IsTracked, IsDeletab
   static __ancestorTypes__: NodeType[] = [NodeType.AGENT, NodeType.FOLDER, NodeType.USER, NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): Agent | User | null | null {
+  get parent(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
@@ -159,15 +158,15 @@ export class Client extends Node implements Global, Entity, IsTracked, IsDeletab
   accessToken: string | null;
   seenAt: Temporal.ZonedDateTime | null;
   loggedInAt: Temporal.ZonedDateTime | null;
-  get cursor(): EventCursor | ScreenCursor | ThreadCursor | null | null {
+  get cursor(): (Node & Cursor) | null | null {
     const nodePtr: NodeReference | null = this.cursorPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as EventCursor | ScreenCursor | ThreadCursor | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & Cursor) | null | null;
     }
     return null;
   }
 
-  set cursor(node: EventCursor | ScreenCursor | ThreadCursor | null) {
+  set cursor(node: (Node & Cursor) | null) {
     if (node === null) {
       this.cursorPtr = null;
     } else {
@@ -178,12 +177,12 @@ export class Client extends Node implements Global, Entity, IsTracked, IsDeletab
 
   constructor(options: {
     id?: string;
-    parent?: Agent | User | NodeReference | null;
+    parent?: (Node & IsSubject) | NodeReference | null;
     materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     type: ClientType;
     name: string;
@@ -197,7 +196,7 @@ export class Client extends Node implements Global, Entity, IsTracked, IsDeletab
     accessToken?: string | null;
     seenAt?: Temporal.ZonedDateTime | null;
     loggedInAt?: Temporal.ZonedDateTime | null;
-    cursor?: EventCursor | ScreenCursor | ThreadCursor | NodeReference | null;
+    cursor?: (Node & Cursor) | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -283,6 +282,7 @@ export class Client extends Node implements Global, Entity, IsTracked, IsDeletab
       _cursor = _cursor.toRef();
     }
     this.cursorPtr = _cursor;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();

@@ -1,13 +1,13 @@
 import {
-  Agent,
-  CustomEntityDefinition,
   Entity,
   Graph,
+  IsActionable,
   IsDeletable,
   IsExtensible,
   IsOrdered,
   IsRunnable,
   IsSourceable,
+  IsSubject,
   IsTaggable,
   IsTracked,
   MaterializationType,
@@ -16,7 +16,6 @@ import {
   NodeType,
   QueryConnection,
   Script,
-  Service,
   Session,
   Space,
   Spatial,
@@ -24,7 +23,6 @@ import {
   Supergraph,
   Text,
   TraitType,
-  User,
   Value,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
@@ -63,10 +61,10 @@ export class Action
   ];
   static __descendantTypes__: NodeType[] = [NodeType.FIELD, NodeType.OPTION, NodeType.TAGGING];
 
-  get parent(): CustomEntityDefinition | Service | null | null {
+  get parent(): (Node & IsActionable) | null | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as CustomEntityDefinition | Service | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsActionable) | null | null;
     }
     return null;
   }
@@ -81,19 +79,19 @@ export class Action
   readonly spacePtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
@@ -115,13 +113,13 @@ export class Action
 
   constructor(options: {
     id?: string;
-    parent?: CustomEntityDefinition | Service | NodeReference | null;
+    parent?: (Node & IsActionable) | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     value?: Map<string, Value>;
     orderKey?: string;
@@ -211,6 +209,7 @@ export class Action
       _source = _source.toRef();
     }
     this.sourcePtr = _source;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();

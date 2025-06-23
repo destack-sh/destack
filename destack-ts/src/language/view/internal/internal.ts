@@ -1,17 +1,17 @@
-import { Agent, Dimension, MaterializationType, NodeReference, Position, Script, Space, User } from "@/language";
+import { Dimension, IsSubject, MaterializationType, Node, NodeReference, Position, Script, Space } from "@/language";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:TRAIT:10650 ==== */
 export interface InternalView {
   readonly id: string;
-  get space(): Space | null;
+  get space(): Space | null | null;
   readonly spacePtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null;
+  get createdBy(): (Node & IsSubject) | null | null;
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null;
+  get updatedBy(): (Node & IsSubject) | null | null;
   readonly updatedByPtr: NodeReference | null;
   readonly deletedAt: Temporal.ZonedDateTime | null;
   readonly orderKey: string;
@@ -23,7 +23,7 @@ export interface InternalView {
   minHeight: Dimension | null;
   maxWidth: Dimension | null;
   maxHeight: Dimension | null;
-  get script(): Script | null;
+  get script(): Script | null | null;
   set script(value: Script | null);
   scriptPtr: NodeReference | null;
 }

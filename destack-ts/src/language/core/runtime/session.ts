@@ -10,7 +10,7 @@ import {
   Space,
   Store,
   Supergraph,
-} from "@/language";
+} from "@destack/language";
 import { Temporal } from "temporal-polyfill";
 
 /**

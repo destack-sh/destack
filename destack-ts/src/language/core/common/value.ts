@@ -27,6 +27,7 @@ export class Value extends StructFrozen {
       throw new Error(`Value.value is required`);
     }
     this.value = _value;
+
     // identity
     // ...
   }

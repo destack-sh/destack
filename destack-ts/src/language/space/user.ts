@@ -1,7 +1,6 @@
 import {
-  Agent,
+  Cursor,
   Entity,
-  EventCursor,
   Global,
   Graph,
   Handle,
@@ -15,12 +14,10 @@ import {
   NodeReference,
   NodeType,
   QueryConnection,
-  ScreenCursor,
   Session,
   Space,
   StructType,
   Supergraph,
-  ThreadCursor,
   TraitType,
 } from "@/language";
 import { Temporal } from "temporal-polyfill";
@@ -59,19 +56,19 @@ export class User extends Node implements Global, Entity, IsTracked, IsSubject, 
   readonly parentPtr: NodeReference | null;
   readonly materialization: MaterializationType;
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): Agent | User | null | null {
+  get createdBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): Agent | User | null | null {
+  get updatedBy(): (Node & IsSubject) | null | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Agent | User | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
     }
     return null;
   }
@@ -98,10 +95,10 @@ export class User extends Node implements Global, Entity, IsTracked, IsSubject, 
     return null;
   }
   readonly handlePtr: NodeReference | null;
-  get cursor(): EventCursor | ScreenCursor | ThreadCursor | null | null {
+  get cursor(): (Node & Cursor) | null | null {
     const nodePtr: NodeReference | null = this.cursorPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as EventCursor | ScreenCursor | ThreadCursor | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & Cursor) | null | null;
     }
     return null;
   }
@@ -115,9 +112,9 @@ export class User extends Node implements Global, Entity, IsTracked, IsSubject, 
     parent?: Node | NodeReference | null;
     materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: Agent | User | NodeReference | null;
+    createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: Agent | User | NodeReference | null;
+    updatedBy?: (Node & IsSubject) | NodeReference | null;
     name: string;
     slug: string;
     icon?: Icon | null;
@@ -126,7 +123,7 @@ export class User extends Node implements Global, Entity, IsTracked, IsSubject, 
     isStaff?: boolean;
     space: Space | NodeReference;
     handle?: Handle | NodeReference | null;
-    cursor?: EventCursor | ScreenCursor | ThreadCursor | NodeReference | null;
+    cursor?: (Node & Cursor) | NodeReference | null;
     email?: string | null;
     passwordSalt?: Uint8Array | null;
     passwordHash?: Uint8Array | null;
@@ -226,6 +223,7 @@ export class User extends Node implements Global, Entity, IsTracked, IsSubject, 
     this.passwordSalt = _passwordSalt;
     let _passwordHash = options.passwordHash ?? null;
     this.passwordHash = _passwordHash;
+
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO();
