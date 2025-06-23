@@ -10,7 +10,7 @@ import {
   StructType,
   Supergraph,
   Value,
-} from "@/language";
+} from "@destack/language";
 import { Temporal } from "temporal-polyfill";
 import { v4 as uuid4 } from "uuid";
 

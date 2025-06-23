@@ -14,7 +14,7 @@ import {
   TraitType,
   TypeCardinality,
   Value,
-} from "@/language";
+} from "@destack/language";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2570 ==== */
 export enum StringFormat {

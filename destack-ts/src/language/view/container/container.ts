@@ -22,7 +22,7 @@ import {
   Space,
   Value,
   Vector2,
-} from "@/language";
+} from "@destack/language";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:TRAIT:10000 ==== */

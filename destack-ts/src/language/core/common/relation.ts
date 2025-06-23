@@ -2,6 +2,7 @@ import {
   CustomEntityDefinition,
   Field,
   Node,
+  NodeClass,
   NodeType,
   Region,
   Session,
@@ -9,8 +10,7 @@ import {
   StructType,
   Supergraph,
   TraitType,
-} from "@/language";
-import { NodeClass } from "@destack/language";
+} from "@destack/language";
 import { assertNever } from "@destack/utils/functools";
 
 /* ==== DESTACK_GENERATED_START:ENUM:50010 ==== */

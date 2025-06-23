@@ -1,4 +1,13 @@
-import { Icon, MaterializationType, Node, NodeReference, ResourceStatus, Script, Space, Value } from "@/language";
+import {
+  Icon,
+  MaterializationType,
+  Node,
+  NodeReference,
+  ResourceStatus,
+  Script,
+  Space,
+  Value,
+} from "@destack/language";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:50101 ==== */

@@ -31,7 +31,7 @@ import {
   Vector2,
   View,
   Window,
-} from "@/language";
+} from "@destack/language";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:11012 ==== */

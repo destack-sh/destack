@@ -8,7 +8,7 @@ import {
   Position,
   Script,
   Space,
-} from "@/language";
+} from "@destack/language";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:TRAIT:10200 ==== */

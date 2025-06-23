@@ -46,7 +46,7 @@ import {
   Vector2,
   View,
   Window,
-} from "@/language";
+} from "@destack/language";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:10000 ==== */
