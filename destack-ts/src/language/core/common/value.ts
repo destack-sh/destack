@@ -1,11 +1,10 @@
-import { NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE } from "@destack/language/registry";
+import { NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE, toType } from "@destack/language";
 import {
   BuiltinObject,
   Node,
   NodeReference,
   NodeType,
   PrimitiveType,
-  toType,
   ScalarType,
   Session,
   StructFrozen,
@@ -337,13 +336,13 @@ function _unpackScalarValue(
   } else if (type.scalarType == ScalarType.NODE_VALUE) {
     const nodeType = Number(value["1"]) as NodeType;
     const nodeClass = NODE_CLASS_BY_TYPE[nodeType];
-    return nodeClass.fromValue(value, _session, _supergraph, _graph, _connection);
+    return nodeClass.__unpackValue__(value, _session, _supergraph, _graph, _connection);
   } else if (type.scalarType == ScalarType.STRUCT) {
     if (type.structType === null) {
       throw new Error(`missing struct type for ${type.repr()}`);
     }
     const structClass = STRUCT_CLASS_BY_TYPE[type.structType];
-    return structClass.fromValue(value, _session, _supergraph, _graph, _connection);
+    return structClass.__unpackValue__(value, _session, _supergraph, _graph, _connection);
   } else {
     assertNever(type.scalarType);
   }

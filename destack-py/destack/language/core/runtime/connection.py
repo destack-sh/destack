@@ -31,7 +31,7 @@ class QueryContainer[NodeT: "Trait | Node" = Node]:
         self.type: QueryType = type
         self.query: Query = query
         self.result: QueryResultBase | None = result
-        self.nodes: list[NodeT] = []
+        self.nodes: list[NodeT] = []  # type: ignore (no idea why pyright freaks out sometimes)
         self.discriminator: Any | None = discriminator
         self.subcontainers: list[QueryContainer] = []
 
