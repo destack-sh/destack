@@ -541,5 +541,192 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
     }
     return pathParts.reverse().join("/");
   }
+
+  toValue(): { [key: string]: any } {
+    return File.__packValue__(this);
+  }
+
+  static __packValue__(object: File): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 2540;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr !== null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr !== null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    objectValue["7"] = object.materialization;
+    objectValue["15"] = object.createdAt.toString();
+    if (object.createdByPtr !== null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
+    objectValue["17"] = object.updatedAt.toString();
+    if (object.updatedByPtr !== null) {
+      objectValue["18"] = object.updatedByPtr.toValue();
+    }
+    objectValue["30"] = object.type;
+    objectValue["31"] = object.name;
+    objectValue["40"] = object.status;
+    if (object.targetStatus !== null) {
+      objectValue["41"] = object.targetStatus.toString();
+    }
+    objectValue["60"] = object.source;
+    if (object.mimeType !== null) {
+      objectValue["61"] = object.mimeType;
+    }
+    if (object.format !== null) {
+      objectValue["62"] = object.format;
+    }
+    if (object.size !== null) {
+      objectValue["63"] = object.size;
+    }
+    if (object.sha256 !== null) {
+      objectValue["64"] = object.sha256;
+    }
+    if (object.width !== null) {
+      objectValue["65"] = object.width;
+    }
+    if (object.height !== null) {
+      objectValue["66"] = object.height;
+    }
+    if (object.aspectRatio !== null) {
+      objectValue["67"] = object.aspectRatio;
+    }
+    if (object.codec !== null) {
+      objectValue["68"] = object.codec;
+    }
+    if (object.duration !== null) {
+      objectValue["69"] = timedeltaToISOFormat(object.duration);
+    }
+    if (object.url !== null) {
+      objectValue["70"] = object.url;
+    }
+    if (object.contentUrl !== null) {
+      objectValue["71"] = object.contentUrl;
+    }
+    if (object.thumbnailUrl !== null) {
+      objectValue["72"] = object.thumbnailUrl;
+    }
+    if (object.faviconUrl !== null) {
+      objectValue["73"] = object.faviconUrl;
+    }
+    if (object.thumbnailWidth !== null) {
+      objectValue["74"] = object.thumbnailWidth;
+    }
+    if (object.thumbnailHeight !== null) {
+      objectValue["75"] = object.thumbnailHeight;
+    }
+    if (object.content !== null) {
+      objectValue["76"] = Buffer.from(object.content).toString("base64");
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): File {
+    const mimeTypeValue = objectValue["61"];
+    const unpackedMimeType = mimeTypeValue !== undefined ? mimeTypeValue : null;
+    const formatValue = objectValue["62"];
+    const unpackedFormat = formatValue !== undefined ? Number(formatValue) : null;
+    const sizeValue = objectValue["63"];
+    const unpackedSize = sizeValue !== undefined ? Number(sizeValue) : null;
+    const sha256Value = objectValue["64"];
+    const unpackedSha256 = sha256Value !== undefined ? sha256Value : null;
+    const widthValue = objectValue["65"];
+    const unpackedWidth = widthValue !== undefined ? Number(widthValue) : null;
+    const heightValue = objectValue["66"];
+    const unpackedHeight = heightValue !== undefined ? Number(heightValue) : null;
+    const aspectRatioValue = objectValue["67"];
+    const unpackedAspectRatio = aspectRatioValue !== undefined ? aspectRatioValue : null;
+    const codecValue = objectValue["68"];
+    const unpackedCodec = codecValue !== undefined ? codecValue : null;
+    const durationValue = objectValue["69"];
+    const unpackedDuration = durationValue !== undefined ? timedeltaFromISOFormat(durationValue) : null;
+    const urlValue = objectValue["70"];
+    const unpackedUrl = urlValue !== undefined ? urlValue : null;
+    const contentUrlValue = objectValue["71"];
+    const unpackedContentUrl = contentUrlValue !== undefined ? contentUrlValue : null;
+    const thumbnailUrlValue = objectValue["72"];
+    const unpackedThumbnailUrl = thumbnailUrlValue !== undefined ? thumbnailUrlValue : null;
+    const faviconUrlValue = objectValue["73"];
+    const unpackedFaviconUrl = faviconUrlValue !== undefined ? faviconUrlValue : null;
+    const thumbnailWidthValue = objectValue["74"];
+    const unpackedThumbnailWidth = thumbnailWidthValue !== undefined ? Number(thumbnailWidthValue) : null;
+    const thumbnailHeightValue = objectValue["75"];
+    const unpackedThumbnailHeight = thumbnailHeightValue !== undefined ? Number(thumbnailHeightValue) : null;
+    const contentValue = objectValue["76"];
+    const unpackedContent = contentValue !== undefined ? Buffer.from(contentValue, "base64") : null;
+    const targetStatusValue = objectValue["41"];
+    const unpackedTargetStatus =
+      targetStatusValue !== undefined ? Temporal.ZonedDateTime.from(targetStatusValue) : null;
+    const parentValue = objectValue["3"];
+    const unpackedParent =
+      parentValue !== undefined
+        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spaceValue = objectValue["5"];
+    const unpackedSpace =
+      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+    const createdByValue = objectValue["16"];
+    const unpackedCreatedBy =
+      createdByValue !== undefined
+        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByValue = objectValue["18"];
+    const unpackedUpdatedBy =
+      updatedByValue !== undefined
+        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new File({
+      type: Number(objectValue["30"]),
+      source: Number(objectValue["60"]),
+      mimeType: unpackedMimeType,
+      format: unpackedFormat,
+      size: unpackedSize,
+      sha256: unpackedSha256,
+      width: unpackedWidth,
+      height: unpackedHeight,
+      aspectRatio: unpackedAspectRatio,
+      codec: unpackedCodec,
+      duration: unpackedDuration,
+      url: unpackedUrl,
+      contentUrl: unpackedContentUrl,
+      thumbnailUrl: unpackedThumbnailUrl,
+      faviconUrl: unpackedFaviconUrl,
+      thumbnailWidth: unpackedThumbnailWidth,
+      thumbnailHeight: unpackedThumbnailHeight,
+      content: unpackedContent,
+      id: String(objectValue["2"]),
+      status: Number(objectValue["40"]),
+      targetStatus: unpackedTargetStatus,
+      materialization: Number(objectValue["7"]),
+      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      name: objectValue["31"],
+      parent: unpackedParent,
+      space: unpackedSpace,
+      createdBy: unpackedCreatedBy,
+      updatedBy: unpackedUpdatedBy,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): File {
+    return File.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
 }
 /* ==== DESTACK_GENERATED_END:NODE:2540 ==== */

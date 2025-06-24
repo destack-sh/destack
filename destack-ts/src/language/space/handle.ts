@@ -208,5 +208,76 @@ export class Handle extends Node implements Global, Entity, HasSlug {
     }
     return pathParts.reverse().join("/");
   }
+
+  toValue(): { [key: string]: any } {
+    return Handle.__packValue__(this);
+  }
+
+  static __packValue__(object: Handle): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 10;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr !== null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    objectValue["7"] = object.materialization;
+    objectValue["15"] = object.createdAt.toString();
+    if (object.createdByPtr !== null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
+    objectValue["17"] = object.updatedAt.toString();
+    if (object.updatedByPtr !== null) {
+      objectValue["18"] = object.updatedByPtr.toValue();
+    }
+    objectValue["33"] = object.slug;
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Handle {
+    const parentValue = objectValue["3"];
+    const unpackedParent =
+      parentValue !== undefined
+        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const createdByValue = objectValue["16"];
+    const unpackedCreatedBy =
+      createdByValue !== undefined
+        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByValue = objectValue["18"];
+    const unpackedUpdatedBy =
+      updatedByValue !== undefined
+        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new Handle({
+      slug: objectValue["33"],
+      id: String(objectValue["2"]),
+      materialization: Number(objectValue["7"]),
+      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      parent: unpackedParent,
+      createdBy: unpackedCreatedBy,
+      updatedBy: unpackedUpdatedBy,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Handle {
+    return Handle.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
 }
 /* ==== DESTACK_GENERATED_END:NODE:10 ==== */

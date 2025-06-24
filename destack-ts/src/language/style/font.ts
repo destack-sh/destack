@@ -259,6 +259,102 @@ export class Font extends Struct {
   validate(): void {
     throw new Error("not implemented");
   }
+
+  toValue(): { [key: string]: any } {
+    return Font.__packValue__(this);
+  }
+
+  static __packValue__(object: Font): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 12014;
+    objectValue["30"] = object.type;
+    if (object.stylePtr !== null) {
+      objectValue["41"] = object.stylePtr.toValue();
+    }
+    if (object.weight !== null) {
+      objectValue["50"] = object.weight;
+    }
+    if (object.color !== null) {
+      objectValue["51"] = object.color.toValue();
+    }
+    if (object.size !== null) {
+      objectValue["52"] = object.size;
+    }
+    if (object.align !== null) {
+      objectValue["53"] = object.align;
+    }
+    if (object.lineHeight !== null) {
+      objectValue["54"] = object.lineHeight.toValue();
+    }
+    if (object.letterSpacing !== null) {
+      objectValue["55"] = object.letterSpacing.toValue();
+    }
+    if (object.decoration !== null) {
+      objectValue["56"] = object.decoration;
+    }
+    if (object.transform !== null) {
+      objectValue["57"] = object.transform;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Font {
+    const weightValue = objectValue["50"];
+    const unpackedWeight = weightValue !== undefined ? Number(weightValue) : null;
+    const colorValue = objectValue["51"];
+    const unpackedColor =
+      colorValue !== undefined ? Fill.fromValue(colorValue, _session, _supergraph, _graph, _connection) : null;
+    const sizeValue = objectValue["52"];
+    const unpackedSize = sizeValue !== undefined ? Number(sizeValue) : null;
+    const alignValue = objectValue["53"];
+    const unpackedAlign = alignValue !== undefined ? Number(alignValue) : null;
+    const lineHeightValue = objectValue["54"];
+    const unpackedLineHeight =
+      lineHeightValue !== undefined
+        ? Length.fromValue(lineHeightValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const letterSpacingValue = objectValue["55"];
+    const unpackedLetterSpacing =
+      letterSpacingValue !== undefined
+        ? Length.fromValue(letterSpacingValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const decorationValue = objectValue["56"];
+    const unpackedDecoration = decorationValue !== undefined ? Number(decorationValue) : null;
+    const transformValue = objectValue["57"];
+    const unpackedTransform = transformValue !== undefined ? Number(transformValue) : null;
+    const styleValue = objectValue["41"];
+    const unpackedStyle =
+      styleValue !== undefined ? NodeReference.fromValue(styleValue, _session, _supergraph, _graph, _connection) : null;
+    return new Font({
+      type: Number(objectValue["30"]),
+      weight: unpackedWeight,
+      color: unpackedColor,
+      size: unpackedSize,
+      align: unpackedAlign,
+      lineHeight: unpackedLineHeight,
+      letterSpacing: unpackedLetterSpacing,
+      decoration: unpackedDecoration,
+      transform: unpackedTransform,
+      style: unpackedStyle,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Font {
+    return Font.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:12014 ==== */
 
@@ -636,6 +732,149 @@ export class FontStyle extends Node implements Style {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  toValue(): { [key: string]: any } {
+    return FontStyle.__packValue__(this);
+  }
+
+  static __packValue__(object: FontStyle): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 12022;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr !== null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr !== null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    objectValue["7"] = object.materialization;
+    objectValue["15"] = object.createdAt.toString();
+    if (object.createdByPtr !== null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
+    objectValue["17"] = object.updatedAt.toString();
+    if (object.updatedByPtr !== null) {
+      objectValue["18"] = object.updatedByPtr.toValue();
+    }
+    if (object.deletedAt !== null) {
+      objectValue["20"] = object.deletedAt.toString();
+    }
+    objectValue["22"] = object.orderKey;
+    objectValue["30"] = object.type;
+    objectValue["31"] = object.name;
+    if (object.weight !== null) {
+      objectValue["50"] = object.weight;
+    }
+    if (object.color !== null) {
+      objectValue["51"] = object.color.toValue();
+    }
+    if (object.size !== null) {
+      objectValue["52"] = object.size;
+    }
+    if (object.align !== null) {
+      objectValue["53"] = object.align;
+    }
+    if (object.lineHeight !== null) {
+      objectValue["54"] = object.lineHeight.toValue();
+    }
+    if (object.letterSpacing !== null) {
+      objectValue["55"] = object.letterSpacing.toValue();
+    }
+    if (object.decoration !== null) {
+      objectValue["56"] = object.decoration;
+    }
+    if (object.transform !== null) {
+      objectValue["57"] = object.transform;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): FontStyle {
+    const deletedAtValue = objectValue["20"];
+    const unpackedDeletedAt = deletedAtValue !== undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const weightValue = objectValue["50"];
+    const unpackedWeight = weightValue !== undefined ? Number(weightValue) : null;
+    const colorValue = objectValue["51"];
+    const unpackedColor =
+      colorValue !== undefined ? Fill.fromValue(colorValue, _session, _supergraph, _graph, _connection) : null;
+    const sizeValue = objectValue["52"];
+    const unpackedSize = sizeValue !== undefined ? Number(sizeValue) : null;
+    const alignValue = objectValue["53"];
+    const unpackedAlign = alignValue !== undefined ? Number(alignValue) : null;
+    const lineHeightValue = objectValue["54"];
+    const unpackedLineHeight =
+      lineHeightValue !== undefined
+        ? Length.fromValue(lineHeightValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const letterSpacingValue = objectValue["55"];
+    const unpackedLetterSpacing =
+      letterSpacingValue !== undefined
+        ? Length.fromValue(letterSpacingValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const decorationValue = objectValue["56"];
+    const unpackedDecoration = decorationValue !== undefined ? Number(decorationValue) : null;
+    const transformValue = objectValue["57"];
+    const unpackedTransform = transformValue !== undefined ? Number(transformValue) : null;
+    const parentValue = objectValue["3"];
+    const unpackedParent =
+      parentValue !== undefined
+        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spaceValue = objectValue["5"];
+    const unpackedSpace =
+      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+    const createdByValue = objectValue["16"];
+    const unpackedCreatedBy =
+      createdByValue !== undefined
+        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByValue = objectValue["18"];
+    const unpackedUpdatedBy =
+      updatedByValue !== undefined
+        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new FontStyle({
+      id: String(objectValue["2"]),
+      materialization: Number(objectValue["7"]),
+      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      name: objectValue["31"],
+      orderKey: objectValue["22"],
+      deletedAt: unpackedDeletedAt,
+      type: Number(objectValue["30"]),
+      weight: unpackedWeight,
+      color: unpackedColor,
+      size: unpackedSize,
+      align: unpackedAlign,
+      lineHeight: unpackedLineHeight,
+      letterSpacing: unpackedLetterSpacing,
+      decoration: unpackedDecoration,
+      transform: unpackedTransform,
+      parent: unpackedParent,
+      space: unpackedSpace,
+      createdBy: unpackedCreatedBy,
+      updatedBy: unpackedUpdatedBy,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): FontStyle {
+    return FontStyle.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:12022 ==== */

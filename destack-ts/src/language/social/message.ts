@@ -379,5 +379,143 @@ export class Message extends Node implements Spatial, Entity, IsOwnable, IsDelet
     }
     return pathParts.reverse().join("/");
   }
+
+  toValue(): { [key: string]: any } {
+    return Message.__packValue__(this);
+  }
+
+  static __packValue__(object: Message): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 5510;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr !== null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr !== null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    objectValue["7"] = object.materialization;
+    objectValue["15"] = object.createdAt.toString();
+    if (object.createdByPtr !== null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
+    objectValue["17"] = object.updatedAt.toString();
+    if (object.updatedByPtr !== null) {
+      objectValue["18"] = object.updatedByPtr.toValue();
+    }
+    if (object.deletedAt !== null) {
+      objectValue["20"] = object.deletedAt.toString();
+    }
+    if (object.ownedByPtr !== null) {
+      objectValue["25"] = object.ownedByPtr.toValue();
+    }
+    if (object.threadPtr !== null) {
+      objectValue["35"] = object.threadPtr.toValue();
+    }
+    if (object.editedAt !== null) {
+      objectValue["40"] = object.editedAt.toString();
+    }
+    if (object.replyToPtr !== null) {
+      objectValue["50"] = object.replyToPtr.toValue();
+    }
+    if (object.forwardedFromPtr !== null) {
+      objectValue["51"] = object.forwardedFromPtr.toValue();
+    }
+    if (object.text !== null) {
+      objectValue["61"] = object.text.toValue();
+    }
+    if (object.nodePtr !== null) {
+      objectValue["62"] = object.nodePtr.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Message {
+    const editedAtValue = objectValue["40"];
+    const unpackedEditedAt = editedAtValue !== undefined ? Temporal.ZonedDateTime.from(editedAtValue) : null;
+    const textValue = objectValue["61"];
+    const unpackedText =
+      textValue !== undefined ? Text.fromValue(textValue, _session, _supergraph, _graph, _connection) : null;
+    const deletedAtValue = objectValue["20"];
+    const unpackedDeletedAt = deletedAtValue !== undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const parentValue = objectValue["3"];
+    const unpackedParent =
+      parentValue !== undefined
+        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const threadValue = objectValue["35"];
+    const unpackedThread =
+      threadValue !== undefined
+        ? NodeReference.fromValue(threadValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const replyToValue = objectValue["50"];
+    const unpackedReplyTo =
+      replyToValue !== undefined
+        ? NodeReference.fromValue(replyToValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const forwardedFromValue = objectValue["51"];
+    const unpackedForwardedFrom =
+      forwardedFromValue !== undefined
+        ? NodeReference.fromValue(forwardedFromValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const nodeValue = objectValue["62"];
+    const unpackedNode =
+      nodeValue !== undefined ? NodeReference.fromValue(nodeValue, _session, _supergraph, _graph, _connection) : null;
+    const spaceValue = objectValue["5"];
+    const unpackedSpace =
+      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+    const createdByValue = objectValue["16"];
+    const unpackedCreatedBy =
+      createdByValue !== undefined
+        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByValue = objectValue["18"];
+    const unpackedUpdatedBy =
+      updatedByValue !== undefined
+        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const ownedByValue = objectValue["25"];
+    const unpackedOwnedBy =
+      ownedByValue !== undefined
+        ? NodeReference.fromValue(ownedByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new Message({
+      editedAt: unpackedEditedAt,
+      text: unpackedText,
+      id: String(objectValue["2"]),
+      materialization: Number(objectValue["7"]),
+      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      deletedAt: unpackedDeletedAt,
+      parent: unpackedParent,
+      thread: unpackedThread,
+      replyTo: unpackedReplyTo,
+      forwardedFrom: unpackedForwardedFrom,
+      node: unpackedNode,
+      space: unpackedSpace,
+      createdBy: unpackedCreatedBy,
+      updatedBy: unpackedUpdatedBy,
+      ownedBy: unpackedOwnedBy,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Message {
+    return Message.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
 }
 /* ==== DESTACK_GENERATED_END:NODE:5510 ==== */

@@ -137,6 +137,64 @@ export class DatabaseInfo extends Struct {
   validate(): void {
     throw new Error("not implemented");
   }
+
+  toValue(): { [key: string]: any } {
+    return DatabaseInfo.__packValue__(this);
+  }
+
+  static __packValue__(object: DatabaseInfo): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 7501;
+    objectValue["30"] = object.type;
+    objectValue["50"] = object.region;
+    if (object.galaxyName !== null) {
+      objectValue["51"] = object.galaxyName;
+    }
+    objectValue["52"] = object.externalName;
+    if (object.customSchemaName !== null) {
+      objectValue["53"] = object.customSchemaName;
+    }
+    objectValue["55"] = object.tenancy;
+    if (object.connectionUrl !== null) {
+      objectValue["58"] = object.connectionUrl;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): DatabaseInfo {
+    const galaxyNameValue = objectValue["51"];
+    const unpackedGalaxyName = galaxyNameValue !== undefined ? galaxyNameValue : null;
+    const customSchemaNameValue = objectValue["53"];
+    const unpackedCustomSchemaName = customSchemaNameValue !== undefined ? customSchemaNameValue : null;
+    const connectionUrlValue = objectValue["58"];
+    const unpackedConnectionUrl = connectionUrlValue !== undefined ? connectionUrlValue : null;
+    return new DatabaseInfo({
+      type: Number(objectValue["30"]),
+      region: Number(objectValue["50"]),
+      galaxyName: unpackedGalaxyName,
+      externalName: objectValue["52"],
+      customSchemaName: unpackedCustomSchemaName,
+      tenancy: Number(objectValue["55"]),
+      connectionUrl: unpackedConnectionUrl,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): DatabaseInfo {
+    return DatabaseInfo.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:7501 ==== */
 
@@ -442,6 +500,119 @@ export class Database extends Node implements Spatial, Resource, HasName {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  toValue(): { [key: string]: any } {
+    return Database.__packValue__(this);
+  }
+
+  static __packValue__(object: Database): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 7500;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr !== null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr !== null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    objectValue["7"] = object.materialization;
+    objectValue["15"] = object.createdAt.toString();
+    if (object.createdByPtr !== null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
+    objectValue["17"] = object.updatedAt.toString();
+    if (object.updatedByPtr !== null) {
+      objectValue["18"] = object.updatedByPtr.toValue();
+    }
+    objectValue["30"] = object.type;
+    objectValue["31"] = object.name;
+    objectValue["40"] = object.status;
+    if (object.targetStatus !== null) {
+      objectValue["41"] = object.targetStatus.toString();
+    }
+    objectValue["50"] = object.region;
+    if (object.galaxyName !== null) {
+      objectValue["51"] = object.galaxyName;
+    }
+    objectValue["52"] = object.externalName;
+    if (object.customSchemaName !== null) {
+      objectValue["53"] = object.customSchemaName;
+    }
+    objectValue["55"] = object.tenancy;
+    if (object.connectionUrl !== null) {
+      objectValue["58"] = object.connectionUrl;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Database {
+    const targetStatusValue = objectValue["41"];
+    const unpackedTargetStatus =
+      targetStatusValue !== undefined ? Temporal.ZonedDateTime.from(targetStatusValue) : null;
+    const galaxyNameValue = objectValue["51"];
+    const unpackedGalaxyName = galaxyNameValue !== undefined ? galaxyNameValue : null;
+    const customSchemaNameValue = objectValue["53"];
+    const unpackedCustomSchemaName = customSchemaNameValue !== undefined ? customSchemaNameValue : null;
+    const connectionUrlValue = objectValue["58"];
+    const unpackedConnectionUrl = connectionUrlValue !== undefined ? connectionUrlValue : null;
+    const parentValue = objectValue["3"];
+    const unpackedParent =
+      parentValue !== undefined
+        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spaceValue = objectValue["5"];
+    const unpackedSpace =
+      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+    const createdByValue = objectValue["16"];
+    const unpackedCreatedBy =
+      createdByValue !== undefined
+        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByValue = objectValue["18"];
+    const unpackedUpdatedBy =
+      updatedByValue !== undefined
+        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new Database({
+      id: String(objectValue["2"]),
+      status: Number(objectValue["40"]),
+      targetStatus: unpackedTargetStatus,
+      materialization: Number(objectValue["7"]),
+      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      name: objectValue["31"],
+      type: Number(objectValue["30"]),
+      region: Number(objectValue["50"]),
+      galaxyName: unpackedGalaxyName,
+      externalName: objectValue["52"],
+      customSchemaName: unpackedCustomSchemaName,
+      tenancy: Number(objectValue["55"]),
+      connectionUrl: unpackedConnectionUrl,
+      parent: unpackedParent,
+      space: unpackedSpace,
+      createdBy: unpackedCreatedBy,
+      updatedBy: unpackedUpdatedBy,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Database {
+    return Database.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:7500 ==== */

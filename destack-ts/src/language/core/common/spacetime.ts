@@ -278,6 +278,105 @@ export class Snapshot extends Node implements Spatial, Entity, HasName, HasSlug,
     }
     return pathParts.reverse().join("/");
   }
+
+  toValue(): { [key: string]: any } {
+    return Snapshot.__packValue__(this);
+  }
+
+  static __packValue__(object: Snapshot): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 1500;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr !== null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr !== null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    objectValue["7"] = object.materialization;
+    objectValue["15"] = object.createdAt.toString();
+    if (object.createdByPtr !== null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
+    objectValue["17"] = object.updatedAt.toString();
+    if (object.updatedByPtr !== null) {
+      objectValue["18"] = object.updatedByPtr.toValue();
+    }
+    if (object.deletedAt !== null) {
+      objectValue["20"] = object.deletedAt.toString();
+    }
+    if (object.ownedByPtr !== null) {
+      objectValue["25"] = object.ownedByPtr.toValue();
+    }
+    objectValue["31"] = object.name;
+    if (object.slug !== null) {
+      objectValue["33"] = object.slug;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Snapshot {
+    const slugValue = objectValue["33"];
+    const unpackedSlug = slugValue !== undefined ? slugValue : null;
+    const deletedAtValue = objectValue["20"];
+    const unpackedDeletedAt = deletedAtValue !== undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const parentValue = objectValue["3"];
+    const unpackedParent =
+      parentValue !== undefined
+        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spaceValue = objectValue["5"];
+    const unpackedSpace =
+      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+    const createdByValue = objectValue["16"];
+    const unpackedCreatedBy =
+      createdByValue !== undefined
+        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByValue = objectValue["18"];
+    const unpackedUpdatedBy =
+      updatedByValue !== undefined
+        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const ownedByValue = objectValue["25"];
+    const unpackedOwnedBy =
+      ownedByValue !== undefined
+        ? NodeReference.fromValue(ownedByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new Snapshot({
+      id: String(objectValue["2"]),
+      materialization: Number(objectValue["7"]),
+      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      name: objectValue["31"],
+      slug: unpackedSlug,
+      deletedAt: unpackedDeletedAt,
+      parent: unpackedParent,
+      space: unpackedSpace,
+      createdBy: unpackedCreatedBy,
+      updatedBy: unpackedUpdatedBy,
+      ownedBy: unpackedOwnedBy,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Snapshot {
+    return Snapshot.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
 }
 /* ==== DESTACK_GENERATED_END:NODE:1500 ==== */
 
@@ -562,6 +661,112 @@ export class Branch extends Node implements Spatial, Entity, HasName, HasSlug, I
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  toValue(): { [key: string]: any } {
+    return Branch.__packValue__(this);
+  }
+
+  static __packValue__(object: Branch): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 1510;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr !== null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr !== null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    objectValue["7"] = object.materialization;
+    objectValue["15"] = object.createdAt.toString();
+    if (object.createdByPtr !== null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
+    objectValue["17"] = object.updatedAt.toString();
+    if (object.updatedByPtr !== null) {
+      objectValue["18"] = object.updatedByPtr.toValue();
+    }
+    if (object.deletedAt !== null) {
+      objectValue["20"] = object.deletedAt.toString();
+    }
+    if (object.ownedByPtr !== null) {
+      objectValue["25"] = object.ownedByPtr.toValue();
+    }
+    objectValue["31"] = object.name;
+    if (object.slug !== null) {
+      objectValue["33"] = object.slug;
+    }
+    if (object.headPtr !== null) {
+      objectValue["40"] = object.headPtr.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Branch {
+    const slugValue = objectValue["33"];
+    const unpackedSlug = slugValue !== undefined ? slugValue : null;
+    const deletedAtValue = objectValue["20"];
+    const unpackedDeletedAt = deletedAtValue !== undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const parentValue = objectValue["3"];
+    const unpackedParent =
+      parentValue !== undefined
+        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const headValue = objectValue["40"];
+    const unpackedHead =
+      headValue !== undefined ? NodeReference.fromValue(headValue, _session, _supergraph, _graph, _connection) : null;
+    const spaceValue = objectValue["5"];
+    const unpackedSpace =
+      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+    const createdByValue = objectValue["16"];
+    const unpackedCreatedBy =
+      createdByValue !== undefined
+        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByValue = objectValue["18"];
+    const unpackedUpdatedBy =
+      updatedByValue !== undefined
+        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const ownedByValue = objectValue["25"];
+    const unpackedOwnedBy =
+      ownedByValue !== undefined
+        ? NodeReference.fromValue(ownedByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new Branch({
+      id: String(objectValue["2"]),
+      materialization: Number(objectValue["7"]),
+      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      name: objectValue["31"],
+      slug: unpackedSlug,
+      deletedAt: unpackedDeletedAt,
+      parent: unpackedParent,
+      head: unpackedHead,
+      space: unpackedSpace,
+      createdBy: unpackedCreatedBy,
+      updatedBy: unpackedUpdatedBy,
+      ownedBy: unpackedOwnedBy,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Branch {
+    return Branch.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:1510 ==== */

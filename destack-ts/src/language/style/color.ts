@@ -224,6 +224,89 @@ export class Color extends Struct {
   validate(): void {
     throw new Error("not implemented");
   }
+
+  toValue(): { [key: string]: any } {
+    return Color.__packValue__(this);
+  }
+
+  static __packValue__(object: Color): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 12011;
+    objectValue["30"] = object.type;
+    if (object.stylePtr !== null) {
+      objectValue["42"] = object.stylePtr.toValue();
+    }
+    if (object.hue !== null) {
+      objectValue["50"] = object.hue;
+    }
+    if (object.shade !== null) {
+      objectValue["51"] = object.shade;
+    }
+    if (object.intent !== null) {
+      objectValue["52"] = object.intent;
+    }
+    if (object.x !== null) {
+      objectValue["55"] = object.x;
+    }
+    if (object.y !== null) {
+      objectValue["56"] = object.y;
+    }
+    if (object.z !== null) {
+      objectValue["57"] = object.z;
+    }
+    if (object.alpha !== null) {
+      objectValue["58"] = object.alpha;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Color {
+    const hueValue = objectValue["50"];
+    const unpackedHue = hueValue !== undefined ? Number(hueValue) : null;
+    const shadeValue = objectValue["51"];
+    const unpackedShade = shadeValue !== undefined ? Number(shadeValue) : null;
+    const intentValue = objectValue["52"];
+    const unpackedIntent = intentValue !== undefined ? Number(intentValue) : null;
+    const xValue = objectValue["55"];
+    const unpackedX = xValue !== undefined ? xValue : null;
+    const yValue = objectValue["56"];
+    const unpackedY = yValue !== undefined ? yValue : null;
+    const zValue = objectValue["57"];
+    const unpackedZ = zValue !== undefined ? zValue : null;
+    const alphaValue = objectValue["58"];
+    const unpackedAlpha = alphaValue !== undefined ? alphaValue : null;
+    const styleValue = objectValue["42"];
+    const unpackedStyle =
+      styleValue !== undefined ? NodeReference.fromValue(styleValue, _session, _supergraph, _graph, _connection) : null;
+    return new Color({
+      type: Number(objectValue["30"]),
+      hue: unpackedHue,
+      shade: unpackedShade,
+      intent: unpackedIntent,
+      x: unpackedX,
+      y: unpackedY,
+      z: unpackedZ,
+      alpha: unpackedAlpha,
+      style: unpackedStyle,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Color {
+    return Color.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:12011 ==== */
 
@@ -585,6 +668,143 @@ export class ColorStyle extends Node implements Style {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  toValue(): { [key: string]: any } {
+    return ColorStyle.__packValue__(this);
+  }
+
+  static __packValue__(object: ColorStyle): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 12020;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr !== null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr !== null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    objectValue["7"] = object.materialization;
+    objectValue["15"] = object.createdAt.toString();
+    if (object.createdByPtr !== null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
+    objectValue["17"] = object.updatedAt.toString();
+    if (object.updatedByPtr !== null) {
+      objectValue["18"] = object.updatedByPtr.toValue();
+    }
+    if (object.deletedAt !== null) {
+      objectValue["20"] = object.deletedAt.toString();
+    }
+    objectValue["22"] = object.orderKey;
+    objectValue["30"] = object.type;
+    objectValue["31"] = object.name;
+    if (object.hue !== null) {
+      objectValue["50"] = object.hue;
+    }
+    if (object.shade !== null) {
+      objectValue["51"] = object.shade;
+    }
+    if (object.intent !== null) {
+      objectValue["52"] = object.intent;
+    }
+    if (object.x !== null) {
+      objectValue["55"] = object.x;
+    }
+    if (object.y !== null) {
+      objectValue["56"] = object.y;
+    }
+    if (object.z !== null) {
+      objectValue["57"] = object.z;
+    }
+    if (object.alpha !== null) {
+      objectValue["58"] = object.alpha;
+    }
+    if (object.dark !== null) {
+      objectValue["60"] = object.dark.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ColorStyle {
+    const darkValue = objectValue["60"];
+    const unpackedDark =
+      darkValue !== undefined ? Color.fromValue(darkValue, _session, _supergraph, _graph, _connection) : null;
+    const deletedAtValue = objectValue["20"];
+    const unpackedDeletedAt = deletedAtValue !== undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const hueValue = objectValue["50"];
+    const unpackedHue = hueValue !== undefined ? Number(hueValue) : null;
+    const shadeValue = objectValue["51"];
+    const unpackedShade = shadeValue !== undefined ? Number(shadeValue) : null;
+    const intentValue = objectValue["52"];
+    const unpackedIntent = intentValue !== undefined ? Number(intentValue) : null;
+    const xValue = objectValue["55"];
+    const unpackedX = xValue !== undefined ? xValue : null;
+    const yValue = objectValue["56"];
+    const unpackedY = yValue !== undefined ? yValue : null;
+    const zValue = objectValue["57"];
+    const unpackedZ = zValue !== undefined ? zValue : null;
+    const alphaValue = objectValue["58"];
+    const unpackedAlpha = alphaValue !== undefined ? alphaValue : null;
+    const parentValue = objectValue["3"];
+    const unpackedParent =
+      parentValue !== undefined
+        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spaceValue = objectValue["5"];
+    const unpackedSpace =
+      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+    const createdByValue = objectValue["16"];
+    const unpackedCreatedBy =
+      createdByValue !== undefined
+        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByValue = objectValue["18"];
+    const unpackedUpdatedBy =
+      updatedByValue !== undefined
+        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new ColorStyle({
+      dark: unpackedDark,
+      id: String(objectValue["2"]),
+      materialization: Number(objectValue["7"]),
+      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      name: objectValue["31"],
+      orderKey: objectValue["22"],
+      deletedAt: unpackedDeletedAt,
+      type: Number(objectValue["30"]),
+      hue: unpackedHue,
+      shade: unpackedShade,
+      intent: unpackedIntent,
+      x: unpackedX,
+      y: unpackedY,
+      z: unpackedZ,
+      alpha: unpackedAlpha,
+      parent: unpackedParent,
+      space: unpackedSpace,
+      createdBy: unpackedCreatedBy,
+      updatedBy: unpackedUpdatedBy,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ColorStyle {
+    return ColorStyle.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:12020 ==== */

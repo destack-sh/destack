@@ -69,5 +69,43 @@ export class GalaxyInfo extends Struct {
   validate(): void {
     throw new Error("not implemented");
   }
+
+  toValue(): { [key: string]: any } {
+    return GalaxyInfo.__packValue__(this);
+  }
+
+  static __packValue__(object: GalaxyInfo): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 7601;
+    objectValue["50"] = object.region;
+    objectValue["51"] = object.name;
+    objectValue["52"] = object.host;
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): GalaxyInfo {
+    return new GalaxyInfo({
+      region: Number(objectValue["50"]),
+      name: objectValue["51"],
+      host: objectValue["52"],
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): GalaxyInfo {
+    return GalaxyInfo.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:7601 ==== */

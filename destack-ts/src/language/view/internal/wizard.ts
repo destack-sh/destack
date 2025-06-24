@@ -393,5 +393,159 @@ export class WizardView extends Node implements InternalView {
     }
     return pathParts.reverse().join("/");
   }
+
+  toValue(): { [key: string]: any } {
+    return WizardView.__packValue__(this);
+  }
+
+  static __packValue__(object: WizardView): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 10650;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr !== null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr !== null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    objectValue["7"] = object.materialization;
+    objectValue["15"] = object.createdAt.toString();
+    if (object.createdByPtr !== null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
+    objectValue["17"] = object.updatedAt.toString();
+    if (object.updatedByPtr !== null) {
+      objectValue["18"] = object.updatedByPtr.toValue();
+    }
+    if (object.deletedAt !== null) {
+      objectValue["20"] = object.deletedAt.toString();
+    }
+    objectValue["22"] = object.orderKey;
+    objectValue["31"] = object.name;
+    if (object.position !== null) {
+      objectValue["40"] = object.position.toValue();
+    }
+    if (object.width !== null) {
+      objectValue["41"] = object.width.toValue();
+    }
+    if (object.height !== null) {
+      objectValue["42"] = object.height.toValue();
+    }
+    if (object.minWidth !== null) {
+      objectValue["43"] = object.minWidth.toValue();
+    }
+    if (object.minHeight !== null) {
+      objectValue["44"] = object.minHeight.toValue();
+    }
+    if (object.maxWidth !== null) {
+      objectValue["45"] = object.maxWidth.toValue();
+    }
+    if (object.maxHeight !== null) {
+      objectValue["46"] = object.maxHeight.toValue();
+    }
+    if (object.scriptPtr !== null) {
+      objectValue["200"] = object.scriptPtr.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): WizardView {
+    const positionValue = objectValue["40"];
+    const unpackedPosition =
+      positionValue !== undefined
+        ? Position.fromValue(positionValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const widthValue = objectValue["41"];
+    const unpackedWidth =
+      widthValue !== undefined ? Dimension.fromValue(widthValue, _session, _supergraph, _graph, _connection) : null;
+    const heightValue = objectValue["42"];
+    const unpackedHeight =
+      heightValue !== undefined ? Dimension.fromValue(heightValue, _session, _supergraph, _graph, _connection) : null;
+    const minWidthValue = objectValue["43"];
+    const unpackedMinWidth =
+      minWidthValue !== undefined
+        ? Dimension.fromValue(minWidthValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const minHeightValue = objectValue["44"];
+    const unpackedMinHeight =
+      minHeightValue !== undefined
+        ? Dimension.fromValue(minHeightValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const maxWidthValue = objectValue["45"];
+    const unpackedMaxWidth =
+      maxWidthValue !== undefined
+        ? Dimension.fromValue(maxWidthValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const maxHeightValue = objectValue["46"];
+    const unpackedMaxHeight =
+      maxHeightValue !== undefined
+        ? Dimension.fromValue(maxHeightValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const deletedAtValue = objectValue["20"];
+    const unpackedDeletedAt = deletedAtValue !== undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const parentValue = objectValue["3"];
+    const unpackedParent =
+      parentValue !== undefined
+        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spaceValue = objectValue["5"];
+    const unpackedSpace =
+      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+    const createdByValue = objectValue["16"];
+    const unpackedCreatedBy =
+      createdByValue !== undefined
+        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByValue = objectValue["18"];
+    const unpackedUpdatedBy =
+      updatedByValue !== undefined
+        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const scriptValue = objectValue["200"];
+    const unpackedScript =
+      scriptValue !== undefined
+        ? NodeReference.fromValue(scriptValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new WizardView({
+      position: unpackedPosition,
+      width: unpackedWidth,
+      height: unpackedHeight,
+      minWidth: unpackedMinWidth,
+      minHeight: unpackedMinHeight,
+      maxWidth: unpackedMaxWidth,
+      maxHeight: unpackedMaxHeight,
+      id: String(objectValue["2"]),
+      materialization: Number(objectValue["7"]),
+      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      name: objectValue["31"],
+      orderKey: objectValue["22"],
+      deletedAt: unpackedDeletedAt,
+      parent: unpackedParent,
+      space: unpackedSpace,
+      createdBy: unpackedCreatedBy,
+      updatedBy: unpackedUpdatedBy,
+      script: unpackedScript,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): WizardView {
+    return WizardView.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
 }
 /* ==== DESTACK_GENERATED_END:NODE:10650 ==== */

@@ -358,5 +358,134 @@ export class User extends Node implements Global, Entity, HasName, HasIcon, HasS
   get path(): string {
     return this.slug ?? this.name;
   }
+
+  toValue(): { [key: string]: any } {
+    return User.__packValue__(this);
+  }
+
+  static __packValue__(object: User): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 20;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr !== null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    objectValue["7"] = object.materialization;
+    objectValue["15"] = object.createdAt.toString();
+    if (object.createdByPtr !== null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
+    objectValue["17"] = object.updatedAt.toString();
+    if (object.updatedByPtr !== null) {
+      objectValue["18"] = object.updatedByPtr.toValue();
+    }
+    objectValue["31"] = object.name;
+    objectValue["33"] = object.slug;
+    if (object.icon !== null) {
+      objectValue["34"] = object.icon.toValue();
+    }
+    objectValue["40"] = object.status;
+    if (object.lastLoggedInAt !== null) {
+      objectValue["41"] = object.lastLoggedInAt.toString();
+    }
+    objectValue["45"] = object.isStaff;
+    objectValue["50"] = object.spacePtr.toValue();
+    if (object.handlePtr !== null) {
+      objectValue["51"] = object.handlePtr.toValue();
+    }
+    if (object.cursorPtr !== null) {
+      objectValue["52"] = object.cursorPtr.toValue();
+    }
+    if (object.email !== null) {
+      objectValue["60"] = object.email;
+    }
+    if (object.passwordSalt !== null) {
+      objectValue["61"] = Buffer.from(object.passwordSalt).toString("base64");
+    }
+    if (object.passwordHash !== null) {
+      objectValue["62"] = Buffer.from(object.passwordHash).toString("base64");
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): User {
+    const lastLoggedInAtValue = objectValue["41"];
+    const unpackedLastLoggedInAt =
+      lastLoggedInAtValue !== undefined ? Temporal.ZonedDateTime.from(lastLoggedInAtValue) : null;
+    const emailValue = objectValue["60"];
+    const unpackedEmail = emailValue !== undefined ? emailValue : null;
+    const passwordSaltValue = objectValue["61"];
+    const unpackedPasswordSalt = passwordSaltValue !== undefined ? Buffer.from(passwordSaltValue, "base64") : null;
+    const passwordHashValue = objectValue["62"];
+    const unpackedPasswordHash = passwordHashValue !== undefined ? Buffer.from(passwordHashValue, "base64") : null;
+    const iconValue = objectValue["34"];
+    const unpackedIcon =
+      iconValue !== undefined ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection) : null;
+    const handleValue = objectValue["51"];
+    const unpackedHandle =
+      handleValue !== undefined
+        ? NodeReference.fromValue(handleValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const cursorValue = objectValue["52"];
+    const unpackedCursor =
+      cursorValue !== undefined
+        ? NodeReference.fromValue(cursorValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const parentValue = objectValue["3"];
+    const unpackedParent =
+      parentValue !== undefined
+        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const createdByValue = objectValue["16"];
+    const unpackedCreatedBy =
+      createdByValue !== undefined
+        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByValue = objectValue["18"];
+    const unpackedUpdatedBy =
+      updatedByValue !== undefined
+        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new User({
+      name: objectValue["31"],
+      slug: objectValue["33"],
+      status: Number(objectValue["40"]),
+      lastLoggedInAt: unpackedLastLoggedInAt,
+      isStaff: objectValue["45"],
+      email: unpackedEmail,
+      passwordSalt: unpackedPasswordSalt,
+      passwordHash: unpackedPasswordHash,
+      id: String(objectValue["2"]),
+      materialization: Number(objectValue["7"]),
+      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      icon: unpackedIcon,
+      space: NodeReference.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
+      handle: unpackedHandle,
+      cursor: unpackedCursor,
+      parent: unpackedParent,
+      createdBy: unpackedCreatedBy,
+      updatedBy: unpackedUpdatedBy,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): User {
+    return User.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
 }
 /* ==== DESTACK_GENERATED_END:NODE:20 ==== */

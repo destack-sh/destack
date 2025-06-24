@@ -1,4 +1,4 @@
-import { NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE } from "@destack/language";
+import { NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE, toType } from "@destack/language";
 import {
   BuiltinObject,
   Node,
@@ -10,7 +10,6 @@ import {
   StructFrozen,
   StructType,
   Supergraph,
-  toType,
   Type,
   TypeCardinality,
 } from "@destack/language/core";
@@ -35,7 +34,16 @@ export class Value extends StructFrozen {
    */
   readonly value: any;
 
-  constructor(options: { type: Type; value: any; _session?: Session | null; _supergraph?: Supergraph | null }) {
+  constructor(options: {
+    type: Type;
+    value: any;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
+  }) {
     super(
       // session
       options._session ?? null,
@@ -56,7 +64,14 @@ export class Value extends StructFrozen {
     this.value = _value;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -69,6 +84,47 @@ export class Value extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Value.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Value): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 2500;
+    objectValue["30"] = object.type.toValue();
+    objectValue["40"] = object.value;
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Value {
+    return new Value({
+      type: Type.fromValue(objectValue["30"], _session, _supergraph, _graph, _connection),
+      value: objectValue["40"],
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Value {
+    return Value.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:2500 ==== */

@@ -1,7 +1,6 @@
-/* ==== DESTACK_GENERATED_START:ENUM:50000 ==== */
-
 import { Temporal } from "temporal-polyfill";
 
+/* ==== DESTACK_GENERATED_START:ENUM:50000 ==== */
 /**
  * EnumType
  */

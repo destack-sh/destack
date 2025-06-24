@@ -372,5 +372,132 @@ export class Service
     }
     return pathParts.reverse().join("/");
   }
+
+  toValue(): { [key: string]: any } {
+    return Service.__packValue__(this);
+  }
+
+  static __packValue__(object: Service): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 3010;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr !== null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr !== null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    objectValue["7"] = object.materialization;
+    objectValue["15"] = object.createdAt.toString();
+    if (object.createdByPtr !== null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
+    objectValue["17"] = object.updatedAt.toString();
+    if (object.updatedByPtr !== null) {
+      objectValue["18"] = object.updatedByPtr.toValue();
+    }
+    if (object.deletedAt !== null) {
+      objectValue["20"] = object.deletedAt.toString();
+    }
+    if (object.value) {
+      const packedValue: { [key: string]: any } = {};
+      for (const [key, value] of Object.entries(object.value)) {
+        packedValue[String(String(key))] = value.toValue();
+      }
+      objectValue["21"] = packedValue;
+    }
+    objectValue["22"] = object.orderKey;
+    if (object.ownedByPtr !== null) {
+      objectValue["25"] = object.ownedByPtr.toValue();
+    }
+    objectValue["31"] = object.name;
+    if (object.scriptPtr !== null) {
+      objectValue["200"] = object.scriptPtr.toValue();
+    }
+    if (object.sourcePtr !== null) {
+      objectValue["210"] = object.sourcePtr.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Service {
+    const deletedAtValue = objectValue["20"];
+    const unpackedDeletedAt = deletedAtValue !== undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const unpackedValue: { [key: string]: any } = {};
+    if (objectValue["21"] !== undefined) {
+      for (const [key, value] of Object.entries(objectValue["21"])) {
+        unpackedValue[String(key)] = Value.fromValue(value, _session, _supergraph, _graph, _connection);
+      }
+    }
+    const parentValue = objectValue["3"];
+    const unpackedParent =
+      parentValue !== undefined
+        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spaceValue = objectValue["5"];
+    const unpackedSpace =
+      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+    const createdByValue = objectValue["16"];
+    const unpackedCreatedBy =
+      createdByValue !== undefined
+        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByValue = objectValue["18"];
+    const unpackedUpdatedBy =
+      updatedByValue !== undefined
+        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const ownedByValue = objectValue["25"];
+    const unpackedOwnedBy =
+      ownedByValue !== undefined
+        ? NodeReference.fromValue(ownedByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const scriptValue = objectValue["200"];
+    const unpackedScript =
+      scriptValue !== undefined
+        ? NodeReference.fromValue(scriptValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const sourceValue = objectValue["210"];
+    const unpackedSource =
+      sourceValue !== undefined
+        ? NodeReference.fromValue(sourceValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new Service({
+      id: String(objectValue["2"]),
+      materialization: Number(objectValue["7"]),
+      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      name: objectValue["31"],
+      deletedAt: unpackedDeletedAt,
+      orderKey: objectValue["22"],
+      value: unpackedValue,
+      parent: unpackedParent,
+      space: unpackedSpace,
+      createdBy: unpackedCreatedBy,
+      updatedBy: unpackedUpdatedBy,
+      ownedBy: unpackedOwnedBy,
+      script: unpackedScript,
+      source: unpackedSource,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Service {
+    return Service.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
 }
 /* ==== DESTACK_GENERATED_END:NODE:3010 ==== */

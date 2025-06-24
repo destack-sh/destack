@@ -568,5 +568,231 @@ export class Field extends Node implements Spatial, Entity, HasName, HasIcon, Is
     }
     return pathParts.reverse().join("/");
   }
+
+  toValue(): { [key: string]: any } {
+    return Field.__packValue__(this);
+  }
+
+  static __packValue__(object: Field): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 2520;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr !== null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr !== null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    objectValue["7"] = object.materialization;
+    objectValue["15"] = object.createdAt.toString();
+    if (object.createdByPtr !== null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
+    objectValue["17"] = object.updatedAt.toString();
+    if (object.updatedByPtr !== null) {
+      objectValue["18"] = object.updatedByPtr.toValue();
+    }
+    if (object.deletedAt !== null) {
+      objectValue["20"] = object.deletedAt.toString();
+    }
+    objectValue["22"] = object.orderKey;
+    objectValue["30"] = object.type;
+    objectValue["31"] = object.name;
+    if (object.icon !== null) {
+      objectValue["34"] = object.icon.toValue();
+    }
+    objectValue["40"] = object.cardinality;
+    objectValue["41"] = object.scalarType;
+    if (object.primitiveType !== null) {
+      objectValue["42"] = object.primitiveType;
+    }
+    if (object.enumType !== null) {
+      objectValue["43"] = object.enumType;
+    }
+    if (object.nodeType !== null) {
+      objectValue["44"] = object.nodeType;
+    }
+    if (object.nodeDefinitionPtr !== null) {
+      objectValue["45"] = object.nodeDefinitionPtr.toValue();
+    }
+    if (object.structType !== null) {
+      objectValue["46"] = object.structType;
+    }
+    if (object.baseTypePtr !== null) {
+      objectValue["47"] = object.baseTypePtr.toValue();
+    }
+    if (object.keyType !== null) {
+      objectValue["48"] = object.keyType.toValue();
+    }
+    if (object.isRequired !== null) {
+      objectValue["50"] = object.isRequired;
+    }
+    if (object.defaultValue !== null) {
+      objectValue["55"] = object.defaultValue.toValue();
+    }
+    if (object.defaultFactory !== null) {
+      objectValue["56"] = object.defaultFactory;
+    }
+    if (object.collectionConstraint !== null) {
+      objectValue["60"] = object.collectionConstraint.toValue();
+    }
+    if (object.stringConstraint !== null) {
+      objectValue["61"] = object.stringConstraint.toValue();
+    }
+    if (object.numberConstraint !== null) {
+      objectValue["62"] = object.numberConstraint.toValue();
+    }
+    if (object.nodeConstraint !== null) {
+      objectValue["63"] = object.nodeConstraint.toValue();
+    }
+    if (object.edgeType !== null) {
+      objectValue["70"] = object.edgeType;
+    }
+    if (object.cascade !== null) {
+      objectValue["71"] = object.cascade;
+    }
+    if (object.sourcePtr !== null) {
+      objectValue["210"] = object.sourcePtr.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Field {
+    const primitiveTypeValue = objectValue["42"];
+    const unpackedPrimitiveType = primitiveTypeValue !== undefined ? Number(primitiveTypeValue) : null;
+    const enumTypeValue = objectValue["43"];
+    const unpackedEnumType = enumTypeValue !== undefined ? Number(enumTypeValue) : null;
+    const nodeTypeValue = objectValue["44"];
+    const unpackedNodeType = nodeTypeValue !== undefined ? Number(nodeTypeValue) : null;
+    const structTypeValue = objectValue["46"];
+    const unpackedStructType = structTypeValue !== undefined ? Number(structTypeValue) : null;
+    const keyTypeValue = objectValue["48"];
+    const unpackedKeyType =
+      keyTypeValue !== undefined ? Type.fromValue(keyTypeValue, _session, _supergraph, _graph, _connection) : null;
+    const isRequiredValue = objectValue["50"];
+    const unpackedIsRequired = isRequiredValue !== undefined ? isRequiredValue : null;
+    const defaultValueValue = objectValue["55"];
+    const unpackedDefaultValue =
+      defaultValueValue !== undefined
+        ? Value.fromValue(defaultValueValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const defaultFactoryValue = objectValue["56"];
+    const unpackedDefaultFactory = defaultFactoryValue !== undefined ? Number(defaultFactoryValue) : null;
+    const collectionConstraintValue = objectValue["60"];
+    const unpackedCollectionConstraint =
+      collectionConstraintValue !== undefined
+        ? CollectionConstraint.fromValue(collectionConstraintValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const stringConstraintValue = objectValue["61"];
+    const unpackedStringConstraint =
+      stringConstraintValue !== undefined
+        ? StringConstraint.fromValue(stringConstraintValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const numberConstraintValue = objectValue["62"];
+    const unpackedNumberConstraint =
+      numberConstraintValue !== undefined
+        ? NumberConstraint.fromValue(numberConstraintValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const nodeConstraintValue = objectValue["63"];
+    const unpackedNodeConstraint =
+      nodeConstraintValue !== undefined
+        ? NodeConstraint.fromValue(nodeConstraintValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const edgeTypeValue = objectValue["70"];
+    const unpackedEdgeType = edgeTypeValue !== undefined ? Number(edgeTypeValue) : null;
+    const cascadeValue = objectValue["71"];
+    const unpackedCascade = cascadeValue !== undefined ? Number(cascadeValue) : null;
+    const iconValue = objectValue["34"];
+    const unpackedIcon =
+      iconValue !== undefined ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection) : null;
+    const deletedAtValue = objectValue["20"];
+    const unpackedDeletedAt = deletedAtValue !== undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const parentValue = objectValue["3"];
+    const unpackedParent =
+      parentValue !== undefined
+        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const nodeDefinitionValue = objectValue["45"];
+    const unpackedNodeDefinition =
+      nodeDefinitionValue !== undefined
+        ? NodeReference.fromValue(nodeDefinitionValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const baseTypeValue = objectValue["47"];
+    const unpackedBaseType =
+      baseTypeValue !== undefined
+        ? NodeReference.fromValue(baseTypeValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spaceValue = objectValue["5"];
+    const unpackedSpace =
+      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+    const createdByValue = objectValue["16"];
+    const unpackedCreatedBy =
+      createdByValue !== undefined
+        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByValue = objectValue["18"];
+    const unpackedUpdatedBy =
+      updatedByValue !== undefined
+        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const sourceValue = objectValue["210"];
+    const unpackedSource =
+      sourceValue !== undefined
+        ? NodeReference.fromValue(sourceValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new Field({
+      type: Number(objectValue["30"]),
+      cardinality: Number(objectValue["40"]),
+      scalarType: Number(objectValue["41"]),
+      primitiveType: unpackedPrimitiveType,
+      enumType: unpackedEnumType,
+      nodeType: unpackedNodeType,
+      structType: unpackedStructType,
+      keyType: unpackedKeyType,
+      isRequired: unpackedIsRequired,
+      defaultValue: unpackedDefaultValue,
+      defaultFactory: unpackedDefaultFactory,
+      collectionConstraint: unpackedCollectionConstraint,
+      stringConstraint: unpackedStringConstraint,
+      numberConstraint: unpackedNumberConstraint,
+      nodeConstraint: unpackedNodeConstraint,
+      edgeType: unpackedEdgeType,
+      cascade: unpackedCascade,
+      id: String(objectValue["2"]),
+      materialization: Number(objectValue["7"]),
+      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      name: objectValue["31"],
+      icon: unpackedIcon,
+      deletedAt: unpackedDeletedAt,
+      orderKey: objectValue["22"],
+      parent: unpackedParent,
+      nodeDefinition: unpackedNodeDefinition,
+      baseType: unpackedBaseType,
+      space: unpackedSpace,
+      createdBy: unpackedCreatedBy,
+      updatedBy: unpackedUpdatedBy,
+      source: unpackedSource,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Field {
+    return Field.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
 }
 /* ==== DESTACK_GENERATED_END:NODE:2520 ==== */

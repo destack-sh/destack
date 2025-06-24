@@ -28,6 +28,7 @@ from destack.language import (
     TypeCardinality,
     get_node_types,
 )
+from destack.language.core.builtin.struct import StructFrozen
 from destack.language.registry import (
     ENUM_CLASS_BY_TYPE,
     ENUM_DEFINITION_BY_TYPE,
@@ -52,6 +53,7 @@ from .core import (
     TypescriptImportBlock,
 )
 from .map import TYPESCRIPT_TYPE_BY_PRIMITIVE_TYPE
+from .value import generate_object_value
 
 
 def _generate_multiline_doc(description: str) -> str:
@@ -319,6 +321,16 @@ def _generate_init(cls: type[BuiltinObjectBase]) -> str:
     header_parts.extend(("_session?: Session | null", "_supergraph?: Supergraph | null"))
     if issubclass(cls, Node):
         header_parts.extend(("_graph?: Graph | null", "_connection?: QueryConnection | null"))
+    elif issubclass(cls, StructFrozen):
+        header_parts.extend(
+            (
+                "_hash?: number | null",
+                "_repr?: string | null",
+                "_proto?: any | null",
+                "_value?: { [key: string]: any } | null",
+            )
+        )
+
     header_str = ",\n".join(header_parts)
 
     # super
@@ -447,7 +459,19 @@ if (options.id == null) {
 }
 """
     else:
-        identity_str = """\
+        if issubclass(cls, StructFrozen):
+            identity_str = """\
+// @ts-expect-error(readonly)
+this._hash = options._hash ?? null;
+// @ts-expect-error(readonly)
+this._repr = options._repr ?? null;
+// @ts-expect-error(readonly)
+this._proto = options._proto ?? null;
+// @ts-expect-error(readonly)
+this._value = options._value ?? null;
+"""
+        else:
+            identity_str = """\
 // ...
 """
 
@@ -649,6 +673,8 @@ def _generate_struct(definition: StructDefinition) -> str:
     struct_parts.append(hash_str)
     validate_str = _generate_validate(struct_cls)
     struct_parts.append(validate_str)
+    value_str = generate_object_value(struct_cls)
+    struct_parts.append(value_str)
 
     struct_str = f"""\
 {_generate_multiline_doc(definition.description or definition.name)}
@@ -746,6 +772,8 @@ def _generate_node(definition: NodeDefinition) -> str:
     node_parts.append(to_ref_str)
     path_str = _generate_path(node_cls)
     node_parts.append(path_str)
+    value_str = generate_object_value(node_cls)
+    node_parts.append(value_str)
 
     # class
     super_trait_classes = [

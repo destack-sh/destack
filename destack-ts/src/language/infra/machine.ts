@@ -415,5 +415,143 @@ export class Machine extends Node implements Spatial, Resource {
     }
     return pathParts.reverse().join("/");
   }
+
+  toValue(): { [key: string]: any } {
+    return Machine.__packValue__(this);
+  }
+
+  static __packValue__(object: Machine): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 7600;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr !== null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr !== null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    objectValue["7"] = object.materialization;
+    objectValue["15"] = object.createdAt.toString();
+    if (object.createdByPtr !== null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
+    objectValue["17"] = object.updatedAt.toString();
+    if (object.updatedByPtr !== null) {
+      objectValue["18"] = object.updatedByPtr.toValue();
+    }
+    objectValue["30"] = object.type;
+    objectValue["40"] = object.status;
+    if (object.targetStatus !== null) {
+      objectValue["41"] = object.targetStatus.toString();
+    }
+    objectValue["60"] = object.version;
+    if (object.externalName !== null) {
+      objectValue["62"] = object.externalName;
+    }
+    if (object.externalId !== null) {
+      objectValue["63"] = object.externalId;
+    }
+    if (object.imageId !== null) {
+      objectValue["64"] = object.imageId;
+    }
+    if (object.grpcUrl !== null) {
+      objectValue["65"] = object.grpcUrl;
+    }
+    if (object.vncUrl !== null) {
+      objectValue["66"] = object.vncUrl;
+    }
+    if (object.clientPtr !== null) {
+      objectValue["69"] = object.clientPtr.toValue();
+    }
+    objectValue["70"] = object.cpu;
+    objectValue["71"] = object.ram;
+    objectValue["75"] = object.width;
+    objectValue["76"] = object.height;
+    objectValue["77"] = object.isHeadless;
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Machine {
+    const externalNameValue = objectValue["62"];
+    const unpackedExternalName = externalNameValue !== undefined ? externalNameValue : null;
+    const externalIdValue = objectValue["63"];
+    const unpackedExternalId = externalIdValue !== undefined ? externalIdValue : null;
+    const imageIdValue = objectValue["64"];
+    const unpackedImageId = imageIdValue !== undefined ? imageIdValue : null;
+    const grpcUrlValue = objectValue["65"];
+    const unpackedGrpcUrl = grpcUrlValue !== undefined ? grpcUrlValue : null;
+    const vncUrlValue = objectValue["66"];
+    const unpackedVncUrl = vncUrlValue !== undefined ? vncUrlValue : null;
+    const targetStatusValue = objectValue["41"];
+    const unpackedTargetStatus =
+      targetStatusValue !== undefined ? Temporal.ZonedDateTime.from(targetStatusValue) : null;
+    const clientValue = objectValue["69"];
+    const unpackedClient =
+      clientValue !== undefined
+        ? NodeReference.fromValue(clientValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const parentValue = objectValue["3"];
+    const unpackedParent =
+      parentValue !== undefined
+        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spaceValue = objectValue["5"];
+    const unpackedSpace =
+      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+    const createdByValue = objectValue["16"];
+    const unpackedCreatedBy =
+      createdByValue !== undefined
+        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByValue = objectValue["18"];
+    const unpackedUpdatedBy =
+      updatedByValue !== undefined
+        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new Machine({
+      type: Number(objectValue["30"]),
+      version: objectValue["60"],
+      externalName: unpackedExternalName,
+      externalId: unpackedExternalId,
+      imageId: unpackedImageId,
+      grpcUrl: unpackedGrpcUrl,
+      vncUrl: unpackedVncUrl,
+      cpu: objectValue["70"],
+      ram: objectValue["71"],
+      width: Number(objectValue["75"]),
+      height: Number(objectValue["76"]),
+      isHeadless: objectValue["77"],
+      id: String(objectValue["2"]),
+      status: Number(objectValue["40"]),
+      targetStatus: unpackedTargetStatus,
+      materialization: Number(objectValue["7"]),
+      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      client: unpackedClient,
+      parent: unpackedParent,
+      space: unpackedSpace,
+      createdBy: unpackedCreatedBy,
+      updatedBy: unpackedUpdatedBy,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Machine {
+    return Machine.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
 }
 /* ==== DESTACK_GENERATED_END:NODE:7600 ==== */

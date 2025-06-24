@@ -114,6 +114,10 @@ export class Length extends StructFrozen {
     value: number;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -135,7 +139,14 @@ export class Length extends StructFrozen {
     this.value = _value;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -148,6 +159,47 @@ export class Length extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Length.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Length): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 12018;
+    objectValue["50"] = object.unit;
+    objectValue["51"] = object.value;
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Length {
+    return new Length({
+      unit: Number(objectValue["50"]),
+      value: objectValue["51"],
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Length {
+    return Length.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:12018 ==== */
@@ -193,6 +245,10 @@ export class Position extends StructFrozen {
     height?: Length | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -217,7 +273,14 @@ export class Position extends StructFrozen {
     this.height = _height;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -230,6 +293,73 @@ export class Position extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Position.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Position): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 12020;
+    objectValue["30"] = object.type;
+    if (object.top !== null) {
+      objectValue["50"] = object.top.toValue();
+    }
+    if (object.left !== null) {
+      objectValue["51"] = object.left.toValue();
+    }
+    if (object.width !== null) {
+      objectValue["52"] = object.width.toValue();
+    }
+    if (object.height !== null) {
+      objectValue["53"] = object.height.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Position {
+    const topValue = objectValue["50"];
+    const unpackedTop =
+      topValue !== undefined ? Length.fromValue(topValue, _session, _supergraph, _graph, _connection) : null;
+    const leftValue = objectValue["51"];
+    const unpackedLeft =
+      leftValue !== undefined ? Length.fromValue(leftValue, _session, _supergraph, _graph, _connection) : null;
+    const widthValue = objectValue["52"];
+    const unpackedWidth =
+      widthValue !== undefined ? Length.fromValue(widthValue, _session, _supergraph, _graph, _connection) : null;
+    const heightValue = objectValue["53"];
+    const unpackedHeight =
+      heightValue !== undefined ? Length.fromValue(heightValue, _session, _supergraph, _graph, _connection) : null;
+    return new Position({
+      type: Number(objectValue["30"]),
+      top: unpackedTop,
+      left: unpackedLeft,
+      width: unpackedWidth,
+      height: unpackedHeight,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Position {
+    return Position.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:12020 ==== */
@@ -263,6 +393,10 @@ export class Dimension extends StructFrozen {
     value: number;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -289,7 +423,14 @@ export class Dimension extends StructFrozen {
     this.value = _value;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -302,6 +443,49 @@ export class Dimension extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Dimension.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Dimension): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 12022;
+    objectValue["30"] = object.type;
+    objectValue["50"] = object.unit;
+    objectValue["51"] = object.value;
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Dimension {
+    return new Dimension({
+      type: Number(objectValue["30"]),
+      unit: Number(objectValue["50"]),
+      value: objectValue["51"],
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Dimension {
+    return Dimension.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:12022 ==== */
@@ -347,6 +531,10 @@ export class Insets extends StructFrozen {
     bottom?: number | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -368,7 +556,14 @@ export class Insets extends StructFrozen {
     this.bottom = _bottom;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -381,6 +576,73 @@ export class Insets extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Insets.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Insets): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 12030;
+    if (object.base !== null) {
+      objectValue["50"] = object.base;
+    }
+    if (object.top !== null) {
+      objectValue["51"] = object.top;
+    }
+    if (object.left !== null) {
+      objectValue["52"] = object.left;
+    }
+    if (object.right !== null) {
+      objectValue["53"] = object.right;
+    }
+    if (object.bottom !== null) {
+      objectValue["54"] = object.bottom;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Insets {
+    const baseValue = objectValue["50"];
+    const unpackedBase = baseValue !== undefined ? Number(baseValue) : null;
+    const topValue = objectValue["51"];
+    const unpackedTop = topValue !== undefined ? Number(topValue) : null;
+    const leftValue = objectValue["52"];
+    const unpackedLeft = leftValue !== undefined ? Number(leftValue) : null;
+    const rightValue = objectValue["53"];
+    const unpackedRight = rightValue !== undefined ? Number(rightValue) : null;
+    const bottomValue = objectValue["54"];
+    const unpackedBottom = bottomValue !== undefined ? Number(bottomValue) : null;
+    return new Insets({
+      base: unpackedBase,
+      top: unpackedTop,
+      left: unpackedLeft,
+      right: unpackedRight,
+      bottom: unpackedBottom,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Insets {
+    return Insets.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:12030 ==== */
@@ -426,6 +688,10 @@ export class Corners extends StructFrozen {
     bottomRight?: number | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -447,7 +713,14 @@ export class Corners extends StructFrozen {
     this.bottomRight = _bottomRight;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -460,6 +733,73 @@ export class Corners extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Corners.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Corners): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 12032;
+    if (object.base !== null) {
+      objectValue["50"] = object.base;
+    }
+    if (object.topLeft !== null) {
+      objectValue["51"] = object.topLeft;
+    }
+    if (object.topRight !== null) {
+      objectValue["52"] = object.topRight;
+    }
+    if (object.bottomLeft !== null) {
+      objectValue["53"] = object.bottomLeft;
+    }
+    if (object.bottomRight !== null) {
+      objectValue["54"] = object.bottomRight;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Corners {
+    const baseValue = objectValue["50"];
+    const unpackedBase = baseValue !== undefined ? Number(baseValue) : null;
+    const topLeftValue = objectValue["51"];
+    const unpackedTopLeft = topLeftValue !== undefined ? Number(topLeftValue) : null;
+    const topRightValue = objectValue["52"];
+    const unpackedTopRight = topRightValue !== undefined ? Number(topRightValue) : null;
+    const bottomLeftValue = objectValue["53"];
+    const unpackedBottomLeft = bottomLeftValue !== undefined ? Number(bottomLeftValue) : null;
+    const bottomRightValue = objectValue["54"];
+    const unpackedBottomRight = bottomRightValue !== undefined ? Number(bottomRightValue) : null;
+    return new Corners({
+      base: unpackedBase,
+      topLeft: unpackedTopLeft,
+      topRight: unpackedTopRight,
+      bottomLeft: unpackedBottomLeft,
+      bottomRight: unpackedBottomRight,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Corners {
+    return Corners.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:12032 ==== */
@@ -493,6 +833,10 @@ export class Axis2 extends StructFrozen {
     y?: number | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -510,7 +854,14 @@ export class Axis2 extends StructFrozen {
     this.y = _y;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -523,6 +874,61 @@ export class Axis2 extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Axis2.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Axis2): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 50207;
+    if (object.base !== null) {
+      objectValue["50"] = object.base;
+    }
+    if (object.x !== null) {
+      objectValue["51"] = object.x;
+    }
+    if (object.y !== null) {
+      objectValue["52"] = object.y;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Axis2 {
+    const baseValue = objectValue["50"];
+    const unpackedBase = baseValue !== undefined ? baseValue : null;
+    const xValue = objectValue["51"];
+    const unpackedX = xValue !== undefined ? xValue : null;
+    const yValue = objectValue["52"];
+    const unpackedY = yValue !== undefined ? yValue : null;
+    return new Axis2({
+      base: unpackedBase,
+      x: unpackedX,
+      y: unpackedY,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Axis2 {
+    return Axis2.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50207 ==== */
@@ -562,6 +968,10 @@ export class Axis3 extends StructFrozen {
     z?: number | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -581,7 +991,14 @@ export class Axis3 extends StructFrozen {
     this.z = _z;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -594,6 +1011,67 @@ export class Axis3 extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Axis3.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Axis3): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 50209;
+    if (object.base !== null) {
+      objectValue["50"] = object.base;
+    }
+    if (object.x !== null) {
+      objectValue["51"] = object.x;
+    }
+    if (object.y !== null) {
+      objectValue["52"] = object.y;
+    }
+    if (object.z !== null) {
+      objectValue["53"] = object.z;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Axis3 {
+    const baseValue = objectValue["50"];
+    const unpackedBase = baseValue !== undefined ? baseValue : null;
+    const xValue = objectValue["51"];
+    const unpackedX = xValue !== undefined ? xValue : null;
+    const yValue = objectValue["52"];
+    const unpackedY = yValue !== undefined ? yValue : null;
+    const zValue = objectValue["53"];
+    const unpackedZ = zValue !== undefined ? zValue : null;
+    return new Axis3({
+      base: unpackedBase,
+      x: unpackedX,
+      y: unpackedY,
+      z: unpackedZ,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Axis3 {
+    return Axis3.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50209 ==== */
@@ -616,7 +1094,16 @@ export class Vector2 extends StructFrozen {
    */
   readonly y: number;
 
-  constructor(options: { x: number; y: number; _session?: Session | null; _supergraph?: Supergraph | null }) {
+  constructor(options: {
+    x: number;
+    y: number;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
+  }) {
     super(
       // session
       options._session ?? null,
@@ -637,7 +1124,14 @@ export class Vector2 extends StructFrozen {
     this.y = _y;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -650,6 +1144,47 @@ export class Vector2 extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Vector2.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Vector2): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 50200;
+    objectValue["50"] = object.x;
+    objectValue["51"] = object.y;
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vector2 {
+    return new Vector2({
+      x: objectValue["50"],
+      y: objectValue["51"],
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vector2 {
+    return Vector2.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50200 ==== */
@@ -683,6 +1218,10 @@ export class Vector3 extends StructFrozen {
     z: number;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -709,7 +1248,14 @@ export class Vector3 extends StructFrozen {
     this.z = _z;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -722,6 +1268,49 @@ export class Vector3 extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Vector3.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Vector3): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 50201;
+    objectValue["50"] = object.x;
+    objectValue["51"] = object.y;
+    objectValue["52"] = object.z;
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vector3 {
+    return new Vector3({
+      x: objectValue["50"],
+      y: objectValue["51"],
+      z: objectValue["52"],
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vector3 {
+    return Vector3.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50201 ==== */
@@ -761,6 +1350,10 @@ export class Vector4 extends StructFrozen {
     w: number;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -792,7 +1385,14 @@ export class Vector4 extends StructFrozen {
     this.w = _w;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -805,6 +1405,51 @@ export class Vector4 extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Vector4.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Vector4): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 50202;
+    objectValue["50"] = object.x;
+    objectValue["51"] = object.y;
+    objectValue["52"] = object.z;
+    objectValue["53"] = object.w;
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vector4 {
+    return new Vector4({
+      x: objectValue["50"],
+      y: objectValue["51"],
+      z: objectValue["52"],
+      w: objectValue["53"],
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vector4 {
+    return Vector4.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50202 ==== */
@@ -827,7 +1472,16 @@ export class Vector2i extends StructFrozen {
    */
   readonly y: number;
 
-  constructor(options: { x: number; y: number; _session?: Session | null; _supergraph?: Supergraph | null }) {
+  constructor(options: {
+    x: number;
+    y: number;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
+  }) {
     super(
       // session
       options._session ?? null,
@@ -848,7 +1502,14 @@ export class Vector2i extends StructFrozen {
     this.y = _y;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -861,6 +1522,47 @@ export class Vector2i extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Vector2i.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Vector2i): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 50203;
+    objectValue["50"] = object.x;
+    objectValue["51"] = object.y;
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vector2i {
+    return new Vector2i({
+      x: Number(objectValue["50"]),
+      y: Number(objectValue["51"]),
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vector2i {
+    return Vector2i.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50203 ==== */
@@ -894,6 +1596,10 @@ export class Vector3i extends StructFrozen {
     z: number;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -920,7 +1626,14 @@ export class Vector3i extends StructFrozen {
     this.z = _z;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -933,6 +1646,49 @@ export class Vector3i extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Vector3i.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Vector3i): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 50204;
+    objectValue["50"] = object.x;
+    objectValue["51"] = object.y;
+    objectValue["52"] = object.z;
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vector3i {
+    return new Vector3i({
+      x: Number(objectValue["50"]),
+      y: Number(objectValue["51"]),
+      z: Number(objectValue["52"]),
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vector3i {
+    return Vector3i.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50204 ==== */
@@ -972,6 +1728,10 @@ export class Vector4i extends StructFrozen {
     w: number;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -1003,7 +1763,14 @@ export class Vector4i extends StructFrozen {
     this.w = _w;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -1016,6 +1783,51 @@ export class Vector4i extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Vector4i.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Vector4i): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 50205;
+    objectValue["50"] = object.x;
+    objectValue["51"] = object.y;
+    objectValue["52"] = object.z;
+    objectValue["53"] = object.w;
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vector4i {
+    return new Vector4i({
+      x: Number(objectValue["50"]),
+      y: Number(objectValue["51"]),
+      z: Number(objectValue["52"]),
+      w: Number(objectValue["53"]),
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vector4i {
+    return Vector4i.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50205 ==== */
@@ -1061,6 +1873,10 @@ export class Grid extends StructFrozen {
     rowHeight?: Dimension | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -1088,7 +1904,14 @@ export class Grid extends StructFrozen {
     this.rowHeight = _rowHeight;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -1101,6 +1924,74 @@ export class Grid extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Grid.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Grid): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 12026;
+    objectValue["50"] = object.columns;
+    objectValue["51"] = object.rows;
+    if (object.columnWidth !== null) {
+      objectValue["52"] = object.columnWidth.toValue();
+    }
+    if (object.columnMinWidth !== null) {
+      objectValue["53"] = object.columnMinWidth.toValue();
+    }
+    if (object.rowHeight !== null) {
+      objectValue["54"] = object.rowHeight.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Grid {
+    const columnWidthValue = objectValue["52"];
+    const unpackedColumnWidth =
+      columnWidthValue !== undefined
+        ? Dimension.fromValue(columnWidthValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const columnMinWidthValue = objectValue["53"];
+    const unpackedColumnMinWidth =
+      columnMinWidthValue !== undefined
+        ? Dimension.fromValue(columnMinWidthValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const rowHeightValue = objectValue["54"];
+    const unpackedRowHeight =
+      rowHeightValue !== undefined
+        ? Dimension.fromValue(rowHeightValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new Grid({
+      columns: Number(objectValue["50"]),
+      rows: Number(objectValue["51"]),
+      columnWidth: unpackedColumnWidth,
+      columnMinWidth: unpackedColumnMinWidth,
+      rowHeight: unpackedRowHeight,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Grid {
+    return Grid.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:12026 ==== */
@@ -1123,7 +2014,16 @@ export class GridSpan extends StructFrozen {
    */
   readonly rows: number;
 
-  constructor(options: { columns: number; rows: number; _session?: Session | null; _supergraph?: Supergraph | null }) {
+  constructor(options: {
+    columns: number;
+    rows: number;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
+  }) {
     super(
       // session
       options._session ?? null,
@@ -1144,7 +2044,14 @@ export class GridSpan extends StructFrozen {
     this.rows = _rows;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -1157,6 +2064,47 @@ export class GridSpan extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = GridSpan.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: GridSpan): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 12028;
+    objectValue["50"] = object.columns;
+    objectValue["51"] = object.rows;
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): GridSpan {
+    return new GridSpan({
+      columns: Number(objectValue["50"]),
+      rows: Number(objectValue["51"]),
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): GridSpan {
+    return GridSpan.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:12028 ==== */

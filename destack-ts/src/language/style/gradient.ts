@@ -55,6 +55,10 @@ export class GradientStop extends StructFrozen {
     position: number;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -73,7 +77,14 @@ export class GradientStop extends StructFrozen {
     this.position = _position;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -86,6 +97,52 @@ export class GradientStop extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = GradientStop.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: GradientStop): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 12015;
+    if (object.color !== null) {
+      objectValue["50"] = object.color.toValue();
+    }
+    objectValue["51"] = object.position;
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): GradientStop {
+    const colorValue = objectValue["50"];
+    const unpackedColor =
+      colorValue !== undefined ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection) : null;
+    return new GradientStop({
+      color: unpackedColor,
+      position: objectValue["51"],
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): GradientStop {
+    return GradientStop.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:12015 ==== */
@@ -194,6 +251,76 @@ export class Gradient extends Struct {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    return Gradient.__packValue__(this);
+  }
+
+  static __packValue__(object: Gradient): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 12016;
+    objectValue["30"] = object.type;
+    if (object.stylePtr !== null) {
+      objectValue["40"] = object.stylePtr.toValue();
+    }
+    if (object.angle !== null) {
+      objectValue["50"] = object.angle;
+    }
+    if (object.stops) {
+      const packedStops: any[] = [];
+      for (const item of object.stops) {
+        packedStops.push(item.toValue());
+      }
+      objectValue["51"] = packedStops;
+    }
+    if (object.centerAnchor !== null) {
+      objectValue["52"] = object.centerAnchor.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Gradient {
+    const angleValue = objectValue["50"];
+    const unpackedAngle = angleValue !== undefined ? angleValue : null;
+    const unpackedStops: any[] = [];
+    if (objectValue["51"] !== undefined) {
+      for (const item of objectValue["51"]) {
+        unpackedStops.push(GradientStop.fromValue(item, _session, _supergraph, _graph, _connection));
+      }
+    }
+    const centerAnchorValue = objectValue["52"];
+    const unpackedCenterAnchor =
+      centerAnchorValue !== undefined
+        ? Axis2.fromValue(centerAnchorValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const styleValue = objectValue["40"];
+    const unpackedStyle =
+      styleValue !== undefined ? NodeReference.fromValue(styleValue, _session, _supergraph, _graph, _connection) : null;
+    return new Gradient({
+      type: Number(objectValue["30"]),
+      angle: unpackedAngle,
+      stops: unpackedStops,
+      centerAnchor: unpackedCenterAnchor,
+      style: unpackedStyle,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Gradient {
+    return Gradient.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:12016 ==== */
@@ -528,6 +655,130 @@ export class GradientStyle extends Node implements Style {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  toValue(): { [key: string]: any } {
+    return GradientStyle.__packValue__(this);
+  }
+
+  static __packValue__(object: GradientStyle): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 12025;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr !== null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr !== null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    objectValue["7"] = object.materialization;
+    objectValue["15"] = object.createdAt.toString();
+    if (object.createdByPtr !== null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
+    objectValue["17"] = object.updatedAt.toString();
+    if (object.updatedByPtr !== null) {
+      objectValue["18"] = object.updatedByPtr.toValue();
+    }
+    if (object.deletedAt !== null) {
+      objectValue["20"] = object.deletedAt.toString();
+    }
+    objectValue["22"] = object.orderKey;
+    objectValue["30"] = object.type;
+    objectValue["31"] = object.name;
+    if (object.angle !== null) {
+      objectValue["50"] = object.angle;
+    }
+    if (object.stops) {
+      const packedStops: any[] = [];
+      for (const item of object.stops) {
+        packedStops.push(item.toValue());
+      }
+      objectValue["51"] = packedStops;
+    }
+    if (object.centerAnchor !== null) {
+      objectValue["52"] = object.centerAnchor.toValue();
+    }
+    if (object.dark !== null) {
+      objectValue["60"] = object.dark.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): GradientStyle {
+    const darkValue = objectValue["60"];
+    const unpackedDark =
+      darkValue !== undefined ? Gradient.fromValue(darkValue, _session, _supergraph, _graph, _connection) : null;
+    const deletedAtValue = objectValue["20"];
+    const unpackedDeletedAt = deletedAtValue !== undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const angleValue = objectValue["50"];
+    const unpackedAngle = angleValue !== undefined ? angleValue : null;
+    const unpackedStops: any[] = [];
+    if (objectValue["51"] !== undefined) {
+      for (const item of objectValue["51"]) {
+        unpackedStops.push(GradientStop.fromValue(item, _session, _supergraph, _graph, _connection));
+      }
+    }
+    const centerAnchorValue = objectValue["52"];
+    const unpackedCenterAnchor =
+      centerAnchorValue !== undefined
+        ? Axis2.fromValue(centerAnchorValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const parentValue = objectValue["3"];
+    const unpackedParent =
+      parentValue !== undefined
+        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spaceValue = objectValue["5"];
+    const unpackedSpace =
+      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+    const createdByValue = objectValue["16"];
+    const unpackedCreatedBy =
+      createdByValue !== undefined
+        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByValue = objectValue["18"];
+    const unpackedUpdatedBy =
+      updatedByValue !== undefined
+        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new GradientStyle({
+      dark: unpackedDark,
+      id: String(objectValue["2"]),
+      materialization: Number(objectValue["7"]),
+      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      name: objectValue["31"],
+      orderKey: objectValue["22"],
+      deletedAt: unpackedDeletedAt,
+      type: Number(objectValue["30"]),
+      angle: unpackedAngle,
+      stops: unpackedStops,
+      centerAnchor: unpackedCenterAnchor,
+      parent: unpackedParent,
+      space: unpackedSpace,
+      createdBy: unpackedCreatedBy,
+      updatedBy: unpackedUpdatedBy,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): GradientStyle {
+    return GradientStyle.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:12025 ==== */

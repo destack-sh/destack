@@ -18,19 +18,16 @@ sessionTest("node space ptr", async ({ session }) => {
     status: SpaceStatus.RUNNING,
     region: Region.ZURICH,
   });
-
   session.create(space);
 
   const folder = new Folder({
     name: "MyFolder",
   });
-
   space.addChild(folder);
   expect(folder.spacePtr).toBeTruthy();
   expect(folder.spacePtr!.id).toBe(space.id);
 
   const tags = [new Tag({ name: "A" }), new Tag({ name: "B" }), new Tag({ name: "C" })];
-
   folder.addChildren(tags);
 
   for (const tag of tags) {
