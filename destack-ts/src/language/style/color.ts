@@ -11,20 +11,18 @@ import {
   Node,
   NodeReference,
   NodeType,
-  Palette,
   QueryConnection,
-  Scene,
   Session,
-  Space,
   Spatial,
   Struct,
   StructType,
-  Style,
   Supergraph,
-  Theme,
   TraitType,
-  View,
-} from "@destack/language";
+} from "@destack/language/core";
+import { Scene } from "@destack/language/scene";
+import { Space } from "@destack/language/space";
+import { Palette, Style, Theme } from "@destack/language/style";
+import { View } from "@destack/language/view";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12020 ==== */

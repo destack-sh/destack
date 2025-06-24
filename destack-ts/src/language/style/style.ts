@@ -1,4 +1,5 @@
-import { IsSubject, MaterializationType, Node, NodeReference, Space } from "@destack/language";
+import { IsSubject, MaterializationType, Node, NodeReference } from "@destack/language/core";
+import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:TRAIT:12000 ==== */

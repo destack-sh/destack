@@ -24,9 +24,7 @@ import {
   PrimitiveType,
   QueryConnection,
   ScalarType,
-  Script,
   Session,
-  Space,
   Spatial,
   StringConstraint,
   StructType,
@@ -35,7 +33,9 @@ import {
   Type,
   TypeCardinality,
   Value,
-} from "@destack/language";
+} from "@destack/language/core";
+import { Script } from "@destack/language/logic";
+import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2580 ==== */

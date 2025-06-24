@@ -14,15 +14,15 @@ import {
   NodeReference,
   NodeType,
   QueryConnection,
-  Script,
   Session,
-  Space,
   Spatial,
   StructType,
   Supergraph,
   TraitType,
   Value,
-} from "@destack/language";
+} from "@destack/language/core";
+import { Script } from "@destack/language/logic";
+import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:2500 ==== */

@@ -50,7 +50,8 @@ class TypescriptFile:
 class TypescriptDefinition:
     name: str
     cls: type[BuiltinObjectBase] | type[Enum]
-    module: str
+    module: str  # destack.language.core.common.icon
+    submodule: str  # core
     kind: Kind
     id: int
     definition: Definition

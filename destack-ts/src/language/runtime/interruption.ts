@@ -6,22 +6,21 @@ import {
   IsRunnable,
   IsSubject,
   IsTracked,
-  Message,
   Node,
   NodeReference,
   NodeType,
   Particle,
   QueryConnection,
-  Run,
   Session,
-  Space,
-  Span,
   Spatial,
   StructType,
   Supergraph,
   TraitType,
   Value,
-} from "@destack/language";
+} from "@destack/language/core";
+import { Run, Span } from "@destack/language/runtime";
+import { Message } from "@destack/language/social";
+import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:4020 ==== */

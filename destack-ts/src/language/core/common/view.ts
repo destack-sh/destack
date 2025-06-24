@@ -1,4 +1,4 @@
-import { Session, StructFrozen, StructType, Supergraph } from "@destack/language";
+import { Session, StructFrozen, StructType, Supergraph } from "@destack/language/core";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12038 ==== */
 export enum Layout {

@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 // forever constants
 export const VERSION = "2025.06.23.0";
 export const FLOAT_EPSILON = 1e-6;
-export const BEGINNING_OF_TIME = Temporal.ZonedDateTime.from("1970-01-01T00:00:00+00:00");
+export const BEGINNING_OF_TIME = Temporal.ZonedDateTime.from("1970-01-01T00:00:00+00:00[UTC]");
 
 // builtin destackes :Builtins
 export const DESTACK_SLUG = "destack";

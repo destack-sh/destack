@@ -15,16 +15,16 @@ import {
   NodeReference,
   NodeType,
   QueryConnection,
-  Script,
   Session,
-  Space,
   Spatial,
   StructType,
   Supergraph,
   Text,
   TraitType,
   Value,
-} from "@destack/language";
+} from "@destack/language/core";
+import { Script } from "@destack/language/logic";
+import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:3020 ==== */

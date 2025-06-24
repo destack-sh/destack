@@ -3,14 +3,14 @@ import {
   IsSubject,
   Node,
   NodeReference,
-  Origin,
   PropertyReference,
   Session,
   StructFrozen,
   StructType,
   Supergraph,
   Value,
-} from "@destack/language";
+} from "@destack/language/core";
+import { Origin } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 import { v4 as uuid4 } from "uuid";
 

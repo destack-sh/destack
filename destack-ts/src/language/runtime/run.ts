@@ -3,7 +3,6 @@ import {
   Event,
   Graph,
   Indexed,
-  Interruption,
   IsExtensible,
   IsFrozen,
   IsRunnable,
@@ -15,13 +14,14 @@ import {
   Particle,
   QueryConnection,
   Session,
-  Space,
   Spatial,
   StructType,
   Supergraph,
   TraitType,
   Value,
-} from "@destack/language";
+} from "@destack/language/core";
+import { Interruption } from "@destack/language/runtime";
+import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:4000 ==== */

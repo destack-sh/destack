@@ -19,7 +19,7 @@ import {
   Type,
   TypeCardinality,
   Value,
-} from "@destack/language";
+} from "@destack/language/core";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50004 ==== */
 export class PropertyDefinition extends StructFrozen {

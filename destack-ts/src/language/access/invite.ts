@@ -1,3 +1,4 @@
+import { Role } from "@destack/language/access";
 import {
   Analytic,
   Entity,
@@ -19,15 +20,14 @@ import {
   NodeType,
   Particle,
   QueryConnection,
-  Role,
   RoleType,
   Session,
-  Space,
   Spatial,
   StructType,
   Supergraph,
   TraitType,
-} from "@destack/language";
+} from "@destack/language/core";
+import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:510 ==== */
