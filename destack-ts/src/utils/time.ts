@@ -177,8 +177,19 @@ export function timedeltaFromISOFormat(duration: string): Temporal.Duration {
       }
     }
     const seconds = Math.floor(totalSeconds);
-    const milliseconds = Math.round((totalSeconds - seconds) * 1000);
-    return Temporal.Duration.from({ seconds: seconds * sign, milliseconds: milliseconds * sign });
+    const fractionalSeconds = totalSeconds - seconds;
+    const nanoseconds = Math.round(fractionalSeconds * 1_000_000_000);
+    const microseconds = Math.floor(nanoseconds / 1000);
+    const remainingNanos = nanoseconds % 1000;
+    const milliseconds = Math.floor(microseconds / 1000);
+    const remainingMicros = microseconds % 1000;
+    
+    return Temporal.Duration.from({ 
+      seconds: seconds * sign, 
+      milliseconds: milliseconds * sign,
+      microseconds: remainingMicros * sign,
+      nanoseconds: remainingNanos * sign
+    });
   } catch (error) {
     throw new Error(`could not parse duration '${duration}': ${(error as any).message}`);
   }
@@ -186,21 +197,27 @@ export function timedeltaFromISOFormat(duration: string): Temporal.Duration {
 
 /** Format a duration as an ISO string. */
 export function timedeltaToISOFormat(duration: number | Temporal.Duration): string {
-  if (typeof duration !== "number") {
-    duration = duration.total("milliseconds");
+  let totalNanoseconds: number;
+  
+  if (typeof duration === "number") {
+    // duration is in milliseconds
+    totalNanoseconds = duration * 1_000_000;
+  } else {
+    // get total nanoseconds from Temporal.Duration
+    totalNanoseconds = duration.total("nanoseconds");
   }
 
-  if (duration === 0) {
+  if (totalNanoseconds === 0) {
     return "P0D";
   }
 
   let sign = "";
-  if (duration < 0) {
+  if (totalNanoseconds < 0) {
     sign = "-";
-    duration = -duration;
+    totalNanoseconds = -totalNanoseconds;
   }
 
-  let totalSeconds = duration / 1000;
+  let totalSeconds = totalNanoseconds / 1_000_000_000;
 
   let days = Math.floor(totalSeconds / (24 * 60 * 60));
   totalSeconds %= 24 * 60 * 60;
@@ -227,7 +244,18 @@ export function timedeltaToISOFormat(duration: number | Temporal.Duration): stri
       result += `${minutes}M`;
     }
     if (seconds > 0) {
-      result += `${seconds.toFixed(9).replace(/\.0+$/, "")}S`;
+      // format seconds with proper nanosecond precision
+      const wholeSeconds = Math.floor(seconds);
+      const fractionalNanos = Math.round((seconds - wholeSeconds) * 1_000_000_000);
+      
+      if (fractionalNanos === 0) {
+        result += `${wholeSeconds}S`;
+      } else {
+        // format fractional part with proper precision, removing trailing zeros
+        const fractionalStr = fractionalNanos.toString().padStart(9, "0");
+        const trimmedFractional = fractionalStr.replace(/0+$/, "");
+        result += `${wholeSeconds}.${trimmedFractional}S`;
+      }
     }
   }
   return result;
