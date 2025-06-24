@@ -23,7 +23,7 @@ import {
 import { NodeTypeMapping, TraitTypeMapping } from "@destack/language/mapping";
 import { Casing, toCasing } from "@destack/utils/string";
 import { v4 as uuid4 } from "uuid";
-import { BuiltinObject } from "./object";
+import { BuiltinObject, BuiltinObjectClass } from "./object";
 
 /** A Node is a collection of properties with an identity. */
 export abstract class Node extends BuiltinObject {
@@ -415,16 +415,16 @@ export abstract class Node extends BuiltinObject {
   }
 }
 
-/** A Node constructor. */
-export type NodeClass = { new (...args: any[]): Node } & {
-  metatype: NodeType;
-  __traits__: TraitType[];
-  __rootType__: NodeType | null;
-  __parentTypes__: NodeType[];
-  __childTypes__: NodeType[];
-  __ancestorTypes__: NodeType[];
-  __descendantTypes__: NodeType[];
-};
+/** A Node constructor/class. */
+export type NodeClass = { new (...args: any[]): Node } & BuiltinObjectClass & {
+    metatype: NodeType;
+    __traits__: TraitType[];
+    __rootType__: NodeType | null;
+    __parentTypes__: NodeType[];
+    __childTypes__: NodeType[];
+    __ancestorTypes__: NodeType[];
+    __descendantTypes__: NodeType[];
+  };
 
 /** Check if a value is a Node of a specific type. */
 export function isNode<T extends NodeType>(value: any, nodeType?: T): value is NodeTypeMapping[T] {

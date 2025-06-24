@@ -5,9 +5,12 @@ import {
   Node,
   NodeReference,
   NodeType,
+  PRIMITIVE_JS_TYPES,
+  PRIMITIVE_TYPE_BY_JS_TYPE,
   PrimitiveType,
   ScalarType,
   Session,
+  Struct,
   StructFrozen,
   StructType,
   Supergraph,
@@ -526,3 +529,109 @@ export class Type extends StructFrozen {
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:2501 ==== */
+
+/**
+ * Guess the type of a value or class.
+ */
+export function toType(valueOrType: any, nodeAsValue: boolean = false): Type {
+  if (valueOrType === null || valueOrType === undefined) {
+    throw new Error("null/undefined is not a valid Type");
+  }
+
+  // scalar values
+  if (valueOrType instanceof NodeReference) {
+    return new Type({
+      cardinality: TypeCardinality.SCALAR,
+      scalarType: ScalarType.NODE_REFERENCE,
+      nodeType: valueOrType.nodeType,
+    });
+  } else if (valueOrType instanceof Node) {
+    return new Type({
+      cardinality: TypeCardinality.SCALAR,
+      scalarType: nodeAsValue ? ScalarType.NODE_VALUE : ScalarType.NODE_REFERENCE,
+      nodeType: valueOrType.metatype,
+    });
+  } else if (valueOrType instanceof Struct) {
+    return new Type({
+      cardinality: TypeCardinality.SCALAR,
+      scalarType: ScalarType.STRUCT,
+      structType: valueOrType.metatype,
+    });
+  } else if (PRIMITIVE_JS_TYPES.has(valueOrType.constructor) && valueOrType.constructor !== Object) {
+    return new Type({
+      cardinality: TypeCardinality.SCALAR,
+      scalarType: ScalarType.PRIMITIVE,
+      primitiveType: PRIMITIVE_TYPE_BY_JS_TYPE.get(valueOrType.constructor) || null,
+    });
+  }
+
+  // collections
+  if (Array.isArray(valueOrType)) {
+    if (valueOrType.length === 0) {
+      throw new Error(`cannot infer type of empty array: ${valueOrType}`);
+    }
+    const elementType = toType(valueOrType[0]);
+    if (elementType.cardinality !== TypeCardinality.SCALAR) {
+      throw new Error(`expected scalar inside array, got ${elementType.cardinality} for ${valueOrType}`);
+    }
+    return new Type({
+      cardinality: TypeCardinality.LIST,
+      scalarType: elementType.scalarType,
+      primitiveType: elementType.primitiveType,
+      enumType: elementType.enumType,
+      nodeType: elementType.nodeType,
+      structType: elementType.structType,
+      nodeConstraint: elementType.nodeConstraint,
+    });
+  } else if (valueOrType instanceof Map) {
+    if (valueOrType.size === 0) {
+      throw new Error(`cannot infer type of empty Map: ${valueOrType}`);
+    }
+    const [sampleKey, sampleValue] = Array.from(valueOrType.entries()).at(0)!;
+    const keyType = toType(sampleKey);
+    if (keyType.cardinality !== TypeCardinality.SCALAR) {
+      throw new Error(`expected scalar key in Map, got ${keyType.cardinality} for ${valueOrType}`);
+    }
+    const valueType = toType(sampleValue);
+    if (valueType.cardinality !== TypeCardinality.SCALAR && valueType.cardinality !== TypeCardinality.LIST) {
+      throw new Error(`expected scalar or list value in Map, got ${valueType.cardinality} for ${valueOrType}`);
+    }
+    return new Type({
+      cardinality: TypeCardinality.MAP,
+      scalarType: valueType.scalarType,
+      primitiveType: valueType.primitiveType,
+      enumType: valueType.enumType,
+      nodeType: valueType.nodeType,
+      structType: valueType.structType,
+      nodeConstraint: valueType.nodeConstraint,
+      keyType: keyType,
+    });
+  } else if (typeof valueOrType === "object" && valueOrType.constructor === Object) {
+    const keys = Object.keys(valueOrType);
+    if (keys.length === 0) {
+      throw new Error(`cannot infer type of empty object: ${valueOrType}`);
+    }
+    const sampleKey = keys[0];
+    const sampleValue = valueOrType[sampleKey];
+    const keyType = toType(sampleKey);
+    if (keyType.cardinality !== TypeCardinality.SCALAR) {
+      throw new Error(`expected scalar key in object, got ${keyType.cardinality} for ${valueOrType}`);
+    }
+    const valueType = toType(sampleValue);
+    if (valueType.cardinality !== TypeCardinality.SCALAR && valueType.cardinality !== TypeCardinality.LIST) {
+      throw new Error(`expected scalar or list value in object, got ${valueType.cardinality} for ${valueOrType}`);
+    }
+    return new Type({
+      cardinality: TypeCardinality.MAP,
+      scalarType: valueType.scalarType,
+      primitiveType: valueType.primitiveType,
+      enumType: valueType.enumType,
+      nodeType: valueType.nodeType,
+      structType: valueType.structType,
+      nodeConstraint: valueType.nodeConstraint,
+      keyType: keyType,
+    });
+  }
+
+  throw new Error(`cannot infer type of ${valueOrType}`);
+}

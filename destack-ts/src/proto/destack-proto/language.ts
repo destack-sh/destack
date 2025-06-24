@@ -9845,9 +9845,9 @@ export interface WindowProto {
      */
     type: WindowTypeProto;
     /**
-     * @generated from protobuf field: optional string name = 31
+     * @generated from protobuf field: string name = 31
      */
-    name?: string;
+    name: string;
 }
 /**
  * @generated from protobuf message symbol.destack.WizardViewProto
@@ -15074,10 +15074,6 @@ export enum StructTypeProto {
      * @generated from protobuf enum value: STRUCT_TYPE_SCHEDULE = 3001;
      */
     STRUCT_TYPE_SCHEDULE = 3001,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ERROR = 4001;
-     */
-    STRUCT_TYPE_ERROR = 4001,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_DATABASE_INFO = 7501;
      */
@@ -38796,7 +38792,7 @@ class WindowProto$Type extends MessageType<WindowProto> {
             { no: 22, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 25, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.destack.WindowTypeProto", WindowTypeProto] },
-            { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<WindowProto>): WindowProto {
@@ -38806,6 +38802,7 @@ class WindowProto$Type extends MessageType<WindowProto> {
         message.materialization = 0;
         message.orderKey = "";
         message.type = 0;
+        message.name = "";
         if (value !== undefined)
             reflectionMergePartial<WindowProto>(this, message, value);
         return message;
@@ -38854,7 +38851,7 @@ class WindowProto$Type extends MessageType<WindowProto> {
                 case /* symbol.destack.WindowTypeProto type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* optional string name */ 31:
+                case /* string name */ 31:
                     message.name = reader.string();
                     break;
                 default:
@@ -38908,8 +38905,8 @@ class WindowProto$Type extends MessageType<WindowProto> {
         /* symbol.destack.WindowTypeProto type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* optional string name = 31; */
-        if (message.name !== undefined)
+        /* string name = 31; */
+        if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
         let u = options.writeUnknownFields;
         if (u !== false)

@@ -1,4 +1,7 @@
 /* ==== DESTACK_GENERATED_START:ENUM:50000 ==== */
+
+import { Temporal } from "temporal-polyfill";
+
 /**
  * EnumType
  */
@@ -155,7 +158,6 @@ export enum StructType {
   ICON = 2531,
   SELECTION = 2571,
   SCHEDULE = 3001,
-  ERROR = 4001,
   DATABASE_INFO = 7501,
   GALAXY_INFO = 7601,
   COLOR = 12011,
@@ -714,3 +716,32 @@ export enum Tenancy {
   SHARED = 2,
 }
 /* ==== DESTACK_GENERATED_END:ENUM:7504 ==== */
+
+export const JS_TYPE_BY_PRIMITIVE_TYPE: Record<PrimitiveType, any> = {
+  [PrimitiveType.BOOLEAN]: Boolean,
+  [PrimitiveType.INT16]: Number,
+  [PrimitiveType.INT32]: Number,
+  [PrimitiveType.INT64]: Number,
+  [PrimitiveType.DECIMAL]: Number,
+  [PrimitiveType.FLOAT32]: Number,
+  [PrimitiveType.FLOAT64]: Number,
+  [PrimitiveType.STRING]: String,
+  [PrimitiveType.UUID]: String,
+  [PrimitiveType.JSON]: Object,
+  [PrimitiveType.BYTES]: Uint8Array,
+  [PrimitiveType.DATETIME]: Temporal.ZonedDateTime,
+  [PrimitiveType.DATE]: Temporal.PlainDate,
+  [PrimitiveType.TIME]: Temporal.PlainTime,
+  [PrimitiveType.DURATION]: Temporal.Duration,
+} as const;
+export const PRIMITIVE_TYPE_BY_JS_TYPE: Map<Function, PrimitiveType> = new Map([
+  [Boolean, PrimitiveType.BOOLEAN],
+  [Number, PrimitiveType.FLOAT64], // default for Number
+  [String, PrimitiveType.STRING],
+  [Uint8Array, PrimitiveType.BYTES],
+  [Temporal.ZonedDateTime, PrimitiveType.DATETIME],
+  [Temporal.PlainDate, PrimitiveType.DATE],
+  [Temporal.PlainTime, PrimitiveType.TIME],
+  [Temporal.Duration, PrimitiveType.DURATION],
+] as any);
+export const PRIMITIVE_JS_TYPES: Set<Function> = new Set(Object.values(JS_TYPE_BY_PRIMITIVE_TYPE));
