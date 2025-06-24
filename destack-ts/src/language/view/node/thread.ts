@@ -820,9 +820,7 @@ export class ThreadView extends Node implements NodeView {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.THREAD_VIEW, ThreadView);

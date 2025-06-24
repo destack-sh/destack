@@ -462,9 +462,7 @@ export class Reaction extends Node implements Global, Spatial, Entity, IsReactab
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.REACTION, Reaction);

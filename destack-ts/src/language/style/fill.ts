@@ -41,9 +41,7 @@ export enum FillType {
   IMAGE = 12,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FILL_TYPE, FillType);
@@ -65,9 +63,7 @@ export enum FillPosition {
   BOTTOM_RIGHT = 22,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FILL_POSITION, FillPosition);
@@ -84,9 +80,7 @@ export enum FillSize {
   TILE = 4,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FILL_SIZE, FillSize);
@@ -408,9 +402,7 @@ export class Fill extends Struct {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.FILL, Fill);
@@ -1039,9 +1031,7 @@ export class FillStyle extends Node implements Style {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FILL_STYLE, FillStyle);

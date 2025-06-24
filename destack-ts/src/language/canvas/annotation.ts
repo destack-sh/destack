@@ -1349,9 +1349,7 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ANNOTATION_SHAPE, AnnotationShape);

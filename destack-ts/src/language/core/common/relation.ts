@@ -39,9 +39,7 @@ export enum RelationType {
   TRAIT = 3,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.RELATION_TYPE, RelationType);
@@ -56,9 +54,7 @@ export enum AttributeType {
   FIELD = 2,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.ATTRIBUTE_TYPE, AttributeType);
@@ -74,9 +70,7 @@ export enum PropertyReferenceType {
   STRUCT = 3,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.PROPERTY_REFERENCE_TYPE, PropertyReferenceType);
@@ -252,9 +246,7 @@ export class Scope extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.SCOPE, Scope);
@@ -976,9 +968,7 @@ export class PropertyReference extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.PROPERTY_REFERENCE, PropertyReference);
@@ -1193,9 +1183,7 @@ export class NodeReference extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.NODE_REFERENCE, NodeReference);

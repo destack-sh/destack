@@ -37,9 +37,7 @@ export enum LineType {
   DOTTED = 3,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.LINE_TYPE, LineType);
@@ -926,9 +924,7 @@ export class LineShape extends Node implements ContentView, IsShape {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.LINE_SHAPE, LineShape);

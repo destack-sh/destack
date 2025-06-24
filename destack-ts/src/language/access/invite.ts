@@ -39,9 +39,7 @@ export enum InviteEventType {
   REJECTED = 4,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.INVITE_EVENT_TYPE, InviteEventType);
@@ -548,9 +546,7 @@ export class InviteEvent extends Node implements Event {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.INVITE_EVENT, InviteEvent);
@@ -1099,9 +1095,7 @@ export class Invite extends Node implements Global, Spatial, Entity, IsOwnable, 
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.INVITE, Invite);

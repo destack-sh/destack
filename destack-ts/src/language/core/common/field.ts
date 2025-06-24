@@ -64,9 +64,7 @@ export enum FieldType {
   OUTPUT = 3,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FIELD_TYPE, FieldType);
@@ -1141,9 +1139,7 @@ export class Field extends Node implements Spatial, Entity, HasName, HasIcon, Is
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FIELD, Field);

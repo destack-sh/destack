@@ -42,9 +42,7 @@ export enum NotificationStatus {
   RESCINDED = 5,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.NOTIFICATION_STATUS, NotificationStatus);
@@ -62,9 +60,7 @@ export enum NotificationEventType {
   EXPIRED = 5,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.NOTIFICATION_EVENT_TYPE, NotificationEventType);
@@ -464,9 +460,7 @@ export class NotificationEvent extends Node implements Event {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.NOTIFICATION_EVENT, NotificationEvent);
@@ -938,9 +932,7 @@ export class Notification extends Node implements Spatial, Entity, IsOwnable {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.NOTIFICATION, Notification);

@@ -41,9 +41,7 @@ export enum GradientType {
   CONIC = 12,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.GRADIENT_TYPE, GradientType);
@@ -217,9 +215,7 @@ export class GradientStop extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.GRADIENT_STOP, GradientStop);
@@ -499,9 +495,7 @@ export class Gradient extends Struct {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.GRADIENT, Gradient);
@@ -1116,9 +1110,7 @@ export class GradientStyle extends Node implements Style {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.GRADIENT_STYLE, GradientStyle);

@@ -1321,9 +1321,7 @@ export class LabelView extends Node implements ContainerView {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.LABEL_VIEW, LabelView);

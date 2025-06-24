@@ -42,9 +42,7 @@ export enum TriggerEventType {
   STOPPED = 3,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.TRIGGER_EVENT_TYPE, TriggerEventType);
@@ -58,9 +56,7 @@ export enum TriggerType {
   EVENT = 1,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.TRIGGER_TYPE, TriggerType);
@@ -460,9 +456,7 @@ export class TriggerEvent extends Node implements Event {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TRIGGER_EVENT, TriggerEvent);
@@ -997,9 +991,7 @@ export class Trigger extends Node implements Spatial, Entity, HasName {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TRIGGER, Trigger);

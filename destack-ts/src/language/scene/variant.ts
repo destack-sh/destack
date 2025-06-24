@@ -40,9 +40,7 @@ export enum VariantType {
   PLATFORM = 3,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.VARIANT_TYPE, VariantType);
@@ -57,9 +55,7 @@ export enum VariantStateType {
   ERROR = 11,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.VARIANT_STATE_TYPE, VariantStateType);
@@ -702,9 +698,7 @@ export class Variant extends Node implements Spatial, Entity, HasName, HasSlug, 
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.VARIANT, Variant);

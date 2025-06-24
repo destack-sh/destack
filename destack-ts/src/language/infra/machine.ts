@@ -33,9 +33,7 @@ export enum MachineType {
   CUSTOM = 9000,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.MACHINE_TYPE, MachineType);
@@ -756,9 +754,7 @@ export class Machine extends Node implements Spatial, Resource {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.MACHINE, Machine);

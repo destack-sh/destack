@@ -52,9 +52,7 @@ export interface View extends Spatial, Entity, IsDeletable, IsOrdered, HasName, 
   maxHeight: Dimension | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:9001 ==== */

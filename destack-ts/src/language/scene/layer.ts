@@ -58,9 +58,7 @@ export enum LayerType {
   SHAPE = 2,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.LAYER_TYPE, LayerType);
@@ -1428,9 +1426,7 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.LAYER, Layer);

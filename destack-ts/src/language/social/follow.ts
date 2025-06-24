@@ -439,9 +439,7 @@ export class Follow extends Node implements Global, Spatial, Entity, LikeFollow,
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FOLLOW, Follow);

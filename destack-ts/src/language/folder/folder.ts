@@ -45,9 +45,7 @@ export enum FolderType {
   APP = 5,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FOLDER_TYPE, FolderType);
@@ -722,9 +720,7 @@ export class Folder
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FOLDER, Folder);

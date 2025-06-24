@@ -539,9 +539,7 @@ export class Route extends Node implements Spatial, Entity, HasName, IsDeletable
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ROUTE, Route);

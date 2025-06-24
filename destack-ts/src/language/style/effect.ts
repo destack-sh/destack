@@ -49,9 +49,7 @@ export enum EffectType {
   LOOP = 30,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.EFFECT_TYPE, EffectType);
@@ -67,9 +65,7 @@ export enum RepeatType {
   MIRROR = 3,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.REPEAT_TYPE, RepeatType);
@@ -85,9 +81,7 @@ export enum TextSplitType {
   LINE = 3,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.TEXT_SPLIT_TYPE, TextSplitType);
@@ -102,9 +96,7 @@ export enum OffscreenBehavior {
   PAUSE = 2,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.OFFSCREEN_BEHAVIOR, OffscreenBehavior);
@@ -621,9 +613,7 @@ export class Effect extends Struct {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.EFFECT, Effect);
@@ -1450,9 +1440,7 @@ export class EffectStyle extends Node implements Style {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.EFFECT_STYLE, EffectStyle);

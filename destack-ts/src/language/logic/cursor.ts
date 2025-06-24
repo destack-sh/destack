@@ -45,9 +45,7 @@ export enum CursorStatus {
   COMPLETED = 53,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.CURSOR_STATUS, CursorStatus);
@@ -69,9 +67,7 @@ export interface Cursor extends Spatial, Entity {
   activeAt: Temporal.ZonedDateTime | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:3012 ==== */
@@ -532,9 +528,7 @@ export class EventCursor extends Node implements Cursor, IsOwnable {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.EVENT_CURSOR, EventCursor);
@@ -1024,9 +1018,7 @@ export class ScreenCursor extends Node implements Cursor, IsOwnable {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SCREEN_CURSOR, ScreenCursor);
@@ -1488,9 +1480,7 @@ export class ThreadCursor extends Node implements Cursor, IsOwnable {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.THREAD_CURSOR, ThreadCursor);

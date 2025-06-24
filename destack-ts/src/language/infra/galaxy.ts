@@ -160,9 +160,7 @@ export class GalaxyInfo extends Struct {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.GALAXY_INFO, GalaxyInfo);

@@ -39,9 +39,7 @@ export enum EntitlementEventType {
   EXPIRED = 4,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.ENTITLEMENT_EVENT_TYPE, EntitlementEventType);
@@ -56,9 +54,7 @@ export enum EntitlementType {
   ROLE = 2,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.ENTITLEMENT_TYPE, EntitlementType);
@@ -440,9 +436,7 @@ export class EntitlementEvent extends Node implements Event {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ENTITLEMENT_EVENT, EntitlementEvent);
@@ -913,9 +907,7 @@ export class Entitlement extends Node implements Spatial, Entity, IsDeletable {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ENTITLEMENT, Entitlement);

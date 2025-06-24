@@ -42,9 +42,7 @@ export enum InterruptionType {
   WAIT = 30,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.INTERRUPTION_TYPE, InterruptionType);
@@ -60,9 +58,7 @@ export enum InterruptionStatus {
   COMPLETED = 33,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.INTERRUPTION_STATUS, InterruptionStatus);
@@ -77,9 +73,7 @@ export enum InterruptionResponse {
   REJECT = 20,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.INTERRUPTION_RESPONSE, InterruptionResponse);
@@ -728,9 +722,7 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.INTERRUPTION, Interruption);

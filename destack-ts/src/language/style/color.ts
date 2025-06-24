@@ -43,9 +43,7 @@ export enum ColorType {
   P3 = 12,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.COLOR_TYPE, ColorType);
@@ -76,9 +74,7 @@ export enum ColorHue {
   ROSE = 47,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.COLOR_HUE, ColorHue);
@@ -103,9 +99,7 @@ export enum ColorShade {
   S950 = 950,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.COLOR_SHADE, ColorShade);
@@ -125,9 +119,7 @@ export enum ColorIntent {
   ERROR = 13,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.COLOR_INTENT, ColorIntent);
@@ -462,9 +454,7 @@ export class Color extends Struct {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.COLOR, Color);
@@ -1136,9 +1126,7 @@ export class ColorStyle extends Node implements Style {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.COLOR_STYLE, ColorStyle);

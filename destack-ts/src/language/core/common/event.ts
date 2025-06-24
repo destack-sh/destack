@@ -580,9 +580,7 @@ export class EditEvent extends Node implements Event, IsTaggable {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.EDIT_EVENT, EditEvent);
@@ -1028,9 +1026,7 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, HasN
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CUSTOM_EVENT_DEFINITION, CustomEventDefinition);
@@ -1457,9 +1453,7 @@ export class CustomEvent extends Node implements Event {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CUSTOM_EVENT, CustomEvent);

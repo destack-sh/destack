@@ -60,9 +60,7 @@ export enum SceneEventType {
   EXITED = 2,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.SCENE_EVENT_TYPE, SceneEventType);
@@ -462,9 +460,7 @@ export class SceneEvent extends Node implements Event {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SCENE_EVENT, SceneEvent);
@@ -1850,9 +1846,7 @@ export class Scene extends Node implements ContainerView, HasIcon, IsOwnable {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SCENE, Scene);

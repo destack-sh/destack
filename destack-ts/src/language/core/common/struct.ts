@@ -566,9 +566,7 @@ export class CustomStructDefinition
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CUSTOM_STRUCT_DEFINITION, CustomStructDefinition);

@@ -565,9 +565,7 @@ export class Script extends Node implements Spatial, Entity, HasName, IsOrdered,
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SCRIPT, Script);

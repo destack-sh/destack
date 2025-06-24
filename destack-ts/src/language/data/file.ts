@@ -41,9 +41,7 @@ export enum FileSource {
   EXTERNAL = 10,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FILE_SOURCE, FileSource);
@@ -59,9 +57,7 @@ export enum FileRetentionMode {
   TIMED = 3,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FILE_RETENTION_MODE, FileRetentionMode);
@@ -84,9 +80,7 @@ export enum FileType {
   GENERIC = 99,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FILE_TYPE, FileType);
@@ -185,9 +179,7 @@ export enum FileFormat {
   RPM = 90007,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FILE_FORMAT, FileFormat);
@@ -1020,9 +1012,7 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FILE, File);

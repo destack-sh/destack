@@ -51,9 +51,7 @@ export enum StringFormat {
   BASE64 = 20,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.STRING_FORMAT, StringFormat);
@@ -69,9 +67,7 @@ export enum NumberFormat {
   CURRENCY = 3,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.NUMBER_FORMAT, NumberFormat);
@@ -292,9 +288,7 @@ export class StringConstraint extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.STRING_CONSTRAINT, StringConstraint);
@@ -564,9 +558,7 @@ export class NumberConstraint extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.NUMBER_CONSTRAINT, NumberConstraint);
@@ -745,9 +737,7 @@ export class CollectionConstraint extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.COLLECTION_CONSTRAINT, CollectionConstraint);
@@ -972,9 +962,7 @@ export class NodeConstraint extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.NODE_CONSTRAINT, NodeConstraint);
@@ -1584,9 +1572,7 @@ export class Type extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.TYPE, Type);

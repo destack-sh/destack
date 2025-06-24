@@ -30,9 +30,7 @@ export enum Layout {
   GRID = 2,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.LAYOUT, Layout);
@@ -48,9 +46,7 @@ export enum Overflow {
   SCROLL = 4,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.OVERFLOW, Overflow);
@@ -65,9 +61,7 @@ export enum Direction {
   VERTICAL = 2,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.DIRECTION, Direction);
@@ -86,9 +80,7 @@ export enum Distribute {
   SPACE_EVENLY = 6,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.DISTRIBUTE, Distribute);
@@ -104,9 +96,7 @@ export enum Align {
   END = 3,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.ALIGN, Align);
@@ -123,9 +113,7 @@ export enum LengthUnit {
   FR = 4,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.LENGTH_UNIT, LengthUnit);
@@ -142,9 +130,7 @@ export enum PositionType {
   STICKY = 4,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.POSITION_TYPE, PositionType);
@@ -160,9 +146,7 @@ export enum DimensionType {
   FILL = 4,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.DIMENSION_TYPE, DimensionType);
@@ -329,9 +313,7 @@ export class Length extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.LENGTH, Length);
@@ -583,9 +565,7 @@ export class Position extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.POSITION, Position);
@@ -770,9 +750,7 @@ export class Dimension extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.DIMENSION, Dimension);
@@ -1008,9 +986,7 @@ export class Insets extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.INSETS, Insets);
@@ -1258,9 +1234,7 @@ export class Corners extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.CORNERS, Corners);
@@ -1463,9 +1437,7 @@ export class Axis2 extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.AXIS2, Axis2);
@@ -1692,9 +1664,7 @@ export class Axis3 extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.AXIS3, Axis3);
@@ -1861,9 +1831,7 @@ export class Vector2 extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.VECTOR2, Vector2);
@@ -2048,9 +2016,7 @@ export class Vector3 extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.VECTOR3, Vector3);
@@ -2253,9 +2219,7 @@ export class Vector4 extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.VECTOR4, Vector4);
@@ -2422,9 +2386,7 @@ export class Vector2i extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.VECTOR2I, Vector2i);
@@ -2609,9 +2571,7 @@ export class Vector3i extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.VECTOR3I, Vector3i);
@@ -2814,9 +2774,7 @@ export class Vector4i extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.VECTOR4I, Vector4i);
@@ -3073,9 +3031,7 @@ export class Grid extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.GRID, Grid);
@@ -3242,9 +3198,7 @@ export class GridSpan extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.GRID_SPAN, GridSpan);

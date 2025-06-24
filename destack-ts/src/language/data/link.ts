@@ -29,9 +29,7 @@ export enum LinkType {
   WEB = 1,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.LINK_TYPE, LinkType);
@@ -787,9 +785,7 @@ export class Link extends Node implements Spatial, Resource {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.LINK, Link);

@@ -909,9 +909,7 @@ export class TextView extends Node implements ContentView {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TEXT_VIEW, TextView);

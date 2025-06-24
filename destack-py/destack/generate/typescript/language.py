@@ -806,9 +806,7 @@ export class {definition.name} extends {"StructFrozen" if definition.is_frozen e
 {textwrap.indent("\n\n".join(struct_parts), "  ")}
 
   {MARKER_CUSTOM_START}
-
   // ...
-
   {MARKER_CUSTOM_END}
 }}
 registerStructClass(StructType.{definition.type.name}, {definition.name});
@@ -857,9 +855,7 @@ export interface {definition.alias}{extends_str} {{
 {textwrap.indent("\n".join(trait_parts), "  ")}
 
   {MARKER_CUSTOM_START}
-
   // ...
-
   {MARKER_CUSTOM_END}
 }}
 """
@@ -937,9 +933,7 @@ export class {definition.name} extends Node{implements_str} {{
 {textwrap.indent("\n\n".join(node_parts), "  ")}
 
   {MARKER_CUSTOM_START}
-
   // ...
-
   {MARKER_CUSTOM_END}
 }}
 registerNodeClass(NodeType.{definition.type.name}, {definition.name});
@@ -1154,12 +1148,11 @@ def _generate_file(
         if end_match is None or end_match.group(1) != kind or end_match.group(2).strip() != id_str:
             raise ValueError(f"no matching end marker for {kind}:{id_str}")
 
-        # look for custom content within the definition block
+        # parse custom content
         custom_content = ""
         custom_match = MARKER_CUSTOM_START_PATTERN.search(existing_content, start_match.end())
         if custom_match is not None and custom_match.start() < end_match.start():
             custom_start = custom_match.end()
-            # look for custom end marker
             custom_end_match = MARKER_CUSTOM_END_PATTERN.search(existing_content, custom_start)
             if custom_end_match is None or custom_end_match.start() >= end_match.start():
                 raise ValueError(
@@ -1188,9 +1181,9 @@ def _generate_file(
                 raise RuntimeError(
                     f"unknown definition: {key} in {file.path} (defines: {list(file.definitions.keys())})"
                 )
-            new_block = f"{MARKER_START.format(kind=definition.kind, id=definition.id)}\n"
+
+            # merge custom content
             if block.custom_content:
-                # find and replace the custom content region in definition_str
                 custom_start_match = MARKER_CUSTOM_START_PATTERN.search(definition.definition_str)
                 if custom_start_match is None:
                     raise ValueError(
@@ -1206,13 +1199,22 @@ def _generate_file(
                 # replace the custom region with block.custom_content
                 before_custom = definition.definition_str[: custom_start_match.start()]
                 after_custom = definition.definition_str[custom_end_match.end() :]
-                custom_region = (
-                    f"{MARKER_CUSTOM_START}\n\n{block.custom_content}\n\n{MARKER_CUSTOM_END}"
-                )
-                new_block += before_custom + custom_region + after_custom
+                if block.custom_content.count("\n") > 1:
+                    custom_region = (
+                        f"{MARKER_CUSTOM_START}\n\n{block.custom_content}\n\n{MARKER_CUSTOM_END}"
+                    )
+                else:
+                    custom_region = (
+                        f"{MARKER_CUSTOM_START}\n{block.custom_content}\n{MARKER_CUSTOM_END}"
+                    )
+                inner_str = before_custom + custom_region + after_custom
             else:
-                new_block += definition.definition_str
-            new_block += f"\n{MARKER_END.format(kind=definition.kind, id=definition.id)}"
+                inner_str = definition.definition_str
+
+            new_block = f"""\
+{MARKER_START.format(kind=definition.kind, id=definition.id)}
+{inner_str}
+{MARKER_END.format(kind=definition.kind, id=definition.id)}"""
             file_parts.append(new_block)
             seen_definitions.add(key)
         elif isinstance(block, TypescriptImportBlock):

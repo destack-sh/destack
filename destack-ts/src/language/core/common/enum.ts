@@ -566,9 +566,7 @@ export class CustomEnumDefinition
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CUSTOM_ENUM_DEFINITION, CustomEnumDefinition);

@@ -40,9 +40,7 @@ export enum FriendshipInviteEventType {
   REJECTED = 4,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FRIENDSHIP_INVITE_EVENT_TYPE, FriendshipInviteEventType);
@@ -414,9 +412,7 @@ export class Friendship extends Node implements Global, Entity {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FRIENDSHIP, Friendship);
@@ -816,9 +812,7 @@ export class FriendshipInviteEvent extends Node implements Event {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FRIENDSHIP_INVITE_EVENT, FriendshipInviteEvent);
@@ -1202,9 +1196,7 @@ export class FriendshipInvite extends Node implements Global, Entity, LikeInvite
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FRIENDSHIP_INVITE, FriendshipInvite);

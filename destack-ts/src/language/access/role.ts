@@ -40,9 +40,7 @@ export enum RoleEventType {
   REMOVED = 2,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.ROLE_EVENT_TYPE, RoleEventType);
@@ -442,9 +440,7 @@ export class RoleEvent extends Node implements Event {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ROLE_EVENT, RoleEvent);
@@ -949,9 +945,7 @@ export class Role
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ROLE, Role);

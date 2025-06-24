@@ -55,9 +55,7 @@ export enum FunctionType {
   POWER = 6,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FUNCTION_TYPE, FunctionType);
@@ -86,9 +84,7 @@ export enum ConditionalType {
   NOT_EXISTS = 41,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.CONDITIONAL_TYPE, ConditionalType);
@@ -107,9 +103,7 @@ export enum AggregationType {
   AVERAGE = 6,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.AGGREGATION_TYPE, AggregationType);
@@ -127,9 +121,7 @@ export enum ExpressionType {
   AGGREGATION = 5,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.EXPRESSION_TYPE, ExpressionType);
@@ -144,9 +136,7 @@ export enum SortType {
   DESCENDING = 2,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.SORT_TYPE, SortType);
@@ -164,9 +154,7 @@ export enum SortMode {
   MEDIAN = 5,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.SORT_MODE, SortMode);
@@ -182,9 +170,7 @@ export enum JoinType {
   CHILD = 11,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.JOIN_TYPE, JoinType);
@@ -201,9 +187,7 @@ export enum QueryType {
   GROUPED_SCALAR = 11,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.QUERY_TYPE, QueryType);
@@ -218,9 +202,7 @@ export enum QueryUpdateType {
   PARTIAL_RESULT = 2,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.QUERY_UPDATE_TYPE, QueryUpdateType);
@@ -2295,9 +2277,7 @@ export class Query extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.QUERY, Query);
@@ -2522,9 +2502,7 @@ export class Histogram extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.HISTOGRAM, Histogram);
@@ -2884,9 +2862,7 @@ export class QueryResult extends Struct {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.QUERY_RESULT, QueryResult);
@@ -3149,9 +3125,7 @@ export class QueryResultGroup extends Struct {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.QUERY_RESULT_GROUP, QueryResultGroup);
@@ -3328,9 +3302,7 @@ export class QueryUpdate extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.QUERY_UPDATE, QueryUpdate);
@@ -3461,9 +3433,7 @@ export class Selection extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.SELECTION, Selection);

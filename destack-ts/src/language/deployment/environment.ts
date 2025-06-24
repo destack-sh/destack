@@ -442,9 +442,7 @@ export class Environment extends Node implements Spatial, Entity, HasName, HasIc
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ENVIRONMENT, Environment);

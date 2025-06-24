@@ -437,9 +437,7 @@ export class Star extends Node implements Global, Spatial, Entity, IsDeletable, 
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.STAR, Star);

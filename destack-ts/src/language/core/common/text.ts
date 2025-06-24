@@ -15,9 +15,7 @@ export enum TextSpanType {
   EQUATION = 20,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.TEXT_SPAN_TYPE, TextSpanType);
@@ -369,9 +367,7 @@ export class TextSpan extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.TEXT_SPAN, TextSpan);
@@ -663,9 +659,7 @@ export class Text extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.TEXT, Text);
