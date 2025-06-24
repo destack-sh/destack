@@ -4,5 +4,9 @@ import { Entity, HasName, IsDeletable, IsOrdered, IsTaggable, IsVisual, Spatial 
 /**
  * A Style is a style definition.
  */
-export interface Style extends Spatial, Entity, IsDeletable, IsOrdered, HasName, IsTaggable, IsVisual {}
+export interface Style extends Spatial, Entity, IsDeletable, IsOrdered, HasName, IsTaggable, IsVisual {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
 /* ==== DESTACK_GENERATED_END:TRAIT:12000 ==== */

@@ -1,6 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Axis2,
+  EnumType,
   Graph,
   IsSubject,
   MaterializationType,
@@ -14,6 +15,7 @@ import {
   Supergraph,
   TraitType,
 } from "@destack/language/core";
+import { registerEnumClass, registerNodeClass, registerStructClass } from "@destack/language/registry";
 import { Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Color, Style, Theme } from "@destack/language/style";
@@ -35,7 +37,14 @@ export enum ShadowType {
   STYLE = 2,
   BOX = 10,
   REALISTIC = 11,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.SHADOW_TYPE, ShadowType);
 /* ==== DESTACK_GENERATED_END:ENUM:12030 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12031 ==== */
@@ -45,7 +54,14 @@ export enum ShadowType {
 export enum ShadowPosition {
   OUTSIDE = 1,
   INSIDE = 2,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.SHADOW_POSITION, ShadowPosition);
 /* ==== DESTACK_GENERATED_END:ENUM:12031 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12012 ==== */
@@ -360,7 +376,14 @@ export class Shadow extends Struct {
   ): Shadow {
     return Shadow.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.SHADOW, Shadow);
 /* ==== DESTACK_GENERATED_END:STRUCT:12012 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:12024 ==== */
@@ -985,5 +1008,12 @@ export class ShadowStyle extends Node implements Style {
   ): ShadowStyle {
     return ShadowStyle.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.SHADOW_STYLE, ShadowStyle);
 /* ==== DESTACK_GENERATED_END:NODE:12024 ==== */

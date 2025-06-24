@@ -7,6 +7,7 @@ import {
   Dimension,
   Direction,
   Distribute,
+  EnumType,
   Graph,
   Grid,
   GridSpan,
@@ -27,6 +28,7 @@ import {
   Vector2,
 } from "@destack/language/core";
 import { Script } from "@destack/language/logic";
+import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Layer, Scene, Window } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Border, Fill, Shadow } from "@destack/language/style";
@@ -48,7 +50,14 @@ import { Temporal } from "temporal-polyfill";
  */
 export enum CanvasType {
   SHAPE = 1,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.CANVAS_TYPE, CanvasType);
 /* ==== DESTACK_GENERATED_END:ENUM:11000 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:11000 ==== */
@@ -1351,5 +1360,12 @@ export class Canvas extends Node implements ContainerView {
   ): Canvas {
     return Canvas.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.CANVAS, Canvas);
 /* ==== DESTACK_GENERATED_END:NODE:11000 ==== */

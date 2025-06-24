@@ -1,6 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Entity,
+  EnumType,
   Graph,
   HasIcon,
   HasName,
@@ -26,6 +27,7 @@ import {
   Supergraph,
   TraitType,
 } from "@destack/language/core";
+import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { FolderProto, FolderTypeProto, MaterializationTypeProto } from "@destack/proto";
@@ -41,7 +43,14 @@ export enum FolderType {
   GENERAL = 3,
   MODULE = 4,
   APP = 5,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.FOLDER_TYPE, FolderType);
 /* ==== DESTACK_GENERATED_END:ENUM:1000 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:1000 ==== */
@@ -711,5 +720,12 @@ export class Folder
   ): Folder {
     return Folder.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.FOLDER, Folder);
 /* ==== DESTACK_GENERATED_END:NODE:1000 ==== */

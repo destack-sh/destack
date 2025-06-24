@@ -1,5 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import { Session, Struct, StructType, Supergraph } from "@destack/language/core";
+import { EnumType, Session, Struct, StructType, Supergraph } from "@destack/language/core";
+import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { DayOfWeekProto, MonthProto, ScheduleFrequencyProto, ScheduleProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
 
@@ -15,7 +16,14 @@ export enum DayOfWeek {
   FRIDAY = 5,
   SATURDAY = 6,
   SUNDAY = 7,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.DAY_OF_WEEK, DayOfWeek);
 /* ==== DESTACK_GENERATED_END:ENUM:3051 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:3052 ==== */
@@ -35,7 +43,14 @@ export enum Month {
   OCTOBER = 10,
   NOVEMBER = 11,
   DECEMBER = 12,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.MONTH, Month);
 /* ==== DESTACK_GENERATED_END:ENUM:3052 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:3050 ==== */
@@ -49,7 +64,14 @@ export enum ScheduleFrequency {
   DAY = 4,
   HOUR = 5,
   MINUTE = 6,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.SCHEDULE_FREQUENCY, ScheduleFrequency);
 /* ==== DESTACK_GENERATED_END:ENUM:3050 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:3001 ==== */
@@ -750,5 +772,12 @@ export class Schedule extends Struct {
   ): Schedule {
     return Schedule.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.SCHEDULE, Schedule);
 /* ==== DESTACK_GENERATED_END:STRUCT:3001 ==== */

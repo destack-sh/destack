@@ -3,6 +3,7 @@ import { IsShape } from "@destack/language/canvas";
 import {
   Align,
   Dimension,
+  EnumType,
   Graph,
   IsSubject,
   MaterializationType,
@@ -18,6 +19,7 @@ import {
   Vector2,
 } from "@destack/language/core";
 import { Script } from "@destack/language/logic";
+import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Layer, Scene, Window } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Color } from "@destack/language/style";
@@ -33,7 +35,14 @@ export enum LineType {
   SOLID = 1,
   DASHED = 2,
   DOTTED = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.LINE_TYPE, LineType);
 /* ==== DESTACK_GENERATED_END:ENUM:11010 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:11010 ==== */
@@ -915,5 +924,12 @@ export class LineShape extends Node implements ContentView, IsShape {
   ): LineShape {
     return LineShape.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.LINE_SHAPE, LineShape);
 /* ==== DESTACK_GENERATED_END:NODE:11010 ==== */

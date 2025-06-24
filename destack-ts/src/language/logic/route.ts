@@ -21,6 +21,7 @@ import {
   TraitType,
 } from "@destack/language/core";
 import { Folder } from "@destack/language/folder";
+import { registerNodeClass } from "@destack/language/registry";
 import { Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { MaterializationTypeProto, RouteProto } from "@destack/proto";
@@ -536,5 +537,12 @@ export class Route extends Node implements Spatial, Entity, HasName, IsDeletable
   ): Route {
     return Route.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.ROUTE, Route);
 /* ==== DESTACK_GENERATED_END:NODE:3030 ==== */

@@ -1,6 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Entity,
+  EnumType,
   Graph,
   IsOwnable,
   IsOwner,
@@ -17,6 +18,7 @@ import {
   TraitType,
   Vector2i,
 } from "@destack/language/core";
+import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import {
   CursorStatusProto,
@@ -41,7 +43,14 @@ export enum CursorStatus {
   IDLE = 30,
   CANGALAXYED = 50,
   COMPLETED = 53,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.CURSOR_STATUS, CursorStatus);
 /* ==== DESTACK_GENERATED_END:ENUM:3100 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:3012 ==== */
@@ -58,6 +67,12 @@ export interface Cursor extends Spatial, Entity {
    * Cursor.activeAt
    */
   activeAt: Temporal.ZonedDateTime | null;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:3012 ==== */
 
@@ -515,7 +530,14 @@ export class EventCursor extends Node implements Cursor, IsOwnable {
   ): EventCursor {
     return EventCursor.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.EVENT_CURSOR, EventCursor);
 /* ==== DESTACK_GENERATED_END:NODE:3100 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:3101 ==== */
@@ -1000,7 +1022,14 @@ export class ScreenCursor extends Node implements Cursor, IsOwnable {
   ): ScreenCursor {
     return ScreenCursor.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.SCREEN_CURSOR, ScreenCursor);
 /* ==== DESTACK_GENERATED_END:NODE:3101 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:3102 ==== */
@@ -1457,5 +1486,12 @@ export class ThreadCursor extends Node implements Cursor, IsOwnable {
   ): ThreadCursor {
     return ThreadCursor.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.THREAD_CURSOR, ThreadCursor);
 /* ==== DESTACK_GENERATED_END:NODE:3102 ==== */

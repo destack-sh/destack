@@ -1,6 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Entity,
+  EnumType,
   Event,
   Graph,
   HasName,
@@ -17,6 +18,7 @@ import {
   TraitType,
 } from "@destack/language/core";
 import { Schedule } from "@destack/language/logic";
+import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import {
   MaterializationTypeProto,
@@ -35,7 +37,14 @@ export enum TimerEventType {
   STARTED = 1,
   STOPPED = 2,
   EXPIRED = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.TIMER_EVENT_TYPE, TimerEventType);
 /* ==== DESTACK_GENERATED_END:ENUM:3054 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:3053 ==== */
@@ -45,7 +54,14 @@ export enum TimerEventType {
 export enum TimerType {
   ONCE = 1,
   RECURRING = 2,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.TIMER_TYPE, TimerType);
 /* ==== DESTACK_GENERATED_END:ENUM:3053 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:3051 ==== */
@@ -440,7 +456,14 @@ export class TimerEvent extends Node implements Event {
   ): TimerEvent {
     return TimerEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.TIMER_EVENT, TimerEvent);
 /* ==== DESTACK_GENERATED_END:NODE:3051 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:3050 ==== */
@@ -863,5 +886,12 @@ export class Timer extends Node implements Spatial, Entity, HasName {
   ): Timer {
     return Timer.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.TIMER, Timer);
 /* ==== DESTACK_GENERATED_END:NODE:3050 ==== */

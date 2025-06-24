@@ -20,6 +20,7 @@ import {
   Supergraph,
   TraitType,
 } from "@destack/language/core";
+import { registerNodeClass } from "@destack/language/registry";
 import { MaterializationTypeProto, TeamProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
 
@@ -415,5 +416,12 @@ export class Team extends Node implements Global, Entity, HasSlug, HasIcon, HasN
   ): Team {
     return Team.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.TEAM, Team);
 /* ==== DESTACK_GENERATED_END:NODE:50 ==== */

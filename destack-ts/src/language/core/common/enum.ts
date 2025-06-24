@@ -23,6 +23,7 @@ import {
   Value,
 } from "@destack/language/core";
 import { Script } from "@destack/language/logic";
+import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { CustomEnumDefinitionProto, MaterializationTypeProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
@@ -563,5 +564,12 @@ export class CustomEnumDefinition
   ): CustomEnumDefinition {
     return CustomEnumDefinition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.CUSTOM_ENUM_DEFINITION, CustomEnumDefinition);
 /* ==== DESTACK_GENERATED_END:NODE:2510 ==== */

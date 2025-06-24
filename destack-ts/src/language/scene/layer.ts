@@ -8,6 +8,7 @@ import {
   Dimension,
   Direction,
   Distribute,
+  EnumType,
   Graph,
   Grid,
   GridSpan,
@@ -32,6 +33,7 @@ import {
   Vector2,
 } from "@destack/language/core";
 import { Script } from "@destack/language/logic";
+import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Border, Fill, Shadow } from "@destack/language/style";
@@ -54,7 +56,14 @@ import { Temporal } from "temporal-polyfill";
 export enum LayerType {
   GENERAL = 1,
   SHAPE = 2,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.LAYER_TYPE, LayerType);
 /* ==== DESTACK_GENERATED_END:ENUM:9020 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:9020 ==== */
@@ -1417,5 +1426,12 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
   ): Layer {
     return Layer.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.LAYER, Layer);
 /* ==== DESTACK_GENERATED_END:NODE:9020 ==== */

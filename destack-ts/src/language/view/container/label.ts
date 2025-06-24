@@ -27,6 +27,7 @@ import {
   Vector2,
 } from "@destack/language/core";
 import { Script } from "@destack/language/logic";
+import { registerNodeClass } from "@destack/language/registry";
 import { Layer, Scene, Window } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Border, Fill, Shadow } from "@destack/language/style";
@@ -1318,5 +1319,12 @@ export class LabelView extends Node implements ContainerView {
   ): LabelView {
     return LabelView.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.LABEL_VIEW, LabelView);
 /* ==== DESTACK_GENERATED_END:NODE:10030 ==== */

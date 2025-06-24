@@ -1,5 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
+  EnumType,
   Field,
   IsSubject,
   Node,
@@ -11,6 +12,7 @@ import {
   Supergraph,
   Value,
 } from "@destack/language/core";
+import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { Origin } from "@destack/language/space";
 import {
   ChangeDebounceProto,
@@ -38,7 +40,14 @@ export enum EditType {
   DELETE = 7,
   RESTORE = 8,
   ERASE = 9,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.EDIT_TYPE, EditType);
 /* ==== DESTACK_GENERATED_END:ENUM:50050 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50051 ==== */
@@ -48,7 +57,14 @@ export enum EditType {
 export enum EditOperation {
   SET = 1,
   CLEAR = 2,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.EDIT_OPERATION, EditOperation);
 /* ==== DESTACK_GENERATED_END:ENUM:50051 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50052 ==== */
@@ -59,7 +75,14 @@ export enum ChangeStatus {
   COMPLETED = 10,
   FAILED = 12,
   REJECTED = 13,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.CHANGE_STATUS, ChangeStatus);
 /* ==== DESTACK_GENERATED_END:ENUM:50052 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50053 ==== */
@@ -68,7 +91,14 @@ export enum ChangeStatus {
  */
 export enum ChangeDebounce {
   LAZY = 10,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.CHANGE_DEBOUNCE, ChangeDebounce);
 /* ==== DESTACK_GENERATED_END:ENUM:50053 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50020 ==== */
@@ -434,7 +464,14 @@ export class Edit extends StructFrozen {
   ): Edit {
     return Edit.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.EDIT, Edit);
 /* ==== DESTACK_GENERATED_END:STRUCT:50020 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50021 ==== */
@@ -765,7 +802,14 @@ export class Change extends StructFrozen {
   ): Change {
     return Change.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.CHANGE, Change);
 /* ==== DESTACK_GENERATED_END:STRUCT:50021 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50022 ==== */
@@ -1069,5 +1113,12 @@ export class ChangeResult extends StructFrozen {
   ): ChangeResult {
     return ChangeResult.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.CHANGE_RESULT, ChangeResult);
 /* ==== DESTACK_GENERATED_END:STRUCT:50022 ==== */

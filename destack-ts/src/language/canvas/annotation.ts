@@ -29,6 +29,7 @@ import {
   Vector2,
 } from "@destack/language/core";
 import { Script } from "@destack/language/logic";
+import { registerNodeClass } from "@destack/language/registry";
 import { Layer, Scene, Window } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Border, Fill, Shadow } from "@destack/language/style";
@@ -1346,5 +1347,12 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
   ): AnnotationShape {
     return AnnotationShape.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.ANNOTATION_SHAPE, AnnotationShape);
 /* ==== DESTACK_GENERATED_END:NODE:11013 ==== */

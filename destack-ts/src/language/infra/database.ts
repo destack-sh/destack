@@ -1,5 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
+  EnumType,
   Graph,
   HasName,
   IsSubject,
@@ -19,6 +20,7 @@ import {
   Tenancy,
   TraitType,
 } from "@destack/language/core";
+import { registerEnumClass, registerNodeClass, registerStructClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import {
   DatabaseInfoProto,
@@ -37,7 +39,14 @@ import { Temporal } from "temporal-polyfill";
  */
 export enum DatabaseType {
   POSTGRES = 1,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.DATABASE_TYPE, DatabaseType);
 /* ==== DESTACK_GENERATED_END:ENUM:7505 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:7501 ==== */
@@ -289,7 +298,14 @@ export class DatabaseInfo extends Struct {
   ): DatabaseInfo {
     return DatabaseInfo.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.DATABASE_INFO, DatabaseInfo);
 /* ==== DESTACK_GENERATED_END:STRUCT:7501 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:7500 ==== */
@@ -858,5 +874,12 @@ export class Database extends Node implements Spatial, Resource, HasName {
   ): Database {
     return Database.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.DATABASE, Database);
 /* ==== DESTACK_GENERATED_END:NODE:7500 ==== */

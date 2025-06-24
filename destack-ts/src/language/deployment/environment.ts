@@ -18,6 +18,7 @@ import {
   Supergraph,
   TraitType,
 } from "@destack/language/core";
+import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { EnvironmentProto, MaterializationTypeProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
@@ -439,5 +440,12 @@ export class Environment extends Node implements Spatial, Entity, HasName, HasIc
   ): Environment {
     return Environment.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.ENVIRONMENT, Environment);
 /* ==== DESTACK_GENERATED_END:NODE:4500 ==== */

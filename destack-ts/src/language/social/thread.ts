@@ -1,6 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Entity,
+  EnumType,
   Graph,
   HasName,
   IsDeletable,
@@ -21,6 +22,7 @@ import {
   TraitType,
 } from "@destack/language/core";
 import { Folder } from "@destack/language/folder";
+import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { MaterializationTypeProto, ThreadProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
@@ -32,7 +34,14 @@ import { Temporal } from "temporal-polyfill";
 export enum ThreadStatus {
   OPEN = 10,
   CLOSED = 30,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.THREAD_STATUS, ThreadStatus);
 /* ==== DESTACK_GENERATED_END:ENUM:5500 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:5500 ==== */
@@ -505,5 +514,12 @@ export class Thread extends Node implements Spatial, Entity, HasName, IsTaggable
   ): Thread {
     return Thread.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.THREAD, Thread);
 /* ==== DESTACK_GENERATED_END:NODE:5500 ==== */

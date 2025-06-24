@@ -1,6 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Entity,
+  EnumType,
   Event,
   Global,
   Graph,
@@ -17,6 +18,7 @@ import {
   Supergraph,
   TraitType,
 } from "@destack/language/core";
+import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space, User } from "@destack/language/space";
 import {
   FriendshipInviteEventProto,
@@ -36,7 +38,14 @@ export enum FriendshipInviteEventType {
   RESCINDED = 2,
   ACCEPTED = 3,
   REJECTED = 4,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.FRIENDSHIP_INVITE_EVENT_TYPE, FriendshipInviteEventType);
 /* ==== DESTACK_GENERATED_END:ENUM:31 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:30 ==== */
@@ -403,7 +412,14 @@ export class Friendship extends Node implements Global, Entity {
   ): Friendship {
     return Friendship.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.FRIENDSHIP, Friendship);
 /* ==== DESTACK_GENERATED_END:NODE:30 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:32 ==== */
@@ -798,7 +814,14 @@ export class FriendshipInviteEvent extends Node implements Event {
   ): FriendshipInviteEvent {
     return FriendshipInviteEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.FRIENDSHIP_INVITE_EVENT, FriendshipInviteEvent);
 /* ==== DESTACK_GENERATED_END:NODE:32 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:31 ==== */
@@ -1177,5 +1200,12 @@ export class FriendshipInvite extends Node implements Global, Entity, LikeInvite
   ): FriendshipInvite {
     return FriendshipInvite.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.FRIENDSHIP_INVITE, FriendshipInvite);
 /* ==== DESTACK_GENERATED_END:NODE:31 ==== */

@@ -36,6 +36,7 @@ import {
   Value,
 } from "@destack/language/core";
 import { Script } from "@destack/language/logic";
+import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import {
   CascadeActionProto,
@@ -61,7 +62,14 @@ export enum FieldType {
   MEMBER = 1,
   INPUT = 2,
   OUTPUT = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.FIELD_TYPE, FieldType);
 /* ==== DESTACK_GENERATED_END:ENUM:2580 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:2520 ==== */
@@ -1131,5 +1139,12 @@ export class Field extends Node implements Spatial, Entity, HasName, HasIcon, Is
   ): Field {
     return Field.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.FIELD, Field);
 /* ==== DESTACK_GENERATED_END:NODE:2520 ==== */

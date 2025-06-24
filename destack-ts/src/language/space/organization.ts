@@ -1,6 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Entity,
+  EnumType,
   Global,
   Graph,
   HasIcon,
@@ -20,6 +21,7 @@ import {
   Supergraph,
   TraitType,
 } from "@destack/language/core";
+import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Handle, Space } from "@destack/language/space";
 import { MaterializationTypeProto, OrganizationProto, OrganizationStatusProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
@@ -31,7 +33,14 @@ import { Temporal } from "temporal-polyfill";
 export enum OrganizationStatus {
   CREATING = 1,
   ACTIVE = 10,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.ORGANIZATION_STATUS, OrganizationStatus);
 /* ==== DESTACK_GENERATED_END:ENUM:40 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:40 ==== */
@@ -512,5 +521,12 @@ export class Organization extends Node implements Global, Entity, HasSlug, HasIc
   ): Organization {
     return Organization.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.ORGANIZATION, Organization);
 /* ==== DESTACK_GENERATED_END:NODE:40 ==== */

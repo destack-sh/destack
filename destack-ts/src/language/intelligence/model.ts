@@ -1,3 +1,6 @@
+import { EnumType } from "@destack/language/core";
+import { registerEnumClass } from "@destack/language/registry";
+
 /* ==== DESTACK_GENERATED_START:ENUM:8000 ==== */
 /**
  * ModelDeveloper
@@ -7,7 +10,14 @@ export enum ModelDeveloper {
   ANTHROPIC = 1020,
   GOOGLE = 1030,
   XAI = 1060,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.MODEL_DEVELOPER, ModelDeveloper);
 /* ==== DESTACK_GENERATED_END:ENUM:8000 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:8001 ==== */
@@ -20,5 +30,12 @@ export enum ModelProvider {
   ANTHROPIC = 1020,
   GOOGLE = 1030,
   XAI = 1040,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.MODEL_PROVIDER, ModelProvider);
 /* ==== DESTACK_GENERATED_END:ENUM:8001 ==== */

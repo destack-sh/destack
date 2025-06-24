@@ -1,4 +1,5 @@
-import { Session, StructFrozen, StructType, Supergraph } from "@destack/language/core";
+import { EnumType, Session, StructFrozen, StructType, Supergraph } from "@destack/language/core";
+import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import {
   Axis2Proto,
   Axis3Proto,
@@ -27,7 +28,14 @@ import {
 export enum Layout {
   STACK = 1,
   GRID = 2,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.LAYOUT, Layout);
 /* ==== DESTACK_GENERATED_END:ENUM:12038 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12042 ==== */
@@ -38,7 +46,14 @@ export enum Overflow {
   HIDDEN = 2,
   VISIBLE = 3,
   SCROLL = 4,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.OVERFLOW, Overflow);
 /* ==== DESTACK_GENERATED_END:ENUM:12042 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12041 ==== */
@@ -48,7 +63,14 @@ export enum Overflow {
 export enum Direction {
   HORIZONTAL = 1,
   VERTICAL = 2,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.DIRECTION, Direction);
 /* ==== DESTACK_GENERATED_END:ENUM:12041 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12039 ==== */
@@ -62,7 +84,14 @@ export enum Distribute {
   SPACE_BETWEEN = 4,
   SPACE_AROUND = 5,
   SPACE_EVENLY = 6,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.DISTRIBUTE, Distribute);
 /* ==== DESTACK_GENERATED_END:ENUM:12039 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12040 ==== */
@@ -73,7 +102,14 @@ export enum Align {
   START = 1,
   CENTER = 2,
   END = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.ALIGN, Align);
 /* ==== DESTACK_GENERATED_END:ENUM:12040 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12037 ==== */
@@ -85,7 +121,14 @@ export enum LengthUnit {
   REM = 2,
   PERCENT = 3,
   FR = 4,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.LENGTH_UNIT, LengthUnit);
 /* ==== DESTACK_GENERATED_END:ENUM:12037 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12000 ==== */
@@ -97,7 +140,14 @@ export enum PositionType {
   ABSOLUTE = 2,
   FIXED = 3,
   STICKY = 4,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.POSITION_TYPE, PositionType);
 /* ==== DESTACK_GENERATED_END:ENUM:12000 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12045 ==== */
@@ -108,7 +158,14 @@ export enum DimensionType {
   FIXED = 2,
   FIT = 3,
   FILL = 4,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.DIMENSION_TYPE, DimensionType);
 /* ==== DESTACK_GENERATED_END:ENUM:12045 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12018 ==== */
@@ -270,7 +327,14 @@ export class Length extends StructFrozen {
   ): Length {
     return Length.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.LENGTH, Length);
 /* ==== DESTACK_GENERATED_END:STRUCT:12018 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12020 ==== */
@@ -517,7 +581,14 @@ export class Position extends StructFrozen {
   ): Position {
     return Position.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.POSITION, Position);
 /* ==== DESTACK_GENERATED_END:STRUCT:12020 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12022 ==== */
@@ -697,7 +768,14 @@ export class Dimension extends StructFrozen {
   ): Dimension {
     return Dimension.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.DIMENSION, Dimension);
 /* ==== DESTACK_GENERATED_END:STRUCT:12022 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12030 ==== */
@@ -928,7 +1006,14 @@ export class Insets extends StructFrozen {
   ): Insets {
     return Insets.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.INSETS, Insets);
 /* ==== DESTACK_GENERATED_END:STRUCT:12030 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12032 ==== */
@@ -1171,7 +1256,14 @@ export class Corners extends StructFrozen {
   ): Corners {
     return Corners.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.CORNERS, Corners);
 /* ==== DESTACK_GENERATED_END:STRUCT:12032 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50207 ==== */
@@ -1369,7 +1461,14 @@ export class Axis2 extends StructFrozen {
   ): Axis2 {
     return Axis2.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.AXIS2, Axis2);
 /* ==== DESTACK_GENERATED_END:STRUCT:50207 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50209 ==== */
@@ -1591,7 +1690,14 @@ export class Axis3 extends StructFrozen {
   ): Axis3 {
     return Axis3.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.AXIS3, Axis3);
 /* ==== DESTACK_GENERATED_END:STRUCT:50209 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50200 ==== */
@@ -1753,7 +1859,14 @@ export class Vector2 extends StructFrozen {
   ): Vector2 {
     return Vector2.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.VECTOR2, Vector2);
 /* ==== DESTACK_GENERATED_END:STRUCT:50200 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50201 ==== */
@@ -1933,7 +2046,14 @@ export class Vector3 extends StructFrozen {
   ): Vector3 {
     return Vector3.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.VECTOR3, Vector3);
 /* ==== DESTACK_GENERATED_END:STRUCT:50201 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50202 ==== */
@@ -2131,7 +2251,14 @@ export class Vector4 extends StructFrozen {
   ): Vector4 {
     return Vector4.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.VECTOR4, Vector4);
 /* ==== DESTACK_GENERATED_END:STRUCT:50202 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50203 ==== */
@@ -2293,7 +2420,14 @@ export class Vector2i extends StructFrozen {
   ): Vector2i {
     return Vector2i.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.VECTOR2I, Vector2i);
 /* ==== DESTACK_GENERATED_END:STRUCT:50203 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50204 ==== */
@@ -2473,7 +2607,14 @@ export class Vector3i extends StructFrozen {
   ): Vector3i {
     return Vector3i.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.VECTOR3I, Vector3i);
 /* ==== DESTACK_GENERATED_END:STRUCT:50204 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50205 ==== */
@@ -2671,7 +2812,14 @@ export class Vector4i extends StructFrozen {
   ): Vector4i {
     return Vector4i.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.VECTOR4I, Vector4i);
 /* ==== DESTACK_GENERATED_END:STRUCT:50205 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12026 ==== */
@@ -2923,7 +3071,14 @@ export class Grid extends StructFrozen {
   ): Grid {
     return Grid.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.GRID, Grid);
 /* ==== DESTACK_GENERATED_END:STRUCT:12026 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12028 ==== */
@@ -3085,5 +3240,12 @@ export class GridSpan extends StructFrozen {
   ): GridSpan {
     return GridSpan.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.GRID_SPAN, GridSpan);
 /* ==== DESTACK_GENERATED_END:STRUCT:12028 ==== */

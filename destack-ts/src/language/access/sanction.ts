@@ -1,6 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Entity,
+  EnumType,
   Event,
   Graph,
   IsDeletable,
@@ -17,6 +18,7 @@ import {
   Supergraph,
   TraitType,
 } from "@destack/language/core";
+import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { MaterializationTypeProto, SanctionEventProto, SanctionProto, SanctionTypeProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
@@ -30,7 +32,14 @@ export enum SanctionEventType {
   GRANTED = 2,
   REVOKED = 3,
   EXPIRED = 4,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.SANCTION_EVENT_TYPE, SanctionEventType);
 /* ==== DESTACK_GENERATED_END:ENUM:541 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:540 ==== */
@@ -40,7 +49,14 @@ export enum SanctionEventType {
 export enum SanctionType {
   BAN = 1,
   MUTE = 2,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.SANCTION_TYPE, SanctionType);
 /* ==== DESTACK_GENERATED_END:ENUM:540 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:541 ==== */
@@ -417,7 +433,14 @@ export class SanctionEvent extends Node implements Event {
   ): SanctionEvent {
     return SanctionEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.SANCTION_EVENT, SanctionEvent);
 /* ==== DESTACK_GENERATED_END:NODE:541 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:540 ==== */
@@ -883,5 +906,12 @@ export class Sanction extends Node implements Spatial, Entity, IsDeletable {
   ): Sanction {
     return Sanction.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.SANCTION, Sanction);
 /* ==== DESTACK_GENERATED_END:NODE:540 ==== */

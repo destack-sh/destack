@@ -1,6 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Entity,
+  EnumType,
   Graph,
   HasName,
   IsActionable,
@@ -24,6 +25,7 @@ import {
   Value,
 } from "@destack/language/core";
 import { Script } from "@destack/language/logic";
+import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { ActionCardinalityProto, ActionProto, MaterializationTypeProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
@@ -34,7 +36,14 @@ import { Temporal } from "temporal-polyfill";
  */
 export enum ActionCardinality {
   UNARY = 1,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.ACTION_CARDINALITY, ActionCardinality);
 /* ==== DESTACK_GENERATED_END:ENUM:3020 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:3020 ==== */
@@ -601,5 +610,12 @@ export class Action
   ): Action {
     return Action.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.ACTION, Action);
 /* ==== DESTACK_GENERATED_END:NODE:3020 ==== */

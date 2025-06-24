@@ -15,6 +15,7 @@ import {
   TraitType,
 } from "@destack/language/core";
 import { Script } from "@destack/language/logic";
+import { registerNodeClass } from "@destack/language/registry";
 import { Layer, Scene, Window } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { ContainerView, InternalView } from "@destack/language/view";
@@ -740,5 +741,12 @@ export class WizardView extends Node implements InternalView {
   ): WizardView {
     return WizardView.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.WIZARD_VIEW, WizardView);
 /* ==== DESTACK_GENERATED_END:NODE:10650 ==== */

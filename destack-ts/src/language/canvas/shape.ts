@@ -2,5 +2,9 @@
 /**
  * A Node that is a Shape.
  */
-export interface IsShape {}
+export interface IsShape {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
 /* ==== DESTACK_GENERATED_END:TRAIT:11000 ==== */

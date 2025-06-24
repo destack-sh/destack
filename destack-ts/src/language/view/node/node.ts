@@ -4,5 +4,9 @@ import { View } from "@destack/language/view";
 /**
  * A node View.
  */
-export interface NodeView extends View {}
+export interface NodeView extends View {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
 /* ==== DESTACK_GENERATED_END:TRAIT:10600 ==== */

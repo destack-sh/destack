@@ -1,6 +1,7 @@
 import { NodeClass } from "@destack/language";
 import {
   CustomEntityDefinition,
+  EnumType,
   Field,
   Node,
   NodeType,
@@ -11,6 +12,7 @@ import {
   Supergraph,
   TraitType,
 } from "@destack/language/core";
+import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import {
   AttributeReferenceProto,
   AttributeTypeProto,
@@ -35,7 +37,14 @@ export enum RelationType {
   BUILTIN_NODE = 1,
   CUSTOM_NODE = 2,
   TRAIT = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.RELATION_TYPE, RelationType);
 /* ==== DESTACK_GENERATED_END:ENUM:50010 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50011 ==== */
@@ -45,7 +54,14 @@ export enum RelationType {
 export enum AttributeType {
   PROPERTY = 1,
   FIELD = 2,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.ATTRIBUTE_TYPE, AttributeType);
 /* ==== DESTACK_GENERATED_END:ENUM:50011 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50012 ==== */
@@ -56,7 +72,14 @@ export enum PropertyReferenceType {
   NODE = 1,
   TRAIT = 2,
   STRUCT = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.PROPERTY_REFERENCE_TYPE, PropertyReferenceType);
 /* ==== DESTACK_GENERATED_END:ENUM:50012 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50000 ==== */
@@ -227,7 +250,14 @@ export class Scope extends StructFrozen {
   ): Scope {
     return Scope.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.SCOPE, Scope);
 /* ==== DESTACK_GENERATED_END:STRUCT:50000 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50107 ==== */
@@ -477,7 +507,7 @@ export class RelationReference extends StructFrozen {
 
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
+registerStructClass(StructType.RELATION_REFERENCE, RelationReference);
 /* ==== DESTACK_GENERATED_END:STRUCT:50107 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50108 ==== */
@@ -709,7 +739,7 @@ export class AttributeReference extends StructFrozen {
 
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
+registerStructClass(StructType.ATTRIBUTE_REFERENCE, AttributeReference);
 /* ==== DESTACK_GENERATED_END:STRUCT:50108 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50003 ==== */
@@ -944,7 +974,14 @@ export class PropertyReference extends StructFrozen {
   ): PropertyReference {
     return PropertyReference.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.PROPERTY_REFERENCE, PropertyReference);
 /* ==== DESTACK_GENERATED_END:STRUCT:50003 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50002 ==== */
@@ -1154,5 +1191,12 @@ export class NodeReference extends StructFrozen {
   ): NodeReference {
     return NodeReference.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.NODE_REFERENCE, NodeReference);
 /* ==== DESTACK_GENERATED_END:STRUCT:50002 ==== */

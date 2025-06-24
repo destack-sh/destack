@@ -1,6 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Entity,
+  EnumType,
   Global,
   Graph,
   HasIcon,
@@ -27,6 +28,7 @@ import {
 } from "@destack/language/core";
 import { Folder } from "@destack/language/folder";
 import { Database } from "@destack/language/infra";
+import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Handle } from "@destack/language/space";
 import { MaterializationTypeProto, RegionProto, SpaceProto, SpaceStatusProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
@@ -40,7 +42,14 @@ export enum SpaceStatus {
   QUEUED = 3,
   RUNNING = 10,
   PAUSED = 20,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.SPACE_STATUS, SpaceStatus);
 /* ==== DESTACK_GENERATED_END:ENUM:1 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:1 ==== */
@@ -875,5 +884,12 @@ export class Space
   ): Space {
     return Space.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.SPACE, Space);
 /* ==== DESTACK_GENERATED_END:NODE:1 ==== */

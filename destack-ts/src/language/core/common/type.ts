@@ -17,6 +17,7 @@ import {
   TypeCardinality,
   Value,
 } from "@destack/language/core";
+import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import {
   CollectionConstraintProto,
   DefaultFactoryProto,
@@ -48,7 +49,14 @@ export enum StringFormat {
   EMOJI = 12,
   MIME = 13,
   BASE64 = 20,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.STRING_FORMAT, StringFormat);
 /* ==== DESTACK_GENERATED_END:ENUM:2570 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:2571 ==== */
@@ -59,7 +67,14 @@ export enum NumberFormat {
   PERCENTAGE = 1,
   ANGLE = 2,
   CURRENCY = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.NUMBER_FORMAT, NumberFormat);
 /* ==== DESTACK_GENERATED_END:ENUM:2571 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2503 ==== */
@@ -275,7 +290,14 @@ export class StringConstraint extends StructFrozen {
   ): StringConstraint {
     return StringConstraint.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.STRING_CONSTRAINT, StringConstraint);
 /* ==== DESTACK_GENERATED_END:STRUCT:2503 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2502 ==== */
@@ -540,7 +562,14 @@ export class NumberConstraint extends StructFrozen {
   ): NumberConstraint {
     return NumberConstraint.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.NUMBER_CONSTRAINT, NumberConstraint);
 /* ==== DESTACK_GENERATED_END:STRUCT:2502 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2504 ==== */
@@ -714,7 +743,14 @@ export class CollectionConstraint extends StructFrozen {
   ): CollectionConstraint {
     return CollectionConstraint.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.COLLECTION_CONSTRAINT, CollectionConstraint);
 /* ==== DESTACK_GENERATED_END:STRUCT:2504 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2505 ==== */
@@ -934,7 +970,14 @@ export class NodeConstraint extends StructFrozen {
   ): NodeConstraint {
     return NodeConstraint.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.NODE_CONSTRAINT, NodeConstraint);
 /* ==== DESTACK_GENERATED_END:STRUCT:2505 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2501 ==== */
@@ -1539,7 +1582,14 @@ export class Type extends StructFrozen {
   ): Type {
     return Type.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.TYPE, Type);
 /* ==== DESTACK_GENERATED_END:STRUCT:2501 ==== */
 
 /**

@@ -1,6 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Entity,
+  EnumType,
   Graph,
   HasIcon,
   HasName,
@@ -22,6 +23,7 @@ import {
   Supergraph,
   TraitType,
 } from "@destack/language/core";
+import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Layer, Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { CustomViewDefinition } from "@destack/language/view";
@@ -36,7 +38,14 @@ export enum VariantType {
   DYNAMIC = 1,
   BREAKPOINT = 2,
   PLATFORM = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.VARIANT_TYPE, VariantType);
 /* ==== DESTACK_GENERATED_END:ENUM:9030 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:9031 ==== */
@@ -46,7 +55,14 @@ export enum VariantType {
 export enum VariantStateType {
   LOADING = 10,
   ERROR = 11,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.VARIANT_STATE_TYPE, VariantStateType);
 /* ==== DESTACK_GENERATED_END:ENUM:9031 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:9030 ==== */
@@ -684,5 +700,12 @@ export class Variant extends Node implements Spatial, Entity, HasName, HasSlug, 
   ): Variant {
     return Variant.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.VARIANT, Variant);
 /* ==== DESTACK_GENERATED_END:NODE:9030 ==== */

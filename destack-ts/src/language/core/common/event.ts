@@ -24,6 +24,7 @@ import {
   Value,
 } from "@destack/language/core";
 import { Script } from "@destack/language/logic";
+import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import {
   CustomEventDefinitionProto,
@@ -577,7 +578,14 @@ export class EditEvent extends Node implements Event, IsTaggable {
   ): EditEvent {
     return EditEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.EDIT_EVENT, EditEvent);
 /* ==== DESTACK_GENERATED_END:NODE:4202 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:4200 ==== */
@@ -1018,7 +1026,14 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, HasN
   ): CustomEventDefinition {
     return CustomEventDefinition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.CUSTOM_EVENT_DEFINITION, CustomEventDefinition);
 /* ==== DESTACK_GENERATED_END:NODE:4200 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:4201 ==== */
@@ -1440,5 +1455,12 @@ export class CustomEvent extends Node implements Event {
   ): CustomEvent {
     return CustomEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.CUSTOM_EVENT, CustomEvent);
 /* ==== DESTACK_GENERATED_END:NODE:4201 ==== */

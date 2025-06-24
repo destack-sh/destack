@@ -13,6 +13,7 @@ import {
   Type,
   TypeCardinality,
 } from "@destack/language/core";
+import { registerStructClass } from "@destack/language/registry";
 import { ValueProto } from "@destack/proto";
 import { assertNever, timedeltaFromISOFormat, timedeltaToISOFormat } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
@@ -176,7 +177,14 @@ export class Value extends StructFrozen {
   ): Value {
     return Value.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.VALUE, Value);
 /* ==== DESTACK_GENERATED_END:STRUCT:2500 ==== */
 
 /**

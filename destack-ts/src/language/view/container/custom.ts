@@ -30,6 +30,7 @@ import {
 } from "@destack/language/core";
 import { Folder } from "@destack/language/folder";
 import { Script } from "@destack/language/logic";
+import { registerNodeClass } from "@destack/language/registry";
 import { Layer, Scene, Window } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Border, Fill, Shadow } from "@destack/language/style";
@@ -1345,7 +1346,14 @@ export class CustomViewDefinition extends Node implements ContainerView, IsCusto
   ): CustomViewDefinition {
     return CustomViewDefinition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.CUSTOM_VIEW_DEFINITION, CustomViewDefinition);
 /* ==== DESTACK_GENERATED_END:NODE:10000 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:10001 ==== */
@@ -2655,5 +2663,12 @@ export class CustomView extends Node implements ContainerView, IsCustomNode {
   ): CustomView {
     return CustomView.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.CUSTOM_VIEW, CustomView);
 /* ==== DESTACK_GENERATED_END:NODE:10001 ==== */

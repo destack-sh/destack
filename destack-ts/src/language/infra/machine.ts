@@ -1,5 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
+  EnumType,
   Graph,
   IsSubject,
   MaterializationType,
@@ -15,6 +16,7 @@ import {
   Supergraph,
   TraitType,
 } from "@destack/language/core";
+import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Client, Space } from "@destack/language/space";
 import { MachineProto, MachineTypeProto, MaterializationTypeProto, ResourceStatusProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
@@ -29,7 +31,14 @@ export enum MachineType {
   MAC = 1100,
   WINDOWS = 1200,
   CUSTOM = 9000,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.MACHINE_TYPE, MachineType);
 /* ==== DESTACK_GENERATED_END:ENUM:7600 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:7600 ==== */
@@ -745,5 +754,12 @@ export class Machine extends Node implements Spatial, Resource {
   ): Machine {
     return Machine.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.MACHINE, Machine);
 /* ==== DESTACK_GENERATED_END:NODE:7600 ==== */

@@ -3,6 +3,7 @@ import { IsShape } from "@destack/language/canvas";
 import {
   Align,
   Dimension,
+  EnumType,
   Graph,
   IsSubject,
   MaterializationType,
@@ -18,6 +19,7 @@ import {
   Vector2,
 } from "@destack/language/core";
 import { Script } from "@destack/language/logic";
+import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Layer, Scene, Window } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { ContainerView, ContentView } from "@destack/language/view";
@@ -32,7 +34,14 @@ export enum ArrowHeadType {
   ARROW = 1,
   TRIANGLE = 2,
   DOT = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.ARROW_HEAD_TYPE, ArrowHeadType);
 /* ==== DESTACK_GENERATED_END:ENUM:11012 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:11012 ==== */
@@ -896,5 +905,12 @@ export class ArrowShape extends Node implements ContentView, IsShape {
   ): ArrowShape {
     return ArrowShape.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.ARROW_SHAPE, ArrowShape);
 /* ==== DESTACK_GENERATED_END:NODE:11012 ==== */

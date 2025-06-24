@@ -19,6 +19,7 @@ import {
   Supergraph,
   TraitType,
 } from "@destack/language/core";
+import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { FollowProto, MaterializationTypeProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
@@ -436,5 +437,12 @@ export class Follow extends Node implements Global, Spatial, Entity, LikeFollow,
   ): Follow {
     return Follow.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.FOLLOW, Follow);
 /* ==== DESTACK_GENERATED_END:NODE:5530 ==== */

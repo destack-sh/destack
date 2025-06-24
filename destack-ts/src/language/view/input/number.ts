@@ -15,6 +15,7 @@ import {
   TraitType,
 } from "@destack/language/core";
 import { Script } from "@destack/language/logic";
+import { registerNodeClass } from "@destack/language/registry";
 import { Layer, Scene, Window } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { ContainerView, InputView } from "@destack/language/view";
@@ -833,5 +834,12 @@ export class NumberInputView extends Node implements InputView {
   ): NumberInputView {
     return NumberInputView.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.NUMBER_INPUT_VIEW, NumberInputView);
 /* ==== DESTACK_GENERATED_END:NODE:10400 ==== */

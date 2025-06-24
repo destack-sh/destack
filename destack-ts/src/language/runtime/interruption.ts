@@ -1,6 +1,7 @@
 import { packProtoDuration, packProtoTimestamp, unpackProtoDuration, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Analytic,
+  EnumType,
   Graph,
   Indexed,
   IsExtensible,
@@ -18,6 +19,7 @@ import {
   TraitType,
   Value,
 } from "@destack/language/core";
+import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Run, Span } from "@destack/language/runtime";
 import { Message } from "@destack/language/social";
 import { Space } from "@destack/language/space";
@@ -38,7 +40,14 @@ export enum InterruptionType {
   PAUSE = 10,
   YIELD = 20,
   WAIT = 30,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.INTERRUPTION_TYPE, InterruptionType);
 /* ==== DESTACK_GENERATED_END:ENUM:4020 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:4021 ==== */
@@ -49,7 +58,14 @@ export enum InterruptionStatus {
   OPEN = 10,
   CANGALAXYED = 30,
   COMPLETED = 33,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.INTERRUPTION_STATUS, InterruptionStatus);
 /* ==== DESTACK_GENERATED_END:ENUM:4021 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:4022 ==== */
@@ -59,7 +75,14 @@ export enum InterruptionStatus {
 export enum InterruptionResponse {
   ACCEPT = 10,
   REJECT = 20,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.INTERRUPTION_RESPONSE, InterruptionResponse);
 /* ==== DESTACK_GENERATED_END:ENUM:4022 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:4020 ==== */
@@ -703,5 +726,12 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
   ): Interruption {
     return Interruption.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.INTERRUPTION, Interruption);
 /* ==== DESTACK_GENERATED_END:NODE:4020 ==== */

@@ -1,5 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
+  EnumType,
   Graph,
   IsSubject,
   MaterializationType,
@@ -13,6 +14,7 @@ import {
   Supergraph,
   TraitType,
 } from "@destack/language/core";
+import { registerEnumClass, registerNodeClass, registerStructClass } from "@destack/language/registry";
 import { Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Palette, Style, Theme } from "@destack/language/style";
@@ -39,7 +41,14 @@ export enum ColorType {
   RGB = 10,
   HSL = 11,
   P3 = 12,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.COLOR_TYPE, ColorType);
 /* ==== DESTACK_GENERATED_END:ENUM:12020 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12022 ==== */
@@ -65,7 +74,14 @@ export enum ColorHue {
   FUCHSIA = 45,
   PINK = 46,
   ROSE = 47,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.COLOR_HUE, ColorHue);
 /* ==== DESTACK_GENERATED_END:ENUM:12022 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12021 ==== */
@@ -85,7 +101,14 @@ export enum ColorShade {
   S800 = 800,
   S900 = 900,
   S950 = 950,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.COLOR_SHADE, ColorShade);
 /* ==== DESTACK_GENERATED_END:ENUM:12021 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12023 ==== */
@@ -100,7 +123,14 @@ export enum ColorIntent {
   INFO = 11,
   WARNING = 12,
   ERROR = 13,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.COLOR_INTENT, ColorIntent);
 /* ==== DESTACK_GENERATED_END:ENUM:12023 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12011 ==== */
@@ -430,7 +460,14 @@ export class Color extends Struct {
   ): Color {
     return Color.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.COLOR, Color);
 /* ==== DESTACK_GENERATED_END:STRUCT:12011 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:12020 ==== */
@@ -1097,5 +1134,12 @@ export class ColorStyle extends Node implements Style {
   ): ColorStyle {
     return ColorStyle.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.COLOR_STYLE, ColorStyle);
 /* ==== DESTACK_GENERATED_END:NODE:12020 ==== */

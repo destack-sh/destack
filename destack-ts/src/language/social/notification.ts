@@ -1,6 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Entity,
+  EnumType,
   Event,
   Graph,
   IsOwnable,
@@ -18,6 +19,7 @@ import {
   Text,
   TraitType,
 } from "@destack/language/core";
+import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import {
   MaterializationTypeProto,
@@ -38,7 +40,14 @@ export enum NotificationStatus {
   DISMISSED = 3,
   EXPIRED = 4,
   RESCINDED = 5,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.NOTIFICATION_STATUS, NotificationStatus);
 /* ==== DESTACK_GENERATED_END:ENUM:5600 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:5601 ==== */
@@ -51,7 +60,14 @@ export enum NotificationEventType {
   READ = 3,
   DISMISSED = 4,
   EXPIRED = 5,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.NOTIFICATION_EVENT_TYPE, NotificationEventType);
 /* ==== DESTACK_GENERATED_END:ENUM:5601 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:5601 ==== */
@@ -446,7 +462,14 @@ export class NotificationEvent extends Node implements Event {
   ): NotificationEvent {
     return NotificationEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.NOTIFICATION_EVENT, NotificationEvent);
 /* ==== DESTACK_GENERATED_END:NODE:5601 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:5600 ==== */
@@ -913,5 +936,12 @@ export class Notification extends Node implements Spatial, Entity, IsOwnable {
   ): Notification {
     return Notification.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.NOTIFICATION, Notification);
 /* ==== DESTACK_GENERATED_END:NODE:5600 ==== */

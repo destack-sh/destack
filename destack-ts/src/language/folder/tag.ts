@@ -22,6 +22,7 @@ import {
   TraitType,
 } from "@destack/language/core";
 import { Folder } from "@destack/language/folder";
+import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { MaterializationTypeProto, TagProto, TaggingProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
@@ -468,7 +469,14 @@ export class Tag extends Node implements Spatial, Entity, LikeTag, HasName, HasI
   ): Tag {
     return Tag.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.TAG, Tag);
 /* ==== DESTACK_GENERATED_END:NODE:1010 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:1011 ==== */
@@ -1004,5 +1012,12 @@ export class Tagging extends Node implements Spatial, Entity, IsTaggable, IsOrde
   ): Tagging {
     return Tagging.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.TAGGING, Tagging);
 /* ==== DESTACK_GENERATED_END:NODE:1011 ==== */

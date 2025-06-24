@@ -20,6 +20,7 @@ import {
   TypeCardinality,
   Value,
 } from "@destack/language/core";
+import { registerStructClass } from "@destack/language/registry";
 import {
   CascadeActionProto,
   ConstantDefinitionProto,
@@ -834,7 +835,14 @@ export class PropertyDefinition extends StructFrozen {
   ): PropertyDefinition {
     return PropertyDefinition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.PROPERTY_DEFINITION, PropertyDefinition);
 /* ==== DESTACK_GENERATED_END:STRUCT:50004 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50005 ==== */
@@ -1175,7 +1183,14 @@ export class TraitDefinition extends StructFrozen {
   ): TraitDefinition {
     return TraitDefinition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.TRAIT_DEFINITION, TraitDefinition);
 /* ==== DESTACK_GENERATED_END:STRUCT:50005 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50006 ==== */
@@ -1710,7 +1725,14 @@ export class NodeDefinition extends StructFrozen {
   ): NodeDefinition {
     return NodeDefinition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.NODE_DEFINITION, NodeDefinition);
 /* ==== DESTACK_GENERATED_END:STRUCT:50006 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50007 ==== */
@@ -2004,7 +2026,14 @@ export class StructDefinition extends StructFrozen {
   ): StructDefinition {
     return StructDefinition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.STRUCT_DEFINITION, StructDefinition);
 /* ==== DESTACK_GENERATED_END:STRUCT:50007 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50008 ==== */
@@ -2280,7 +2309,14 @@ export class EnumDefinition extends StructFrozen {
   ): EnumDefinition {
     return EnumDefinition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.ENUM_DEFINITION, EnumDefinition);
 /* ==== DESTACK_GENERATED_END:STRUCT:50008 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50009 ==== */
@@ -2509,7 +2545,14 @@ export class EnumOptionDefinition extends StructFrozen {
   ): EnumOptionDefinition {
     return EnumOptionDefinition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.ENUM_OPTION_DEFINITION, EnumOptionDefinition);
 /* ==== DESTACK_GENERATED_END:STRUCT:50009 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50010 ==== */
@@ -2732,7 +2775,14 @@ export class PermissionDefinition extends StructFrozen {
   ): PermissionDefinition {
     return PermissionDefinition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.PERMISSION_DEFINITION, PermissionDefinition);
 /* ==== DESTACK_GENERATED_END:STRUCT:50010 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50011 ==== */
@@ -2912,5 +2962,12 @@ export class ConstantDefinition extends StructFrozen {
   ): ConstantDefinition {
     return ConstantDefinition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.CONSTANT_DEFINITION, ConstantDefinition);
 /* ==== DESTACK_GENERATED_END:STRUCT:50011 ==== */

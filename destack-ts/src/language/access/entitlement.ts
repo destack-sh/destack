@@ -1,6 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Entity,
+  EnumType,
   Event,
   Graph,
   IsDeletable,
@@ -17,6 +18,7 @@ import {
   Supergraph,
   TraitType,
 } from "@destack/language/core";
+import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import {
   EntitlementEventProto,
@@ -35,7 +37,14 @@ export enum EntitlementEventType {
   GRANTED = 2,
   REVOKED = 3,
   EXPIRED = 4,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.ENTITLEMENT_EVENT_TYPE, EntitlementEventType);
 /* ==== DESTACK_GENERATED_END:ENUM:551 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:550 ==== */
@@ -45,7 +54,14 @@ export enum EntitlementEventType {
 export enum EntitlementType {
   PERMISSION = 1,
   ROLE = 2,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.ENTITLEMENT_TYPE, EntitlementType);
 /* ==== DESTACK_GENERATED_END:ENUM:550 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:551 ==== */
@@ -422,7 +438,14 @@ export class EntitlementEvent extends Node implements Event {
   ): EntitlementEvent {
     return EntitlementEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.ENTITLEMENT_EVENT, EntitlementEvent);
 /* ==== DESTACK_GENERATED_END:NODE:551 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:550 ==== */
@@ -888,5 +911,12 @@ export class Entitlement extends Node implements Spatial, Entity, IsDeletable {
   ): Entitlement {
     return Entitlement.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.ENTITLEMENT, Entitlement);
 /* ==== DESTACK_GENERATED_END:NODE:550 ==== */

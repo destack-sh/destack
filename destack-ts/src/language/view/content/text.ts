@@ -16,6 +16,7 @@ import {
   TraitType,
 } from "@destack/language/core";
 import { Script } from "@destack/language/logic";
+import { registerNodeClass } from "@destack/language/registry";
 import { Layer, Scene, Window } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Fill, Font } from "@destack/language/style";
@@ -906,5 +907,12 @@ export class TextView extends Node implements ContentView {
   ): TextView {
     return TextView.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.TEXT_VIEW, TextView);
 /* ==== DESTACK_GENERATED_END:NODE:10200 ==== */

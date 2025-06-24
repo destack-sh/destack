@@ -1,6 +1,7 @@
 import { packProtoDuration, packProtoTimestamp, unpackProtoDuration, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Analytic,
+  EnumType,
   Event,
   Graph,
   Indexed,
@@ -19,6 +20,7 @@ import {
   TraitType,
   Value,
 } from "@destack/language/core";
+import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Interruption } from "@destack/language/runtime";
 import { Space } from "@destack/language/space";
 import { RunEventProto, RunEventTypeProto, RunProto, RunStatusProto } from "@destack/proto";
@@ -38,7 +40,14 @@ export enum RunStatus {
   ABORTED = 52,
   FAILED = 53,
   COMPLETED = 54,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.RUN_STATUS, RunStatus);
 /* ==== DESTACK_GENERATED_END:ENUM:4000 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:4001 ==== */
@@ -57,7 +66,14 @@ export enum RunEventType {
   ABORTED = 52,
   FAILED = 53,
   COMPLETED = 54,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.RUN_EVENT_TYPE, RunEventType);
 /* ==== DESTACK_GENERATED_END:ENUM:4001 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:4001 ==== */
@@ -499,7 +515,14 @@ export class RunEvent extends Node implements Event {
   ): RunEvent {
     return RunEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.RUN_EVENT, RunEvent);
 /* ==== DESTACK_GENERATED_END:NODE:4001 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:4000 ==== */
@@ -1153,5 +1176,12 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
   ): Run {
     return Run.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.RUN, Run);
 /* ==== DESTACK_GENERATED_END:NODE:4000 ==== */
