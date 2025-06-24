@@ -284,7 +284,7 @@ export class Gradient extends Struct {
     this.angle = _angle;
     let _stops = options.stops ?? null;
     if (_stops === null) {
-      throw new Error(`Gradient.stops is required`);
+      _stops = [];
     }
     this.stops = _stops;
     let _centerAnchor = options.centerAnchor ?? null;
@@ -700,7 +700,7 @@ export class GradientStyle extends Node implements Style {
     this.angle = _angle;
     let _stops = options.stops ?? null;
     if (_stops === null) {
-      throw new Error(`GradientStyle.stops is required`);
+      _stops = [];
     }
     this.stops = _stops;
     let _centerAnchor = options.centerAnchor ?? null;

@@ -471,7 +471,7 @@ export class SplitView extends Node implements ContainerView {
     this.deletedAt = _deletedAt;
     let _value = options.value ?? null;
     if (_value === null) {
-      throw new Error(`SplitView.value is required`);
+      _value = new Map();
     }
     this.value = _value;
     let _orderKey = options.orderKey ?? null;

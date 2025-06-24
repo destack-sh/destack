@@ -503,7 +503,7 @@ export class Change extends StructFrozen {
     this.debounce = _debounce;
     let _edits = options.edits ?? null;
     if (_edits === null) {
-      throw new Error(`Change.edits is required`);
+      _edits = [];
     }
     this.edits = _edits;
 
@@ -776,12 +776,12 @@ export class ChangeResult extends StructFrozen {
     this.status = _status;
     let _edits = options.edits ?? null;
     if (_edits === null) {
-      throw new Error(`ChangeResult.edits is required`);
+      _edits = [];
     }
     this.edits = _edits;
     let _cascadedEdits = options.cascadedEdits ?? null;
     if (_cascadedEdits === null) {
-      throw new Error(`ChangeResult.cascadedEdits is required`);
+      _cascadedEdits = [];
     }
     this.cascadedEdits = _cascadedEdits;
 

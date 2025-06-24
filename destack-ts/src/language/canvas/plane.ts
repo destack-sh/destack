@@ -492,7 +492,7 @@ export class PlaneShape extends Node implements ContainerView, IsShape {
     this.deletedAt = _deletedAt;
     let _value = options.value ?? null;
     if (_value === null) {
-      throw new Error(`PlaneShape.value is required`);
+      _value = new Map();
     }
     this.value = _value;
     let _orderKey = options.orderKey ?? null;
@@ -562,7 +562,7 @@ export class PlaneShape extends Node implements ContainerView, IsShape {
     this.radius = _radius;
     let _points = options.points ?? null;
     if (_points === null) {
-      throw new Error(`PlaneShape.points is required`);
+      _points = [];
     }
     this.points = _points;
     let _script = options.script ?? null;

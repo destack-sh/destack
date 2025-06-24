@@ -897,7 +897,7 @@ export class Scene extends Node implements ContainerView, HasIcon, IsOwnable {
     this.deletedAt = _deletedAt;
     let _value = options.value ?? null;
     if (_value === null) {
-      throw new Error(`Scene.value is required`);
+      _value = new Map();
     }
     this.value = _value;
     let _orderKey = options.orderKey ?? null;

@@ -480,7 +480,7 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
     this.deletedAt = _deletedAt;
     let _value = options.value ?? null;
     if (_value === null) {
-      throw new Error(`AnnotationShape.value is required`);
+      _value = new Map();
     }
     this.value = _value;
     let _orderKey = options.orderKey ?? null;

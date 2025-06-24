@@ -297,7 +297,7 @@ export class Link extends Node implements Spatial, Resource {
     this.expiresAt = _expiresAt;
     let _imageUrls = options.imageUrls ?? null;
     if (_imageUrls === null) {
-      throw new Error(`Link.imageUrls is required`);
+      _imageUrls = [];
     }
     this.imageUrls = _imageUrls;
 

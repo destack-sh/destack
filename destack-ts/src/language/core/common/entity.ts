@@ -326,7 +326,7 @@ export class CustomEntityDefinition
     this.name = _name;
     let _traits = options.traits ?? null;
     if (_traits === null) {
-      throw new Error(`CustomEntityDefinition.traits is required`);
+      _traits = [];
     }
     this.traits = _traits;
     let _script = options.script ?? null;
@@ -845,7 +845,7 @@ export class CustomEntity extends Node implements Spatial, Entity, IsExtensible,
     this.deletedAt = _deletedAt;
     let _value = options.value ?? null;
     if (_value === null) {
-      throw new Error(`CustomEntity.value is required`);
+      _value = new Map();
     }
     this.value = _value;
 

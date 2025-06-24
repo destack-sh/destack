@@ -1,4 +1,4 @@
-import { Folder, Region, Session, Space, SpaceStatus, Tag } from "@destack/language";
+import { Folder, NodeType, Region, Session, Space, SpaceStatus, Tag } from "@destack/language";
 import { expect, test } from "vitest";
 
 const sessionTest = test.extend<{ session: Session }>({

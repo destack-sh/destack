@@ -285,7 +285,7 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
     this.spacePtr = _space;
     let _value = options.value ?? null;
     if (_value === null) {
-      throw new Error(`Interruption.value is required`);
+      _value = new Map();
     }
     this.value = _value;
     let _type = options.type;

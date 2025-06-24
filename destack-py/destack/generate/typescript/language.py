@@ -393,6 +393,18 @@ super(
 if (_{ts_name_in} != null && _{ts_name_in} instanceof Node) {{
     _{ts_name_in} = _{ts_name_in}.toRef();
 }}""")
+        # init non-scalars if unset
+        if prop.cardinality == TypeCardinality.LIST:
+            body_parts.append(f"""\
+if (_{ts_name_in} === null) {{
+    _{ts_name_in} = [];
+}}""")
+        elif prop.cardinality == TypeCardinality.MAP:
+            body_parts.append(f"""\
+if (_{ts_name_in} === null) {{
+    _{ts_name_in} = new Map();
+}}""")
+
         # init default
         if prop.default is not UNSET:
             default_str: str | None = None
@@ -433,7 +445,7 @@ if (_{ts_name_in} === null) {{
                 )
 
         # raise on missing value
-        if prop.is_required:
+        if prop.is_required and prop.cardinality == TypeCardinality.SCALAR:
             body_parts.append(f"""\
 if (_{ts_name_in} === null) {{
     throw new Error(`{cls.__name__}.{ts_name_in} is required`);

@@ -191,52 +191,52 @@ export class Schedule extends Struct {
     this.weekStart = _weekStart;
     let _bySetPos = options.bySetPos ?? null;
     if (_bySetPos === null) {
-      throw new Error(`Schedule.bySetPos is required`);
+      _bySetPos = [];
     }
     this.bySetPos = _bySetPos;
     let _byMonth = options.byMonth ?? null;
     if (_byMonth === null) {
-      throw new Error(`Schedule.byMonth is required`);
+      _byMonth = [];
     }
     this.byMonth = _byMonth;
     let _byMonthDay = options.byMonthDay ?? null;
     if (_byMonthDay === null) {
-      throw new Error(`Schedule.byMonthDay is required`);
+      _byMonthDay = [];
     }
     this.byMonthDay = _byMonthDay;
     let _byYearDay = options.byYearDay ?? null;
     if (_byYearDay === null) {
-      throw new Error(`Schedule.byYearDay is required`);
+      _byYearDay = [];
     }
     this.byYearDay = _byYearDay;
     let _byEaster = options.byEaster ?? null;
     if (_byEaster === null) {
-      throw new Error(`Schedule.byEaster is required`);
+      _byEaster = [];
     }
     this.byEaster = _byEaster;
     let _byWeekNo = options.byWeekNo ?? null;
     if (_byWeekNo === null) {
-      throw new Error(`Schedule.byWeekNo is required`);
+      _byWeekNo = [];
     }
     this.byWeekNo = _byWeekNo;
     let _byWeekDay = options.byWeekDay ?? null;
     if (_byWeekDay === null) {
-      throw new Error(`Schedule.byWeekDay is required`);
+      _byWeekDay = [];
     }
     this.byWeekDay = _byWeekDay;
     let _byHour = options.byHour ?? null;
     if (_byHour === null) {
-      throw new Error(`Schedule.byHour is required`);
+      _byHour = [];
     }
     this.byHour = _byHour;
     let _byMinute = options.byMinute ?? null;
     if (_byMinute === null) {
-      throw new Error(`Schedule.byMinute is required`);
+      _byMinute = [];
     }
     this.byMinute = _byMinute;
     let _bySecond = options.bySecond ?? null;
     if (_bySecond === null) {
-      throw new Error(`Schedule.bySecond is required`);
+      _bySecond = [];
     }
     this.bySecond = _bySecond;
 

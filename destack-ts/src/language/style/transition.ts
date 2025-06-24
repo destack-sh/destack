@@ -163,7 +163,7 @@ export class Transition extends Struct {
     this.duration = _duration;
     let _ease = options.ease ?? null;
     if (_ease === null) {
-      throw new Error(`Transition.ease is required`);
+      _ease = [];
     }
     this.ease = _ease;
     let _stiffness = options.stiffness ?? null;
@@ -657,7 +657,7 @@ export class TransitionStyle extends Node implements Style {
     this.duration = _duration;
     let _ease = options.ease ?? null;
     if (_ease === null) {
-      throw new Error(`TransitionStyle.ease is required`);
+      _ease = [];
     }
     this.ease = _ease;
     let _stiffness = options.stiffness ?? null;

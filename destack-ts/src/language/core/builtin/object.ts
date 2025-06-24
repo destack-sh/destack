@@ -122,30 +122,23 @@ export abstract class BuiltinObject {
 }
 
 /** A BuiltinObject constructor/class. */
-export type BuiltinObjectClass = { new (...args: any[]): BuiltinObject } & {
+export type BuiltinObjectClass<ObjectT extends BuiltinObject, ProtoT extends AnyStructProto | AnyNodeProto> = {
+  new (...args: any[]): ObjectT;
+} & {
   /** Convert an instance of this BuiltinObject to a proto. */
-  __packProto__: (object: BuiltinObject) => AnyStructProto | AnyNodeProto;
+  __packProto__: (object: ObjectT) => ProtoT;
 
   /** Convert a proto to an instance of this BuiltinObject. */
   __unpackProto__: (
-    proto: AnyStructProto | AnyNodeProto,
+    proto: ProtoT,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null,
-  ) => BuiltinObject;
-
-  /** Convert a proto to an instance of this BuiltinObject. */
-  fromProto: (
-    proto: AnyStructProto | AnyNodeProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: Graph | null,
-    _connection?: QueryConnection | null,
-  ) => BuiltinObject;
+  ) => ObjectT;
 
   /** Convert an instance of this BuiltinObject to a value. */
-  __packValue__: (object: BuiltinObject) => Record<string, any>;
+  __packValue__: (object: ObjectT) => Record<string, any>;
 
   /** Convert a value to an instance of this BuiltinObject. */
   __unpackValue__: (
@@ -154,14 +147,5 @@ export type BuiltinObjectClass = { new (...args: any[]): BuiltinObject } & {
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null,
-  ) => BuiltinObject;
-
-  /** Convert a value to an instance of this BuiltinObject. */
-  fromValue: (
-    value: Record<string, any>,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: Graph | null,
-    _connection?: QueryConnection | null,
-  ) => BuiltinObject;
+  ) => ObjectT;
 };
