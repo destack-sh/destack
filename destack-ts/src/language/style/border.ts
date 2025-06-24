@@ -1,5 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
+  EnumType,
   Graph,
   Insets,
   IsSubject,
@@ -14,6 +15,7 @@ import {
   Supergraph,
   TraitType,
 } from "@destack/language/core";
+import { registerEnumClass, registerNodeClass, registerStructClass } from "@destack/language/registry";
 import { Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Color, Style, Theme } from "@destack/language/style";
@@ -31,7 +33,14 @@ export enum BorderType {
   DASHED = 11,
   DOTTED = 12,
   DOUBLE = 13,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.BORDER_TYPE, BorderType);
 /* ==== DESTACK_GENERATED_END:ENUM:12032 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12013 ==== */
@@ -255,7 +264,14 @@ export class Border extends Struct {
   ): Border {
     return Border.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.BORDER, Border);
 /* ==== DESTACK_GENERATED_END:STRUCT:12013 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:12023 ==== */
@@ -789,5 +805,12 @@ export class BorderStyle extends Node implements Style {
   ): BorderStyle {
     return BorderStyle.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.BORDER_STYLE, BorderStyle);
 /* ==== DESTACK_GENERATED_END:NODE:12023 ==== */

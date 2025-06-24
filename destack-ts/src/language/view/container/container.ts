@@ -114,5 +114,11 @@ export interface ContainerView extends IsExtensible, View {
    * ContainerView.radius
    */
   radius: Corners | null;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:10000 ==== */

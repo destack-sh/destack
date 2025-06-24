@@ -754,9 +754,7 @@ export enum {definition.name} {{
 {textwrap.indent("\n".join(enum_parts), "  ")}
 
   {MARKER_CUSTOM_START}
-
   // ...
-
   {MARKER_CUSTOM_END}
 }}
 registerEnumClass(EnumType.{definition.type.name}, {definition.name});
@@ -1191,7 +1189,6 @@ def _generate_file(
                     f"unknown definition: {key} in {file.path} (defines: {list(file.definitions.keys())})"
                 )
             new_block = f"{MARKER_START.format(kind=definition.kind, id=definition.id)}\n"
-            new_block += definition.definition_str
             if block.custom_content:
                 # find and replace the custom content region in definition_str
                 custom_start_match = MARKER_CUSTOM_START_PATTERN.search(definition.definition_str)
@@ -1317,8 +1314,8 @@ def _generate_file(
     return new_str
 
 
-def _generate_registry(definitions_by_name: dict[str, TypescriptDefinition]) -> tuple[str, str]:
-    """Generate the registry and mapping files."""
+def _generate_global(definitions_by_name: dict[str, TypescriptDefinition]) -> tuple[str, str, str]:
+    """Generate the global registry, mapping and lookup files."""
 
     # mappings
     mapping_str_parts: list[str] = []
@@ -1403,8 +1400,13 @@ export function registerEnumClass(enumType: EnumType, enumClass: EnumClass): voi
 }"""
     ]
 
+    registry_str = "\n\n".join(registry_str_parts)
+
+    # lookup
     node_type_by_trait_str_parts: list[str] = [
-        "export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {"
+        "import { NodeType, TraitType } from '@destack/language/core/builtin';",
+        "",
+        "export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {",
     ]
     for trait_type, _ in TRAIT_CLASS_BY_TYPE.items():
         node_types = NODE_TYPES_BY_TRAIT_TYPE.get(trait_type, ())
@@ -1412,12 +1414,9 @@ export function registerEnumClass(enumType: EnumType, enumClass: EnumClass): voi
             f"  [TraitType.{trait_type.name}]: [{', '.join(f'NodeType.{node_type.name}' for node_type in node_types)}],"
         )
     node_type_by_trait_str_parts.append("};")
-    node_type_by_trait_str = "\n".join(node_type_by_trait_str_parts)
-    registry_str_parts.append(node_type_by_trait_str)
+    lookup_str = "\n".join(node_type_by_trait_str_parts)
 
-    registry_str = "\n\n".join(registry_str_parts)
-
-    return registry_str, mapping_str
+    return registry_str, mapping_str, lookup_str
 
 
 def generate():
@@ -1492,9 +1491,11 @@ def generate():
     # update registry file
     registry_path = Path(GENERATION_PATH) / "registry.ts"
     mapping_path = Path(GENERATION_PATH) / "mapping.ts"
-    registry_str, mapping_str = _generate_registry(definitions_by_name)
+    lookup_path = Path(GENERATION_PATH) / "lookup.ts"
+    registry_str, mapping_str, lookup_str = _generate_global(definitions_by_name)
     registry_path.write_text(registry_str)
     mapping_path.write_text(mapping_str)
+    lookup_path.write_text(lookup_str)
 
     # write index files
     module_paths = list({file.path.parent for file in files_by_module.values()})

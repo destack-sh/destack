@@ -2,6 +2,7 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Condition,
   Entity,
+  EnumType,
   Event,
   Graph,
   HasName,
@@ -20,6 +21,7 @@ import {
   TraitType,
   Value,
 } from "@destack/language/core";
+import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import {
   MaterializationTypeProto,
@@ -38,7 +40,14 @@ export enum TriggerEventType {
   STARTED = 1,
   TRIGGERED = 2,
   STOPPED = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.TRIGGER_EVENT_TYPE, TriggerEventType);
 /* ==== DESTACK_GENERATED_END:ENUM:3041 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:3040 ==== */
@@ -47,7 +56,14 @@ export enum TriggerEventType {
  */
 export enum TriggerType {
   EVENT = 1,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.TRIGGER_TYPE, TriggerType);
 /* ==== DESTACK_GENERATED_END:ENUM:3040 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:3041 ==== */
@@ -442,7 +458,14 @@ export class TriggerEvent extends Node implements Event {
   ): TriggerEvent {
     return TriggerEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.TRIGGER_EVENT, TriggerEvent);
 /* ==== DESTACK_GENERATED_END:NODE:3041 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:3040 ==== */
@@ -972,5 +995,12 @@ export class Trigger extends Node implements Spatial, Entity, HasName {
   ): Trigger {
     return Trigger.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.TRIGGER, Trigger);
 /* ==== DESTACK_GENERATED_END:NODE:3040 ==== */

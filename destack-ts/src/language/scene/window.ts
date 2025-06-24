@@ -1,6 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Entity,
+  EnumType,
   Graph,
   HasName,
   IsDeletable,
@@ -20,6 +21,7 @@ import {
   Supergraph,
   TraitType,
 } from "@destack/language/core";
+import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { MaterializationTypeProto, WindowProto, WindowTypeProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
@@ -32,7 +34,14 @@ export enum WindowType {
   BROWSER = 10,
   DESKTOP = 20,
   MOBILE = 30,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.WINDOW_TYPE, WindowType);
 /* ==== DESTACK_GENERATED_END:ENUM:9000 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:9000 ==== */
@@ -566,5 +575,12 @@ export class Window extends Node implements Spatial, Entity, HasName, IsVisual, 
   ): Window {
     return Window.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.WINDOW, Window);
 /* ==== DESTACK_GENERATED_END:NODE:9000 ==== */

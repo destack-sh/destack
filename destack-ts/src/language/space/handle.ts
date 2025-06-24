@@ -15,6 +15,7 @@ import {
   Supergraph,
   TraitType,
 } from "@destack/language/core";
+import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { HandleProto, MaterializationTypeProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
@@ -354,5 +355,12 @@ export class Handle extends Node implements Global, Entity, HasSlug {
   ): Handle {
     return Handle.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.HANDLE, Handle);
 /* ==== DESTACK_GENERATED_END:NODE:10 ==== */

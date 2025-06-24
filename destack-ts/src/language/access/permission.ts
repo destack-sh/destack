@@ -1,6 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Entity,
+  EnumType,
   Graph,
   HasIcon,
   HasName,
@@ -21,6 +22,7 @@ import {
   TraitType,
 } from "@destack/language/core";
 import { Folder } from "@destack/language/folder";
+import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { MaterializationTypeProto, PermissionProto, PermissionTypeProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
@@ -31,7 +33,14 @@ import { Temporal } from "temporal-polyfill";
  */
 export enum PermissionType {
   GENERAL = 1,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.PERMISSION_TYPE, PermissionType);
 /* ==== DESTACK_GENERATED_END:ENUM:530 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:530 ==== */
@@ -502,5 +511,12 @@ export class Permission extends Node implements Spatial, Entity, HasName, HasSlu
   ): Permission {
     return Permission.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.PERMISSION, Permission);
 /* ==== DESTACK_GENERATED_END:NODE:530 ==== */

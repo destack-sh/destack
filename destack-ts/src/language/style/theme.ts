@@ -21,6 +21,7 @@ import {
   Supergraph,
   TraitType,
 } from "@destack/language/core";
+import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { MaterializationTypeProto, ThemeProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
@@ -493,5 +494,12 @@ export class Theme
   ): Theme {
     return Theme.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.THEME, Theme);
 /* ==== DESTACK_GENERATED_END:NODE:12000 ==== */

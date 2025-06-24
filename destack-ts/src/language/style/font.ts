@@ -1,5 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
+  EnumType,
   Graph,
   IsSubject,
   Length,
@@ -14,6 +15,7 @@ import {
   Supergraph,
   TraitType,
 } from "@destack/language/core";
+import { registerEnumClass, registerNodeClass, registerStructClass } from "@destack/language/registry";
 import { Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Fill, Style, Theme } from "@destack/language/style";
@@ -40,7 +42,14 @@ export enum FontType {
   SERIF = 10,
   SANS = 11,
   MONO = 12,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.FONT_TYPE, FontType);
 /* ==== DESTACK_GENERATED_END:ENUM:12026 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12024 ==== */
@@ -57,7 +66,14 @@ export enum FontWeight {
   BOLD = 700,
   EXTRA_BOLD = 800,
   BLACK = 900,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.FONT_WEIGHT, FontWeight);
 /* ==== DESTACK_GENERATED_END:ENUM:12024 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12025 ==== */
@@ -76,7 +92,14 @@ export enum FontSize {
   XL5 = 48,
   XL6 = 60,
   XL7 = 72,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.FONT_SIZE, FontSize);
 /* ==== DESTACK_GENERATED_END:ENUM:12025 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12027 ==== */
@@ -88,7 +111,14 @@ export enum TextAlign {
   CENTER = 2,
   RIGHT = 3,
   JUSTIFY = 4,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.TEXT_ALIGN, TextAlign);
 /* ==== DESTACK_GENERATED_END:ENUM:12027 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12028 ==== */
@@ -99,7 +129,14 @@ export enum TextDecoration {
   NONE = 1,
   UNDERLINE = 2,
   STRIKETHROUGH = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.TEXT_DECORATION, TextDecoration);
 /* ==== DESTACK_GENERATED_END:ENUM:12028 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12029 ==== */
@@ -111,7 +148,14 @@ export enum TextTransform {
   UPPERCASE = 2,
   LOWERCASE = 3,
   CAPITALIZE = 4,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.TEXT_TRANSFORM, TextTransform);
 /* ==== DESTACK_GENERATED_END:ENUM:12029 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12014 ==== */
@@ -496,7 +540,14 @@ export class Font extends Struct {
   ): Font {
     return Font.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.FONT, Font);
 /* ==== DESTACK_GENERATED_END:STRUCT:12014 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:12022 ==== */
@@ -1191,5 +1242,12 @@ export class FontStyle extends Node implements Style {
   ): FontStyle {
     return FontStyle.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.FONT_STYLE, FontStyle);
 /* ==== DESTACK_GENERATED_END:NODE:12022 ==== */

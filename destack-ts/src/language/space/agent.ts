@@ -24,6 +24,7 @@ import {
 } from "@destack/language/core";
 import { Folder } from "@destack/language/folder";
 import { Cursor, Script } from "@destack/language/logic";
+import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { AgentProto, MaterializationTypeProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
@@ -584,5 +585,12 @@ export class Agent
   ): Agent {
     return Agent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.AGENT, Agent);
 /* ==== DESTACK_GENERATED_END:NODE:600 ==== */

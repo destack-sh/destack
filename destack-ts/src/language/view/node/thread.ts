@@ -16,6 +16,7 @@ import {
   TraitType,
 } from "@destack/language/core";
 import { Script } from "@destack/language/logic";
+import { registerNodeClass } from "@destack/language/registry";
 import { Layer, Scene, Window } from "@destack/language/scene";
 import { Message } from "@destack/language/social";
 import { Space } from "@destack/language/space";
@@ -817,5 +818,12 @@ export class ThreadView extends Node implements NodeView {
   ): ThreadView {
     return ThreadView.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.THREAD_VIEW, ThreadView);
 /* ==== DESTACK_GENERATED_END:NODE:10600 ==== */

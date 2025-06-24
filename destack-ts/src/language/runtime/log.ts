@@ -1,6 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Analytic,
+  EnumType,
   Graph,
   IsFrozen,
   IsSubject,
@@ -14,6 +15,7 @@ import {
   Supergraph,
   TraitType,
 } from "@destack/language/core";
+import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { LogLevelProto, LogProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
@@ -29,7 +31,14 @@ export enum LogLevel {
   WARNING = 4,
   ERROR = 5,
   PANIC = 6,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.LOG_LEVEL, LogLevel);
 /* ==== DESTACK_GENERATED_END:ENUM:4100 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:4100 ==== */
@@ -444,5 +453,12 @@ export class Log extends Node implements Spatial, Analytic, IsFrozen {
   ): Log {
     return Log.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.LOG, Log);
 /* ==== DESTACK_GENERATED_END:NODE:4100 ==== */

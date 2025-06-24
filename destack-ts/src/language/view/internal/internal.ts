@@ -4,5 +4,9 @@ import { View } from "@destack/language/view";
 /**
  * A content View.
  */
-export interface InternalView extends View {}
+export interface InternalView extends View {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
 /* ==== DESTACK_GENERATED_END:TRAIT:10650 ==== */

@@ -2,6 +2,7 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Role } from "@destack/language/access";
 import {
   Entity,
+  EnumType,
   Event,
   Global,
   Graph,
@@ -23,6 +24,7 @@ import {
   Supergraph,
   TraitType,
 } from "@destack/language/core";
+import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { MaterializationTypeProto, MembershipEventProto, MembershipProto, RoleTypeProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
@@ -36,7 +38,14 @@ export enum MembershipEventType {
   LEAVE = 2,
   KICK = 3,
   BAN = 4,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.MEMBERSHIP_EVENT_TYPE, MembershipEventType);
 /* ==== DESTACK_GENERATED_END:ENUM:500 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:501 ==== */
@@ -46,7 +55,14 @@ export enum MembershipEventType {
 export enum MembershipPermission {
   KICK = 10,
   BAN = 11,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.MEMBERSHIP_PERMISSION, MembershipPermission);
 /* ==== DESTACK_GENERATED_END:ENUM:501 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:501 ==== */
@@ -548,7 +564,14 @@ export class MembershipEvent extends Node implements Event {
   ): MembershipEvent {
     return MembershipEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.MEMBERSHIP_EVENT, MembershipEvent);
 /* ==== DESTACK_GENERATED_END:NODE:501 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:500 ==== */
@@ -1092,5 +1115,12 @@ export class Membership extends Node implements Global, Spatial, Entity, LikeMem
   ): Membership {
     return Membership.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.MEMBERSHIP, Membership);
 /* ==== DESTACK_GENERATED_END:NODE:500 ==== */

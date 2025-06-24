@@ -23,6 +23,7 @@ import {
   TraitType,
 } from "@destack/language/core";
 import { Script } from "@destack/language/logic";
+import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { MaterializationTypeProto, OptionProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
@@ -542,5 +543,12 @@ export class Option extends Node implements Spatial, Entity, HasName, HasIcon, I
   ): Option {
     return Option.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.OPTION, Option);
 /* ==== DESTACK_GENERATED_END:NODE:2530 ==== */

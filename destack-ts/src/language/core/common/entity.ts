@@ -28,6 +28,7 @@ import {
 } from "@destack/language/core";
 import { Folder } from "@destack/language/folder";
 import { Script } from "@destack/language/logic";
+import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import {
   CustomEntityDefinitionProto,
@@ -708,7 +709,14 @@ export class CustomEntityDefinition
   ): CustomEntityDefinition {
     return CustomEntityDefinition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.CUSTOM_ENTITY_DEFINITION, CustomEntityDefinition);
 /* ==== DESTACK_GENERATED_END:NODE:2000 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:2001 ==== */
@@ -1175,5 +1183,12 @@ export class CustomEntity extends Node implements Spatial, Entity, IsExtensible,
   ): CustomEntity {
     return CustomEntity.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.CUSTOM_ENTITY, CustomEntity);
 /* ==== DESTACK_GENERATED_END:NODE:2001 ==== */

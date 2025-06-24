@@ -20,6 +20,7 @@ import {
 } from "@destack/language/core";
 import { Machine } from "@destack/language/infra";
 import { Cursor } from "@destack/language/logic";
+import { registerNodeClass, registerStructClass } from "@destack/language/registry";
 import { User } from "@destack/language/space";
 import { ClientProto, ClientTypeProto, MaterializationTypeProto, OriginProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
@@ -228,7 +229,14 @@ export class Origin extends StructFrozen {
   ): Origin {
     return Origin.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.ORIGIN, Origin);
 /* ==== DESTACK_GENERATED_END:STRUCT:50001 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:100 ==== */
@@ -930,5 +938,12 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
   ): Client {
     return Client.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.CLIENT, Client);
 /* ==== DESTACK_GENERATED_END:NODE:100 ==== */

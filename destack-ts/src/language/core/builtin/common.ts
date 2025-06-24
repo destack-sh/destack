@@ -1,3 +1,4 @@
+import { registerEnumClass } from "@destack/language/registry";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:50000 ==== */
@@ -138,7 +139,14 @@ export enum EnumType {
   CHANGE_DEBOUNCE = 50053,
   NODE_PERMISSION = 50100,
   JOINABLE_PERMISSION = 50101,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.ENUM_TYPE, EnumType);
 /* ==== DESTACK_GENERATED_END:ENUM:50000 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50002 ==== */
@@ -212,7 +220,14 @@ export enum StructType {
   VECTOR4I = 50205,
   AXIS2 = 50207,
   AXIS3 = 50209,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.STRUCT_TYPE, StructType);
 /* ==== DESTACK_GENERATED_END:ENUM:50002 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50001 ==== */
@@ -319,7 +334,14 @@ export enum NodeType {
   GRADIENT_STYLE = 12025,
   TRANSITION_STYLE = 12026,
   EFFECT_STYLE = 12027,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.NODE_TYPE, NodeType);
 /* ==== DESTACK_GENERATED_END:ENUM:50001 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50003 ==== */
@@ -375,7 +397,14 @@ export enum TraitType {
   INTERNAL_VIEW = 10650,
   SHAPE = 11000,
   STYLE = 12000,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.TRAIT_TYPE, TraitType);
 /* ==== DESTACK_GENERATED_END:ENUM:50003 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50020 ==== */
@@ -386,7 +415,14 @@ export enum StoreZone {
   GLOBAL = 1,
   SPATIAL = 2,
   LOCAL = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.STORE_ZONE, StoreZone);
 /* ==== DESTACK_GENERATED_END:ENUM:50020 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50021 ==== */
@@ -397,7 +433,14 @@ export enum StoreType {
   GLOBAL_ENTITY = 100,
   SPATIAL_ENTITY = 200,
   LOCAL_MEMORY = 300,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.STORE_TYPE, StoreType);
 /* ==== DESTACK_GENERATED_END:ENUM:50021 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50022 ==== */
@@ -407,7 +450,14 @@ export enum StoreType {
 export enum StoreImplementation {
   MEMORY = 1,
   POSTGRES = 10,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.STORE_IMPLEMENTATION, StoreImplementation);
 /* ==== DESTACK_GENERATED_END:ENUM:50022 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50031 ==== */
@@ -417,7 +467,14 @@ export enum StoreImplementation {
 export enum RuntimeType {
   PYTHON = 1,
   JAVASCRIPT = 2,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.RUNTIME_TYPE, RuntimeType);
 /* ==== DESTACK_GENERATED_END:ENUM:50031 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50030 ==== */
@@ -428,7 +485,14 @@ export enum PlatformType {
   SYSTEM = 1,
   RUNTIME = 2,
   WEB = 10,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.PLATFORM_TYPE, PlatformType);
 /* ==== DESTACK_GENERATED_END:ENUM:50030 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50040 ==== */
@@ -441,7 +505,14 @@ export enum OperatingSystem {
   MACOS = 3,
   ANDROID = 50,
   IOS = 51,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.OPERATING_SYSTEM, OperatingSystem);
 /* ==== DESTACK_GENERATED_END:ENUM:50040 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:4500 ==== */
@@ -454,7 +525,14 @@ export enum EnvironmentType {
   TEST = 5,
   STAGING = 7,
   PRODUCTION = 10,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.ENVIRONMENT_TYPE, EnvironmentType);
 /* ==== DESTACK_GENERATED_END:ENUM:4500 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50100 ==== */
@@ -466,7 +544,14 @@ export enum NodePermission {
   ADD = 10,
   UPDATE = 11,
   REMOVE = 12,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.NODE_PERMISSION, NodePermission);
 /* ==== DESTACK_GENERATED_END:ENUM:50100 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50013 ==== */
@@ -477,7 +562,14 @@ export enum MaterializationType {
   PARTIAL_NODE = 1,
   PARTIAL_GRAPH = 2,
   FULL_GRAPH = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.MATERIALIZATION_TYPE, MaterializationType);
 /* ==== DESTACK_GENERATED_END:ENUM:50013 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:9500 ==== */
@@ -490,7 +582,14 @@ export enum ModeType {
   INSPECT = 3,
   PREVIEW = 4,
   USE = 5,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.MODE_TYPE, ModeType);
 /* ==== DESTACK_GENERATED_END:ENUM:9500 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:9501 ==== */
@@ -502,7 +601,14 @@ export enum ToolType {
   DRAG = 2,
   INSPECT = 10,
   ANNOTATE = 11,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.TOOL_TYPE, ToolType);
 /* ==== DESTACK_GENERATED_END:ENUM:9501 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:7500 ==== */
@@ -515,7 +621,14 @@ export enum Cloud {
   AZURE = 11,
   GCP = 12,
   HETZNER = 20,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.CLOUD, Cloud);
 /* ==== DESTACK_GENERATED_END:ENUM:7500 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:7503 ==== */
@@ -531,7 +644,14 @@ export enum RegionContinent {
   ASIA = 6000,
   AUSTRALIA = 7000,
   PRIVATE = 9000,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.REGION_CONTINENT, RegionContinent);
 /* ==== DESTACK_GENERATED_END:ENUM:7503 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:7502 ==== */
@@ -550,7 +670,14 @@ export enum RegionArea {
   ASIA_SOUTH = 6200,
   ASIA_EAST = 6400,
   AUSTRALIA_SOUTH = 7000,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.REGION_AREA, RegionArea);
 /* ==== DESTACK_GENERATED_END:ENUM:7502 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:7501 ==== */
@@ -569,7 +696,14 @@ export enum Region {
   SINGAPORE = 6200,
   TOKYO = 6400,
   SYDNEY = 7000,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.REGION, Region);
 /* ==== DESTACK_GENERATED_END:ENUM:7501 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:2581 ==== */
@@ -579,7 +713,14 @@ export enum Region {
 export enum EdgeType {
   PARENT = 1,
   REGULAR = 5,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.EDGE_TYPE, EdgeType);
 /* ==== DESTACK_GENERATED_END:ENUM:2581 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:2583 ==== */
@@ -590,7 +731,14 @@ export enum CascadeAction {
   RESTRICT = 1,
   CASCADE = 2,
   SET_NULL = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.CASCADE_ACTION, CascadeAction);
 /* ==== DESTACK_GENERATED_END:ENUM:2583 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:2582 ==== */
@@ -601,7 +749,14 @@ export enum EdgeDirection {
   PARENT = 1,
   CHILD = 2,
   SIDE = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.EDGE_DIRECTION, EdgeDirection);
 /* ==== DESTACK_GENERATED_END:ENUM:2582 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:2560 ==== */
@@ -624,7 +779,14 @@ export enum PrimitiveType {
   DATE = 31,
   TIME = 32,
   DURATION = 33,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.PRIMITIVE_TYPE, PrimitiveType);
 /* ==== DESTACK_GENERATED_END:ENUM:2560 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:2561 ==== */
@@ -635,7 +797,14 @@ export enum TypeCardinality {
   SCALAR = 1,
   LIST = 2,
   MAP = 4,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.TYPE_CARDINALITY, TypeCardinality);
 /* ==== DESTACK_GENERATED_END:ENUM:2561 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:2562 ==== */
@@ -648,7 +817,14 @@ export enum ScalarType {
   NODE_REFERENCE = 3,
   NODE_VALUE = 4,
   STRUCT = 5,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.SCALAR_TYPE, ScalarType);
 /* ==== DESTACK_GENERATED_END:ENUM:2562 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:2563 ==== */
@@ -659,7 +835,14 @@ export enum DefaultFactory {
   UUID = 1,
   NOW = 2,
   REGION = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.DEFAULT_FACTORY, DefaultFactory);
 /* ==== DESTACK_GENERATED_END:ENUM:2563 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:520 ==== */
@@ -673,7 +856,14 @@ export enum RoleType {
   DEVELOPER = 5,
   USER = 7,
   SPECTATOR = 10,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.ROLE_TYPE, RoleType);
 /* ==== DESTACK_GENERATED_END:ENUM:520 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:2590 ==== */
@@ -690,7 +880,14 @@ export enum ResourceStatus {
   IMPAIRED = 16,
   OFFLINE = 30,
   FAILED = 31,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.RESOURCE_STATUS, ResourceStatus);
 /* ==== DESTACK_GENERATED_END:ENUM:2590 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:100 ==== */
@@ -703,7 +900,14 @@ export enum ClientType {
   DESKTOP = 3,
   MOBILE = 4,
   MACHINE = 10,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.CLIENT_TYPE, ClientType);
 /* ==== DESTACK_GENERATED_END:ENUM:100 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:7504 ==== */
@@ -713,7 +917,14 @@ export enum ClientType {
 export enum Tenancy {
   DEDICATED = 1,
   SHARED = 2,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.TENANCY, Tenancy);
 /* ==== DESTACK_GENERATED_END:ENUM:7504 ==== */
 
 export const JS_TYPE_BY_PRIMITIVE_TYPE: Record<PrimitiveType, any> = {

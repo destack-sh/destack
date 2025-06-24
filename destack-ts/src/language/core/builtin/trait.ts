@@ -1,5 +1,14 @@
-import { Icon, MaterializationType, Node, NodeReference, ResourceStatus, Value } from "@destack/language/core";
+import {
+  EnumType,
+  Icon,
+  MaterializationType,
+  Node,
+  NodeReference,
+  ResourceStatus,
+  Value,
+} from "@destack/language/core";
 import { Script } from "@destack/language/logic";
+import { registerEnumClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
@@ -12,7 +21,14 @@ export enum JoinablePermission {
   REMOVE = 2,
   KICK = 3,
   BAN = 4,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.JOINABLE_PERMISSION, JoinablePermission);
 /* ==== DESTACK_GENERATED_END:ENUM:50101 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:100 ==== */
@@ -24,6 +40,12 @@ export interface HasName {
    * HasName.name
    */
   name: string;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:100 ==== */
 
@@ -36,6 +58,12 @@ export interface HasSlug {
    * HasSlug.slug
    */
   slug: string | null;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:101 ==== */
 
@@ -48,6 +76,12 @@ export interface HasIcon {
    * HasIcon.icon
    */
   icon: Icon | null;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:102 ==== */
 
@@ -71,6 +105,12 @@ export interface IsTracked {
 
   get updatedBy(): (Node & IsSubject) | null;
   readonly updatedByPtr: NodeReference | null;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:51 ==== */
 
@@ -78,7 +118,11 @@ export interface IsTracked {
 /**
  * A Node that is a visual in some sense (views, styles, drawings, ...).
  */
-export interface IsVisual extends IsTracked {}
+export interface IsVisual extends IsTracked {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
 /* ==== DESTACK_GENERATED_END:TRAIT:9000 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:50 ==== */
@@ -88,7 +132,11 @@ export interface IsVisual extends IsTracked {}
  *  (because that would require two separate inheritance chains for NodeMutable and NodeFrozen,
  *   which would have to include copies of every relevant trait and .. ughh no)
  */
-export interface IsFrozen {}
+export interface IsFrozen {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
 /* ==== DESTACK_GENERATED_END:TRAIT:50 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:52 ==== */
@@ -100,6 +148,12 @@ export interface IsArchivable {
    * IsArchivable.archivedAt
    */
   readonly archivedAt: Temporal.ZonedDateTime | null;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:52 ==== */
 
@@ -112,6 +166,12 @@ export interface IsDeletable {
    * IsDeletable.deletedAt
    */
   readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:53 ==== */
 
@@ -123,6 +183,12 @@ export interface IsCustomNodeDefinition {
   get prototype(): (Node & IsCustomNode) | null;
   set prototype(value: (Node & IsCustomNode) | null);
   prototypePtr: NodeReference | null;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:23 ==== */
 
@@ -133,6 +199,12 @@ export interface IsCustomNodeDefinition {
 export interface IsCustomNode {
   get definition(): (Node & IsCustomNodeDefinition) | null;
   readonly definitionPtr: NodeReference;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:24 ==== */
 
@@ -145,6 +217,12 @@ export interface IsExtensible {
    * IsExtensible.value
    */
   value: Map<string, Value>;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:55 ==== */
 
@@ -157,6 +235,12 @@ export interface IsOrdered {
    * IsOrdered.orderKey
    */
   readonly orderKey: string;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:56 ==== */
 
@@ -164,21 +248,33 @@ export interface IsOrdered {
 /**
  * A Node that can be reacted to (with Reactions).
  */
-export interface IsReactable {}
+export interface IsReactable {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
 /* ==== DESTACK_GENERATED_END:TRAIT:5532 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:5530 ==== */
 /**
  * A Node that can be starred (with Stars).
  */
-export interface IsStarable {}
+export interface IsStarable {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
 /* ==== DESTACK_GENERATED_END:TRAIT:5530 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:5534 ==== */
 /**
  * A Node that can be followed (with Follows).
  */
-export interface IsFollowable {}
+export interface IsFollowable {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
 /* ==== DESTACK_GENERATED_END:TRAIT:5534 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:3003 ==== */
@@ -188,6 +284,12 @@ export interface IsFollowable {}
 export interface IsSourceable extends IsOrdered {
   get source(): Script | null;
   readonly sourcePtr: NodeReference | null;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:3003 ==== */
 
@@ -199,6 +301,12 @@ export interface IsScriptable {
   get script(): Script | null;
   set script(value: Script | null);
   scriptPtr: NodeReference | null;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:3002 ==== */
 
@@ -206,14 +314,22 @@ export interface IsScriptable {
 /**
  * A Node that can be run (with Runs).
  */
-export interface IsRunnable {}
+export interface IsRunnable {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
 /* ==== DESTACK_GENERATED_END:TRAIT:3001 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:3000 ==== */
 /**
  * A Node that can define an Action.
  */
-export interface IsActionable {}
+export interface IsActionable {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
 /* ==== DESTACK_GENERATED_END:TRAIT:3000 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:500 ==== */
@@ -224,6 +340,12 @@ export interface IsOwnable {
   get ownedBy(): (Node & IsOwner) | null;
   set ownedBy(value: (Node & IsOwner) | null);
   ownedByPtr: NodeReference | null;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:500 ==== */
 
@@ -231,35 +353,55 @@ export interface IsOwnable {
 /**
  * A Node that defines Settings.
  */
-export interface IsSettings {}
+export interface IsSettings {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
 /* ==== DESTACK_GENERATED_END:TRAIT:5000 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:502 ==== */
 /**
  * A Node that can be joined by Subjects.
  */
-export interface IsJoinable {}
+export interface IsJoinable {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
 /* ==== DESTACK_GENERATED_END:TRAIT:502 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:505 ==== */
 /**
  * A Node that can be a Subject.
  */
-export interface IsSubject {}
+export interface IsSubject {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
 /* ==== DESTACK_GENERATED_END:TRAIT:505 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:506 ==== */
 /**
  * A Node that can be an Owner.
  */
-export interface IsOwner {}
+export interface IsOwner {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
 /* ==== DESTACK_GENERATED_END:TRAIT:506 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:1000 ==== */
 /**
  * A Node that can be tagged (with a Tag).
  */
-export interface IsTaggable {}
+export interface IsTaggable {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
 /* ==== DESTACK_GENERATED_END:TRAIT:1000 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:510 ==== */
@@ -270,6 +412,12 @@ export interface LikeMembership {
   get member(): (Node & IsSubject) | null;
   set member(value: Node & IsSubject);
   memberPtr: NodeReference;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:510 ==== */
 
@@ -281,6 +429,12 @@ export interface LikeInvite {
   get member(): (Node & IsSubject) | null;
   set member(value: Node & IsSubject);
   memberPtr: NodeReference;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:511 ==== */
 
@@ -288,21 +442,33 @@ export interface LikeInvite {
 /**
  * A Node that represents a Tag.
  */
-export interface LikeTag {}
+export interface LikeTag {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
 /* ==== DESTACK_GENERATED_END:TRAIT:1001 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:5535 ==== */
 /**
  * A Node that represents a Follow.
  */
-export interface LikeFollow {}
+export interface LikeFollow {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
 /* ==== DESTACK_GENERATED_END:TRAIT:5535 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:1 ==== */
 /**
  * A Node that is global.
  */
-export interface Global {}
+export interface Global {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
 /* ==== DESTACK_GENERATED_END:TRAIT:1 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:2 ==== */
@@ -312,6 +478,12 @@ export interface Global {}
 export interface Spatial {
   get space(): Space | null;
   readonly spacePtr: NodeReference | null;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:2 ==== */
 
@@ -324,6 +496,12 @@ export interface Entity extends IsTracked {
    * Entity.materialization
    */
   readonly materialization: MaterializationType;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:10 ==== */
 
@@ -331,21 +509,33 @@ export interface Entity extends IsTracked {
 /**
  * A Particle is a forward-only Node in primary document storage (OLTP, high volume).
  */
-export interface Particle extends IsTracked {}
+export interface Particle extends IsTracked {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
 /* ==== DESTACK_GENERATED_END:TRAIT:11 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:12 ==== */
 /**
  * An Analytic is a read-only Node in primary or secondary warehouse storage (OLAP, bulk).
  */
-export interface Analytic extends IsTracked {}
+export interface Analytic extends IsTracked {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
 /* ==== DESTACK_GENERATED_END:TRAIT:12 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:13 ==== */
 /**
  * A Node that is indexed in secondary search storage (OLTP).
  */
-export interface Indexed extends IsTracked {}
+export interface Indexed extends IsTracked {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
 /* ==== DESTACK_GENERATED_END:TRAIT:13 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:21 ==== */
@@ -363,6 +553,12 @@ export interface Resource extends Entity {
    * Resource.targetStatus
    */
   targetStatus: Temporal.ZonedDateTime | null;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:21 ==== */
 
@@ -370,7 +566,11 @@ export interface Resource extends Entity {
 /**
  * An Entity that represents a Metric.
  */
-export interface Metric extends Entity, IsCustomNodeDefinition, IsSourceable {}
+export interface Metric extends Entity, IsCustomNodeDefinition, IsSourceable {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
 /* ==== DESTACK_GENERATED_END:TRAIT:4010 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:4011 ==== */
@@ -380,6 +580,12 @@ export interface Metric extends Entity, IsCustomNodeDefinition, IsSourceable {}
 export interface Measurement extends Analytic, IsCustomNode {
   get definition(): (Node & Metric) | null;
   readonly definitionPtr: NodeReference;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:4011 ==== */
 
@@ -392,5 +598,11 @@ export interface Event extends Spatial, Particle, Analytic, Indexed, IsFrozen {
   get node(): Node | null;
   set node(value: Node | null);
   nodePtr: NodeReference | null;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:22 ==== */

@@ -20,6 +20,7 @@ import {
   Text,
   TraitType,
 } from "@destack/language/core";
+import { registerNodeClass } from "@destack/language/registry";
 import { Thread } from "@destack/language/social";
 import { Space } from "@destack/language/space";
 import { MaterializationTypeProto, MessageProto } from "@destack/proto";
@@ -689,5 +690,12 @@ export class Message extends Node implements Spatial, Entity, IsOwnable, IsDelet
   ): Message {
     return Message.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.MESSAGE, Message);
 /* ==== DESTACK_GENERATED_END:NODE:5510 ==== */

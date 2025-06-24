@@ -14,6 +14,7 @@ import {
   Supergraph,
   TraitType,
 } from "@destack/language/core";
+import { registerNodeClass } from "@destack/language/registry";
 import { Run } from "@destack/language/runtime";
 import { Space } from "@destack/language/space";
 import { SpanProto } from "@destack/proto";
@@ -354,5 +355,12 @@ export class Span extends Node implements Spatial, Analytic, IsFrozen {
   ): Span {
     return Span.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.SPAN, Span);
 /* ==== DESTACK_GENERATED_END:NODE:4010 ==== */

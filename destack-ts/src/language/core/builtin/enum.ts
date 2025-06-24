@@ -1,1 +1,1 @@
-export type EnumClass = Record<string, number>;
+export type EnumClass = Record<any, any>;

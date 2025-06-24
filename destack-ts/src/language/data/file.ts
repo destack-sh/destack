@@ -1,5 +1,6 @@
 import { packProtoDuration, packProtoTimestamp, unpackProtoDuration, unpackProtoTimestamp } from "@destack/grpc";
 import {
+  EnumType,
   Global,
   Graph,
   HasName,
@@ -17,6 +18,7 @@ import {
   Supergraph,
   TraitType,
 } from "@destack/language/core";
+import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import {
   FileFormatProto,
@@ -37,7 +39,14 @@ export enum FileSource {
   SPACE = 1,
   INLINE = 3,
   EXTERNAL = 10,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.FILE_SOURCE, FileSource);
 /* ==== DESTACK_GENERATED_END:ENUM:2541 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:2540 ==== */
@@ -48,7 +57,14 @@ export enum FileRetentionMode {
   AUTOMATIC = 1,
   MANUAL = 2,
   TIMED = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.FILE_RETENTION_MODE, FileRetentionMode);
 /* ==== DESTACK_GENERATED_END:ENUM:2540 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:2542 ==== */
@@ -66,7 +82,14 @@ export enum FileType {
   ARCHIVE = 8,
   EXECUTABLE = 9,
   GENERIC = 99,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.FILE_TYPE, FileType);
 /* ==== DESTACK_GENERATED_END:ENUM:2542 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:2543 ==== */
@@ -160,7 +183,14 @@ export enum FileFormat {
   MSI = 90005,
   DEB = 90006,
   RPM = 90007,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.FILE_FORMAT, FileFormat);
 /* ==== DESTACK_GENERATED_END:ENUM:2543 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:2540 ==== */
@@ -988,5 +1018,12 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
   ): File {
     return File.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.FILE, File);
 /* ==== DESTACK_GENERATED_END:NODE:2540 ==== */

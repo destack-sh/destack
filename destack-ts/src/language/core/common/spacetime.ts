@@ -19,6 +19,7 @@ import {
   Supergraph,
   TraitType,
 } from "@destack/language/core";
+import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { BranchProto, MaterializationTypeProto, SnapshotProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
@@ -489,7 +490,14 @@ export class Snapshot extends Node implements Spatial, Entity, HasName, HasSlug,
   ): Snapshot {
     return Snapshot.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.SNAPSHOT, Snapshot);
 /* ==== DESTACK_GENERATED_END:NODE:1500 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:1510 ==== */
@@ -1003,5 +1011,12 @@ export class Branch extends Node implements Spatial, Entity, HasName, HasSlug, I
   ): Branch {
     return Branch.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.BRANCH, Branch);
 /* ==== DESTACK_GENERATED_END:NODE:1510 ==== */

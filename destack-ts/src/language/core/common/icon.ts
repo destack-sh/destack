@@ -1,5 +1,6 @@
-import { Node, NodeReference, Session, StructFrozen, StructType, Supergraph } from "@destack/language/core";
+import { EnumType, Node, NodeReference, Session, StructFrozen, StructType, Supergraph } from "@destack/language/core";
 import { File } from "@destack/language/data";
+import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { Color } from "@destack/language/style";
 import { IconProto, IconTypeProto } from "@destack/proto";
 
@@ -13,7 +14,14 @@ export enum IconType {
   VS_CODE = 4,
   FILE = 10,
   FILE_URL = 11,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.ICON_TYPE, IconType);
 /* ==== DESTACK_GENERATED_END:ENUM:2531 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2531 ==== */
@@ -313,5 +321,12 @@ export class Icon extends StructFrozen {
   ): Icon {
     return Icon.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.ICON, Icon);
 /* ==== DESTACK_GENERATED_END:STRUCT:2531 ==== */

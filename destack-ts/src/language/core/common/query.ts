@@ -2,6 +2,7 @@ import { NodeClass, toValue } from "@destack/language";
 import {
   AttributeReference,
   CustomEntityDefinition,
+  EnumType,
   Field,
   NodeType,
   PropertyReference,
@@ -13,6 +14,7 @@ import {
   Supergraph,
   Value,
 } from "@destack/language/core";
+import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import {
   AggregationProto,
   AggregationTypeProto,
@@ -51,7 +53,14 @@ export enum FunctionType {
   DIVIDE = 4,
   MODULO = 5,
   POWER = 6,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.FUNCTION_TYPE, FunctionType);
 /* ==== DESTACK_GENERATED_END:ENUM:108 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:103 ==== */
@@ -75,7 +84,14 @@ export enum ConditionalType {
   NOT_IN = 31,
   EXISTS = 40,
   NOT_EXISTS = 41,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.CONDITIONAL_TYPE, ConditionalType);
 /* ==== DESTACK_GENERATED_END:ENUM:103 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:104 ==== */
@@ -89,7 +105,14 @@ export enum AggregationType {
   MIN = 4,
   MAX = 5,
   AVERAGE = 6,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.AGGREGATION_TYPE, AggregationType);
 /* ==== DESTACK_GENERATED_END:ENUM:104 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:109 ==== */
@@ -102,7 +125,14 @@ export enum ExpressionType {
   CONDITION = 3,
   FUNCTION = 4,
   AGGREGATION = 5,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.EXPRESSION_TYPE, ExpressionType);
 /* ==== DESTACK_GENERATED_END:ENUM:109 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:106 ==== */
@@ -112,7 +142,14 @@ export enum ExpressionType {
 export enum SortType {
   ASCENDING = 1,
   DESCENDING = 2,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.SORT_TYPE, SortType);
 /* ==== DESTACK_GENERATED_END:ENUM:106 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:105 ==== */
@@ -125,7 +162,14 @@ export enum SortMode {
   AVERAGE = 3,
   SUM = 4,
   MEDIAN = 5,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.SORT_MODE, SortMode);
 /* ==== DESTACK_GENERATED_END:ENUM:105 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:107 ==== */
@@ -136,7 +180,14 @@ export enum JoinType {
   LEFT = 1,
   PARENT = 10,
   CHILD = 11,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.JOIN_TYPE, JoinType);
 /* ==== DESTACK_GENERATED_END:ENUM:107 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:120 ==== */
@@ -148,7 +199,14 @@ export enum QueryType {
   SCALAR = 2,
   GROUPED_NODE = 10,
   GROUPED_SCALAR = 11,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.QUERY_TYPE, QueryType);
 /* ==== DESTACK_GENERATED_END:ENUM:120 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:121 ==== */
@@ -158,7 +216,14 @@ export enum QueryType {
 export enum QueryUpdateType {
   FULL_RESULT = 1,
   PARTIAL_RESULT = 2,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.QUERY_UPDATE_TYPE, QueryUpdateType);
 /* ==== DESTACK_GENERATED_END:ENUM:121 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50101 ==== */
@@ -355,7 +420,7 @@ export class Function extends StructFrozen {
 
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
+registerStructClass(StructType.FUNCTION, Function);
 /* ==== DESTACK_GENERATED_END:STRUCT:50101 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50104 ==== */
@@ -558,7 +623,7 @@ export class Condition extends StructFrozen {
 
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
+registerStructClass(StructType.CONDITION, Condition);
 /* ==== DESTACK_GENERATED_END:STRUCT:50104 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50103 ==== */
@@ -742,7 +807,7 @@ export class Aggregation extends StructFrozen {
 
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
+registerStructClass(StructType.AGGREGATION, Aggregation);
 /* ==== DESTACK_GENERATED_END:STRUCT:50103 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50100 ==== */
@@ -1060,7 +1125,7 @@ export class Expression extends StructFrozen {
 
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
+registerStructClass(StructType.EXPRESSION, Expression);
 /* ==== DESTACK_GENERATED_END:STRUCT:50100 ==== */
 
 export type ExpressionIn =
@@ -1263,7 +1328,7 @@ export class Sort extends StructFrozen {
 
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
+registerStructClass(StructType.SORT, Sort);
 /* ==== DESTACK_GENERATED_END:STRUCT:50105 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50106 ==== */
@@ -1446,7 +1511,7 @@ export class Select extends StructFrozen {
 
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
+registerStructClass(StructType.SELECT, Select);
 /* ==== DESTACK_GENERATED_END:STRUCT:50106 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50102 ==== */
@@ -1708,7 +1773,7 @@ export class Join extends StructFrozen {
 
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
+registerStructClass(StructType.JOIN, Join);
 /* ==== DESTACK_GENERATED_END:STRUCT:50102 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50110 ==== */
@@ -2228,7 +2293,14 @@ export class Query extends StructFrozen {
   ): Query {
     return Query.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.QUERY, Query);
 /* ==== DESTACK_GENERATED_END:STRUCT:50110 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50114 ==== */
@@ -2448,7 +2520,14 @@ export class Histogram extends StructFrozen {
   ): Histogram {
     return Histogram.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.HISTOGRAM, Histogram);
 /* ==== DESTACK_GENERATED_END:STRUCT:50114 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50111 ==== */
@@ -2803,7 +2882,14 @@ export class QueryResult extends Struct {
   ): QueryResult {
     return QueryResult.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.QUERY_RESULT, QueryResult);
 /* ==== DESTACK_GENERATED_END:STRUCT:50111 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50112 ==== */
@@ -3061,7 +3147,14 @@ export class QueryResultGroup extends Struct {
   ): QueryResultGroup {
     return QueryResultGroup.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.QUERY_RESULT_GROUP, QueryResultGroup);
 /* ==== DESTACK_GENERATED_END:STRUCT:50112 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50113 ==== */
@@ -3233,7 +3326,14 @@ export class QueryUpdate extends StructFrozen {
   ): QueryUpdate {
     return QueryUpdate.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.QUERY_UPDATE, QueryUpdate);
 /* ==== DESTACK_GENERATED_END:STRUCT:50113 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2571 ==== */
@@ -3359,5 +3459,12 @@ export class Selection extends StructFrozen {
   ): Selection {
     return Selection.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.SELECTION, Selection);
 /* ==== DESTACK_GENERATED_END:STRUCT:2571 ==== */

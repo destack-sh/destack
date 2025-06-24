@@ -1,6 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Entity,
+  EnumType,
   Event,
   Global,
   Graph,
@@ -25,6 +26,7 @@ import {
   Supergraph,
   TraitType,
 } from "@destack/language/core";
+import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { MaterializationTypeProto, RoleEventProto, RoleEventTypeProto, RoleProto, RoleTypeProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
@@ -36,7 +38,14 @@ import { Temporal } from "temporal-polyfill";
 export enum RoleEventType {
   ASSIGNED = 1,
   REMOVED = 2,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.ROLE_EVENT_TYPE, RoleEventType);
 /* ==== DESTACK_GENERATED_END:ENUM:521 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:521 ==== */
@@ -431,7 +440,14 @@ export class RoleEvent extends Node implements Event {
   ): RoleEvent {
     return RoleEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.ROLE_EVENT, RoleEvent);
 /* ==== DESTACK_GENERATED_END:NODE:521 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:520 ==== */
@@ -931,5 +947,12 @@ export class Role
   ): Role {
     return Role.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.ROLE, Role);
 /* ==== DESTACK_GENERATED_END:NODE:520 ==== */

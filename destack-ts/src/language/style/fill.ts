@@ -1,5 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
+  EnumType,
   Graph,
   IsSubject,
   MaterializationType,
@@ -14,6 +15,7 @@ import {
   TraitType,
 } from "@destack/language/core";
 import { File } from "@destack/language/data";
+import { registerEnumClass, registerNodeClass, registerStructClass } from "@destack/language/registry";
 import { Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Color, Gradient, Style, Theme } from "@destack/language/style";
@@ -37,7 +39,14 @@ export enum FillType {
   SOLID = 10,
   GRADIENT = 11,
   IMAGE = 12,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.FILL_TYPE, FillType);
 /* ==== DESTACK_GENERATED_END:ENUM:12034 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12035 ==== */
@@ -54,7 +63,14 @@ export enum FillPosition {
   BOTTOM_LEFT = 20,
   BOTTOM_CENTER = 21,
   BOTTOM_RIGHT = 22,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.FILL_POSITION, FillPosition);
 /* ==== DESTACK_GENERATED_END:ENUM:12035 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12036 ==== */
@@ -66,7 +82,14 @@ export enum FillSize {
   STRETCH = 2,
   FIT = 3,
   TILE = 4,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.FILL_SIZE, FillSize);
 /* ==== DESTACK_GENERATED_END:ENUM:12036 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12017 ==== */
@@ -383,7 +406,14 @@ export class Fill extends Struct {
   ): Fill {
     return Fill.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.FILL, Fill);
 /* ==== DESTACK_GENERATED_END:STRUCT:12017 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:12021 ==== */
@@ -1007,5 +1037,12 @@ export class FillStyle extends Node implements Style {
   ): FillStyle {
     return FillStyle.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.FILL_STYLE, FillStyle);
 /* ==== DESTACK_GENERATED_END:NODE:12021 ==== */

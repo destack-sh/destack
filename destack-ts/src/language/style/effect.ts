@@ -1,6 +1,7 @@
 import { packProtoDuration, packProtoTimestamp, unpackProtoDuration, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Axis3,
+  EnumType,
   Graph,
   IsSubject,
   MaterializationType,
@@ -15,6 +16,7 @@ import {
   TraitType,
   Vector2,
 } from "@destack/language/core";
+import { registerEnumClass, registerNodeClass, registerStructClass } from "@destack/language/registry";
 import { Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Style, Theme, Transition } from "@destack/language/style";
@@ -45,7 +47,14 @@ export enum EffectType {
   DRAG = 22,
   FOCUS = 23,
   LOOP = 30,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.EFFECT_TYPE, EffectType);
 /* ==== DESTACK_GENERATED_END:ENUM:12046 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12047 ==== */
@@ -56,7 +65,14 @@ export enum RepeatType {
   LOOP = 1,
   REVERSE = 2,
   MIRROR = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.REPEAT_TYPE, RepeatType);
 /* ==== DESTACK_GENERATED_END:ENUM:12047 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12048 ==== */
@@ -67,7 +83,14 @@ export enum TextSplitType {
   CHAR = 1,
   WORD = 2,
   LINE = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.TEXT_SPLIT_TYPE, TextSplitType);
 /* ==== DESTACK_GENERATED_END:ENUM:12048 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12049 ==== */
@@ -77,7 +100,14 @@ export enum TextSplitType {
 export enum OffscreenBehavior {
   PLAY = 1,
   PAUSE = 2,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.OFFSCREEN_BEHAVIOR, OffscreenBehavior);
 /* ==== DESTACK_GENERATED_END:ENUM:12049 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12025 ==== */
@@ -589,7 +619,14 @@ export class Effect extends Struct {
   ): Effect {
     return Effect.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.EFFECT, Effect);
 /* ==== DESTACK_GENERATED_END:STRUCT:12025 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:12027 ==== */
@@ -1411,5 +1448,12 @@ export class EffectStyle extends Node implements Style {
   ): EffectStyle {
     return EffectStyle.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.EFFECT_STYLE, EffectStyle);
 /* ==== DESTACK_GENERATED_END:NODE:12027 ==== */

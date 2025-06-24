@@ -20,5 +20,11 @@ export interface ContentView extends View {
    * ContentView.opacity
    */
   opacity: number | null;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:10200 ==== */

@@ -2,6 +2,7 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Role } from "@destack/language/access";
 import {
   Entity,
+  EnumType,
   Event,
   Global,
   Graph,
@@ -22,6 +23,7 @@ import {
   Supergraph,
   TraitType,
 } from "@destack/language/core";
+import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { InviteEventProto, InviteProto, MaterializationTypeProto, RoleTypeProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
@@ -35,7 +37,14 @@ export enum InviteEventType {
   RESCINDED = 2,
   ACCEPTED = 3,
   REJECTED = 4,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.INVITE_EVENT_TYPE, InviteEventType);
 /* ==== DESTACK_GENERATED_END:ENUM:510 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:511 ==== */
@@ -537,7 +546,14 @@ export class InviteEvent extends Node implements Event {
   ): InviteEvent {
     return InviteEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.INVITE_EVENT, InviteEvent);
 /* ==== DESTACK_GENERATED_END:NODE:511 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:510 ==== */
@@ -1081,5 +1097,12 @@ export class Invite extends Node implements Global, Spatial, Entity, IsOwnable, 
   ): Invite {
     return Invite.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.INVITE, Invite);
 /* ==== DESTACK_GENERATED_END:NODE:510 ==== */

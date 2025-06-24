@@ -15,6 +15,7 @@ import {
   TraitType,
 } from "@destack/language/core";
 import { Script } from "@destack/language/logic";
+import { registerNodeClass } from "@destack/language/registry";
 import { Layer, Scene, Window } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { ContainerView, InputView } from "@destack/language/view";
@@ -884,5 +885,12 @@ export class SliderInputView extends Node implements InputView {
   ): SliderInputView {
     return SliderInputView.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.SLIDER_INPUT_VIEW, SliderInputView);
 /* ==== DESTACK_GENERATED_END:NODE:10401 ==== */

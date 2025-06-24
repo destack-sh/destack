@@ -1,4 +1,5 @@
-import { Node, NodeReference, Session, StructFrozen, StructType, Supergraph } from "@destack/language/core";
+import { EnumType, Node, NodeReference, Session, StructFrozen, StructType, Supergraph } from "@destack/language/core";
+import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { TextProto, TextSpanProto, TextSpanTypeProto } from "@destack/proto";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2521 ==== */
@@ -12,7 +13,14 @@ export enum TextSpanType {
   LINK = 11,
   CITATION = 12,
   EQUATION = 20,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.TEXT_SPAN_TYPE, TextSpanType);
 /* ==== DESTACK_GENERATED_END:ENUM:2521 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2521 ==== */
@@ -359,7 +367,14 @@ export class TextSpan extends StructFrozen {
   ): TextSpan {
     return TextSpan.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.TEXT_SPAN, TextSpan);
 /* ==== DESTACK_GENERATED_END:STRUCT:2521 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2520 ==== */
@@ -646,5 +661,12 @@ export class Text extends StructFrozen {
   ): Text {
     return Text.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.TEXT, Text);
 /* ==== DESTACK_GENERATED_END:STRUCT:2520 ==== */

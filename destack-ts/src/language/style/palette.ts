@@ -22,6 +22,7 @@ import {
   Supergraph,
   TraitType,
 } from "@destack/language/core";
+import { registerNodeClass } from "@destack/language/registry";
 import { Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Theme } from "@destack/language/style";
@@ -489,5 +490,12 @@ export class Palette
   ): Palette {
     return Palette.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.PALETTE, Palette);
 /* ==== DESTACK_GENERATED_END:NODE:12010 ==== */

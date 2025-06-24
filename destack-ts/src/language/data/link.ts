@@ -1,5 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
+  EnumType,
   Graph,
   IsSubject,
   MaterializationType,
@@ -15,6 +16,7 @@ import {
   Supergraph,
   TraitType,
 } from "@destack/language/core";
+import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { LinkProto, LinkTypeProto, MaterializationTypeProto, ResourceStatusProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
@@ -25,7 +27,14 @@ import { Temporal } from "temporal-polyfill";
  */
 export enum LinkType {
   WEB = 1,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.LINK_TYPE, LinkType);
 /* ==== DESTACK_GENERATED_END:ENUM:2550 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:2550 ==== */
@@ -776,5 +785,12 @@ export class Link extends Node implements Spatial, Resource {
   ): Link {
     return Link.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.LINK, Link);
 /* ==== DESTACK_GENERATED_END:NODE:2550 ==== */

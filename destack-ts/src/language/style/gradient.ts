@@ -1,6 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Axis2,
+  EnumType,
   Graph,
   IsSubject,
   MaterializationType,
@@ -15,6 +16,7 @@ import {
   Supergraph,
   TraitType,
 } from "@destack/language/core";
+import { registerEnumClass, registerNodeClass, registerStructClass } from "@destack/language/registry";
 import { Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Color, Style, Theme } from "@destack/language/style";
@@ -37,7 +39,14 @@ export enum GradientType {
   LINEAR = 10,
   RADIAL = 11,
   CONIC = 12,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.GRADIENT_TYPE, GradientType);
 /* ==== DESTACK_GENERATED_END:ENUM:12033 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12015 ==== */
@@ -206,7 +215,14 @@ export class GradientStop extends StructFrozen {
   ): GradientStop {
     return GradientStop.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.GRADIENT_STOP, GradientStop);
 /* ==== DESTACK_GENERATED_END:STRUCT:12015 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12016 ==== */
@@ -481,7 +497,14 @@ export class Gradient extends Struct {
   ): Gradient {
     return Gradient.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.GRADIENT, Gradient);
 /* ==== DESTACK_GENERATED_END:STRUCT:12016 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:12025 ==== */
@@ -1091,5 +1114,12 @@ export class GradientStyle extends Node implements Style {
   ): GradientStyle {
     return GradientStyle.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.GRADIENT_STYLE, GradientStyle);
 /* ==== DESTACK_GENERATED_END:NODE:12025 ==== */

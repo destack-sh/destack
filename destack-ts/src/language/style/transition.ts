@@ -1,5 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
+  EnumType,
   Graph,
   IsSubject,
   MaterializationType,
@@ -13,6 +14,7 @@ import {
   Supergraph,
   TraitType,
 } from "@destack/language/core";
+import { registerEnumClass, registerNodeClass, registerStructClass } from "@destack/language/registry";
 import { Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Style, Theme } from "@destack/language/style";
@@ -34,7 +36,14 @@ export enum TransitionType {
   STYLE = 2,
   TWEEN = 10,
   SPRING = 11,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.TRANSITION_TYPE, TransitionType);
 /* ==== DESTACK_GENERATED_END:ENUM:12043 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12044 ==== */
@@ -44,7 +53,14 @@ export enum TransitionType {
 export enum SpringType {
   TIME = 1,
   PHYSICS = 2,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.SPRING_TYPE, SpringType);
 /* ==== DESTACK_GENERATED_END:ENUM:12044 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12024 ==== */
@@ -434,7 +450,14 @@ export class Transition extends Struct {
   ): Transition {
     return Transition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.TRANSITION, Transition);
 /* ==== DESTACK_GENERATED_END:STRUCT:12024 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:12026 ==== */
@@ -1134,5 +1157,12 @@ export class TransitionStyle extends Node implements Style {
   ): TransitionStyle {
     return TransitionStyle.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.TRANSITION_STYLE, TransitionStyle);
 /* ==== DESTACK_GENERATED_END:NODE:12026 ==== */

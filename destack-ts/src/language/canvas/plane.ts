@@ -8,6 +8,7 @@ import {
   Dimension,
   Direction,
   Distribute,
+  EnumType,
   Graph,
   Grid,
   GridSpan,
@@ -28,6 +29,7 @@ import {
   Vector2,
 } from "@destack/language/core";
 import { Script } from "@destack/language/logic";
+import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Layer, Scene, Window } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Border, Fill, Shadow } from "@destack/language/style";
@@ -52,7 +54,14 @@ export enum PlaneShapeType {
   CIRCLE = 3,
   ELLIPSE = 4,
   POLYGON = 5,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.PLANE_SHAPE_TYPE, PlaneShapeType);
 /* ==== DESTACK_GENERATED_END:ENUM:11011 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:11011 ==== */
@@ -1380,5 +1389,12 @@ export class PlaneShape extends Node implements ContainerView, IsShape {
   ): PlaneShape {
     return PlaneShape.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.PLANE_SHAPE, PlaneShape);
 /* ==== DESTACK_GENERATED_END:NODE:11011 ==== */

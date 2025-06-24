@@ -1,4 +1,5 @@
 import { Region, Session, Struct, StructType, Supergraph } from "@destack/language/core";
+import { registerStructClass } from "@destack/language/registry";
 import { GalaxyInfoProto, RegionProto } from "@destack/proto";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:7601 ==== */
@@ -157,5 +158,12 @@ export class GalaxyInfo extends Struct {
   ): GalaxyInfo {
     return GalaxyInfo.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerStructClass(StructType.GALAXY_INFO, GalaxyInfo);
 /* ==== DESTACK_GENERATED_END:STRUCT:7601 ==== */

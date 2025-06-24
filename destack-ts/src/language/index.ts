@@ -7,6 +7,7 @@ export * from "./folder";
 export * from "./infra";
 export * from "./intelligence";
 export * from "./logic";
+export * from "./lookup";
 export * from "./mapping";
 export * from "./registry";
 export * from "./runtime";

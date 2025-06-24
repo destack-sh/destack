@@ -18,6 +18,7 @@ import {
   TraitType,
 } from "@destack/language/core";
 import { Script } from "@destack/language/logic";
+import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import {
   CounterMeasurementProto,
@@ -517,7 +518,14 @@ export class GaugeMetric extends Node implements Spatial, Metric, HasName {
   ): GaugeMetric {
     return GaugeMetric.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.GAUGE_METRIC, GaugeMetric);
 /* ==== DESTACK_GENERATED_END:NODE:4110 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:4111 ==== */
@@ -893,7 +901,14 @@ export class GaugeMeasurement extends Node implements Spatial, Measurement {
   ): GaugeMeasurement {
     return GaugeMeasurement.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.GAUGE_MEASUREMENT, GaugeMeasurement);
 /* ==== DESTACK_GENERATED_END:NODE:4111 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:4112 ==== */
@@ -1383,7 +1398,14 @@ export class CounterMetric extends Node implements Spatial, Metric, HasName {
   ): CounterMetric {
     return CounterMetric.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.COUNTER_METRIC, CounterMetric);
 /* ==== DESTACK_GENERATED_END:NODE:4112 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:4113 ==== */
@@ -1759,7 +1781,14 @@ export class CounterMeasurement extends Node implements Spatial, Measurement {
   ): CounterMeasurement {
     return CounterMeasurement.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.COUNTER_MEASUREMENT, CounterMeasurement);
 /* ==== DESTACK_GENERATED_END:NODE:4113 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:4114 ==== */
@@ -2249,7 +2278,14 @@ export class HistogramMetric extends Node implements Spatial, Metric, HasName {
   ): HistogramMetric {
     return HistogramMetric.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.HISTOGRAM_METRIC, HistogramMetric);
 /* ==== DESTACK_GENERATED_END:NODE:4114 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:4115 ==== */
@@ -2625,5 +2661,12 @@ export class HistogramMeasurement extends Node implements Spatial, Measurement {
   ): HistogramMeasurement {
     return HistogramMeasurement.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.HISTOGRAM_MEASUREMENT, HistogramMeasurement);
 /* ==== DESTACK_GENERATED_END:NODE:4115 ==== */

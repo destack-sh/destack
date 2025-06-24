@@ -1,6 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Entity,
+  EnumType,
   Global,
   Graph,
   HasIcon,
@@ -21,6 +22,7 @@ import {
   TraitType,
 } from "@destack/language/core";
 import { Cursor } from "@destack/language/logic";
+import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Handle, Space } from "@destack/language/space";
 import { MaterializationTypeProto, UserProto, UserStatusProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
@@ -32,7 +34,14 @@ import { Temporal } from "temporal-polyfill";
 export enum UserStatus {
   CREATING = 2,
   ACTIVE = 10,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.USER_STATUS, UserStatus);
 /* ==== DESTACK_GENERATED_END:ENUM:20 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:20 ==== */
@@ -656,5 +665,12 @@ export class User extends Node implements Global, Entity, HasName, HasIcon, HasS
   ): User {
     return User.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.USER, User);
 /* ==== DESTACK_GENERATED_END:NODE:20 ==== */

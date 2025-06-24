@@ -7,6 +7,7 @@ import {
   Dimension,
   Direction,
   Distribute,
+  EnumType,
   Event,
   Graph,
   Grid,
@@ -33,6 +34,7 @@ import {
 } from "@destack/language/core";
 import { Folder } from "@destack/language/folder";
 import { Script } from "@destack/language/logic";
+import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Window } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Border, Fill, Shadow } from "@destack/language/style";
@@ -56,7 +58,14 @@ import { Temporal } from "temporal-polyfill";
 export enum SceneEventType {
   ENTERED = 1,
   EXITED = 2,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerEnumClass(EnumType.SCENE_EVENT_TYPE, SceneEventType);
 /* ==== DESTACK_GENERATED_END:ENUM:9011 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:9011 ==== */
@@ -451,7 +460,14 @@ export class SceneEvent extends Node implements Event {
   ): SceneEvent {
     return SceneEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.SCENE_EVENT, SceneEvent);
 /* ==== DESTACK_GENERATED_END:NODE:9011 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:9010 ==== */
@@ -1832,5 +1848,12 @@ export class Scene extends Node implements ContainerView, HasIcon, IsOwnable {
   ): Scene {
     return Scene.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  // ...
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
+registerNodeClass(NodeType.SCENE, Scene);
 /* ==== DESTACK_GENERATED_END:NODE:9010 ==== */
