@@ -1029,13 +1029,13 @@ export interface CollectionConstraintProto {
      */
     metatype: StructTypeProto;
     /**
-     * @generated from protobuf field: optional int64 min_length = 41
+     * @generated from protobuf field: optional int64 min_length = 41 [jstype = JS_NUMBER]
      */
-    minLength?: bigint;
+    minLength?: number;
     /**
-     * @generated from protobuf field: optional int64 max_length = 42
+     * @generated from protobuf field: optional int64 max_length = 42 [jstype = JS_NUMBER]
      */
-    maxLength?: bigint;
+    maxLength?: number;
 }
 /**
  * @generated from protobuf message symbol.destack.ColorProto
@@ -1224,25 +1224,25 @@ export interface CornersProto {
      */
     metatype: StructTypeProto;
     /**
-     * @generated from protobuf field: optional int64 base = 50
+     * @generated from protobuf field: optional int64 base = 50 [jstype = JS_NUMBER]
      */
-    base?: bigint;
+    base?: number;
     /**
-     * @generated from protobuf field: optional int64 top_left = 51
+     * @generated from protobuf field: optional int64 top_left = 51 [jstype = JS_NUMBER]
      */
-    topLeft?: bigint;
+    topLeft?: number;
     /**
-     * @generated from protobuf field: optional int64 top_right = 52
+     * @generated from protobuf field: optional int64 top_right = 52 [jstype = JS_NUMBER]
      */
-    topRight?: bigint;
+    topRight?: number;
     /**
-     * @generated from protobuf field: optional int64 bottom_left = 53
+     * @generated from protobuf field: optional int64 bottom_left = 53 [jstype = JS_NUMBER]
      */
-    bottomLeft?: bigint;
+    bottomLeft?: number;
     /**
-     * @generated from protobuf field: optional int64 bottom_right = 54
+     * @generated from protobuf field: optional int64 bottom_right = 54 [jstype = JS_NUMBER]
      */
-    bottomRight?: bigint;
+    bottomRight?: number;
 }
 /**
  * A Counter Measurement.
@@ -2613,9 +2613,9 @@ export interface EnumDefinitionProto {
      */
     metatype: StructTypeProto;
     /**
-     * @generated from protobuf field: int64 id = 2
+     * @generated from protobuf field: int64 id = 2 [jstype = JS_NUMBER]
      */
-    id: bigint;
+    id: number;
     /**
      * @generated from protobuf field: symbol.destack.EnumTypeProto type = 30
      */
@@ -2646,9 +2646,9 @@ export interface EnumOptionDefinitionProto {
      */
     metatype: StructTypeProto;
     /**
-     * @generated from protobuf field: int64 id = 2
+     * @generated from protobuf field: int64 id = 2 [jstype = JS_NUMBER]
      */
-    id: bigint;
+    id: number;
     /**
      * @generated from protobuf field: symbol.destack.EnumTypeProto type = 30
      */
@@ -3019,21 +3019,21 @@ export interface FileProto {
      */
     format?: FileFormatProto;
     /**
-     * @generated from protobuf field: optional int64 size = 63
+     * @generated from protobuf field: optional int64 size = 63 [jstype = JS_NUMBER]
      */
-    size?: bigint;
+    size?: number;
     /**
      * @generated from protobuf field: optional string sha256 = 64
      */
     sha256?: string;
     /**
-     * @generated from protobuf field: optional int64 width = 65
+     * @generated from protobuf field: optional int64 width = 65 [jstype = JS_NUMBER]
      */
-    width?: bigint;
+    width?: number;
     /**
-     * @generated from protobuf field: optional int64 height = 66
+     * @generated from protobuf field: optional int64 height = 66 [jstype = JS_NUMBER]
      */
-    height?: bigint;
+    height?: number;
     /**
      * @generated from protobuf field: optional double aspect_ratio = 67
      */
@@ -3063,13 +3063,13 @@ export interface FileProto {
      */
     faviconUrl?: string;
     /**
-     * @generated from protobuf field: optional int64 thumbnail_width = 74
+     * @generated from protobuf field: optional int64 thumbnail_width = 74 [jstype = JS_NUMBER]
      */
-    thumbnailWidth?: bigint;
+    thumbnailWidth?: number;
     /**
-     * @generated from protobuf field: optional int64 thumbnail_height = 75
+     * @generated from protobuf field: optional int64 thumbnail_height = 75 [jstype = JS_NUMBER]
      */
-    thumbnailHeight?: bigint;
+    thumbnailHeight?: number;
     /**
      * @generated from protobuf field: optional bytes content = 76
      */
@@ -4041,13 +4041,13 @@ export interface GridProto {
      */
     metatype: StructTypeProto;
     /**
-     * @generated from protobuf field: int64 columns = 50
+     * @generated from protobuf field: int64 columns = 50 [jstype = JS_NUMBER]
      */
-    columns: bigint;
+    columns: number;
     /**
-     * @generated from protobuf field: int64 rows = 51
+     * @generated from protobuf field: int64 rows = 51 [jstype = JS_NUMBER]
      */
-    rows: bigint;
+    rows: number;
     /**
      * @generated from protobuf field: optional symbol.destack.DimensionProto column_width = 52
      */
@@ -4070,13 +4070,13 @@ export interface GridSpanProto {
      */
     metatype: StructTypeProto;
     /**
-     * @generated from protobuf field: int64 columns = 50
+     * @generated from protobuf field: int64 columns = 50 [jstype = JS_NUMBER]
      */
-    columns: bigint;
+    columns: number;
     /**
-     * @generated from protobuf field: int64 rows = 51
+     * @generated from protobuf field: int64 rows = 51 [jstype = JS_NUMBER]
      */
-    rows: bigint;
+    rows: number;
 }
 /**
  * A Destack @handle.
@@ -4134,9 +4134,9 @@ export interface HistogramProto {
      */
     buckets: ValueProto[];
     /**
-     * @generated from protobuf field: repeated int64 counts = 41
+     * @generated from protobuf field: repeated int64 counts = 41 [jstype = JS_NUMBER]
      */
-    counts: bigint[];
+    counts: number[];
 }
 /**
  * A Histogram Measurement.
@@ -4286,25 +4286,25 @@ export interface InsetsProto {
      */
     metatype: StructTypeProto;
     /**
-     * @generated from protobuf field: optional int64 base = 50
+     * @generated from protobuf field: optional int64 base = 50 [jstype = JS_NUMBER]
      */
-    base?: bigint;
+    base?: number;
     /**
-     * @generated from protobuf field: optional int64 top = 51
+     * @generated from protobuf field: optional int64 top = 51 [jstype = JS_NUMBER]
      */
-    top?: bigint;
+    top?: number;
     /**
-     * @generated from protobuf field: optional int64 left = 52
+     * @generated from protobuf field: optional int64 left = 52 [jstype = JS_NUMBER]
      */
-    left?: bigint;
+    left?: number;
     /**
-     * @generated from protobuf field: optional int64 right = 53
+     * @generated from protobuf field: optional int64 right = 53 [jstype = JS_NUMBER]
      */
-    right?: bigint;
+    right?: number;
     /**
-     * @generated from protobuf field: optional int64 bottom = 54
+     * @generated from protobuf field: optional int64 bottom = 54 [jstype = JS_NUMBER]
      */
-    bottom?: bigint;
+    bottom?: number;
 }
 /**
  * An Interruption in run of something.
@@ -4526,9 +4526,9 @@ export interface JoinProto {
      */
     recursive: boolean;
     /**
-     * @generated from protobuf field: optional int64 depth = 34
+     * @generated from protobuf field: optional int64 depth = 34 [jstype = JS_NUMBER]
      */
-    depth?: bigint;
+    depth?: number;
     /**
      * @generated from protobuf field: optional symbol.destack.ConditionProto on = 35
      */
@@ -5087,13 +5087,13 @@ export interface LinkProto {
      */
     faviconUrl?: string;
     /**
-     * @generated from protobuf field: optional int64 thumbnail_width = 55
+     * @generated from protobuf field: optional int64 thumbnail_width = 55 [jstype = JS_NUMBER]
      */
-    thumbnailWidth?: bigint;
+    thumbnailWidth?: number;
     /**
-     * @generated from protobuf field: optional int64 thumbnail_height = 56
+     * @generated from protobuf field: optional int64 thumbnail_height = 56 [jstype = JS_NUMBER]
      */
-    thumbnailHeight?: bigint;
+    thumbnailHeight?: number;
     /**
      * @generated from protobuf field: optional string content = 60
      */
@@ -5264,13 +5264,13 @@ export interface MachineProto {
      */
     ram: number;
     /**
-     * @generated from protobuf field: int64 width = 75
+     * @generated from protobuf field: int64 width = 75 [jstype = JS_NUMBER]
      */
-    width: bigint;
+    width: number;
     /**
-     * @generated from protobuf field: int64 height = 76
+     * @generated from protobuf field: int64 height = 76 [jstype = JS_NUMBER]
      */
-    height: bigint;
+    height: number;
     /**
      * @generated from protobuf field: bool is_headless = 77
      */
@@ -5499,9 +5499,9 @@ export interface NodeDefinitionProto {
      */
     metatype: StructTypeProto;
     /**
-     * @generated from protobuf field: int64 id = 2
+     * @generated from protobuf field: int64 id = 2 [jstype = JS_NUMBER]
      */
-    id: bigint;
+    id: number;
     /**
      * @generated from protobuf field: symbol.destack.NodeTypeProto type = 30
      */
@@ -5703,13 +5703,13 @@ export interface NumberConstraintProto {
      */
     stepValue?: number;
     /**
-     * @generated from protobuf field: optional int64 precision = 44
+     * @generated from protobuf field: optional int64 precision = 44 [jstype = JS_NUMBER]
      */
-    precision?: bigint;
+    precision?: number;
     /**
-     * @generated from protobuf field: optional int64 scale = 45
+     * @generated from protobuf field: optional int64 scale = 45 [jstype = JS_NUMBER]
      */
-    scale?: bigint;
+    scale?: number;
 }
 /**
  * A general number input View.
@@ -6094,9 +6094,9 @@ export interface PermissionDefinitionProto {
      */
     metatype: StructTypeProto;
     /**
-     * @generated from protobuf field: int64 id = 2
+     * @generated from protobuf field: int64 id = 2 [jstype = JS_NUMBER]
      */
-    id: bigint;
+    id: number;
     /**
      * @generated from protobuf field: symbol.destack.EnumTypeProto type = 30
      */
@@ -6323,9 +6323,9 @@ export interface PropertyDefinitionProto {
      */
     metatype: StructTypeProto;
     /**
-     * @generated from protobuf field: int64 id = 2
+     * @generated from protobuf field: int64 id = 2 [jstype = JS_NUMBER]
      */
-    id: bigint;
+    id: number;
     /**
      * @generated from protobuf field: string name = 31
      */
@@ -6464,9 +6464,9 @@ export interface PropertyReferenceProto {
      */
     structType?: StructTypeProto;
     /**
-     * @generated from protobuf field: int64 id = 35
+     * @generated from protobuf field: int64 id = 35 [jstype = JS_NUMBER]
      */
-    id: bigint;
+    id: number;
 }
 /**
  * @generated from protobuf message symbol.destack.QueryProto
@@ -6525,13 +6525,13 @@ export interface QueryProto {
      */
     sort: SortProto[];
     /**
-     * @generated from protobuf field: optional int64 limit = 50
+     * @generated from protobuf field: optional int64 limit = 50 [jstype = JS_NUMBER]
      */
-    limit?: bigint;
+    limit?: number;
     /**
-     * @generated from protobuf field: optional int64 offset = 51
+     * @generated from protobuf field: optional int64 offset = 51 [jstype = JS_NUMBER]
      */
-    offset?: bigint;
+    offset?: number;
 }
 /**
  * @generated from protobuf message symbol.destack.QueryResultProto
@@ -6562,9 +6562,9 @@ export interface QueryResultProto {
      */
     nodes: ValueProto[];
     /**
-     * @generated from protobuf field: optional int64 count = 41
+     * @generated from protobuf field: optional int64 count = 41 [jstype = JS_NUMBER]
      */
-    count?: bigint;
+    count?: number;
     /**
      * @generated from protobuf field: optional bool exists = 42
      */
@@ -6595,9 +6595,9 @@ export interface QueryResultGroupProto {
      */
     nodes: ValueProto[];
     /**
-     * @generated from protobuf field: optional int64 count = 41
+     * @generated from protobuf field: optional int64 count = 41 [jstype = JS_NUMBER]
      */
-    count?: bigint;
+    count?: number;
     /**
      * @generated from protobuf field: optional bool exists = 42
      */
@@ -7354,9 +7354,9 @@ export interface ScheduleProto {
      */
     frequency: ScheduleFrequencyProto;
     /**
-     * @generated from protobuf field: int64 interval = 32
+     * @generated from protobuf field: int64 interval = 32 [jstype = JS_NUMBER]
      */
-    interval: bigint;
+    interval: number;
     /**
      * @generated from protobuf field: optional google.protobuf.Timestamp start = 33
      */
@@ -7366,53 +7366,53 @@ export interface ScheduleProto {
      */
     end?: Timestamp;
     /**
-     * @generated from protobuf field: optional int64 count = 35
+     * @generated from protobuf field: optional int64 count = 35 [jstype = JS_NUMBER]
      */
-    count?: bigint;
+    count?: number;
     /**
      * @generated from protobuf field: optional symbol.destack.DayOfWeekProto week_start = 36
      */
     weekStart?: DayOfWeekProto;
     /**
-     * @generated from protobuf field: repeated int64 by_set_pos = 37
+     * @generated from protobuf field: repeated int64 by_set_pos = 37 [jstype = JS_NUMBER]
      */
-    bySetPos: bigint[];
+    bySetPos: number[];
     /**
      * @generated from protobuf field: repeated symbol.destack.MonthProto by_month = 38
      */
     byMonth: MonthProto[];
     /**
-     * @generated from protobuf field: repeated int64 by_month_day = 39
+     * @generated from protobuf field: repeated int64 by_month_day = 39 [jstype = JS_NUMBER]
      */
-    byMonthDay: bigint[];
+    byMonthDay: number[];
     /**
-     * @generated from protobuf field: repeated int64 by_year_day = 40
+     * @generated from protobuf field: repeated int64 by_year_day = 40 [jstype = JS_NUMBER]
      */
-    byYearDay: bigint[];
+    byYearDay: number[];
     /**
-     * @generated from protobuf field: repeated int64 by_easter = 41
+     * @generated from protobuf field: repeated int64 by_easter = 41 [jstype = JS_NUMBER]
      */
-    byEaster: bigint[];
+    byEaster: number[];
     /**
-     * @generated from protobuf field: repeated int64 by_week_no = 42
+     * @generated from protobuf field: repeated int64 by_week_no = 42 [jstype = JS_NUMBER]
      */
-    byWeekNo: bigint[];
+    byWeekNo: number[];
     /**
      * @generated from protobuf field: repeated symbol.destack.DayOfWeekProto by_week_day = 43
      */
     byWeekDay: DayOfWeekProto[];
     /**
-     * @generated from protobuf field: repeated int64 by_hour = 44
+     * @generated from protobuf field: repeated int64 by_hour = 44 [jstype = JS_NUMBER]
      */
-    byHour: bigint[];
+    byHour: number[];
     /**
-     * @generated from protobuf field: repeated int64 by_minute = 45
+     * @generated from protobuf field: repeated int64 by_minute = 45 [jstype = JS_NUMBER]
      */
-    byMinute: bigint[];
+    byMinute: number[];
     /**
-     * @generated from protobuf field: repeated int64 by_second = 46
+     * @generated from protobuf field: repeated int64 by_second = 46 [jstype = JS_NUMBER]
      */
-    bySecond: bigint[];
+    bySecond: number[];
 }
 /**
  * @generated from protobuf message symbol.destack.ScopeProto
@@ -7679,13 +7679,13 @@ export interface ShadowProto {
      */
     offset?: Axis2Proto;
     /**
-     * @generated from protobuf field: optional int64 blur = 53
+     * @generated from protobuf field: optional int64 blur = 53 [jstype = JS_NUMBER]
      */
-    blur?: bigint;
+    blur?: number;
     /**
-     * @generated from protobuf field: optional int64 spread = 54
+     * @generated from protobuf field: optional int64 spread = 54 [jstype = JS_NUMBER]
      */
-    spread?: bigint;
+    spread?: number;
     /**
      * @generated from protobuf field: optional double diffusion = 55
      */
@@ -7762,13 +7762,13 @@ export interface ShadowStyleProto {
      */
     offset?: Axis2Proto;
     /**
-     * @generated from protobuf field: optional int64 blur = 53
+     * @generated from protobuf field: optional int64 blur = 53 [jstype = JS_NUMBER]
      */
-    blur?: bigint;
+    blur?: number;
     /**
-     * @generated from protobuf field: optional int64 spread = 54
+     * @generated from protobuf field: optional int64 spread = 54 [jstype = JS_NUMBER]
      */
-    spread?: bigint;
+    spread?: number;
     /**
      * @generated from protobuf field: optional double diffusion = 55
      */
@@ -8345,9 +8345,9 @@ export interface StructDefinitionProto {
      */
     metatype: StructTypeProto;
     /**
-     * @generated from protobuf field: int64 id = 2
+     * @generated from protobuf field: int64 id = 2 [jstype = JS_NUMBER]
      */
-    id: bigint;
+    id: number;
     /**
      * @generated from protobuf field: symbol.destack.StructTypeProto type = 30
      */
@@ -9108,9 +9108,9 @@ export interface TraitDefinitionProto {
      */
     metatype: StructTypeProto;
     /**
-     * @generated from protobuf field: int64 id = 2
+     * @generated from protobuf field: int64 id = 2 [jstype = JS_NUMBER]
      */
-    id: bigint;
+    id: number;
     /**
      * @generated from protobuf field: symbol.destack.TraitTypeProto type = 30
      */
@@ -9686,13 +9686,13 @@ export interface Vector2iProto {
      */
     metatype: StructTypeProto;
     /**
-     * @generated from protobuf field: int64 x = 50
+     * @generated from protobuf field: int64 x = 50 [jstype = JS_NUMBER]
      */
-    x: bigint;
+    x: number;
     /**
-     * @generated from protobuf field: int64 y = 51
+     * @generated from protobuf field: int64 y = 51 [jstype = JS_NUMBER]
      */
-    y: bigint;
+    y: number;
 }
 /**
  * @generated from protobuf message symbol.destack.Vector3Proto
@@ -9724,17 +9724,17 @@ export interface Vector3iProto {
      */
     metatype: StructTypeProto;
     /**
-     * @generated from protobuf field: int64 x = 50
+     * @generated from protobuf field: int64 x = 50 [jstype = JS_NUMBER]
      */
-    x: bigint;
+    x: number;
     /**
-     * @generated from protobuf field: int64 y = 51
+     * @generated from protobuf field: int64 y = 51 [jstype = JS_NUMBER]
      */
-    y: bigint;
+    y: number;
     /**
-     * @generated from protobuf field: int64 z = 52
+     * @generated from protobuf field: int64 z = 52 [jstype = JS_NUMBER]
      */
-    z: bigint;
+    z: number;
 }
 /**
  * @generated from protobuf message symbol.destack.Vector4Proto
@@ -9770,21 +9770,21 @@ export interface Vector4iProto {
      */
     metatype: StructTypeProto;
     /**
-     * @generated from protobuf field: int64 x = 50
+     * @generated from protobuf field: int64 x = 50 [jstype = JS_NUMBER]
      */
-    x: bigint;
+    x: number;
     /**
-     * @generated from protobuf field: int64 y = 51
+     * @generated from protobuf field: int64 y = 51 [jstype = JS_NUMBER]
      */
-    y: bigint;
+    y: number;
     /**
-     * @generated from protobuf field: int64 z = 52
+     * @generated from protobuf field: int64 z = 52 [jstype = JS_NUMBER]
      */
-    z: bigint;
+    z: number;
     /**
-     * @generated from protobuf field: int64 w = 53
+     * @generated from protobuf field: int64 w = 53 [jstype = JS_NUMBER]
      */
-    w: bigint;
+    w: number;
 }
 /**
  * A Window for someone to interact with a Space via Scenes.
@@ -18180,8 +18180,8 @@ class CollectionConstraintProto$Type extends MessageType<CollectionConstraintPro
     constructor() {
         super("symbol.destack.CollectionConstraintProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
-            { no: 41, name: "min_length", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 42, name: "max_length", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 41, name: "min_length", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 42, name: "max_length", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ }
         ]);
     }
     create(value?: PartialMessage<CollectionConstraintProto>): CollectionConstraintProto {
@@ -18199,11 +18199,11 @@ class CollectionConstraintProto$Type extends MessageType<CollectionConstraintPro
                 case /* symbol.destack.StructTypeProto metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional int64 min_length */ 41:
-                    message.minLength = reader.int64().toBigInt();
+                case /* optional int64 min_length = 41 [jstype = JS_NUMBER] */ 41:
+                    message.minLength = reader.int64().toNumber();
                     break;
-                case /* optional int64 max_length */ 42:
-                    message.maxLength = reader.int64().toBigInt();
+                case /* optional int64 max_length = 42 [jstype = JS_NUMBER] */ 42:
+                    message.maxLength = reader.int64().toNumber();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -18220,10 +18220,10 @@ class CollectionConstraintProto$Type extends MessageType<CollectionConstraintPro
         /* symbol.destack.StructTypeProto metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int64 min_length = 41; */
+        /* optional int64 min_length = 41 [jstype = JS_NUMBER]; */
         if (message.minLength !== undefined)
             writer.tag(41, WireType.Varint).int64(message.minLength);
-        /* optional int64 max_length = 42; */
+        /* optional int64 max_length = 42 [jstype = JS_NUMBER]; */
         if (message.maxLength !== undefined)
             writer.tag(42, WireType.Varint).int64(message.maxLength);
         let u = options.writeUnknownFields;
@@ -18683,11 +18683,11 @@ class CornersProto$Type extends MessageType<CornersProto> {
     constructor() {
         super("symbol.destack.CornersProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
-            { no: 50, name: "base", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 51, name: "top_left", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 52, name: "top_right", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 53, name: "bottom_left", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 54, name: "bottom_right", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 50, name: "base", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 51, name: "top_left", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 52, name: "top_right", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 53, name: "bottom_left", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 54, name: "bottom_right", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ }
         ]);
     }
     create(value?: PartialMessage<CornersProto>): CornersProto {
@@ -18705,20 +18705,20 @@ class CornersProto$Type extends MessageType<CornersProto> {
                 case /* symbol.destack.StructTypeProto metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional int64 base */ 50:
-                    message.base = reader.int64().toBigInt();
+                case /* optional int64 base = 50 [jstype = JS_NUMBER] */ 50:
+                    message.base = reader.int64().toNumber();
                     break;
-                case /* optional int64 top_left */ 51:
-                    message.topLeft = reader.int64().toBigInt();
+                case /* optional int64 top_left = 51 [jstype = JS_NUMBER] */ 51:
+                    message.topLeft = reader.int64().toNumber();
                     break;
-                case /* optional int64 top_right */ 52:
-                    message.topRight = reader.int64().toBigInt();
+                case /* optional int64 top_right = 52 [jstype = JS_NUMBER] */ 52:
+                    message.topRight = reader.int64().toNumber();
                     break;
-                case /* optional int64 bottom_left */ 53:
-                    message.bottomLeft = reader.int64().toBigInt();
+                case /* optional int64 bottom_left = 53 [jstype = JS_NUMBER] */ 53:
+                    message.bottomLeft = reader.int64().toNumber();
                     break;
-                case /* optional int64 bottom_right */ 54:
-                    message.bottomRight = reader.int64().toBigInt();
+                case /* optional int64 bottom_right = 54 [jstype = JS_NUMBER] */ 54:
+                    message.bottomRight = reader.int64().toNumber();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -18735,19 +18735,19 @@ class CornersProto$Type extends MessageType<CornersProto> {
         /* symbol.destack.StructTypeProto metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int64 base = 50; */
+        /* optional int64 base = 50 [jstype = JS_NUMBER]; */
         if (message.base !== undefined)
             writer.tag(50, WireType.Varint).int64(message.base);
-        /* optional int64 top_left = 51; */
+        /* optional int64 top_left = 51 [jstype = JS_NUMBER]; */
         if (message.topLeft !== undefined)
             writer.tag(51, WireType.Varint).int64(message.topLeft);
-        /* optional int64 top_right = 52; */
+        /* optional int64 top_right = 52 [jstype = JS_NUMBER]; */
         if (message.topRight !== undefined)
             writer.tag(52, WireType.Varint).int64(message.topRight);
-        /* optional int64 bottom_left = 53; */
+        /* optional int64 bottom_left = 53 [jstype = JS_NUMBER]; */
         if (message.bottomLeft !== undefined)
             writer.tag(53, WireType.Varint).int64(message.bottomLeft);
-        /* optional int64 bottom_right = 54; */
+        /* optional int64 bottom_right = 54 [jstype = JS_NUMBER]; */
         if (message.bottomRight !== undefined)
             writer.tag(54, WireType.Varint).int64(message.bottomRight);
         let u = options.writeUnknownFields;
@@ -21849,7 +21849,7 @@ class EnumDefinitionProto$Type extends MessageType<EnumDefinitionProto> {
     constructor() {
         super("symbol.destack.EnumDefinitionProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
-            { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.destack.EnumTypeProto", EnumTypeProto] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconProto },
@@ -21860,7 +21860,7 @@ class EnumDefinitionProto$Type extends MessageType<EnumDefinitionProto> {
     create(value?: PartialMessage<EnumDefinitionProto>): EnumDefinitionProto {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0n;
+        message.id = 0;
         message.type = 0;
         message.name = "";
         message.options = [];
@@ -21876,8 +21876,8 @@ class EnumDefinitionProto$Type extends MessageType<EnumDefinitionProto> {
                 case /* symbol.destack.StructTypeProto metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int64 id */ 2:
-                    message.id = reader.int64().toBigInt();
+                case /* int64 id = 2 [jstype = JS_NUMBER] */ 2:
+                    message.id = reader.int64().toNumber();
                     break;
                 case /* symbol.destack.EnumTypeProto type */ 30:
                     message.type = reader.int32();
@@ -21909,8 +21909,8 @@ class EnumDefinitionProto$Type extends MessageType<EnumDefinitionProto> {
         /* symbol.destack.StructTypeProto metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int64 id = 2; */
-        if (message.id !== 0n)
+        /* int64 id = 2 [jstype = JS_NUMBER]; */
+        if (message.id !== 0)
             writer.tag(2, WireType.Varint).int64(message.id);
         /* symbol.destack.EnumTypeProto type = 30; */
         if (message.type !== 0)
@@ -21942,7 +21942,7 @@ class EnumOptionDefinitionProto$Type extends MessageType<EnumOptionDefinitionPro
     constructor() {
         super("symbol.destack.EnumOptionDefinitionProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
-            { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.destack.EnumTypeProto", EnumTypeProto] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconProto },
@@ -21952,7 +21952,7 @@ class EnumOptionDefinitionProto$Type extends MessageType<EnumOptionDefinitionPro
     create(value?: PartialMessage<EnumOptionDefinitionProto>): EnumOptionDefinitionProto {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0n;
+        message.id = 0;
         message.type = 0;
         message.name = "";
         if (value !== undefined)
@@ -21967,8 +21967,8 @@ class EnumOptionDefinitionProto$Type extends MessageType<EnumOptionDefinitionPro
                 case /* symbol.destack.StructTypeProto metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int64 id */ 2:
-                    message.id = reader.int64().toBigInt();
+                case /* int64 id = 2 [jstype = JS_NUMBER] */ 2:
+                    message.id = reader.int64().toNumber();
                     break;
                 case /* symbol.destack.EnumTypeProto type */ 30:
                     message.type = reader.int32();
@@ -21997,8 +21997,8 @@ class EnumOptionDefinitionProto$Type extends MessageType<EnumOptionDefinitionPro
         /* symbol.destack.StructTypeProto metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int64 id = 2; */
-        if (message.id !== 0n)
+        /* int64 id = 2 [jstype = JS_NUMBER]; */
+        if (message.id !== 0)
             writer.tag(2, WireType.Varint).int64(message.id);
         /* symbol.destack.EnumTypeProto type = 30; */
         if (message.type !== 0)
@@ -22664,10 +22664,10 @@ class FileProto$Type extends MessageType<FileProto> {
             { no: 60, name: "source", kind: "enum", T: () => ["symbol.destack.FileSourceProto", FileSourceProto] },
             { no: 61, name: "mime_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 62, name: "format", kind: "enum", opt: true, T: () => ["symbol.destack.FileFormatProto", FileFormatProto] },
-            { no: 63, name: "size", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 63, name: "size", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 64, name: "sha256", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 65, name: "width", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 66, name: "height", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 65, name: "width", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 66, name: "height", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 67, name: "aspect_ratio", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 68, name: "codec", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 69, name: "duration", kind: "message", T: () => Duration },
@@ -22675,8 +22675,8 @@ class FileProto$Type extends MessageType<FileProto> {
             { no: 71, name: "content_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 72, name: "thumbnail_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 73, name: "favicon_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 74, name: "thumbnail_width", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 75, name: "thumbnail_height", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 74, name: "thumbnail_width", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 75, name: "thumbnail_height", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 76, name: "content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ }
         ]);
     }
@@ -22746,17 +22746,17 @@ class FileProto$Type extends MessageType<FileProto> {
                 case /* optional symbol.destack.FileFormatProto format */ 62:
                     message.format = reader.int32();
                     break;
-                case /* optional int64 size */ 63:
-                    message.size = reader.int64().toBigInt();
+                case /* optional int64 size = 63 [jstype = JS_NUMBER] */ 63:
+                    message.size = reader.int64().toNumber();
                     break;
                 case /* optional string sha256 */ 64:
                     message.sha256 = reader.string();
                     break;
-                case /* optional int64 width */ 65:
-                    message.width = reader.int64().toBigInt();
+                case /* optional int64 width = 65 [jstype = JS_NUMBER] */ 65:
+                    message.width = reader.int64().toNumber();
                     break;
-                case /* optional int64 height */ 66:
-                    message.height = reader.int64().toBigInt();
+                case /* optional int64 height = 66 [jstype = JS_NUMBER] */ 66:
+                    message.height = reader.int64().toNumber();
                     break;
                 case /* optional double aspect_ratio */ 67:
                     message.aspectRatio = reader.double();
@@ -22779,11 +22779,11 @@ class FileProto$Type extends MessageType<FileProto> {
                 case /* optional string favicon_url */ 73:
                     message.faviconUrl = reader.string();
                     break;
-                case /* optional int64 thumbnail_width */ 74:
-                    message.thumbnailWidth = reader.int64().toBigInt();
+                case /* optional int64 thumbnail_width = 74 [jstype = JS_NUMBER] */ 74:
+                    message.thumbnailWidth = reader.int64().toNumber();
                     break;
-                case /* optional int64 thumbnail_height */ 75:
-                    message.thumbnailHeight = reader.int64().toBigInt();
+                case /* optional int64 thumbnail_height = 75 [jstype = JS_NUMBER] */ 75:
+                    message.thumbnailHeight = reader.int64().toNumber();
                     break;
                 case /* optional bytes content */ 76:
                     message.content = reader.bytes();
@@ -22848,16 +22848,16 @@ class FileProto$Type extends MessageType<FileProto> {
         /* optional symbol.destack.FileFormatProto format = 62; */
         if (message.format !== undefined)
             writer.tag(62, WireType.Varint).int32(message.format);
-        /* optional int64 size = 63; */
+        /* optional int64 size = 63 [jstype = JS_NUMBER]; */
         if (message.size !== undefined)
             writer.tag(63, WireType.Varint).int64(message.size);
         /* optional string sha256 = 64; */
         if (message.sha256 !== undefined)
             writer.tag(64, WireType.LengthDelimited).string(message.sha256);
-        /* optional int64 width = 65; */
+        /* optional int64 width = 65 [jstype = JS_NUMBER]; */
         if (message.width !== undefined)
             writer.tag(65, WireType.Varint).int64(message.width);
-        /* optional int64 height = 66; */
+        /* optional int64 height = 66 [jstype = JS_NUMBER]; */
         if (message.height !== undefined)
             writer.tag(66, WireType.Varint).int64(message.height);
         /* optional double aspect_ratio = 67; */
@@ -22881,10 +22881,10 @@ class FileProto$Type extends MessageType<FileProto> {
         /* optional string favicon_url = 73; */
         if (message.faviconUrl !== undefined)
             writer.tag(73, WireType.LengthDelimited).string(message.faviconUrl);
-        /* optional int64 thumbnail_width = 74; */
+        /* optional int64 thumbnail_width = 74 [jstype = JS_NUMBER]; */
         if (message.thumbnailWidth !== undefined)
             writer.tag(74, WireType.Varint).int64(message.thumbnailWidth);
-        /* optional int64 thumbnail_height = 75; */
+        /* optional int64 thumbnail_height = 75 [jstype = JS_NUMBER]; */
         if (message.thumbnailHeight !== undefined)
             writer.tag(75, WireType.Varint).int64(message.thumbnailHeight);
         /* optional bytes content = 76; */
@@ -25137,8 +25137,8 @@ class GridProto$Type extends MessageType<GridProto> {
     constructor() {
         super("symbol.destack.GridProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
-            { no: 50, name: "columns", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 51, name: "rows", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 50, name: "columns", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 51, name: "rows", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 52, name: "column_width", kind: "message", T: () => DimensionProto },
             { no: 53, name: "column_min_width", kind: "message", T: () => DimensionProto },
             { no: 54, name: "row_height", kind: "message", T: () => DimensionProto }
@@ -25147,8 +25147,8 @@ class GridProto$Type extends MessageType<GridProto> {
     create(value?: PartialMessage<GridProto>): GridProto {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.columns = 0n;
-        message.rows = 0n;
+        message.columns = 0;
+        message.rows = 0;
         if (value !== undefined)
             reflectionMergePartial<GridProto>(this, message, value);
         return message;
@@ -25161,11 +25161,11 @@ class GridProto$Type extends MessageType<GridProto> {
                 case /* symbol.destack.StructTypeProto metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int64 columns */ 50:
-                    message.columns = reader.int64().toBigInt();
+                case /* int64 columns = 50 [jstype = JS_NUMBER] */ 50:
+                    message.columns = reader.int64().toNumber();
                     break;
-                case /* int64 rows */ 51:
-                    message.rows = reader.int64().toBigInt();
+                case /* int64 rows = 51 [jstype = JS_NUMBER] */ 51:
+                    message.rows = reader.int64().toNumber();
                     break;
                 case /* optional symbol.destack.DimensionProto column_width */ 52:
                     message.columnWidth = DimensionProto.internalBinaryRead(reader, reader.uint32(), options, message.columnWidth);
@@ -25191,11 +25191,11 @@ class GridProto$Type extends MessageType<GridProto> {
         /* symbol.destack.StructTypeProto metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int64 columns = 50; */
-        if (message.columns !== 0n)
+        /* int64 columns = 50 [jstype = JS_NUMBER]; */
+        if (message.columns !== 0)
             writer.tag(50, WireType.Varint).int64(message.columns);
-        /* int64 rows = 51; */
-        if (message.rows !== 0n)
+        /* int64 rows = 51 [jstype = JS_NUMBER]; */
+        if (message.rows !== 0)
             writer.tag(51, WireType.Varint).int64(message.rows);
         /* optional symbol.destack.DimensionProto column_width = 52; */
         if (message.columnWidth)
@@ -25221,15 +25221,15 @@ class GridSpanProto$Type extends MessageType<GridSpanProto> {
     constructor() {
         super("symbol.destack.GridSpanProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
-            { no: 50, name: "columns", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 51, name: "rows", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 50, name: "columns", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 51, name: "rows", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ }
         ]);
     }
     create(value?: PartialMessage<GridSpanProto>): GridSpanProto {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.columns = 0n;
-        message.rows = 0n;
+        message.columns = 0;
+        message.rows = 0;
         if (value !== undefined)
             reflectionMergePartial<GridSpanProto>(this, message, value);
         return message;
@@ -25242,11 +25242,11 @@ class GridSpanProto$Type extends MessageType<GridSpanProto> {
                 case /* symbol.destack.StructTypeProto metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int64 columns */ 50:
-                    message.columns = reader.int64().toBigInt();
+                case /* int64 columns = 50 [jstype = JS_NUMBER] */ 50:
+                    message.columns = reader.int64().toNumber();
                     break;
-                case /* int64 rows */ 51:
-                    message.rows = reader.int64().toBigInt();
+                case /* int64 rows = 51 [jstype = JS_NUMBER] */ 51:
+                    message.rows = reader.int64().toNumber();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -25263,11 +25263,11 @@ class GridSpanProto$Type extends MessageType<GridSpanProto> {
         /* symbol.destack.StructTypeProto metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int64 columns = 50; */
-        if (message.columns !== 0n)
+        /* int64 columns = 50 [jstype = JS_NUMBER]; */
+        if (message.columns !== 0)
             writer.tag(50, WireType.Varint).int64(message.columns);
-        /* int64 rows = 51; */
-        if (message.rows !== 0n)
+        /* int64 rows = 51 [jstype = JS_NUMBER]; */
+        if (message.rows !== 0)
             writer.tag(51, WireType.Varint).int64(message.rows);
         let u = options.writeUnknownFields;
         if (u !== false)
@@ -25391,7 +25391,7 @@ class HistogramProto$Type extends MessageType<HistogramProto> {
         super("symbol.destack.HistogramProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
             { no: 40, name: "buckets", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => ValueProto },
-            { no: 41, name: "counts", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 41, name: "counts", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ }
         ]);
     }
     create(value?: PartialMessage<HistogramProto>): HistogramProto {
@@ -25414,12 +25414,12 @@ class HistogramProto$Type extends MessageType<HistogramProto> {
                 case /* repeated symbol.destack.ValueProto buckets */ 40:
                     message.buckets.push(ValueProto.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* repeated int64 counts */ 41:
+                case /* repeated int64 counts = 41 [jstype = JS_NUMBER] */ 41:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.counts.push(reader.int64().toBigInt());
+                            message.counts.push(reader.int64().toNumber());
                     else
-                        message.counts.push(reader.int64().toBigInt());
+                        message.counts.push(reader.int64().toNumber());
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -25439,7 +25439,7 @@ class HistogramProto$Type extends MessageType<HistogramProto> {
         /* repeated symbol.destack.ValueProto buckets = 40; */
         for (let i = 0; i < message.buckets.length; i++)
             ValueProto.internalBinaryWrite(message.buckets[i], writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* repeated int64 counts = 41; */
+        /* repeated int64 counts = 41 [jstype = JS_NUMBER]; */
         if (message.counts.length) {
             writer.tag(41, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.counts.length; i++)
@@ -25797,11 +25797,11 @@ class InsetsProto$Type extends MessageType<InsetsProto> {
     constructor() {
         super("symbol.destack.InsetsProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
-            { no: 50, name: "base", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 51, name: "top", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 52, name: "left", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 53, name: "right", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 54, name: "bottom", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 50, name: "base", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 51, name: "top", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 52, name: "left", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 53, name: "right", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 54, name: "bottom", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ }
         ]);
     }
     create(value?: PartialMessage<InsetsProto>): InsetsProto {
@@ -25819,20 +25819,20 @@ class InsetsProto$Type extends MessageType<InsetsProto> {
                 case /* symbol.destack.StructTypeProto metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional int64 base */ 50:
-                    message.base = reader.int64().toBigInt();
+                case /* optional int64 base = 50 [jstype = JS_NUMBER] */ 50:
+                    message.base = reader.int64().toNumber();
                     break;
-                case /* optional int64 top */ 51:
-                    message.top = reader.int64().toBigInt();
+                case /* optional int64 top = 51 [jstype = JS_NUMBER] */ 51:
+                    message.top = reader.int64().toNumber();
                     break;
-                case /* optional int64 left */ 52:
-                    message.left = reader.int64().toBigInt();
+                case /* optional int64 left = 52 [jstype = JS_NUMBER] */ 52:
+                    message.left = reader.int64().toNumber();
                     break;
-                case /* optional int64 right */ 53:
-                    message.right = reader.int64().toBigInt();
+                case /* optional int64 right = 53 [jstype = JS_NUMBER] */ 53:
+                    message.right = reader.int64().toNumber();
                     break;
-                case /* optional int64 bottom */ 54:
-                    message.bottom = reader.int64().toBigInt();
+                case /* optional int64 bottom = 54 [jstype = JS_NUMBER] */ 54:
+                    message.bottom = reader.int64().toNumber();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -25849,19 +25849,19 @@ class InsetsProto$Type extends MessageType<InsetsProto> {
         /* symbol.destack.StructTypeProto metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int64 base = 50; */
+        /* optional int64 base = 50 [jstype = JS_NUMBER]; */
         if (message.base !== undefined)
             writer.tag(50, WireType.Varint).int64(message.base);
-        /* optional int64 top = 51; */
+        /* optional int64 top = 51 [jstype = JS_NUMBER]; */
         if (message.top !== undefined)
             writer.tag(51, WireType.Varint).int64(message.top);
-        /* optional int64 left = 52; */
+        /* optional int64 left = 52 [jstype = JS_NUMBER]; */
         if (message.left !== undefined)
             writer.tag(52, WireType.Varint).int64(message.left);
-        /* optional int64 right = 53; */
+        /* optional int64 right = 53 [jstype = JS_NUMBER]; */
         if (message.right !== undefined)
             writer.tag(53, WireType.Varint).int64(message.right);
-        /* optional int64 bottom = 54; */
+        /* optional int64 bottom = 54 [jstype = JS_NUMBER]; */
         if (message.bottom !== undefined)
             writer.tag(54, WireType.Varint).int64(message.bottom);
         let u = options.writeUnknownFields;
@@ -26338,7 +26338,7 @@ class JoinProto$Type extends MessageType<JoinProto> {
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.destack.JoinTypeProto", JoinTypeProto] },
             { no: 31, name: "relation", kind: "message", T: () => RelationReferenceProto },
             { no: 33, name: "recursive", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 34, name: "depth", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 34, name: "depth", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 35, name: "on", kind: "message", T: () => ConditionProto }
         ]);
     }
@@ -26368,8 +26368,8 @@ class JoinProto$Type extends MessageType<JoinProto> {
                 case /* bool recursive */ 33:
                     message.recursive = reader.bool();
                     break;
-                case /* optional int64 depth */ 34:
-                    message.depth = reader.int64().toBigInt();
+                case /* optional int64 depth = 34 [jstype = JS_NUMBER] */ 34:
+                    message.depth = reader.int64().toNumber();
                     break;
                 case /* optional symbol.destack.ConditionProto on */ 35:
                     message.on = ConditionProto.internalBinaryRead(reader, reader.uint32(), options, message.on);
@@ -26398,7 +26398,7 @@ class JoinProto$Type extends MessageType<JoinProto> {
         /* bool recursive = 33; */
         if (message.recursive !== false)
             writer.tag(33, WireType.Varint).bool(message.recursive);
-        /* optional int64 depth = 34; */
+        /* optional int64 depth = 34 [jstype = JS_NUMBER]; */
         if (message.depth !== undefined)
             writer.tag(34, WireType.Varint).int64(message.depth);
         /* optional symbol.destack.ConditionProto on = 35; */
@@ -27438,8 +27438,8 @@ class LinkProto$Type extends MessageType<LinkProto> {
             { no: 52, name: "content_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 53, name: "thumbnail_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 54, name: "favicon_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 55, name: "thumbnail_width", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 56, name: "thumbnail_height", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 55, name: "thumbnail_width", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 56, name: "thumbnail_height", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 60, name: "content", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 62, name: "attribution", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 63, name: "attribution_tag", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -27516,11 +27516,11 @@ class LinkProto$Type extends MessageType<LinkProto> {
                 case /* optional string favicon_url */ 54:
                     message.faviconUrl = reader.string();
                     break;
-                case /* optional int64 thumbnail_width */ 55:
-                    message.thumbnailWidth = reader.int64().toBigInt();
+                case /* optional int64 thumbnail_width = 55 [jstype = JS_NUMBER] */ 55:
+                    message.thumbnailWidth = reader.int64().toNumber();
                     break;
-                case /* optional int64 thumbnail_height */ 56:
-                    message.thumbnailHeight = reader.int64().toBigInt();
+                case /* optional int64 thumbnail_height = 56 [jstype = JS_NUMBER] */ 56:
+                    message.thumbnailHeight = reader.int64().toNumber();
                     break;
                 case /* optional string content */ 60:
                     message.content = reader.string();
@@ -27603,10 +27603,10 @@ class LinkProto$Type extends MessageType<LinkProto> {
         /* optional string favicon_url = 54; */
         if (message.faviconUrl !== undefined)
             writer.tag(54, WireType.LengthDelimited).string(message.faviconUrl);
-        /* optional int64 thumbnail_width = 55; */
+        /* optional int64 thumbnail_width = 55 [jstype = JS_NUMBER]; */
         if (message.thumbnailWidth !== undefined)
             writer.tag(55, WireType.Varint).int64(message.thumbnailWidth);
-        /* optional int64 thumbnail_height = 56; */
+        /* optional int64 thumbnail_height = 56 [jstype = JS_NUMBER]; */
         if (message.thumbnailHeight !== undefined)
             writer.tag(56, WireType.Varint).int64(message.thumbnailHeight);
         /* optional string content = 60; */
@@ -27803,8 +27803,8 @@ class MachineProto$Type extends MessageType<MachineProto> {
             { no: 69, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 70, name: "cpu", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 71, name: "ram", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
-            { no: 75, name: "width", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 76, name: "height", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 75, name: "width", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 76, name: "height", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 77, name: "is_headless", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
@@ -27818,8 +27818,8 @@ class MachineProto$Type extends MessageType<MachineProto> {
         message.version = "";
         message.cpu = 0;
         message.ram = 0;
-        message.width = 0n;
-        message.height = 0n;
+        message.width = 0;
+        message.height = 0;
         message.isHeadless = false;
         if (value !== undefined)
             reflectionMergePartial<MachineProto>(this, message, value);
@@ -27893,11 +27893,11 @@ class MachineProto$Type extends MessageType<MachineProto> {
                 case /* double ram */ 71:
                     message.ram = reader.double();
                     break;
-                case /* int64 width */ 75:
-                    message.width = reader.int64().toBigInt();
+                case /* int64 width = 75 [jstype = JS_NUMBER] */ 75:
+                    message.width = reader.int64().toNumber();
                     break;
-                case /* int64 height */ 76:
-                    message.height = reader.int64().toBigInt();
+                case /* int64 height = 76 [jstype = JS_NUMBER] */ 76:
+                    message.height = reader.int64().toNumber();
                     break;
                 case /* bool is_headless */ 77:
                     message.isHeadless = reader.bool();
@@ -27977,11 +27977,11 @@ class MachineProto$Type extends MessageType<MachineProto> {
         /* double ram = 71; */
         if (message.ram !== 0)
             writer.tag(71, WireType.Bit64).double(message.ram);
-        /* int64 width = 75; */
-        if (message.width !== 0n)
+        /* int64 width = 75 [jstype = JS_NUMBER]; */
+        if (message.width !== 0)
             writer.tag(75, WireType.Varint).int64(message.width);
-        /* int64 height = 76; */
-        if (message.height !== 0n)
+        /* int64 height = 76 [jstype = JS_NUMBER]; */
+        if (message.height !== 0)
             writer.tag(76, WireType.Varint).int64(message.height);
         /* bool is_headless = 77; */
         if (message.isHeadless !== false)
@@ -28514,7 +28514,7 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
     constructor() {
         super("symbol.destack.NodeDefinitionProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
-            { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconProto },
@@ -28531,7 +28531,7 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
     create(value?: PartialMessage<NodeDefinitionProto>): NodeDefinitionProto {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0n;
+        message.id = 0;
         message.type = 0;
         message.name = "";
         message.properties = [];
@@ -28552,8 +28552,8 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
                 case /* symbol.destack.StructTypeProto metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int64 id */ 2:
-                    message.id = reader.int64().toBigInt();
+                case /* int64 id = 2 [jstype = JS_NUMBER] */ 2:
+                    message.id = reader.int64().toNumber();
                     break;
                 case /* symbol.destack.NodeTypeProto type */ 30:
                     message.type = reader.int32();
@@ -28623,8 +28623,8 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
         /* symbol.destack.StructTypeProto metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int64 id = 2; */
-        if (message.id !== 0n)
+        /* int64 id = 2 [jstype = JS_NUMBER]; */
+        if (message.id !== 0)
             writer.tag(2, WireType.Varint).int64(message.id);
         /* symbol.destack.NodeTypeProto type = 30; */
         if (message.type !== 0)
@@ -29022,8 +29022,8 @@ class NumberConstraintProto$Type extends MessageType<NumberConstraintProto> {
             { no: 41, name: "min_value", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 42, name: "max_value", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 43, name: "step_value", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
-            { no: 44, name: "precision", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 45, name: "scale", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 44, name: "precision", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 45, name: "scale", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ }
         ]);
     }
     create(value?: PartialMessage<NumberConstraintProto>): NumberConstraintProto {
@@ -29053,11 +29053,11 @@ class NumberConstraintProto$Type extends MessageType<NumberConstraintProto> {
                 case /* optional double step_value */ 43:
                     message.stepValue = reader.double();
                     break;
-                case /* optional int64 precision */ 44:
-                    message.precision = reader.int64().toBigInt();
+                case /* optional int64 precision = 44 [jstype = JS_NUMBER] */ 44:
+                    message.precision = reader.int64().toNumber();
                     break;
-                case /* optional int64 scale */ 45:
-                    message.scale = reader.int64().toBigInt();
+                case /* optional int64 scale = 45 [jstype = JS_NUMBER] */ 45:
+                    message.scale = reader.int64().toNumber();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -29086,10 +29086,10 @@ class NumberConstraintProto$Type extends MessageType<NumberConstraintProto> {
         /* optional double step_value = 43; */
         if (message.stepValue !== undefined)
             writer.tag(43, WireType.Bit64).double(message.stepValue);
-        /* optional int64 precision = 44; */
+        /* optional int64 precision = 44 [jstype = JS_NUMBER]; */
         if (message.precision !== undefined)
             writer.tag(44, WireType.Varint).int64(message.precision);
-        /* optional int64 scale = 45; */
+        /* optional int64 scale = 45 [jstype = JS_NUMBER]; */
         if (message.scale !== undefined)
             writer.tag(45, WireType.Varint).int64(message.scale);
         let u = options.writeUnknownFields;
@@ -29957,7 +29957,7 @@ class PermissionDefinitionProto$Type extends MessageType<PermissionDefinitionPro
     constructor() {
         super("symbol.destack.PermissionDefinitionProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
-            { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.destack.EnumTypeProto", EnumTypeProto] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "node_type", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
@@ -29967,7 +29967,7 @@ class PermissionDefinitionProto$Type extends MessageType<PermissionDefinitionPro
     create(value?: PartialMessage<PermissionDefinitionProto>): PermissionDefinitionProto {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0n;
+        message.id = 0;
         message.type = 0;
         message.name = "";
         message.nodeType = 0;
@@ -29983,8 +29983,8 @@ class PermissionDefinitionProto$Type extends MessageType<PermissionDefinitionPro
                 case /* symbol.destack.StructTypeProto metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int64 id */ 2:
-                    message.id = reader.int64().toBigInt();
+                case /* int64 id = 2 [jstype = JS_NUMBER] */ 2:
+                    message.id = reader.int64().toNumber();
                     break;
                 case /* symbol.destack.EnumTypeProto type */ 30:
                     message.type = reader.int32();
@@ -30013,8 +30013,8 @@ class PermissionDefinitionProto$Type extends MessageType<PermissionDefinitionPro
         /* symbol.destack.StructTypeProto metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int64 id = 2; */
-        if (message.id !== 0n)
+        /* int64 id = 2 [jstype = JS_NUMBER]; */
+        if (message.id !== 0)
             writer.tag(2, WireType.Varint).int64(message.id);
         /* symbol.destack.EnumTypeProto type = 30; */
         if (message.type !== 0)
@@ -30479,7 +30479,7 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
     constructor() {
         super("symbol.destack.PropertyDefinitionProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
-            { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconProto },
             { no: 36, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -30513,7 +30513,7 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
     create(value?: PartialMessage<PropertyDefinitionProto>): PropertyDefinitionProto {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0n;
+        message.id = 0;
         message.name = "";
         message.cardinality = 0;
         message.scalarType = 0;
@@ -30537,8 +30537,8 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
                 case /* symbol.destack.StructTypeProto metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int64 id */ 2:
-                    message.id = reader.int64().toBigInt();
+                case /* int64 id = 2 [jstype = JS_NUMBER] */ 2:
+                    message.id = reader.int64().toNumber();
                     break;
                 case /* string name */ 31:
                     message.name = reader.string();
@@ -30639,8 +30639,8 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
         /* symbol.destack.StructTypeProto metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int64 id = 2; */
-        if (message.id !== 0n)
+        /* int64 id = 2 [jstype = JS_NUMBER]; */
+        if (message.id !== 0)
             writer.tag(2, WireType.Varint).int64(message.id);
         /* string name = 31; */
         if (message.name !== "")
@@ -30745,14 +30745,14 @@ class PropertyReferenceProto$Type extends MessageType<PropertyReferenceProto> {
             { no: 31, name: "node_type", kind: "enum", opt: true, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 32, name: "trait_type", kind: "enum", opt: true, T: () => ["symbol.destack.TraitTypeProto", TraitTypeProto] },
             { no: 33, name: "struct_type", kind: "enum", opt: true, T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
-            { no: 35, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 35, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ }
         ]);
     }
     create(value?: PartialMessage<PropertyReferenceProto>): PropertyReferenceProto {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.type = 0;
-        message.id = 0n;
+        message.id = 0;
         if (value !== undefined)
             reflectionMergePartial<PropertyReferenceProto>(this, message, value);
         return message;
@@ -30777,8 +30777,8 @@ class PropertyReferenceProto$Type extends MessageType<PropertyReferenceProto> {
                 case /* optional symbol.destack.StructTypeProto struct_type */ 33:
                     message.structType = reader.int32();
                     break;
-                case /* int64 id */ 35:
-                    message.id = reader.int64().toBigInt();
+                case /* int64 id = 35 [jstype = JS_NUMBER] */ 35:
+                    message.id = reader.int64().toNumber();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -30807,8 +30807,8 @@ class PropertyReferenceProto$Type extends MessageType<PropertyReferenceProto> {
         /* optional symbol.destack.StructTypeProto struct_type = 33; */
         if (message.structType !== undefined)
             writer.tag(33, WireType.Varint).int32(message.structType);
-        /* int64 id = 35; */
-        if (message.id !== 0n)
+        /* int64 id = 35 [jstype = JS_NUMBER]; */
+        if (message.id !== 0)
             writer.tag(35, WireType.Varint).int64(message.id);
         let u = options.writeUnknownFields;
         if (u !== false)
@@ -30837,8 +30837,8 @@ class QueryProto$Type extends MessageType<QueryProto> {
             { no: 42, name: "group_by", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => ExpressionProto },
             { no: 43, name: "aggregation", kind: "message", T: () => AggregationProto },
             { no: 44, name: "sort", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => SortProto },
-            { no: 50, name: "limit", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 51, name: "offset", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 50, name: "limit", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 51, name: "offset", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ }
         ]);
     }
     create(value?: PartialMessage<QueryProto>): QueryProto {
@@ -30898,11 +30898,11 @@ class QueryProto$Type extends MessageType<QueryProto> {
                 case /* repeated symbol.destack.SortProto sort */ 44:
                     message.sort.push(SortProto.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional int64 limit */ 50:
-                    message.limit = reader.int64().toBigInt();
+                case /* optional int64 limit = 50 [jstype = JS_NUMBER] */ 50:
+                    message.limit = reader.int64().toNumber();
                     break;
-                case /* optional int64 offset */ 51:
-                    message.offset = reader.int64().toBigInt();
+                case /* optional int64 offset = 51 [jstype = JS_NUMBER] */ 51:
+                    message.offset = reader.int64().toNumber();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -30955,10 +30955,10 @@ class QueryProto$Type extends MessageType<QueryProto> {
         /* repeated symbol.destack.SortProto sort = 44; */
         for (let i = 0; i < message.sort.length; i++)
             SortProto.internalBinaryWrite(message.sort[i], writer.tag(44, WireType.LengthDelimited).fork(), options).join();
-        /* optional int64 limit = 50; */
+        /* optional int64 limit = 50 [jstype = JS_NUMBER]; */
         if (message.limit !== undefined)
             writer.tag(50, WireType.Varint).int64(message.limit);
-        /* optional int64 offset = 51; */
+        /* optional int64 offset = 51 [jstype = JS_NUMBER]; */
         if (message.offset !== undefined)
             writer.tag(51, WireType.Varint).int64(message.offset);
         let u = options.writeUnknownFields;
@@ -30981,7 +30981,7 @@ class QueryResultProto$Type extends MessageType<QueryResultProto> {
             { no: 35, name: "groups", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => QueryResultGroupProto },
             { no: 36, name: "subresults", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => QueryResultProto },
             { no: 40, name: "nodes", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => ValueProto },
-            { no: 41, name: "count", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 41, name: "count", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 42, name: "exists", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 43, name: "scalar", kind: "message", T: () => ValueProto }
         ]);
@@ -31021,8 +31021,8 @@ class QueryResultProto$Type extends MessageType<QueryResultProto> {
                 case /* repeated symbol.destack.ValueProto nodes */ 40:
                     message.nodes.push(ValueProto.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional int64 count */ 41:
-                    message.count = reader.int64().toBigInt();
+                case /* optional int64 count = 41 [jstype = JS_NUMBER] */ 41:
+                    message.count = reader.int64().toNumber();
                     break;
                 case /* optional bool exists */ 42:
                     message.exists = reader.bool();
@@ -31060,7 +31060,7 @@ class QueryResultProto$Type extends MessageType<QueryResultProto> {
         /* repeated symbol.destack.ValueProto nodes = 40; */
         for (let i = 0; i < message.nodes.length; i++)
             ValueProto.internalBinaryWrite(message.nodes[i], writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional int64 count = 41; */
+        /* optional int64 count = 41 [jstype = JS_NUMBER]; */
         if (message.count !== undefined)
             writer.tag(41, WireType.Varint).int64(message.count);
         /* optional bool exists = 42; */
@@ -31087,7 +31087,7 @@ class QueryResultGroupProto$Type extends MessageType<QueryResultGroupProto> {
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.destack.QueryTypeProto", QueryTypeProto] },
             { no: 31, name: "discriminator", kind: "message", T: () => ValueProto },
             { no: 40, name: "nodes", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => ValueProto },
-            { no: 41, name: "count", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 41, name: "count", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 42, name: "exists", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 43, name: "scalar", kind: "message", T: () => ValueProto }
         ]);
@@ -31118,8 +31118,8 @@ class QueryResultGroupProto$Type extends MessageType<QueryResultGroupProto> {
                 case /* repeated symbol.destack.ValueProto nodes */ 40:
                     message.nodes.push(ValueProto.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional int64 count */ 41:
-                    message.count = reader.int64().toBigInt();
+                case /* optional int64 count = 41 [jstype = JS_NUMBER] */ 41:
+                    message.count = reader.int64().toNumber();
                     break;
                 case /* optional bool exists */ 42:
                     message.exists = reader.bool();
@@ -31151,7 +31151,7 @@ class QueryResultGroupProto$Type extends MessageType<QueryResultGroupProto> {
         /* repeated symbol.destack.ValueProto nodes = 40; */
         for (let i = 0; i < message.nodes.length; i++)
             ValueProto.internalBinaryWrite(message.nodes[i], writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional int64 count = 41; */
+        /* optional int64 count = 41 [jstype = JS_NUMBER]; */
         if (message.count !== undefined)
             writer.tag(41, WireType.Varint).int64(message.count);
         /* optional bool exists = 42; */
@@ -32869,28 +32869,28 @@ class ScheduleProto$Type extends MessageType<ScheduleProto> {
         super("symbol.destack.ScheduleProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
             { no: 31, name: "frequency", kind: "enum", T: () => ["symbol.destack.ScheduleFrequencyProto", ScheduleFrequencyProto] },
-            { no: 32, name: "interval", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 32, name: "interval", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 33, name: "start", kind: "message", T: () => Timestamp },
             { no: 34, name: "end", kind: "message", T: () => Timestamp },
-            { no: 35, name: "count", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 35, name: "count", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 36, name: "week_start", kind: "enum", opt: true, T: () => ["symbol.destack.DayOfWeekProto", DayOfWeekProto] },
-            { no: 37, name: "by_set_pos", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 37, name: "by_set_pos", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 38, name: "by_month", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.MonthProto", MonthProto] },
-            { no: 39, name: "by_month_day", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 40, name: "by_year_day", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 41, name: "by_easter", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 42, name: "by_week_no", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 39, name: "by_month_day", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 40, name: "by_year_day", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 41, name: "by_easter", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 42, name: "by_week_no", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 43, name: "by_week_day", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.DayOfWeekProto", DayOfWeekProto] },
-            { no: 44, name: "by_hour", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 45, name: "by_minute", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 46, name: "by_second", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 44, name: "by_hour", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 45, name: "by_minute", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 46, name: "by_second", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ }
         ]);
     }
     create(value?: PartialMessage<ScheduleProto>): ScheduleProto {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.frequency = 0;
-        message.interval = 0n;
+        message.interval = 0;
         message.bySetPos = [];
         message.byMonth = [];
         message.byMonthDay = [];
@@ -32916,8 +32916,8 @@ class ScheduleProto$Type extends MessageType<ScheduleProto> {
                 case /* symbol.destack.ScheduleFrequencyProto frequency */ 31:
                     message.frequency = reader.int32();
                     break;
-                case /* int64 interval */ 32:
-                    message.interval = reader.int64().toBigInt();
+                case /* int64 interval = 32 [jstype = JS_NUMBER] */ 32:
+                    message.interval = reader.int64().toNumber();
                     break;
                 case /* optional google.protobuf.Timestamp start */ 33:
                     message.start = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.start);
@@ -32925,18 +32925,18 @@ class ScheduleProto$Type extends MessageType<ScheduleProto> {
                 case /* optional google.protobuf.Timestamp end */ 34:
                     message.end = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.end);
                     break;
-                case /* optional int64 count */ 35:
-                    message.count = reader.int64().toBigInt();
+                case /* optional int64 count = 35 [jstype = JS_NUMBER] */ 35:
+                    message.count = reader.int64().toNumber();
                     break;
                 case /* optional symbol.destack.DayOfWeekProto week_start */ 36:
                     message.weekStart = reader.int32();
                     break;
-                case /* repeated int64 by_set_pos */ 37:
+                case /* repeated int64 by_set_pos = 37 [jstype = JS_NUMBER] */ 37:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.bySetPos.push(reader.int64().toBigInt());
+                            message.bySetPos.push(reader.int64().toNumber());
                     else
-                        message.bySetPos.push(reader.int64().toBigInt());
+                        message.bySetPos.push(reader.int64().toNumber());
                     break;
                 case /* repeated symbol.destack.MonthProto by_month */ 38:
                     if (wireType === WireType.LengthDelimited)
@@ -32945,33 +32945,33 @@ class ScheduleProto$Type extends MessageType<ScheduleProto> {
                     else
                         message.byMonth.push(reader.int32());
                     break;
-                case /* repeated int64 by_month_day */ 39:
+                case /* repeated int64 by_month_day = 39 [jstype = JS_NUMBER] */ 39:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.byMonthDay.push(reader.int64().toBigInt());
+                            message.byMonthDay.push(reader.int64().toNumber());
                     else
-                        message.byMonthDay.push(reader.int64().toBigInt());
+                        message.byMonthDay.push(reader.int64().toNumber());
                     break;
-                case /* repeated int64 by_year_day */ 40:
+                case /* repeated int64 by_year_day = 40 [jstype = JS_NUMBER] */ 40:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.byYearDay.push(reader.int64().toBigInt());
+                            message.byYearDay.push(reader.int64().toNumber());
                     else
-                        message.byYearDay.push(reader.int64().toBigInt());
+                        message.byYearDay.push(reader.int64().toNumber());
                     break;
-                case /* repeated int64 by_easter */ 41:
+                case /* repeated int64 by_easter = 41 [jstype = JS_NUMBER] */ 41:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.byEaster.push(reader.int64().toBigInt());
+                            message.byEaster.push(reader.int64().toNumber());
                     else
-                        message.byEaster.push(reader.int64().toBigInt());
+                        message.byEaster.push(reader.int64().toNumber());
                     break;
-                case /* repeated int64 by_week_no */ 42:
+                case /* repeated int64 by_week_no = 42 [jstype = JS_NUMBER] */ 42:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.byWeekNo.push(reader.int64().toBigInt());
+                            message.byWeekNo.push(reader.int64().toNumber());
                     else
-                        message.byWeekNo.push(reader.int64().toBigInt());
+                        message.byWeekNo.push(reader.int64().toNumber());
                     break;
                 case /* repeated symbol.destack.DayOfWeekProto by_week_day */ 43:
                     if (wireType === WireType.LengthDelimited)
@@ -32980,26 +32980,26 @@ class ScheduleProto$Type extends MessageType<ScheduleProto> {
                     else
                         message.byWeekDay.push(reader.int32());
                     break;
-                case /* repeated int64 by_hour */ 44:
+                case /* repeated int64 by_hour = 44 [jstype = JS_NUMBER] */ 44:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.byHour.push(reader.int64().toBigInt());
+                            message.byHour.push(reader.int64().toNumber());
                     else
-                        message.byHour.push(reader.int64().toBigInt());
+                        message.byHour.push(reader.int64().toNumber());
                     break;
-                case /* repeated int64 by_minute */ 45:
+                case /* repeated int64 by_minute = 45 [jstype = JS_NUMBER] */ 45:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.byMinute.push(reader.int64().toBigInt());
+                            message.byMinute.push(reader.int64().toNumber());
                     else
-                        message.byMinute.push(reader.int64().toBigInt());
+                        message.byMinute.push(reader.int64().toNumber());
                     break;
-                case /* repeated int64 by_second */ 46:
+                case /* repeated int64 by_second = 46 [jstype = JS_NUMBER] */ 46:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.bySecond.push(reader.int64().toBigInt());
+                            message.bySecond.push(reader.int64().toNumber());
                     else
-                        message.bySecond.push(reader.int64().toBigInt());
+                        message.bySecond.push(reader.int64().toNumber());
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -33019,8 +33019,8 @@ class ScheduleProto$Type extends MessageType<ScheduleProto> {
         /* symbol.destack.ScheduleFrequencyProto frequency = 31; */
         if (message.frequency !== 0)
             writer.tag(31, WireType.Varint).int32(message.frequency);
-        /* int64 interval = 32; */
-        if (message.interval !== 0n)
+        /* int64 interval = 32 [jstype = JS_NUMBER]; */
+        if (message.interval !== 0)
             writer.tag(32, WireType.Varint).int64(message.interval);
         /* optional google.protobuf.Timestamp start = 33; */
         if (message.start)
@@ -33028,13 +33028,13 @@ class ScheduleProto$Type extends MessageType<ScheduleProto> {
         /* optional google.protobuf.Timestamp end = 34; */
         if (message.end)
             Timestamp.internalBinaryWrite(message.end, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional int64 count = 35; */
+        /* optional int64 count = 35 [jstype = JS_NUMBER]; */
         if (message.count !== undefined)
             writer.tag(35, WireType.Varint).int64(message.count);
         /* optional symbol.destack.DayOfWeekProto week_start = 36; */
         if (message.weekStart !== undefined)
             writer.tag(36, WireType.Varint).int32(message.weekStart);
-        /* repeated int64 by_set_pos = 37; */
+        /* repeated int64 by_set_pos = 37 [jstype = JS_NUMBER]; */
         if (message.bySetPos.length) {
             writer.tag(37, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.bySetPos.length; i++)
@@ -33048,28 +33048,28 @@ class ScheduleProto$Type extends MessageType<ScheduleProto> {
                 writer.int32(message.byMonth[i]);
             writer.join();
         }
-        /* repeated int64 by_month_day = 39; */
+        /* repeated int64 by_month_day = 39 [jstype = JS_NUMBER]; */
         if (message.byMonthDay.length) {
             writer.tag(39, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.byMonthDay.length; i++)
                 writer.int64(message.byMonthDay[i]);
             writer.join();
         }
-        /* repeated int64 by_year_day = 40; */
+        /* repeated int64 by_year_day = 40 [jstype = JS_NUMBER]; */
         if (message.byYearDay.length) {
             writer.tag(40, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.byYearDay.length; i++)
                 writer.int64(message.byYearDay[i]);
             writer.join();
         }
-        /* repeated int64 by_easter = 41; */
+        /* repeated int64 by_easter = 41 [jstype = JS_NUMBER]; */
         if (message.byEaster.length) {
             writer.tag(41, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.byEaster.length; i++)
                 writer.int64(message.byEaster[i]);
             writer.join();
         }
-        /* repeated int64 by_week_no = 42; */
+        /* repeated int64 by_week_no = 42 [jstype = JS_NUMBER]; */
         if (message.byWeekNo.length) {
             writer.tag(42, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.byWeekNo.length; i++)
@@ -33083,21 +33083,21 @@ class ScheduleProto$Type extends MessageType<ScheduleProto> {
                 writer.int32(message.byWeekDay[i]);
             writer.join();
         }
-        /* repeated int64 by_hour = 44; */
+        /* repeated int64 by_hour = 44 [jstype = JS_NUMBER]; */
         if (message.byHour.length) {
             writer.tag(44, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.byHour.length; i++)
                 writer.int64(message.byHour[i]);
             writer.join();
         }
-        /* repeated int64 by_minute = 45; */
+        /* repeated int64 by_minute = 45 [jstype = JS_NUMBER]; */
         if (message.byMinute.length) {
             writer.tag(45, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.byMinute.length; i++)
                 writer.int64(message.byMinute[i]);
             writer.join();
         }
-        /* repeated int64 by_second = 46; */
+        /* repeated int64 by_second = 46 [jstype = JS_NUMBER]; */
         if (message.bySecond.length) {
             writer.tag(46, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.bySecond.length; i++)
@@ -33761,8 +33761,8 @@ class ShadowProto$Type extends MessageType<ShadowProto> {
             { no: 50, name: "color", kind: "message", T: () => ColorProto },
             { no: 51, name: "position", kind: "enum", T: () => ["symbol.destack.ShadowPositionProto", ShadowPositionProto] },
             { no: 52, name: "offset", kind: "message", T: () => Axis2Proto },
-            { no: 53, name: "blur", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 54, name: "spread", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 53, name: "blur", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 54, name: "spread", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 55, name: "diffusion", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ }
         ]);
     }
@@ -33798,11 +33798,11 @@ class ShadowProto$Type extends MessageType<ShadowProto> {
                 case /* optional symbol.destack.Axis2Proto offset */ 52:
                     message.offset = Axis2Proto.internalBinaryRead(reader, reader.uint32(), options, message.offset);
                     break;
-                case /* optional int64 blur */ 53:
-                    message.blur = reader.int64().toBigInt();
+                case /* optional int64 blur = 53 [jstype = JS_NUMBER] */ 53:
+                    message.blur = reader.int64().toNumber();
                     break;
-                case /* optional int64 spread */ 54:
-                    message.spread = reader.int64().toBigInt();
+                case /* optional int64 spread = 54 [jstype = JS_NUMBER] */ 54:
+                    message.spread = reader.int64().toNumber();
                     break;
                 case /* optional double diffusion */ 55:
                     message.diffusion = reader.double();
@@ -33837,10 +33837,10 @@ class ShadowProto$Type extends MessageType<ShadowProto> {
         /* optional symbol.destack.Axis2Proto offset = 52; */
         if (message.offset)
             Axis2Proto.internalBinaryWrite(message.offset, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
-        /* optional int64 blur = 53; */
+        /* optional int64 blur = 53 [jstype = JS_NUMBER]; */
         if (message.blur !== undefined)
             writer.tag(53, WireType.Varint).int64(message.blur);
-        /* optional int64 spread = 54; */
+        /* optional int64 spread = 54 [jstype = JS_NUMBER]; */
         if (message.spread !== undefined)
             writer.tag(54, WireType.Varint).int64(message.spread);
         /* optional double diffusion = 55; */
@@ -33876,8 +33876,8 @@ class ShadowStyleProto$Type extends MessageType<ShadowStyleProto> {
             { no: 50, name: "color", kind: "message", T: () => ColorProto },
             { no: 51, name: "position", kind: "enum", T: () => ["symbol.destack.ShadowPositionProto", ShadowPositionProto] },
             { no: 52, name: "offset", kind: "message", T: () => Axis2Proto },
-            { no: 53, name: "blur", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 54, name: "spread", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 53, name: "blur", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 54, name: "spread", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 55, name: "diffusion", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ }
         ]);
     }
@@ -33947,11 +33947,11 @@ class ShadowStyleProto$Type extends MessageType<ShadowStyleProto> {
                 case /* optional symbol.destack.Axis2Proto offset */ 52:
                     message.offset = Axis2Proto.internalBinaryRead(reader, reader.uint32(), options, message.offset);
                     break;
-                case /* optional int64 blur */ 53:
-                    message.blur = reader.int64().toBigInt();
+                case /* optional int64 blur = 53 [jstype = JS_NUMBER] */ 53:
+                    message.blur = reader.int64().toNumber();
                     break;
-                case /* optional int64 spread */ 54:
-                    message.spread = reader.int64().toBigInt();
+                case /* optional int64 spread = 54 [jstype = JS_NUMBER] */ 54:
+                    message.spread = reader.int64().toNumber();
                     break;
                 case /* optional double diffusion */ 55:
                     message.diffusion = reader.double();
@@ -34016,10 +34016,10 @@ class ShadowStyleProto$Type extends MessageType<ShadowStyleProto> {
         /* optional symbol.destack.Axis2Proto offset = 52; */
         if (message.offset)
             Axis2Proto.internalBinaryWrite(message.offset, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
-        /* optional int64 blur = 53; */
+        /* optional int64 blur = 53 [jstype = JS_NUMBER]; */
         if (message.blur !== undefined)
             writer.tag(53, WireType.Varint).int64(message.blur);
-        /* optional int64 spread = 54; */
+        /* optional int64 spread = 54 [jstype = JS_NUMBER]; */
         if (message.spread !== undefined)
             writer.tag(54, WireType.Varint).int64(message.spread);
         /* optional double diffusion = 55; */
@@ -35291,7 +35291,7 @@ class StructDefinitionProto$Type extends MessageType<StructDefinitionProto> {
     constructor() {
         super("symbol.destack.StructDefinitionProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
-            { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconProto },
@@ -35303,7 +35303,7 @@ class StructDefinitionProto$Type extends MessageType<StructDefinitionProto> {
     create(value?: PartialMessage<StructDefinitionProto>): StructDefinitionProto {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0n;
+        message.id = 0;
         message.type = 0;
         message.name = "";
         message.properties = [];
@@ -35320,8 +35320,8 @@ class StructDefinitionProto$Type extends MessageType<StructDefinitionProto> {
                 case /* symbol.destack.StructTypeProto metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int64 id */ 2:
-                    message.id = reader.int64().toBigInt();
+                case /* int64 id = 2 [jstype = JS_NUMBER] */ 2:
+                    message.id = reader.int64().toNumber();
                     break;
                 case /* symbol.destack.StructTypeProto type */ 30:
                     message.type = reader.int32();
@@ -35356,8 +35356,8 @@ class StructDefinitionProto$Type extends MessageType<StructDefinitionProto> {
         /* symbol.destack.StructTypeProto metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int64 id = 2; */
-        if (message.id !== 0n)
+        /* int64 id = 2 [jstype = JS_NUMBER]; */
+        if (message.id !== 0)
             writer.tag(2, WireType.Varint).int64(message.id);
         /* symbol.destack.StructTypeProto type = 30; */
         if (message.type !== 0)
@@ -37035,7 +37035,7 @@ class TraitDefinitionProto$Type extends MessageType<TraitDefinitionProto> {
     constructor() {
         super("symbol.destack.TraitDefinitionProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
-            { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 2, name: "id", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.destack.TraitTypeProto", TraitTypeProto] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "alias", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -37048,7 +37048,7 @@ class TraitDefinitionProto$Type extends MessageType<TraitDefinitionProto> {
     create(value?: PartialMessage<TraitDefinitionProto>): TraitDefinitionProto {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.id = 0n;
+        message.id = 0;
         message.type = 0;
         message.name = "";
         message.alias = "";
@@ -37066,8 +37066,8 @@ class TraitDefinitionProto$Type extends MessageType<TraitDefinitionProto> {
                 case /* symbol.destack.StructTypeProto metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int64 id */ 2:
-                    message.id = reader.int64().toBigInt();
+                case /* int64 id = 2 [jstype = JS_NUMBER] */ 2:
+                    message.id = reader.int64().toNumber();
                     break;
                 case /* symbol.destack.TraitTypeProto type */ 30:
                     message.type = reader.int32();
@@ -37109,8 +37109,8 @@ class TraitDefinitionProto$Type extends MessageType<TraitDefinitionProto> {
         /* symbol.destack.StructTypeProto metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int64 id = 2; */
-        if (message.id !== 0n)
+        /* int64 id = 2 [jstype = JS_NUMBER]; */
+        if (message.id !== 0)
             writer.tag(2, WireType.Varint).int64(message.id);
         /* symbol.destack.TraitTypeProto type = 30; */
         if (message.type !== 0)
@@ -38417,15 +38417,15 @@ class Vector2iProto$Type extends MessageType<Vector2iProto> {
     constructor() {
         super("symbol.destack.Vector2iProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
-            { no: 50, name: "x", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 51, name: "y", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 50, name: "x", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 51, name: "y", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ }
         ]);
     }
     create(value?: PartialMessage<Vector2iProto>): Vector2iProto {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.x = 0n;
-        message.y = 0n;
+        message.x = 0;
+        message.y = 0;
         if (value !== undefined)
             reflectionMergePartial<Vector2iProto>(this, message, value);
         return message;
@@ -38438,11 +38438,11 @@ class Vector2iProto$Type extends MessageType<Vector2iProto> {
                 case /* symbol.destack.StructTypeProto metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int64 x */ 50:
-                    message.x = reader.int64().toBigInt();
+                case /* int64 x = 50 [jstype = JS_NUMBER] */ 50:
+                    message.x = reader.int64().toNumber();
                     break;
-                case /* int64 y */ 51:
-                    message.y = reader.int64().toBigInt();
+                case /* int64 y = 51 [jstype = JS_NUMBER] */ 51:
+                    message.y = reader.int64().toNumber();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -38459,11 +38459,11 @@ class Vector2iProto$Type extends MessageType<Vector2iProto> {
         /* symbol.destack.StructTypeProto metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int64 x = 50; */
-        if (message.x !== 0n)
+        /* int64 x = 50 [jstype = JS_NUMBER]; */
+        if (message.x !== 0)
             writer.tag(50, WireType.Varint).int64(message.x);
-        /* int64 y = 51; */
-        if (message.y !== 0n)
+        /* int64 y = 51 [jstype = JS_NUMBER]; */
+        if (message.y !== 0)
             writer.tag(51, WireType.Varint).int64(message.y);
         let u = options.writeUnknownFields;
         if (u !== false)
@@ -38551,17 +38551,17 @@ class Vector3iProto$Type extends MessageType<Vector3iProto> {
     constructor() {
         super("symbol.destack.Vector3iProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
-            { no: 50, name: "x", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 51, name: "y", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 52, name: "z", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 50, name: "x", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 51, name: "y", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 52, name: "z", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ }
         ]);
     }
     create(value?: PartialMessage<Vector3iProto>): Vector3iProto {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.x = 0n;
-        message.y = 0n;
-        message.z = 0n;
+        message.x = 0;
+        message.y = 0;
+        message.z = 0;
         if (value !== undefined)
             reflectionMergePartial<Vector3iProto>(this, message, value);
         return message;
@@ -38574,14 +38574,14 @@ class Vector3iProto$Type extends MessageType<Vector3iProto> {
                 case /* symbol.destack.StructTypeProto metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int64 x */ 50:
-                    message.x = reader.int64().toBigInt();
+                case /* int64 x = 50 [jstype = JS_NUMBER] */ 50:
+                    message.x = reader.int64().toNumber();
                     break;
-                case /* int64 y */ 51:
-                    message.y = reader.int64().toBigInt();
+                case /* int64 y = 51 [jstype = JS_NUMBER] */ 51:
+                    message.y = reader.int64().toNumber();
                     break;
-                case /* int64 z */ 52:
-                    message.z = reader.int64().toBigInt();
+                case /* int64 z = 52 [jstype = JS_NUMBER] */ 52:
+                    message.z = reader.int64().toNumber();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -38598,14 +38598,14 @@ class Vector3iProto$Type extends MessageType<Vector3iProto> {
         /* symbol.destack.StructTypeProto metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int64 x = 50; */
-        if (message.x !== 0n)
+        /* int64 x = 50 [jstype = JS_NUMBER]; */
+        if (message.x !== 0)
             writer.tag(50, WireType.Varint).int64(message.x);
-        /* int64 y = 51; */
-        if (message.y !== 0n)
+        /* int64 y = 51 [jstype = JS_NUMBER]; */
+        if (message.y !== 0)
             writer.tag(51, WireType.Varint).int64(message.y);
-        /* int64 z = 52; */
-        if (message.z !== 0n)
+        /* int64 z = 52 [jstype = JS_NUMBER]; */
+        if (message.z !== 0)
             writer.tag(52, WireType.Varint).int64(message.z);
         let u = options.writeUnknownFields;
         if (u !== false)
@@ -38701,19 +38701,19 @@ class Vector4iProto$Type extends MessageType<Vector4iProto> {
     constructor() {
         super("symbol.destack.Vector4iProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
-            { no: 50, name: "x", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 51, name: "y", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 52, name: "z", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 53, name: "w", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 50, name: "x", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 51, name: "y", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 52, name: "z", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 53, name: "w", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ }
         ]);
     }
     create(value?: PartialMessage<Vector4iProto>): Vector4iProto {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.x = 0n;
-        message.y = 0n;
-        message.z = 0n;
-        message.w = 0n;
+        message.x = 0;
+        message.y = 0;
+        message.z = 0;
+        message.w = 0;
         if (value !== undefined)
             reflectionMergePartial<Vector4iProto>(this, message, value);
         return message;
@@ -38726,17 +38726,17 @@ class Vector4iProto$Type extends MessageType<Vector4iProto> {
                 case /* symbol.destack.StructTypeProto metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* int64 x */ 50:
-                    message.x = reader.int64().toBigInt();
+                case /* int64 x = 50 [jstype = JS_NUMBER] */ 50:
+                    message.x = reader.int64().toNumber();
                     break;
-                case /* int64 y */ 51:
-                    message.y = reader.int64().toBigInt();
+                case /* int64 y = 51 [jstype = JS_NUMBER] */ 51:
+                    message.y = reader.int64().toNumber();
                     break;
-                case /* int64 z */ 52:
-                    message.z = reader.int64().toBigInt();
+                case /* int64 z = 52 [jstype = JS_NUMBER] */ 52:
+                    message.z = reader.int64().toNumber();
                     break;
-                case /* int64 w */ 53:
-                    message.w = reader.int64().toBigInt();
+                case /* int64 w = 53 [jstype = JS_NUMBER] */ 53:
+                    message.w = reader.int64().toNumber();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -38753,17 +38753,17 @@ class Vector4iProto$Type extends MessageType<Vector4iProto> {
         /* symbol.destack.StructTypeProto metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int64 x = 50; */
-        if (message.x !== 0n)
+        /* int64 x = 50 [jstype = JS_NUMBER]; */
+        if (message.x !== 0)
             writer.tag(50, WireType.Varint).int64(message.x);
-        /* int64 y = 51; */
-        if (message.y !== 0n)
+        /* int64 y = 51 [jstype = JS_NUMBER]; */
+        if (message.y !== 0)
             writer.tag(51, WireType.Varint).int64(message.y);
-        /* int64 z = 52; */
-        if (message.z !== 0n)
+        /* int64 z = 52 [jstype = JS_NUMBER]; */
+        if (message.z !== 0)
             writer.tag(52, WireType.Varint).int64(message.z);
-        /* int64 w = 53; */
-        if (message.w !== 0n)
+        /* int64 w = 53 [jstype = JS_NUMBER]; */
+        if (message.w !== 0)
             writer.tag(53, WireType.Varint).int64(message.w);
         let u = options.writeUnknownFields;
         if (u !== false)

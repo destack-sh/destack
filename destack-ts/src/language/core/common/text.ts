@@ -1,4 +1,5 @@
 import { Node, NodeReference, Session, StructFrozen, StructType, Supergraph } from "@destack/language/core";
+import { TextProto, TextSpanProto, TextSpanTypeProto } from "@destack/proto";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2521 ==== */
 /**
@@ -165,28 +166,28 @@ export class TextSpan extends StructFrozen {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 2521;
     objectValue["30"] = object.type;
-    if (object.content !== null) {
+    if (object.content != null) {
       objectValue["33"] = object.content;
     }
-    if (object.nodePtr !== null) {
+    if (object.nodePtr != null) {
       objectValue["34"] = object.nodePtr.toValue();
     }
-    if (object.url !== null) {
+    if (object.url != null) {
       objectValue["35"] = object.url;
     }
-    if (object.isBold !== null) {
+    if (object.isBold != null) {
       objectValue["60"] = object.isBold;
     }
-    if (object.isItalic !== null) {
+    if (object.isItalic != null) {
       objectValue["61"] = object.isItalic;
     }
-    if (object.isStrikethrough !== null) {
+    if (object.isStrikethrough != null) {
       objectValue["62"] = object.isStrikethrough;
     }
-    if (object.isUnderline !== null) {
+    if (object.isUnderline != null) {
       objectValue["63"] = object.isUnderline;
     }
-    if (object.isCode !== null) {
+    if (object.isCode != null) {
       objectValue["64"] = object.isCode;
     }
     return objectValue;
@@ -200,22 +201,22 @@ export class TextSpan extends StructFrozen {
     _connection?: any | null,
   ): TextSpan {
     const contentValue = objectValue["33"];
-    const unpackedContent = contentValue !== undefined ? contentValue : null;
+    const unpackedContent = contentValue != undefined ? contentValue : null;
     const urlValue = objectValue["35"];
-    const unpackedUrl = urlValue !== undefined ? urlValue : null;
+    const unpackedUrl = urlValue != undefined ? urlValue : null;
     const isBoldValue = objectValue["60"];
-    const unpackedIsBold = isBoldValue !== undefined ? isBoldValue : null;
+    const unpackedIsBold = isBoldValue != undefined ? isBoldValue : null;
     const isItalicValue = objectValue["61"];
-    const unpackedIsItalic = isItalicValue !== undefined ? isItalicValue : null;
+    const unpackedIsItalic = isItalicValue != undefined ? isItalicValue : null;
     const isStrikethroughValue = objectValue["62"];
-    const unpackedIsStrikethrough = isStrikethroughValue !== undefined ? isStrikethroughValue : null;
+    const unpackedIsStrikethrough = isStrikethroughValue != undefined ? isStrikethroughValue : null;
     const isUnderlineValue = objectValue["63"];
-    const unpackedIsUnderline = isUnderlineValue !== undefined ? isUnderlineValue : null;
+    const unpackedIsUnderline = isUnderlineValue != undefined ? isUnderlineValue : null;
     const isCodeValue = objectValue["64"];
-    const unpackedIsCode = isCodeValue !== undefined ? isCodeValue : null;
+    const unpackedIsCode = isCodeValue != undefined ? isCodeValue : null;
     const nodeValue = objectValue["34"];
     const unpackedNode =
-      nodeValue !== undefined ? NodeReference.fromValue(nodeValue, _session, _supergraph, _graph, _connection) : null;
+      nodeValue != undefined ? NodeReference.fromValue(nodeValue, _session, _supergraph, _graph, _connection) : null;
     return new TextSpan({
       type: Number(objectValue["30"]),
       content: unpackedContent,
@@ -239,6 +240,79 @@ export class TextSpan extends StructFrozen {
     _connection?: any | null,
   ): TextSpan {
     return TextSpan.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): TextSpanProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = TextSpan.__packProto__(this);
+    }
+    return this._proto as TextSpanProto;
+  }
+
+  static __packProto__(object: TextSpan): TextSpanProto {
+    const objectProto: Partial<TextSpanProto> = { metatype: 2521 };
+    objectProto.type = Number(object.type) as TextSpanTypeProto;
+    if (object.content != null) {
+      objectProto.content = object.content;
+    }
+    if (object.nodePtr != null) {
+      objectProto.nodePtr = object.nodePtr.toProto();
+    }
+    if (object.url != null) {
+      objectProto.url = object.url;
+    }
+    if (object.isBold != null) {
+      objectProto.isBold = object.isBold;
+    }
+    if (object.isItalic != null) {
+      objectProto.isItalic = object.isItalic;
+    }
+    if (object.isStrikethrough != null) {
+      objectProto.isStrikethrough = object.isStrikethrough;
+    }
+    if (object.isUnderline != null) {
+      objectProto.isUnderline = object.isUnderline;
+    }
+    if (object.isCode != null) {
+      objectProto.isCode = object.isCode;
+    }
+    return objectProto as TextSpanProto;
+  }
+
+  static __unpackProto__(
+    objectProto: TextSpanProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): TextSpan {
+    return new TextSpan({
+      type: Number(objectProto.type) as TextSpanType,
+      content: objectProto.content != undefined ? objectProto.content : null,
+      url: objectProto.url != undefined ? objectProto.url : null,
+      isBold: objectProto.isBold != undefined ? objectProto.isBold : null,
+      isItalic: objectProto.isItalic != undefined ? objectProto.isItalic : null,
+      isStrikethrough: objectProto.isStrikethrough != undefined ? objectProto.isStrikethrough : null,
+      isUnderline: objectProto.isUnderline != undefined ? objectProto.isUnderline : null,
+      isCode: objectProto.isCode != undefined ? objectProto.isCode : null,
+      node:
+        objectProto.nodePtr != undefined
+          ? NodeReference.fromProto(objectProto.nodePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: TextSpanProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): TextSpan {
+    return TextSpan.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:2521 ==== */
@@ -360,19 +434,19 @@ export class Text extends StructFrozen {
       }
       objectValue["33"] = packedSpans;
     }
-    if (object.isBold !== null) {
+    if (object.isBold != null) {
       objectValue["60"] = object.isBold;
     }
-    if (object.isItalic !== null) {
+    if (object.isItalic != null) {
       objectValue["61"] = object.isItalic;
     }
-    if (object.isStrikethrough !== null) {
+    if (object.isStrikethrough != null) {
       objectValue["62"] = object.isStrikethrough;
     }
-    if (object.isUnderline !== null) {
+    if (object.isUnderline != null) {
       objectValue["63"] = object.isUnderline;
     }
-    if (object.isCode !== null) {
+    if (object.isCode != null) {
       objectValue["64"] = object.isCode;
     }
     return objectValue;
@@ -386,21 +460,21 @@ export class Text extends StructFrozen {
     _connection?: any | null,
   ): Text {
     const unpackedSpans: any[] = [];
-    if (objectValue["33"] !== undefined) {
+    if (objectValue["33"] != undefined) {
       for (const item of objectValue["33"]) {
         unpackedSpans.push(TextSpan.fromValue(item, _session, _supergraph, _graph, _connection));
       }
     }
     const isBoldValue = objectValue["60"];
-    const unpackedIsBold = isBoldValue !== undefined ? isBoldValue : null;
+    const unpackedIsBold = isBoldValue != undefined ? isBoldValue : null;
     const isItalicValue = objectValue["61"];
-    const unpackedIsItalic = isItalicValue !== undefined ? isItalicValue : null;
+    const unpackedIsItalic = isItalicValue != undefined ? isItalicValue : null;
     const isStrikethroughValue = objectValue["62"];
-    const unpackedIsStrikethrough = isStrikethroughValue !== undefined ? isStrikethroughValue : null;
+    const unpackedIsStrikethrough = isStrikethroughValue != undefined ? isStrikethroughValue : null;
     const isUnderlineValue = objectValue["63"];
-    const unpackedIsUnderline = isUnderlineValue !== undefined ? isUnderlineValue : null;
+    const unpackedIsUnderline = isUnderlineValue != undefined ? isUnderlineValue : null;
     const isCodeValue = objectValue["64"];
-    const unpackedIsCode = isCodeValue !== undefined ? isCodeValue : null;
+    const unpackedIsCode = isCodeValue != undefined ? isCodeValue : null;
     return new Text({
       spans: unpackedSpans,
       isBold: unpackedIsBold,
@@ -421,6 +495,76 @@ export class Text extends StructFrozen {
     _connection?: any | null,
   ): Text {
     return Text.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): TextProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Text.__packProto__(this);
+    }
+    return this._proto as TextProto;
+  }
+
+  static __packProto__(object: Text): TextProto {
+    const objectProto: Partial<TextProto> = { metatype: 2520 };
+    if (object.spans) {
+      const packedSpans: any[] = [];
+      for (const item of object.spans) {
+        packedSpans.push(item.toProto());
+      }
+      objectProto.spans = packedSpans;
+    }
+    if (object.isBold != null) {
+      objectProto.isBold = object.isBold;
+    }
+    if (object.isItalic != null) {
+      objectProto.isItalic = object.isItalic;
+    }
+    if (object.isStrikethrough != null) {
+      objectProto.isStrikethrough = object.isStrikethrough;
+    }
+    if (object.isUnderline != null) {
+      objectProto.isUnderline = object.isUnderline;
+    }
+    if (object.isCode != null) {
+      objectProto.isCode = object.isCode;
+    }
+    return objectProto as TextProto;
+  }
+
+  static __unpackProto__(
+    objectProto: TextProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Text {
+    const unpackedSpans: any[] = [];
+    if (objectProto.spans) {
+      for (const item of objectProto.spans) {
+        unpackedSpans.push(TextSpan.fromProto(item!, _session, _supergraph, _graph, _connection));
+      }
+    }
+    return new Text({
+      spans: unpackedSpans,
+      isBold: objectProto.isBold != undefined ? objectProto.isBold : null,
+      isItalic: objectProto.isItalic != undefined ? objectProto.isItalic : null,
+      isStrikethrough: objectProto.isStrikethrough != undefined ? objectProto.isStrikethrough : null,
+      isUnderline: objectProto.isUnderline != undefined ? objectProto.isUnderline : null,
+      isCode: objectProto.isCode != undefined ? objectProto.isCode : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: TextProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Text {
+    return Text.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:2520 ==== */

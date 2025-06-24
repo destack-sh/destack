@@ -19,6 +19,7 @@ from ..builtin import (
     EnumType,
     Node,
     NodeType,
+    PrimitiveType,
     Property,
     Region,
     StructFrozen,
@@ -173,7 +174,7 @@ class PropertyReference(StructFrozen[PropertyReferenceProto]):
     node_type: NodeType | None = property_(31, is_repr=True)
     trait_type: TraitType | None = property_(32, is_repr=True)
     struct_type: StructType | None = property_(33, is_repr=True)
-    id: int = property_(35, is_repr=True)
+    id: int = property_(35, is_repr=True, primitive_type=PrimitiveType.INT32)
 
     @property
     def object_cls(self) -> type_[BuiltinObjectBase] | None:

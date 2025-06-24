@@ -1,3 +1,4 @@
+import { packProtoDuration, packProtoTimestamp, unpackProtoDuration, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Axis3,
   Graph,
@@ -18,6 +19,16 @@ import { Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Style, Theme, Transition } from "@destack/language/style";
 import { View } from "@destack/language/view";
+import {
+  EffectProto,
+  EffectStyleProto,
+  EffectTypeProto,
+  MaterializationTypeProto,
+  OffscreenBehaviorProto,
+  RepeatTypeProto,
+  TextSplitTypeProto,
+} from "@destack/proto";
+import { timedeltaFromISOFormat, timedeltaToISOFormat } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12046 ==== */
@@ -265,49 +276,49 @@ export class Effect extends Struct {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 12025;
     objectValue["30"] = object.type;
-    if (object.stylePtr !== null) {
+    if (object.stylePtr != null) {
       objectValue["41"] = object.stylePtr.toValue();
     }
-    if (object.opacity !== null) {
+    if (object.opacity != null) {
       objectValue["50"] = object.opacity;
     }
-    if (object.offset !== null) {
+    if (object.offset != null) {
       objectValue["51"] = object.offset.toValue();
     }
-    if (object.scale !== null) {
+    if (object.scale != null) {
       objectValue["52"] = object.scale;
     }
-    if (object.rotate !== null) {
+    if (object.rotate != null) {
       objectValue["53"] = object.rotate.toValue();
     }
-    if (object.skew !== null) {
+    if (object.skew != null) {
       objectValue["54"] = object.skew.toValue();
     }
-    if (object.perspective !== null) {
+    if (object.perspective != null) {
       objectValue["55"] = object.perspective;
     }
-    if (object.delay !== null) {
+    if (object.delay != null) {
       objectValue["56"] = timedeltaToISOFormat(object.delay);
     }
-    if (object.duration !== null) {
+    if (object.duration != null) {
       objectValue["57"] = object.duration;
     }
-    if (object.threshold !== null) {
+    if (object.threshold != null) {
       objectValue["58"] = object.threshold;
     }
-    if (object.once !== null) {
+    if (object.once != null) {
       objectValue["59"] = object.once;
     }
-    if (object.repeat !== null) {
+    if (object.repeat != null) {
       objectValue["60"] = object.repeat;
     }
-    if (object.split !== null) {
+    if (object.split != null) {
       objectValue["61"] = object.split;
     }
-    if (object.offscreen !== null) {
+    if (object.offscreen != null) {
       objectValue["62"] = object.offscreen;
     }
-    if (object.transition !== null) {
+    if (object.transition != null) {
       objectValue["70"] = object.transition.toValue();
     }
     return objectValue;
@@ -321,42 +332,42 @@ export class Effect extends Struct {
     _connection?: any | null,
   ): Effect {
     const opacityValue = objectValue["50"];
-    const unpackedOpacity = opacityValue !== undefined ? opacityValue : null;
+    const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
     const offsetValue = objectValue["51"];
     const unpackedOffset =
-      offsetValue !== undefined ? Vector2.fromValue(offsetValue, _session, _supergraph, _graph, _connection) : null;
+      offsetValue != undefined ? Vector2.fromValue(offsetValue, _session, _supergraph, _graph, _connection) : null;
     const scaleValue = objectValue["52"];
-    const unpackedScale = scaleValue !== undefined ? scaleValue : null;
+    const unpackedScale = scaleValue != undefined ? scaleValue : null;
     const rotateValue = objectValue["53"];
     const unpackedRotate =
-      rotateValue !== undefined ? Axis3.fromValue(rotateValue, _session, _supergraph, _graph, _connection) : null;
+      rotateValue != undefined ? Axis3.fromValue(rotateValue, _session, _supergraph, _graph, _connection) : null;
     const skewValue = objectValue["54"];
     const unpackedSkew =
-      skewValue !== undefined ? Vector2.fromValue(skewValue, _session, _supergraph, _graph, _connection) : null;
+      skewValue != undefined ? Vector2.fromValue(skewValue, _session, _supergraph, _graph, _connection) : null;
     const perspectiveValue = objectValue["55"];
-    const unpackedPerspective = perspectiveValue !== undefined ? perspectiveValue : null;
+    const unpackedPerspective = perspectiveValue != undefined ? perspectiveValue : null;
     const delayValue = objectValue["56"];
-    const unpackedDelay = delayValue !== undefined ? timedeltaFromISOFormat(delayValue) : null;
+    const unpackedDelay = delayValue != undefined ? timedeltaFromISOFormat(delayValue) : null;
     const durationValue = objectValue["57"];
-    const unpackedDuration = durationValue !== undefined ? durationValue : null;
+    const unpackedDuration = durationValue != undefined ? durationValue : null;
     const thresholdValue = objectValue["58"];
-    const unpackedThreshold = thresholdValue !== undefined ? thresholdValue : null;
+    const unpackedThreshold = thresholdValue != undefined ? thresholdValue : null;
     const onceValue = objectValue["59"];
-    const unpackedOnce = onceValue !== undefined ? onceValue : null;
+    const unpackedOnce = onceValue != undefined ? onceValue : null;
     const repeatValue = objectValue["60"];
-    const unpackedRepeat = repeatValue !== undefined ? Number(repeatValue) : null;
+    const unpackedRepeat = repeatValue != undefined ? Number(repeatValue) : null;
     const splitValue = objectValue["61"];
-    const unpackedSplit = splitValue !== undefined ? Number(splitValue) : null;
+    const unpackedSplit = splitValue != undefined ? Number(splitValue) : null;
     const offscreenValue = objectValue["62"];
-    const unpackedOffscreen = offscreenValue !== undefined ? Number(offscreenValue) : null;
+    const unpackedOffscreen = offscreenValue != undefined ? Number(offscreenValue) : null;
     const transitionValue = objectValue["70"];
     const unpackedTransition =
-      transitionValue !== undefined
+      transitionValue != undefined
         ? Transition.fromValue(transitionValue, _session, _supergraph, _graph, _connection)
         : null;
     const styleValue = objectValue["41"];
     const unpackedStyle =
-      styleValue !== undefined ? NodeReference.fromValue(styleValue, _session, _supergraph, _graph, _connection) : null;
+      styleValue != undefined ? NodeReference.fromValue(styleValue, _session, _supergraph, _graph, _connection) : null;
     return new Effect({
       type: Number(objectValue["30"]),
       opacity: unpackedOpacity,
@@ -386,6 +397,114 @@ export class Effect extends Struct {
     _connection?: any | null,
   ): Effect {
     return Effect.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): EffectProto {
+    return Effect.__packProto__(this);
+  }
+
+  static __packProto__(object: Effect): EffectProto {
+    const objectProto: Partial<EffectProto> = { metatype: 12025 };
+    objectProto.type = Number(object.type) as EffectTypeProto;
+    if (object.stylePtr != null) {
+      objectProto.stylePtr = object.stylePtr.toProto();
+    }
+    if (object.opacity != null) {
+      objectProto.opacity = object.opacity;
+    }
+    if (object.offset != null) {
+      objectProto.offset = object.offset.toProto();
+    }
+    if (object.scale != null) {
+      objectProto.scale = object.scale;
+    }
+    if (object.rotate != null) {
+      objectProto.rotate = object.rotate.toProto();
+    }
+    if (object.skew != null) {
+      objectProto.skew = object.skew.toProto();
+    }
+    if (object.perspective != null) {
+      objectProto.perspective = object.perspective;
+    }
+    if (object.delay != null) {
+      objectProto.delay = packProtoDuration(object.delay);
+    }
+    if (object.duration != null) {
+      objectProto.duration = object.duration;
+    }
+    if (object.threshold != null) {
+      objectProto.threshold = object.threshold;
+    }
+    if (object.once != null) {
+      objectProto.once = object.once;
+    }
+    if (object.repeat != null) {
+      objectProto.repeat = Number(object.repeat) as RepeatTypeProto;
+    }
+    if (object.split != null) {
+      objectProto.split = Number(object.split) as TextSplitTypeProto;
+    }
+    if (object.offscreen != null) {
+      objectProto.offscreen = Number(object.offscreen) as OffscreenBehaviorProto;
+    }
+    if (object.transition != null) {
+      objectProto.transition = object.transition.toProto();
+    }
+    return objectProto as EffectProto;
+  }
+
+  static __unpackProto__(
+    objectProto: EffectProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Effect {
+    return new Effect({
+      type: Number(objectProto.type) as EffectType,
+      opacity: objectProto.opacity != undefined ? objectProto.opacity : null,
+      offset:
+        objectProto.offset != undefined
+          ? Vector2.fromProto(objectProto.offset!, _session, _supergraph, _graph, _connection)
+          : null,
+      scale: objectProto.scale != undefined ? objectProto.scale : null,
+      rotate:
+        objectProto.rotate != undefined
+          ? Axis3.fromProto(objectProto.rotate!, _session, _supergraph, _graph, _connection)
+          : null,
+      skew:
+        objectProto.skew != undefined
+          ? Vector2.fromProto(objectProto.skew!, _session, _supergraph, _graph, _connection)
+          : null,
+      perspective: objectProto.perspective != undefined ? objectProto.perspective : null,
+      delay: objectProto.delay != undefined ? unpackProtoDuration(objectProto.delay!) : null,
+      duration: objectProto.duration != undefined ? objectProto.duration : null,
+      threshold: objectProto.threshold != undefined ? objectProto.threshold : null,
+      once: objectProto.once != undefined ? objectProto.once : null,
+      repeat: objectProto.repeat != undefined ? (Number(objectProto.repeat) as RepeatType) : null,
+      split: objectProto.split != undefined ? (Number(objectProto.split) as TextSplitType) : null,
+      offscreen: objectProto.offscreen != undefined ? (Number(objectProto.offscreen) as OffscreenBehavior) : null,
+      transition:
+        objectProto.transition != undefined
+          ? Transition.fromProto(objectProto.transition!, _session, _supergraph, _graph, _connection)
+          : null,
+      style:
+        objectProto.stylePtr != undefined
+          ? NodeReference.fromProto(objectProto.stylePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: EffectProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Effect {
+    return Effect.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:12025 ==== */
@@ -804,67 +923,67 @@ export class EffectStyle extends Node implements Style {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 12027;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr !== null) {
+    if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr !== null) {
+    if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
-    if (object.createdByPtr !== null) {
+    if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
     objectValue["17"] = object.updatedAt.toString();
-    if (object.updatedByPtr !== null) {
+    if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
-    if (object.deletedAt !== null) {
+    if (object.deletedAt != null) {
       objectValue["20"] = object.deletedAt.toString();
     }
     objectValue["22"] = object.orderKey;
     objectValue["30"] = object.type;
     objectValue["31"] = object.name;
-    if (object.opacity !== null) {
+    if (object.opacity != null) {
       objectValue["50"] = object.opacity;
     }
-    if (object.offset !== null) {
+    if (object.offset != null) {
       objectValue["51"] = object.offset.toValue();
     }
-    if (object.scale !== null) {
+    if (object.scale != null) {
       objectValue["52"] = object.scale;
     }
-    if (object.rotate !== null) {
+    if (object.rotate != null) {
       objectValue["53"] = object.rotate.toValue();
     }
-    if (object.skew !== null) {
+    if (object.skew != null) {
       objectValue["54"] = object.skew.toValue();
     }
-    if (object.perspective !== null) {
+    if (object.perspective != null) {
       objectValue["55"] = object.perspective;
     }
-    if (object.delay !== null) {
+    if (object.delay != null) {
       objectValue["56"] = timedeltaToISOFormat(object.delay);
     }
-    if (object.duration !== null) {
+    if (object.duration != null) {
       objectValue["57"] = object.duration;
     }
-    if (object.threshold !== null) {
+    if (object.threshold != null) {
       objectValue["58"] = object.threshold;
     }
-    if (object.once !== null) {
+    if (object.once != null) {
       objectValue["59"] = object.once;
     }
-    if (object.repeat !== null) {
+    if (object.repeat != null) {
       objectValue["60"] = object.repeat;
     }
-    if (object.split !== null) {
+    if (object.split != null) {
       objectValue["61"] = object.split;
     }
-    if (object.offscreen !== null) {
+    if (object.offscreen != null) {
       objectValue["62"] = object.offscreen;
     }
-    if (object.transition !== null) {
+    if (object.transition != null) {
       objectValue["70"] = object.transition.toValue();
     }
     return objectValue;
@@ -878,57 +997,57 @@ export class EffectStyle extends Node implements Style {
     _connection?: any | null,
   ): EffectStyle {
     const deletedAtValue = objectValue["20"];
-    const unpackedDeletedAt = deletedAtValue !== undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
     const opacityValue = objectValue["50"];
-    const unpackedOpacity = opacityValue !== undefined ? opacityValue : null;
+    const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
     const offsetValue = objectValue["51"];
     const unpackedOffset =
-      offsetValue !== undefined ? Vector2.fromValue(offsetValue, _session, _supergraph, _graph, _connection) : null;
+      offsetValue != undefined ? Vector2.fromValue(offsetValue, _session, _supergraph, _graph, _connection) : null;
     const scaleValue = objectValue["52"];
-    const unpackedScale = scaleValue !== undefined ? scaleValue : null;
+    const unpackedScale = scaleValue != undefined ? scaleValue : null;
     const rotateValue = objectValue["53"];
     const unpackedRotate =
-      rotateValue !== undefined ? Axis3.fromValue(rotateValue, _session, _supergraph, _graph, _connection) : null;
+      rotateValue != undefined ? Axis3.fromValue(rotateValue, _session, _supergraph, _graph, _connection) : null;
     const skewValue = objectValue["54"];
     const unpackedSkew =
-      skewValue !== undefined ? Vector2.fromValue(skewValue, _session, _supergraph, _graph, _connection) : null;
+      skewValue != undefined ? Vector2.fromValue(skewValue, _session, _supergraph, _graph, _connection) : null;
     const perspectiveValue = objectValue["55"];
-    const unpackedPerspective = perspectiveValue !== undefined ? perspectiveValue : null;
+    const unpackedPerspective = perspectiveValue != undefined ? perspectiveValue : null;
     const delayValue = objectValue["56"];
-    const unpackedDelay = delayValue !== undefined ? timedeltaFromISOFormat(delayValue) : null;
+    const unpackedDelay = delayValue != undefined ? timedeltaFromISOFormat(delayValue) : null;
     const durationValue = objectValue["57"];
-    const unpackedDuration = durationValue !== undefined ? durationValue : null;
+    const unpackedDuration = durationValue != undefined ? durationValue : null;
     const thresholdValue = objectValue["58"];
-    const unpackedThreshold = thresholdValue !== undefined ? thresholdValue : null;
+    const unpackedThreshold = thresholdValue != undefined ? thresholdValue : null;
     const onceValue = objectValue["59"];
-    const unpackedOnce = onceValue !== undefined ? onceValue : null;
+    const unpackedOnce = onceValue != undefined ? onceValue : null;
     const repeatValue = objectValue["60"];
-    const unpackedRepeat = repeatValue !== undefined ? Number(repeatValue) : null;
+    const unpackedRepeat = repeatValue != undefined ? Number(repeatValue) : null;
     const splitValue = objectValue["61"];
-    const unpackedSplit = splitValue !== undefined ? Number(splitValue) : null;
+    const unpackedSplit = splitValue != undefined ? Number(splitValue) : null;
     const offscreenValue = objectValue["62"];
-    const unpackedOffscreen = offscreenValue !== undefined ? Number(offscreenValue) : null;
+    const unpackedOffscreen = offscreenValue != undefined ? Number(offscreenValue) : null;
     const transitionValue = objectValue["70"];
     const unpackedTransition =
-      transitionValue !== undefined
+      transitionValue != undefined
         ? Transition.fromValue(transitionValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentValue = objectValue["3"];
     const unpackedParent =
-      parentValue !== undefined
+      parentValue != undefined
         ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
         : null;
     const spaceValue = objectValue["5"];
     const unpackedSpace =
-      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
     const createdByValue = objectValue["16"];
     const unpackedCreatedBy =
-      createdByValue !== undefined
+      createdByValue != undefined
         ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByValue = objectValue["18"];
     const unpackedUpdatedBy =
-      updatedByValue !== undefined
+      updatedByValue != undefined
         ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
         : null;
     return new EffectStyle({
@@ -972,6 +1091,153 @@ export class EffectStyle extends Node implements Style {
     _connection?: any | null,
   ): EffectStyle {
     return EffectStyle.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): EffectStyleProto {
+    return EffectStyle.__packProto__(this);
+  }
+
+  static __packProto__(object: EffectStyle): EffectStyleProto {
+    const objectProto: Partial<EffectStyleProto> = { metatype: 12027 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    if (object.deletedAt != null) {
+      objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
+    }
+    objectProto.orderKey = object.orderKey;
+    objectProto.type = Number(object.type) as EffectTypeProto;
+    objectProto.name = object.name;
+    if (object.opacity != null) {
+      objectProto.opacity = object.opacity;
+    }
+    if (object.offset != null) {
+      objectProto.offset = object.offset.toProto();
+    }
+    if (object.scale != null) {
+      objectProto.scale = object.scale;
+    }
+    if (object.rotate != null) {
+      objectProto.rotate = object.rotate.toProto();
+    }
+    if (object.skew != null) {
+      objectProto.skew = object.skew.toProto();
+    }
+    if (object.perspective != null) {
+      objectProto.perspective = object.perspective;
+    }
+    if (object.delay != null) {
+      objectProto.delay = packProtoDuration(object.delay);
+    }
+    if (object.duration != null) {
+      objectProto.duration = object.duration;
+    }
+    if (object.threshold != null) {
+      objectProto.threshold = object.threshold;
+    }
+    if (object.once != null) {
+      objectProto.once = object.once;
+    }
+    if (object.repeat != null) {
+      objectProto.repeat = Number(object.repeat) as RepeatTypeProto;
+    }
+    if (object.split != null) {
+      objectProto.split = Number(object.split) as TextSplitTypeProto;
+    }
+    if (object.offscreen != null) {
+      objectProto.offscreen = Number(object.offscreen) as OffscreenBehaviorProto;
+    }
+    if (object.transition != null) {
+      objectProto.transition = object.transition.toProto();
+    }
+    return objectProto as EffectStyleProto;
+  }
+
+  static __unpackProto__(
+    objectProto: EffectStyleProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): EffectStyle {
+    return new EffectStyle({
+      id: String(objectProto.id),
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      name: objectProto.name,
+      orderKey: objectProto.orderKey,
+      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      type: Number(objectProto.type) as EffectType,
+      opacity: objectProto.opacity != undefined ? objectProto.opacity : null,
+      offset:
+        objectProto.offset != undefined
+          ? Vector2.fromProto(objectProto.offset!, _session, _supergraph, _graph, _connection)
+          : null,
+      scale: objectProto.scale != undefined ? objectProto.scale : null,
+      rotate:
+        objectProto.rotate != undefined
+          ? Axis3.fromProto(objectProto.rotate!, _session, _supergraph, _graph, _connection)
+          : null,
+      skew:
+        objectProto.skew != undefined
+          ? Vector2.fromProto(objectProto.skew!, _session, _supergraph, _graph, _connection)
+          : null,
+      perspective: objectProto.perspective != undefined ? objectProto.perspective : null,
+      delay: objectProto.delay != undefined ? unpackProtoDuration(objectProto.delay!) : null,
+      duration: objectProto.duration != undefined ? objectProto.duration : null,
+      threshold: objectProto.threshold != undefined ? objectProto.threshold : null,
+      once: objectProto.once != undefined ? objectProto.once : null,
+      repeat: objectProto.repeat != undefined ? (Number(objectProto.repeat) as RepeatType) : null,
+      split: objectProto.split != undefined ? (Number(objectProto.split) as TextSplitType) : null,
+      offscreen: objectProto.offscreen != undefined ? (Number(objectProto.offscreen) as OffscreenBehavior) : null,
+      transition:
+        objectProto.transition != undefined
+          ? Transition.fromProto(objectProto.transition!, _session, _supergraph, _graph, _connection)
+          : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: EffectStyleProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): EffectStyle {
+    return EffectStyle.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:12027 ==== */

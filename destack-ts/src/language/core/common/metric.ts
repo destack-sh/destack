@@ -1,3 +1,4 @@
+import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Graph,
   HasName,
@@ -18,6 +19,15 @@ import {
 } from "@destack/language/core";
 import { Script } from "@destack/language/logic";
 import { Space } from "@destack/language/space";
+import {
+  CounterMeasurementProto,
+  CounterMetricProto,
+  GaugeMeasurementProto,
+  GaugeMetricProto,
+  HistogramMeasurementProto,
+  HistogramMetricProto,
+  MaterializationTypeProto,
+} from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:4110 ==== */
@@ -304,27 +314,27 @@ export class GaugeMetric extends Node implements Spatial, Metric, HasName {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 4110;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr !== null) {
+    if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr !== null) {
+    if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    if (object.prototypePtr !== null) {
+    if (object.prototypePtr != null) {
       objectValue["6"] = object.prototypePtr.toValue();
     }
     objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
-    if (object.createdByPtr !== null) {
+    if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
     objectValue["17"] = object.updatedAt.toString();
-    if (object.updatedByPtr !== null) {
+    if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
     objectValue["22"] = object.orderKey;
     objectValue["31"] = object.name;
-    if (object.sourcePtr !== null) {
+    if (object.sourcePtr != null) {
       objectValue["210"] = object.sourcePtr.toValue();
     }
     return objectValue;
@@ -339,30 +349,30 @@ export class GaugeMetric extends Node implements Spatial, Metric, HasName {
   ): GaugeMetric {
     const parentValue = objectValue["3"];
     const unpackedParent =
-      parentValue !== undefined
+      parentValue != undefined
         ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
         : null;
     const spaceValue = objectValue["5"];
     const unpackedSpace =
-      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
     const createdByValue = objectValue["16"];
     const unpackedCreatedBy =
-      createdByValue !== undefined
+      createdByValue != undefined
         ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByValue = objectValue["18"];
     const unpackedUpdatedBy =
-      updatedByValue !== undefined
+      updatedByValue != undefined
         ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
         : null;
     const sourceValue = objectValue["210"];
     const unpackedSource =
-      sourceValue !== undefined
+      sourceValue != undefined
         ? NodeReference.fromValue(sourceValue, _session, _supergraph, _graph, _connection)
         : null;
     const prototypeValue = objectValue["6"];
     const unpackedPrototype =
-      prototypeValue !== undefined
+      prototypeValue != undefined
         ? NodeReference.fromValue(prototypeValue, _session, _supergraph, _graph, _connection)
         : null;
     return new GaugeMetric({
@@ -392,6 +402,93 @@ export class GaugeMetric extends Node implements Spatial, Metric, HasName {
     _connection?: any | null,
   ): GaugeMetric {
     return GaugeMetric.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): GaugeMetricProto {
+    return GaugeMetric.__packProto__(this);
+  }
+
+  static __packProto__(object: GaugeMetric): GaugeMetricProto {
+    const objectProto: Partial<GaugeMetricProto> = { metatype: 4110 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    if (object.prototypePtr != null) {
+      objectProto.prototypePtr = object.prototypePtr.toProto();
+    }
+    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    objectProto.orderKey = object.orderKey;
+    objectProto.name = object.name;
+    if (object.sourcePtr != null) {
+      objectProto.sourcePtr = object.sourcePtr.toProto();
+    }
+    return objectProto as GaugeMetricProto;
+  }
+
+  static __unpackProto__(
+    objectProto: GaugeMetricProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): GaugeMetric {
+    return new GaugeMetric({
+      id: String(objectProto.id),
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      orderKey: objectProto.orderKey,
+      name: objectProto.name,
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      source:
+        objectProto.sourcePtr != undefined
+          ? NodeReference.fromProto(objectProto.sourcePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      prototype:
+        objectProto.prototypePtr != undefined
+          ? NodeReference.fromProto(objectProto.prototypePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: GaugeMetricProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): GaugeMetric {
+    return GaugeMetric.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:4110 ==== */
@@ -621,19 +718,19 @@ export class GaugeMeasurement extends Node implements Spatial, Measurement {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 4111;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr !== null) {
+    if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr !== null) {
+    if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["6"] = object.definitionPtr.toValue();
     objectValue["15"] = object.createdAt.toString();
-    if (object.createdByPtr !== null) {
+    if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
     objectValue["17"] = object.updatedAt.toString();
-    if (object.updatedByPtr !== null) {
+    if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
     return objectValue;
@@ -648,20 +745,20 @@ export class GaugeMeasurement extends Node implements Spatial, Measurement {
   ): GaugeMeasurement {
     const parentValue = objectValue["3"];
     const unpackedParent =
-      parentValue !== undefined
+      parentValue != undefined
         ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
         : null;
     const spaceValue = objectValue["5"];
     const unpackedSpace =
-      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
     const createdByValue = objectValue["16"];
     const unpackedCreatedBy =
-      createdByValue !== undefined
+      createdByValue != undefined
         ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByValue = objectValue["18"];
     const unpackedUpdatedBy =
-      updatedByValue !== undefined
+      updatedByValue != undefined
         ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
         : null;
     return new GaugeMeasurement({
@@ -687,6 +784,75 @@ export class GaugeMeasurement extends Node implements Spatial, Measurement {
     _connection?: any | null,
   ): GaugeMeasurement {
     return GaugeMeasurement.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): GaugeMeasurementProto {
+    return GaugeMeasurement.__packProto__(this);
+  }
+
+  static __packProto__(object: GaugeMeasurement): GaugeMeasurementProto {
+    const objectProto: Partial<GaugeMeasurementProto> = { metatype: 4111 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.definitionPtr = object.definitionPtr.toProto();
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    return objectProto as GaugeMeasurementProto;
+  }
+
+  static __unpackProto__(
+    objectProto: GaugeMeasurementProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): GaugeMeasurement {
+    return new GaugeMeasurement({
+      id: String(objectProto.id),
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      definition: NodeReference.fromProto(objectProto.definitionPtr!, _session, _supergraph, _graph, _connection),
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: GaugeMeasurementProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): GaugeMeasurement {
+    return GaugeMeasurement.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:4111 ==== */
@@ -975,27 +1141,27 @@ export class CounterMetric extends Node implements Spatial, Metric, HasName {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 4112;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr !== null) {
+    if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr !== null) {
+    if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    if (object.prototypePtr !== null) {
+    if (object.prototypePtr != null) {
       objectValue["6"] = object.prototypePtr.toValue();
     }
     objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
-    if (object.createdByPtr !== null) {
+    if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
     objectValue["17"] = object.updatedAt.toString();
-    if (object.updatedByPtr !== null) {
+    if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
     objectValue["22"] = object.orderKey;
     objectValue["31"] = object.name;
-    if (object.sourcePtr !== null) {
+    if (object.sourcePtr != null) {
       objectValue["210"] = object.sourcePtr.toValue();
     }
     return objectValue;
@@ -1010,30 +1176,30 @@ export class CounterMetric extends Node implements Spatial, Metric, HasName {
   ): CounterMetric {
     const parentValue = objectValue["3"];
     const unpackedParent =
-      parentValue !== undefined
+      parentValue != undefined
         ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
         : null;
     const spaceValue = objectValue["5"];
     const unpackedSpace =
-      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
     const createdByValue = objectValue["16"];
     const unpackedCreatedBy =
-      createdByValue !== undefined
+      createdByValue != undefined
         ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByValue = objectValue["18"];
     const unpackedUpdatedBy =
-      updatedByValue !== undefined
+      updatedByValue != undefined
         ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
         : null;
     const sourceValue = objectValue["210"];
     const unpackedSource =
-      sourceValue !== undefined
+      sourceValue != undefined
         ? NodeReference.fromValue(sourceValue, _session, _supergraph, _graph, _connection)
         : null;
     const prototypeValue = objectValue["6"];
     const unpackedPrototype =
-      prototypeValue !== undefined
+      prototypeValue != undefined
         ? NodeReference.fromValue(prototypeValue, _session, _supergraph, _graph, _connection)
         : null;
     return new CounterMetric({
@@ -1063,6 +1229,93 @@ export class CounterMetric extends Node implements Spatial, Metric, HasName {
     _connection?: any | null,
   ): CounterMetric {
     return CounterMetric.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): CounterMetricProto {
+    return CounterMetric.__packProto__(this);
+  }
+
+  static __packProto__(object: CounterMetric): CounterMetricProto {
+    const objectProto: Partial<CounterMetricProto> = { metatype: 4112 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    if (object.prototypePtr != null) {
+      objectProto.prototypePtr = object.prototypePtr.toProto();
+    }
+    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    objectProto.orderKey = object.orderKey;
+    objectProto.name = object.name;
+    if (object.sourcePtr != null) {
+      objectProto.sourcePtr = object.sourcePtr.toProto();
+    }
+    return objectProto as CounterMetricProto;
+  }
+
+  static __unpackProto__(
+    objectProto: CounterMetricProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): CounterMetric {
+    return new CounterMetric({
+      id: String(objectProto.id),
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      orderKey: objectProto.orderKey,
+      name: objectProto.name,
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      source:
+        objectProto.sourcePtr != undefined
+          ? NodeReference.fromProto(objectProto.sourcePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      prototype:
+        objectProto.prototypePtr != undefined
+          ? NodeReference.fromProto(objectProto.prototypePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: CounterMetricProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): CounterMetric {
+    return CounterMetric.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:4112 ==== */
@@ -1292,19 +1545,19 @@ export class CounterMeasurement extends Node implements Spatial, Measurement {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 4113;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr !== null) {
+    if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr !== null) {
+    if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["6"] = object.definitionPtr.toValue();
     objectValue["15"] = object.createdAt.toString();
-    if (object.createdByPtr !== null) {
+    if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
     objectValue["17"] = object.updatedAt.toString();
-    if (object.updatedByPtr !== null) {
+    if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
     return objectValue;
@@ -1319,20 +1572,20 @@ export class CounterMeasurement extends Node implements Spatial, Measurement {
   ): CounterMeasurement {
     const parentValue = objectValue["3"];
     const unpackedParent =
-      parentValue !== undefined
+      parentValue != undefined
         ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
         : null;
     const spaceValue = objectValue["5"];
     const unpackedSpace =
-      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
     const createdByValue = objectValue["16"];
     const unpackedCreatedBy =
-      createdByValue !== undefined
+      createdByValue != undefined
         ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByValue = objectValue["18"];
     const unpackedUpdatedBy =
-      updatedByValue !== undefined
+      updatedByValue != undefined
         ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
         : null;
     return new CounterMeasurement({
@@ -1358,6 +1611,75 @@ export class CounterMeasurement extends Node implements Spatial, Measurement {
     _connection?: any | null,
   ): CounterMeasurement {
     return CounterMeasurement.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): CounterMeasurementProto {
+    return CounterMeasurement.__packProto__(this);
+  }
+
+  static __packProto__(object: CounterMeasurement): CounterMeasurementProto {
+    const objectProto: Partial<CounterMeasurementProto> = { metatype: 4113 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.definitionPtr = object.definitionPtr.toProto();
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    return objectProto as CounterMeasurementProto;
+  }
+
+  static __unpackProto__(
+    objectProto: CounterMeasurementProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): CounterMeasurement {
+    return new CounterMeasurement({
+      id: String(objectProto.id),
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      definition: NodeReference.fromProto(objectProto.definitionPtr!, _session, _supergraph, _graph, _connection),
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: CounterMeasurementProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): CounterMeasurement {
+    return CounterMeasurement.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:4113 ==== */
@@ -1646,27 +1968,27 @@ export class HistogramMetric extends Node implements Spatial, Metric, HasName {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 4114;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr !== null) {
+    if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr !== null) {
+    if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    if (object.prototypePtr !== null) {
+    if (object.prototypePtr != null) {
       objectValue["6"] = object.prototypePtr.toValue();
     }
     objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
-    if (object.createdByPtr !== null) {
+    if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
     objectValue["17"] = object.updatedAt.toString();
-    if (object.updatedByPtr !== null) {
+    if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
     objectValue["22"] = object.orderKey;
     objectValue["31"] = object.name;
-    if (object.sourcePtr !== null) {
+    if (object.sourcePtr != null) {
       objectValue["210"] = object.sourcePtr.toValue();
     }
     return objectValue;
@@ -1681,30 +2003,30 @@ export class HistogramMetric extends Node implements Spatial, Metric, HasName {
   ): HistogramMetric {
     const parentValue = objectValue["3"];
     const unpackedParent =
-      parentValue !== undefined
+      parentValue != undefined
         ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
         : null;
     const spaceValue = objectValue["5"];
     const unpackedSpace =
-      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
     const createdByValue = objectValue["16"];
     const unpackedCreatedBy =
-      createdByValue !== undefined
+      createdByValue != undefined
         ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByValue = objectValue["18"];
     const unpackedUpdatedBy =
-      updatedByValue !== undefined
+      updatedByValue != undefined
         ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
         : null;
     const sourceValue = objectValue["210"];
     const unpackedSource =
-      sourceValue !== undefined
+      sourceValue != undefined
         ? NodeReference.fromValue(sourceValue, _session, _supergraph, _graph, _connection)
         : null;
     const prototypeValue = objectValue["6"];
     const unpackedPrototype =
-      prototypeValue !== undefined
+      prototypeValue != undefined
         ? NodeReference.fromValue(prototypeValue, _session, _supergraph, _graph, _connection)
         : null;
     return new HistogramMetric({
@@ -1734,6 +2056,93 @@ export class HistogramMetric extends Node implements Spatial, Metric, HasName {
     _connection?: any | null,
   ): HistogramMetric {
     return HistogramMetric.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): HistogramMetricProto {
+    return HistogramMetric.__packProto__(this);
+  }
+
+  static __packProto__(object: HistogramMetric): HistogramMetricProto {
+    const objectProto: Partial<HistogramMetricProto> = { metatype: 4114 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    if (object.prototypePtr != null) {
+      objectProto.prototypePtr = object.prototypePtr.toProto();
+    }
+    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    objectProto.orderKey = object.orderKey;
+    objectProto.name = object.name;
+    if (object.sourcePtr != null) {
+      objectProto.sourcePtr = object.sourcePtr.toProto();
+    }
+    return objectProto as HistogramMetricProto;
+  }
+
+  static __unpackProto__(
+    objectProto: HistogramMetricProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): HistogramMetric {
+    return new HistogramMetric({
+      id: String(objectProto.id),
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      orderKey: objectProto.orderKey,
+      name: objectProto.name,
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      source:
+        objectProto.sourcePtr != undefined
+          ? NodeReference.fromProto(objectProto.sourcePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      prototype:
+        objectProto.prototypePtr != undefined
+          ? NodeReference.fromProto(objectProto.prototypePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: HistogramMetricProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): HistogramMetric {
+    return HistogramMetric.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:4114 ==== */
@@ -1963,19 +2372,19 @@ export class HistogramMeasurement extends Node implements Spatial, Measurement {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 4115;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr !== null) {
+    if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr !== null) {
+    if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["6"] = object.definitionPtr.toValue();
     objectValue["15"] = object.createdAt.toString();
-    if (object.createdByPtr !== null) {
+    if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
     objectValue["17"] = object.updatedAt.toString();
-    if (object.updatedByPtr !== null) {
+    if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
     return objectValue;
@@ -1990,20 +2399,20 @@ export class HistogramMeasurement extends Node implements Spatial, Measurement {
   ): HistogramMeasurement {
     const parentValue = objectValue["3"];
     const unpackedParent =
-      parentValue !== undefined
+      parentValue != undefined
         ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
         : null;
     const spaceValue = objectValue["5"];
     const unpackedSpace =
-      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
     const createdByValue = objectValue["16"];
     const unpackedCreatedBy =
-      createdByValue !== undefined
+      createdByValue != undefined
         ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByValue = objectValue["18"];
     const unpackedUpdatedBy =
-      updatedByValue !== undefined
+      updatedByValue != undefined
         ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
         : null;
     return new HistogramMeasurement({
@@ -2029,6 +2438,75 @@ export class HistogramMeasurement extends Node implements Spatial, Measurement {
     _connection?: any | null,
   ): HistogramMeasurement {
     return HistogramMeasurement.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): HistogramMeasurementProto {
+    return HistogramMeasurement.__packProto__(this);
+  }
+
+  static __packProto__(object: HistogramMeasurement): HistogramMeasurementProto {
+    const objectProto: Partial<HistogramMeasurementProto> = { metatype: 4115 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.definitionPtr = object.definitionPtr.toProto();
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    return objectProto as HistogramMeasurementProto;
+  }
+
+  static __unpackProto__(
+    objectProto: HistogramMeasurementProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): HistogramMeasurement {
+    return new HistogramMeasurement({
+      id: String(objectProto.id),
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      definition: NodeReference.fromProto(objectProto.definitionPtr!, _session, _supergraph, _graph, _connection),
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: HistogramMeasurementProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): HistogramMeasurement {
+    return HistogramMeasurement.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:4115 ==== */

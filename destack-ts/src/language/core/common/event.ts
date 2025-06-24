@@ -1,3 +1,4 @@
+import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   EditOperation,
   EditType,
@@ -24,6 +25,14 @@ import {
 } from "@destack/language/core";
 import { Script } from "@destack/language/logic";
 import { Space } from "@destack/language/space";
+import {
+  CustomEventDefinitionProto,
+  CustomEventProto,
+  EditEventProto,
+  EditOperationProto,
+  EditTypeProto,
+  MaterializationTypeProto,
+} from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:4202 ==== */
@@ -321,35 +330,35 @@ export class EditEvent extends Node implements Event, IsTaggable {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 4202;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr !== null) {
+    if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr !== null) {
+    if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["15"] = object.createdAt.toString();
-    if (object.createdByPtr !== null) {
+    if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
     objectValue["17"] = object.updatedAt.toString();
-    if (object.updatedByPtr !== null) {
+    if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
     objectValue["30"] = object.type;
-    if (object.operation !== null) {
+    if (object.operation != null) {
       objectValue["31"] = object.operation;
     }
     objectValue["35"] = object.nodePtr.toValue();
-    if (object.propPtr !== null) {
+    if (object.propPtr != null) {
       objectValue["36"] = object.propPtr.toValue();
     }
-    if (object.fieldPtr !== null) {
+    if (object.fieldPtr != null) {
       objectValue["37"] = object.fieldPtr.toValue();
     }
-    if (object.key !== null) {
+    if (object.key != null) {
       objectValue["38"] = object.key.toValue();
     }
-    if (object.value !== null) {
+    if (object.value != null) {
       objectValue["40"] = object.value.toValue();
     }
     return objectValue;
@@ -363,37 +372,37 @@ export class EditEvent extends Node implements Event, IsTaggable {
     _connection?: any | null,
   ): EditEvent {
     const operationValue = objectValue["31"];
-    const unpackedOperation = operationValue !== undefined ? Number(operationValue) : null;
+    const unpackedOperation = operationValue != undefined ? Number(operationValue) : null;
     const propPtrValue = objectValue["36"];
     const unpackedPropPtr =
-      propPtrValue !== undefined
+      propPtrValue != undefined
         ? PropertyReference.fromValue(propPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const keyValue = objectValue["38"];
     const unpackedKey =
-      keyValue !== undefined ? Value.fromValue(keyValue, _session, _supergraph, _graph, _connection) : null;
+      keyValue != undefined ? Value.fromValue(keyValue, _session, _supergraph, _graph, _connection) : null;
     const valueValue = objectValue["40"];
     const unpackedValue =
-      valueValue !== undefined ? Value.fromValue(valueValue, _session, _supergraph, _graph, _connection) : null;
+      valueValue != undefined ? Value.fromValue(valueValue, _session, _supergraph, _graph, _connection) : null;
     const fieldValue = objectValue["37"];
     const unpackedField =
-      fieldValue !== undefined ? NodeReference.fromValue(fieldValue, _session, _supergraph, _graph, _connection) : null;
+      fieldValue != undefined ? NodeReference.fromValue(fieldValue, _session, _supergraph, _graph, _connection) : null;
     const parentValue = objectValue["3"];
     const unpackedParent =
-      parentValue !== undefined
+      parentValue != undefined
         ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
         : null;
     const spaceValue = objectValue["5"];
     const unpackedSpace =
-      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
     const createdByValue = objectValue["16"];
     const unpackedCreatedBy =
-      createdByValue !== undefined
+      createdByValue != undefined
         ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByValue = objectValue["18"];
     const unpackedUpdatedBy =
-      updatedByValue !== undefined
+      updatedByValue != undefined
         ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
         : null;
     return new EditEvent({
@@ -425,6 +434,109 @@ export class EditEvent extends Node implements Event, IsTaggable {
     _connection?: any | null,
   ): EditEvent {
     return EditEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): EditEventProto {
+    return EditEvent.__packProto__(this);
+  }
+
+  static __packProto__(object: EditEvent): EditEventProto {
+    const objectProto: Partial<EditEventProto> = { metatype: 4202 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    objectProto.type = Number(object.type) as EditTypeProto;
+    if (object.operation != null) {
+      objectProto.operation = Number(object.operation) as EditOperationProto;
+    }
+    objectProto.nodePtr = object.nodePtr.toProto();
+    if (object.propPtr != null) {
+      objectProto.propPtr = object.propPtr.toProto();
+    }
+    if (object.fieldPtr != null) {
+      objectProto.fieldPtr = object.fieldPtr.toProto();
+    }
+    if (object.key != null) {
+      objectProto.key = object.key.toProto();
+    }
+    if (object.value != null) {
+      objectProto.value = object.value.toProto();
+    }
+    return objectProto as EditEventProto;
+  }
+
+  static __unpackProto__(
+    objectProto: EditEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): EditEvent {
+    return new EditEvent({
+      type: Number(objectProto.type) as EditType,
+      operation: objectProto.operation != undefined ? (Number(objectProto.operation) as EditOperation) : null,
+      propPtr:
+        objectProto.propPtr != undefined
+          ? PropertyReference.fromProto(objectProto.propPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      key:
+        objectProto.key != undefined
+          ? Value.fromProto(objectProto.key!, _session, _supergraph, _graph, _connection)
+          : null,
+      value:
+        objectProto.value != undefined
+          ? Value.fromProto(objectProto.value!, _session, _supergraph, _graph, _connection)
+          : null,
+      id: String(objectProto.id),
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      node: NodeReference.fromProto(objectProto.nodePtr!, _session, _supergraph, _graph, _connection),
+      field:
+        objectProto.fieldPtr != undefined
+          ? NodeReference.fromProto(objectProto.fieldPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: EditEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): EditEvent {
+    return EditEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:4202 ==== */
@@ -686,24 +798,24 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, HasN
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 4200;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr !== null) {
+    if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr !== null) {
+    if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
-    if (object.createdByPtr !== null) {
+    if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
     objectValue["17"] = object.updatedAt.toString();
-    if (object.updatedByPtr !== null) {
+    if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
     objectValue["22"] = object.orderKey;
     objectValue["31"] = object.name;
-    if (object.sourcePtr !== null) {
+    if (object.sourcePtr != null) {
       objectValue["210"] = object.sourcePtr.toValue();
     }
     return objectValue;
@@ -718,25 +830,25 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, HasN
   ): CustomEventDefinition {
     const parentValue = objectValue["3"];
     const unpackedParent =
-      parentValue !== undefined
+      parentValue != undefined
         ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
         : null;
     const spaceValue = objectValue["5"];
     const unpackedSpace =
-      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
     const createdByValue = objectValue["16"];
     const unpackedCreatedBy =
-      createdByValue !== undefined
+      createdByValue != undefined
         ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByValue = objectValue["18"];
     const unpackedUpdatedBy =
-      updatedByValue !== undefined
+      updatedByValue != undefined
         ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
         : null;
     const sourceValue = objectValue["210"];
     const unpackedSource =
-      sourceValue !== undefined
+      sourceValue != undefined
         ? NodeReference.fromValue(sourceValue, _session, _supergraph, _graph, _connection)
         : null;
     return new CustomEventDefinition({
@@ -765,6 +877,86 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, HasN
     _connection?: any | null,
   ): CustomEventDefinition {
     return CustomEventDefinition.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): CustomEventDefinitionProto {
+    return CustomEventDefinition.__packProto__(this);
+  }
+
+  static __packProto__(object: CustomEventDefinition): CustomEventDefinitionProto {
+    const objectProto: Partial<CustomEventDefinitionProto> = { metatype: 4200 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    objectProto.orderKey = object.orderKey;
+    objectProto.name = object.name;
+    if (object.sourcePtr != null) {
+      objectProto.sourcePtr = object.sourcePtr.toProto();
+    }
+    return objectProto as CustomEventDefinitionProto;
+  }
+
+  static __unpackProto__(
+    objectProto: CustomEventDefinitionProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): CustomEventDefinition {
+    return new CustomEventDefinition({
+      id: String(objectProto.id),
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      name: objectProto.name,
+      orderKey: objectProto.orderKey,
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      source:
+        objectProto.sourcePtr != undefined
+          ? NodeReference.fromProto(objectProto.sourcePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: CustomEventDefinitionProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): CustomEventDefinition {
+    return CustomEventDefinition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:4200 ==== */
@@ -1020,21 +1212,21 @@ export class CustomEvent extends Node implements Event {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 4201;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr !== null) {
+    if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr !== null) {
+    if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["15"] = object.createdAt.toString();
-    if (object.createdByPtr !== null) {
+    if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
     objectValue["17"] = object.updatedAt.toString();
-    if (object.updatedByPtr !== null) {
+    if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
-    if (object.nodePtr !== null) {
+    if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
     objectValue["40"] = object.definitionPtr.toValue();
@@ -1050,23 +1242,23 @@ export class CustomEvent extends Node implements Event {
   ): CustomEvent {
     const nodeValue = objectValue["35"];
     const unpackedNode =
-      nodeValue !== undefined ? NodeReference.fromValue(nodeValue, _session, _supergraph, _graph, _connection) : null;
+      nodeValue != undefined ? NodeReference.fromValue(nodeValue, _session, _supergraph, _graph, _connection) : null;
     const parentValue = objectValue["3"];
     const unpackedParent =
-      parentValue !== undefined
+      parentValue != undefined
         ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
         : null;
     const spaceValue = objectValue["5"];
     const unpackedSpace =
-      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
     const createdByValue = objectValue["16"];
     const unpackedCreatedBy =
-      createdByValue !== undefined
+      createdByValue != undefined
         ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByValue = objectValue["18"];
     const unpackedUpdatedBy =
-      updatedByValue !== undefined
+      updatedByValue != undefined
         ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
         : null;
     return new CustomEvent({
@@ -1093,6 +1285,82 @@ export class CustomEvent extends Node implements Event {
     _connection?: any | null,
   ): CustomEvent {
     return CustomEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): CustomEventProto {
+    return CustomEvent.__packProto__(this);
+  }
+
+  static __packProto__(object: CustomEvent): CustomEventProto {
+    const objectProto: Partial<CustomEventProto> = { metatype: 4201 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    if (object.nodePtr != null) {
+      objectProto.nodePtr = object.nodePtr.toProto();
+    }
+    objectProto.definitionPtr = object.definitionPtr.toProto();
+    return objectProto as CustomEventProto;
+  }
+
+  static __unpackProto__(
+    objectProto: CustomEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): CustomEvent {
+    return new CustomEvent({
+      id: String(objectProto.id),
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      definition: NodeReference.fromProto(objectProto.definitionPtr!, _session, _supergraph, _graph, _connection),
+      node:
+        objectProto.nodePtr != undefined
+          ? NodeReference.fromProto(objectProto.nodePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: CustomEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): CustomEvent {
+    return CustomEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:4201 ==== */

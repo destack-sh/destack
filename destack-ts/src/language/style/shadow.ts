@@ -1,3 +1,4 @@
+import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Axis2,
   Graph,
@@ -17,6 +18,13 @@ import { Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Color, Style, Theme } from "@destack/language/style";
 import { View } from "@destack/language/view";
+import {
+  MaterializationTypeProto,
+  ShadowPositionProto,
+  ShadowProto,
+  ShadowStyleProto,
+  ShadowTypeProto,
+} from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12030 ==== */
@@ -181,23 +189,23 @@ export class Shadow extends Struct {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 12012;
     objectValue["30"] = object.type;
-    if (object.stylePtr !== null) {
+    if (object.stylePtr != null) {
       objectValue["41"] = object.stylePtr.toValue();
     }
-    if (object.color !== null) {
+    if (object.color != null) {
       objectValue["50"] = object.color.toValue();
     }
     objectValue["51"] = object.position;
-    if (object.offset !== null) {
+    if (object.offset != null) {
       objectValue["52"] = object.offset.toValue();
     }
-    if (object.blur !== null) {
+    if (object.blur != null) {
       objectValue["53"] = object.blur;
     }
-    if (object.spread !== null) {
+    if (object.spread != null) {
       objectValue["54"] = object.spread;
     }
-    if (object.diffusion !== null) {
+    if (object.diffusion != null) {
       objectValue["55"] = object.diffusion;
     }
     return objectValue;
@@ -212,19 +220,19 @@ export class Shadow extends Struct {
   ): Shadow {
     const colorValue = objectValue["50"];
     const unpackedColor =
-      colorValue !== undefined ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection) : null;
+      colorValue != undefined ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection) : null;
     const offsetValue = objectValue["52"];
     const unpackedOffset =
-      offsetValue !== undefined ? Axis2.fromValue(offsetValue, _session, _supergraph, _graph, _connection) : null;
+      offsetValue != undefined ? Axis2.fromValue(offsetValue, _session, _supergraph, _graph, _connection) : null;
     const blurValue = objectValue["53"];
-    const unpackedBlur = blurValue !== undefined ? Number(blurValue) : null;
+    const unpackedBlur = blurValue != undefined ? Number(blurValue) : null;
     const spreadValue = objectValue["54"];
-    const unpackedSpread = spreadValue !== undefined ? Number(spreadValue) : null;
+    const unpackedSpread = spreadValue != undefined ? Number(spreadValue) : null;
     const diffusionValue = objectValue["55"];
-    const unpackedDiffusion = diffusionValue !== undefined ? diffusionValue : null;
+    const unpackedDiffusion = diffusionValue != undefined ? diffusionValue : null;
     const styleValue = objectValue["41"];
     const unpackedStyle =
-      styleValue !== undefined ? NodeReference.fromValue(styleValue, _session, _supergraph, _graph, _connection) : null;
+      styleValue != undefined ? NodeReference.fromValue(styleValue, _session, _supergraph, _graph, _connection) : null;
     return new Shadow({
       type: Number(objectValue["30"]),
       color: unpackedColor,
@@ -246,6 +254,74 @@ export class Shadow extends Struct {
     _connection?: any | null,
   ): Shadow {
     return Shadow.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): ShadowProto {
+    return Shadow.__packProto__(this);
+  }
+
+  static __packProto__(object: Shadow): ShadowProto {
+    const objectProto: Partial<ShadowProto> = { metatype: 12012 };
+    objectProto.type = Number(object.type) as ShadowTypeProto;
+    if (object.stylePtr != null) {
+      objectProto.stylePtr = object.stylePtr.toProto();
+    }
+    if (object.color != null) {
+      objectProto.color = object.color.toProto();
+    }
+    objectProto.position = Number(object.position) as ShadowPositionProto;
+    if (object.offset != null) {
+      objectProto.offset = object.offset.toProto();
+    }
+    if (object.blur != null) {
+      objectProto.blur = object.blur;
+    }
+    if (object.spread != null) {
+      objectProto.spread = object.spread;
+    }
+    if (object.diffusion != null) {
+      objectProto.diffusion = object.diffusion;
+    }
+    return objectProto as ShadowProto;
+  }
+
+  static __unpackProto__(
+    objectProto: ShadowProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Shadow {
+    return new Shadow({
+      type: Number(objectProto.type) as ShadowType,
+      color:
+        objectProto.color != undefined
+          ? Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
+          : null,
+      position: Number(objectProto.position) as ShadowPosition,
+      offset:
+        objectProto.offset != undefined
+          ? Axis2.fromProto(objectProto.offset!, _session, _supergraph, _graph, _connection)
+          : null,
+      blur: objectProto.blur != undefined ? Number(objectProto.blur) : null,
+      spread: objectProto.spread != undefined ? Number(objectProto.spread) : null,
+      diffusion: objectProto.diffusion != undefined ? objectProto.diffusion : null,
+      style:
+        objectProto.stylePtr != undefined
+          ? NodeReference.fromProto(objectProto.stylePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: ShadowProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Shadow {
+    return Shadow.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:12012 ==== */
@@ -609,41 +685,41 @@ export class ShadowStyle extends Node implements Style {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 12024;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr !== null) {
+    if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr !== null) {
+    if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
-    if (object.createdByPtr !== null) {
+    if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
     objectValue["17"] = object.updatedAt.toString();
-    if (object.updatedByPtr !== null) {
+    if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
-    if (object.deletedAt !== null) {
+    if (object.deletedAt != null) {
       objectValue["20"] = object.deletedAt.toString();
     }
     objectValue["22"] = object.orderKey;
     objectValue["30"] = object.type;
     objectValue["31"] = object.name;
-    if (object.color !== null) {
+    if (object.color != null) {
       objectValue["50"] = object.color.toValue();
     }
     objectValue["51"] = object.position;
-    if (object.offset !== null) {
+    if (object.offset != null) {
       objectValue["52"] = object.offset.toValue();
     }
-    if (object.blur !== null) {
+    if (object.blur != null) {
       objectValue["53"] = object.blur;
     }
-    if (object.spread !== null) {
+    if (object.spread != null) {
       objectValue["54"] = object.spread;
     }
-    if (object.diffusion !== null) {
+    if (object.diffusion != null) {
       objectValue["55"] = object.diffusion;
     }
     return objectValue;
@@ -657,35 +733,35 @@ export class ShadowStyle extends Node implements Style {
     _connection?: any | null,
   ): ShadowStyle {
     const deletedAtValue = objectValue["20"];
-    const unpackedDeletedAt = deletedAtValue !== undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
     const colorValue = objectValue["50"];
     const unpackedColor =
-      colorValue !== undefined ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection) : null;
+      colorValue != undefined ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection) : null;
     const offsetValue = objectValue["52"];
     const unpackedOffset =
-      offsetValue !== undefined ? Axis2.fromValue(offsetValue, _session, _supergraph, _graph, _connection) : null;
+      offsetValue != undefined ? Axis2.fromValue(offsetValue, _session, _supergraph, _graph, _connection) : null;
     const blurValue = objectValue["53"];
-    const unpackedBlur = blurValue !== undefined ? Number(blurValue) : null;
+    const unpackedBlur = blurValue != undefined ? Number(blurValue) : null;
     const spreadValue = objectValue["54"];
-    const unpackedSpread = spreadValue !== undefined ? Number(spreadValue) : null;
+    const unpackedSpread = spreadValue != undefined ? Number(spreadValue) : null;
     const diffusionValue = objectValue["55"];
-    const unpackedDiffusion = diffusionValue !== undefined ? diffusionValue : null;
+    const unpackedDiffusion = diffusionValue != undefined ? diffusionValue : null;
     const parentValue = objectValue["3"];
     const unpackedParent =
-      parentValue !== undefined
+      parentValue != undefined
         ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
         : null;
     const spaceValue = objectValue["5"];
     const unpackedSpace =
-      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
     const createdByValue = objectValue["16"];
     const unpackedCreatedBy =
-      createdByValue !== undefined
+      createdByValue != undefined
         ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByValue = objectValue["18"];
     const unpackedUpdatedBy =
-      updatedByValue !== undefined
+      updatedByValue != undefined
         ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
         : null;
     return new ShadowStyle({
@@ -721,6 +797,113 @@ export class ShadowStyle extends Node implements Style {
     _connection?: any | null,
   ): ShadowStyle {
     return ShadowStyle.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): ShadowStyleProto {
+    return ShadowStyle.__packProto__(this);
+  }
+
+  static __packProto__(object: ShadowStyle): ShadowStyleProto {
+    const objectProto: Partial<ShadowStyleProto> = { metatype: 12024 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    if (object.deletedAt != null) {
+      objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
+    }
+    objectProto.orderKey = object.orderKey;
+    objectProto.type = Number(object.type) as ShadowTypeProto;
+    objectProto.name = object.name;
+    if (object.color != null) {
+      objectProto.color = object.color.toProto();
+    }
+    objectProto.position = Number(object.position) as ShadowPositionProto;
+    if (object.offset != null) {
+      objectProto.offset = object.offset.toProto();
+    }
+    if (object.blur != null) {
+      objectProto.blur = object.blur;
+    }
+    if (object.spread != null) {
+      objectProto.spread = object.spread;
+    }
+    if (object.diffusion != null) {
+      objectProto.diffusion = object.diffusion;
+    }
+    return objectProto as ShadowStyleProto;
+  }
+
+  static __unpackProto__(
+    objectProto: ShadowStyleProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ShadowStyle {
+    return new ShadowStyle({
+      id: String(objectProto.id),
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      name: objectProto.name,
+      orderKey: objectProto.orderKey,
+      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      type: Number(objectProto.type) as ShadowType,
+      color:
+        objectProto.color != undefined
+          ? Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
+          : null,
+      position: Number(objectProto.position) as ShadowPosition,
+      offset:
+        objectProto.offset != undefined
+          ? Axis2.fromProto(objectProto.offset!, _session, _supergraph, _graph, _connection)
+          : null,
+      blur: objectProto.blur != undefined ? Number(objectProto.blur) : null,
+      spread: objectProto.spread != undefined ? Number(objectProto.spread) : null,
+      diffusion: objectProto.diffusion != undefined ? objectProto.diffusion : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: ShadowStyleProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ShadowStyle {
+    return ShadowStyle.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:12024 ==== */

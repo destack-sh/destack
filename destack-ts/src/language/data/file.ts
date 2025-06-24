@@ -1,3 +1,4 @@
+import { packProtoDuration, packProtoTimestamp, unpackProtoDuration, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Global,
   Graph,
@@ -17,6 +18,15 @@ import {
   TraitType,
 } from "@destack/language/core";
 import { Space } from "@destack/language/space";
+import {
+  FileFormatProto,
+  FileProto,
+  FileSourceProto,
+  FileTypeProto,
+  MaterializationTypeProto,
+  ResourceStatusProto,
+} from "@destack/proto";
+import { timedeltaFromISOFormat, timedeltaToISOFormat } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2541 ==== */
@@ -550,74 +560,74 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 2540;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr !== null) {
+    if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr !== null) {
+    if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
-    if (object.createdByPtr !== null) {
+    if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
     objectValue["17"] = object.updatedAt.toString();
-    if (object.updatedByPtr !== null) {
+    if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
     objectValue["30"] = object.type;
     objectValue["31"] = object.name;
     objectValue["40"] = object.status;
-    if (object.targetStatus !== null) {
+    if (object.targetStatus != null) {
       objectValue["41"] = object.targetStatus.toString();
     }
     objectValue["60"] = object.source;
-    if (object.mimeType !== null) {
+    if (object.mimeType != null) {
       objectValue["61"] = object.mimeType;
     }
-    if (object.format !== null) {
+    if (object.format != null) {
       objectValue["62"] = object.format;
     }
-    if (object.size !== null) {
+    if (object.size != null) {
       objectValue["63"] = object.size;
     }
-    if (object.sha256 !== null) {
+    if (object.sha256 != null) {
       objectValue["64"] = object.sha256;
     }
-    if (object.width !== null) {
+    if (object.width != null) {
       objectValue["65"] = object.width;
     }
-    if (object.height !== null) {
+    if (object.height != null) {
       objectValue["66"] = object.height;
     }
-    if (object.aspectRatio !== null) {
+    if (object.aspectRatio != null) {
       objectValue["67"] = object.aspectRatio;
     }
-    if (object.codec !== null) {
+    if (object.codec != null) {
       objectValue["68"] = object.codec;
     }
-    if (object.duration !== null) {
+    if (object.duration != null) {
       objectValue["69"] = timedeltaToISOFormat(object.duration);
     }
-    if (object.url !== null) {
+    if (object.url != null) {
       objectValue["70"] = object.url;
     }
-    if (object.contentUrl !== null) {
+    if (object.contentUrl != null) {
       objectValue["71"] = object.contentUrl;
     }
-    if (object.thumbnailUrl !== null) {
+    if (object.thumbnailUrl != null) {
       objectValue["72"] = object.thumbnailUrl;
     }
-    if (object.faviconUrl !== null) {
+    if (object.faviconUrl != null) {
       objectValue["73"] = object.faviconUrl;
     }
-    if (object.thumbnailWidth !== null) {
+    if (object.thumbnailWidth != null) {
       objectValue["74"] = object.thumbnailWidth;
     }
-    if (object.thumbnailHeight !== null) {
+    if (object.thumbnailHeight != null) {
       objectValue["75"] = object.thumbnailHeight;
     }
-    if (object.content !== null) {
+    if (object.content != null) {
       objectValue["76"] = Buffer.from(object.content).toString("base64");
     }
     return objectValue;
@@ -631,56 +641,55 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
     _connection?: any | null,
   ): File {
     const mimeTypeValue = objectValue["61"];
-    const unpackedMimeType = mimeTypeValue !== undefined ? mimeTypeValue : null;
+    const unpackedMimeType = mimeTypeValue != undefined ? mimeTypeValue : null;
     const formatValue = objectValue["62"];
-    const unpackedFormat = formatValue !== undefined ? Number(formatValue) : null;
+    const unpackedFormat = formatValue != undefined ? Number(formatValue) : null;
     const sizeValue = objectValue["63"];
-    const unpackedSize = sizeValue !== undefined ? Number(sizeValue) : null;
+    const unpackedSize = sizeValue != undefined ? Number(sizeValue) : null;
     const sha256Value = objectValue["64"];
-    const unpackedSha256 = sha256Value !== undefined ? sha256Value : null;
+    const unpackedSha256 = sha256Value != undefined ? sha256Value : null;
     const widthValue = objectValue["65"];
-    const unpackedWidth = widthValue !== undefined ? Number(widthValue) : null;
+    const unpackedWidth = widthValue != undefined ? Number(widthValue) : null;
     const heightValue = objectValue["66"];
-    const unpackedHeight = heightValue !== undefined ? Number(heightValue) : null;
+    const unpackedHeight = heightValue != undefined ? Number(heightValue) : null;
     const aspectRatioValue = objectValue["67"];
-    const unpackedAspectRatio = aspectRatioValue !== undefined ? aspectRatioValue : null;
+    const unpackedAspectRatio = aspectRatioValue != undefined ? aspectRatioValue : null;
     const codecValue = objectValue["68"];
-    const unpackedCodec = codecValue !== undefined ? codecValue : null;
+    const unpackedCodec = codecValue != undefined ? codecValue : null;
     const durationValue = objectValue["69"];
-    const unpackedDuration = durationValue !== undefined ? timedeltaFromISOFormat(durationValue) : null;
+    const unpackedDuration = durationValue != undefined ? timedeltaFromISOFormat(durationValue) : null;
     const urlValue = objectValue["70"];
-    const unpackedUrl = urlValue !== undefined ? urlValue : null;
+    const unpackedUrl = urlValue != undefined ? urlValue : null;
     const contentUrlValue = objectValue["71"];
-    const unpackedContentUrl = contentUrlValue !== undefined ? contentUrlValue : null;
+    const unpackedContentUrl = contentUrlValue != undefined ? contentUrlValue : null;
     const thumbnailUrlValue = objectValue["72"];
-    const unpackedThumbnailUrl = thumbnailUrlValue !== undefined ? thumbnailUrlValue : null;
+    const unpackedThumbnailUrl = thumbnailUrlValue != undefined ? thumbnailUrlValue : null;
     const faviconUrlValue = objectValue["73"];
-    const unpackedFaviconUrl = faviconUrlValue !== undefined ? faviconUrlValue : null;
+    const unpackedFaviconUrl = faviconUrlValue != undefined ? faviconUrlValue : null;
     const thumbnailWidthValue = objectValue["74"];
-    const unpackedThumbnailWidth = thumbnailWidthValue !== undefined ? Number(thumbnailWidthValue) : null;
+    const unpackedThumbnailWidth = thumbnailWidthValue != undefined ? Number(thumbnailWidthValue) : null;
     const thumbnailHeightValue = objectValue["75"];
-    const unpackedThumbnailHeight = thumbnailHeightValue !== undefined ? Number(thumbnailHeightValue) : null;
+    const unpackedThumbnailHeight = thumbnailHeightValue != undefined ? Number(thumbnailHeightValue) : null;
     const contentValue = objectValue["76"];
-    const unpackedContent = contentValue !== undefined ? Buffer.from(contentValue, "base64") : null;
+    const unpackedContent = contentValue != undefined ? Buffer.from(contentValue, "base64") : null;
     const targetStatusValue = objectValue["41"];
-    const unpackedTargetStatus =
-      targetStatusValue !== undefined ? Temporal.ZonedDateTime.from(targetStatusValue) : null;
+    const unpackedTargetStatus = targetStatusValue != undefined ? Temporal.ZonedDateTime.from(targetStatusValue) : null;
     const parentValue = objectValue["3"];
     const unpackedParent =
-      parentValue !== undefined
+      parentValue != undefined
         ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
         : null;
     const spaceValue = objectValue["5"];
     const unpackedSpace =
-      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
     const createdByValue = objectValue["16"];
     const unpackedCreatedBy =
-      createdByValue !== undefined
+      createdByValue != undefined
         ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByValue = objectValue["18"];
     const unpackedUpdatedBy =
-      updatedByValue !== undefined
+      updatedByValue != undefined
         ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
         : null;
     return new File({
@@ -727,6 +736,151 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
     _connection?: any | null,
   ): File {
     return File.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): FileProto {
+    return File.__packProto__(this);
+  }
+
+  static __packProto__(object: File): FileProto {
+    const objectProto: Partial<FileProto> = { metatype: 2540 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    objectProto.type = Number(object.type) as FileTypeProto;
+    objectProto.name = object.name;
+    objectProto.status = Number(object.status) as ResourceStatusProto;
+    if (object.targetStatus != null) {
+      objectProto.targetStatus = packProtoTimestamp(object.targetStatus);
+    }
+    objectProto.source = Number(object.source) as FileSourceProto;
+    if (object.mimeType != null) {
+      objectProto.mimeType = object.mimeType;
+    }
+    if (object.format != null) {
+      objectProto.format = Number(object.format) as FileFormatProto;
+    }
+    if (object.size != null) {
+      objectProto.size = object.size;
+    }
+    if (object.sha256 != null) {
+      objectProto.sha256 = object.sha256;
+    }
+    if (object.width != null) {
+      objectProto.width = object.width;
+    }
+    if (object.height != null) {
+      objectProto.height = object.height;
+    }
+    if (object.aspectRatio != null) {
+      objectProto.aspectRatio = object.aspectRatio;
+    }
+    if (object.codec != null) {
+      objectProto.codec = object.codec;
+    }
+    if (object.duration != null) {
+      objectProto.duration = packProtoDuration(object.duration);
+    }
+    if (object.url != null) {
+      objectProto.url = object.url;
+    }
+    if (object.contentUrl != null) {
+      objectProto.contentUrl = object.contentUrl;
+    }
+    if (object.thumbnailUrl != null) {
+      objectProto.thumbnailUrl = object.thumbnailUrl;
+    }
+    if (object.faviconUrl != null) {
+      objectProto.faviconUrl = object.faviconUrl;
+    }
+    if (object.thumbnailWidth != null) {
+      objectProto.thumbnailWidth = object.thumbnailWidth;
+    }
+    if (object.thumbnailHeight != null) {
+      objectProto.thumbnailHeight = object.thumbnailHeight;
+    }
+    if (object.content != null) {
+      objectProto.content = object.content;
+    }
+    return objectProto as FileProto;
+  }
+
+  static __unpackProto__(
+    objectProto: FileProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): File {
+    return new File({
+      type: Number(objectProto.type) as FileType,
+      source: Number(objectProto.source) as FileSource,
+      mimeType: objectProto.mimeType != undefined ? objectProto.mimeType : null,
+      format: objectProto.format != undefined ? (Number(objectProto.format) as FileFormat) : null,
+      size: objectProto.size != undefined ? Number(objectProto.size) : null,
+      sha256: objectProto.sha256 != undefined ? objectProto.sha256 : null,
+      width: objectProto.width != undefined ? Number(objectProto.width) : null,
+      height: objectProto.height != undefined ? Number(objectProto.height) : null,
+      aspectRatio: objectProto.aspectRatio != undefined ? objectProto.aspectRatio : null,
+      codec: objectProto.codec != undefined ? objectProto.codec : null,
+      duration: objectProto.duration != undefined ? unpackProtoDuration(objectProto.duration!) : null,
+      url: objectProto.url != undefined ? objectProto.url : null,
+      contentUrl: objectProto.contentUrl != undefined ? objectProto.contentUrl : null,
+      thumbnailUrl: objectProto.thumbnailUrl != undefined ? objectProto.thumbnailUrl : null,
+      faviconUrl: objectProto.faviconUrl != undefined ? objectProto.faviconUrl : null,
+      thumbnailWidth: objectProto.thumbnailWidth != undefined ? Number(objectProto.thumbnailWidth) : null,
+      thumbnailHeight: objectProto.thumbnailHeight != undefined ? Number(objectProto.thumbnailHeight) : null,
+      content: objectProto.content != undefined ? objectProto.content : null,
+      id: String(objectProto.id),
+      status: Number(objectProto.status) as ResourceStatus,
+      targetStatus: objectProto.targetStatus != undefined ? unpackProtoTimestamp(objectProto.targetStatus!) : null,
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      name: objectProto.name,
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: FileProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): File {
+    return File.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:2540 ==== */

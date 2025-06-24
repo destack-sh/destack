@@ -1,3 +1,4 @@
+import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Entity,
   Global,
@@ -19,6 +20,7 @@ import {
   Supergraph,
   TraitType,
 } from "@destack/language/core";
+import { MaterializationTypeProto, TeamProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:50 ==== */
@@ -248,23 +250,23 @@ export class Team extends Node implements Global, Entity, HasSlug, HasIcon, HasN
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 50;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr !== null) {
+    if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
     objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
-    if (object.createdByPtr !== null) {
+    if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
     objectValue["17"] = object.updatedAt.toString();
-    if (object.updatedByPtr !== null) {
+    if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
     objectValue["31"] = object.name;
-    if (object.slug !== null) {
+    if (object.slug != null) {
       objectValue["33"] = object.slug;
     }
-    if (object.icon !== null) {
+    if (object.icon != null) {
       objectValue["34"] = object.icon.toValue();
     }
     return objectValue;
@@ -278,23 +280,23 @@ export class Team extends Node implements Global, Entity, HasSlug, HasIcon, HasN
     _connection?: any | null,
   ): Team {
     const slugValue = objectValue["33"];
-    const unpackedSlug = slugValue !== undefined ? slugValue : null;
+    const unpackedSlug = slugValue != undefined ? slugValue : null;
     const iconValue = objectValue["34"];
     const unpackedIcon =
-      iconValue !== undefined ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection) : null;
+      iconValue != undefined ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection) : null;
     const parentValue = objectValue["3"];
     const unpackedParent =
-      parentValue !== undefined
+      parentValue != undefined
         ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByValue = objectValue["16"];
     const unpackedCreatedBy =
-      createdByValue !== undefined
+      createdByValue != undefined
         ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByValue = objectValue["18"];
     const unpackedUpdatedBy =
-      updatedByValue !== undefined
+      updatedByValue != undefined
         ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Team({
@@ -322,6 +324,81 @@ export class Team extends Node implements Global, Entity, HasSlug, HasIcon, HasN
     _connection?: any | null,
   ): Team {
     return Team.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): TeamProto {
+    return Team.__packProto__(this);
+  }
+
+  static __packProto__(object: Team): TeamProto {
+    const objectProto: Partial<TeamProto> = { metatype: 50 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    objectProto.name = object.name;
+    if (object.slug != null) {
+      objectProto.slug = object.slug;
+    }
+    if (object.icon != null) {
+      objectProto.icon = object.icon.toProto();
+    }
+    return objectProto as TeamProto;
+  }
+
+  static __unpackProto__(
+    objectProto: TeamProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Team {
+    return new Team({
+      id: String(objectProto.id),
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      slug: objectProto.slug != undefined ? objectProto.slug : null,
+      icon:
+        objectProto.icon != undefined
+          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
+      name: objectProto.name,
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: TeamProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Team {
+    return Team.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:50 ==== */

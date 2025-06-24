@@ -1,3 +1,4 @@
+import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   ClientType,
   Entity,
@@ -20,6 +21,7 @@ import {
 import { Machine } from "@destack/language/infra";
 import { Cursor } from "@destack/language/logic";
 import { User } from "@destack/language/space";
+import { ClientProto, ClientTypeProto, MaterializationTypeProto, OriginProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50001 ==== */
@@ -117,13 +119,13 @@ export class Origin extends StructFrozen {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 50001;
     objectValue["30"] = object.type;
-    if (object.id !== null) {
+    if (object.id != null) {
       objectValue["31"] = String(object.id);
     }
-    if (object.ck !== null) {
+    if (object.ck != null) {
       objectValue["32"] = String(object.ck);
     }
-    if (object.nonce !== null) {
+    if (object.nonce != null) {
       objectValue["33"] = String(object.nonce);
     }
     return objectValue;
@@ -137,11 +139,11 @@ export class Origin extends StructFrozen {
     _connection?: any | null,
   ): Origin {
     const idValue = objectValue["31"];
-    const unpackedId = idValue !== undefined ? String(idValue) : null;
+    const unpackedId = idValue != undefined ? String(idValue) : null;
     const ckValue = objectValue["32"];
-    const unpackedCk = ckValue !== undefined ? String(ckValue) : null;
+    const unpackedCk = ckValue != undefined ? String(ckValue) : null;
     const nonceValue = objectValue["33"];
-    const unpackedNonce = nonceValue !== undefined ? String(nonceValue) : null;
+    const unpackedNonce = nonceValue != undefined ? String(nonceValue) : null;
     return new Origin({
       type: Number(objectValue["30"]),
       id: unpackedId,
@@ -160,6 +162,56 @@ export class Origin extends StructFrozen {
     _connection?: any | null,
   ): Origin {
     return Origin.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): OriginProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Origin.__packProto__(this);
+    }
+    return this._proto as OriginProto;
+  }
+
+  static __packProto__(object: Origin): OriginProto {
+    const objectProto: Partial<OriginProto> = { metatype: 50001 };
+    objectProto.type = Number(object.type) as ClientTypeProto;
+    if (object.id != null) {
+      objectProto.id = String(object.id);
+    }
+    if (object.ck != null) {
+      objectProto.ck = String(object.ck);
+    }
+    if (object.nonce != null) {
+      objectProto.nonce = String(object.nonce);
+    }
+    return objectProto as OriginProto;
+  }
+
+  static __unpackProto__(
+    objectProto: OriginProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Origin {
+    return new Origin({
+      type: Number(objectProto.type) as ClientType,
+      id: objectProto.id != undefined ? String(objectProto.id) : null,
+      ck: objectProto.ck != undefined ? String(objectProto.ck) : null,
+      nonce: objectProto.nonce != undefined ? String(objectProto.nonce) : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: OriginProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Origin {
+    return Origin.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50001 ==== */
@@ -522,54 +574,54 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 100;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr !== null) {
+    if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
     objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
-    if (object.createdByPtr !== null) {
+    if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
     objectValue["17"] = object.updatedAt.toString();
-    if (object.updatedByPtr !== null) {
+    if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
-    if (object.deletedAt !== null) {
+    if (object.deletedAt != null) {
       objectValue["20"] = object.deletedAt.toString();
     }
     objectValue["30"] = object.type;
     objectValue["31"] = object.name;
-    if (object.machinePtr !== null) {
+    if (object.machinePtr != null) {
       objectValue["36"] = object.machinePtr.toValue();
     }
-    if (object.userPtr !== null) {
+    if (object.userPtr != null) {
       objectValue["37"] = object.userPtr.toValue();
     }
-    if (object.deviceType !== null) {
+    if (object.deviceType != null) {
       objectValue["40"] = object.deviceType;
     }
-    if (object.deviceName !== null) {
+    if (object.deviceName != null) {
       objectValue["41"] = object.deviceName;
     }
-    if (object.operatingSystem !== null) {
+    if (object.operatingSystem != null) {
       objectValue["42"] = object.operatingSystem;
     }
-    if (object.browserName !== null) {
+    if (object.browserName != null) {
       objectValue["43"] = object.browserName;
     }
-    if (object.browserVersion !== null) {
+    if (object.browserVersion != null) {
       objectValue["44"] = object.browserVersion;
     }
-    if (object.accessToken !== null) {
+    if (object.accessToken != null) {
       objectValue["50"] = object.accessToken;
     }
-    if (object.seenAt !== null) {
+    if (object.seenAt != null) {
       objectValue["51"] = object.seenAt.toString();
     }
-    if (object.loggedInAt !== null) {
+    if (object.loggedInAt != null) {
       objectValue["52"] = object.loggedInAt.toString();
     }
-    if (object.cursorPtr !== null) {
+    if (object.cursorPtr != null) {
       objectValue["55"] = object.cursorPtr.toValue();
     }
     return objectValue;
@@ -583,49 +635,49 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
     _connection?: any | null,
   ): Client {
     const accessTokenValue = objectValue["50"];
-    const unpackedAccessToken = accessTokenValue !== undefined ? accessTokenValue : null;
+    const unpackedAccessToken = accessTokenValue != undefined ? accessTokenValue : null;
     const seenAtValue = objectValue["51"];
-    const unpackedSeenAt = seenAtValue !== undefined ? Temporal.ZonedDateTime.from(seenAtValue) : null;
+    const unpackedSeenAt = seenAtValue != undefined ? Temporal.ZonedDateTime.from(seenAtValue) : null;
     const loggedInAtValue = objectValue["52"];
-    const unpackedLoggedInAt = loggedInAtValue !== undefined ? Temporal.ZonedDateTime.from(loggedInAtValue) : null;
+    const unpackedLoggedInAt = loggedInAtValue != undefined ? Temporal.ZonedDateTime.from(loggedInAtValue) : null;
     const deviceTypeValue = objectValue["40"];
-    const unpackedDeviceType = deviceTypeValue !== undefined ? deviceTypeValue : null;
+    const unpackedDeviceType = deviceTypeValue != undefined ? deviceTypeValue : null;
     const deviceNameValue = objectValue["41"];
-    const unpackedDeviceName = deviceNameValue !== undefined ? deviceNameValue : null;
+    const unpackedDeviceName = deviceNameValue != undefined ? deviceNameValue : null;
     const operatingSystemValue = objectValue["42"];
-    const unpackedOperatingSystem = operatingSystemValue !== undefined ? operatingSystemValue : null;
+    const unpackedOperatingSystem = operatingSystemValue != undefined ? operatingSystemValue : null;
     const browserNameValue = objectValue["43"];
-    const unpackedBrowserName = browserNameValue !== undefined ? browserNameValue : null;
+    const unpackedBrowserName = browserNameValue != undefined ? browserNameValue : null;
     const browserVersionValue = objectValue["44"];
-    const unpackedBrowserVersion = browserVersionValue !== undefined ? browserVersionValue : null;
+    const unpackedBrowserVersion = browserVersionValue != undefined ? browserVersionValue : null;
     const deletedAtValue = objectValue["20"];
-    const unpackedDeletedAt = deletedAtValue !== undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
     const parentValue = objectValue["3"];
     const unpackedParent =
-      parentValue !== undefined
+      parentValue != undefined
         ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
         : null;
     const machineValue = objectValue["36"];
     const unpackedMachine =
-      machineValue !== undefined
+      machineValue != undefined
         ? NodeReference.fromValue(machineValue, _session, _supergraph, _graph, _connection)
         : null;
     const userValue = objectValue["37"];
     const unpackedUser =
-      userValue !== undefined ? NodeReference.fromValue(userValue, _session, _supergraph, _graph, _connection) : null;
+      userValue != undefined ? NodeReference.fromValue(userValue, _session, _supergraph, _graph, _connection) : null;
     const cursorValue = objectValue["55"];
     const unpackedCursor =
-      cursorValue !== undefined
+      cursorValue != undefined
         ? NodeReference.fromValue(cursorValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByValue = objectValue["16"];
     const unpackedCreatedBy =
-      createdByValue !== undefined
+      createdByValue != undefined
         ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByValue = objectValue["18"];
     const unpackedUpdatedBy =
-      updatedByValue !== undefined
+      updatedByValue != undefined
         ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Client({
@@ -664,6 +716,129 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
     _connection?: any | null,
   ): Client {
     return Client.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): ClientProto {
+    return Client.__packProto__(this);
+  }
+
+  static __packProto__(object: Client): ClientProto {
+    const objectProto: Partial<ClientProto> = { metatype: 100 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    if (object.deletedAt != null) {
+      objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
+    }
+    objectProto.type = Number(object.type) as ClientTypeProto;
+    objectProto.name = object.name;
+    if (object.machinePtr != null) {
+      objectProto.machinePtr = object.machinePtr.toProto();
+    }
+    if (object.userPtr != null) {
+      objectProto.userPtr = object.userPtr.toProto();
+    }
+    if (object.deviceType != null) {
+      objectProto.deviceType = object.deviceType;
+    }
+    if (object.deviceName != null) {
+      objectProto.deviceName = object.deviceName;
+    }
+    if (object.operatingSystem != null) {
+      objectProto.operatingSystem = object.operatingSystem;
+    }
+    if (object.browserName != null) {
+      objectProto.browserName = object.browserName;
+    }
+    if (object.browserVersion != null) {
+      objectProto.browserVersion = object.browserVersion;
+    }
+    if (object.accessToken != null) {
+      objectProto.accessToken = object.accessToken;
+    }
+    if (object.seenAt != null) {
+      objectProto.seenAt = packProtoTimestamp(object.seenAt);
+    }
+    if (object.loggedInAt != null) {
+      objectProto.loggedInAt = packProtoTimestamp(object.loggedInAt);
+    }
+    if (object.cursorPtr != null) {
+      objectProto.cursorPtr = object.cursorPtr.toProto();
+    }
+    return objectProto as ClientProto;
+  }
+
+  static __unpackProto__(
+    objectProto: ClientProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Client {
+    return new Client({
+      type: Number(objectProto.type) as ClientType,
+      accessToken: objectProto.accessToken != undefined ? objectProto.accessToken : null,
+      seenAt: objectProto.seenAt != undefined ? unpackProtoTimestamp(objectProto.seenAt!) : null,
+      loggedInAt: objectProto.loggedInAt != undefined ? unpackProtoTimestamp(objectProto.loggedInAt!) : null,
+      deviceType: objectProto.deviceType != undefined ? objectProto.deviceType : null,
+      deviceName: objectProto.deviceName != undefined ? objectProto.deviceName : null,
+      operatingSystem: objectProto.operatingSystem != undefined ? objectProto.operatingSystem : null,
+      browserName: objectProto.browserName != undefined ? objectProto.browserName : null,
+      browserVersion: objectProto.browserVersion != undefined ? objectProto.browserVersion : null,
+      name: objectProto.name,
+      id: String(objectProto.id),
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      machine:
+        objectProto.machinePtr != undefined
+          ? NodeReference.fromProto(objectProto.machinePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      user:
+        objectProto.userPtr != undefined
+          ? NodeReference.fromProto(objectProto.userPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      cursor:
+        objectProto.cursorPtr != undefined
+          ? NodeReference.fromProto(objectProto.cursorPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: ClientProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Client {
+    return Client.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:100 ==== */

@@ -1,3 +1,4 @@
+import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Graph,
   HasName,
@@ -19,6 +20,15 @@ import {
   TraitType,
 } from "@destack/language/core";
 import { Space } from "@destack/language/space";
+import {
+  DatabaseInfoProto,
+  DatabaseProto,
+  DatabaseTypeProto,
+  MaterializationTypeProto,
+  RegionProto,
+  ResourceStatusProto,
+  TenancyProto,
+} from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:7505 ==== */
@@ -147,15 +157,15 @@ export class DatabaseInfo extends Struct {
     objectValue["1"] = 7501;
     objectValue["30"] = object.type;
     objectValue["50"] = object.region;
-    if (object.galaxyName !== null) {
+    if (object.galaxyName != null) {
       objectValue["51"] = object.galaxyName;
     }
     objectValue["52"] = object.externalName;
-    if (object.customSchemaName !== null) {
+    if (object.customSchemaName != null) {
       objectValue["53"] = object.customSchemaName;
     }
     objectValue["55"] = object.tenancy;
-    if (object.connectionUrl !== null) {
+    if (object.connectionUrl != null) {
       objectValue["58"] = object.connectionUrl;
     }
     return objectValue;
@@ -169,11 +179,11 @@ export class DatabaseInfo extends Struct {
     _connection?: any | null,
   ): DatabaseInfo {
     const galaxyNameValue = objectValue["51"];
-    const unpackedGalaxyName = galaxyNameValue !== undefined ? galaxyNameValue : null;
+    const unpackedGalaxyName = galaxyNameValue != undefined ? galaxyNameValue : null;
     const customSchemaNameValue = objectValue["53"];
-    const unpackedCustomSchemaName = customSchemaNameValue !== undefined ? customSchemaNameValue : null;
+    const unpackedCustomSchemaName = customSchemaNameValue != undefined ? customSchemaNameValue : null;
     const connectionUrlValue = objectValue["58"];
-    const unpackedConnectionUrl = connectionUrlValue !== undefined ? connectionUrlValue : null;
+    const unpackedConnectionUrl = connectionUrlValue != undefined ? connectionUrlValue : null;
     return new DatabaseInfo({
       type: Number(objectValue["30"]),
       region: Number(objectValue["50"]),
@@ -194,6 +204,57 @@ export class DatabaseInfo extends Struct {
     _connection?: any | null,
   ): DatabaseInfo {
     return DatabaseInfo.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): DatabaseInfoProto {
+    return DatabaseInfo.__packProto__(this);
+  }
+
+  static __packProto__(object: DatabaseInfo): DatabaseInfoProto {
+    const objectProto: Partial<DatabaseInfoProto> = { metatype: 7501 };
+    objectProto.type = Number(object.type) as DatabaseTypeProto;
+    objectProto.region = Number(object.region) as RegionProto;
+    if (object.galaxyName != null) {
+      objectProto.galaxyName = object.galaxyName;
+    }
+    objectProto.externalName = object.externalName;
+    if (object.customSchemaName != null) {
+      objectProto.customSchemaName = object.customSchemaName;
+    }
+    objectProto.tenancy = Number(object.tenancy) as TenancyProto;
+    if (object.connectionUrl != null) {
+      objectProto.connectionUrl = object.connectionUrl;
+    }
+    return objectProto as DatabaseInfoProto;
+  }
+
+  static __unpackProto__(
+    objectProto: DatabaseInfoProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): DatabaseInfo {
+    return new DatabaseInfo({
+      type: Number(objectProto.type) as DatabaseType,
+      region: Number(objectProto.region) as Region,
+      galaxyName: objectProto.galaxyName != undefined ? objectProto.galaxyName : null,
+      externalName: objectProto.externalName,
+      customSchemaName: objectProto.customSchemaName != undefined ? objectProto.customSchemaName : null,
+      tenancy: Number(objectProto.tenancy) as Tenancy,
+      connectionUrl: objectProto.connectionUrl != undefined ? objectProto.connectionUrl : null,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: DatabaseInfoProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): DatabaseInfo {
+    return DatabaseInfo.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:7501 ==== */
@@ -510,37 +571,37 @@ export class Database extends Node implements Spatial, Resource, HasName {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 7500;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr !== null) {
+    if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr !== null) {
+    if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
-    if (object.createdByPtr !== null) {
+    if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
     objectValue["17"] = object.updatedAt.toString();
-    if (object.updatedByPtr !== null) {
+    if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
     objectValue["30"] = object.type;
     objectValue["31"] = object.name;
     objectValue["40"] = object.status;
-    if (object.targetStatus !== null) {
+    if (object.targetStatus != null) {
       objectValue["41"] = object.targetStatus.toString();
     }
     objectValue["50"] = object.region;
-    if (object.galaxyName !== null) {
+    if (object.galaxyName != null) {
       objectValue["51"] = object.galaxyName;
     }
     objectValue["52"] = object.externalName;
-    if (object.customSchemaName !== null) {
+    if (object.customSchemaName != null) {
       objectValue["53"] = object.customSchemaName;
     }
     objectValue["55"] = object.tenancy;
-    if (object.connectionUrl !== null) {
+    if (object.connectionUrl != null) {
       objectValue["58"] = object.connectionUrl;
     }
     return objectValue;
@@ -554,30 +615,29 @@ export class Database extends Node implements Spatial, Resource, HasName {
     _connection?: any | null,
   ): Database {
     const targetStatusValue = objectValue["41"];
-    const unpackedTargetStatus =
-      targetStatusValue !== undefined ? Temporal.ZonedDateTime.from(targetStatusValue) : null;
+    const unpackedTargetStatus = targetStatusValue != undefined ? Temporal.ZonedDateTime.from(targetStatusValue) : null;
     const galaxyNameValue = objectValue["51"];
-    const unpackedGalaxyName = galaxyNameValue !== undefined ? galaxyNameValue : null;
+    const unpackedGalaxyName = galaxyNameValue != undefined ? galaxyNameValue : null;
     const customSchemaNameValue = objectValue["53"];
-    const unpackedCustomSchemaName = customSchemaNameValue !== undefined ? customSchemaNameValue : null;
+    const unpackedCustomSchemaName = customSchemaNameValue != undefined ? customSchemaNameValue : null;
     const connectionUrlValue = objectValue["58"];
-    const unpackedConnectionUrl = connectionUrlValue !== undefined ? connectionUrlValue : null;
+    const unpackedConnectionUrl = connectionUrlValue != undefined ? connectionUrlValue : null;
     const parentValue = objectValue["3"];
     const unpackedParent =
-      parentValue !== undefined
+      parentValue != undefined
         ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
         : null;
     const spaceValue = objectValue["5"];
     const unpackedSpace =
-      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
     const createdByValue = objectValue["16"];
     const unpackedCreatedBy =
-      createdByValue !== undefined
+      createdByValue != undefined
         ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByValue = objectValue["18"];
     const unpackedUpdatedBy =
-      updatedByValue !== undefined
+      updatedByValue != undefined
         ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Database({
@@ -613,6 +673,103 @@ export class Database extends Node implements Spatial, Resource, HasName {
     _connection?: any | null,
   ): Database {
     return Database.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): DatabaseProto {
+    return Database.__packProto__(this);
+  }
+
+  static __packProto__(object: Database): DatabaseProto {
+    const objectProto: Partial<DatabaseProto> = { metatype: 7500 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    objectProto.type = Number(object.type) as DatabaseTypeProto;
+    objectProto.name = object.name;
+    objectProto.status = Number(object.status) as ResourceStatusProto;
+    if (object.targetStatus != null) {
+      objectProto.targetStatus = packProtoTimestamp(object.targetStatus);
+    }
+    objectProto.region = Number(object.region) as RegionProto;
+    if (object.galaxyName != null) {
+      objectProto.galaxyName = object.galaxyName;
+    }
+    objectProto.externalName = object.externalName;
+    if (object.customSchemaName != null) {
+      objectProto.customSchemaName = object.customSchemaName;
+    }
+    objectProto.tenancy = Number(object.tenancy) as TenancyProto;
+    if (object.connectionUrl != null) {
+      objectProto.connectionUrl = object.connectionUrl;
+    }
+    return objectProto as DatabaseProto;
+  }
+
+  static __unpackProto__(
+    objectProto: DatabaseProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Database {
+    return new Database({
+      id: String(objectProto.id),
+      status: Number(objectProto.status) as ResourceStatus,
+      targetStatus: objectProto.targetStatus != undefined ? unpackProtoTimestamp(objectProto.targetStatus!) : null,
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      name: objectProto.name,
+      type: Number(objectProto.type) as DatabaseType,
+      region: Number(objectProto.region) as Region,
+      galaxyName: objectProto.galaxyName != undefined ? objectProto.galaxyName : null,
+      externalName: objectProto.externalName,
+      customSchemaName: objectProto.customSchemaName != undefined ? objectProto.customSchemaName : null,
+      tenancy: Number(objectProto.tenancy) as Tenancy,
+      connectionUrl: objectProto.connectionUrl != undefined ? objectProto.connectionUrl : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: DatabaseProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Database {
+    return Database.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:7500 ==== */

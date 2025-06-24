@@ -1,3 +1,4 @@
+import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { IsShape } from "@destack/language/canvas";
 import {
   Align,
@@ -21,6 +22,7 @@ import { Layer, Scene, Window } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Color } from "@destack/language/style";
 import { ContainerView, ContentView } from "@destack/language/view";
+import { AlignProto, LineShapeProto, LineTypeProto, MaterializationTypeProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:11010 ==== */
@@ -472,55 +474,55 @@ export class LineShape extends Node implements ContentView, IsShape {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 11010;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr !== null) {
+    if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr !== null) {
+    if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
-    if (object.createdByPtr !== null) {
+    if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
     objectValue["17"] = object.updatedAt.toString();
-    if (object.updatedByPtr !== null) {
+    if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
-    if (object.deletedAt !== null) {
+    if (object.deletedAt != null) {
       objectValue["20"] = object.deletedAt.toString();
     }
     objectValue["22"] = object.orderKey;
     objectValue["30"] = object.type;
     objectValue["31"] = object.name;
-    if (object.position !== null) {
+    if (object.position != null) {
       objectValue["40"] = object.position.toValue();
     }
-    if (object.width !== null) {
+    if (object.width != null) {
       objectValue["41"] = object.width.toValue();
     }
-    if (object.height !== null) {
+    if (object.height != null) {
       objectValue["42"] = object.height.toValue();
     }
-    if (object.minWidth !== null) {
+    if (object.minWidth != null) {
       objectValue["43"] = object.minWidth.toValue();
     }
-    if (object.minHeight !== null) {
+    if (object.minHeight != null) {
       objectValue["44"] = object.minHeight.toValue();
     }
-    if (object.maxWidth !== null) {
+    if (object.maxWidth != null) {
       objectValue["45"] = object.maxWidth.toValue();
     }
-    if (object.maxHeight !== null) {
+    if (object.maxHeight != null) {
       objectValue["46"] = object.maxHeight.toValue();
     }
-    if (object.align !== null) {
+    if (object.align != null) {
       objectValue["53"] = object.align;
     }
-    if (object.isVisible !== null) {
+    if (object.isVisible != null) {
       objectValue["60"] = object.isVisible;
     }
-    if (object.opacity !== null) {
+    if (object.opacity != null) {
       objectValue["61"] = object.opacity;
     }
     if (object.points) {
@@ -530,10 +532,10 @@ export class LineShape extends Node implements ContentView, IsShape {
       }
       objectValue["100"] = packedPoints;
     }
-    if (object.color !== null) {
+    if (object.color != null) {
       objectValue["101"] = object.color.toValue();
     }
-    if (object.scriptPtr !== null) {
+    if (object.scriptPtr != null) {
       objectValue["200"] = object.scriptPtr.toValue();
     }
     return objectValue;
@@ -547,74 +549,72 @@ export class LineShape extends Node implements ContentView, IsShape {
     _connection?: any | null,
   ): LineShape {
     const unpackedPoints: any[] = [];
-    if (objectValue["100"] !== undefined) {
+    if (objectValue["100"] != undefined) {
       for (const item of objectValue["100"]) {
         unpackedPoints.push(Vector2.fromValue(item, _session, _supergraph, _graph, _connection));
       }
     }
     const colorValue = objectValue["101"];
     const unpackedColor =
-      colorValue !== undefined ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection) : null;
+      colorValue != undefined ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection) : null;
     const alignValue = objectValue["53"];
-    const unpackedAlign = alignValue !== undefined ? Number(alignValue) : null;
+    const unpackedAlign = alignValue != undefined ? Number(alignValue) : null;
     const isVisibleValue = objectValue["60"];
-    const unpackedIsVisible = isVisibleValue !== undefined ? isVisibleValue : null;
+    const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
     const opacityValue = objectValue["61"];
-    const unpackedOpacity = opacityValue !== undefined ? opacityValue : null;
+    const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
     const positionValue = objectValue["40"];
     const unpackedPosition =
-      positionValue !== undefined
-        ? Position.fromValue(positionValue, _session, _supergraph, _graph, _connection)
-        : null;
+      positionValue != undefined ? Position.fromValue(positionValue, _session, _supergraph, _graph, _connection) : null;
     const widthValue = objectValue["41"];
     const unpackedWidth =
-      widthValue !== undefined ? Dimension.fromValue(widthValue, _session, _supergraph, _graph, _connection) : null;
+      widthValue != undefined ? Dimension.fromValue(widthValue, _session, _supergraph, _graph, _connection) : null;
     const heightValue = objectValue["42"];
     const unpackedHeight =
-      heightValue !== undefined ? Dimension.fromValue(heightValue, _session, _supergraph, _graph, _connection) : null;
+      heightValue != undefined ? Dimension.fromValue(heightValue, _session, _supergraph, _graph, _connection) : null;
     const minWidthValue = objectValue["43"];
     const unpackedMinWidth =
-      minWidthValue !== undefined
+      minWidthValue != undefined
         ? Dimension.fromValue(minWidthValue, _session, _supergraph, _graph, _connection)
         : null;
     const minHeightValue = objectValue["44"];
     const unpackedMinHeight =
-      minHeightValue !== undefined
+      minHeightValue != undefined
         ? Dimension.fromValue(minHeightValue, _session, _supergraph, _graph, _connection)
         : null;
     const maxWidthValue = objectValue["45"];
     const unpackedMaxWidth =
-      maxWidthValue !== undefined
+      maxWidthValue != undefined
         ? Dimension.fromValue(maxWidthValue, _session, _supergraph, _graph, _connection)
         : null;
     const maxHeightValue = objectValue["46"];
     const unpackedMaxHeight =
-      maxHeightValue !== undefined
+      maxHeightValue != undefined
         ? Dimension.fromValue(maxHeightValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
-    const unpackedDeletedAt = deletedAtValue !== undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
     const parentValue = objectValue["3"];
     const unpackedParent =
-      parentValue !== undefined
+      parentValue != undefined
         ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
         : null;
     const spaceValue = objectValue["5"];
     const unpackedSpace =
-      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
     const createdByValue = objectValue["16"];
     const unpackedCreatedBy =
-      createdByValue !== undefined
+      createdByValue != undefined
         ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByValue = objectValue["18"];
     const unpackedUpdatedBy =
-      updatedByValue !== undefined
+      updatedByValue != undefined
         ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
         : null;
     const scriptValue = objectValue["200"];
     const unpackedScript =
-      scriptValue !== undefined
+      scriptValue != undefined
         ? NodeReference.fromValue(scriptValue, _session, _supergraph, _graph, _connection)
         : null;
     return new LineShape({
@@ -657,6 +657,174 @@ export class LineShape extends Node implements ContentView, IsShape {
     _connection?: any | null,
   ): LineShape {
     return LineShape.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): LineShapeProto {
+    return LineShape.__packProto__(this);
+  }
+
+  static __packProto__(object: LineShape): LineShapeProto {
+    const objectProto: Partial<LineShapeProto> = { metatype: 11010 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    if (object.deletedAt != null) {
+      objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
+    }
+    objectProto.orderKey = object.orderKey;
+    objectProto.type = Number(object.type) as LineTypeProto;
+    objectProto.name = object.name;
+    if (object.position != null) {
+      objectProto.position = object.position.toProto();
+    }
+    if (object.width != null) {
+      objectProto.width = object.width.toProto();
+    }
+    if (object.height != null) {
+      objectProto.height = object.height.toProto();
+    }
+    if (object.minWidth != null) {
+      objectProto.minWidth = object.minWidth.toProto();
+    }
+    if (object.minHeight != null) {
+      objectProto.minHeight = object.minHeight.toProto();
+    }
+    if (object.maxWidth != null) {
+      objectProto.maxWidth = object.maxWidth.toProto();
+    }
+    if (object.maxHeight != null) {
+      objectProto.maxHeight = object.maxHeight.toProto();
+    }
+    if (object.align != null) {
+      objectProto.align = Number(object.align) as AlignProto;
+    }
+    if (object.isVisible != null) {
+      objectProto.isVisible = object.isVisible;
+    }
+    if (object.opacity != null) {
+      objectProto.opacity = object.opacity;
+    }
+    if (object.points) {
+      const packedPoints: any[] = [];
+      for (const item of object.points) {
+        packedPoints.push(item.toProto());
+      }
+      objectProto.points = packedPoints;
+    }
+    if (object.color != null) {
+      objectProto.color = object.color.toProto();
+    }
+    if (object.scriptPtr != null) {
+      objectProto.scriptPtr = object.scriptPtr.toProto();
+    }
+    return objectProto as LineShapeProto;
+  }
+
+  static __unpackProto__(
+    objectProto: LineShapeProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): LineShape {
+    const unpackedPoints: any[] = [];
+    if (objectProto.points) {
+      for (const item of objectProto.points) {
+        unpackedPoints.push(Vector2.fromProto(item!, _session, _supergraph, _graph, _connection));
+      }
+    }
+    return new LineShape({
+      type: Number(objectProto.type) as LineType,
+      points: unpackedPoints,
+      color:
+        objectProto.color != undefined
+          ? Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
+          : null,
+      align: objectProto.align != undefined ? (Number(objectProto.align) as Align) : null,
+      isVisible: objectProto.isVisible != undefined ? objectProto.isVisible : null,
+      opacity: objectProto.opacity != undefined ? objectProto.opacity : null,
+      position:
+        objectProto.position != undefined
+          ? Position.fromProto(objectProto.position!, _session, _supergraph, _graph, _connection)
+          : null,
+      width:
+        objectProto.width != undefined
+          ? Dimension.fromProto(objectProto.width!, _session, _supergraph, _graph, _connection)
+          : null,
+      height:
+        objectProto.height != undefined
+          ? Dimension.fromProto(objectProto.height!, _session, _supergraph, _graph, _connection)
+          : null,
+      minWidth:
+        objectProto.minWidth != undefined
+          ? Dimension.fromProto(objectProto.minWidth!, _session, _supergraph, _graph, _connection)
+          : null,
+      minHeight:
+        objectProto.minHeight != undefined
+          ? Dimension.fromProto(objectProto.minHeight!, _session, _supergraph, _graph, _connection)
+          : null,
+      maxWidth:
+        objectProto.maxWidth != undefined
+          ? Dimension.fromProto(objectProto.maxWidth!, _session, _supergraph, _graph, _connection)
+          : null,
+      maxHeight:
+        objectProto.maxHeight != undefined
+          ? Dimension.fromProto(objectProto.maxHeight!, _session, _supergraph, _graph, _connection)
+          : null,
+      id: String(objectProto.id),
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      name: objectProto.name,
+      orderKey: objectProto.orderKey,
+      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      script:
+        objectProto.scriptPtr != undefined
+          ? NodeReference.fromProto(objectProto.scriptPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: LineShapeProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): LineShape {
+    return LineShape.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:11010 ==== */

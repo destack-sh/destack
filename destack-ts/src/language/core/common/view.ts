@@ -1,4 +1,24 @@
 import { Session, StructFrozen, StructType, Supergraph } from "@destack/language/core";
+import {
+  Axis2Proto,
+  Axis3Proto,
+  CornersProto,
+  DimensionProto,
+  DimensionTypeProto,
+  GridProto,
+  GridSpanProto,
+  InsetsProto,
+  LengthProto,
+  LengthUnitProto,
+  PositionProto,
+  PositionTypeProto,
+  Vector2Proto,
+  Vector2iProto,
+  Vector3Proto,
+  Vector3iProto,
+  Vector4Proto,
+  Vector4iProto,
+} from "@destack/proto";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12038 ==== */
 /**
@@ -201,6 +221,46 @@ export class Length extends StructFrozen {
   ): Length {
     return Length.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
+
+  toProto(): LengthProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Length.__packProto__(this);
+    }
+    return this._proto as LengthProto;
+  }
+
+  static __packProto__(object: Length): LengthProto {
+    const objectProto: Partial<LengthProto> = { metatype: 12018 };
+    objectProto.unit = Number(object.unit) as LengthUnitProto;
+    objectProto.value = object.value;
+    return objectProto as LengthProto;
+  }
+
+  static __unpackProto__(
+    objectProto: LengthProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Length {
+    return new Length({
+      unit: Number(objectProto.unit) as LengthUnit,
+      value: objectProto.value,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: LengthProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Length {
+    return Length.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:12018 ==== */
 
@@ -307,16 +367,16 @@ export class Position extends StructFrozen {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 12020;
     objectValue["30"] = object.type;
-    if (object.top !== null) {
+    if (object.top != null) {
       objectValue["50"] = object.top.toValue();
     }
-    if (object.left !== null) {
+    if (object.left != null) {
       objectValue["51"] = object.left.toValue();
     }
-    if (object.width !== null) {
+    if (object.width != null) {
       objectValue["52"] = object.width.toValue();
     }
-    if (object.height !== null) {
+    if (object.height != null) {
       objectValue["53"] = object.height.toValue();
     }
     return objectValue;
@@ -331,16 +391,16 @@ export class Position extends StructFrozen {
   ): Position {
     const topValue = objectValue["50"];
     const unpackedTop =
-      topValue !== undefined ? Length.fromValue(topValue, _session, _supergraph, _graph, _connection) : null;
+      topValue != undefined ? Length.fromValue(topValue, _session, _supergraph, _graph, _connection) : null;
     const leftValue = objectValue["51"];
     const unpackedLeft =
-      leftValue !== undefined ? Length.fromValue(leftValue, _session, _supergraph, _graph, _connection) : null;
+      leftValue != undefined ? Length.fromValue(leftValue, _session, _supergraph, _graph, _connection) : null;
     const widthValue = objectValue["52"];
     const unpackedWidth =
-      widthValue !== undefined ? Length.fromValue(widthValue, _session, _supergraph, _graph, _connection) : null;
+      widthValue != undefined ? Length.fromValue(widthValue, _session, _supergraph, _graph, _connection) : null;
     const heightValue = objectValue["53"];
     const unpackedHeight =
-      heightValue !== undefined ? Length.fromValue(heightValue, _session, _supergraph, _graph, _connection) : null;
+      heightValue != undefined ? Length.fromValue(heightValue, _session, _supergraph, _graph, _connection) : null;
     return new Position({
       type: Number(objectValue["30"]),
       top: unpackedTop,
@@ -360,6 +420,72 @@ export class Position extends StructFrozen {
     _connection?: any | null,
   ): Position {
     return Position.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): PositionProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Position.__packProto__(this);
+    }
+    return this._proto as PositionProto;
+  }
+
+  static __packProto__(object: Position): PositionProto {
+    const objectProto: Partial<PositionProto> = { metatype: 12020 };
+    objectProto.type = Number(object.type) as PositionTypeProto;
+    if (object.top != null) {
+      objectProto.top = object.top.toProto();
+    }
+    if (object.left != null) {
+      objectProto.left = object.left.toProto();
+    }
+    if (object.width != null) {
+      objectProto.width = object.width.toProto();
+    }
+    if (object.height != null) {
+      objectProto.height = object.height.toProto();
+    }
+    return objectProto as PositionProto;
+  }
+
+  static __unpackProto__(
+    objectProto: PositionProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Position {
+    return new Position({
+      type: Number(objectProto.type) as PositionType,
+      top:
+        objectProto.top != undefined
+          ? Length.fromProto(objectProto.top!, _session, _supergraph, _graph, _connection)
+          : null,
+      left:
+        objectProto.left != undefined
+          ? Length.fromProto(objectProto.left!, _session, _supergraph, _graph, _connection)
+          : null,
+      width:
+        objectProto.width != undefined
+          ? Length.fromProto(objectProto.width!, _session, _supergraph, _graph, _connection)
+          : null,
+      height:
+        objectProto.height != undefined
+          ? Length.fromProto(objectProto.height!, _session, _supergraph, _graph, _connection)
+          : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: PositionProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Position {
+    return Position.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:12020 ==== */
@@ -487,6 +613,48 @@ export class Dimension extends StructFrozen {
   ): Dimension {
     return Dimension.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
+
+  toProto(): DimensionProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Dimension.__packProto__(this);
+    }
+    return this._proto as DimensionProto;
+  }
+
+  static __packProto__(object: Dimension): DimensionProto {
+    const objectProto: Partial<DimensionProto> = { metatype: 12022 };
+    objectProto.type = Number(object.type) as DimensionTypeProto;
+    objectProto.unit = Number(object.unit) as LengthUnitProto;
+    objectProto.value = object.value;
+    return objectProto as DimensionProto;
+  }
+
+  static __unpackProto__(
+    objectProto: DimensionProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Dimension {
+    return new Dimension({
+      type: Number(objectProto.type) as DimensionType,
+      unit: Number(objectProto.unit) as LengthUnit,
+      value: objectProto.value,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: DimensionProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Dimension {
+    return Dimension.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:12022 ==== */
 
@@ -589,19 +757,19 @@ export class Insets extends StructFrozen {
   static __packValue__(object: Insets): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 12030;
-    if (object.base !== null) {
+    if (object.base != null) {
       objectValue["50"] = object.base;
     }
-    if (object.top !== null) {
+    if (object.top != null) {
       objectValue["51"] = object.top;
     }
-    if (object.left !== null) {
+    if (object.left != null) {
       objectValue["52"] = object.left;
     }
-    if (object.right !== null) {
+    if (object.right != null) {
       objectValue["53"] = object.right;
     }
-    if (object.bottom !== null) {
+    if (object.bottom != null) {
       objectValue["54"] = object.bottom;
     }
     return objectValue;
@@ -615,15 +783,15 @@ export class Insets extends StructFrozen {
     _connection?: any | null,
   ): Insets {
     const baseValue = objectValue["50"];
-    const unpackedBase = baseValue !== undefined ? Number(baseValue) : null;
+    const unpackedBase = baseValue != undefined ? Number(baseValue) : null;
     const topValue = objectValue["51"];
-    const unpackedTop = topValue !== undefined ? Number(topValue) : null;
+    const unpackedTop = topValue != undefined ? Number(topValue) : null;
     const leftValue = objectValue["52"];
-    const unpackedLeft = leftValue !== undefined ? Number(leftValue) : null;
+    const unpackedLeft = leftValue != undefined ? Number(leftValue) : null;
     const rightValue = objectValue["53"];
-    const unpackedRight = rightValue !== undefined ? Number(rightValue) : null;
+    const unpackedRight = rightValue != undefined ? Number(rightValue) : null;
     const bottomValue = objectValue["54"];
-    const unpackedBottom = bottomValue !== undefined ? Number(bottomValue) : null;
+    const unpackedBottom = bottomValue != undefined ? Number(bottomValue) : null;
     return new Insets({
       base: unpackedBase,
       top: unpackedTop,
@@ -643,6 +811,62 @@ export class Insets extends StructFrozen {
     _connection?: any | null,
   ): Insets {
     return Insets.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): InsetsProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Insets.__packProto__(this);
+    }
+    return this._proto as InsetsProto;
+  }
+
+  static __packProto__(object: Insets): InsetsProto {
+    const objectProto: Partial<InsetsProto> = { metatype: 12030 };
+    if (object.base != null) {
+      objectProto.base = object.base;
+    }
+    if (object.top != null) {
+      objectProto.top = object.top;
+    }
+    if (object.left != null) {
+      objectProto.left = object.left;
+    }
+    if (object.right != null) {
+      objectProto.right = object.right;
+    }
+    if (object.bottom != null) {
+      objectProto.bottom = object.bottom;
+    }
+    return objectProto as InsetsProto;
+  }
+
+  static __unpackProto__(
+    objectProto: InsetsProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Insets {
+    return new Insets({
+      base: objectProto.base != undefined ? Number(objectProto.base) : null,
+      top: objectProto.top != undefined ? Number(objectProto.top) : null,
+      left: objectProto.left != undefined ? Number(objectProto.left) : null,
+      right: objectProto.right != undefined ? Number(objectProto.right) : null,
+      bottom: objectProto.bottom != undefined ? Number(objectProto.bottom) : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: InsetsProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Insets {
+    return Insets.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:12030 ==== */
@@ -746,19 +970,19 @@ export class Corners extends StructFrozen {
   static __packValue__(object: Corners): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 12032;
-    if (object.base !== null) {
+    if (object.base != null) {
       objectValue["50"] = object.base;
     }
-    if (object.topLeft !== null) {
+    if (object.topLeft != null) {
       objectValue["51"] = object.topLeft;
     }
-    if (object.topRight !== null) {
+    if (object.topRight != null) {
       objectValue["52"] = object.topRight;
     }
-    if (object.bottomLeft !== null) {
+    if (object.bottomLeft != null) {
       objectValue["53"] = object.bottomLeft;
     }
-    if (object.bottomRight !== null) {
+    if (object.bottomRight != null) {
       objectValue["54"] = object.bottomRight;
     }
     return objectValue;
@@ -772,15 +996,15 @@ export class Corners extends StructFrozen {
     _connection?: any | null,
   ): Corners {
     const baseValue = objectValue["50"];
-    const unpackedBase = baseValue !== undefined ? Number(baseValue) : null;
+    const unpackedBase = baseValue != undefined ? Number(baseValue) : null;
     const topLeftValue = objectValue["51"];
-    const unpackedTopLeft = topLeftValue !== undefined ? Number(topLeftValue) : null;
+    const unpackedTopLeft = topLeftValue != undefined ? Number(topLeftValue) : null;
     const topRightValue = objectValue["52"];
-    const unpackedTopRight = topRightValue !== undefined ? Number(topRightValue) : null;
+    const unpackedTopRight = topRightValue != undefined ? Number(topRightValue) : null;
     const bottomLeftValue = objectValue["53"];
-    const unpackedBottomLeft = bottomLeftValue !== undefined ? Number(bottomLeftValue) : null;
+    const unpackedBottomLeft = bottomLeftValue != undefined ? Number(bottomLeftValue) : null;
     const bottomRightValue = objectValue["54"];
-    const unpackedBottomRight = bottomRightValue !== undefined ? Number(bottomRightValue) : null;
+    const unpackedBottomRight = bottomRightValue != undefined ? Number(bottomRightValue) : null;
     return new Corners({
       base: unpackedBase,
       topLeft: unpackedTopLeft,
@@ -800,6 +1024,62 @@ export class Corners extends StructFrozen {
     _connection?: any | null,
   ): Corners {
     return Corners.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): CornersProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Corners.__packProto__(this);
+    }
+    return this._proto as CornersProto;
+  }
+
+  static __packProto__(object: Corners): CornersProto {
+    const objectProto: Partial<CornersProto> = { metatype: 12032 };
+    if (object.base != null) {
+      objectProto.base = object.base;
+    }
+    if (object.topLeft != null) {
+      objectProto.topLeft = object.topLeft;
+    }
+    if (object.topRight != null) {
+      objectProto.topRight = object.topRight;
+    }
+    if (object.bottomLeft != null) {
+      objectProto.bottomLeft = object.bottomLeft;
+    }
+    if (object.bottomRight != null) {
+      objectProto.bottomRight = object.bottomRight;
+    }
+    return objectProto as CornersProto;
+  }
+
+  static __unpackProto__(
+    objectProto: CornersProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Corners {
+    return new Corners({
+      base: objectProto.base != undefined ? Number(objectProto.base) : null,
+      topLeft: objectProto.topLeft != undefined ? Number(objectProto.topLeft) : null,
+      topRight: objectProto.topRight != undefined ? Number(objectProto.topRight) : null,
+      bottomLeft: objectProto.bottomLeft != undefined ? Number(objectProto.bottomLeft) : null,
+      bottomRight: objectProto.bottomRight != undefined ? Number(objectProto.bottomRight) : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: CornersProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Corners {
+    return Corners.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:12032 ==== */
@@ -887,13 +1167,13 @@ export class Axis2 extends StructFrozen {
   static __packValue__(object: Axis2): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 50207;
-    if (object.base !== null) {
+    if (object.base != null) {
       objectValue["50"] = object.base;
     }
-    if (object.x !== null) {
+    if (object.x != null) {
       objectValue["51"] = object.x;
     }
-    if (object.y !== null) {
+    if (object.y != null) {
       objectValue["52"] = object.y;
     }
     return objectValue;
@@ -907,11 +1187,11 @@ export class Axis2 extends StructFrozen {
     _connection?: any | null,
   ): Axis2 {
     const baseValue = objectValue["50"];
-    const unpackedBase = baseValue !== undefined ? baseValue : null;
+    const unpackedBase = baseValue != undefined ? baseValue : null;
     const xValue = objectValue["51"];
-    const unpackedX = xValue !== undefined ? xValue : null;
+    const unpackedX = xValue != undefined ? xValue : null;
     const yValue = objectValue["52"];
-    const unpackedY = yValue !== undefined ? yValue : null;
+    const unpackedY = yValue != undefined ? yValue : null;
     return new Axis2({
       base: unpackedBase,
       x: unpackedX,
@@ -929,6 +1209,54 @@ export class Axis2 extends StructFrozen {
     _connection?: any | null,
   ): Axis2 {
     return Axis2.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): Axis2Proto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Axis2.__packProto__(this);
+    }
+    return this._proto as Axis2Proto;
+  }
+
+  static __packProto__(object: Axis2): Axis2Proto {
+    const objectProto: Partial<Axis2Proto> = { metatype: 50207 };
+    if (object.base != null) {
+      objectProto.base = object.base;
+    }
+    if (object.x != null) {
+      objectProto.x = object.x;
+    }
+    if (object.y != null) {
+      objectProto.y = object.y;
+    }
+    return objectProto as Axis2Proto;
+  }
+
+  static __unpackProto__(
+    objectProto: Axis2Proto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Axis2 {
+    return new Axis2({
+      base: objectProto.base != undefined ? objectProto.base : null,
+      x: objectProto.x != undefined ? objectProto.x : null,
+      y: objectProto.y != undefined ? objectProto.y : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: Axis2Proto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Axis2 {
+    return Axis2.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50207 ==== */
@@ -1024,16 +1352,16 @@ export class Axis3 extends StructFrozen {
   static __packValue__(object: Axis3): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 50209;
-    if (object.base !== null) {
+    if (object.base != null) {
       objectValue["50"] = object.base;
     }
-    if (object.x !== null) {
+    if (object.x != null) {
       objectValue["51"] = object.x;
     }
-    if (object.y !== null) {
+    if (object.y != null) {
       objectValue["52"] = object.y;
     }
-    if (object.z !== null) {
+    if (object.z != null) {
       objectValue["53"] = object.z;
     }
     return objectValue;
@@ -1047,13 +1375,13 @@ export class Axis3 extends StructFrozen {
     _connection?: any | null,
   ): Axis3 {
     const baseValue = objectValue["50"];
-    const unpackedBase = baseValue !== undefined ? baseValue : null;
+    const unpackedBase = baseValue != undefined ? baseValue : null;
     const xValue = objectValue["51"];
-    const unpackedX = xValue !== undefined ? xValue : null;
+    const unpackedX = xValue != undefined ? xValue : null;
     const yValue = objectValue["52"];
-    const unpackedY = yValue !== undefined ? yValue : null;
+    const unpackedY = yValue != undefined ? yValue : null;
     const zValue = objectValue["53"];
-    const unpackedZ = zValue !== undefined ? zValue : null;
+    const unpackedZ = zValue != undefined ? zValue : null;
     return new Axis3({
       base: unpackedBase,
       x: unpackedX,
@@ -1072,6 +1400,58 @@ export class Axis3 extends StructFrozen {
     _connection?: any | null,
   ): Axis3 {
     return Axis3.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): Axis3Proto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Axis3.__packProto__(this);
+    }
+    return this._proto as Axis3Proto;
+  }
+
+  static __packProto__(object: Axis3): Axis3Proto {
+    const objectProto: Partial<Axis3Proto> = { metatype: 50209 };
+    if (object.base != null) {
+      objectProto.base = object.base;
+    }
+    if (object.x != null) {
+      objectProto.x = object.x;
+    }
+    if (object.y != null) {
+      objectProto.y = object.y;
+    }
+    if (object.z != null) {
+      objectProto.z = object.z;
+    }
+    return objectProto as Axis3Proto;
+  }
+
+  static __unpackProto__(
+    objectProto: Axis3Proto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Axis3 {
+    return new Axis3({
+      base: objectProto.base != undefined ? objectProto.base : null,
+      x: objectProto.x != undefined ? objectProto.x : null,
+      y: objectProto.y != undefined ? objectProto.y : null,
+      z: objectProto.z != undefined ? objectProto.z : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: Axis3Proto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Axis3 {
+    return Axis3.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50209 ==== */
@@ -1185,6 +1565,46 @@ export class Vector2 extends StructFrozen {
     _connection?: any | null,
   ): Vector2 {
     return Vector2.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): Vector2Proto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Vector2.__packProto__(this);
+    }
+    return this._proto as Vector2Proto;
+  }
+
+  static __packProto__(object: Vector2): Vector2Proto {
+    const objectProto: Partial<Vector2Proto> = { metatype: 50200 };
+    objectProto.x = object.x;
+    objectProto.y = object.y;
+    return objectProto as Vector2Proto;
+  }
+
+  static __unpackProto__(
+    objectProto: Vector2Proto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vector2 {
+    return new Vector2({
+      x: objectProto.x,
+      y: objectProto.y,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: Vector2Proto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vector2 {
+    return Vector2.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50200 ==== */
@@ -1311,6 +1731,48 @@ export class Vector3 extends StructFrozen {
     _connection?: any | null,
   ): Vector3 {
     return Vector3.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): Vector3Proto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Vector3.__packProto__(this);
+    }
+    return this._proto as Vector3Proto;
+  }
+
+  static __packProto__(object: Vector3): Vector3Proto {
+    const objectProto: Partial<Vector3Proto> = { metatype: 50201 };
+    objectProto.x = object.x;
+    objectProto.y = object.y;
+    objectProto.z = object.z;
+    return objectProto as Vector3Proto;
+  }
+
+  static __unpackProto__(
+    objectProto: Vector3Proto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vector3 {
+    return new Vector3({
+      x: objectProto.x,
+      y: objectProto.y,
+      z: objectProto.z,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: Vector3Proto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vector3 {
+    return Vector3.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50201 ==== */
@@ -1451,6 +1913,50 @@ export class Vector4 extends StructFrozen {
   ): Vector4 {
     return Vector4.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
+
+  toProto(): Vector4Proto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Vector4.__packProto__(this);
+    }
+    return this._proto as Vector4Proto;
+  }
+
+  static __packProto__(object: Vector4): Vector4Proto {
+    const objectProto: Partial<Vector4Proto> = { metatype: 50202 };
+    objectProto.x = object.x;
+    objectProto.y = object.y;
+    objectProto.z = object.z;
+    objectProto.w = object.w;
+    return objectProto as Vector4Proto;
+  }
+
+  static __unpackProto__(
+    objectProto: Vector4Proto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vector4 {
+    return new Vector4({
+      x: objectProto.x,
+      y: objectProto.y,
+      z: objectProto.z,
+      w: objectProto.w,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: Vector4Proto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vector4 {
+    return Vector4.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50202 ==== */
 
@@ -1563,6 +2069,46 @@ export class Vector2i extends StructFrozen {
     _connection?: any | null,
   ): Vector2i {
     return Vector2i.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): Vector2iProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Vector2i.__packProto__(this);
+    }
+    return this._proto as Vector2iProto;
+  }
+
+  static __packProto__(object: Vector2i): Vector2iProto {
+    const objectProto: Partial<Vector2iProto> = { metatype: 50203 };
+    objectProto.x = object.x;
+    objectProto.y = object.y;
+    return objectProto as Vector2iProto;
+  }
+
+  static __unpackProto__(
+    objectProto: Vector2iProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vector2i {
+    return new Vector2i({
+      x: Number(objectProto.x),
+      y: Number(objectProto.y),
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: Vector2iProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vector2i {
+    return Vector2i.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50203 ==== */
@@ -1689,6 +2235,48 @@ export class Vector3i extends StructFrozen {
     _connection?: any | null,
   ): Vector3i {
     return Vector3i.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): Vector3iProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Vector3i.__packProto__(this);
+    }
+    return this._proto as Vector3iProto;
+  }
+
+  static __packProto__(object: Vector3i): Vector3iProto {
+    const objectProto: Partial<Vector3iProto> = { metatype: 50204 };
+    objectProto.x = object.x;
+    objectProto.y = object.y;
+    objectProto.z = object.z;
+    return objectProto as Vector3iProto;
+  }
+
+  static __unpackProto__(
+    objectProto: Vector3iProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vector3i {
+    return new Vector3i({
+      x: Number(objectProto.x),
+      y: Number(objectProto.y),
+      z: Number(objectProto.z),
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: Vector3iProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vector3i {
+    return Vector3i.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50204 ==== */
@@ -1829,6 +2417,50 @@ export class Vector4i extends StructFrozen {
   ): Vector4i {
     return Vector4i.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
+
+  toProto(): Vector4iProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Vector4i.__packProto__(this);
+    }
+    return this._proto as Vector4iProto;
+  }
+
+  static __packProto__(object: Vector4i): Vector4iProto {
+    const objectProto: Partial<Vector4iProto> = { metatype: 50205 };
+    objectProto.x = object.x;
+    objectProto.y = object.y;
+    objectProto.z = object.z;
+    objectProto.w = object.w;
+    return objectProto as Vector4iProto;
+  }
+
+  static __unpackProto__(
+    objectProto: Vector4iProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vector4i {
+    return new Vector4i({
+      x: Number(objectProto.x),
+      y: Number(objectProto.y),
+      z: Number(objectProto.z),
+      w: Number(objectProto.w),
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: Vector4iProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Vector4i {
+    return Vector4i.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50205 ==== */
 
@@ -1939,13 +2571,13 @@ export class Grid extends StructFrozen {
     objectValue["1"] = 12026;
     objectValue["50"] = object.columns;
     objectValue["51"] = object.rows;
-    if (object.columnWidth !== null) {
+    if (object.columnWidth != null) {
       objectValue["52"] = object.columnWidth.toValue();
     }
-    if (object.columnMinWidth !== null) {
+    if (object.columnMinWidth != null) {
       objectValue["53"] = object.columnMinWidth.toValue();
     }
-    if (object.rowHeight !== null) {
+    if (object.rowHeight != null) {
       objectValue["54"] = object.rowHeight.toValue();
     }
     return objectValue;
@@ -1960,17 +2592,17 @@ export class Grid extends StructFrozen {
   ): Grid {
     const columnWidthValue = objectValue["52"];
     const unpackedColumnWidth =
-      columnWidthValue !== undefined
+      columnWidthValue != undefined
         ? Dimension.fromValue(columnWidthValue, _session, _supergraph, _graph, _connection)
         : null;
     const columnMinWidthValue = objectValue["53"];
     const unpackedColumnMinWidth =
-      columnMinWidthValue !== undefined
+      columnMinWidthValue != undefined
         ? Dimension.fromValue(columnMinWidthValue, _session, _supergraph, _graph, _connection)
         : null;
     const rowHeightValue = objectValue["54"];
     const unpackedRowHeight =
-      rowHeightValue !== undefined
+      rowHeightValue != undefined
         ? Dimension.fromValue(rowHeightValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Grid({
@@ -1992,6 +2624,67 @@ export class Grid extends StructFrozen {
     _connection?: any | null,
   ): Grid {
     return Grid.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): GridProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Grid.__packProto__(this);
+    }
+    return this._proto as GridProto;
+  }
+
+  static __packProto__(object: Grid): GridProto {
+    const objectProto: Partial<GridProto> = { metatype: 12026 };
+    objectProto.columns = object.columns;
+    objectProto.rows = object.rows;
+    if (object.columnWidth != null) {
+      objectProto.columnWidth = object.columnWidth.toProto();
+    }
+    if (object.columnMinWidth != null) {
+      objectProto.columnMinWidth = object.columnMinWidth.toProto();
+    }
+    if (object.rowHeight != null) {
+      objectProto.rowHeight = object.rowHeight.toProto();
+    }
+    return objectProto as GridProto;
+  }
+
+  static __unpackProto__(
+    objectProto: GridProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Grid {
+    return new Grid({
+      columns: Number(objectProto.columns),
+      rows: Number(objectProto.rows),
+      columnWidth:
+        objectProto.columnWidth != undefined
+          ? Dimension.fromProto(objectProto.columnWidth!, _session, _supergraph, _graph, _connection)
+          : null,
+      columnMinWidth:
+        objectProto.columnMinWidth != undefined
+          ? Dimension.fromProto(objectProto.columnMinWidth!, _session, _supergraph, _graph, _connection)
+          : null,
+      rowHeight:
+        objectProto.rowHeight != undefined
+          ? Dimension.fromProto(objectProto.rowHeight!, _session, _supergraph, _graph, _connection)
+          : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: GridProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Grid {
+    return Grid.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:12026 ==== */
@@ -2105,6 +2798,46 @@ export class GridSpan extends StructFrozen {
     _connection?: any | null,
   ): GridSpan {
     return GridSpan.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): GridSpanProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = GridSpan.__packProto__(this);
+    }
+    return this._proto as GridSpanProto;
+  }
+
+  static __packProto__(object: GridSpan): GridSpanProto {
+    const objectProto: Partial<GridSpanProto> = { metatype: 12028 };
+    objectProto.columns = object.columns;
+    objectProto.rows = object.rows;
+    return objectProto as GridSpanProto;
+  }
+
+  static __unpackProto__(
+    objectProto: GridSpanProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): GridSpan {
+    return new GridSpan({
+      columns: Number(objectProto.columns),
+      rows: Number(objectProto.rows),
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: GridSpanProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): GridSpan {
+    return GridSpan.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:12028 ==== */

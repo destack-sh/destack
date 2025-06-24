@@ -1,3 +1,4 @@
+import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Graph,
   Insets,
@@ -17,6 +18,7 @@ import { Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Color, Style, Theme } from "@destack/language/style";
 import { View } from "@destack/language/view";
+import { BorderProto, BorderStyleProto, BorderTypeProto, MaterializationTypeProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12032 ==== */
@@ -135,13 +137,13 @@ export class Border extends Struct {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 12013;
     objectValue["30"] = object.type;
-    if (object.stylePtr !== null) {
+    if (object.stylePtr != null) {
       objectValue["41"] = object.stylePtr.toValue();
     }
-    if (object.color !== null) {
+    if (object.color != null) {
       objectValue["50"] = object.color.toValue();
     }
-    if (object.width !== null) {
+    if (object.width != null) {
       objectValue["51"] = object.width.toValue();
     }
     return objectValue;
@@ -156,13 +158,13 @@ export class Border extends Struct {
   ): Border {
     const colorValue = objectValue["50"];
     const unpackedColor =
-      colorValue !== undefined ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection) : null;
+      colorValue != undefined ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection) : null;
     const widthValue = objectValue["51"];
     const unpackedWidth =
-      widthValue !== undefined ? Insets.fromValue(widthValue, _session, _supergraph, _graph, _connection) : null;
+      widthValue != undefined ? Insets.fromValue(widthValue, _session, _supergraph, _graph, _connection) : null;
     const styleValue = objectValue["41"];
     const unpackedStyle =
-      styleValue !== undefined ? NodeReference.fromValue(styleValue, _session, _supergraph, _graph, _connection) : null;
+      styleValue != undefined ? NodeReference.fromValue(styleValue, _session, _supergraph, _graph, _connection) : null;
     return new Border({
       type: Number(objectValue["30"]),
       color: unpackedColor,
@@ -180,6 +182,60 @@ export class Border extends Struct {
     _connection?: any | null,
   ): Border {
     return Border.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): BorderProto {
+    return Border.__packProto__(this);
+  }
+
+  static __packProto__(object: Border): BorderProto {
+    const objectProto: Partial<BorderProto> = { metatype: 12013 };
+    objectProto.type = Number(object.type) as BorderTypeProto;
+    if (object.stylePtr != null) {
+      objectProto.stylePtr = object.stylePtr.toProto();
+    }
+    if (object.color != null) {
+      objectProto.color = object.color.toProto();
+    }
+    if (object.width != null) {
+      objectProto.width = object.width.toProto();
+    }
+    return objectProto as BorderProto;
+  }
+
+  static __unpackProto__(
+    objectProto: BorderProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Border {
+    return new Border({
+      type: Number(objectProto.type) as BorderType,
+      color:
+        objectProto.color != undefined
+          ? Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
+          : null,
+      width:
+        objectProto.width != undefined
+          ? Insets.fromProto(objectProto.width!, _session, _supergraph, _graph, _connection)
+          : null,
+      style:
+        objectProto.stylePtr != undefined
+          ? NodeReference.fromProto(objectProto.stylePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: BorderProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Border {
+    return Border.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:12013 ==== */
@@ -505,31 +561,31 @@ export class BorderStyle extends Node implements Style {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 12023;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr !== null) {
+    if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr !== null) {
+    if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
-    if (object.createdByPtr !== null) {
+    if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
     objectValue["17"] = object.updatedAt.toString();
-    if (object.updatedByPtr !== null) {
+    if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
-    if (object.deletedAt !== null) {
+    if (object.deletedAt != null) {
       objectValue["20"] = object.deletedAt.toString();
     }
     objectValue["22"] = object.orderKey;
     objectValue["30"] = object.type;
     objectValue["31"] = object.name;
-    if (object.color !== null) {
+    if (object.color != null) {
       objectValue["50"] = object.color.toValue();
     }
-    if (object.width !== null) {
+    if (object.width != null) {
       objectValue["51"] = object.width.toValue();
     }
     return objectValue;
@@ -543,29 +599,29 @@ export class BorderStyle extends Node implements Style {
     _connection?: any | null,
   ): BorderStyle {
     const deletedAtValue = objectValue["20"];
-    const unpackedDeletedAt = deletedAtValue !== undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
     const colorValue = objectValue["50"];
     const unpackedColor =
-      colorValue !== undefined ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection) : null;
+      colorValue != undefined ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection) : null;
     const widthValue = objectValue["51"];
     const unpackedWidth =
-      widthValue !== undefined ? Insets.fromValue(widthValue, _session, _supergraph, _graph, _connection) : null;
+      widthValue != undefined ? Insets.fromValue(widthValue, _session, _supergraph, _graph, _connection) : null;
     const parentValue = objectValue["3"];
     const unpackedParent =
-      parentValue !== undefined
+      parentValue != undefined
         ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
         : null;
     const spaceValue = objectValue["5"];
     const unpackedSpace =
-      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
     const createdByValue = objectValue["16"];
     const unpackedCreatedBy =
-      createdByValue !== undefined
+      createdByValue != undefined
         ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByValue = objectValue["18"];
     const unpackedUpdatedBy =
-      updatedByValue !== undefined
+      updatedByValue != undefined
         ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
         : null;
     return new BorderStyle({
@@ -597,6 +653,99 @@ export class BorderStyle extends Node implements Style {
     _connection?: any | null,
   ): BorderStyle {
     return BorderStyle.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): BorderStyleProto {
+    return BorderStyle.__packProto__(this);
+  }
+
+  static __packProto__(object: BorderStyle): BorderStyleProto {
+    const objectProto: Partial<BorderStyleProto> = { metatype: 12023 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    if (object.deletedAt != null) {
+      objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
+    }
+    objectProto.orderKey = object.orderKey;
+    objectProto.type = Number(object.type) as BorderTypeProto;
+    objectProto.name = object.name;
+    if (object.color != null) {
+      objectProto.color = object.color.toProto();
+    }
+    if (object.width != null) {
+      objectProto.width = object.width.toProto();
+    }
+    return objectProto as BorderStyleProto;
+  }
+
+  static __unpackProto__(
+    objectProto: BorderStyleProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): BorderStyle {
+    return new BorderStyle({
+      id: String(objectProto.id),
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      name: objectProto.name,
+      orderKey: objectProto.orderKey,
+      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      type: Number(objectProto.type) as BorderType,
+      color:
+        objectProto.color != undefined
+          ? Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
+          : null,
+      width:
+        objectProto.width != undefined
+          ? Insets.fromProto(objectProto.width!, _session, _supergraph, _graph, _connection)
+          : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: BorderStyleProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): BorderStyle {
+    return BorderStyle.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:12023 ==== */

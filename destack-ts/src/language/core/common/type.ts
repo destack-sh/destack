@@ -17,6 +17,23 @@ import {
   TypeCardinality,
   Value,
 } from "@destack/language/core";
+import {
+  CollectionConstraintProto,
+  DefaultFactoryProto,
+  EnumTypeProto,
+  NodeConstraintProto,
+  NodeTypeProto,
+  NumberConstraintProto,
+  NumberFormatProto,
+  PrimitiveTypeProto,
+  ScalarTypeProto,
+  StringConstraintProto,
+  StringFormatProto,
+  StructTypeProto,
+  TraitTypeProto,
+  TypeCardinalityProto,
+  TypeProto,
+} from "@destack/proto";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2570 ==== */
 /**
@@ -136,16 +153,16 @@ export class StringConstraint extends StructFrozen {
   static __packValue__(object: StringConstraint): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 2503;
-    if (object.format !== null) {
+    if (object.format != null) {
       objectValue["40"] = object.format;
     }
-    if (object.regex !== null) {
+    if (object.regex != null) {
       objectValue["41"] = object.regex;
     }
-    if (object.startsWith !== null) {
+    if (object.startsWith != null) {
       objectValue["42"] = object.startsWith;
     }
-    if (object.endsWith !== null) {
+    if (object.endsWith != null) {
       objectValue["43"] = object.endsWith;
     }
     return objectValue;
@@ -159,13 +176,13 @@ export class StringConstraint extends StructFrozen {
     _connection?: any | null,
   ): StringConstraint {
     const formatValue = objectValue["40"];
-    const unpackedFormat = formatValue !== undefined ? Number(formatValue) : null;
+    const unpackedFormat = formatValue != undefined ? Number(formatValue) : null;
     const regexValue = objectValue["41"];
-    const unpackedRegex = regexValue !== undefined ? regexValue : null;
+    const unpackedRegex = regexValue != undefined ? regexValue : null;
     const startsWithValue = objectValue["42"];
-    const unpackedStartsWith = startsWithValue !== undefined ? startsWithValue : null;
+    const unpackedStartsWith = startsWithValue != undefined ? startsWithValue : null;
     const endsWithValue = objectValue["43"];
-    const unpackedEndsWith = endsWithValue !== undefined ? endsWithValue : null;
+    const unpackedEndsWith = endsWithValue != undefined ? endsWithValue : null;
     return new StringConstraint({
       format: unpackedFormat,
       regex: unpackedRegex,
@@ -184,6 +201,58 @@ export class StringConstraint extends StructFrozen {
     _connection?: any | null,
   ): StringConstraint {
     return StringConstraint.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): StringConstraintProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = StringConstraint.__packProto__(this);
+    }
+    return this._proto as StringConstraintProto;
+  }
+
+  static __packProto__(object: StringConstraint): StringConstraintProto {
+    const objectProto: Partial<StringConstraintProto> = { metatype: 2503 };
+    if (object.format != null) {
+      objectProto.format = Number(object.format) as StringFormatProto;
+    }
+    if (object.regex != null) {
+      objectProto.regex = object.regex;
+    }
+    if (object.startsWith != null) {
+      objectProto.startsWith = object.startsWith;
+    }
+    if (object.endsWith != null) {
+      objectProto.endsWith = object.endsWith;
+    }
+    return objectProto as StringConstraintProto;
+  }
+
+  static __unpackProto__(
+    objectProto: StringConstraintProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): StringConstraint {
+    return new StringConstraint({
+      format: objectProto.format != undefined ? (Number(objectProto.format) as StringFormat) : null,
+      regex: objectProto.regex != undefined ? objectProto.regex : null,
+      startsWith: objectProto.startsWith != undefined ? objectProto.startsWith : null,
+      endsWith: objectProto.endsWith != undefined ? objectProto.endsWith : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: StringConstraintProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): StringConstraint {
+    return StringConstraint.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:2503 ==== */
@@ -295,22 +364,22 @@ export class NumberConstraint extends StructFrozen {
   static __packValue__(object: NumberConstraint): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 2502;
-    if (object.format !== null) {
+    if (object.format != null) {
       objectValue["40"] = object.format;
     }
-    if (object.minValue !== null) {
+    if (object.minValue != null) {
       objectValue["41"] = object.minValue;
     }
-    if (object.maxValue !== null) {
+    if (object.maxValue != null) {
       objectValue["42"] = object.maxValue;
     }
-    if (object.stepValue !== null) {
+    if (object.stepValue != null) {
       objectValue["43"] = object.stepValue;
     }
-    if (object.precision !== null) {
+    if (object.precision != null) {
       objectValue["44"] = object.precision;
     }
-    if (object.scale !== null) {
+    if (object.scale != null) {
       objectValue["45"] = object.scale;
     }
     return objectValue;
@@ -324,17 +393,17 @@ export class NumberConstraint extends StructFrozen {
     _connection?: any | null,
   ): NumberConstraint {
     const formatValue = objectValue["40"];
-    const unpackedFormat = formatValue !== undefined ? Number(formatValue) : null;
+    const unpackedFormat = formatValue != undefined ? Number(formatValue) : null;
     const minValueValue = objectValue["41"];
-    const unpackedMinValue = minValueValue !== undefined ? minValueValue : null;
+    const unpackedMinValue = minValueValue != undefined ? minValueValue : null;
     const maxValueValue = objectValue["42"];
-    const unpackedMaxValue = maxValueValue !== undefined ? maxValueValue : null;
+    const unpackedMaxValue = maxValueValue != undefined ? maxValueValue : null;
     const stepValueValue = objectValue["43"];
-    const unpackedStepValue = stepValueValue !== undefined ? stepValueValue : null;
+    const unpackedStepValue = stepValueValue != undefined ? stepValueValue : null;
     const precisionValue = objectValue["44"];
-    const unpackedPrecision = precisionValue !== undefined ? Number(precisionValue) : null;
+    const unpackedPrecision = precisionValue != undefined ? Number(precisionValue) : null;
     const scaleValue = objectValue["45"];
-    const unpackedScale = scaleValue !== undefined ? Number(scaleValue) : null;
+    const unpackedScale = scaleValue != undefined ? Number(scaleValue) : null;
     return new NumberConstraint({
       format: unpackedFormat,
       minValue: unpackedMinValue,
@@ -355,6 +424,66 @@ export class NumberConstraint extends StructFrozen {
     _connection?: any | null,
   ): NumberConstraint {
     return NumberConstraint.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): NumberConstraintProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = NumberConstraint.__packProto__(this);
+    }
+    return this._proto as NumberConstraintProto;
+  }
+
+  static __packProto__(object: NumberConstraint): NumberConstraintProto {
+    const objectProto: Partial<NumberConstraintProto> = { metatype: 2502 };
+    if (object.format != null) {
+      objectProto.format = Number(object.format) as NumberFormatProto;
+    }
+    if (object.minValue != null) {
+      objectProto.minValue = object.minValue;
+    }
+    if (object.maxValue != null) {
+      objectProto.maxValue = object.maxValue;
+    }
+    if (object.stepValue != null) {
+      objectProto.stepValue = object.stepValue;
+    }
+    if (object.precision != null) {
+      objectProto.precision = object.precision;
+    }
+    if (object.scale != null) {
+      objectProto.scale = object.scale;
+    }
+    return objectProto as NumberConstraintProto;
+  }
+
+  static __unpackProto__(
+    objectProto: NumberConstraintProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): NumberConstraint {
+    return new NumberConstraint({
+      format: objectProto.format != undefined ? (Number(objectProto.format) as NumberFormat) : null,
+      minValue: objectProto.minValue != undefined ? objectProto.minValue : null,
+      maxValue: objectProto.maxValue != undefined ? objectProto.maxValue : null,
+      stepValue: objectProto.stepValue != undefined ? objectProto.stepValue : null,
+      precision: objectProto.precision != undefined ? Number(objectProto.precision) : null,
+      scale: objectProto.scale != undefined ? Number(objectProto.scale) : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: NumberConstraintProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): NumberConstraint {
+    return NumberConstraint.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:2502 ==== */
@@ -434,10 +563,10 @@ export class CollectionConstraint extends StructFrozen {
   static __packValue__(object: CollectionConstraint): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 2504;
-    if (object.minLength !== null) {
+    if (object.minLength != null) {
       objectValue["41"] = object.minLength;
     }
-    if (object.maxLength !== null) {
+    if (object.maxLength != null) {
       objectValue["42"] = object.maxLength;
     }
     return objectValue;
@@ -451,9 +580,9 @@ export class CollectionConstraint extends StructFrozen {
     _connection?: any | null,
   ): CollectionConstraint {
     const minLengthValue = objectValue["41"];
-    const unpackedMinLength = minLengthValue !== undefined ? Number(minLengthValue) : null;
+    const unpackedMinLength = minLengthValue != undefined ? Number(minLengthValue) : null;
     const maxLengthValue = objectValue["42"];
-    const unpackedMaxLength = maxLengthValue !== undefined ? Number(maxLengthValue) : null;
+    const unpackedMaxLength = maxLengthValue != undefined ? Number(maxLengthValue) : null;
     return new CollectionConstraint({
       minLength: unpackedMinLength,
       maxLength: unpackedMaxLength,
@@ -470,6 +599,50 @@ export class CollectionConstraint extends StructFrozen {
     _connection?: any | null,
   ): CollectionConstraint {
     return CollectionConstraint.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): CollectionConstraintProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = CollectionConstraint.__packProto__(this);
+    }
+    return this._proto as CollectionConstraintProto;
+  }
+
+  static __packProto__(object: CollectionConstraint): CollectionConstraintProto {
+    const objectProto: Partial<CollectionConstraintProto> = { metatype: 2504 };
+    if (object.minLength != null) {
+      objectProto.minLength = object.minLength;
+    }
+    if (object.maxLength != null) {
+      objectProto.maxLength = object.maxLength;
+    }
+    return objectProto as CollectionConstraintProto;
+  }
+
+  static __unpackProto__(
+    objectProto: CollectionConstraintProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): CollectionConstraint {
+    return new CollectionConstraint({
+      minLength: objectProto.minLength != undefined ? Number(objectProto.minLength) : null,
+      maxLength: objectProto.maxLength != undefined ? Number(objectProto.maxLength) : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: CollectionConstraintProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): CollectionConstraint {
+    return CollectionConstraint.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:2504 ==== */
@@ -580,13 +753,13 @@ export class NodeConstraint extends StructFrozen {
     _connection?: any | null,
   ): NodeConstraint {
     const unpackedNodeTypes: any[] = [];
-    if (objectValue["41"] !== undefined) {
+    if (objectValue["41"] != undefined) {
       for (const item of objectValue["41"]) {
         unpackedNodeTypes.push(Number(item));
       }
     }
     const unpackedNodeTraits: any[] = [];
-    if (objectValue["42"] !== undefined) {
+    if (objectValue["42"] != undefined) {
       for (const item of objectValue["42"]) {
         unpackedNodeTraits.push(Number(item));
       }
@@ -607,6 +780,70 @@ export class NodeConstraint extends StructFrozen {
     _connection?: any | null,
   ): NodeConstraint {
     return NodeConstraint.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): NodeConstraintProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = NodeConstraint.__packProto__(this);
+    }
+    return this._proto as NodeConstraintProto;
+  }
+
+  static __packProto__(object: NodeConstraint): NodeConstraintProto {
+    const objectProto: Partial<NodeConstraintProto> = { metatype: 2505 };
+    if (object.nodeTypes) {
+      const packedNodeTypes: any[] = [];
+      for (const item of object.nodeTypes) {
+        packedNodeTypes.push(Number(item) as NodeTypeProto);
+      }
+      objectProto.nodeTypes = packedNodeTypes;
+    }
+    if (object.nodeTraits) {
+      const packedNodeTraits: any[] = [];
+      for (const item of object.nodeTraits) {
+        packedNodeTraits.push(Number(item) as TraitTypeProto);
+      }
+      objectProto.nodeTraits = packedNodeTraits;
+    }
+    return objectProto as NodeConstraintProto;
+  }
+
+  static __unpackProto__(
+    objectProto: NodeConstraintProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): NodeConstraint {
+    const unpackedNodeTypes: any[] = [];
+    if (objectProto.nodeTypes) {
+      for (const item of objectProto.nodeTypes) {
+        unpackedNodeTypes.push(Number(item) as NodeType);
+      }
+    }
+    const unpackedNodeTraits: any[] = [];
+    if (objectProto.nodeTraits) {
+      for (const item of objectProto.nodeTraits) {
+        unpackedNodeTraits.push(Number(item) as TraitType);
+      }
+    }
+    return new NodeConstraint({
+      nodeTypes: unpackedNodeTypes,
+      nodeTraits: unpackedNodeTraits,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: NodeConstraintProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): NodeConstraint {
+    return NodeConstraint.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:2505 ==== */
@@ -843,49 +1080,49 @@ export class Type extends StructFrozen {
     objectValue["1"] = 2501;
     objectValue["40"] = object.cardinality;
     objectValue["41"] = object.scalarType;
-    if (object.primitiveType !== null) {
+    if (object.primitiveType != null) {
       objectValue["42"] = object.primitiveType;
     }
-    if (object.enumType !== null) {
+    if (object.enumType != null) {
       objectValue["43"] = object.enumType;
     }
-    if (object.nodeType !== null) {
+    if (object.nodeType != null) {
       objectValue["44"] = object.nodeType;
     }
-    if (object.nodeDefinitionPtr !== null) {
+    if (object.nodeDefinitionPtr != null) {
       objectValue["45"] = object.nodeDefinitionPtr.toValue();
     }
-    if (object.structType !== null) {
+    if (object.structType != null) {
       objectValue["46"] = object.structType;
     }
-    if (object.baseTypePtr !== null) {
+    if (object.baseTypePtr != null) {
       objectValue["47"] = object.baseTypePtr.toValue();
     }
-    if (object.keyType !== null) {
+    if (object.keyType != null) {
       objectValue["48"] = object.keyType.toValue();
     }
-    if (object.isRequired !== null) {
+    if (object.isRequired != null) {
       objectValue["50"] = object.isRequired;
     }
-    if (object.isVariable !== null) {
+    if (object.isVariable != null) {
       objectValue["51"] = object.isVariable;
     }
-    if (object.defaultValue !== null) {
+    if (object.defaultValue != null) {
       objectValue["55"] = object.defaultValue.toValue();
     }
-    if (object.defaultFactory !== null) {
+    if (object.defaultFactory != null) {
       objectValue["56"] = object.defaultFactory;
     }
-    if (object.collectionConstraint !== null) {
+    if (object.collectionConstraint != null) {
       objectValue["60"] = object.collectionConstraint.toValue();
     }
-    if (object.stringConstraint !== null) {
+    if (object.stringConstraint != null) {
       objectValue["61"] = object.stringConstraint.toValue();
     }
-    if (object.numberConstraint !== null) {
+    if (object.numberConstraint != null) {
       objectValue["62"] = object.numberConstraint.toValue();
     }
-    if (object.nodeConstraint !== null) {
+    if (object.nodeConstraint != null) {
       objectValue["63"] = object.nodeConstraint.toValue();
     }
     return objectValue;
@@ -899,55 +1136,55 @@ export class Type extends StructFrozen {
     _connection?: any | null,
   ): Type {
     const primitiveTypeValue = objectValue["42"];
-    const unpackedPrimitiveType = primitiveTypeValue !== undefined ? Number(primitiveTypeValue) : null;
+    const unpackedPrimitiveType = primitiveTypeValue != undefined ? Number(primitiveTypeValue) : null;
     const enumTypeValue = objectValue["43"];
-    const unpackedEnumType = enumTypeValue !== undefined ? Number(enumTypeValue) : null;
+    const unpackedEnumType = enumTypeValue != undefined ? Number(enumTypeValue) : null;
     const nodeTypeValue = objectValue["44"];
-    const unpackedNodeType = nodeTypeValue !== undefined ? Number(nodeTypeValue) : null;
+    const unpackedNodeType = nodeTypeValue != undefined ? Number(nodeTypeValue) : null;
     const structTypeValue = objectValue["46"];
-    const unpackedStructType = structTypeValue !== undefined ? Number(structTypeValue) : null;
+    const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : null;
     const keyTypeValue = objectValue["48"];
     const unpackedKeyType =
-      keyTypeValue !== undefined ? Type.fromValue(keyTypeValue, _session, _supergraph, _graph, _connection) : null;
+      keyTypeValue != undefined ? Type.fromValue(keyTypeValue, _session, _supergraph, _graph, _connection) : null;
     const isRequiredValue = objectValue["50"];
-    const unpackedIsRequired = isRequiredValue !== undefined ? isRequiredValue : null;
+    const unpackedIsRequired = isRequiredValue != undefined ? isRequiredValue : null;
     const isVariableValue = objectValue["51"];
-    const unpackedIsVariable = isVariableValue !== undefined ? isVariableValue : null;
+    const unpackedIsVariable = isVariableValue != undefined ? isVariableValue : null;
     const defaultValueValue = objectValue["55"];
     const unpackedDefaultValue =
-      defaultValueValue !== undefined
+      defaultValueValue != undefined
         ? Value.fromValue(defaultValueValue, _session, _supergraph, _graph, _connection)
         : null;
     const defaultFactoryValue = objectValue["56"];
-    const unpackedDefaultFactory = defaultFactoryValue !== undefined ? Number(defaultFactoryValue) : null;
+    const unpackedDefaultFactory = defaultFactoryValue != undefined ? Number(defaultFactoryValue) : null;
     const collectionConstraintValue = objectValue["60"];
     const unpackedCollectionConstraint =
-      collectionConstraintValue !== undefined
+      collectionConstraintValue != undefined
         ? CollectionConstraint.fromValue(collectionConstraintValue, _session, _supergraph, _graph, _connection)
         : null;
     const stringConstraintValue = objectValue["61"];
     const unpackedStringConstraint =
-      stringConstraintValue !== undefined
+      stringConstraintValue != undefined
         ? StringConstraint.fromValue(stringConstraintValue, _session, _supergraph, _graph, _connection)
         : null;
     const numberConstraintValue = objectValue["62"];
     const unpackedNumberConstraint =
-      numberConstraintValue !== undefined
+      numberConstraintValue != undefined
         ? NumberConstraint.fromValue(numberConstraintValue, _session, _supergraph, _graph, _connection)
         : null;
     const nodeConstraintValue = objectValue["63"];
     const unpackedNodeConstraint =
-      nodeConstraintValue !== undefined
+      nodeConstraintValue != undefined
         ? NodeConstraint.fromValue(nodeConstraintValue, _session, _supergraph, _graph, _connection)
         : null;
     const nodeDefinitionValue = objectValue["45"];
     const unpackedNodeDefinition =
-      nodeDefinitionValue !== undefined
+      nodeDefinitionValue != undefined
         ? NodeReference.fromValue(nodeDefinitionValue, _session, _supergraph, _graph, _connection)
         : null;
     const baseTypeValue = objectValue["47"];
     const unpackedBaseType =
-      baseTypeValue !== undefined
+      baseTypeValue != undefined
         ? NodeReference.fromValue(baseTypeValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Type({
@@ -981,6 +1218,138 @@ export class Type extends StructFrozen {
     _connection?: any | null,
   ): Type {
     return Type.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): TypeProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Type.__packProto__(this);
+    }
+    return this._proto as TypeProto;
+  }
+
+  static __packProto__(object: Type): TypeProto {
+    const objectProto: Partial<TypeProto> = { metatype: 2501 };
+    objectProto.cardinality = Number(object.cardinality) as TypeCardinalityProto;
+    objectProto.scalarType = Number(object.scalarType) as ScalarTypeProto;
+    if (object.primitiveType != null) {
+      objectProto.primitiveType = Number(object.primitiveType) as PrimitiveTypeProto;
+    }
+    if (object.enumType != null) {
+      objectProto.enumType = Number(object.enumType) as EnumTypeProto;
+    }
+    if (object.nodeType != null) {
+      objectProto.nodeType = Number(object.nodeType) as NodeTypeProto;
+    }
+    if (object.nodeDefinitionPtr != null) {
+      objectProto.nodeDefinitionPtr = object.nodeDefinitionPtr.toProto();
+    }
+    if (object.structType != null) {
+      objectProto.structType = Number(object.structType) as StructTypeProto;
+    }
+    if (object.baseTypePtr != null) {
+      objectProto.baseTypePtr = object.baseTypePtr.toProto();
+    }
+    if (object.keyType != null) {
+      objectProto.keyType = object.keyType.toProto();
+    }
+    if (object.isRequired != null) {
+      objectProto.isRequired = object.isRequired;
+    }
+    if (object.isVariable != null) {
+      objectProto.isVariable = object.isVariable;
+    }
+    if (object.defaultValue != null) {
+      objectProto.defaultValue = object.defaultValue.toProto();
+    }
+    if (object.defaultFactory != null) {
+      objectProto.defaultFactory = Number(object.defaultFactory) as DefaultFactoryProto;
+    }
+    if (object.collectionConstraint != null) {
+      objectProto.collectionConstraint = object.collectionConstraint.toProto();
+    }
+    if (object.stringConstraint != null) {
+      objectProto.stringConstraint = object.stringConstraint.toProto();
+    }
+    if (object.numberConstraint != null) {
+      objectProto.numberConstraint = object.numberConstraint.toProto();
+    }
+    if (object.nodeConstraint != null) {
+      objectProto.nodeConstraint = object.nodeConstraint.toProto();
+    }
+    return objectProto as TypeProto;
+  }
+
+  static __unpackProto__(
+    objectProto: TypeProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Type {
+    return new Type({
+      cardinality: Number(objectProto.cardinality) as TypeCardinality,
+      scalarType: Number(objectProto.scalarType) as ScalarType,
+      primitiveType:
+        objectProto.primitiveType != undefined ? (Number(objectProto.primitiveType) as PrimitiveType) : null,
+      enumType: objectProto.enumType != undefined ? (Number(objectProto.enumType) as EnumType) : null,
+      nodeType: objectProto.nodeType != undefined ? (Number(objectProto.nodeType) as NodeType) : null,
+      structType: objectProto.structType != undefined ? (Number(objectProto.structType) as StructType) : null,
+      keyType:
+        objectProto.keyType != undefined
+          ? Type.fromProto(objectProto.keyType!, _session, _supergraph, _graph, _connection)
+          : null,
+      isRequired: objectProto.isRequired != undefined ? objectProto.isRequired : null,
+      isVariable: objectProto.isVariable != undefined ? objectProto.isVariable : null,
+      defaultValue:
+        objectProto.defaultValue != undefined
+          ? Value.fromProto(objectProto.defaultValue!, _session, _supergraph, _graph, _connection)
+          : null,
+      defaultFactory:
+        objectProto.defaultFactory != undefined ? (Number(objectProto.defaultFactory) as DefaultFactory) : null,
+      collectionConstraint:
+        objectProto.collectionConstraint != undefined
+          ? CollectionConstraint.fromProto(
+              objectProto.collectionConstraint!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      stringConstraint:
+        objectProto.stringConstraint != undefined
+          ? StringConstraint.fromProto(objectProto.stringConstraint!, _session, _supergraph, _graph, _connection)
+          : null,
+      numberConstraint:
+        objectProto.numberConstraint != undefined
+          ? NumberConstraint.fromProto(objectProto.numberConstraint!, _session, _supergraph, _graph, _connection)
+          : null,
+      nodeConstraint:
+        objectProto.nodeConstraint != undefined
+          ? NodeConstraint.fromProto(objectProto.nodeConstraint!, _session, _supergraph, _graph, _connection)
+          : null,
+      nodeDefinition:
+        objectProto.nodeDefinitionPtr != undefined
+          ? NodeReference.fromProto(objectProto.nodeDefinitionPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      baseType:
+        objectProto.baseTypePtr != undefined
+          ? NodeReference.fromProto(objectProto.baseTypePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: TypeProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Type {
+    return Type.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:2501 ==== */

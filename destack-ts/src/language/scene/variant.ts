@@ -1,3 +1,4 @@
+import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Entity,
   Graph,
@@ -24,6 +25,7 @@ import {
 import { Layer, Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { CustomViewDefinition } from "@destack/language/view";
+import { MaterializationTypeProto, VariantProto, VariantTypeProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:9030 ==== */
@@ -378,45 +380,45 @@ export class Variant extends Node implements Spatial, Entity, HasName, HasSlug, 
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 9030;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr !== null) {
+    if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr !== null) {
+    if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
-    if (object.createdByPtr !== null) {
+    if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
     objectValue["17"] = object.updatedAt.toString();
-    if (object.updatedByPtr !== null) {
+    if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
-    if (object.deletedAt !== null) {
+    if (object.deletedAt != null) {
       objectValue["20"] = object.deletedAt.toString();
     }
-    if (object.ownedByPtr !== null) {
+    if (object.ownedByPtr != null) {
       objectValue["25"] = object.ownedByPtr.toValue();
     }
     objectValue["30"] = object.type;
     objectValue["31"] = object.name;
-    if (object.slug !== null) {
+    if (object.slug != null) {
       objectValue["33"] = object.slug;
     }
-    if (object.icon !== null) {
+    if (object.icon != null) {
       objectValue["34"] = object.icon.toValue();
     }
-    if (object.maxWidth !== null) {
+    if (object.maxWidth != null) {
       objectValue["50"] = object.maxWidth.toValue();
     }
-    if (object.maxHeight !== null) {
+    if (object.maxHeight != null) {
       objectValue["51"] = object.maxHeight.toValue();
     }
-    if (object.minWidth !== null) {
+    if (object.minWidth != null) {
       objectValue["52"] = object.minWidth.toValue();
     }
-    if (object.minHeight !== null) {
+    if (object.minHeight != null) {
       objectValue["53"] = object.minHeight.toValue();
     }
     return objectValue;
@@ -431,48 +433,44 @@ export class Variant extends Node implements Spatial, Entity, HasName, HasSlug, 
   ): Variant {
     const maxWidthValue = objectValue["50"];
     const unpackedMaxWidth =
-      maxWidthValue !== undefined ? Length.fromValue(maxWidthValue, _session, _supergraph, _graph, _connection) : null;
+      maxWidthValue != undefined ? Length.fromValue(maxWidthValue, _session, _supergraph, _graph, _connection) : null;
     const maxHeightValue = objectValue["51"];
     const unpackedMaxHeight =
-      maxHeightValue !== undefined
-        ? Length.fromValue(maxHeightValue, _session, _supergraph, _graph, _connection)
-        : null;
+      maxHeightValue != undefined ? Length.fromValue(maxHeightValue, _session, _supergraph, _graph, _connection) : null;
     const minWidthValue = objectValue["52"];
     const unpackedMinWidth =
-      minWidthValue !== undefined ? Length.fromValue(minWidthValue, _session, _supergraph, _graph, _connection) : null;
+      minWidthValue != undefined ? Length.fromValue(minWidthValue, _session, _supergraph, _graph, _connection) : null;
     const minHeightValue = objectValue["53"];
     const unpackedMinHeight =
-      minHeightValue !== undefined
-        ? Length.fromValue(minHeightValue, _session, _supergraph, _graph, _connection)
-        : null;
+      minHeightValue != undefined ? Length.fromValue(minHeightValue, _session, _supergraph, _graph, _connection) : null;
     const slugValue = objectValue["33"];
-    const unpackedSlug = slugValue !== undefined ? slugValue : null;
+    const unpackedSlug = slugValue != undefined ? slugValue : null;
     const iconValue = objectValue["34"];
     const unpackedIcon =
-      iconValue !== undefined ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection) : null;
+      iconValue != undefined ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection) : null;
     const deletedAtValue = objectValue["20"];
-    const unpackedDeletedAt = deletedAtValue !== undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
     const parentValue = objectValue["3"];
     const unpackedParent =
-      parentValue !== undefined
+      parentValue != undefined
         ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
         : null;
     const spaceValue = objectValue["5"];
     const unpackedSpace =
-      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
     const createdByValue = objectValue["16"];
     const unpackedCreatedBy =
-      createdByValue !== undefined
+      createdByValue != undefined
         ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByValue = objectValue["18"];
     const unpackedUpdatedBy =
-      updatedByValue !== undefined
+      updatedByValue != undefined
         ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
         : null;
     const ownedByValue = objectValue["25"];
     const unpackedOwnedBy =
-      ownedByValue !== undefined
+      ownedByValue != undefined
         ? NodeReference.fromValue(ownedByValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Variant({
@@ -508,6 +506,129 @@ export class Variant extends Node implements Spatial, Entity, HasName, HasSlug, 
     _connection?: any | null,
   ): Variant {
     return Variant.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): VariantProto {
+    return Variant.__packProto__(this);
+  }
+
+  static __packProto__(object: Variant): VariantProto {
+    const objectProto: Partial<VariantProto> = { metatype: 9030 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    if (object.deletedAt != null) {
+      objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
+    }
+    if (object.ownedByPtr != null) {
+      objectProto.ownedByPtr = object.ownedByPtr.toProto();
+    }
+    objectProto.type = Number(object.type) as VariantTypeProto;
+    objectProto.name = object.name;
+    if (object.slug != null) {
+      objectProto.slug = object.slug;
+    }
+    if (object.icon != null) {
+      objectProto.icon = object.icon.toProto();
+    }
+    if (object.maxWidth != null) {
+      objectProto.maxWidth = object.maxWidth.toProto();
+    }
+    if (object.maxHeight != null) {
+      objectProto.maxHeight = object.maxHeight.toProto();
+    }
+    if (object.minWidth != null) {
+      objectProto.minWidth = object.minWidth.toProto();
+    }
+    if (object.minHeight != null) {
+      objectProto.minHeight = object.minHeight.toProto();
+    }
+    return objectProto as VariantProto;
+  }
+
+  static __unpackProto__(
+    objectProto: VariantProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Variant {
+    return new Variant({
+      type: Number(objectProto.type) as VariantType,
+      maxWidth:
+        objectProto.maxWidth != undefined
+          ? Length.fromProto(objectProto.maxWidth!, _session, _supergraph, _graph, _connection)
+          : null,
+      maxHeight:
+        objectProto.maxHeight != undefined
+          ? Length.fromProto(objectProto.maxHeight!, _session, _supergraph, _graph, _connection)
+          : null,
+      minWidth:
+        objectProto.minWidth != undefined
+          ? Length.fromProto(objectProto.minWidth!, _session, _supergraph, _graph, _connection)
+          : null,
+      minHeight:
+        objectProto.minHeight != undefined
+          ? Length.fromProto(objectProto.minHeight!, _session, _supergraph, _graph, _connection)
+          : null,
+      id: String(objectProto.id),
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      name: objectProto.name,
+      slug: objectProto.slug != undefined ? objectProto.slug : null,
+      icon:
+        objectProto.icon != undefined
+          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
+      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      ownedBy:
+        objectProto.ownedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.ownedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: VariantProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Variant {
+    return Variant.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:9030 ==== */

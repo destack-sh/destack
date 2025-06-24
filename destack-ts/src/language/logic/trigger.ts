@@ -1,3 +1,4 @@
+import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Condition,
   Entity,
@@ -20,6 +21,13 @@ import {
   Value,
 } from "@destack/language/core";
 import { Space } from "@destack/language/space";
+import {
+  MaterializationTypeProto,
+  TriggerEventProto,
+  TriggerEventTypeProto,
+  TriggerProto,
+  TriggerTypeProto,
+} from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:3041 ==== */
@@ -279,18 +287,18 @@ export class TriggerEvent extends Node implements Event {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 3041;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr !== null) {
+    if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr !== null) {
+    if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["15"] = object.createdAt.toString();
-    if (object.createdByPtr !== null) {
+    if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
     objectValue["17"] = object.updatedAt.toString();
-    if (object.updatedByPtr !== null) {
+    if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
     objectValue["30"] = object.type;
@@ -307,20 +315,20 @@ export class TriggerEvent extends Node implements Event {
   ): TriggerEvent {
     const parentValue = objectValue["3"];
     const unpackedParent =
-      parentValue !== undefined
+      parentValue != undefined
         ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
         : null;
     const spaceValue = objectValue["5"];
     const unpackedSpace =
-      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
     const createdByValue = objectValue["16"];
     const unpackedCreatedBy =
-      createdByValue !== undefined
+      createdByValue != undefined
         ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByValue = objectValue["18"];
     const unpackedUpdatedBy =
-      updatedByValue !== undefined
+      updatedByValue != undefined
         ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
         : null;
     return new TriggerEvent({
@@ -347,6 +355,77 @@ export class TriggerEvent extends Node implements Event {
     _connection?: any | null,
   ): TriggerEvent {
     return TriggerEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): TriggerEventProto {
+    return TriggerEvent.__packProto__(this);
+  }
+
+  static __packProto__(object: TriggerEvent): TriggerEventProto {
+    const objectProto: Partial<TriggerEventProto> = { metatype: 3041 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    objectProto.type = Number(object.type) as TriggerEventTypeProto;
+    objectProto.nodePtr = object.nodePtr.toProto();
+    return objectProto as TriggerEventProto;
+  }
+
+  static __unpackProto__(
+    objectProto: TriggerEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): TriggerEvent {
+    return new TriggerEvent({
+      type: Number(objectProto.type) as TriggerEventType,
+      id: String(objectProto.id),
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      node: NodeReference.fromProto(objectProto.nodePtr!, _session, _supergraph, _graph, _connection),
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: TriggerEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): TriggerEvent {
+    return TriggerEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:3041 ==== */
@@ -632,33 +711,33 @@ export class Trigger extends Node implements Spatial, Entity, HasName {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 3040;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr !== null) {
+    if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr !== null) {
+    if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
-    if (object.createdByPtr !== null) {
+    if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
     objectValue["17"] = object.updatedAt.toString();
-    if (object.updatedByPtr !== null) {
+    if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
     objectValue["30"] = object.type;
     objectValue["31"] = object.name;
-    if (object.event !== null) {
+    if (object.event != null) {
       objectValue["40"] = object.event.toValue();
     }
-    if (object.where !== null) {
+    if (object.where != null) {
       objectValue["41"] = object.where.toValue();
     }
     objectValue["50"] = object.targetPtr.toValue();
     if (object.arguments) {
       const packedArguments: { [key: string]: any } = {};
-      for (const [key, value] of Object.entries(object.arguments)) {
+      for (const [key, value] of object.arguments) {
         packedArguments[String(String(key))] = value.toValue();
       }
       objectValue["51"] = packedArguments;
@@ -675,34 +754,34 @@ export class Trigger extends Node implements Spatial, Entity, HasName {
   ): Trigger {
     const eventValue = objectValue["40"];
     const unpackedEvent =
-      eventValue !== undefined
+      eventValue != undefined
         ? RelationReference.fromValue(eventValue, _session, _supergraph, _graph, _connection)
         : null;
     const whereValue = objectValue["41"];
     const unpackedWhere =
-      whereValue !== undefined ? Condition.fromValue(whereValue, _session, _supergraph, _graph, _connection) : null;
-    const unpackedArguments: { [key: string]: any } = {};
-    if (objectValue["51"] !== undefined) {
+      whereValue != undefined ? Condition.fromValue(whereValue, _session, _supergraph, _graph, _connection) : null;
+    const unpackedArguments = new Map();
+    if (objectValue["51"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["51"])) {
-        unpackedArguments[String(key)] = Value.fromValue(value, _session, _supergraph, _graph, _connection);
+        unpackedArguments.set(String(key), Value.fromValue(value as any, _session, _supergraph, _graph, _connection));
       }
     }
     const parentValue = objectValue["3"];
     const unpackedParent =
-      parentValue !== undefined
+      parentValue != undefined
         ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
         : null;
     const spaceValue = objectValue["5"];
     const unpackedSpace =
-      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
     const createdByValue = objectValue["16"];
     const unpackedCreatedBy =
-      createdByValue !== undefined
+      createdByValue != undefined
         ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByValue = objectValue["18"];
     const unpackedUpdatedBy =
-      updatedByValue !== undefined
+      updatedByValue != undefined
         ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Trigger({
@@ -734,6 +813,111 @@ export class Trigger extends Node implements Spatial, Entity, HasName {
     _connection?: any | null,
   ): Trigger {
     return Trigger.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): TriggerProto {
+    return Trigger.__packProto__(this);
+  }
+
+  static __packProto__(object: Trigger): TriggerProto {
+    const objectProto: Partial<TriggerProto> = { metatype: 3040 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    objectProto.type = Number(object.type) as TriggerTypeProto;
+    objectProto.name = object.name;
+    if (object.event != null) {
+      objectProto.event = object.event.toProto();
+    }
+    if (object.where != null) {
+      objectProto.where = object.where.toProto();
+    }
+    objectProto.targetPtr = object.targetPtr.toProto();
+    if (object.arguments) {
+      objectProto.arguments = {};
+      for (const [key, value] of object.arguments) {
+        objectProto.arguments![String(key)] = value.toProto();
+      }
+    }
+    return objectProto as TriggerProto;
+  }
+
+  static __unpackProto__(
+    objectProto: TriggerProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Trigger {
+    const unpackedArguments = new Map();
+    if (objectProto.arguments) {
+      for (const [key, value] of Object.entries(objectProto.arguments)) {
+        unpackedArguments.set(
+          String(key),
+          Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    return new Trigger({
+      type: Number(objectProto.type) as TriggerType,
+      event:
+        objectProto.event != undefined
+          ? RelationReference.fromProto(objectProto.event!, _session, _supergraph, _graph, _connection)
+          : null,
+      where:
+        objectProto.where != undefined
+          ? Condition.fromProto(objectProto.where!, _session, _supergraph, _graph, _connection)
+          : null,
+      arguments: unpackedArguments,
+      id: String(objectProto.id),
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      name: objectProto.name,
+      target: NodeReference.fromProto(objectProto.targetPtr!, _session, _supergraph, _graph, _connection),
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: TriggerProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Trigger {
+    return Trigger.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:3040 ==== */

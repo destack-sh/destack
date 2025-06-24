@@ -1,3 +1,4 @@
+import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Entity,
   Graph,
@@ -19,6 +20,7 @@ import {
   TraitType,
 } from "@destack/language/core";
 import { Space } from "@destack/language/space";
+import { BranchProto, MaterializationTypeProto, SnapshotProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:1500 ==== */
@@ -287,29 +289,29 @@ export class Snapshot extends Node implements Spatial, Entity, HasName, HasSlug,
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 1500;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr !== null) {
+    if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr !== null) {
+    if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
-    if (object.createdByPtr !== null) {
+    if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
     objectValue["17"] = object.updatedAt.toString();
-    if (object.updatedByPtr !== null) {
+    if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
-    if (object.deletedAt !== null) {
+    if (object.deletedAt != null) {
       objectValue["20"] = object.deletedAt.toString();
     }
-    if (object.ownedByPtr !== null) {
+    if (object.ownedByPtr != null) {
       objectValue["25"] = object.ownedByPtr.toValue();
     }
     objectValue["31"] = object.name;
-    if (object.slug !== null) {
+    if (object.slug != null) {
       objectValue["33"] = object.slug;
     }
     return objectValue;
@@ -323,30 +325,30 @@ export class Snapshot extends Node implements Spatial, Entity, HasName, HasSlug,
     _connection?: any | null,
   ): Snapshot {
     const slugValue = objectValue["33"];
-    const unpackedSlug = slugValue !== undefined ? slugValue : null;
+    const unpackedSlug = slugValue != undefined ? slugValue : null;
     const deletedAtValue = objectValue["20"];
-    const unpackedDeletedAt = deletedAtValue !== undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
     const parentValue = objectValue["3"];
     const unpackedParent =
-      parentValue !== undefined
+      parentValue != undefined
         ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
         : null;
     const spaceValue = objectValue["5"];
     const unpackedSpace =
-      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
     const createdByValue = objectValue["16"];
     const unpackedCreatedBy =
-      createdByValue !== undefined
+      createdByValue != undefined
         ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByValue = objectValue["18"];
     const unpackedUpdatedBy =
-      updatedByValue !== undefined
+      updatedByValue != undefined
         ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
         : null;
     const ownedByValue = objectValue["25"];
     const unpackedOwnedBy =
-      ownedByValue !== undefined
+      ownedByValue != undefined
         ? NodeReference.fromValue(ownedByValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Snapshot({
@@ -376,6 +378,92 @@ export class Snapshot extends Node implements Spatial, Entity, HasName, HasSlug,
     _connection?: any | null,
   ): Snapshot {
     return Snapshot.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): SnapshotProto {
+    return Snapshot.__packProto__(this);
+  }
+
+  static __packProto__(object: Snapshot): SnapshotProto {
+    const objectProto: Partial<SnapshotProto> = { metatype: 1500 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    if (object.deletedAt != null) {
+      objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
+    }
+    if (object.ownedByPtr != null) {
+      objectProto.ownedByPtr = object.ownedByPtr.toProto();
+    }
+    objectProto.name = object.name;
+    if (object.slug != null) {
+      objectProto.slug = object.slug;
+    }
+    return objectProto as SnapshotProto;
+  }
+
+  static __unpackProto__(
+    objectProto: SnapshotProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Snapshot {
+    return new Snapshot({
+      id: String(objectProto.id),
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      name: objectProto.name,
+      slug: objectProto.slug != undefined ? objectProto.slug : null,
+      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      ownedBy:
+        objectProto.ownedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.ownedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: SnapshotProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Snapshot {
+    return Snapshot.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:1500 ==== */
@@ -671,32 +759,32 @@ export class Branch extends Node implements Spatial, Entity, HasName, HasSlug, I
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 1510;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr !== null) {
+    if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr !== null) {
+    if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
-    if (object.createdByPtr !== null) {
+    if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
     objectValue["17"] = object.updatedAt.toString();
-    if (object.updatedByPtr !== null) {
+    if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
-    if (object.deletedAt !== null) {
+    if (object.deletedAt != null) {
       objectValue["20"] = object.deletedAt.toString();
     }
-    if (object.ownedByPtr !== null) {
+    if (object.ownedByPtr != null) {
       objectValue["25"] = object.ownedByPtr.toValue();
     }
     objectValue["31"] = object.name;
-    if (object.slug !== null) {
+    if (object.slug != null) {
       objectValue["33"] = object.slug;
     }
-    if (object.headPtr !== null) {
+    if (object.headPtr != null) {
       objectValue["40"] = object.headPtr.toValue();
     }
     return objectValue;
@@ -710,33 +798,33 @@ export class Branch extends Node implements Spatial, Entity, HasName, HasSlug, I
     _connection?: any | null,
   ): Branch {
     const slugValue = objectValue["33"];
-    const unpackedSlug = slugValue !== undefined ? slugValue : null;
+    const unpackedSlug = slugValue != undefined ? slugValue : null;
     const deletedAtValue = objectValue["20"];
-    const unpackedDeletedAt = deletedAtValue !== undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
     const parentValue = objectValue["3"];
     const unpackedParent =
-      parentValue !== undefined
+      parentValue != undefined
         ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
         : null;
     const headValue = objectValue["40"];
     const unpackedHead =
-      headValue !== undefined ? NodeReference.fromValue(headValue, _session, _supergraph, _graph, _connection) : null;
+      headValue != undefined ? NodeReference.fromValue(headValue, _session, _supergraph, _graph, _connection) : null;
     const spaceValue = objectValue["5"];
     const unpackedSpace =
-      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
     const createdByValue = objectValue["16"];
     const unpackedCreatedBy =
-      createdByValue !== undefined
+      createdByValue != undefined
         ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByValue = objectValue["18"];
     const unpackedUpdatedBy =
-      updatedByValue !== undefined
+      updatedByValue != undefined
         ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
         : null;
     const ownedByValue = objectValue["25"];
     const unpackedOwnedBy =
-      ownedByValue !== undefined
+      ownedByValue != undefined
         ? NodeReference.fromValue(ownedByValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Branch({
@@ -767,6 +855,99 @@ export class Branch extends Node implements Spatial, Entity, HasName, HasSlug, I
     _connection?: any | null,
   ): Branch {
     return Branch.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): BranchProto {
+    return Branch.__packProto__(this);
+  }
+
+  static __packProto__(object: Branch): BranchProto {
+    const objectProto: Partial<BranchProto> = { metatype: 1510 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    if (object.deletedAt != null) {
+      objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
+    }
+    if (object.ownedByPtr != null) {
+      objectProto.ownedByPtr = object.ownedByPtr.toProto();
+    }
+    objectProto.name = object.name;
+    if (object.slug != null) {
+      objectProto.slug = object.slug;
+    }
+    if (object.headPtr != null) {
+      objectProto.headPtr = object.headPtr.toProto();
+    }
+    return objectProto as BranchProto;
+  }
+
+  static __unpackProto__(
+    objectProto: BranchProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Branch {
+    return new Branch({
+      id: String(objectProto.id),
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      name: objectProto.name,
+      slug: objectProto.slug != undefined ? objectProto.slug : null,
+      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      head:
+        objectProto.headPtr != undefined
+          ? NodeReference.fromProto(objectProto.headPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      ownedBy:
+        objectProto.ownedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.ownedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: BranchProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Branch {
+    return Branch.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:1510 ==== */

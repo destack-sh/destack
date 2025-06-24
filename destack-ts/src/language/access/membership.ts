@@ -1,3 +1,4 @@
+import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Role } from "@destack/language/access";
 import {
   Entity,
@@ -23,6 +24,7 @@ import {
   TraitType,
 } from "@destack/language/core";
 import { Space } from "@destack/language/space";
+import { MaterializationTypeProto, MembershipEventProto, MembershipProto, RoleTypeProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:500 ==== */
@@ -357,24 +359,24 @@ export class MembershipEvent extends Node implements Event {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 501;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr !== null) {
+    if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr !== null) {
+    if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["15"] = object.createdAt.toString();
-    if (object.createdByPtr !== null) {
+    if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
     objectValue["17"] = object.updatedAt.toString();
-    if (object.updatedByPtr !== null) {
+    if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
     objectValue["35"] = object.nodePtr.toValue();
     objectValue["40"] = object.joinablePtr.toValue();
     objectValue["41"] = object.memberPtr.toValue();
-    if (object.rolePtr !== null) {
+    if (object.rolePtr != null) {
       objectValue["42"] = object.rolePtr.toValue();
     }
     objectValue["43"] = object.roleType;
@@ -390,23 +392,23 @@ export class MembershipEvent extends Node implements Event {
   ): MembershipEvent {
     const roleValue = objectValue["42"];
     const unpackedRole =
-      roleValue !== undefined ? NodeReference.fromValue(roleValue, _session, _supergraph, _graph, _connection) : null;
+      roleValue != undefined ? NodeReference.fromValue(roleValue, _session, _supergraph, _graph, _connection) : null;
     const parentValue = objectValue["3"];
     const unpackedParent =
-      parentValue !== undefined
+      parentValue != undefined
         ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
         : null;
     const spaceValue = objectValue["5"];
     const unpackedSpace =
-      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
     const createdByValue = objectValue["16"];
     const unpackedCreatedBy =
-      createdByValue !== undefined
+      createdByValue != undefined
         ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByValue = objectValue["18"];
     const unpackedUpdatedBy =
-      updatedByValue !== undefined
+      updatedByValue != undefined
         ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
         : null;
     return new MembershipEvent({
@@ -436,6 +438,88 @@ export class MembershipEvent extends Node implements Event {
     _connection?: any | null,
   ): MembershipEvent {
     return MembershipEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): MembershipEventProto {
+    return MembershipEvent.__packProto__(this);
+  }
+
+  static __packProto__(object: MembershipEvent): MembershipEventProto {
+    const objectProto: Partial<MembershipEventProto> = { metatype: 501 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    objectProto.nodePtr = object.nodePtr.toProto();
+    objectProto.joinablePtr = object.joinablePtr.toProto();
+    objectProto.memberPtr = object.memberPtr.toProto();
+    if (object.rolePtr != null) {
+      objectProto.rolePtr = object.rolePtr.toProto();
+    }
+    objectProto.roleType = Number(object.roleType) as RoleTypeProto;
+    return objectProto as MembershipEventProto;
+  }
+
+  static __unpackProto__(
+    objectProto: MembershipEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): MembershipEvent {
+    return new MembershipEvent({
+      roleType: Number(objectProto.roleType) as RoleType,
+      id: String(objectProto.id),
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      node: NodeReference.fromProto(objectProto.nodePtr!, _session, _supergraph, _graph, _connection),
+      joinable: NodeReference.fromProto(objectProto.joinablePtr!, _session, _supergraph, _graph, _connection),
+      member: NodeReference.fromProto(objectProto.memberPtr!, _session, _supergraph, _graph, _connection),
+      role:
+        objectProto.rolePtr != undefined
+          ? NodeReference.fromProto(objectProto.rolePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: MembershipEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): MembershipEvent {
+    return MembershipEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:501 ==== */
@@ -758,32 +842,32 @@ export class Membership extends Node implements Global, Spatial, Entity, LikeMem
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 500;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr !== null) {
+    if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr !== null) {
+    if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
-    if (object.createdByPtr !== null) {
+    if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
     objectValue["17"] = object.updatedAt.toString();
-    if (object.updatedByPtr !== null) {
+    if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
-    if (object.deletedAt !== null) {
+    if (object.deletedAt != null) {
       objectValue["20"] = object.deletedAt.toString();
     }
-    if (object.ownedByPtr !== null) {
+    if (object.ownedByPtr != null) {
       objectValue["25"] = object.ownedByPtr.toValue();
     }
     objectValue["40"] = object.memberPtr.toValue();
-    if (object.rolePtr !== null) {
+    if (object.rolePtr != null) {
       objectValue["41"] = object.rolePtr.toValue();
     }
-    if (object.roleType !== null) {
+    if (object.roleType != null) {
       objectValue["42"] = object.roleType;
     }
     return objectValue;
@@ -797,33 +881,33 @@ export class Membership extends Node implements Global, Spatial, Entity, LikeMem
     _connection?: any | null,
   ): Membership {
     const roleTypeValue = objectValue["42"];
-    const unpackedRoleType = roleTypeValue !== undefined ? Number(roleTypeValue) : null;
+    const unpackedRoleType = roleTypeValue != undefined ? Number(roleTypeValue) : null;
     const deletedAtValue = objectValue["20"];
-    const unpackedDeletedAt = deletedAtValue !== undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
     const parentValue = objectValue["3"];
     const unpackedParent =
-      parentValue !== undefined
+      parentValue != undefined
         ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
         : null;
     const roleValue = objectValue["41"];
     const unpackedRole =
-      roleValue !== undefined ? NodeReference.fromValue(roleValue, _session, _supergraph, _graph, _connection) : null;
+      roleValue != undefined ? NodeReference.fromValue(roleValue, _session, _supergraph, _graph, _connection) : null;
     const spaceValue = objectValue["5"];
     const unpackedSpace =
-      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
     const createdByValue = objectValue["16"];
     const unpackedCreatedBy =
-      createdByValue !== undefined
+      createdByValue != undefined
         ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByValue = objectValue["18"];
     const unpackedUpdatedBy =
-      updatedByValue !== undefined
+      updatedByValue != undefined
         ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
         : null;
     const ownedByValue = objectValue["25"];
     const unpackedOwnedBy =
-      ownedByValue !== undefined
+      ownedByValue != undefined
         ? NodeReference.fromValue(ownedByValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Membership({
@@ -854,6 +938,99 @@ export class Membership extends Node implements Global, Spatial, Entity, LikeMem
     _connection?: any | null,
   ): Membership {
     return Membership.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): MembershipProto {
+    return Membership.__packProto__(this);
+  }
+
+  static __packProto__(object: Membership): MembershipProto {
+    const objectProto: Partial<MembershipProto> = { metatype: 500 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    if (object.deletedAt != null) {
+      objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
+    }
+    if (object.ownedByPtr != null) {
+      objectProto.ownedByPtr = object.ownedByPtr.toProto();
+    }
+    objectProto.memberPtr = object.memberPtr.toProto();
+    if (object.rolePtr != null) {
+      objectProto.rolePtr = object.rolePtr.toProto();
+    }
+    if (object.roleType != null) {
+      objectProto.roleType = Number(object.roleType) as RoleTypeProto;
+    }
+    return objectProto as MembershipProto;
+  }
+
+  static __unpackProto__(
+    objectProto: MembershipProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Membership {
+    return new Membership({
+      roleType: objectProto.roleType != undefined ? (Number(objectProto.roleType) as RoleType) : null,
+      id: String(objectProto.id),
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      member: NodeReference.fromProto(objectProto.memberPtr!, _session, _supergraph, _graph, _connection),
+      role:
+        objectProto.rolePtr != undefined
+          ? NodeReference.fromProto(objectProto.rolePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      ownedBy:
+        objectProto.ownedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.ownedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: MembershipProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Membership {
+    return Membership.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:500 ==== */

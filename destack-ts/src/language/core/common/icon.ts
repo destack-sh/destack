@@ -1,6 +1,7 @@
 import { Node, NodeReference, Session, StructFrozen, StructType, Supergraph } from "@destack/language/core";
 import { File } from "@destack/language/data";
 import { Color } from "@destack/language/style";
+import { IconProto, IconTypeProto } from "@destack/proto";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2531 ==== */
 /**
@@ -147,22 +148,22 @@ export class Icon extends StructFrozen {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 2531;
     objectValue["30"] = object.type;
-    if (object.emoji !== null) {
+    if (object.emoji != null) {
       objectValue["31"] = object.emoji;
     }
-    if (object.faName !== null) {
+    if (object.faName != null) {
       objectValue["33"] = object.faName;
     }
-    if (object.vscName !== null) {
+    if (object.vscName != null) {
       objectValue["34"] = object.vscName;
     }
-    if (object.filePtr !== null) {
+    if (object.filePtr != null) {
       objectValue["35"] = object.filePtr.toValue();
     }
-    if (object.fileUrl !== null) {
+    if (object.fileUrl != null) {
       objectValue["36"] = object.fileUrl;
     }
-    if (object.color !== null) {
+    if (object.color != null) {
       objectValue["40"] = object.color.toValue();
     }
     return objectValue;
@@ -176,19 +177,19 @@ export class Icon extends StructFrozen {
     _connection?: any | null,
   ): Icon {
     const emojiValue = objectValue["31"];
-    const unpackedEmoji = emojiValue !== undefined ? emojiValue : null;
+    const unpackedEmoji = emojiValue != undefined ? emojiValue : null;
     const faNameValue = objectValue["33"];
-    const unpackedFaName = faNameValue !== undefined ? faNameValue : null;
+    const unpackedFaName = faNameValue != undefined ? faNameValue : null;
     const vscNameValue = objectValue["34"];
-    const unpackedVscName = vscNameValue !== undefined ? vscNameValue : null;
+    const unpackedVscName = vscNameValue != undefined ? vscNameValue : null;
     const fileUrlValue = objectValue["36"];
-    const unpackedFileUrl = fileUrlValue !== undefined ? fileUrlValue : null;
+    const unpackedFileUrl = fileUrlValue != undefined ? fileUrlValue : null;
     const colorValue = objectValue["40"];
     const unpackedColor =
-      colorValue !== undefined ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection) : null;
+      colorValue != undefined ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection) : null;
     const fileValue = objectValue["35"];
     const unpackedFile =
-      fileValue !== undefined ? NodeReference.fromValue(fileValue, _session, _supergraph, _graph, _connection) : null;
+      fileValue != undefined ? NodeReference.fromValue(fileValue, _session, _supergraph, _graph, _connection) : null;
     return new Icon({
       type: Number(objectValue["30"]),
       emoji: unpackedEmoji,
@@ -210,6 +211,74 @@ export class Icon extends StructFrozen {
     _connection?: any | null,
   ): Icon {
     return Icon.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): IconProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Icon.__packProto__(this);
+    }
+    return this._proto as IconProto;
+  }
+
+  static __packProto__(object: Icon): IconProto {
+    const objectProto: Partial<IconProto> = { metatype: 2531 };
+    objectProto.type = Number(object.type) as IconTypeProto;
+    if (object.emoji != null) {
+      objectProto.emoji = object.emoji;
+    }
+    if (object.faName != null) {
+      objectProto.faName = object.faName;
+    }
+    if (object.vscName != null) {
+      objectProto.vscName = object.vscName;
+    }
+    if (object.filePtr != null) {
+      objectProto.filePtr = object.filePtr.toProto();
+    }
+    if (object.fileUrl != null) {
+      objectProto.fileUrl = object.fileUrl;
+    }
+    if (object.color != null) {
+      objectProto.color = object.color.toProto();
+    }
+    return objectProto as IconProto;
+  }
+
+  static __unpackProto__(
+    objectProto: IconProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Icon {
+    return new Icon({
+      type: Number(objectProto.type) as IconType,
+      emoji: objectProto.emoji != undefined ? objectProto.emoji : null,
+      faName: objectProto.faName != undefined ? objectProto.faName : null,
+      vscName: objectProto.vscName != undefined ? objectProto.vscName : null,
+      fileUrl: objectProto.fileUrl != undefined ? objectProto.fileUrl : null,
+      color:
+        objectProto.color != undefined
+          ? Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
+          : null,
+      file:
+        objectProto.filePtr != undefined
+          ? NodeReference.fromProto(objectProto.filePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: IconProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Icon {
+    return Icon.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:2531 ==== */

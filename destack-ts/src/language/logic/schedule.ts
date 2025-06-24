@@ -1,4 +1,6 @@
+import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Session, Struct, StructType, Supergraph } from "@destack/language/core";
+import { DayOfWeekProto, MonthProto, ScheduleFrequencyProto, ScheduleProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:3051 ==== */
@@ -263,16 +265,16 @@ export class Schedule extends Struct {
     objectValue["1"] = 3001;
     objectValue["31"] = object.frequency;
     objectValue["32"] = object.interval;
-    if (object.start !== null) {
+    if (object.start != null) {
       objectValue["33"] = object.start.toString();
     }
-    if (object.end !== null) {
+    if (object.end != null) {
       objectValue["34"] = object.end.toString();
     }
-    if (object.count !== null) {
+    if (object.count != null) {
       objectValue["35"] = object.count;
     }
-    if (object.weekStart !== null) {
+    if (object.weekStart != null) {
       objectValue["36"] = object.weekStart;
     }
     if (object.bySetPos) {
@@ -356,69 +358,69 @@ export class Schedule extends Struct {
     _connection?: any | null,
   ): Schedule {
     const startValue = objectValue["33"];
-    const unpackedStart = startValue !== undefined ? Temporal.ZonedDateTime.from(startValue) : null;
+    const unpackedStart = startValue != undefined ? Temporal.ZonedDateTime.from(startValue) : null;
     const endValue = objectValue["34"];
-    const unpackedEnd = endValue !== undefined ? Temporal.ZonedDateTime.from(endValue) : null;
+    const unpackedEnd = endValue != undefined ? Temporal.ZonedDateTime.from(endValue) : null;
     const countValue = objectValue["35"];
-    const unpackedCount = countValue !== undefined ? Number(countValue) : null;
+    const unpackedCount = countValue != undefined ? Number(countValue) : null;
     const weekStartValue = objectValue["36"];
-    const unpackedWeekStart = weekStartValue !== undefined ? Number(weekStartValue) : null;
+    const unpackedWeekStart = weekStartValue != undefined ? Number(weekStartValue) : null;
     const unpackedBySetPos: any[] = [];
-    if (objectValue["37"] !== undefined) {
+    if (objectValue["37"] != undefined) {
       for (const item of objectValue["37"]) {
         unpackedBySetPos.push(Number(item));
       }
     }
     const unpackedByMonth: any[] = [];
-    if (objectValue["38"] !== undefined) {
+    if (objectValue["38"] != undefined) {
       for (const item of objectValue["38"]) {
         unpackedByMonth.push(Number(item));
       }
     }
     const unpackedByMonthDay: any[] = [];
-    if (objectValue["39"] !== undefined) {
+    if (objectValue["39"] != undefined) {
       for (const item of objectValue["39"]) {
         unpackedByMonthDay.push(Number(item));
       }
     }
     const unpackedByYearDay: any[] = [];
-    if (objectValue["40"] !== undefined) {
+    if (objectValue["40"] != undefined) {
       for (const item of objectValue["40"]) {
         unpackedByYearDay.push(Number(item));
       }
     }
     const unpackedByEaster: any[] = [];
-    if (objectValue["41"] !== undefined) {
+    if (objectValue["41"] != undefined) {
       for (const item of objectValue["41"]) {
         unpackedByEaster.push(Number(item));
       }
     }
     const unpackedByWeekNo: any[] = [];
-    if (objectValue["42"] !== undefined) {
+    if (objectValue["42"] != undefined) {
       for (const item of objectValue["42"]) {
         unpackedByWeekNo.push(Number(item));
       }
     }
     const unpackedByWeekDay: any[] = [];
-    if (objectValue["43"] !== undefined) {
+    if (objectValue["43"] != undefined) {
       for (const item of objectValue["43"]) {
         unpackedByWeekDay.push(Number(item));
       }
     }
     const unpackedByHour: any[] = [];
-    if (objectValue["44"] !== undefined) {
+    if (objectValue["44"] != undefined) {
       for (const item of objectValue["44"]) {
         unpackedByHour.push(Number(item));
       }
     }
     const unpackedByMinute: any[] = [];
-    if (objectValue["45"] !== undefined) {
+    if (objectValue["45"] != undefined) {
       for (const item of objectValue["45"]) {
         unpackedByMinute.push(Number(item));
       }
     }
     const unpackedBySecond: any[] = [];
-    if (objectValue["46"] !== undefined) {
+    if (objectValue["46"] != undefined) {
       for (const item of objectValue["46"]) {
         unpackedBySecond.push(Number(item));
       }
@@ -452,6 +454,197 @@ export class Schedule extends Struct {
     _connection?: any | null,
   ): Schedule {
     return Schedule.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): ScheduleProto {
+    return Schedule.__packProto__(this);
+  }
+
+  static __packProto__(object: Schedule): ScheduleProto {
+    const objectProto: Partial<ScheduleProto> = { metatype: 3001 };
+    objectProto.frequency = Number(object.frequency) as ScheduleFrequencyProto;
+    objectProto.interval = object.interval;
+    if (object.start != null) {
+      objectProto.start = packProtoTimestamp(object.start);
+    }
+    if (object.end != null) {
+      objectProto.end = packProtoTimestamp(object.end);
+    }
+    if (object.count != null) {
+      objectProto.count = object.count;
+    }
+    if (object.weekStart != null) {
+      objectProto.weekStart = Number(object.weekStart) as DayOfWeekProto;
+    }
+    if (object.bySetPos) {
+      const packedBySetPos: any[] = [];
+      for (const item of object.bySetPos) {
+        packedBySetPos.push(item);
+      }
+      objectProto.bySetPos = packedBySetPos;
+    }
+    if (object.byMonth) {
+      const packedByMonth: any[] = [];
+      for (const item of object.byMonth) {
+        packedByMonth.push(Number(item) as MonthProto);
+      }
+      objectProto.byMonth = packedByMonth;
+    }
+    if (object.byMonthDay) {
+      const packedByMonthDay: any[] = [];
+      for (const item of object.byMonthDay) {
+        packedByMonthDay.push(item);
+      }
+      objectProto.byMonthDay = packedByMonthDay;
+    }
+    if (object.byYearDay) {
+      const packedByYearDay: any[] = [];
+      for (const item of object.byYearDay) {
+        packedByYearDay.push(item);
+      }
+      objectProto.byYearDay = packedByYearDay;
+    }
+    if (object.byEaster) {
+      const packedByEaster: any[] = [];
+      for (const item of object.byEaster) {
+        packedByEaster.push(item);
+      }
+      objectProto.byEaster = packedByEaster;
+    }
+    if (object.byWeekNo) {
+      const packedByWeekNo: any[] = [];
+      for (const item of object.byWeekNo) {
+        packedByWeekNo.push(item);
+      }
+      objectProto.byWeekNo = packedByWeekNo;
+    }
+    if (object.byWeekDay) {
+      const packedByWeekDay: any[] = [];
+      for (const item of object.byWeekDay) {
+        packedByWeekDay.push(Number(item) as DayOfWeekProto);
+      }
+      objectProto.byWeekDay = packedByWeekDay;
+    }
+    if (object.byHour) {
+      const packedByHour: any[] = [];
+      for (const item of object.byHour) {
+        packedByHour.push(item);
+      }
+      objectProto.byHour = packedByHour;
+    }
+    if (object.byMinute) {
+      const packedByMinute: any[] = [];
+      for (const item of object.byMinute) {
+        packedByMinute.push(item);
+      }
+      objectProto.byMinute = packedByMinute;
+    }
+    if (object.bySecond) {
+      const packedBySecond: any[] = [];
+      for (const item of object.bySecond) {
+        packedBySecond.push(item);
+      }
+      objectProto.bySecond = packedBySecond;
+    }
+    return objectProto as ScheduleProto;
+  }
+
+  static __unpackProto__(
+    objectProto: ScheduleProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Schedule {
+    const unpackedBySetPos: any[] = [];
+    if (objectProto.bySetPos) {
+      for (const item of objectProto.bySetPos) {
+        unpackedBySetPos.push(Number(item));
+      }
+    }
+    const unpackedByMonth: any[] = [];
+    if (objectProto.byMonth) {
+      for (const item of objectProto.byMonth) {
+        unpackedByMonth.push(Number(item) as Month);
+      }
+    }
+    const unpackedByMonthDay: any[] = [];
+    if (objectProto.byMonthDay) {
+      for (const item of objectProto.byMonthDay) {
+        unpackedByMonthDay.push(Number(item));
+      }
+    }
+    const unpackedByYearDay: any[] = [];
+    if (objectProto.byYearDay) {
+      for (const item of objectProto.byYearDay) {
+        unpackedByYearDay.push(Number(item));
+      }
+    }
+    const unpackedByEaster: any[] = [];
+    if (objectProto.byEaster) {
+      for (const item of objectProto.byEaster) {
+        unpackedByEaster.push(Number(item));
+      }
+    }
+    const unpackedByWeekNo: any[] = [];
+    if (objectProto.byWeekNo) {
+      for (const item of objectProto.byWeekNo) {
+        unpackedByWeekNo.push(Number(item));
+      }
+    }
+    const unpackedByWeekDay: any[] = [];
+    if (objectProto.byWeekDay) {
+      for (const item of objectProto.byWeekDay) {
+        unpackedByWeekDay.push(Number(item) as DayOfWeek);
+      }
+    }
+    const unpackedByHour: any[] = [];
+    if (objectProto.byHour) {
+      for (const item of objectProto.byHour) {
+        unpackedByHour.push(Number(item));
+      }
+    }
+    const unpackedByMinute: any[] = [];
+    if (objectProto.byMinute) {
+      for (const item of objectProto.byMinute) {
+        unpackedByMinute.push(Number(item));
+      }
+    }
+    const unpackedBySecond: any[] = [];
+    if (objectProto.bySecond) {
+      for (const item of objectProto.bySecond) {
+        unpackedBySecond.push(Number(item));
+      }
+    }
+    return new Schedule({
+      frequency: Number(objectProto.frequency) as ScheduleFrequency,
+      interval: Number(objectProto.interval),
+      start: objectProto.start != undefined ? unpackProtoTimestamp(objectProto.start!) : null,
+      end: objectProto.end != undefined ? unpackProtoTimestamp(objectProto.end!) : null,
+      count: objectProto.count != undefined ? Number(objectProto.count) : null,
+      weekStart: objectProto.weekStart != undefined ? (Number(objectProto.weekStart) as DayOfWeek) : null,
+      bySetPos: unpackedBySetPos,
+      byMonth: unpackedByMonth,
+      byMonthDay: unpackedByMonthDay,
+      byYearDay: unpackedByYearDay,
+      byEaster: unpackedByEaster,
+      byWeekNo: unpackedByWeekNo,
+      byWeekDay: unpackedByWeekDay,
+      byHour: unpackedByHour,
+      byMinute: unpackedByMinute,
+      bySecond: unpackedBySecond,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: ScheduleProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Schedule {
+    return Schedule.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:3001 ==== */

@@ -1,3 +1,4 @@
+import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Graph,
   IsSubject,
@@ -15,6 +16,7 @@ import {
   TraitType,
 } from "@destack/language/core";
 import { Space } from "@destack/language/space";
+import { LinkProto, LinkTypeProto, MaterializationTypeProto, ResourceStatusProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2550 ==== */
@@ -374,60 +376,60 @@ export class Link extends Node implements Spatial, Resource {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 2550;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr !== null) {
+    if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr !== null) {
+    if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
-    if (object.createdByPtr !== null) {
+    if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
     objectValue["17"] = object.updatedAt.toString();
-    if (object.updatedByPtr !== null) {
+    if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
     objectValue["30"] = object.type;
     objectValue["40"] = object.status;
-    if (object.targetStatus !== null) {
+    if (object.targetStatus != null) {
       objectValue["41"] = object.targetStatus.toString();
     }
-    if (object.url !== null) {
+    if (object.url != null) {
       objectValue["50"] = object.url;
     }
-    if (object.domain !== null) {
+    if (object.domain != null) {
       objectValue["51"] = object.domain;
     }
-    if (object.contentUrl !== null) {
+    if (object.contentUrl != null) {
       objectValue["52"] = object.contentUrl;
     }
-    if (object.thumbnailUrl !== null) {
+    if (object.thumbnailUrl != null) {
       objectValue["53"] = object.thumbnailUrl;
     }
-    if (object.faviconUrl !== null) {
+    if (object.faviconUrl != null) {
       objectValue["54"] = object.faviconUrl;
     }
-    if (object.thumbnailWidth !== null) {
+    if (object.thumbnailWidth != null) {
       objectValue["55"] = object.thumbnailWidth;
     }
-    if (object.thumbnailHeight !== null) {
+    if (object.thumbnailHeight != null) {
       objectValue["56"] = object.thumbnailHeight;
     }
-    if (object.content !== null) {
+    if (object.content != null) {
       objectValue["60"] = object.content;
     }
-    if (object.attribution !== null) {
+    if (object.attribution != null) {
       objectValue["62"] = object.attribution;
     }
-    if (object.attributionTag !== null) {
+    if (object.attributionTag != null) {
       objectValue["63"] = object.attributionTag;
     }
-    if (object.publishedAt !== null) {
+    if (object.publishedAt != null) {
       objectValue["64"] = object.publishedAt.toString();
     }
-    if (object.expiresAt !== null) {
+    if (object.expiresAt != null) {
       objectValue["65"] = object.expiresAt.toString();
     }
     if (object.imageUrls) {
@@ -448,54 +450,53 @@ export class Link extends Node implements Spatial, Resource {
     _connection?: any | null,
   ): Link {
     const urlValue = objectValue["50"];
-    const unpackedUrl = urlValue !== undefined ? urlValue : null;
+    const unpackedUrl = urlValue != undefined ? urlValue : null;
     const domainValue = objectValue["51"];
-    const unpackedDomain = domainValue !== undefined ? domainValue : null;
+    const unpackedDomain = domainValue != undefined ? domainValue : null;
     const contentUrlValue = objectValue["52"];
-    const unpackedContentUrl = contentUrlValue !== undefined ? contentUrlValue : null;
+    const unpackedContentUrl = contentUrlValue != undefined ? contentUrlValue : null;
     const thumbnailUrlValue = objectValue["53"];
-    const unpackedThumbnailUrl = thumbnailUrlValue !== undefined ? thumbnailUrlValue : null;
+    const unpackedThumbnailUrl = thumbnailUrlValue != undefined ? thumbnailUrlValue : null;
     const faviconUrlValue = objectValue["54"];
-    const unpackedFaviconUrl = faviconUrlValue !== undefined ? faviconUrlValue : null;
+    const unpackedFaviconUrl = faviconUrlValue != undefined ? faviconUrlValue : null;
     const thumbnailWidthValue = objectValue["55"];
-    const unpackedThumbnailWidth = thumbnailWidthValue !== undefined ? Number(thumbnailWidthValue) : null;
+    const unpackedThumbnailWidth = thumbnailWidthValue != undefined ? Number(thumbnailWidthValue) : null;
     const thumbnailHeightValue = objectValue["56"];
-    const unpackedThumbnailHeight = thumbnailHeightValue !== undefined ? Number(thumbnailHeightValue) : null;
+    const unpackedThumbnailHeight = thumbnailHeightValue != undefined ? Number(thumbnailHeightValue) : null;
     const contentValue = objectValue["60"];
-    const unpackedContent = contentValue !== undefined ? contentValue : null;
+    const unpackedContent = contentValue != undefined ? contentValue : null;
     const attributionValue = objectValue["62"];
-    const unpackedAttribution = attributionValue !== undefined ? attributionValue : null;
+    const unpackedAttribution = attributionValue != undefined ? attributionValue : null;
     const attributionTagValue = objectValue["63"];
-    const unpackedAttributionTag = attributionTagValue !== undefined ? attributionTagValue : null;
+    const unpackedAttributionTag = attributionTagValue != undefined ? attributionTagValue : null;
     const publishedAtValue = objectValue["64"];
-    const unpackedPublishedAt = publishedAtValue !== undefined ? Temporal.ZonedDateTime.from(publishedAtValue) : null;
+    const unpackedPublishedAt = publishedAtValue != undefined ? Temporal.ZonedDateTime.from(publishedAtValue) : null;
     const expiresAtValue = objectValue["65"];
-    const unpackedExpiresAt = expiresAtValue !== undefined ? Temporal.ZonedDateTime.from(expiresAtValue) : null;
+    const unpackedExpiresAt = expiresAtValue != undefined ? Temporal.ZonedDateTime.from(expiresAtValue) : null;
     const unpackedImageUrls: any[] = [];
-    if (objectValue["70"] !== undefined) {
+    if (objectValue["70"] != undefined) {
       for (const item of objectValue["70"]) {
         unpackedImageUrls.push(item);
       }
     }
     const targetStatusValue = objectValue["41"];
-    const unpackedTargetStatus =
-      targetStatusValue !== undefined ? Temporal.ZonedDateTime.from(targetStatusValue) : null;
+    const unpackedTargetStatus = targetStatusValue != undefined ? Temporal.ZonedDateTime.from(targetStatusValue) : null;
     const parentValue = objectValue["3"];
     const unpackedParent =
-      parentValue !== undefined
+      parentValue != undefined
         ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
         : null;
     const spaceValue = objectValue["5"];
     const unpackedSpace =
-      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
     const createdByValue = objectValue["16"];
     const unpackedCreatedBy =
-      createdByValue !== undefined
+      createdByValue != undefined
         ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByValue = objectValue["18"];
     const unpackedUpdatedBy =
-      updatedByValue !== undefined
+      updatedByValue != undefined
         ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Link({
@@ -537,6 +538,145 @@ export class Link extends Node implements Spatial, Resource {
     _connection?: any | null,
   ): Link {
     return Link.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): LinkProto {
+    return Link.__packProto__(this);
+  }
+
+  static __packProto__(object: Link): LinkProto {
+    const objectProto: Partial<LinkProto> = { metatype: 2550 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    objectProto.type = Number(object.type) as LinkTypeProto;
+    objectProto.status = Number(object.status) as ResourceStatusProto;
+    if (object.targetStatus != null) {
+      objectProto.targetStatus = packProtoTimestamp(object.targetStatus);
+    }
+    if (object.url != null) {
+      objectProto.url = object.url;
+    }
+    if (object.domain != null) {
+      objectProto.domain = object.domain;
+    }
+    if (object.contentUrl != null) {
+      objectProto.contentUrl = object.contentUrl;
+    }
+    if (object.thumbnailUrl != null) {
+      objectProto.thumbnailUrl = object.thumbnailUrl;
+    }
+    if (object.faviconUrl != null) {
+      objectProto.faviconUrl = object.faviconUrl;
+    }
+    if (object.thumbnailWidth != null) {
+      objectProto.thumbnailWidth = object.thumbnailWidth;
+    }
+    if (object.thumbnailHeight != null) {
+      objectProto.thumbnailHeight = object.thumbnailHeight;
+    }
+    if (object.content != null) {
+      objectProto.content = object.content;
+    }
+    if (object.attribution != null) {
+      objectProto.attribution = object.attribution;
+    }
+    if (object.attributionTag != null) {
+      objectProto.attributionTag = object.attributionTag;
+    }
+    if (object.publishedAt != null) {
+      objectProto.publishedAt = packProtoTimestamp(object.publishedAt);
+    }
+    if (object.expiresAt != null) {
+      objectProto.expiresAt = packProtoTimestamp(object.expiresAt);
+    }
+    if (object.imageUrls) {
+      const packedImageUrls: any[] = [];
+      for (const item of object.imageUrls) {
+        packedImageUrls.push(item);
+      }
+      objectProto.imageUrls = packedImageUrls;
+    }
+    return objectProto as LinkProto;
+  }
+
+  static __unpackProto__(
+    objectProto: LinkProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Link {
+    const unpackedImageUrls: any[] = [];
+    if (objectProto.imageUrls) {
+      for (const item of objectProto.imageUrls) {
+        unpackedImageUrls.push(item);
+      }
+    }
+    return new Link({
+      type: Number(objectProto.type) as LinkType,
+      url: objectProto.url != undefined ? objectProto.url : null,
+      domain: objectProto.domain != undefined ? objectProto.domain : null,
+      contentUrl: objectProto.contentUrl != undefined ? objectProto.contentUrl : null,
+      thumbnailUrl: objectProto.thumbnailUrl != undefined ? objectProto.thumbnailUrl : null,
+      faviconUrl: objectProto.faviconUrl != undefined ? objectProto.faviconUrl : null,
+      thumbnailWidth: objectProto.thumbnailWidth != undefined ? Number(objectProto.thumbnailWidth) : null,
+      thumbnailHeight: objectProto.thumbnailHeight != undefined ? Number(objectProto.thumbnailHeight) : null,
+      content: objectProto.content != undefined ? objectProto.content : null,
+      attribution: objectProto.attribution != undefined ? objectProto.attribution : null,
+      attributionTag: objectProto.attributionTag != undefined ? objectProto.attributionTag : null,
+      publishedAt: objectProto.publishedAt != undefined ? unpackProtoTimestamp(objectProto.publishedAt!) : null,
+      expiresAt: objectProto.expiresAt != undefined ? unpackProtoTimestamp(objectProto.expiresAt!) : null,
+      imageUrls: unpackedImageUrls,
+      id: String(objectProto.id),
+      status: Number(objectProto.status) as ResourceStatus,
+      targetStatus: objectProto.targetStatus != undefined ? unpackProtoTimestamp(objectProto.targetStatus!) : null,
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: LinkProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Link {
+    return Link.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:2550 ==== */

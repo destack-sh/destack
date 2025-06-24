@@ -10,6 +10,7 @@ import {
   User,
   UserStatus,
 } from "@destack/language";
+import { NodeReferenceProto, QueryProto, UserProto } from "@destack/proto";
 import { v4 as uuid4 } from "uuid";
 import { expect, test } from "vitest";
 
@@ -42,7 +43,9 @@ sessionTest("roundtrip node reference", ({ session }) => {
 
   // proto
   const nodeRefProto = nodeRef.toProto();
-  const unpackedNodeRef2 = NodeReference.fromProto(nodeRefProto);
+  const nodeRefProtoBytes = NodeReferenceProto.toBinary(nodeRefProto);
+  const unpackedNodeRefProto = NodeReferenceProto.fromBinary(nodeRefProtoBytes);
+  const unpackedNodeRef2 = NodeReference.fromProto(unpackedNodeRefProto);
   expect(unpackedNodeRef2.equals(nodeRef)).toBe(true);
 });
 
@@ -67,7 +70,9 @@ sessionTest("roundtrip query", ({ session }) => {
 
   // proto
   const queryProto = query.toProto();
-  const unpackedQuery2 = Query.fromProto(queryProto);
+  const queryProtoBytes = QueryProto.toBinary(queryProto);
+  const unpackedQueryProto = QueryProto.fromBinary(queryProtoBytes);
+  const unpackedQuery2 = Query.fromProto(unpackedQueryProto);
   expect(unpackedQuery2.equals(query)).toBe(true);
 });
 
@@ -90,6 +95,8 @@ sessionTest("roundtrip user", ({ session }) => {
 
   // proto
   const userProto = user.toProto();
-  const unpackedUser2 = User.fromProto(userProto);
+  const userProtoBytes = UserProto.toBinary(userProto);
+  const unpackedUserProto = UserProto.fromBinary(userProtoBytes);
+  const unpackedUser2 = User.fromProto(unpackedUserProto);
   expect(unpackedUser2.equals(user)).toBe(true);
 });

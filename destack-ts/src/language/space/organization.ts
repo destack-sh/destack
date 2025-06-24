@@ -1,3 +1,4 @@
+import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Entity,
   Global,
@@ -20,6 +21,7 @@ import {
   TraitType,
 } from "@destack/language/core";
 import { Handle, Space } from "@destack/language/space";
+import { MaterializationTypeProto, OrganizationProto, OrganizationStatusProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:40 ==== */
@@ -315,26 +317,26 @@ export class Organization extends Node implements Global, Entity, HasSlug, HasIc
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 40;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr !== null) {
+    if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
     objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
-    if (object.createdByPtr !== null) {
+    if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
     objectValue["17"] = object.updatedAt.toString();
-    if (object.updatedByPtr !== null) {
+    if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
     objectValue["31"] = object.name;
     objectValue["33"] = object.slug;
-    if (object.icon !== null) {
+    if (object.icon != null) {
       objectValue["34"] = object.icon.toValue();
     }
     objectValue["40"] = object.status;
     objectValue["50"] = object.spacePtr.toValue();
-    if (object.handlePtr !== null) {
+    if (object.handlePtr != null) {
       objectValue["51"] = object.handlePtr.toValue();
     }
     return objectValue;
@@ -349,25 +351,25 @@ export class Organization extends Node implements Global, Entity, HasSlug, HasIc
   ): Organization {
     const iconValue = objectValue["34"];
     const unpackedIcon =
-      iconValue !== undefined ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection) : null;
+      iconValue != undefined ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection) : null;
     const handleValue = objectValue["51"];
     const unpackedHandle =
-      handleValue !== undefined
+      handleValue != undefined
         ? NodeReference.fromValue(handleValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentValue = objectValue["3"];
     const unpackedParent =
-      parentValue !== undefined
+      parentValue != undefined
         ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByValue = objectValue["16"];
     const unpackedCreatedBy =
-      createdByValue !== undefined
+      createdByValue != undefined
         ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByValue = objectValue["18"];
     const unpackedUpdatedBy =
-      updatedByValue !== undefined
+      updatedByValue != undefined
         ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Organization({
@@ -398,6 +400,90 @@ export class Organization extends Node implements Global, Entity, HasSlug, HasIc
     _connection?: any | null,
   ): Organization {
     return Organization.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): OrganizationProto {
+    return Organization.__packProto__(this);
+  }
+
+  static __packProto__(object: Organization): OrganizationProto {
+    const objectProto: Partial<OrganizationProto> = { metatype: 40 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    objectProto.name = object.name;
+    objectProto.slug = object.slug;
+    if (object.icon != null) {
+      objectProto.icon = object.icon.toProto();
+    }
+    objectProto.status = Number(object.status) as OrganizationStatusProto;
+    objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.handlePtr != null) {
+      objectProto.handlePtr = object.handlePtr.toProto();
+    }
+    return objectProto as OrganizationProto;
+  }
+
+  static __unpackProto__(
+    objectProto: OrganizationProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Organization {
+    return new Organization({
+      slug: objectProto.slug,
+      status: Number(objectProto.status) as OrganizationStatus,
+      id: String(objectProto.id),
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      icon:
+        objectProto.icon != undefined
+          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
+      name: objectProto.name,
+      space: NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection),
+      handle:
+        objectProto.handlePtr != undefined
+          ? NodeReference.fromProto(objectProto.handlePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: OrganizationProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Organization {
+    return Organization.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:40 ==== */

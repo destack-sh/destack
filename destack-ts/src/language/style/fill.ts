@@ -1,3 +1,4 @@
+import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Graph,
   IsSubject,
@@ -17,6 +18,14 @@ import { Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Color, Gradient, Style, Theme } from "@destack/language/style";
 import { View } from "@destack/language/view";
+import {
+  FillPositionProto,
+  FillProto,
+  FillSizeProto,
+  FillStyleProto,
+  FillTypeProto,
+  MaterializationTypeProto,
+} from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12034 ==== */
@@ -204,22 +213,22 @@ export class Fill extends Struct {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 12017;
     objectValue["30"] = object.type;
-    if (object.stylePtr !== null) {
+    if (object.stylePtr != null) {
       objectValue["42"] = object.stylePtr.toValue();
     }
-    if (object.color !== null) {
+    if (object.color != null) {
       objectValue["50"] = object.color.toValue();
     }
-    if (object.gradient !== null) {
+    if (object.gradient != null) {
       objectValue["51"] = object.gradient.toValue();
     }
-    if (object.imagePtr !== null) {
+    if (object.imagePtr != null) {
       objectValue["52"] = object.imagePtr.toValue();
     }
-    if (object.position !== null) {
+    if (object.position != null) {
       objectValue["53"] = object.position;
     }
-    if (object.size !== null) {
+    if (object.size != null) {
       objectValue["54"] = object.size;
     }
     return objectValue;
@@ -234,22 +243,20 @@ export class Fill extends Struct {
   ): Fill {
     const colorValue = objectValue["50"];
     const unpackedColor =
-      colorValue !== undefined ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection) : null;
+      colorValue != undefined ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection) : null;
     const gradientValue = objectValue["51"];
     const unpackedGradient =
-      gradientValue !== undefined
-        ? Gradient.fromValue(gradientValue, _session, _supergraph, _graph, _connection)
-        : null;
+      gradientValue != undefined ? Gradient.fromValue(gradientValue, _session, _supergraph, _graph, _connection) : null;
     const positionValue = objectValue["53"];
-    const unpackedPosition = positionValue !== undefined ? Number(positionValue) : null;
+    const unpackedPosition = positionValue != undefined ? Number(positionValue) : null;
     const sizeValue = objectValue["54"];
-    const unpackedSize = sizeValue !== undefined ? Number(sizeValue) : null;
+    const unpackedSize = sizeValue != undefined ? Number(sizeValue) : null;
     const styleValue = objectValue["42"];
     const unpackedStyle =
-      styleValue !== undefined ? NodeReference.fromValue(styleValue, _session, _supergraph, _graph, _connection) : null;
+      styleValue != undefined ? NodeReference.fromValue(styleValue, _session, _supergraph, _graph, _connection) : null;
     const imageValue = objectValue["52"];
     const unpackedImage =
-      imageValue !== undefined ? NodeReference.fromValue(imageValue, _session, _supergraph, _graph, _connection) : null;
+      imageValue != undefined ? NodeReference.fromValue(imageValue, _session, _supergraph, _graph, _connection) : null;
     return new Fill({
       type: Number(objectValue["30"]),
       color: unpackedColor,
@@ -270,6 +277,75 @@ export class Fill extends Struct {
     _connection?: any | null,
   ): Fill {
     return Fill.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): FillProto {
+    return Fill.__packProto__(this);
+  }
+
+  static __packProto__(object: Fill): FillProto {
+    const objectProto: Partial<FillProto> = { metatype: 12017 };
+    objectProto.type = Number(object.type) as FillTypeProto;
+    if (object.stylePtr != null) {
+      objectProto.stylePtr = object.stylePtr.toProto();
+    }
+    if (object.color != null) {
+      objectProto.color = object.color.toProto();
+    }
+    if (object.gradient != null) {
+      objectProto.gradient = object.gradient.toProto();
+    }
+    if (object.imagePtr != null) {
+      objectProto.imagePtr = object.imagePtr.toProto();
+    }
+    if (object.position != null) {
+      objectProto.position = Number(object.position) as FillPositionProto;
+    }
+    if (object.size != null) {
+      objectProto.size = Number(object.size) as FillSizeProto;
+    }
+    return objectProto as FillProto;
+  }
+
+  static __unpackProto__(
+    objectProto: FillProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Fill {
+    return new Fill({
+      type: Number(objectProto.type) as FillType,
+      color:
+        objectProto.color != undefined
+          ? Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
+          : null,
+      gradient:
+        objectProto.gradient != undefined
+          ? Gradient.fromProto(objectProto.gradient!, _session, _supergraph, _graph, _connection)
+          : null,
+      position: objectProto.position != undefined ? (Number(objectProto.position) as FillPosition) : null,
+      size: objectProto.size != undefined ? (Number(objectProto.size) as FillSize) : null,
+      style:
+        objectProto.stylePtr != undefined
+          ? NodeReference.fromProto(objectProto.stylePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      image:
+        objectProto.imagePtr != undefined
+          ? NodeReference.fromProto(objectProto.imagePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: FillProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Fill {
+    return Fill.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:12017 ==== */
@@ -633,40 +709,40 @@ export class FillStyle extends Node implements Style {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 12021;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr !== null) {
+    if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr !== null) {
+    if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
-    if (object.createdByPtr !== null) {
+    if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
     objectValue["17"] = object.updatedAt.toString();
-    if (object.updatedByPtr !== null) {
+    if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
-    if (object.deletedAt !== null) {
+    if (object.deletedAt != null) {
       objectValue["20"] = object.deletedAt.toString();
     }
     objectValue["22"] = object.orderKey;
     objectValue["30"] = object.type;
     objectValue["31"] = object.name;
-    if (object.color !== null) {
+    if (object.color != null) {
       objectValue["50"] = object.color.toValue();
     }
-    if (object.gradient !== null) {
+    if (object.gradient != null) {
       objectValue["51"] = object.gradient.toValue();
     }
-    if (object.imagePtr !== null) {
+    if (object.imagePtr != null) {
       objectValue["52"] = object.imagePtr.toValue();
     }
-    if (object.position !== null) {
+    if (object.position != null) {
       objectValue["53"] = object.position;
     }
-    if (object.size !== null) {
+    if (object.size != null) {
       objectValue["54"] = object.size;
     }
     return objectValue;
@@ -680,40 +756,38 @@ export class FillStyle extends Node implements Style {
     _connection?: any | null,
   ): FillStyle {
     const deletedAtValue = objectValue["20"];
-    const unpackedDeletedAt = deletedAtValue !== undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
     const colorValue = objectValue["50"];
     const unpackedColor =
-      colorValue !== undefined ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection) : null;
+      colorValue != undefined ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection) : null;
     const gradientValue = objectValue["51"];
     const unpackedGradient =
-      gradientValue !== undefined
-        ? Gradient.fromValue(gradientValue, _session, _supergraph, _graph, _connection)
-        : null;
+      gradientValue != undefined ? Gradient.fromValue(gradientValue, _session, _supergraph, _graph, _connection) : null;
     const positionValue = objectValue["53"];
-    const unpackedPosition = positionValue !== undefined ? Number(positionValue) : null;
+    const unpackedPosition = positionValue != undefined ? Number(positionValue) : null;
     const sizeValue = objectValue["54"];
-    const unpackedSize = sizeValue !== undefined ? Number(sizeValue) : null;
+    const unpackedSize = sizeValue != undefined ? Number(sizeValue) : null;
     const parentValue = objectValue["3"];
     const unpackedParent =
-      parentValue !== undefined
+      parentValue != undefined
         ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
         : null;
     const spaceValue = objectValue["5"];
     const unpackedSpace =
-      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
     const createdByValue = objectValue["16"];
     const unpackedCreatedBy =
-      createdByValue !== undefined
+      createdByValue != undefined
         ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByValue = objectValue["18"];
     const unpackedUpdatedBy =
-      updatedByValue !== undefined
+      updatedByValue != undefined
         ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
         : null;
     const imageValue = objectValue["52"];
     const unpackedImage =
-      imageValue !== undefined ? NodeReference.fromValue(imageValue, _session, _supergraph, _graph, _connection) : null;
+      imageValue != undefined ? NodeReference.fromValue(imageValue, _session, _supergraph, _graph, _connection) : null;
     return new FillStyle({
       id: String(objectValue["2"]),
       materialization: Number(objectValue["7"]),
@@ -746,6 +820,114 @@ export class FillStyle extends Node implements Style {
     _connection?: any | null,
   ): FillStyle {
     return FillStyle.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): FillStyleProto {
+    return FillStyle.__packProto__(this);
+  }
+
+  static __packProto__(object: FillStyle): FillStyleProto {
+    const objectProto: Partial<FillStyleProto> = { metatype: 12021 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    if (object.deletedAt != null) {
+      objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
+    }
+    objectProto.orderKey = object.orderKey;
+    objectProto.type = Number(object.type) as FillTypeProto;
+    objectProto.name = object.name;
+    if (object.color != null) {
+      objectProto.color = object.color.toProto();
+    }
+    if (object.gradient != null) {
+      objectProto.gradient = object.gradient.toProto();
+    }
+    if (object.imagePtr != null) {
+      objectProto.imagePtr = object.imagePtr.toProto();
+    }
+    if (object.position != null) {
+      objectProto.position = Number(object.position) as FillPositionProto;
+    }
+    if (object.size != null) {
+      objectProto.size = Number(object.size) as FillSizeProto;
+    }
+    return objectProto as FillStyleProto;
+  }
+
+  static __unpackProto__(
+    objectProto: FillStyleProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): FillStyle {
+    return new FillStyle({
+      id: String(objectProto.id),
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      name: objectProto.name,
+      orderKey: objectProto.orderKey,
+      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      type: Number(objectProto.type) as FillType,
+      color:
+        objectProto.color != undefined
+          ? Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
+          : null,
+      gradient:
+        objectProto.gradient != undefined
+          ? Gradient.fromProto(objectProto.gradient!, _session, _supergraph, _graph, _connection)
+          : null,
+      position: objectProto.position != undefined ? (Number(objectProto.position) as FillPosition) : null,
+      size: objectProto.size != undefined ? (Number(objectProto.size) as FillSize) : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      image:
+        objectProto.imagePtr != undefined
+          ? NodeReference.fromProto(objectProto.imagePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: FillStyleProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): FillStyle {
+    return FillStyle.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:12021 ==== */

@@ -1,3 +1,4 @@
+import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Analytic,
   Graph,
@@ -14,6 +15,7 @@ import {
   TraitType,
 } from "@destack/language/core";
 import { Space } from "@destack/language/space";
+import { LogLevelProto, LogProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:4100 ==== */
@@ -257,24 +259,24 @@ export class Log extends Node implements Spatial, Analytic, IsFrozen {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 4100;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr !== null) {
+    if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr !== null) {
+    if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["15"] = object.createdAt.toString();
-    if (object.createdByPtr !== null) {
+    if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
     objectValue["17"] = object.updatedAt.toString();
-    if (object.updatedByPtr !== null) {
+    if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
     objectValue["40"] = object.content;
     if (object.attributes) {
       const packedAttributes: { [key: string]: any } = {};
-      for (const [key, value] of Object.entries(object.attributes)) {
+      for (const [key, value] of object.attributes) {
         packedAttributes[String(key)] = value;
       }
       objectValue["41"] = packedAttributes;
@@ -290,28 +292,28 @@ export class Log extends Node implements Spatial, Analytic, IsFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Log {
-    const unpackedAttributes: { [key: string]: any } = {};
-    if (objectValue["41"] !== undefined) {
+    const unpackedAttributes = new Map();
+    if (objectValue["41"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["41"])) {
-        unpackedAttributes[key] = value;
+        unpackedAttributes.set(key, value as any);
       }
     }
     const parentValue = objectValue["3"];
     const unpackedParent =
-      parentValue !== undefined
+      parentValue != undefined
         ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
         : null;
     const spaceValue = objectValue["5"];
     const unpackedSpace =
-      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
     const createdByValue = objectValue["16"];
     const unpackedCreatedBy =
-      createdByValue !== undefined
+      createdByValue != undefined
         ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByValue = objectValue["18"];
     const unpackedUpdatedBy =
-      updatedByValue !== undefined
+      updatedByValue != undefined
         ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Log({
@@ -339,6 +341,90 @@ export class Log extends Node implements Spatial, Analytic, IsFrozen {
     _connection?: any | null,
   ): Log {
     return Log.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): LogProto {
+    return Log.__packProto__(this);
+  }
+
+  static __packProto__(object: Log): LogProto {
+    const objectProto: Partial<LogProto> = { metatype: 4100 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    objectProto.content = object.content;
+    if (object.attributes) {
+      objectProto.attributes = {};
+      for (const [key, value] of object.attributes) {
+        objectProto.attributes![key] = value;
+      }
+    }
+    objectProto.level = Number(object.level) as LogLevelProto;
+    return objectProto as LogProto;
+  }
+
+  static __unpackProto__(
+    objectProto: LogProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Log {
+    const unpackedAttributes = new Map();
+    if (objectProto.attributes) {
+      for (const [key, value] of Object.entries(objectProto.attributes)) {
+        unpackedAttributes.set(key, value as any);
+      }
+    }
+    return new Log({
+      content: objectProto.content,
+      attributes: unpackedAttributes,
+      level: Number(objectProto.level) as LogLevel,
+      id: String(objectProto.id),
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: LogProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Log {
+    return Log.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:4100 ==== */

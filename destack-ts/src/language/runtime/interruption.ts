@@ -1,3 +1,4 @@
+import { packProtoDuration, packProtoTimestamp, unpackProtoDuration, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Analytic,
   Graph,
@@ -20,6 +21,13 @@ import {
 import { Run, Span } from "@destack/language/runtime";
 import { Message } from "@destack/language/social";
 import { Space } from "@destack/language/space";
+import {
+  InterruptionProto,
+  InterruptionResponseProto,
+  InterruptionStatusProto,
+  InterruptionTypeProto,
+} from "@destack/proto";
+import { timedeltaFromISOFormat, timedeltaToISOFormat } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:4020 ==== */
@@ -390,45 +398,45 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 4020;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr !== null) {
+    if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr !== null) {
+    if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["15"] = object.createdAt.toString();
-    if (object.createdByPtr !== null) {
+    if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
     objectValue["17"] = object.updatedAt.toString();
-    if (object.updatedByPtr !== null) {
+    if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
     if (object.value) {
       const packedValue: { [key: string]: any } = {};
-      for (const [key, value] of Object.entries(object.value)) {
+      for (const [key, value] of object.value) {
         packedValue[String(String(key))] = value.toValue();
       }
       objectValue["21"] = packedValue;
     }
     objectValue["30"] = object.type;
-    if (object.runnablePtr !== null) {
+    if (object.runnablePtr != null) {
       objectValue["32"] = object.runnablePtr.toValue();
     }
-    if (object.spanPtr !== null) {
+    if (object.spanPtr != null) {
       objectValue["37"] = object.spanPtr.toValue();
     }
     objectValue["40"] = object.status;
-    if (object.duration !== null) {
+    if (object.duration != null) {
       objectValue["41"] = timedeltaToISOFormat(object.duration);
     }
-    if (object.closedAt !== null) {
+    if (object.closedAt != null) {
       objectValue["42"] = object.closedAt.toString();
     }
-    if (object.response !== null) {
+    if (object.response != null) {
       objectValue["54"] = object.response;
     }
-    if (object.messagePtr !== null) {
+    if (object.messagePtr != null) {
       objectValue["55"] = object.messagePtr.toValue();
     }
     return objectValue;
@@ -442,46 +450,46 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
     _connection?: any | null,
   ): Interruption {
     const durationValue = objectValue["41"];
-    const unpackedDuration = durationValue !== undefined ? timedeltaFromISOFormat(durationValue) : null;
+    const unpackedDuration = durationValue != undefined ? timedeltaFromISOFormat(durationValue) : null;
     const closedAtValue = objectValue["42"];
-    const unpackedClosedAt = closedAtValue !== undefined ? Temporal.ZonedDateTime.from(closedAtValue) : null;
+    const unpackedClosedAt = closedAtValue != undefined ? Temporal.ZonedDateTime.from(closedAtValue) : null;
     const responseValue = objectValue["54"];
-    const unpackedResponse = responseValue !== undefined ? Number(responseValue) : null;
-    const unpackedValue: { [key: string]: any } = {};
-    if (objectValue["21"] !== undefined) {
+    const unpackedResponse = responseValue != undefined ? Number(responseValue) : null;
+    const unpackedValue = new Map();
+    if (objectValue["21"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["21"])) {
-        unpackedValue[String(key)] = Value.fromValue(value, _session, _supergraph, _graph, _connection);
+        unpackedValue.set(String(key), Value.fromValue(value as any, _session, _supergraph, _graph, _connection));
       }
     }
     const parentValue = objectValue["3"];
     const unpackedParent =
-      parentValue !== undefined
+      parentValue != undefined
         ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
         : null;
     const runnableValue = objectValue["32"];
     const unpackedRunnable =
-      runnableValue !== undefined
+      runnableValue != undefined
         ? NodeReference.fromValue(runnableValue, _session, _supergraph, _graph, _connection)
         : null;
     const spanValue = objectValue["37"];
     const unpackedSpan =
-      spanValue !== undefined ? NodeReference.fromValue(spanValue, _session, _supergraph, _graph, _connection) : null;
+      spanValue != undefined ? NodeReference.fromValue(spanValue, _session, _supergraph, _graph, _connection) : null;
     const messageValue = objectValue["55"];
     const unpackedMessage =
-      messageValue !== undefined
+      messageValue != undefined
         ? NodeReference.fromValue(messageValue, _session, _supergraph, _graph, _connection)
         : null;
     const spaceValue = objectValue["5"];
     const unpackedSpace =
-      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
     const createdByValue = objectValue["16"];
     const unpackedCreatedBy =
-      createdByValue !== undefined
+      createdByValue != undefined
         ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByValue = objectValue["18"];
     const unpackedUpdatedBy =
-      updatedByValue !== undefined
+      updatedByValue != undefined
         ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Interruption({
@@ -515,6 +523,123 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
     _connection?: any | null,
   ): Interruption {
     return Interruption.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): InterruptionProto {
+    return Interruption.__packProto__(this);
+  }
+
+  static __packProto__(object: Interruption): InterruptionProto {
+    const objectProto: Partial<InterruptionProto> = { metatype: 4020 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    if (object.value) {
+      objectProto.value = {};
+      for (const [key, value] of object.value) {
+        objectProto.value![String(key)] = value.toProto();
+      }
+    }
+    objectProto.type = Number(object.type) as InterruptionTypeProto;
+    if (object.runnablePtr != null) {
+      objectProto.runnablePtr = object.runnablePtr.toProto();
+    }
+    if (object.spanPtr != null) {
+      objectProto.spanPtr = object.spanPtr.toProto();
+    }
+    objectProto.status = Number(object.status) as InterruptionStatusProto;
+    if (object.duration != null) {
+      objectProto.duration = packProtoDuration(object.duration);
+    }
+    if (object.closedAt != null) {
+      objectProto.closedAt = packProtoTimestamp(object.closedAt);
+    }
+    if (object.response != null) {
+      objectProto.response = Number(object.response) as InterruptionResponseProto;
+    }
+    if (object.messagePtr != null) {
+      objectProto.messagePtr = object.messagePtr.toProto();
+    }
+    return objectProto as InterruptionProto;
+  }
+
+  static __unpackProto__(
+    objectProto: InterruptionProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Interruption {
+    const unpackedValue = new Map();
+    if (objectProto.value) {
+      for (const [key, value] of Object.entries(objectProto.value)) {
+        unpackedValue.set(String(key), Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection));
+      }
+    }
+    return new Interruption({
+      type: Number(objectProto.type) as InterruptionType,
+      status: Number(objectProto.status) as InterruptionStatus,
+      duration: objectProto.duration != undefined ? unpackProtoDuration(objectProto.duration!) : null,
+      closedAt: objectProto.closedAt != undefined ? unpackProtoTimestamp(objectProto.closedAt!) : null,
+      response: objectProto.response != undefined ? (Number(objectProto.response) as InterruptionResponse) : null,
+      id: String(objectProto.id),
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      value: unpackedValue,
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      runnable:
+        objectProto.runnablePtr != undefined
+          ? NodeReference.fromProto(objectProto.runnablePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      span:
+        objectProto.spanPtr != undefined
+          ? NodeReference.fromProto(objectProto.spanPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      message:
+        objectProto.messagePtr != undefined
+          ? NodeReference.fromProto(objectProto.messagePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: InterruptionProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Interruption {
+    return Interruption.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:4020 ==== */
