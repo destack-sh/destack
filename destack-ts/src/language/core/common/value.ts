@@ -1,3 +1,4 @@
+import { NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE } from "@destack/language/registry";
 import {
   BuiltinObject,
   Node,
