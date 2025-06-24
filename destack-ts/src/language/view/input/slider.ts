@@ -406,7 +406,103 @@ export class SliderInputView extends Node implements InputView {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (
+      (this.value == null) !== (other.value == null) ||
+      (this.value != null && !(this.value === other.value || Math.abs(this.value - other.value) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.minValue == null) !== (other.minValue == null) ||
+      (this.minValue != null && !(this.minValue === other.minValue || Math.abs(this.minValue - other.minValue) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.maxValue == null) !== (other.maxValue == null) ||
+      (this.maxValue != null && !(this.maxValue === other.maxValue || Math.abs(this.maxValue - other.maxValue) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.step == null) !== (other.step == null) ||
+      (this.step != null && !(this.step === other.step || Math.abs(this.step - other.step) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.isVisible == null) !== (other.isVisible == null) ||
+      (this.isVisible != null && !(this.isVisible === other.isVisible))
+    ) {
+      return false;
+    }
+    if (
+      (this.opacity == null) !== (other.opacity == null) ||
+      (this.opacity != null && !(this.opacity === other.opacity || Math.abs(this.opacity - other.opacity) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.position == null) !== (other.position == null) ||
+      (this.position != null && !this.position.equals(other.position))
+    ) {
+      return false;
+    }
+    if ((this.width == null) !== (other.width == null) || (this.width != null && !this.width.equals(other.width))) {
+      return false;
+    }
+    if (
+      (this.height == null) !== (other.height == null) ||
+      (this.height != null && !this.height.equals(other.height))
+    ) {
+      return false;
+    }
+    if (
+      (this.minWidth == null) !== (other.minWidth == null) ||
+      (this.minWidth != null && !this.minWidth.equals(other.minWidth))
+    ) {
+      return false;
+    }
+    if (
+      (this.minHeight == null) !== (other.minHeight == null) ||
+      (this.minHeight != null && !this.minHeight.equals(other.minHeight))
+    ) {
+      return false;
+    }
+    if (
+      (this.maxWidth == null) !== (other.maxWidth == null) ||
+      (this.maxWidth != null && !this.maxWidth.equals(other.maxWidth))
+    ) {
+      return false;
+    }
+    if (
+      (this.maxHeight == null) !== (other.maxHeight == null) ||
+      (this.maxHeight != null && !this.maxHeight.equals(other.maxHeight))
+    ) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.scriptPtr == null) !== (other.scriptPtr == null) ||
+      (this.scriptPtr != null && !(this.scriptPtr.id === other.scriptPtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

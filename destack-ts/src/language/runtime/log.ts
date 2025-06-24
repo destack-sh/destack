@@ -213,7 +213,25 @@ export class Log extends Node implements Spatial, Analytic, IsFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.content === other.content)) {
+      return false;
+    }
+    if (JSON.stringify(this.attributes) !== JSON.stringify(other.attributes)) {
+      return false;
+    }
+    if (!(this.level === other.level)) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

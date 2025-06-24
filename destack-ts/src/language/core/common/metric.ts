@@ -268,7 +268,34 @@ export class GaugeMetric extends Node implements Spatial, Metric, HasName {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.sourcePtr == null) !== (other.sourcePtr == null) ||
+      (this.sourcePtr != null && !(this.sourcePtr.id === other.sourcePtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.prototypePtr == null) !== (other.prototypePtr == null) ||
+      (this.prototypePtr != null && !(this.prototypePtr.id === other.prototypePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -671,7 +698,19 @@ export class GaugeMeasurement extends Node implements Spatial, Measurement {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.definitionPtr.id === other.definitionPtr.id)) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -1095,7 +1134,34 @@ export class CounterMetric extends Node implements Spatial, Metric, HasName {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.sourcePtr == null) !== (other.sourcePtr == null) ||
+      (this.sourcePtr != null && !(this.sourcePtr.id === other.sourcePtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.prototypePtr == null) !== (other.prototypePtr == null) ||
+      (this.prototypePtr != null && !(this.prototypePtr.id === other.prototypePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -1498,7 +1564,19 @@ export class CounterMeasurement extends Node implements Spatial, Measurement {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.definitionPtr.id === other.definitionPtr.id)) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -1922,7 +2000,34 @@ export class HistogramMetric extends Node implements Spatial, Metric, HasName {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.sourcePtr == null) !== (other.sourcePtr == null) ||
+      (this.sourcePtr != null && !(this.sourcePtr.id === other.sourcePtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.prototypePtr == null) !== (other.prototypePtr == null) ||
+      (this.prototypePtr != null && !(this.prototypePtr.id === other.prototypePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -2325,7 +2430,19 @@ export class HistogramMeasurement extends Node implements Spatial, Measurement {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.definitionPtr.id === other.definitionPtr.id)) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

@@ -60,7 +60,19 @@ export class GalaxyInfo extends Struct {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.region === other.region)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (!(this.host === other.host)) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

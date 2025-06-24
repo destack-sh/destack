@@ -170,7 +170,44 @@ export class Shadow extends Struct {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if ((this.color == null) !== (other.color == null) || (this.color != null && !this.color.equals(other.color))) {
+      return false;
+    }
+    if (!(this.position === other.position)) {
+      return false;
+    }
+    if (
+      (this.offset == null) !== (other.offset == null) ||
+      (this.offset != null && !this.offset.equals(other.offset))
+    ) {
+      return false;
+    }
+    if ((this.blur == null) !== (other.blur == null) || (this.blur != null && !(this.blur === other.blur))) {
+      return false;
+    }
+    if ((this.spread == null) !== (other.spread == null) || (this.spread != null && !(this.spread === other.spread))) {
+      return false;
+    }
+    if (
+      (this.diffusion == null) !== (other.diffusion == null) ||
+      (this.diffusion != null &&
+        !(this.diffusion === other.diffusion || Math.abs(this.diffusion - other.diffusion) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.stylePtr == null) !== (other.stylePtr == null) ||
+      (this.stylePtr != null && !(this.stylePtr.id === other.stylePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -639,7 +676,50 @@ export class ShadowStyle extends Node implements Style {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if ((this.color == null) !== (other.color == null) || (this.color != null && !this.color.equals(other.color))) {
+      return false;
+    }
+    if (!(this.position === other.position)) {
+      return false;
+    }
+    if (
+      (this.offset == null) !== (other.offset == null) ||
+      (this.offset != null && !this.offset.equals(other.offset))
+    ) {
+      return false;
+    }
+    if ((this.blur == null) !== (other.blur == null) || (this.blur != null && !(this.blur === other.blur))) {
+      return false;
+    }
+    if ((this.spread == null) !== (other.spread == null) || (this.spread != null && !(this.spread === other.spread))) {
+      return false;
+    }
+    if (
+      (this.diffusion == null) !== (other.diffusion == null) ||
+      (this.diffusion != null &&
+        !(this.diffusion === other.diffusion || Math.abs(this.diffusion - other.diffusion) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

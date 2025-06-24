@@ -514,7 +514,113 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!(this.source === other.source)) {
+      return false;
+    }
+    if (
+      (this.mimeType == null) !== (other.mimeType == null) ||
+      (this.mimeType != null && !(this.mimeType === other.mimeType))
+    ) {
+      return false;
+    }
+    if ((this.format == null) !== (other.format == null) || (this.format != null && !(this.format === other.format))) {
+      return false;
+    }
+    if ((this.size == null) !== (other.size == null) || (this.size != null && !(this.size === other.size))) {
+      return false;
+    }
+    if ((this.sha256 == null) !== (other.sha256 == null) || (this.sha256 != null && !(this.sha256 === other.sha256))) {
+      return false;
+    }
+    if ((this.width == null) !== (other.width == null) || (this.width != null && !(this.width === other.width))) {
+      return false;
+    }
+    if ((this.height == null) !== (other.height == null) || (this.height != null && !(this.height === other.height))) {
+      return false;
+    }
+    if (
+      (this.aspectRatio == null) !== (other.aspectRatio == null) ||
+      (this.aspectRatio != null &&
+        !(this.aspectRatio === other.aspectRatio || Math.abs(this.aspectRatio - other.aspectRatio) < 1e-10))
+    ) {
+      return false;
+    }
+    if ((this.codec == null) !== (other.codec == null) || (this.codec != null && !(this.codec === other.codec))) {
+      return false;
+    }
+    if (
+      (this.duration == null) !== (other.duration == null) ||
+      (this.duration != null && !(this.duration === other.duration))
+    ) {
+      return false;
+    }
+    if ((this.url == null) !== (other.url == null) || (this.url != null && !(this.url === other.url))) {
+      return false;
+    }
+    if (
+      (this.contentUrl == null) !== (other.contentUrl == null) ||
+      (this.contentUrl != null && !(this.contentUrl === other.contentUrl))
+    ) {
+      return false;
+    }
+    if (
+      (this.thumbnailUrl == null) !== (other.thumbnailUrl == null) ||
+      (this.thumbnailUrl != null && !(this.thumbnailUrl === other.thumbnailUrl))
+    ) {
+      return false;
+    }
+    if (
+      (this.faviconUrl == null) !== (other.faviconUrl == null) ||
+      (this.faviconUrl != null && !(this.faviconUrl === other.faviconUrl))
+    ) {
+      return false;
+    }
+    if (
+      (this.thumbnailWidth == null) !== (other.thumbnailWidth == null) ||
+      (this.thumbnailWidth != null && !(this.thumbnailWidth === other.thumbnailWidth))
+    ) {
+      return false;
+    }
+    if (
+      (this.thumbnailHeight == null) !== (other.thumbnailHeight == null) ||
+      (this.thumbnailHeight != null && !(this.thumbnailHeight === other.thumbnailHeight))
+    ) {
+      return false;
+    }
+    if (
+      (this.content == null) !== (other.content == null) ||
+      (this.content != null && !(this.content === other.content))
+    ) {
+      return false;
+    }
+    if (!(this.status === other.status)) {
+      return false;
+    }
+    if (
+      (this.targetStatus == null) !== (other.targetStatus == null) ||
+      (this.targetStatus != null && !(this.targetStatus === other.targetStatus))
+    ) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

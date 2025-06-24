@@ -245,7 +245,22 @@ export class NotificationEvent extends Node implements Event {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!(this.nodePtr.id === other.nodePtr.id)) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -651,7 +666,34 @@ export class Notification extends Node implements Spatial, Entity, IsOwnable {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.status === other.status)) {
+      return false;
+    }
+    if (!(this.title === other.title)) {
+      return false;
+    }
+    if ((this.text == null) !== (other.text == null) || (this.text != null && !this.text.equals(other.text))) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.ownedByPtr == null) !== (other.ownedByPtr == null) ||
+      (this.ownedByPtr != null && !(this.ownedByPtr.id === other.ownedByPtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

@@ -517,7 +517,7 @@ def _generate_equals[ObjectT: BuiltinObjectBase](
     cls: type[ObjectT],
     is_node: bool,
 ) -> tuple[str, dict[str, Any]]:
-    """Generates BuiltinObject.equals method."""
+    """Generate BuiltinObject.equals method."""
 
     eq_properties = [
         prop
@@ -533,7 +533,7 @@ def _generate_equals[ObjectT: BuiltinObjectBase](
     body_str = textwrap.indent(body_str, "    ")
 
     equals_impl = f"""\
-def equals(self, other, _identity_map: dict["UUID", "UUID"] = EMPTY_DICT) -> bool:
+def equals(self, other) -> bool:
 {body_str}
     return True
 """
@@ -606,9 +606,9 @@ def _generate_scalar_cmp_impl(prop: Property) -> str:
     elif prop.scalar_type == ScalarType.ENUM:
         return "{self_val} == {other_val}"
     elif prop.scalar_type == ScalarType.NODE_REFERENCE or prop.scalar_type == ScalarType.NODE_VALUE:
-        return "{self_val}.id == {other_val}.id or _identity_map.get({self_val}.id, {self_val}.id) == _identity_map.get({other_val}.id, {other_val}.id)"
+        return "{self_val}.id == {other_val}.id"
     elif prop.scalar_type == ScalarType.STRUCT:
-        return "{self_val}.equals({other_val}, _identity_map=_identity_map)"
+        return "{self_val}.equals({other_val})"
     else:
         assert_never(prop.scalar_type)
 

@@ -170,7 +170,16 @@ export class Length extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.unit === other.unit)) {
+      return false;
+    }
+    if (!(this.value === other.value || Math.abs(this.value - other.value) < 1e-10)) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -344,7 +353,28 @@ export class Position extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if ((this.top == null) !== (other.top == null) || (this.top != null && !this.top.equals(other.top))) {
+      return false;
+    }
+    if ((this.left == null) !== (other.left == null) || (this.left != null && !this.left.equals(other.left))) {
+      return false;
+    }
+    if ((this.width == null) !== (other.width == null) || (this.width != null && !this.width.equals(other.width))) {
+      return false;
+    }
+    if (
+      (this.height == null) !== (other.height == null) ||
+      (this.height != null && !this.height.equals(other.height))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -560,7 +590,19 @@ export class Dimension extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!(this.unit === other.unit)) {
+      return false;
+    }
+    if (!(this.value === other.value || Math.abs(this.value - other.value) < 1e-10)) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -735,7 +777,25 @@ export class Insets extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if ((this.base == null) !== (other.base == null) || (this.base != null && !(this.base === other.base))) {
+      return false;
+    }
+    if ((this.top == null) !== (other.top == null) || (this.top != null && !(this.top === other.top))) {
+      return false;
+    }
+    if ((this.left == null) !== (other.left == null) || (this.left != null && !(this.left === other.left))) {
+      return false;
+    }
+    if ((this.right == null) !== (other.right == null) || (this.right != null && !(this.right === other.right))) {
+      return false;
+    }
+    if ((this.bottom == null) !== (other.bottom == null) || (this.bottom != null && !(this.bottom === other.bottom))) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -948,7 +1008,37 @@ export class Corners extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if ((this.base == null) !== (other.base == null) || (this.base != null && !(this.base === other.base))) {
+      return false;
+    }
+    if (
+      (this.topLeft == null) !== (other.topLeft == null) ||
+      (this.topLeft != null && !(this.topLeft === other.topLeft))
+    ) {
+      return false;
+    }
+    if (
+      (this.topRight == null) !== (other.topRight == null) ||
+      (this.topRight != null && !(this.topRight === other.topRight))
+    ) {
+      return false;
+    }
+    if (
+      (this.bottomLeft == null) !== (other.bottomLeft == null) ||
+      (this.bottomLeft != null && !(this.bottomLeft === other.bottomLeft))
+    ) {
+      return false;
+    }
+    if (
+      (this.bottomRight == null) !== (other.bottomRight == null) ||
+      (this.bottomRight != null && !(this.bottomRight === other.bottomRight))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -1145,7 +1235,28 @@ export class Axis2 extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (
+      (this.base == null) !== (other.base == null) ||
+      (this.base != null && !(this.base === other.base || Math.abs(this.base - other.base) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.x == null) !== (other.x == null) ||
+      (this.x != null && !(this.x === other.x || Math.abs(this.x - other.x) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.y == null) !== (other.y == null) ||
+      (this.y != null && !(this.y === other.y || Math.abs(this.y - other.y) < 1e-10))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -1330,7 +1441,34 @@ export class Axis3 extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (
+      (this.base == null) !== (other.base == null) ||
+      (this.base != null && !(this.base === other.base || Math.abs(this.base - other.base) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.x == null) !== (other.x == null) ||
+      (this.x != null && !(this.x === other.x || Math.abs(this.x - other.x) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.y == null) !== (other.y == null) ||
+      (this.y != null && !(this.y === other.y || Math.abs(this.y - other.y) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.z == null) !== (other.z == null) ||
+      (this.z != null && !(this.z === other.z || Math.abs(this.z - other.z) < 1e-10))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -1515,7 +1653,16 @@ export class Vector2 extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.x === other.x || Math.abs(this.x - other.x) < 1e-10)) {
+      return false;
+    }
+    if (!(this.y === other.y || Math.abs(this.y - other.y) < 1e-10)) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -1679,7 +1826,19 @@ export class Vector3 extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.x === other.x || Math.abs(this.x - other.x) < 1e-10)) {
+      return false;
+    }
+    if (!(this.y === other.y || Math.abs(this.y - other.y) < 1e-10)) {
+      return false;
+    }
+    if (!(this.z === other.z || Math.abs(this.z - other.z) < 1e-10)) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -1858,7 +2017,22 @@ export class Vector4 extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.x === other.x || Math.abs(this.x - other.x) < 1e-10)) {
+      return false;
+    }
+    if (!(this.y === other.y || Math.abs(this.y - other.y) < 1e-10)) {
+      return false;
+    }
+    if (!(this.z === other.z || Math.abs(this.z - other.z) < 1e-10)) {
+      return false;
+    }
+    if (!(this.w === other.w || Math.abs(this.w - other.w) < 1e-10)) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -2019,7 +2193,16 @@ export class Vector2i extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.x === other.x)) {
+      return false;
+    }
+    if (!(this.y === other.y)) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -2183,7 +2366,19 @@ export class Vector3i extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.x === other.x)) {
+      return false;
+    }
+    if (!(this.y === other.y)) {
+      return false;
+    }
+    if (!(this.z === other.z)) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -2362,7 +2557,22 @@ export class Vector4i extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.x === other.x)) {
+      return false;
+    }
+    if (!(this.y === other.y)) {
+      return false;
+    }
+    if (!(this.z === other.z)) {
+      return false;
+    }
+    if (!(this.w === other.w)) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -2547,7 +2757,34 @@ export class Grid extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.columns === other.columns)) {
+      return false;
+    }
+    if (!(this.rows === other.rows)) {
+      return false;
+    }
+    if (
+      (this.columnWidth == null) !== (other.columnWidth == null) ||
+      (this.columnWidth != null && !this.columnWidth.equals(other.columnWidth))
+    ) {
+      return false;
+    }
+    if (
+      (this.columnMinWidth == null) !== (other.columnMinWidth == null) ||
+      (this.columnMinWidth != null && !this.columnMinWidth.equals(other.columnMinWidth))
+    ) {
+      return false;
+    }
+    if (
+      (this.rowHeight == null) !== (other.rowHeight == null) ||
+      (this.rowHeight != null && !this.rowHeight.equals(other.rowHeight))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -2748,7 +2985,16 @@ export class GridSpan extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.columns === other.columns)) {
+      return false;
+    }
+    if (!(this.rows === other.rows)) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

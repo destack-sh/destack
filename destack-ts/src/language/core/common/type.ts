@@ -131,7 +131,28 @@ export class StringConstraint extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if ((this.format == null) !== (other.format == null) || (this.format != null && !(this.format === other.format))) {
+      return false;
+    }
+    if ((this.regex == null) !== (other.regex == null) || (this.regex != null && !(this.regex === other.regex))) {
+      return false;
+    }
+    if (
+      (this.startsWith == null) !== (other.startsWith == null) ||
+      (this.startsWith != null && !(this.startsWith === other.startsWith))
+    ) {
+      return false;
+    }
+    if (
+      (this.endsWith == null) !== (other.endsWith == null) ||
+      (this.endsWith != null && !(this.endsWith === other.endsWith))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -342,7 +363,41 @@ export class NumberConstraint extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if ((this.format == null) !== (other.format == null) || (this.format != null && !(this.format === other.format))) {
+      return false;
+    }
+    if (
+      (this.minValue == null) !== (other.minValue == null) ||
+      (this.minValue != null && !(this.minValue === other.minValue || Math.abs(this.minValue - other.minValue) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.maxValue == null) !== (other.maxValue == null) ||
+      (this.maxValue != null && !(this.maxValue === other.maxValue || Math.abs(this.maxValue - other.maxValue) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.stepValue == null) !== (other.stepValue == null) ||
+      (this.stepValue != null &&
+        !(this.stepValue === other.stepValue || Math.abs(this.stepValue - other.stepValue) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.precision == null) !== (other.precision == null) ||
+      (this.precision != null && !(this.precision === other.precision))
+    ) {
+      return false;
+    }
+    if ((this.scale == null) !== (other.scale == null) || (this.scale != null && !(this.scale === other.scale))) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -541,7 +596,22 @@ export class CollectionConstraint extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (
+      (this.minLength == null) !== (other.minLength == null) ||
+      (this.minLength != null && !(this.minLength === other.minLength))
+    ) {
+      return false;
+    }
+    if (
+      (this.maxLength == null) !== (other.maxLength == null) ||
+      (this.maxLength != null && !(this.maxLength === other.maxLength))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -706,7 +776,26 @@ export class NodeConstraint extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (this.nodeTypes.length !== other.nodeTypes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.nodeTypes.length; i++) {
+      if (!(this.nodeTypes[i] === other.nodeTypes[i])) {
+        return false;
+      }
+    }
+    if (this.nodeTraits.length !== other.nodeTraits.length) {
+      return false;
+    }
+    for (let i = 0; i < this.nodeTraits.length; i++) {
+      if (!(this.nodeTraits[i] === other.nodeTraits[i])) {
+        return false;
+      }
+    }
+    return true;
   }
 
   hash(): number {
@@ -1056,7 +1145,106 @@ export class Type extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.cardinality === other.cardinality)) {
+      return false;
+    }
+    if (!(this.scalarType === other.scalarType)) {
+      return false;
+    }
+    if (
+      (this.primitiveType == null) !== (other.primitiveType == null) ||
+      (this.primitiveType != null && !(this.primitiveType === other.primitiveType))
+    ) {
+      return false;
+    }
+    if (
+      (this.enumType == null) !== (other.enumType == null) ||
+      (this.enumType != null && !(this.enumType === other.enumType))
+    ) {
+      return false;
+    }
+    if (
+      (this.nodeType == null) !== (other.nodeType == null) ||
+      (this.nodeType != null && !(this.nodeType === other.nodeType))
+    ) {
+      return false;
+    }
+    if (
+      (this.structType == null) !== (other.structType == null) ||
+      (this.structType != null && !(this.structType === other.structType))
+    ) {
+      return false;
+    }
+    if (
+      (this.keyType == null) !== (other.keyType == null) ||
+      (this.keyType != null && !this.keyType.equals(other.keyType))
+    ) {
+      return false;
+    }
+    if (
+      (this.isRequired == null) !== (other.isRequired == null) ||
+      (this.isRequired != null && !(this.isRequired === other.isRequired))
+    ) {
+      return false;
+    }
+    if (
+      (this.isVariable == null) !== (other.isVariable == null) ||
+      (this.isVariable != null && !(this.isVariable === other.isVariable))
+    ) {
+      return false;
+    }
+    if (
+      (this.defaultValue == null) !== (other.defaultValue == null) ||
+      (this.defaultValue != null && !this.defaultValue.equals(other.defaultValue))
+    ) {
+      return false;
+    }
+    if (
+      (this.defaultFactory == null) !== (other.defaultFactory == null) ||
+      (this.defaultFactory != null && !(this.defaultFactory === other.defaultFactory))
+    ) {
+      return false;
+    }
+    if (
+      (this.collectionConstraint == null) !== (other.collectionConstraint == null) ||
+      (this.collectionConstraint != null && !this.collectionConstraint.equals(other.collectionConstraint))
+    ) {
+      return false;
+    }
+    if (
+      (this.stringConstraint == null) !== (other.stringConstraint == null) ||
+      (this.stringConstraint != null && !this.stringConstraint.equals(other.stringConstraint))
+    ) {
+      return false;
+    }
+    if (
+      (this.numberConstraint == null) !== (other.numberConstraint == null) ||
+      (this.numberConstraint != null && !this.numberConstraint.equals(other.numberConstraint))
+    ) {
+      return false;
+    }
+    if (
+      (this.nodeConstraint == null) !== (other.nodeConstraint == null) ||
+      (this.nodeConstraint != null && !this.nodeConstraint.equals(other.nodeConstraint))
+    ) {
+      return false;
+    }
+    if (
+      (this.nodeDefinitionPtr == null) !== (other.nodeDefinitionPtr == null) ||
+      (this.nodeDefinitionPtr != null && !(this.nodeDefinitionPtr.id === other.nodeDefinitionPtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.baseTypePtr == null) !== (other.baseTypePtr == null) ||
+      (this.baseTypePtr != null && !(this.baseTypePtr.id === other.baseTypePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

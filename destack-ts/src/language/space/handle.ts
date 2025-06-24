@@ -174,7 +174,16 @@ export class Handle extends Node implements Global, Entity, HasSlug {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.slug === other.slug)) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

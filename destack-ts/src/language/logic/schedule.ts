@@ -245,7 +245,111 @@ export class Schedule extends Struct {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.frequency === other.frequency)) {
+      return false;
+    }
+    if (!(this.interval === other.interval)) {
+      return false;
+    }
+    if ((this.start == null) !== (other.start == null) || (this.start != null && !(this.start === other.start))) {
+      return false;
+    }
+    if ((this.end == null) !== (other.end == null) || (this.end != null && !(this.end === other.end))) {
+      return false;
+    }
+    if ((this.count == null) !== (other.count == null) || (this.count != null && !(this.count === other.count))) {
+      return false;
+    }
+    if (
+      (this.weekStart == null) !== (other.weekStart == null) ||
+      (this.weekStart != null && !(this.weekStart === other.weekStart))
+    ) {
+      return false;
+    }
+    if (this.bySetPos.length !== other.bySetPos.length) {
+      return false;
+    }
+    for (let i = 0; i < this.bySetPos.length; i++) {
+      if (!(this.bySetPos[i] === other.bySetPos[i])) {
+        return false;
+      }
+    }
+    if (this.byMonth.length !== other.byMonth.length) {
+      return false;
+    }
+    for (let i = 0; i < this.byMonth.length; i++) {
+      if (!(this.byMonth[i] === other.byMonth[i])) {
+        return false;
+      }
+    }
+    if (this.byMonthDay.length !== other.byMonthDay.length) {
+      return false;
+    }
+    for (let i = 0; i < this.byMonthDay.length; i++) {
+      if (!(this.byMonthDay[i] === other.byMonthDay[i])) {
+        return false;
+      }
+    }
+    if (this.byYearDay.length !== other.byYearDay.length) {
+      return false;
+    }
+    for (let i = 0; i < this.byYearDay.length; i++) {
+      if (!(this.byYearDay[i] === other.byYearDay[i])) {
+        return false;
+      }
+    }
+    if (this.byEaster.length !== other.byEaster.length) {
+      return false;
+    }
+    for (let i = 0; i < this.byEaster.length; i++) {
+      if (!(this.byEaster[i] === other.byEaster[i])) {
+        return false;
+      }
+    }
+    if (this.byWeekNo.length !== other.byWeekNo.length) {
+      return false;
+    }
+    for (let i = 0; i < this.byWeekNo.length; i++) {
+      if (!(this.byWeekNo[i] === other.byWeekNo[i])) {
+        return false;
+      }
+    }
+    if (this.byWeekDay.length !== other.byWeekDay.length) {
+      return false;
+    }
+    for (let i = 0; i < this.byWeekDay.length; i++) {
+      if (!(this.byWeekDay[i] === other.byWeekDay[i])) {
+        return false;
+      }
+    }
+    if (this.byHour.length !== other.byHour.length) {
+      return false;
+    }
+    for (let i = 0; i < this.byHour.length; i++) {
+      if (!(this.byHour[i] === other.byHour[i])) {
+        return false;
+      }
+    }
+    if (this.byMinute.length !== other.byMinute.length) {
+      return false;
+    }
+    for (let i = 0; i < this.byMinute.length; i++) {
+      if (!(this.byMinute[i] === other.byMinute[i])) {
+        return false;
+      }
+    }
+    if (this.bySecond.length !== other.bySecond.length) {
+      return false;
+    }
+    for (let i = 0; i < this.bySecond.length; i++) {
+      if (!(this.bySecond[i] === other.bySecond[i])) {
+        return false;
+      }
+    }
+    return true;
   }
 
   hash(): number {

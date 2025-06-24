@@ -224,7 +224,52 @@ export class Color extends Struct {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if ((this.hue == null) !== (other.hue == null) || (this.hue != null && !(this.hue === other.hue))) {
+      return false;
+    }
+    if ((this.shade == null) !== (other.shade == null) || (this.shade != null && !(this.shade === other.shade))) {
+      return false;
+    }
+    if ((this.intent == null) !== (other.intent == null) || (this.intent != null && !(this.intent === other.intent))) {
+      return false;
+    }
+    if (
+      (this.x == null) !== (other.x == null) ||
+      (this.x != null && !(this.x === other.x || Math.abs(this.x - other.x) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.y == null) !== (other.y == null) ||
+      (this.y != null && !(this.y === other.y || Math.abs(this.y - other.y) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.z == null) !== (other.z == null) ||
+      (this.z != null && !(this.z === other.z || Math.abs(this.z - other.z) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.alpha == null) !== (other.alpha == null) ||
+      (this.alpha != null && !(this.alpha === other.alpha || Math.abs(this.alpha - other.alpha) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.stylePtr == null) !== (other.stylePtr == null) ||
+      (this.stylePtr != null && !(this.stylePtr.id === other.stylePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -710,7 +755,61 @@ export class ColorStyle extends Node implements Style {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if ((this.dark == null) !== (other.dark == null) || (this.dark != null && !this.dark.equals(other.dark))) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if ((this.hue == null) !== (other.hue == null) || (this.hue != null && !(this.hue === other.hue))) {
+      return false;
+    }
+    if ((this.shade == null) !== (other.shade == null) || (this.shade != null && !(this.shade === other.shade))) {
+      return false;
+    }
+    if ((this.intent == null) !== (other.intent == null) || (this.intent != null && !(this.intent === other.intent))) {
+      return false;
+    }
+    if (
+      (this.x == null) !== (other.x == null) ||
+      (this.x != null && !(this.x === other.x || Math.abs(this.x - other.x) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.y == null) !== (other.y == null) ||
+      (this.y != null && !(this.y === other.y || Math.abs(this.y - other.y) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.z == null) !== (other.z == null) ||
+      (this.z != null && !(this.z === other.z || Math.abs(this.z - other.z) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.alpha == null) !== (other.alpha == null) ||
+      (this.alpha != null && !(this.alpha === other.alpha || Math.abs(this.alpha - other.alpha) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

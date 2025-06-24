@@ -349,7 +349,145 @@ export class PropertyDefinition extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.id === other.id)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
+      return false;
+    }
+    if (
+      (this.description == null) !== (other.description == null) ||
+      (this.description != null && !(this.description === other.description))
+    ) {
+      return false;
+    }
+    if (!(this.cardinality === other.cardinality)) {
+      return false;
+    }
+    if (!(this.scalarType === other.scalarType)) {
+      return false;
+    }
+    if (
+      (this.primitiveType == null) !== (other.primitiveType == null) ||
+      (this.primitiveType != null && !(this.primitiveType === other.primitiveType))
+    ) {
+      return false;
+    }
+    if (
+      (this.enumType == null) !== (other.enumType == null) ||
+      (this.enumType != null && !(this.enumType === other.enumType))
+    ) {
+      return false;
+    }
+    if (
+      (this.nodeType == null) !== (other.nodeType == null) ||
+      (this.nodeType != null && !(this.nodeType === other.nodeType))
+    ) {
+      return false;
+    }
+    if (
+      (this.structType == null) !== (other.structType == null) ||
+      (this.structType != null && !(this.structType === other.structType))
+    ) {
+      return false;
+    }
+    if (
+      (this.keyType == null) !== (other.keyType == null) ||
+      (this.keyType != null && !this.keyType.equals(other.keyType))
+    ) {
+      return false;
+    }
+    if (
+      (this.isRequired == null) !== (other.isRequired == null) ||
+      (this.isRequired != null && !(this.isRequired === other.isRequired))
+    ) {
+      return false;
+    }
+    if (
+      (this.isUnique == null) !== (other.isUnique == null) ||
+      (this.isUnique != null && !(this.isUnique === other.isUnique))
+    ) {
+      return false;
+    }
+    if (
+      (this.defaultValue == null) !== (other.defaultValue == null) ||
+      (this.defaultValue != null && !this.defaultValue.equals(other.defaultValue))
+    ) {
+      return false;
+    }
+    if (
+      (this.defaultFactory == null) !== (other.defaultFactory == null) ||
+      (this.defaultFactory != null && !(this.defaultFactory === other.defaultFactory))
+    ) {
+      return false;
+    }
+    if (
+      (this.collectionConstraint == null) !== (other.collectionConstraint == null) ||
+      (this.collectionConstraint != null && !this.collectionConstraint.equals(other.collectionConstraint))
+    ) {
+      return false;
+    }
+    if (
+      (this.stringConstraint == null) !== (other.stringConstraint == null) ||
+      (this.stringConstraint != null && !this.stringConstraint.equals(other.stringConstraint))
+    ) {
+      return false;
+    }
+    if (
+      (this.numberConstraint == null) !== (other.numberConstraint == null) ||
+      (this.numberConstraint != null && !this.numberConstraint.equals(other.numberConstraint))
+    ) {
+      return false;
+    }
+    if (
+      (this.nodeConstraint == null) !== (other.nodeConstraint == null) ||
+      (this.nodeConstraint != null && !this.nodeConstraint.equals(other.nodeConstraint))
+    ) {
+      return false;
+    }
+    if (!(this.nodeIsCustomizable === other.nodeIsCustomizable)) {
+      return false;
+    }
+    if (
+      (this.edgeType == null) !== (other.edgeType == null) ||
+      (this.edgeType != null && !(this.edgeType === other.edgeType))
+    ) {
+      return false;
+    }
+    if (
+      (this.cascade == null) !== (other.cascade == null) ||
+      (this.cascade != null && !(this.cascade === other.cascade))
+    ) {
+      return false;
+    }
+    if (!(this.isWired === other.isWired)) {
+      return false;
+    }
+    if (!(this.isStored === other.isStored)) {
+      return false;
+    }
+    if (!(this.isRepr === other.isRepr)) {
+      return false;
+    }
+    if (!(this.isHash === other.isHash)) {
+      return false;
+    }
+    if (!(this.isEq === other.isEq)) {
+      return false;
+    }
+    if (!(this.isManaged === other.isManaged)) {
+      return false;
+    }
+    if (!(this.isComputed === other.isComputed)) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -818,7 +956,47 @@ export class TraitDefinition extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.id === other.id)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (!(this.alias === other.alias)) {
+      return false;
+    }
+    if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
+      return false;
+    }
+    if (
+      (this.description == null) !== (other.description == null) ||
+      (this.description != null && !(this.description === other.description))
+    ) {
+      return false;
+    }
+    if (this.properties.length !== other.properties.length) {
+      return false;
+    }
+    for (let i = 0; i < this.properties.length; i++) {
+      if (!this.properties[i].equals(other.properties[i])) {
+        return false;
+      }
+    }
+    if (this.traits.length !== other.traits.length) {
+      return false;
+    }
+    for (let i = 0; i < this.traits.length; i++) {
+      if (!(this.traits[i] === other.traits[i])) {
+        return false;
+      }
+    }
+    return true;
   }
 
   hash(): number {
@@ -1160,7 +1338,82 @@ export class NodeDefinition extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.id === other.id)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
+      return false;
+    }
+    if (
+      (this.description == null) !== (other.description == null) ||
+      (this.description != null && !(this.description === other.description))
+    ) {
+      return false;
+    }
+    if (this.properties.length !== other.properties.length) {
+      return false;
+    }
+    for (let i = 0; i < this.properties.length; i++) {
+      if (!this.properties[i].equals(other.properties[i])) {
+        return false;
+      }
+    }
+    if (this.traits.length !== other.traits.length) {
+      return false;
+    }
+    for (let i = 0; i < this.traits.length; i++) {
+      if (!(this.traits[i] === other.traits[i])) {
+        return false;
+      }
+    }
+    if (
+      (this.rootType == null) !== (other.rootType == null) ||
+      (this.rootType != null && !(this.rootType === other.rootType))
+    ) {
+      return false;
+    }
+    if (this.parentTypes.length !== other.parentTypes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.parentTypes.length; i++) {
+      if (!(this.parentTypes[i] === other.parentTypes[i])) {
+        return false;
+      }
+    }
+    if (this.childTypes.length !== other.childTypes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.childTypes.length; i++) {
+      if (!(this.childTypes[i] === other.childTypes[i])) {
+        return false;
+      }
+    }
+    if (this.ancestorTypes.length !== other.ancestorTypes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.ancestorTypes.length; i++) {
+      if (!(this.ancestorTypes[i] === other.ancestorTypes[i])) {
+        return false;
+      }
+    }
+    if (this.descendantTypes.length !== other.descendantTypes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.descendantTypes.length; i++) {
+      if (!(this.descendantTypes[i] === other.descendantTypes[i])) {
+        return false;
+      }
+    }
+    return true;
   }
 
   hash(): number {
@@ -1568,7 +1821,39 @@ export class StructDefinition extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.id === other.id)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
+      return false;
+    }
+    if (
+      (this.description == null) !== (other.description == null) ||
+      (this.description != null && !(this.description === other.description))
+    ) {
+      return false;
+    }
+    if (this.properties.length !== other.properties.length) {
+      return false;
+    }
+    for (let i = 0; i < this.properties.length; i++) {
+      if (!this.properties[i].equals(other.properties[i])) {
+        return false;
+      }
+    }
+    if (!(this.isFrozen === other.isFrozen)) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -1819,7 +2104,36 @@ export class EnumDefinition extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.id === other.id)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
+      return false;
+    }
+    if (
+      (this.description == null) !== (other.description == null) ||
+      (this.description != null && !(this.description === other.description))
+    ) {
+      return false;
+    }
+    if (this.options.length !== other.options.length) {
+      return false;
+    }
+    for (let i = 0; i < this.options.length; i++) {
+      if (!this.options[i].equals(other.options[i])) {
+        return false;
+      }
+    }
+    return true;
   }
 
   hash(): number {
@@ -2055,7 +2369,28 @@ export class EnumOptionDefinition extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.id === other.id)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
+      return false;
+    }
+    if (
+      (this.description == null) !== (other.description == null) ||
+      (this.description != null && !(this.description === other.description))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -2266,7 +2601,25 @@ export class PermissionDefinition extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.id === other.id)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (!(this.nodeType === other.nodeType)) {
+      return false;
+    }
+    if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -2452,7 +2805,19 @@ export class ConstantDefinition extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (!(this.path === other.path)) {
+      return false;
+    }
+    if (!this.value.equals(other.value)) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

@@ -241,7 +241,22 @@ export class TriggerEvent extends Node implements Event {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!(this.nodePtr.id === other.nodePtr.id)) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -665,7 +680,45 @@ export class Trigger extends Node implements Spatial, Entity, HasName {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if ((this.event == null) !== (other.event == null) || (this.event != null && !this.event.equals(other.event))) {
+      return false;
+    }
+    if ((this.where == null) !== (other.where == null) || (this.where != null && !this.where.equals(other.where))) {
+      return false;
+    }
+    if (Object.keys(this.arguments).length !== Object.keys(other.arguments).length) {
+      return false;
+    }
+    for (const key in this.arguments) {
+      if (!(key in other.arguments)) {
+        return false;
+      }
+      if (!this.arguments[key].equals(other.arguments[key])) {
+        return false;
+      }
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (!(this.targetPtr.id === other.targetPtr.id)) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

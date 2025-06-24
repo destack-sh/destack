@@ -352,7 +352,69 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!(this.status === other.status)) {
+      return false;
+    }
+    if (
+      (this.duration == null) !== (other.duration == null) ||
+      (this.duration != null && !(this.duration === other.duration))
+    ) {
+      return false;
+    }
+    if (
+      (this.closedAt == null) !== (other.closedAt == null) ||
+      (this.closedAt != null && !(this.closedAt === other.closedAt))
+    ) {
+      return false;
+    }
+    if (
+      (this.response == null) !== (other.response == null) ||
+      (this.response != null && !(this.response === other.response))
+    ) {
+      return false;
+    }
+    if (Object.keys(this.value).length !== Object.keys(other.value).length) {
+      return false;
+    }
+    for (const key in this.value) {
+      if (!(key in other.value)) {
+        return false;
+      }
+      if (!this.value[key].equals(other.value[key])) {
+        return false;
+      }
+    }
+    if (
+      (this.runnablePtr == null) !== (other.runnablePtr == null) ||
+      (this.runnablePtr != null && !(this.runnablePtr.id === other.runnablePtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.spanPtr == null) !== (other.spanPtr == null) ||
+      (this.spanPtr != null && !(this.spanPtr.id === other.spanPtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.messagePtr == null) !== (other.messagePtr == null) ||
+      (this.messagePtr != null && !(this.messagePtr.id === other.messagePtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

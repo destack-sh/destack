@@ -125,7 +125,40 @@ export class Icon extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if ((this.emoji == null) !== (other.emoji == null) || (this.emoji != null && !(this.emoji === other.emoji))) {
+      return false;
+    }
+    if ((this.faName == null) !== (other.faName == null) || (this.faName != null && !(this.faName === other.faName))) {
+      return false;
+    }
+    if (
+      (this.vscName == null) !== (other.vscName == null) ||
+      (this.vscName != null && !(this.vscName === other.vscName))
+    ) {
+      return false;
+    }
+    if (
+      (this.fileUrl == null) !== (other.fileUrl == null) ||
+      (this.fileUrl != null && !(this.fileUrl === other.fileUrl))
+    ) {
+      return false;
+    }
+    if ((this.color == null) !== (other.color == null) || (this.color != null && !this.color.equals(other.color))) {
+      return false;
+    }
+    if (
+      (this.filePtr == null) !== (other.filePtr == null) ||
+      (this.filePtr != null && !(this.filePtr.id === other.filePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

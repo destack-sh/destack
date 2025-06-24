@@ -313,7 +313,34 @@ export class MembershipEvent extends Node implements Event {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.roleType === other.roleType)) {
+      return false;
+    }
+    if (!(this.nodePtr.id === other.nodePtr.id)) {
+      return false;
+    }
+    if (!(this.joinablePtr.id === other.joinablePtr.id)) {
+      return false;
+    }
+    if (!(this.memberPtr.id === other.memberPtr.id)) {
+      return false;
+    }
+    if (
+      (this.rolePtr == null) !== (other.rolePtr == null) ||
+      (this.rolePtr != null && !(this.rolePtr.id === other.rolePtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -796,7 +823,40 @@ export class Membership extends Node implements Global, Spatial, Entity, LikeMem
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (
+      (this.roleType == null) !== (other.roleType == null) ||
+      (this.roleType != null && !(this.roleType === other.roleType))
+    ) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if (!(this.memberPtr.id === other.memberPtr.id)) {
+      return false;
+    }
+    if (
+      (this.rolePtr == null) !== (other.rolePtr == null) ||
+      (this.rolePtr != null && !(this.rolePtr.id === other.rolePtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.ownedByPtr == null) !== (other.ownedByPtr == null) ||
+      (this.ownedByPtr != null && !(this.ownedByPtr.id === other.ownedByPtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
