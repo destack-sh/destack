@@ -632,7 +632,7 @@ export class Trigger extends Node implements Spatial, Entity, HasName {
     this.targetPtr = _target;
     let _arguments = options.arguments ?? null;
     if (_arguments === null) {
-      throw new Error(`Trigger.arguments is required`);
+      _arguments = new Map();
     }
     this.arguments = _arguments;
 

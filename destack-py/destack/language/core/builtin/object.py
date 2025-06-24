@@ -244,10 +244,6 @@ if _supergraph is None:
                 method_body_lines.append(f"""\
 if {prop.name} is not None:
     {ptr_prop.name} = {prop.name}.to_ref()""")
-            elif prop.cardinality == TypeCardinality.LIST:
-                method_body_lines.append(f"""\
-if {prop.name}:
-    {ptr_prop.name} = tuple(x.to_ref() for x in {prop.name})""")
             else:
                 raise RuntimeError(f"unsupported cardinality: {prop!r}")
             # (don't need to actually assign since these come before the ptr_prop in the list)

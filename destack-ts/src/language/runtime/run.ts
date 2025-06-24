@@ -702,7 +702,7 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
     this.spacePtr = _space;
     let _value = options.value ?? null;
     if (_value === null) {
-      throw new Error(`Run.value is required`);
+      _value = new Map();
     }
     this.value = _value;
     let _target = options.target ?? null;

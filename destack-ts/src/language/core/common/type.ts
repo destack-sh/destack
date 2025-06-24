@@ -685,12 +685,12 @@ export class NodeConstraint extends StructFrozen {
     // properties
     let _nodeTypes = options.nodeTypes ?? null;
     if (_nodeTypes === null) {
-      throw new Error(`NodeConstraint.nodeTypes is required`);
+      _nodeTypes = [];
     }
     this.nodeTypes = _nodeTypes;
     let _nodeTraits = options.nodeTraits ?? null;
     if (_nodeTraits === null) {
-      throw new Error(`NodeConstraint.nodeTraits is required`);
+      _nodeTraits = [];
     }
     this.nodeTraits = _nodeTraits;
 

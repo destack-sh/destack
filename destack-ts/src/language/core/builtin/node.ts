@@ -416,7 +416,7 @@ export abstract class Node extends BuiltinObject {
 }
 
 /** A Node constructor/class. */
-export type NodeClass = { new (...args: any[]): Node } & BuiltinObjectClass & {
+export type NodeClass = { new (...args: any[]): Node } & BuiltinObjectClass<any, any> & {
     metatype: NodeType;
     __traits__: TraitType[];
     __rootType__: NodeType | null;

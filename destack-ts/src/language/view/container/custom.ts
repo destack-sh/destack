@@ -476,7 +476,7 @@ export class CustomViewDefinition extends Node implements ContainerView, IsCusto
     this.deletedAt = _deletedAt;
     let _value = options.value ?? null;
     if (_value === null) {
-      throw new Error(`CustomViewDefinition.value is required`);
+      _value = new Map();
     }
     this.value = _value;
     let _orderKey = options.orderKey ?? null;
@@ -1629,7 +1629,7 @@ export class CustomView extends Node implements ContainerView, IsCustomNode {
     this.deletedAt = _deletedAt;
     let _value = options.value ?? null;
     if (_value === null) {
-      throw new Error(`CustomView.value is required`);
+      _value = new Map();
     }
     this.value = _value;
     let _orderKey = options.orderKey ?? null;

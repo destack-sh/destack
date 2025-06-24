@@ -388,7 +388,7 @@ export class LineShape extends Node implements ContentView, IsShape {
     this.opacity = _opacity;
     let _points = options.points ?? null;
     if (_points === null) {
-      throw new Error(`LineShape.points is required`);
+      _points = [];
     }
     this.points = _points;
     let _color = options.color ?? null;

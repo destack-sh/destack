@@ -797,12 +797,12 @@ export class TraitDefinition extends StructFrozen {
     this.description = _description;
     let _properties = options.properties ?? null;
     if (_properties === null) {
-      throw new Error(`TraitDefinition.properties is required`);
+      _properties = [];
     }
     this.properties = _properties;
     let _traits = options.traits ?? null;
     if (_traits === null) {
-      throw new Error(`TraitDefinition.traits is required`);
+      _traits = [];
     }
     this.traits = _traits;
 
@@ -1117,34 +1117,34 @@ export class NodeDefinition extends StructFrozen {
     this.description = _description;
     let _properties = options.properties ?? null;
     if (_properties === null) {
-      throw new Error(`NodeDefinition.properties is required`);
+      _properties = [];
     }
     this.properties = _properties;
     let _traits = options.traits ?? null;
     if (_traits === null) {
-      throw new Error(`NodeDefinition.traits is required`);
+      _traits = [];
     }
     this.traits = _traits;
     let _rootType = options.rootType ?? null;
     this.rootType = _rootType;
     let _parentTypes = options.parentTypes ?? null;
     if (_parentTypes === null) {
-      throw new Error(`NodeDefinition.parentTypes is required`);
+      _parentTypes = [];
     }
     this.parentTypes = _parentTypes;
     let _childTypes = options.childTypes ?? null;
     if (_childTypes === null) {
-      throw new Error(`NodeDefinition.childTypes is required`);
+      _childTypes = [];
     }
     this.childTypes = _childTypes;
     let _ancestorTypes = options.ancestorTypes ?? null;
     if (_ancestorTypes === null) {
-      throw new Error(`NodeDefinition.ancestorTypes is required`);
+      _ancestorTypes = [];
     }
     this.ancestorTypes = _ancestorTypes;
     let _descendantTypes = options.descendantTypes ?? null;
     if (_descendantTypes === null) {
-      throw new Error(`NodeDefinition.descendantTypes is required`);
+      _descendantTypes = [];
     }
     this.descendantTypes = _descendantTypes;
 
@@ -1547,7 +1547,7 @@ export class StructDefinition extends StructFrozen {
     this.description = _description;
     let _properties = options.properties ?? null;
     if (_properties === null) {
-      throw new Error(`StructDefinition.properties is required`);
+      _properties = [];
     }
     this.properties = _properties;
     let _isFrozen = options.isFrozen;
@@ -1803,7 +1803,7 @@ export class EnumDefinition extends StructFrozen {
     this.description = _description;
     let _options = options.options ?? null;
     if (_options === null) {
-      throw new Error(`EnumDefinition.options is required`);
+      _options = [];
     }
     this.options = _options;
 

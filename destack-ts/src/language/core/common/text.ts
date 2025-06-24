@@ -379,7 +379,7 @@ export class Text extends StructFrozen {
     // properties
     let _spans = options.spans ?? null;
     if (_spans === null) {
-      throw new Error(`Text.spans is required`);
+      _spans = [];
     }
     this.spans = _spans;
     let _isBold = options.isBold ?? null;

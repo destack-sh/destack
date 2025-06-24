@@ -175,7 +175,7 @@ export class Log extends Node implements Spatial, Analytic, IsFrozen {
     this.content = _content;
     let _attributes = options.attributes ?? null;
     if (_attributes === null) {
-      throw new Error(`Log.attributes is required`);
+      _attributes = new Map();
     }
     this.attributes = _attributes;
     let _level = options.level;

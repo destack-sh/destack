@@ -1204,7 +1204,7 @@ export class Select extends StructFrozen {
     // properties
     let _attributes = options.attributes ?? null;
     if (_attributes === null) {
-      throw new Error(`Select.attributes is required`);
+      _attributes = [];
     }
     this.attributes = _attributes;
 
@@ -1718,7 +1718,7 @@ export class Query extends StructFrozen {
     this.select = _select;
     let _subqueries = options.subqueries ?? null;
     if (_subqueries === null) {
-      throw new Error(`Query.subqueries is required`);
+      _subqueries = [];
     }
     this.subqueries = _subqueries;
     let _where = options.where ?? null;
@@ -1727,14 +1727,14 @@ export class Query extends StructFrozen {
     this.having = _having;
     let _groupBy = options.groupBy ?? null;
     if (_groupBy === null) {
-      throw new Error(`Query.groupBy is required`);
+      _groupBy = [];
     }
     this.groupBy = _groupBy;
     let _aggregation = options.aggregation ?? null;
     this.aggregation = _aggregation;
     let _sort = options.sort ?? null;
     if (_sort === null) {
-      throw new Error(`Query.sort is required`);
+      _sort = [];
     }
     this.sort = _sort;
     let _limit = options.limit ?? null;
@@ -2070,12 +2070,12 @@ export class Histogram extends StructFrozen {
     // properties
     let _buckets = options.buckets ?? null;
     if (_buckets === null) {
-      throw new Error(`Histogram.buckets is required`);
+      _buckets = [];
     }
     this.buckets = _buckets;
     let _counts = options.counts ?? null;
     if (_counts === null) {
-      throw new Error(`Histogram.counts is required`);
+      _counts = [];
     }
     this.counts = _counts;
 
@@ -2316,17 +2316,17 @@ export class QueryResult extends Struct {
     this.type = _type;
     let _groups = options.groups ?? null;
     if (_groups === null) {
-      throw new Error(`QueryResult.groups is required`);
+      _groups = [];
     }
     this.groups = _groups;
     let _subresults = options.subresults ?? null;
     if (_subresults === null) {
-      throw new Error(`QueryResult.subresults is required`);
+      _subresults = [];
     }
     this.subresults = _subresults;
     let _nodes = options.nodes ?? null;
     if (_nodes === null) {
-      throw new Error(`QueryResult.nodes is required`);
+      _nodes = [];
     }
     this.nodes = _nodes;
     let _count = options.count ?? null;
@@ -2611,7 +2611,7 @@ export class QueryResultGroup extends Struct {
     this.discriminator = _discriminator;
     let _nodes = options.nodes ?? null;
     if (_nodes === null) {
-      throw new Error(`QueryResultGroup.nodes is required`);
+      _nodes = [];
     }
     this.nodes = _nodes;
     let _count = options.count ?? null;
