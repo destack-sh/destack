@@ -2,12 +2,10 @@ import {
   Align,
   Axis2,
   Axis3,
-  Border,
   Corners,
   Dimension,
   Direction,
   Distribute,
-  Fill,
   Grid,
   GridSpan,
   Insets,
@@ -17,12 +15,12 @@ import {
   Node,
   NodeReference,
   Position,
-  Script,
-  Shadow,
-  Space,
   Value,
   Vector2,
-} from "@destack/language";
+} from "@destack/language/core";
+import { Script } from "@destack/language/logic";
+import { Space } from "@destack/language/space";
+import { Border, Fill, Shadow } from "@destack/language/style";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:TRAIT:10000 ==== */

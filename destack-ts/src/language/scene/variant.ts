@@ -1,5 +1,4 @@
 import {
-  CustomViewDefinition,
   Entity,
   Graph,
   Icon,
@@ -8,21 +7,21 @@ import {
   IsOwner,
   IsSubject,
   IsTracked,
-  Layer,
   Length,
   MaterializationType,
   Node,
   NodeReference,
   NodeType,
   QueryConnection,
-  Scene,
   Session,
-  Space,
   Spatial,
   StructType,
   Supergraph,
   TraitType,
-} from "@destack/language";
+} from "@destack/language/core";
+import { Layer, Scene } from "@destack/language/scene";
+import { Space } from "@destack/language/space";
+import { CustomViewDefinition } from "@destack/language/view";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:9030 ==== */

@@ -1,4 +1,4 @@
-import { Session, StructFrozen, StructType, Supergraph, Type } from "@destack/language";
+import { Session, StructFrozen, StructType, Supergraph, Type } from "@destack/language/core";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2500 ==== */
 export class Value extends StructFrozen {

@@ -1,5 +1,5 @@
+import { Canvas } from "@destack/language/canvas";
 import {
-  Canvas,
   Entity,
   Graph,
   Icon,
@@ -14,15 +14,15 @@ import {
   NodeReference,
   NodeType,
   QueryConnection,
-  Scene,
   Session,
-  Space,
   Spatial,
   StructType,
   Supergraph,
-  Theme,
   TraitType,
-} from "@destack/language";
+} from "@destack/language/core";
+import { Scene } from "@destack/language/scene";
+import { Space } from "@destack/language/space";
+import { Theme } from "@destack/language/style";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:12010 ==== */

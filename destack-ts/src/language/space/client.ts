@@ -1,13 +1,11 @@
 import {
   ClientType,
-  Cursor,
   Entity,
   Global,
   Graph,
   IsDeletable,
   IsSubject,
   IsTracked,
-  Machine,
   MaterializationType,
   Node,
   NodeReference,
@@ -18,8 +16,10 @@ import {
   StructType,
   Supergraph,
   TraitType,
-  User,
-} from "@destack/language";
+} from "@destack/language/core";
+import { Machine } from "@destack/language/infra";
+import { Cursor } from "@destack/language/logic";
+import { User } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50001 ==== */

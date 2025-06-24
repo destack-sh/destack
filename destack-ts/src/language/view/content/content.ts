@@ -6,9 +6,9 @@ import {
   Node,
   NodeReference,
   Position,
-  Script,
-  Space,
-} from "@destack/language";
+} from "@destack/language/core";
+import { Script } from "@destack/language/logic";
+import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:TRAIT:10200 ==== */

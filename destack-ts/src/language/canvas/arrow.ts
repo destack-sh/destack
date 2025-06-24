@@ -1,37 +1,33 @@
+import { IsShape } from "@destack/language/canvas";
 import {
   Align,
-  ContainerView,
-  ContentView,
   Dimension,
   Entity,
   Graph,
   IsDeletable,
   IsOrdered,
   IsScriptable,
-  IsShape,
   IsSubject,
   IsTaggable,
   IsTracked,
   IsVisual,
-  Layer,
   MaterializationType,
   Node,
   NodeReference,
   NodeType,
   Position,
   QueryConnection,
-  Scene,
-  Script,
   Session,
-  Space,
   Spatial,
   StructType,
   Supergraph,
   TraitType,
   Vector2,
-  View,
-  Window,
-} from "@destack/language";
+} from "@destack/language/core";
+import { Script } from "@destack/language/logic";
+import { Layer, Scene, Window } from "@destack/language/scene";
+import { Space } from "@destack/language/space";
+import { ContainerView, ContentView, View } from "@destack/language/view";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:11012 ==== */

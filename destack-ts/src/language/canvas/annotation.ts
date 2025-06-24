@@ -1,15 +1,13 @@
+import { IsShape } from "@destack/language/canvas";
 import {
   Align,
   Axis2,
   Axis3,
-  Border,
-  ContainerView,
   Corners,
   Dimension,
   Direction,
   Distribute,
   Entity,
-  Fill,
   Graph,
   Grid,
   GridSpan,
@@ -18,12 +16,10 @@ import {
   IsExtensible,
   IsOrdered,
   IsScriptable,
-  IsShape,
   IsSubject,
   IsTaggable,
   IsTracked,
   IsVisual,
-  Layer,
   Layout,
   MaterializationType,
   Node,
@@ -31,11 +27,7 @@ import {
   NodeType,
   Position,
   QueryConnection,
-  Scene,
-  Script,
   Session,
-  Shadow,
-  Space,
   Spatial,
   StructType,
   Supergraph,
@@ -43,9 +35,12 @@ import {
   TraitType,
   Value,
   Vector2,
-  View,
-  Window,
-} from "@destack/language";
+} from "@destack/language/core";
+import { Script } from "@destack/language/logic";
+import { Layer, Scene, Window } from "@destack/language/scene";
+import { Space } from "@destack/language/space";
+import { Border, Fill, Shadow } from "@destack/language/style";
+import { ContainerView, View } from "@destack/language/view";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:11013 ==== */

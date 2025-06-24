@@ -1,8 +1,5 @@
 import {
-  Color,
   Entity,
-  File,
-  Gradient,
   Graph,
   IsDeletable,
   IsOrdered,
@@ -15,18 +12,18 @@ import {
   NodeReference,
   NodeType,
   QueryConnection,
-  Scene,
   Session,
-  Space,
   Spatial,
   Struct,
   StructType,
-  Style,
   Supergraph,
-  Theme,
   TraitType,
-  View,
-} from "@destack/language";
+} from "@destack/language/core";
+import { File } from "@destack/language/data";
+import { Scene } from "@destack/language/scene";
+import { Space } from "@destack/language/space";
+import { Color, Gradient, Style, Theme } from "@destack/language/style";
+import { View } from "@destack/language/view";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12034 ==== */

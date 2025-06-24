@@ -1,6 +1,5 @@
 import {
   Entity,
-  Folder,
   Graph,
   IsDeletable,
   IsExtensible,
@@ -15,13 +14,14 @@ import {
   NodeType,
   QueryConnection,
   Session,
-  Space,
   Spatial,
   StructType,
   Supergraph,
   TraitType,
   Value,
-} from "@destack/language";
+} from "@destack/language/core";
+import { Folder } from "@destack/language/folder";
+import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:3000 ==== */

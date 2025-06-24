@@ -2,7 +2,6 @@ import {
   Entity,
   Global,
   Graph,
-  Handle,
   Icon,
   IsJoinable,
   IsOwner,
@@ -14,11 +13,11 @@ import {
   NodeType,
   QueryConnection,
   Session,
-  Space,
   StructType,
   Supergraph,
   TraitType,
-} from "@destack/language";
+} from "@destack/language/core";
+import { Handle, Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:40 ==== */

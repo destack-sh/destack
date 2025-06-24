@@ -14,14 +14,14 @@ import {
   NodeType,
   QueryConnection,
   Session,
-  Space,
   Spatial,
   StructType,
   Supergraph,
   Text,
-  Thread,
   TraitType,
-} from "@destack/language";
+} from "@destack/language/core";
+import { Thread } from "@destack/language/social";
+import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:5510 ==== */

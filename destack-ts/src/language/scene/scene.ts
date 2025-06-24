@@ -3,16 +3,12 @@ import {
   Analytic,
   Axis2,
   Axis3,
-  Border,
-  ContainerView,
   Corners,
   Dimension,
   Direction,
   Distribute,
   Entity,
   Event,
-  Fill,
-  Folder,
   Graph,
   Grid,
   GridSpan,
@@ -38,19 +34,20 @@ import {
   Particle,
   Position,
   QueryConnection,
-  Script,
   Session,
-  Shadow,
-  Space,
   Spatial,
   StructType,
   Supergraph,
   TraitType,
   Value,
   Vector2,
-  View,
-  Window,
-} from "@destack/language";
+} from "@destack/language/core";
+import { Folder } from "@destack/language/folder";
+import { Script } from "@destack/language/logic";
+import { Window } from "@destack/language/scene";
+import { Space } from "@destack/language/space";
+import { Border, Fill, Shadow } from "@destack/language/style";
+import { ContainerView, View } from "@destack/language/view";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:9011 ==== */

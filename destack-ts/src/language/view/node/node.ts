@@ -1,13 +1,6 @@
-import {
-  Dimension,
-  IsSubject,
-  MaterializationType,
-  Node,
-  NodeReference,
-  Position,
-  Script,
-  Space,
-} from "@destack/language";
+import { Dimension, IsSubject, MaterializationType, Node, NodeReference, Position } from "@destack/language/core";
+import { Script } from "@destack/language/logic";
+import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:TRAIT:10600 ==== */

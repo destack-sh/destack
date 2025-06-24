@@ -1,10 +1,7 @@
 import {
-  Database,
   Entity,
-  Folder,
   Global,
   Graph,
-  Handle,
   Icon,
   IsFollowable,
   IsJoinable,
@@ -24,7 +21,10 @@ import {
   StructType,
   Supergraph,
   TraitType,
-} from "@destack/language";
+} from "@destack/language/core";
+import { Folder } from "@destack/language/folder";
+import { Database } from "@destack/language/infra";
+import { Handle } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:1 ==== */

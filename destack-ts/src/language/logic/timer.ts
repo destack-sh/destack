@@ -13,14 +13,14 @@ import {
   NodeType,
   Particle,
   QueryConnection,
-  Schedule,
   Session,
-  Space,
   Spatial,
   StructType,
   Supergraph,
   TraitType,
-} from "@destack/language";
+} from "@destack/language/core";
+import { Schedule } from "@destack/language/logic";
+import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:3054 ==== */

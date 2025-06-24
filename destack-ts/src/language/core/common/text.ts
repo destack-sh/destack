@@ -1,4 +1,4 @@
-import { Node, NodeReference, Session, StructFrozen, StructType, Supergraph } from "@destack/language";
+import { Node, NodeReference, Session, StructFrozen, StructType, Supergraph } from "@destack/language/core";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2521 ==== */
 export enum TextSpanType {

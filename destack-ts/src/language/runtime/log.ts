@@ -9,12 +9,12 @@ import {
   NodeType,
   QueryConnection,
   Session,
-  Space,
   Spatial,
   StructType,
   Supergraph,
   TraitType,
-} from "@destack/language";
+} from "@destack/language/core";
+import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:4100 ==== */

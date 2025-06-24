@@ -17,13 +17,12 @@ import {
   Particle,
   QueryConnection,
   Session,
-  Space,
   Spatial,
   StructType,
   Supergraph,
   TraitType,
-  User,
-} from "@destack/language";
+} from "@destack/language/core";
+import { Space, User } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:31 ==== */

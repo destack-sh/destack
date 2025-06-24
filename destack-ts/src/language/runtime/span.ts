@@ -8,14 +8,14 @@ import {
   NodeReference,
   NodeType,
   QueryConnection,
-  Run,
   Session,
-  Space,
   Spatial,
   StructType,
   Supergraph,
   TraitType,
-} from "@destack/language";
+} from "@destack/language/core";
+import { Run } from "@destack/language/runtime";
+import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:4010 ==== */
