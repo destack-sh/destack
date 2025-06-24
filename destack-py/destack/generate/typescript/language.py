@@ -745,6 +745,7 @@ def _generate_enum(definition: EnumDefinition) -> str:
 export enum {definition.name} {{
 {textwrap.indent("\n".join(enum_parts), "  ")}
 }}
+registerEnumClass(EnumType.{definition.type.name}, {definition.name});
 """
     return enum_str.strip()
 
@@ -791,7 +792,9 @@ def _generate_struct(definition: StructDefinition) -> str:
 {_generate_multiline_doc(definition.description or definition.name)}
 export class {definition.name} extends {"StructFrozen" if definition.is_frozen else "Struct"} {{
 {textwrap.indent("\n\n".join(struct_parts), "  ")}
-}}"""
+}}
+registerStructClass(StructType.{definition.type.name}, {definition.name});
+"""
     return struct_str.strip()
 
 
@@ -834,7 +837,8 @@ def _generate_trait(definition: TraitDefinition) -> str:
 {_generate_multiline_doc(definition.description or definition.name)}
 export interface {definition.alias}{extends_str} {{
 {textwrap.indent("\n".join(trait_parts), "  ")}
-}}"""
+}}
+"""
     return trait_str.strip()
 
 
@@ -908,6 +912,7 @@ def _generate_node(definition: NodeDefinition) -> str:
 export class {definition.name} extends Node{implements_str} {{
 {textwrap.indent("\n\n".join(node_parts), "  ")}
 }}
+registerNodeClass(NodeType.{definition.type.name}, {definition.name});
 """
     return node_str.strip()
 
@@ -1188,6 +1193,11 @@ def _generate_file(
         "ACTIVE_SESSION",
         "activeSession",
     }
+    language_imports_by_module["registry"] = {
+        "registerNodeClass",
+        "registerStructClass",
+        "registerEnumClass",
+    }
     seen_language_imports: set[str] = {*language_imports_by_module["core"]}
     # add any new language imports
     for definition in file.definitions.values():
@@ -1252,30 +1262,16 @@ def _generate_file(
 def _generate_registry(definitions_by_name: dict[str, TypescriptDefinition]) -> tuple[str, str]:
     """Generate the registry and mapping files."""
 
-    registry_str_parts: list[str] = []
+    # mappings
     mapping_str_parts: list[str] = []
 
     # group imports by submodule
-    registry_import_parts: list[str] = []
     mapping_import_parts: list[str] = []
     imports_by_module: dict[str, set[str]] = defaultdict(set)
     imports_by_module["core"].add("Node")
     imports_by_module["core"].add("Struct")
     for definition in definitions_by_name.values():
         imports_by_module[definition.submodule].add(definition.cls.__name__)
-
-    # registry imports - add core imports as regular imports
-    registry_import_parts.append(
-        f"import {{ {', '.join(sorted(imports_by_module['core']))} }} from '@destack/language/core';"
-    )
-    # add other submodule imports as regular imports for registry
-    for module, imports in imports_by_module.items():
-        if module == "core" or not imports:
-            continue
-        import_path = f"@destack/language/{module}" if module else "@destack/language"
-        registry_import_parts.append(
-            f"import {{ {', '.join(sorted(imports))} }} from '{import_path}';"
-        )
 
     # mapping imports - add all as type imports
     for module, imports in imports_by_module.items():
@@ -1286,70 +1282,83 @@ def _generate_registry(definitions_by_name: dict[str, TypescriptDefinition]) -> 
             f"import type {{ {', '.join(sorted(imports))} }} from '{import_path}';"
         )
 
-    registry_str_parts.append("\n".join(registry_import_parts))
     mapping_str_parts.append("\n".join(mapping_import_parts))
 
-    # node maps
+    # mapping types
     node_map_str_parts: list[str] = ["export type NodeTypeMapping = {"]
-    node_cls_by_type_str_parts: list[str] = ["export const NODE_CLASS_BY_TYPE = {"]
     for node_type, node_cls in NODE_CLASS_BY_TYPE.items():
         node_map_str_parts.append(f"  [NodeType.{node_type.name}]: {node_cls.__name__};")
-        node_cls_by_type_str_parts.append(f"  [NodeType.{node_type.name}]: {node_cls.__name__},")
     node_map_str_parts.append("};")
-    node_cls_by_type_str_parts.append("};")
     node_map_str = "\n".join(node_map_str_parts)
-    node_cls_by_type_str = "\n".join(node_cls_by_type_str_parts)
     mapping_str_parts.append(node_map_str)
-    registry_str_parts.append(node_cls_by_type_str)
 
-    # trait maps
     trait_map_str_parts: list[str] = ["export type TraitTypeMapping = {"]
+    for trait_type, trait_cls in TRAIT_CLASS_BY_TYPE.items():
+        trait_map_str_parts.append(f"  [TraitType.{trait_type.name}]: {trait_cls.__name__};")
+    trait_map_str_parts.append("};")
+    trait_map_str = "\n".join(trait_map_str_parts)
+    mapping_str_parts.append(trait_map_str)
+
+    struct_map_str_parts: list[str] = ["export type StructTypeMapping = {"]
+    for struct_type, struct_cls in STRUCT_CLASS_BY_TYPE.items():
+        struct_map_str_parts.append(f"  [StructType.{struct_type.name}]: {struct_cls.__name__};")
+    struct_map_str_parts.append("};")
+    struct_map_str = "\n".join(struct_map_str_parts)
+    mapping_str_parts.append(struct_map_str)
+
+    enum_map_str_parts: list[str] = ["export type EnumTypeMapping = {"]
+    for enum_type, enum_cls in ENUM_CLASS_BY_TYPE.items():
+        enum_map_str_parts.append(f"  [EnumType.{enum_type.name}]: {enum_cls.__name__};")
+    enum_map_str_parts.append("};")
+    enum_map_str = "\n".join(enum_map_str_parts)
+    mapping_str_parts.append(enum_map_str)
+
+    mapping_str = "\n\n".join(mapping_str_parts)
+
+    # registry
+    registry_str_parts: list[str] = [
+        """
+import { NodeClass, NodeType, EnumType, EnumClass, StructClass, StructType, TraitType } from '@destack/language/core/builtin';
+
+export const NODE_CLASS_BY_TYPE: Record<NodeType, NodeClass> = {} as any;
+export function registerNodeClass(nodeType: NodeType, nodeClass: NodeClass): void {
+  if (NODE_CLASS_BY_TYPE[nodeType]) {
+    throw new Error(`duplicate node class for ${nodeType}`);
+  }
+  NODE_CLASS_BY_TYPE[nodeType] = nodeClass;
+}
+
+export const STRUCT_CLASS_BY_TYPE: Record<StructType, StructClass> = {} as any;
+export function registerStructClass(structType: StructType, structClass: StructClass): void {
+  if (STRUCT_CLASS_BY_TYPE[structType]) {
+    throw new Error(`duplicate struct class for ${structType}`);
+  }
+  STRUCT_CLASS_BY_TYPE[structType] = structClass;
+}
+
+export const ENUM_CLASS_BY_TYPE: Record<EnumType, EnumClass> = {} as any;
+export function registerEnumClass(enumType: EnumType, enumClass: EnumClass): void {
+  if (ENUM_CLASS_BY_TYPE[enumType]) {
+    throw new Error(`duplicate enum class for ${enumType}`);
+  }
+  ENUM_CLASS_BY_TYPE[enumType] = enumClass;
+}"""
+    ]
+
     node_type_by_trait_str_parts: list[str] = [
         "export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {"
     ]
-    for trait_type, trait_cls in TRAIT_CLASS_BY_TYPE.items():
-        trait_map_str_parts.append(f"  [TraitType.{trait_type.name}]: {trait_cls.__name__};")
+    for trait_type, _ in TRAIT_CLASS_BY_TYPE.items():
         node_types = NODE_TYPES_BY_TRAIT_TYPE.get(trait_type, ())
         node_type_by_trait_str_parts.append(
             f"  [TraitType.{trait_type.name}]: [{', '.join(f'NodeType.{node_type.name}' for node_type in node_types)}],"
         )
     node_type_by_trait_str_parts.append("};")
-    trait_map_str_parts.append("};")
-    trait_map_str = "\n".join(trait_map_str_parts)
     node_type_by_trait_str = "\n".join(node_type_by_trait_str_parts)
-    mapping_str_parts.append(trait_map_str)
     registry_str_parts.append(node_type_by_trait_str)
 
-    # struct maps
-    struct_map_str_parts: list[str] = ["export type StructTypeMapping = {"]
-    struct_cls_by_type_str_parts: list[str] = ["export const STRUCT_CLASS_BY_TYPE = {"]
-    for struct_type, struct_cls in STRUCT_CLASS_BY_TYPE.items():
-        struct_map_str_parts.append(f"  [StructType.{struct_type.name}]: {struct_cls.__name__};")
-        struct_cls_by_type_str_parts.append(
-            f"  [StructType.{struct_type.name}]: {struct_cls.__name__},"
-        )
-    struct_map_str_parts.append("};")
-    struct_cls_by_type_str_parts.append("};")
-    struct_map_str = "\n".join(struct_map_str_parts)
-    struct_cls_by_type_str = "\n".join(struct_cls_by_type_str_parts)
-    mapping_str_parts.append(struct_map_str)
-    registry_str_parts.append(struct_cls_by_type_str)
-
-    # enum maps
-    enum_map_str_parts: list[str] = ["export type EnumTypeMapping = {"]
-    enum_cls_by_type_str_parts: list[str] = ["export const ENUM_CLASS_BY_TYPE = {"]
-    for enum_type, enum_cls in ENUM_CLASS_BY_TYPE.items():
-        enum_map_str_parts.append(f"  [EnumType.{enum_type.name}]: {enum_cls.__name__};")
-        enum_cls_by_type_str_parts.append(f"  [EnumType.{enum_type.name}]: {enum_cls.__name__},")
-    enum_map_str_parts.append("};")
-    enum_cls_by_type_str_parts.append("};")
-    enum_map_str = "\n".join(enum_map_str_parts)
-    enum_cls_by_type_str = "\n".join(enum_cls_by_type_str_parts)
-    mapping_str_parts.append(enum_map_str)
-    registry_str_parts.append(enum_cls_by_type_str)
-
     registry_str = "\n\n".join(registry_str_parts)
-    mapping_str = "\n\n".join(mapping_str_parts)
+
     return registry_str, mapping_str
 
 
