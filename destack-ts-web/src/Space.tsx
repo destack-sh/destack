@@ -1,4 +1,7 @@
-import { Canvas, Layer, NodeType } from "destack";
+import { ACTIVE_SESSION, Canvas, NodeType, Session } from "destack";
+
+const session = new Session({});
+ACTIVE_SESSION.set(session);
 
 const canvas = new Canvas({
   name: "My Canvas",

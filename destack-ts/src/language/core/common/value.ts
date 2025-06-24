@@ -1,10 +1,10 @@
-import { NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE, toType } from "@destack/language";
 import {
   BuiltinObject,
   Node,
   NodeReference,
   NodeType,
   PrimitiveType,
+  toType,
   ScalarType,
   Session,
   StructFrozen,
