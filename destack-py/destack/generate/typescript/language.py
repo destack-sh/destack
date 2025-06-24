@@ -44,7 +44,15 @@ from destack.language.registry import (
 )
 from destack.utils.string import Casing, to_casing
 
-from .const import GENERATION_PATH, MARKER_CUSTOM_START, MARKER_END, MARKER_START, Definition, Kind
+from .const import (
+    GENERATION_PATH,
+    MARKER_CUSTOM_END,
+    MARKER_CUSTOM_START,
+    MARKER_END,
+    MARKER_START,
+    Definition,
+    Kind,
+)
 from .core import (
     TypescriptCodeBlock,
     TypescriptDefinition,
@@ -744,6 +752,12 @@ def _generate_enum(definition: EnumDefinition) -> str:
 {_generate_multiline_doc(definition.description or definition.name)}
 export enum {definition.name} {{
 {textwrap.indent("\n".join(enum_parts), "  ")}
+
+  {MARKER_CUSTOM_START}
+
+  // ...
+
+  {MARKER_CUSTOM_END}
 }}
 registerEnumClass(EnumType.{definition.type.name}, {definition.name});
 """
@@ -792,6 +806,12 @@ def _generate_struct(definition: StructDefinition) -> str:
 {_generate_multiline_doc(definition.description or definition.name)}
 export class {definition.name} extends {"StructFrozen" if definition.is_frozen else "Struct"} {{
 {textwrap.indent("\n\n".join(struct_parts), "  ")}
+
+  {MARKER_CUSTOM_START}
+
+  // ...
+
+  {MARKER_CUSTOM_END}
 }}
 registerStructClass(StructType.{definition.type.name}, {definition.name});
 """
@@ -837,6 +857,12 @@ def _generate_trait(definition: TraitDefinition) -> str:
 {_generate_multiline_doc(definition.description or definition.name)}
 export interface {definition.alias}{extends_str} {{
 {textwrap.indent("\n".join(trait_parts), "  ")}
+
+  {MARKER_CUSTOM_START}
+
+  // ...
+
+  {MARKER_CUSTOM_END}
 }}
 """
     return trait_str.strip()
@@ -911,6 +937,12 @@ def _generate_node(definition: NodeDefinition) -> str:
 {_generate_multiline_doc(definition.description or definition.name)}
 export class {definition.name} extends Node{implements_str} {{
 {textwrap.indent("\n\n".join(node_parts), "  ")}
+
+  {MARKER_CUSTOM_START}
+
+  // ...
+
+  {MARKER_CUSTOM_END}
 }}
 registerNodeClass(NodeType.{definition.type.name}, {definition.name});
 """
@@ -1001,8 +1033,9 @@ def _generate_definition(definition: Definition) -> TypescriptDefinition:
 
 
 MARKER_START_PATTERN = re.compile(r"/\* ==== DESTACK_GENERATED_START:([^:]+):([^=]+) ==== \*/")
-MARKER_CUSTOM_START_PATTERN = re.compile(r"/\* ==== DESTACK_CUSTOM_START ==== \*/")
 MARKER_END_PATTERN = re.compile(r"/\* ==== DESTACK_GENERATED_END:([^:]+):([^=]+) ==== \*/")
+MARKER_CUSTOM_START_PATTERN = re.compile(r"/\* ==== DESTACK_CUSTOM_START ==== \*/")
+MARKER_CUSTOM_END_PATTERN = re.compile(r"/\* ==== DESTACK_CUSTOM_END ==== \*/")
 
 
 def _generate_file(
@@ -1128,7 +1161,13 @@ def _generate_file(
         custom_match = MARKER_CUSTOM_START_PATTERN.search(existing_content, start_match.end())
         if custom_match is not None and custom_match.start() < end_match.start():
             custom_start = custom_match.end()
-            custom_end = end_match.start()
+            # look for custom end marker
+            custom_end_match = MARKER_CUSTOM_END_PATTERN.search(existing_content, custom_start)
+            if custom_end_match is None or custom_end_match.start() >= end_match.start():
+                raise ValueError(
+                    f"no matching {MARKER_CUSTOM_END} for {kind}:{id_str} in {file.path}"
+                )
+            custom_end = custom_end_match.start()
             custom_content = existing_content[custom_start:custom_end].strip()
 
         # add block
@@ -1154,9 +1193,28 @@ def _generate_file(
             new_block = f"{MARKER_START.format(kind=definition.kind, id=definition.id)}\n"
             new_block += definition.definition_str
             if block.custom_content:
-                # trim last } if it exists (it's also in custom content)
-                new_block = new_block.strip().rstrip("}")
-                new_block += f"\n{MARKER_CUSTOM_START}\n\n{block.custom_content}\n"
+                # find and replace the custom content region in definition_str
+                custom_start_match = MARKER_CUSTOM_START_PATTERN.search(definition.definition_str)
+                if custom_start_match is None:
+                    raise ValueError(
+                        f"no {MARKER_CUSTOM_START} found in definition {definition.kind}:{definition.id}"
+                    )
+                custom_end_match = MARKER_CUSTOM_END_PATTERN.search(
+                    definition.definition_str, custom_start_match.end()
+                )
+                if custom_end_match is None:
+                    raise ValueError(
+                        f"no {MARKER_CUSTOM_END} found in definition {definition.kind}:{definition.id}"
+                    )
+                # replace the custom region with block.custom_content
+                before_custom = definition.definition_str[: custom_start_match.start()]
+                after_custom = definition.definition_str[custom_end_match.end() :]
+                custom_region = (
+                    f"{MARKER_CUSTOM_START}\n\n{block.custom_content}\n\n{MARKER_CUSTOM_END}"
+                )
+                new_block += before_custom + custom_region + after_custom
+            else:
+                new_block += definition.definition_str
             new_block += f"\n{MARKER_END.format(kind=definition.kind, id=definition.id)}"
             file_parts.append(new_block)
             seen_definitions.add(key)
