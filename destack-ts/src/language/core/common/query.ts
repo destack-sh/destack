@@ -352,6 +352,8 @@ export class Function extends StructFrozen {
   static of(type: FunctionType, left: Expression, right?: Expression | null): Function {
     return new Function({ type, left, right: right ?? null });
   }
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
 
 /* ==== DESTACK_GENERATED_END:STRUCT:50101 ==== */
@@ -553,6 +555,8 @@ export class Condition extends StructFrozen {
     const right = Expression.of(toValue(value));
     return new Condition({ type, left, right });
   }
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
 
 /* ==== DESTACK_GENERATED_END:STRUCT:50104 ==== */
@@ -735,6 +739,8 @@ export class Aggregation extends StructFrozen {
   static of(type: AggregationType, operand?: Expression | null): Aggregation {
     return new Aggregation({ type, expression: operand ?? null });
   }
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
 
 /* ==== DESTACK_GENERATED_END:STRUCT:50103 ==== */
@@ -1051,6 +1057,8 @@ export class Expression extends StructFrozen {
       assertNever(thing);
     }
   }
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
 
 /* ==== DESTACK_GENERATED_END:STRUCT:50100 ==== */
@@ -1252,6 +1260,8 @@ export class Sort extends StructFrozen {
   static of(by: ExpressionIn, mode?: SortMode | null): Sort {
     return new Sort({ type: SortType.ASCENDING, by: Expression.of(by), mode: mode ?? null });
   }
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
 
 /* ==== DESTACK_GENERATED_END:STRUCT:50105 ==== */
@@ -1433,6 +1443,8 @@ export class Select extends StructFrozen {
   static of(...attributes: (Field | PropertyReference)[]): Select {
     return new Select({ attributes: attributes.map((attr) => AttributeReference.of(attr)) });
   }
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
 
 /* ==== DESTACK_GENERATED_END:STRUCT:50106 ==== */
@@ -1693,6 +1705,8 @@ export class Join extends StructFrozen {
       on: on ?? null,
     });
   }
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
 
 /* ==== DESTACK_GENERATED_END:STRUCT:50102 ==== */

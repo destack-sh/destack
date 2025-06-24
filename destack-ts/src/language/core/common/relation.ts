@@ -474,6 +474,8 @@ export class RelationReference extends StructFrozen {
       return new RelationReference({ type: RelationType.BUILTIN_NODE, nodeType: base.metatype });
     }
   }
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
 
 /* ==== DESTACK_GENERATED_END:STRUCT:50107 ==== */
@@ -704,6 +706,8 @@ export class AttributeReference extends StructFrozen {
       assertNever(attribute);
     }
   }
+
+  /* ==== DESTACK_CUSTOM_END ==== */
 }
 
 /* ==== DESTACK_GENERATED_END:STRUCT:50108 ==== */
