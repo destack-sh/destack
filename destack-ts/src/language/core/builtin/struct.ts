@@ -1,4 +1,4 @@
-import { ACTIVE_SESSION, Session, StructType, Supergraph } from "@destack/language";
+import { ACTIVE_SESSION, Session, StructType, Supergraph } from "@destack/language/core";
 import { AnyStructProto } from "@destack/proto";
 import { BuiltinObject, BuiltinObjectClass } from "./object";
 

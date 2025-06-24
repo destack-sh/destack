@@ -1,5 +1,4 @@
 import { NodeTypeMapping, TraitTypeMapping } from "@destack/language/mapping";
-import { NODE_TYPES_BY_TRAIT_TYPE } from "@destack/language/registry";
 import { INTEGER_ZERO } from "@destack/utils/fractional";
 import { IsOrdered, Node, NodeClass, NodeType, TraitType } from "../builtin";
 import { Session } from "./session";

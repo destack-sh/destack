@@ -1,4 +1,4 @@
-import { Folder, NodeType, Region, Session, Space, SpaceStatus, Tag } from "@destack/language";
+import { Folder, Region, Session, Space, SpaceStatus, Tag } from "@destack/language";
 import { expect, test } from "vitest";
 
 const sessionTest = test.extend<{ session: Session }>({
@@ -41,11 +41,9 @@ sessionTest("node ordering", async ({ session }) => {
   const folder = new Folder({
     name: "MyFolder",
   });
-
   session.create(folder);
 
   const tags = [new Tag({ name: "A" }), new Tag({ name: "B" }), new Tag({ name: "C" })];
-
   folder.addChildren(tags);
 
   expect(folder.getChildren({ nodeClass: Tag })).toEqual(tags);
