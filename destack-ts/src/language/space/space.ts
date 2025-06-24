@@ -44,9 +44,7 @@ export enum SpaceStatus {
   PAUSED = 20,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.SPACE_STATUS, SpaceStatus);
@@ -886,9 +884,7 @@ export class Space
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SPACE, Space);

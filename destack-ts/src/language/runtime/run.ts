@@ -42,9 +42,7 @@ export enum RunStatus {
   COMPLETED = 54,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.RUN_STATUS, RunStatus);
@@ -68,9 +66,7 @@ export enum RunEventType {
   COMPLETED = 54,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.RUN_EVENT_TYPE, RunEventType);
@@ -517,9 +513,7 @@ export class RunEvent extends Node implements Event {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.RUN_EVENT, RunEvent);
@@ -1178,9 +1172,7 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.RUN, Run);

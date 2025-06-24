@@ -12,9 +12,7 @@ export enum ModelDeveloper {
   XAI = 1060,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.MODEL_DEVELOPER, ModelDeveloper);
@@ -32,9 +30,7 @@ export enum ModelProvider {
   XAI = 1040,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.MODEL_PROVIDER, ModelProvider);

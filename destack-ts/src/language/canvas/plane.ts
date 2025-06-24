@@ -56,9 +56,7 @@ export enum PlaneShapeType {
   POLYGON = 5,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.PLANE_SHAPE_TYPE, PlaneShapeType);
@@ -1391,9 +1389,7 @@ export class PlaneShape extends Node implements ContainerView, IsShape {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.PLANE_SHAPE, PlaneShape);

@@ -35,9 +35,7 @@ export enum PermissionType {
   GENERAL = 1,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.PERMISSION_TYPE, PermissionType);
@@ -513,9 +511,7 @@ export class Permission extends Node implements Spatial, Entity, HasName, HasSlu
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.PERMISSION, Permission);

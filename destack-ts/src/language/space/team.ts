@@ -418,9 +418,7 @@ export class Team extends Node implements Global, Entity, HasSlug, HasIcon, HasN
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TEAM, Team);

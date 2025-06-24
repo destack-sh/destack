@@ -23,9 +23,7 @@ export enum JoinablePermission {
   BAN = 4,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.JOINABLE_PERMISSION, JoinablePermission);
@@ -42,9 +40,7 @@ export interface HasName {
   name: string;
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:100 ==== */
@@ -60,9 +56,7 @@ export interface HasSlug {
   slug: string | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:101 ==== */
@@ -78,9 +72,7 @@ export interface HasIcon {
   icon: Icon | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:102 ==== */
@@ -107,9 +99,7 @@ export interface IsTracked {
   readonly updatedByPtr: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:51 ==== */
@@ -150,9 +140,7 @@ export interface IsArchivable {
   readonly archivedAt: Temporal.ZonedDateTime | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:52 ==== */
@@ -168,9 +156,7 @@ export interface IsDeletable {
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:53 ==== */
@@ -185,9 +171,7 @@ export interface IsCustomNodeDefinition {
   prototypePtr: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:23 ==== */
@@ -201,9 +185,7 @@ export interface IsCustomNode {
   readonly definitionPtr: NodeReference;
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:24 ==== */
@@ -219,9 +201,7 @@ export interface IsExtensible {
   value: Map<string, Value>;
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:55 ==== */
@@ -237,9 +217,7 @@ export interface IsOrdered {
   readonly orderKey: string;
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:56 ==== */
@@ -286,9 +264,7 @@ export interface IsSourceable extends IsOrdered {
   readonly sourcePtr: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:3003 ==== */
@@ -303,9 +279,7 @@ export interface IsScriptable {
   scriptPtr: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:3002 ==== */
@@ -342,9 +316,7 @@ export interface IsOwnable {
   ownedByPtr: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:500 ==== */
@@ -414,9 +386,7 @@ export interface LikeMembership {
   memberPtr: NodeReference;
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:510 ==== */
@@ -431,9 +401,7 @@ export interface LikeInvite {
   memberPtr: NodeReference;
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:511 ==== */
@@ -480,9 +448,7 @@ export interface Spatial {
   readonly spacePtr: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:2 ==== */
@@ -498,9 +464,7 @@ export interface Entity extends IsTracked {
   readonly materialization: MaterializationType;
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:10 ==== */
@@ -555,9 +519,7 @@ export interface Resource extends Entity {
   targetStatus: Temporal.ZonedDateTime | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:21 ==== */
@@ -582,9 +544,7 @@ export interface Measurement extends Analytic, IsCustomNode {
   readonly definitionPtr: NodeReference;
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:4011 ==== */
@@ -600,9 +560,7 @@ export interface Event extends Spatial, Particle, Analytic, Indexed, IsFrozen {
   nodePtr: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:22 ==== */

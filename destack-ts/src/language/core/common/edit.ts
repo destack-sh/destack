@@ -42,9 +42,7 @@ export enum EditType {
   ERASE = 9,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.EDIT_TYPE, EditType);
@@ -59,9 +57,7 @@ export enum EditOperation {
   CLEAR = 2,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.EDIT_OPERATION, EditOperation);
@@ -77,9 +73,7 @@ export enum ChangeStatus {
   REJECTED = 13,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.CHANGE_STATUS, ChangeStatus);
@@ -93,9 +87,7 @@ export enum ChangeDebounce {
   LAZY = 10,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.CHANGE_DEBOUNCE, ChangeDebounce);
@@ -466,9 +458,7 @@ export class Edit extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.EDIT, Edit);
@@ -804,9 +794,7 @@ export class Change extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.CHANGE, Change);
@@ -1115,9 +1103,7 @@ export class ChangeResult extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.CHANGE_RESULT, ChangeResult);

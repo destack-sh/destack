@@ -36,9 +36,7 @@ export enum ArrowHeadType {
   DOT = 3,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.ARROW_HEAD_TYPE, ArrowHeadType);
@@ -907,9 +905,7 @@ export class ArrowShape extends Node implements ContentView, IsShape {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ARROW_SHAPE, ArrowShape);

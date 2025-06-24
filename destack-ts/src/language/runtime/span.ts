@@ -357,9 +357,7 @@ export class Span extends Node implements Spatial, Analytic, IsFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SPAN, Span);

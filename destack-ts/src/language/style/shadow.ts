@@ -39,9 +39,7 @@ export enum ShadowType {
   REALISTIC = 11,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.SHADOW_TYPE, ShadowType);
@@ -56,9 +54,7 @@ export enum ShadowPosition {
   INSIDE = 2,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.SHADOW_POSITION, ShadowPosition);
@@ -378,9 +374,7 @@ export class Shadow extends Struct {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.SHADOW, Shadow);
@@ -1010,9 +1004,7 @@ export class ShadowStyle extends Node implements Style {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SHADOW_STYLE, ShadowStyle);

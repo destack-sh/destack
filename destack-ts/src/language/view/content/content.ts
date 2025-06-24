@@ -22,9 +22,7 @@ export interface ContentView extends View {
   opacity: number | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:10200 ==== */

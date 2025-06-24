@@ -36,9 +36,7 @@ export enum UserStatus {
   ACTIVE = 10,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.USER_STATUS, UserStatus);
@@ -667,9 +665,7 @@ export class User extends Node implements Global, Entity, HasName, HasIcon, HasS
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.USER, User);

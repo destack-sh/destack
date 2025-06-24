@@ -36,9 +36,7 @@ export enum ThreadStatus {
   CLOSED = 30,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.THREAD_STATUS, ThreadStatus);
@@ -516,9 +514,7 @@ export class Thread extends Node implements Spatial, Entity, HasName, IsTaggable
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.THREAD, Thread);

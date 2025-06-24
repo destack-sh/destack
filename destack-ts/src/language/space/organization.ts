@@ -35,9 +35,7 @@ export enum OrganizationStatus {
   ACTIVE = 10,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.ORGANIZATION_STATUS, OrganizationStatus);
@@ -523,9 +521,7 @@ export class Organization extends Node implements Global, Entity, HasSlug, HasIc
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ORGANIZATION, Organization);

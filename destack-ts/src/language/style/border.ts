@@ -35,9 +35,7 @@ export enum BorderType {
   DOUBLE = 13,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.BORDER_TYPE, BorderType);
@@ -266,9 +264,7 @@ export class Border extends Struct {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.BORDER, Border);
@@ -807,9 +803,7 @@ export class BorderStyle extends Node implements Style {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.BORDER_STYLE, BorderStyle);

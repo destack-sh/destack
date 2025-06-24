@@ -40,9 +40,7 @@ export enum MembershipEventType {
   BAN = 4,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.MEMBERSHIP_EVENT_TYPE, MembershipEventType);
@@ -57,9 +55,7 @@ export enum MembershipPermission {
   BAN = 11,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.MEMBERSHIP_PERMISSION, MembershipPermission);
@@ -566,9 +562,7 @@ export class MembershipEvent extends Node implements Event {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.MEMBERSHIP_EVENT, MembershipEvent);
@@ -1117,9 +1111,7 @@ export class Membership extends Node implements Global, Spatial, Entity, LikeMem
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.MEMBERSHIP, Membership);

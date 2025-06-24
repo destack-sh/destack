@@ -52,9 +52,7 @@ export enum CanvasType {
   SHAPE = 1,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.CANVAS_TYPE, CanvasType);
@@ -1362,9 +1360,7 @@ export class Canvas extends Node implements ContainerView {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CANVAS, Canvas);

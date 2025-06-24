@@ -743,9 +743,7 @@ export class WizardView extends Node implements InternalView {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.WIZARD_VIEW, WizardView);

@@ -38,9 +38,7 @@ export enum TransitionType {
   SPRING = 11,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.TRANSITION_TYPE, TransitionType);
@@ -55,9 +53,7 @@ export enum SpringType {
   PHYSICS = 2,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.SPRING_TYPE, SpringType);
@@ -452,9 +448,7 @@ export class Transition extends Struct {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.TRANSITION, Transition);
@@ -1159,9 +1153,7 @@ export class TransitionStyle extends Node implements Style {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TRANSITION_STYLE, TransitionStyle);

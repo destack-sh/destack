@@ -492,9 +492,7 @@ export class Snapshot extends Node implements Spatial, Entity, HasName, HasSlug,
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SNAPSHOT, Snapshot);
@@ -1013,9 +1011,7 @@ export class Branch extends Node implements Spatial, Entity, HasName, HasSlug, I
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.BRANCH, Branch);

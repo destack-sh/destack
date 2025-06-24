@@ -39,9 +39,7 @@ export enum TimerEventType {
   EXPIRED = 3,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.TIMER_EVENT_TYPE, TimerEventType);
@@ -56,9 +54,7 @@ export enum TimerType {
   RECURRING = 2,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.TIMER_TYPE, TimerType);
@@ -458,9 +454,7 @@ export class TimerEvent extends Node implements Event {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TIMER_EVENT, TimerEvent);
@@ -888,9 +882,7 @@ export class Timer extends Node implements Spatial, Entity, HasName {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TIMER, Timer);

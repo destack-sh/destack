@@ -1348,9 +1348,7 @@ export class CustomViewDefinition extends Node implements ContainerView, IsCusto
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CUSTOM_VIEW_DEFINITION, CustomViewDefinition);
@@ -2665,9 +2663,7 @@ export class CustomView extends Node implements ContainerView, IsCustomNode {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CUSTOM_VIEW, CustomView);

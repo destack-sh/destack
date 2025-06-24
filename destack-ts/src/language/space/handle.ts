@@ -357,9 +357,7 @@ export class Handle extends Node implements Global, Entity, HasSlug {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.HANDLE, Handle);

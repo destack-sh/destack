@@ -16,9 +16,7 @@ export enum IconType {
   FILE_URL = 11,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.ICON_TYPE, IconType);
@@ -323,9 +321,7 @@ export class Icon extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.ICON, Icon);

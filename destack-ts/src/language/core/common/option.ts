@@ -545,9 +545,7 @@ export class Option extends Node implements Spatial, Entity, HasName, HasIcon, I
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.OPTION, Option);

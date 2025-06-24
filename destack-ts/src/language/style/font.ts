@@ -44,9 +44,7 @@ export enum FontType {
   MONO = 12,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FONT_TYPE, FontType);
@@ -68,9 +66,7 @@ export enum FontWeight {
   BLACK = 900,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FONT_WEIGHT, FontWeight);
@@ -94,9 +90,7 @@ export enum FontSize {
   XL7 = 72,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FONT_SIZE, FontSize);
@@ -113,9 +107,7 @@ export enum TextAlign {
   JUSTIFY = 4,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.TEXT_ALIGN, TextAlign);
@@ -131,9 +123,7 @@ export enum TextDecoration {
   STRIKETHROUGH = 3,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.TEXT_DECORATION, TextDecoration);
@@ -150,9 +140,7 @@ export enum TextTransform {
   CAPITALIZE = 4,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.TEXT_TRANSFORM, TextTransform);
@@ -542,9 +530,7 @@ export class Font extends Struct {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.FONT, Font);
@@ -1244,9 +1230,7 @@ export class FontStyle extends Node implements Style {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FONT_STYLE, FontStyle);

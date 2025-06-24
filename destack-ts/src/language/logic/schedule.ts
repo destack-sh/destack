@@ -18,9 +18,7 @@ export enum DayOfWeek {
   SUNDAY = 7,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.DAY_OF_WEEK, DayOfWeek);
@@ -45,9 +43,7 @@ export enum Month {
   DECEMBER = 12,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.MONTH, Month);
@@ -66,9 +62,7 @@ export enum ScheduleFrequency {
   MINUTE = 6,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.SCHEDULE_FREQUENCY, ScheduleFrequency);
@@ -774,9 +768,7 @@ export class Schedule extends Struct {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.SCHEDULE, Schedule);

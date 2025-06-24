@@ -711,9 +711,7 @@ export class CustomEntityDefinition
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CUSTOM_ENTITY_DEFINITION, CustomEntityDefinition);
@@ -1185,9 +1183,7 @@ export class CustomEntity extends Node implements Spatial, Entity, IsExtensible,
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CUSTOM_ENTITY, CustomEntity);

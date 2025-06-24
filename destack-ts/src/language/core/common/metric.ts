@@ -520,9 +520,7 @@ export class GaugeMetric extends Node implements Spatial, Metric, HasName {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.GAUGE_METRIC, GaugeMetric);
@@ -903,9 +901,7 @@ export class GaugeMeasurement extends Node implements Spatial, Measurement {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.GAUGE_MEASUREMENT, GaugeMeasurement);
@@ -1400,9 +1396,7 @@ export class CounterMetric extends Node implements Spatial, Metric, HasName {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.COUNTER_METRIC, CounterMetric);
@@ -1783,9 +1777,7 @@ export class CounterMeasurement extends Node implements Spatial, Measurement {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.COUNTER_MEASUREMENT, CounterMeasurement);
@@ -2280,9 +2272,7 @@ export class HistogramMetric extends Node implements Spatial, Metric, HasName {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.HISTOGRAM_METRIC, HistogramMetric);
@@ -2663,9 +2653,7 @@ export class HistogramMeasurement extends Node implements Spatial, Measurement {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.HISTOGRAM_MEASUREMENT, HistogramMeasurement);

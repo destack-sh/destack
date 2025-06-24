@@ -41,9 +41,7 @@ export enum DatabaseType {
   POSTGRES = 1,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.DATABASE_TYPE, DatabaseType);
@@ -300,9 +298,7 @@ export class DatabaseInfo extends Struct {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.DATABASE_INFO, DatabaseInfo);
@@ -876,9 +872,7 @@ export class Database extends Node implements Spatial, Resource, HasName {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.DATABASE, Database);

@@ -471,9 +471,7 @@ export class Tag extends Node implements Spatial, Entity, LikeTag, HasName, HasI
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TAG, Tag);
@@ -1014,9 +1012,7 @@ export class Tagging extends Node implements Spatial, Entity, IsTaggable, IsOrde
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TAGGING, Tagging);

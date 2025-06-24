@@ -33,9 +33,7 @@ export enum LogLevel {
   PANIC = 6,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.LOG_LEVEL, LogLevel);
@@ -455,9 +453,7 @@ export class Log extends Node implements Spatial, Analytic, IsFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.LOG, Log);

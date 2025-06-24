@@ -34,9 +34,7 @@ export enum SanctionEventType {
   EXPIRED = 4,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.SANCTION_EVENT_TYPE, SanctionEventType);
@@ -51,9 +49,7 @@ export enum SanctionType {
   MUTE = 2,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.SANCTION_TYPE, SanctionType);
@@ -435,9 +431,7 @@ export class SanctionEvent extends Node implements Event {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SANCTION_EVENT, SanctionEvent);
@@ -908,9 +902,7 @@ export class Sanction extends Node implements Spatial, Entity, IsDeletable {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SANCTION, Sanction);

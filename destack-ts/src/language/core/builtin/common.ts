@@ -141,9 +141,7 @@ export enum EnumType {
   JOINABLE_PERMISSION = 50101,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.ENUM_TYPE, EnumType);
@@ -222,9 +220,7 @@ export enum StructType {
   AXIS3 = 50209,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.STRUCT_TYPE, StructType);
@@ -336,9 +332,7 @@ export enum NodeType {
   EFFECT_STYLE = 12027,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.NODE_TYPE, NodeType);
@@ -399,9 +393,7 @@ export enum TraitType {
   STYLE = 12000,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.TRAIT_TYPE, TraitType);
@@ -417,9 +409,7 @@ export enum StoreZone {
   LOCAL = 3,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.STORE_ZONE, StoreZone);
@@ -435,9 +425,7 @@ export enum StoreType {
   LOCAL_MEMORY = 300,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.STORE_TYPE, StoreType);
@@ -452,9 +440,7 @@ export enum StoreImplementation {
   POSTGRES = 10,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.STORE_IMPLEMENTATION, StoreImplementation);
@@ -469,9 +455,7 @@ export enum RuntimeType {
   JAVASCRIPT = 2,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.RUNTIME_TYPE, RuntimeType);
@@ -487,9 +471,7 @@ export enum PlatformType {
   WEB = 10,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.PLATFORM_TYPE, PlatformType);
@@ -507,9 +489,7 @@ export enum OperatingSystem {
   IOS = 51,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.OPERATING_SYSTEM, OperatingSystem);
@@ -527,9 +507,7 @@ export enum EnvironmentType {
   PRODUCTION = 10,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.ENVIRONMENT_TYPE, EnvironmentType);
@@ -546,9 +524,7 @@ export enum NodePermission {
   REMOVE = 12,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.NODE_PERMISSION, NodePermission);
@@ -564,9 +540,7 @@ export enum MaterializationType {
   FULL_GRAPH = 3,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.MATERIALIZATION_TYPE, MaterializationType);
@@ -584,9 +558,7 @@ export enum ModeType {
   USE = 5,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.MODE_TYPE, ModeType);
@@ -603,9 +575,7 @@ export enum ToolType {
   ANNOTATE = 11,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.TOOL_TYPE, ToolType);
@@ -623,9 +593,7 @@ export enum Cloud {
   HETZNER = 20,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.CLOUD, Cloud);
@@ -646,9 +614,7 @@ export enum RegionContinent {
   PRIVATE = 9000,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.REGION_CONTINENT, RegionContinent);
@@ -672,9 +638,7 @@ export enum RegionArea {
   AUSTRALIA_SOUTH = 7000,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.REGION_AREA, RegionArea);
@@ -698,9 +662,7 @@ export enum Region {
   SYDNEY = 7000,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.REGION, Region);
@@ -715,9 +677,7 @@ export enum EdgeType {
   REGULAR = 5,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.EDGE_TYPE, EdgeType);
@@ -733,9 +693,7 @@ export enum CascadeAction {
   SET_NULL = 3,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.CASCADE_ACTION, CascadeAction);
@@ -751,9 +709,7 @@ export enum EdgeDirection {
   SIDE = 3,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.EDGE_DIRECTION, EdgeDirection);
@@ -781,9 +737,7 @@ export enum PrimitiveType {
   DURATION = 33,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.PRIMITIVE_TYPE, PrimitiveType);
@@ -799,9 +753,7 @@ export enum TypeCardinality {
   MAP = 4,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.TYPE_CARDINALITY, TypeCardinality);
@@ -819,9 +771,7 @@ export enum ScalarType {
   STRUCT = 5,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.SCALAR_TYPE, ScalarType);
@@ -837,9 +787,7 @@ export enum DefaultFactory {
   REGION = 3,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.DEFAULT_FACTORY, DefaultFactory);
@@ -858,9 +806,7 @@ export enum RoleType {
   SPECTATOR = 10,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.ROLE_TYPE, RoleType);
@@ -882,9 +828,7 @@ export enum ResourceStatus {
   FAILED = 31,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.RESOURCE_STATUS, ResourceStatus);
@@ -902,9 +846,7 @@ export enum ClientType {
   MACHINE = 10,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.CLIENT_TYPE, ClientType);
@@ -919,9 +861,7 @@ export enum Tenancy {
   SHARED = 2,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.TENANCY, Tenancy);

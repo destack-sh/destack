@@ -36,9 +36,7 @@ export enum WindowType {
   MOBILE = 30,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.WINDOW_TYPE, WindowType);
@@ -577,9 +575,7 @@ export class Window extends Node implements Spatial, Entity, HasName, IsVisual, 
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.WINDOW, Window);

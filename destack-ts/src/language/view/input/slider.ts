@@ -887,9 +887,7 @@ export class SliderInputView extends Node implements InputView {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SLIDER_INPUT_VIEW, SliderInputView);

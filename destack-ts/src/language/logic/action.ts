@@ -38,9 +38,7 @@ export enum ActionCardinality {
   UNARY = 1,
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.ACTION_CARDINALITY, ActionCardinality);
@@ -612,9 +610,7 @@ export class Action
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ACTION, Action);

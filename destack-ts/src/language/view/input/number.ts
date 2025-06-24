@@ -836,9 +836,7 @@ export class NumberInputView extends Node implements InputView {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.NUMBER_INPUT_VIEW, NumberInputView);

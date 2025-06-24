@@ -231,9 +231,7 @@ export class Origin extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.ORIGIN, Origin);
@@ -940,9 +938,7 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
   // ...
-
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CLIENT, Client);
