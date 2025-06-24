@@ -1,19 +1,15 @@
 {
-    "folders": [
-        {
-            "path": "../",
-        },
-    ],
-    "settings": {
-        "editor.rulers": [120],
-        "typescript.tsdk": "node_modules/typescript/lib",
-        "search.searchOnTypeDebouncePeriod": 201,
-        "css.lint.unknownAtRules": "ignore",
-        "prettier.vueIndentScriptAndStyle": false,
-        "window.zoomLevel": -0.5,
+  "folders": [
+    {
+      "path": "../",
     },
-    "launch": {
-        "configurations": [
-        ],
-    },
+  ],
+  "settings": {
+    "editor.rulers": [100, 120],
+    "typescript.tsdk": "node_modules/typescript/lib",
+    "css.lint.unknownAtRules": "ignore",
+  },
+  "launch": {
+    "configurations": [],
+  },
 }

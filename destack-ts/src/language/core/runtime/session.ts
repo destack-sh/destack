@@ -10,6 +10,7 @@ import {
   Space,
   Store,
   Supergraph,
+  WORLD_ORACLE,
 } from "@destack/language";
 import { Temporal } from "temporal-polyfill";
 
@@ -29,18 +30,18 @@ export class Session {
   subject: (Node & IsSubject) | null;
   supergraph: Supergraph;
 
-  constructor(
-    oracle: Oracle,
-    space: Space | null,
-    origin: Origin | null,
-    subject: (Node & IsSubject) | null,
-    store: Store | null,
-  ) {
-    this.oracle = oracle;
-    this.space = space;
-    this.origin = origin;
-    this.subject = subject;
-    this.store = store;
+  constructor(options?: {
+    oracle?: Oracle;
+    space?: Space | null;
+    origin?: Origin | null;
+    subject?: (Node & IsSubject) | null;
+    store?: Store | null;
+  }) {
+    this.oracle = options?.oracle ?? WORLD_ORACLE;
+    this.space = options?.space ?? null;
+    this.origin = options?.origin ?? null;
+    this.subject = options?.subject ?? null;
+    this.store = options?.store ?? null;
     this.supergraph = new Supergraph(this);
 
     // transaction (pending)
