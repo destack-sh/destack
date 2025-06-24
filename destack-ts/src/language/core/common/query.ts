@@ -166,6 +166,10 @@ export class Function extends StructFrozen {
     right?: Expression | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -189,7 +193,14 @@ export class Function extends StructFrozen {
     this.right = _right;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -202,6 +213,54 @@ export class Function extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Function.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Function): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 50101;
+    objectValue["30"] = object.type;
+    objectValue["31"] = object.left.toValue();
+    if (object.right !== null) {
+      objectValue["32"] = object.right.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Function {
+    const rightValue = objectValue["32"];
+    const unpackedRight =
+      rightValue !== undefined ? Expression.fromValue(rightValue, _session, _supergraph, _graph, _connection) : null;
+    return new Function({
+      type: Number(objectValue["30"]),
+      left: Expression.fromValue(objectValue["31"], _session, _supergraph, _graph, _connection),
+      right: unpackedRight,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Function {
+    return Function.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -243,6 +302,10 @@ export class Condition extends StructFrozen {
     right?: Expression | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -266,7 +329,14 @@ export class Condition extends StructFrozen {
     this.right = _right;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -279,6 +349,54 @@ export class Condition extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Condition.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Condition): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 50104;
+    objectValue["30"] = object.type;
+    objectValue["31"] = object.left.toValue();
+    if (object.right !== null) {
+      objectValue["32"] = object.right.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Condition {
+    const rightValue = objectValue["32"];
+    const unpackedRight =
+      rightValue !== undefined ? Expression.fromValue(rightValue, _session, _supergraph, _graph, _connection) : null;
+    return new Condition({
+      type: Number(objectValue["30"]),
+      left: Expression.fromValue(objectValue["31"], _session, _supergraph, _graph, _connection),
+      right: unpackedRight,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Condition {
+    return Condition.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -320,6 +438,10 @@ export class Aggregation extends StructFrozen {
     expression?: Expression | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -338,7 +460,14 @@ export class Aggregation extends StructFrozen {
     this.expression = _expression;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -351,6 +480,54 @@ export class Aggregation extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Aggregation.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Aggregation): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 50103;
+    objectValue["30"] = object.type;
+    if (object.expression !== null) {
+      objectValue["31"] = object.expression.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Aggregation {
+    const expressionValue = objectValue["31"];
+    const unpackedExpression =
+      expressionValue !== undefined
+        ? Expression.fromValue(expressionValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new Aggregation({
+      type: Number(objectValue["30"]),
+      expression: unpackedExpression,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Aggregation {
+    return Aggregation.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -410,6 +587,10 @@ export class Expression extends StructFrozen {
     aggregation?: Aggregation | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -436,7 +617,14 @@ export class Expression extends StructFrozen {
     this.aggregation = _aggregation;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -449,6 +637,88 @@ export class Expression extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Expression.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Expression): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 50100;
+    objectValue["30"] = object.type;
+    if (object.literal !== null) {
+      objectValue["31"] = object.literal.toValue();
+    }
+    if (object.attribute !== null) {
+      objectValue["32"] = object.attribute.toValue();
+    }
+    if (object.condition !== null) {
+      objectValue["33"] = object.condition.toValue();
+    }
+    if (object.function !== null) {
+      objectValue["34"] = object.function.toValue();
+    }
+    if (object.aggregation !== null) {
+      objectValue["35"] = object.aggregation.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Expression {
+    const literalValue = objectValue["31"];
+    const unpackedLiteral =
+      literalValue !== undefined ? Value.fromValue(literalValue, _session, _supergraph, _graph, _connection) : null;
+    const attributeValue = objectValue["32"];
+    const unpackedAttribute =
+      attributeValue !== undefined
+        ? AttributeReference.fromValue(attributeValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const conditionValue = objectValue["33"];
+    const unpackedCondition =
+      conditionValue !== undefined
+        ? Condition.fromValue(conditionValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const functionValue = objectValue["34"];
+    const unpackedFunction =
+      functionValue !== undefined
+        ? Function.fromValue(functionValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const aggregationValue = objectValue["35"];
+    const unpackedAggregation =
+      aggregationValue !== undefined
+        ? Aggregation.fromValue(aggregationValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new Expression({
+      type: Number(objectValue["30"]),
+      literal: unpackedLiteral,
+      attribute: unpackedAttribute,
+      condition: unpackedCondition,
+      function: unpackedFunction,
+      aggregation: unpackedAggregation,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Expression {
+    return Expression.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -518,6 +788,10 @@ export class Sort extends StructFrozen {
     mode?: SortMode | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -541,7 +815,14 @@ export class Sort extends StructFrozen {
     this.mode = _mode;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -554,6 +835,53 @@ export class Sort extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Sort.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Sort): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 50105;
+    objectValue["30"] = object.type;
+    objectValue["31"] = object.by.toValue();
+    if (object.mode !== null) {
+      objectValue["32"] = object.mode;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Sort {
+    const modeValue = objectValue["32"];
+    const unpackedMode = modeValue !== undefined ? Number(modeValue) : null;
+    return new Sort({
+      type: Number(objectValue["30"]),
+      by: Expression.fromValue(objectValue["31"], _session, _supergraph, _graph, _connection),
+      mode: unpackedMode,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Sort {
+    return Sort.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -583,6 +911,10 @@ export class Select extends StructFrozen {
     attributes?: Array<AttributeReference>;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -599,7 +931,14 @@ export class Select extends StructFrozen {
     this.attributes = _attributes;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -612,6 +951,57 @@ export class Select extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Select.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Select): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 50106;
+    if (object.attributes) {
+      const packedAttributes: any[] = [];
+      for (const item of object.attributes) {
+        packedAttributes.push(item.toValue());
+      }
+      objectValue["31"] = packedAttributes;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Select {
+    const unpackedAttributes: any[] = [];
+    if (objectValue["31"] !== undefined) {
+      for (const item of objectValue["31"]) {
+        unpackedAttributes.push(AttributeReference.fromValue(item, _session, _supergraph, _graph, _connection));
+      }
+    }
+    return new Select({
+      attributes: unpackedAttributes,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Select {
+    return Select.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -665,6 +1055,10 @@ export class Join extends StructFrozen {
     on?: Condition | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -695,7 +1089,14 @@ export class Join extends StructFrozen {
     this.on = _on;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -708,6 +1109,69 @@ export class Join extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Join.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Join): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 50102;
+    objectValue["30"] = object.type;
+    if (object.relation !== null) {
+      objectValue["31"] = object.relation.toValue();
+    }
+    objectValue["33"] = object.recursive;
+    if (object.depth !== null) {
+      objectValue["34"] = object.depth;
+    }
+    if (object.on !== null) {
+      objectValue["35"] = object.on.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Join {
+    const relationValue = objectValue["31"];
+    const unpackedRelation =
+      relationValue !== undefined
+        ? RelationReference.fromValue(relationValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const depthValue = objectValue["34"];
+    const unpackedDepth = depthValue !== undefined ? Number(depthValue) : null;
+    const onValue = objectValue["35"];
+    const unpackedOn =
+      onValue !== undefined ? Condition.fromValue(onValue, _session, _supergraph, _graph, _connection) : null;
+    return new Join({
+      type: Number(objectValue["30"]),
+      relation: unpackedRelation,
+      recursive: objectValue["33"],
+      depth: unpackedDepth,
+      on: unpackedOn,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Join {
+    return Join.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -826,6 +1290,10 @@ export class Query extends StructFrozen {
     offset?: number | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -889,7 +1357,14 @@ export class Query extends StructFrozen {
     this.offset = _offset;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -902,6 +1377,142 @@ export class Query extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Query.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Query): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 50110;
+    objectValue["2"] = String(object.id);
+    objectValue["30"] = object.type;
+    objectValue["31"] = object.name;
+    objectValue["32"] = object.relation.toValue();
+    if (object.join !== null) {
+      objectValue["33"] = object.join.toValue();
+    }
+    if (object.select !== null) {
+      objectValue["34"] = object.select.toValue();
+    }
+    if (object.subqueries) {
+      const packedSubqueries: any[] = [];
+      for (const item of object.subqueries) {
+        packedSubqueries.push(item.toValue());
+      }
+      objectValue["35"] = packedSubqueries;
+    }
+    if (object.where !== null) {
+      objectValue["40"] = object.where.toValue();
+    }
+    if (object.having !== null) {
+      objectValue["41"] = object.having.toValue();
+    }
+    if (object.groupBy) {
+      const packedGroupBy: any[] = [];
+      for (const item of object.groupBy) {
+        packedGroupBy.push(item.toValue());
+      }
+      objectValue["42"] = packedGroupBy;
+    }
+    if (object.aggregation !== null) {
+      objectValue["43"] = object.aggregation.toValue();
+    }
+    if (object.sort) {
+      const packedSort: any[] = [];
+      for (const item of object.sort) {
+        packedSort.push(item.toValue());
+      }
+      objectValue["44"] = packedSort;
+    }
+    if (object.limit !== null) {
+      objectValue["50"] = object.limit;
+    }
+    if (object.offset !== null) {
+      objectValue["51"] = object.offset;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Query {
+    const joinValue = objectValue["33"];
+    const unpackedJoin =
+      joinValue !== undefined ? Join.fromValue(joinValue, _session, _supergraph, _graph, _connection) : null;
+    const selectValue = objectValue["34"];
+    const unpackedSelect =
+      selectValue !== undefined ? Select.fromValue(selectValue, _session, _supergraph, _graph, _connection) : null;
+    const unpackedSubqueries: any[] = [];
+    if (objectValue["35"] !== undefined) {
+      for (const item of objectValue["35"]) {
+        unpackedSubqueries.push(Query.fromValue(item, _session, _supergraph, _graph, _connection));
+      }
+    }
+    const whereValue = objectValue["40"];
+    const unpackedWhere =
+      whereValue !== undefined ? Condition.fromValue(whereValue, _session, _supergraph, _graph, _connection) : null;
+    const havingValue = objectValue["41"];
+    const unpackedHaving =
+      havingValue !== undefined ? Condition.fromValue(havingValue, _session, _supergraph, _graph, _connection) : null;
+    const unpackedGroupBy: any[] = [];
+    if (objectValue["42"] !== undefined) {
+      for (const item of objectValue["42"]) {
+        unpackedGroupBy.push(Expression.fromValue(item, _session, _supergraph, _graph, _connection));
+      }
+    }
+    const aggregationValue = objectValue["43"];
+    const unpackedAggregation =
+      aggregationValue !== undefined
+        ? Aggregation.fromValue(aggregationValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const unpackedSort: any[] = [];
+    if (objectValue["44"] !== undefined) {
+      for (const item of objectValue["44"]) {
+        unpackedSort.push(Sort.fromValue(item, _session, _supergraph, _graph, _connection));
+      }
+    }
+    const limitValue = objectValue["50"];
+    const unpackedLimit = limitValue !== undefined ? Number(limitValue) : null;
+    const offsetValue = objectValue["51"];
+    const unpackedOffset = offsetValue !== undefined ? Number(offsetValue) : null;
+    return new Query({
+      id: String(objectValue["2"]),
+      type: Number(objectValue["30"]),
+      name: objectValue["31"],
+      relation: RelationReference.fromValue(objectValue["32"], _session, _supergraph, _graph, _connection),
+      join: unpackedJoin,
+      select: unpackedSelect,
+      subqueries: unpackedSubqueries,
+      where: unpackedWhere,
+      having: unpackedHaving,
+      groupBy: unpackedGroupBy,
+      aggregation: unpackedAggregation,
+      sort: unpackedSort,
+      limit: unpackedLimit,
+      offset: unpackedOffset,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Query {
+    return Query.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50110 ==== */
@@ -929,6 +1540,10 @@ export class Histogram extends StructFrozen {
     counts?: Array<number>;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -950,7 +1565,14 @@ export class Histogram extends StructFrozen {
     this.counts = _counts;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -963,6 +1585,71 @@ export class Histogram extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Histogram.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Histogram): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 50114;
+    if (object.buckets) {
+      const packedBuckets: any[] = [];
+      for (const item of object.buckets) {
+        packedBuckets.push(item.toValue());
+      }
+      objectValue["40"] = packedBuckets;
+    }
+    if (object.counts) {
+      const packedCounts: any[] = [];
+      for (const item of object.counts) {
+        packedCounts.push(item);
+      }
+      objectValue["41"] = packedCounts;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Histogram {
+    const unpackedBuckets: any[] = [];
+    if (objectValue["40"] !== undefined) {
+      for (const item of objectValue["40"]) {
+        unpackedBuckets.push(Value.fromValue(item, _session, _supergraph, _graph, _connection));
+      }
+    }
+    const unpackedCounts: any[] = [];
+    if (objectValue["41"] !== undefined) {
+      for (const item of objectValue["41"]) {
+        unpackedCounts.push(Number(item));
+      }
+    }
+    return new Histogram({
+      buckets: unpackedBuckets,
+      counts: unpackedCounts,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Histogram {
+    return Histogram.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50114 ==== */
@@ -1085,6 +1772,103 @@ export class QueryResult extends Struct {
   validate(): void {
     throw new Error("not implemented");
   }
+
+  toValue(): { [key: string]: any } {
+    return QueryResult.__packValue__(this);
+  }
+
+  static __packValue__(object: QueryResult): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 50111;
+    objectValue["2"] = String(object.id);
+    objectValue["30"] = object.type;
+    if (object.groups) {
+      const packedGroups: any[] = [];
+      for (const item of object.groups) {
+        packedGroups.push(item.toValue());
+      }
+      objectValue["35"] = packedGroups;
+    }
+    if (object.subresults) {
+      const packedSubresults: any[] = [];
+      for (const item of object.subresults) {
+        packedSubresults.push(item.toValue());
+      }
+      objectValue["36"] = packedSubresults;
+    }
+    if (object.nodes) {
+      const packedNodes: any[] = [];
+      for (const item of object.nodes) {
+        packedNodes.push(item.toValue());
+      }
+      objectValue["40"] = packedNodes;
+    }
+    if (object.count !== null) {
+      objectValue["41"] = object.count;
+    }
+    if (object.exists !== null) {
+      objectValue["42"] = object.exists;
+    }
+    if (object.scalar !== null) {
+      objectValue["43"] = object.scalar.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): QueryResult {
+    const unpackedGroups: any[] = [];
+    if (objectValue["35"] !== undefined) {
+      for (const item of objectValue["35"]) {
+        unpackedGroups.push(QueryResultGroup.fromValue(item, _session, _supergraph, _graph, _connection));
+      }
+    }
+    const unpackedSubresults: any[] = [];
+    if (objectValue["36"] !== undefined) {
+      for (const item of objectValue["36"]) {
+        unpackedSubresults.push(QueryResult.fromValue(item, _session, _supergraph, _graph, _connection));
+      }
+    }
+    const unpackedNodes: any[] = [];
+    if (objectValue["40"] !== undefined) {
+      for (const item of objectValue["40"]) {
+        unpackedNodes.push(Value.fromValue(item, _session, _supergraph, _graph, _connection));
+      }
+    }
+    const countValue = objectValue["41"];
+    const unpackedCount = countValue !== undefined ? Number(countValue) : null;
+    const existsValue = objectValue["42"];
+    const unpackedExists = existsValue !== undefined ? existsValue : null;
+    const scalarValue = objectValue["43"];
+    const unpackedScalar =
+      scalarValue !== undefined ? Value.fromValue(scalarValue, _session, _supergraph, _graph, _connection) : null;
+    return new QueryResult({
+      id: String(objectValue["2"]),
+      groups: unpackedGroups,
+      subresults: unpackedSubresults,
+      type: Number(objectValue["30"]),
+      nodes: unpackedNodes,
+      count: unpackedCount,
+      exists: unpackedExists,
+      scalar: unpackedScalar,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): QueryResult {
+    return QueryResult.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50111 ==== */
 
@@ -1181,6 +1965,75 @@ export class QueryResultGroup extends Struct {
   validate(): void {
     throw new Error("not implemented");
   }
+
+  toValue(): { [key: string]: any } {
+    return QueryResultGroup.__packValue__(this);
+  }
+
+  static __packValue__(object: QueryResultGroup): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 50112;
+    objectValue["30"] = object.type;
+    objectValue["31"] = object.discriminator.toValue();
+    if (object.nodes) {
+      const packedNodes: any[] = [];
+      for (const item of object.nodes) {
+        packedNodes.push(item.toValue());
+      }
+      objectValue["40"] = packedNodes;
+    }
+    if (object.count !== null) {
+      objectValue["41"] = object.count;
+    }
+    if (object.exists !== null) {
+      objectValue["42"] = object.exists;
+    }
+    if (object.scalar !== null) {
+      objectValue["43"] = object.scalar.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): QueryResultGroup {
+    const unpackedNodes: any[] = [];
+    if (objectValue["40"] !== undefined) {
+      for (const item of objectValue["40"]) {
+        unpackedNodes.push(Value.fromValue(item, _session, _supergraph, _graph, _connection));
+      }
+    }
+    const countValue = objectValue["41"];
+    const unpackedCount = countValue !== undefined ? Number(countValue) : null;
+    const existsValue = objectValue["42"];
+    const unpackedExists = existsValue !== undefined ? existsValue : null;
+    const scalarValue = objectValue["43"];
+    const unpackedScalar =
+      scalarValue !== undefined ? Value.fromValue(scalarValue, _session, _supergraph, _graph, _connection) : null;
+    return new QueryResultGroup({
+      discriminator: Value.fromValue(objectValue["31"], _session, _supergraph, _graph, _connection),
+      type: Number(objectValue["30"]),
+      nodes: unpackedNodes,
+      count: unpackedCount,
+      exists: unpackedExists,
+      scalar: unpackedScalar,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): QueryResultGroup {
+    return QueryResultGroup.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50112 ==== */
 
@@ -1207,6 +2060,10 @@ export class QueryUpdate extends StructFrozen {
     result?: QueryResult | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -1225,7 +2082,14 @@ export class QueryUpdate extends StructFrozen {
     this.result = _result;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -1238,6 +2102,52 @@ export class QueryUpdate extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = QueryUpdate.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: QueryUpdate): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 50113;
+    objectValue["30"] = object.type;
+    if (object.result !== null) {
+      objectValue["40"] = object.result.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): QueryUpdate {
+    const resultValue = objectValue["40"];
+    const unpackedResult =
+      resultValue !== undefined ? QueryResult.fromValue(resultValue, _session, _supergraph, _graph, _connection) : null;
+    return new QueryUpdate({
+      type: Number(objectValue["30"]),
+      result: unpackedResult,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): QueryUpdate {
+    return QueryUpdate.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50113 ==== */
@@ -1250,7 +2160,14 @@ export class Selection extends StructFrozen {
   static metatype: StructType = StructType.SELECTION;
   static __isFrozen__: boolean = true;
 
-  constructor(options: { _session?: Session | null; _supergraph?: Supergraph | null }) {
+  constructor(options: {
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
+  }) {
     super(
       // session
       options._session ?? null,
@@ -1261,7 +2178,14 @@ export class Selection extends StructFrozen {
     // properties
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -1274,6 +2198,43 @@ export class Selection extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Selection.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Selection): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 2571;
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Selection {
+    return new Selection({
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Selection {
+    return Selection.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:2571 ==== */

@@ -381,5 +381,140 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
     }
     return pathParts.reverse().join("/");
   }
+
+  toValue(): { [key: string]: any } {
+    return Interruption.__packValue__(this);
+  }
+
+  static __packValue__(object: Interruption): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 4020;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr !== null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr !== null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    objectValue["15"] = object.createdAt.toString();
+    if (object.createdByPtr !== null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
+    objectValue["17"] = object.updatedAt.toString();
+    if (object.updatedByPtr !== null) {
+      objectValue["18"] = object.updatedByPtr.toValue();
+    }
+    if (object.value) {
+      const packedValue: { [key: string]: any } = {};
+      for (const [key, value] of Object.entries(object.value)) {
+        packedValue[String(String(key))] = value.toValue();
+      }
+      objectValue["21"] = packedValue;
+    }
+    objectValue["30"] = object.type;
+    if (object.runnablePtr !== null) {
+      objectValue["32"] = object.runnablePtr.toValue();
+    }
+    if (object.spanPtr !== null) {
+      objectValue["37"] = object.spanPtr.toValue();
+    }
+    objectValue["40"] = object.status;
+    if (object.duration !== null) {
+      objectValue["41"] = timedeltaToISOFormat(object.duration);
+    }
+    if (object.closedAt !== null) {
+      objectValue["42"] = object.closedAt.toString();
+    }
+    if (object.response !== null) {
+      objectValue["54"] = object.response;
+    }
+    if (object.messagePtr !== null) {
+      objectValue["55"] = object.messagePtr.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Interruption {
+    const durationValue = objectValue["41"];
+    const unpackedDuration = durationValue !== undefined ? timedeltaFromISOFormat(durationValue) : null;
+    const closedAtValue = objectValue["42"];
+    const unpackedClosedAt = closedAtValue !== undefined ? Temporal.ZonedDateTime.from(closedAtValue) : null;
+    const responseValue = objectValue["54"];
+    const unpackedResponse = responseValue !== undefined ? Number(responseValue) : null;
+    const unpackedValue: { [key: string]: any } = {};
+    if (objectValue["21"] !== undefined) {
+      for (const [key, value] of Object.entries(objectValue["21"])) {
+        unpackedValue[String(key)] = Value.fromValue(value, _session, _supergraph, _graph, _connection);
+      }
+    }
+    const parentValue = objectValue["3"];
+    const unpackedParent =
+      parentValue !== undefined
+        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const runnableValue = objectValue["32"];
+    const unpackedRunnable =
+      runnableValue !== undefined
+        ? NodeReference.fromValue(runnableValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spanValue = objectValue["37"];
+    const unpackedSpan =
+      spanValue !== undefined ? NodeReference.fromValue(spanValue, _session, _supergraph, _graph, _connection) : null;
+    const messageValue = objectValue["55"];
+    const unpackedMessage =
+      messageValue !== undefined
+        ? NodeReference.fromValue(messageValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spaceValue = objectValue["5"];
+    const unpackedSpace =
+      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+    const createdByValue = objectValue["16"];
+    const unpackedCreatedBy =
+      createdByValue !== undefined
+        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByValue = objectValue["18"];
+    const unpackedUpdatedBy =
+      updatedByValue !== undefined
+        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new Interruption({
+      type: Number(objectValue["30"]),
+      status: Number(objectValue["40"]),
+      duration: unpackedDuration,
+      closedAt: unpackedClosedAt,
+      response: unpackedResponse,
+      id: String(objectValue["2"]),
+      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      value: unpackedValue,
+      parent: unpackedParent,
+      runnable: unpackedRunnable,
+      span: unpackedSpan,
+      message: unpackedMessage,
+      space: unpackedSpace,
+      createdBy: unpackedCreatedBy,
+      updatedBy: unpackedUpdatedBy,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Interruption {
+    return Interruption.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
 }
 /* ==== DESTACK_GENERATED_END:NODE:4020 ==== */

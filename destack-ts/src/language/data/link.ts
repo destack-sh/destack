@@ -365,5 +365,178 @@ export class Link extends Node implements Spatial, Resource {
     }
     return pathParts.reverse().join("/");
   }
+
+  toValue(): { [key: string]: any } {
+    return Link.__packValue__(this);
+  }
+
+  static __packValue__(object: Link): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 2550;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr !== null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr !== null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    objectValue["7"] = object.materialization;
+    objectValue["15"] = object.createdAt.toString();
+    if (object.createdByPtr !== null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
+    objectValue["17"] = object.updatedAt.toString();
+    if (object.updatedByPtr !== null) {
+      objectValue["18"] = object.updatedByPtr.toValue();
+    }
+    objectValue["30"] = object.type;
+    objectValue["40"] = object.status;
+    if (object.targetStatus !== null) {
+      objectValue["41"] = object.targetStatus.toString();
+    }
+    if (object.url !== null) {
+      objectValue["50"] = object.url;
+    }
+    if (object.domain !== null) {
+      objectValue["51"] = object.domain;
+    }
+    if (object.contentUrl !== null) {
+      objectValue["52"] = object.contentUrl;
+    }
+    if (object.thumbnailUrl !== null) {
+      objectValue["53"] = object.thumbnailUrl;
+    }
+    if (object.faviconUrl !== null) {
+      objectValue["54"] = object.faviconUrl;
+    }
+    if (object.thumbnailWidth !== null) {
+      objectValue["55"] = object.thumbnailWidth;
+    }
+    if (object.thumbnailHeight !== null) {
+      objectValue["56"] = object.thumbnailHeight;
+    }
+    if (object.content !== null) {
+      objectValue["60"] = object.content;
+    }
+    if (object.attribution !== null) {
+      objectValue["62"] = object.attribution;
+    }
+    if (object.attributionTag !== null) {
+      objectValue["63"] = object.attributionTag;
+    }
+    if (object.publishedAt !== null) {
+      objectValue["64"] = object.publishedAt.toString();
+    }
+    if (object.expiresAt !== null) {
+      objectValue["65"] = object.expiresAt.toString();
+    }
+    if (object.imageUrls) {
+      const packedImageUrls: any[] = [];
+      for (const item of object.imageUrls) {
+        packedImageUrls.push(item);
+      }
+      objectValue["70"] = packedImageUrls;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Link {
+    const urlValue = objectValue["50"];
+    const unpackedUrl = urlValue !== undefined ? urlValue : null;
+    const domainValue = objectValue["51"];
+    const unpackedDomain = domainValue !== undefined ? domainValue : null;
+    const contentUrlValue = objectValue["52"];
+    const unpackedContentUrl = contentUrlValue !== undefined ? contentUrlValue : null;
+    const thumbnailUrlValue = objectValue["53"];
+    const unpackedThumbnailUrl = thumbnailUrlValue !== undefined ? thumbnailUrlValue : null;
+    const faviconUrlValue = objectValue["54"];
+    const unpackedFaviconUrl = faviconUrlValue !== undefined ? faviconUrlValue : null;
+    const thumbnailWidthValue = objectValue["55"];
+    const unpackedThumbnailWidth = thumbnailWidthValue !== undefined ? Number(thumbnailWidthValue) : null;
+    const thumbnailHeightValue = objectValue["56"];
+    const unpackedThumbnailHeight = thumbnailHeightValue !== undefined ? Number(thumbnailHeightValue) : null;
+    const contentValue = objectValue["60"];
+    const unpackedContent = contentValue !== undefined ? contentValue : null;
+    const attributionValue = objectValue["62"];
+    const unpackedAttribution = attributionValue !== undefined ? attributionValue : null;
+    const attributionTagValue = objectValue["63"];
+    const unpackedAttributionTag = attributionTagValue !== undefined ? attributionTagValue : null;
+    const publishedAtValue = objectValue["64"];
+    const unpackedPublishedAt = publishedAtValue !== undefined ? Temporal.ZonedDateTime.from(publishedAtValue) : null;
+    const expiresAtValue = objectValue["65"];
+    const unpackedExpiresAt = expiresAtValue !== undefined ? Temporal.ZonedDateTime.from(expiresAtValue) : null;
+    const unpackedImageUrls: any[] = [];
+    if (objectValue["70"] !== undefined) {
+      for (const item of objectValue["70"]) {
+        unpackedImageUrls.push(item);
+      }
+    }
+    const targetStatusValue = objectValue["41"];
+    const unpackedTargetStatus =
+      targetStatusValue !== undefined ? Temporal.ZonedDateTime.from(targetStatusValue) : null;
+    const parentValue = objectValue["3"];
+    const unpackedParent =
+      parentValue !== undefined
+        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spaceValue = objectValue["5"];
+    const unpackedSpace =
+      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+    const createdByValue = objectValue["16"];
+    const unpackedCreatedBy =
+      createdByValue !== undefined
+        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByValue = objectValue["18"];
+    const unpackedUpdatedBy =
+      updatedByValue !== undefined
+        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new Link({
+      type: Number(objectValue["30"]),
+      url: unpackedUrl,
+      domain: unpackedDomain,
+      contentUrl: unpackedContentUrl,
+      thumbnailUrl: unpackedThumbnailUrl,
+      faviconUrl: unpackedFaviconUrl,
+      thumbnailWidth: unpackedThumbnailWidth,
+      thumbnailHeight: unpackedThumbnailHeight,
+      content: unpackedContent,
+      attribution: unpackedAttribution,
+      attributionTag: unpackedAttributionTag,
+      publishedAt: unpackedPublishedAt,
+      expiresAt: unpackedExpiresAt,
+      imageUrls: unpackedImageUrls,
+      id: String(objectValue["2"]),
+      status: Number(objectValue["40"]),
+      targetStatus: unpackedTargetStatus,
+      materialization: Number(objectValue["7"]),
+      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      parent: unpackedParent,
+      space: unpackedSpace,
+      createdBy: unpackedCreatedBy,
+      updatedBy: unpackedUpdatedBy,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Link {
+    return Link.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
 }
 /* ==== DESTACK_GENERATED_END:NODE:2550 ==== */

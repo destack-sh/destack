@@ -184,6 +184,103 @@ export class Transition extends Struct {
   validate(): void {
     throw new Error("not implemented");
   }
+
+  toValue(): { [key: string]: any } {
+    return Transition.__packValue__(this);
+  }
+
+  static __packValue__(object: Transition): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 12024;
+    objectValue["30"] = object.type;
+    if (object.stylePtr !== null) {
+      objectValue["41"] = object.stylePtr.toValue();
+    }
+    if (object.delay !== null) {
+      objectValue["50"] = object.delay;
+    }
+    if (object.duration !== null) {
+      objectValue["51"] = object.duration;
+    }
+    if (object.ease) {
+      const packedEase: any[] = [];
+      for (const item of object.ease) {
+        packedEase.push(item);
+      }
+      objectValue["52"] = packedEase;
+    }
+    if (object.stiffness !== null) {
+      objectValue["53"] = object.stiffness;
+    }
+    if (object.damping !== null) {
+      objectValue["54"] = object.damping;
+    }
+    if (object.mass !== null) {
+      objectValue["55"] = object.mass;
+    }
+    if (object.bounce !== null) {
+      objectValue["56"] = object.bounce;
+    }
+    if (object.springType !== null) {
+      objectValue["57"] = object.springType;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Transition {
+    const delayValue = objectValue["50"];
+    const unpackedDelay = delayValue !== undefined ? delayValue : null;
+    const durationValue = objectValue["51"];
+    const unpackedDuration = durationValue !== undefined ? durationValue : null;
+    const unpackedEase: any[] = [];
+    if (objectValue["52"] !== undefined) {
+      for (const item of objectValue["52"]) {
+        unpackedEase.push(item);
+      }
+    }
+    const stiffnessValue = objectValue["53"];
+    const unpackedStiffness = stiffnessValue !== undefined ? stiffnessValue : null;
+    const dampingValue = objectValue["54"];
+    const unpackedDamping = dampingValue !== undefined ? dampingValue : null;
+    const massValue = objectValue["55"];
+    const unpackedMass = massValue !== undefined ? massValue : null;
+    const bounceValue = objectValue["56"];
+    const unpackedBounce = bounceValue !== undefined ? bounceValue : null;
+    const springTypeValue = objectValue["57"];
+    const unpackedSpringType = springTypeValue !== undefined ? Number(springTypeValue) : null;
+    const styleValue = objectValue["41"];
+    const unpackedStyle =
+      styleValue !== undefined ? NodeReference.fromValue(styleValue, _session, _supergraph, _graph, _connection) : null;
+    return new Transition({
+      type: Number(objectValue["30"]),
+      delay: unpackedDelay,
+      duration: unpackedDuration,
+      ease: unpackedEase,
+      stiffness: unpackedStiffness,
+      damping: unpackedDamping,
+      mass: unpackedMass,
+      bounce: unpackedBounce,
+      springType: unpackedSpringType,
+      style: unpackedStyle,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Transition {
+    return Transition.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:12024 ==== */
 
@@ -549,6 +646,150 @@ export class TransitionStyle extends Node implements Style {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  toValue(): { [key: string]: any } {
+    return TransitionStyle.__packValue__(this);
+  }
+
+  static __packValue__(object: TransitionStyle): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 12026;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr !== null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr !== null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    objectValue["7"] = object.materialization;
+    objectValue["15"] = object.createdAt.toString();
+    if (object.createdByPtr !== null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
+    objectValue["17"] = object.updatedAt.toString();
+    if (object.updatedByPtr !== null) {
+      objectValue["18"] = object.updatedByPtr.toValue();
+    }
+    if (object.deletedAt !== null) {
+      objectValue["20"] = object.deletedAt.toString();
+    }
+    objectValue["22"] = object.orderKey;
+    objectValue["30"] = object.type;
+    objectValue["31"] = object.name;
+    if (object.delay !== null) {
+      objectValue["50"] = object.delay;
+    }
+    if (object.duration !== null) {
+      objectValue["51"] = object.duration;
+    }
+    if (object.ease) {
+      const packedEase: any[] = [];
+      for (const item of object.ease) {
+        packedEase.push(item);
+      }
+      objectValue["52"] = packedEase;
+    }
+    if (object.stiffness !== null) {
+      objectValue["53"] = object.stiffness;
+    }
+    if (object.damping !== null) {
+      objectValue["54"] = object.damping;
+    }
+    if (object.mass !== null) {
+      objectValue["55"] = object.mass;
+    }
+    if (object.bounce !== null) {
+      objectValue["56"] = object.bounce;
+    }
+    if (object.springType !== null) {
+      objectValue["57"] = object.springType;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): TransitionStyle {
+    const deletedAtValue = objectValue["20"];
+    const unpackedDeletedAt = deletedAtValue !== undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const delayValue = objectValue["50"];
+    const unpackedDelay = delayValue !== undefined ? delayValue : null;
+    const durationValue = objectValue["51"];
+    const unpackedDuration = durationValue !== undefined ? durationValue : null;
+    const unpackedEase: any[] = [];
+    if (objectValue["52"] !== undefined) {
+      for (const item of objectValue["52"]) {
+        unpackedEase.push(item);
+      }
+    }
+    const stiffnessValue = objectValue["53"];
+    const unpackedStiffness = stiffnessValue !== undefined ? stiffnessValue : null;
+    const dampingValue = objectValue["54"];
+    const unpackedDamping = dampingValue !== undefined ? dampingValue : null;
+    const massValue = objectValue["55"];
+    const unpackedMass = massValue !== undefined ? massValue : null;
+    const bounceValue = objectValue["56"];
+    const unpackedBounce = bounceValue !== undefined ? bounceValue : null;
+    const springTypeValue = objectValue["57"];
+    const unpackedSpringType = springTypeValue !== undefined ? Number(springTypeValue) : null;
+    const parentValue = objectValue["3"];
+    const unpackedParent =
+      parentValue !== undefined
+        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spaceValue = objectValue["5"];
+    const unpackedSpace =
+      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+    const createdByValue = objectValue["16"];
+    const unpackedCreatedBy =
+      createdByValue !== undefined
+        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByValue = objectValue["18"];
+    const unpackedUpdatedBy =
+      updatedByValue !== undefined
+        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new TransitionStyle({
+      id: String(objectValue["2"]),
+      materialization: Number(objectValue["7"]),
+      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      name: objectValue["31"],
+      orderKey: objectValue["22"],
+      deletedAt: unpackedDeletedAt,
+      type: Number(objectValue["30"]),
+      delay: unpackedDelay,
+      duration: unpackedDuration,
+      ease: unpackedEase,
+      stiffness: unpackedStiffness,
+      damping: unpackedDamping,
+      mass: unpackedMass,
+      bounce: unpackedBounce,
+      springType: unpackedSpringType,
+      parent: unpackedParent,
+      space: unpackedSpace,
+      createdBy: unpackedCreatedBy,
+      updatedBy: unpackedUpdatedBy,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): TransitionStyle {
+    return TransitionStyle.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:12026 ==== */

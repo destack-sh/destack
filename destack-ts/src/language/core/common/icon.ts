@@ -78,6 +78,10 @@ export class Icon extends StructFrozen {
     color?: Color | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -109,7 +113,14 @@ export class Icon extends StructFrozen {
     this.color = _color;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -122,6 +133,83 @@ export class Icon extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Icon.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Icon): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 2531;
+    objectValue["30"] = object.type;
+    if (object.emoji !== null) {
+      objectValue["31"] = object.emoji;
+    }
+    if (object.faName !== null) {
+      objectValue["33"] = object.faName;
+    }
+    if (object.vscName !== null) {
+      objectValue["34"] = object.vscName;
+    }
+    if (object.filePtr !== null) {
+      objectValue["35"] = object.filePtr.toValue();
+    }
+    if (object.fileUrl !== null) {
+      objectValue["36"] = object.fileUrl;
+    }
+    if (object.color !== null) {
+      objectValue["40"] = object.color.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Icon {
+    const emojiValue = objectValue["31"];
+    const unpackedEmoji = emojiValue !== undefined ? emojiValue : null;
+    const faNameValue = objectValue["33"];
+    const unpackedFaName = faNameValue !== undefined ? faNameValue : null;
+    const vscNameValue = objectValue["34"];
+    const unpackedVscName = vscNameValue !== undefined ? vscNameValue : null;
+    const fileUrlValue = objectValue["36"];
+    const unpackedFileUrl = fileUrlValue !== undefined ? fileUrlValue : null;
+    const colorValue = objectValue["40"];
+    const unpackedColor =
+      colorValue !== undefined ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection) : null;
+    const fileValue = objectValue["35"];
+    const unpackedFile =
+      fileValue !== undefined ? NodeReference.fromValue(fileValue, _session, _supergraph, _graph, _connection) : null;
+    return new Icon({
+      type: Number(objectValue["30"]),
+      emoji: unpackedEmoji,
+      faName: unpackedFaName,
+      vscName: unpackedVscName,
+      fileUrl: unpackedFileUrl,
+      color: unpackedColor,
+      file: unpackedFile,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Icon {
+    return Icon.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:2531 ==== */

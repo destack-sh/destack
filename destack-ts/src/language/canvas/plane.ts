@@ -628,5 +628,313 @@ export class PlaneShape extends Node implements ContainerView, IsShape {
     }
     return pathParts.reverse().join("/");
   }
+
+  toValue(): { [key: string]: any } {
+    return PlaneShape.__packValue__(this);
+  }
+
+  static __packValue__(object: PlaneShape): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 11011;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr !== null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr !== null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    objectValue["7"] = object.materialization;
+    objectValue["15"] = object.createdAt.toString();
+    if (object.createdByPtr !== null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
+    objectValue["17"] = object.updatedAt.toString();
+    if (object.updatedByPtr !== null) {
+      objectValue["18"] = object.updatedByPtr.toValue();
+    }
+    if (object.deletedAt !== null) {
+      objectValue["20"] = object.deletedAt.toString();
+    }
+    if (object.value) {
+      const packedValue: { [key: string]: any } = {};
+      for (const [key, value] of Object.entries(object.value)) {
+        packedValue[String(String(key))] = value.toValue();
+      }
+      objectValue["21"] = packedValue;
+    }
+    objectValue["22"] = object.orderKey;
+    objectValue["31"] = object.name;
+    if (object.position !== null) {
+      objectValue["40"] = object.position.toValue();
+    }
+    if (object.width !== null) {
+      objectValue["41"] = object.width.toValue();
+    }
+    if (object.height !== null) {
+      objectValue["42"] = object.height.toValue();
+    }
+    if (object.minWidth !== null) {
+      objectValue["43"] = object.minWidth.toValue();
+    }
+    if (object.minHeight !== null) {
+      objectValue["44"] = object.minHeight.toValue();
+    }
+    if (object.maxWidth !== null) {
+      objectValue["45"] = object.maxWidth.toValue();
+    }
+    if (object.maxHeight !== null) {
+      objectValue["46"] = object.maxHeight.toValue();
+    }
+    if (object.layout !== null) {
+      objectValue["50"] = object.layout;
+    }
+    if (object.direction !== null) {
+      objectValue["51"] = object.direction;
+    }
+    if (object.distribute !== null) {
+      objectValue["52"] = object.distribute;
+    }
+    if (object.align !== null) {
+      objectValue["53"] = object.align;
+    }
+    if (object.gap !== null) {
+      objectValue["54"] = object.gap.toValue();
+    }
+    if (object.padding !== null) {
+      objectValue["55"] = object.padding.toValue();
+    }
+    if (object.grid !== null) {
+      objectValue["56"] = object.grid.toValue();
+    }
+    if (object.gridSpan !== null) {
+      objectValue["57"] = object.gridSpan.toValue();
+    }
+    if (object.aspectRatio !== null) {
+      objectValue["58"] = object.aspectRatio;
+    }
+    if (object.isWrap !== null) {
+      objectValue["59"] = object.isWrap;
+    }
+    if (object.isVisible !== null) {
+      objectValue["60"] = object.isVisible;
+    }
+    if (object.opacity !== null) {
+      objectValue["61"] = object.opacity;
+    }
+    if (object.fill !== null) {
+      objectValue["62"] = object.fill.toValue();
+    }
+    if (object.rotation !== null) {
+      objectValue["63"] = object.rotation.toValue();
+    }
+    if (object.skew !== null) {
+      objectValue["64"] = object.skew.toValue();
+    }
+    if (object.scale !== null) {
+      objectValue["65"] = object.scale;
+    }
+    if (object.shadow !== null) {
+      objectValue["66"] = object.shadow.toValue();
+    }
+    if (object.border !== null) {
+      objectValue["67"] = object.border.toValue();
+    }
+    if (object.radius !== null) {
+      objectValue["68"] = object.radius.toValue();
+    }
+    if (object.points) {
+      const packedPoints: any[] = [];
+      for (const item of object.points) {
+        packedPoints.push(item.toValue());
+      }
+      objectValue["100"] = packedPoints;
+    }
+    if (object.scriptPtr !== null) {
+      objectValue["200"] = object.scriptPtr.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): PlaneShape {
+    const unpackedPoints: any[] = [];
+    if (objectValue["100"] !== undefined) {
+      for (const item of objectValue["100"]) {
+        unpackedPoints.push(Vector2.fromValue(item, _session, _supergraph, _graph, _connection));
+      }
+    }
+    const layoutValue = objectValue["50"];
+    const unpackedLayout = layoutValue !== undefined ? Number(layoutValue) : null;
+    const directionValue = objectValue["51"];
+    const unpackedDirection = directionValue !== undefined ? Number(directionValue) : null;
+    const distributeValue = objectValue["52"];
+    const unpackedDistribute = distributeValue !== undefined ? Number(distributeValue) : null;
+    const alignValue = objectValue["53"];
+    const unpackedAlign = alignValue !== undefined ? Number(alignValue) : null;
+    const gapValue = objectValue["54"];
+    const unpackedGap =
+      gapValue !== undefined ? Axis2.fromValue(gapValue, _session, _supergraph, _graph, _connection) : null;
+    const paddingValue = objectValue["55"];
+    const unpackedPadding =
+      paddingValue !== undefined ? Insets.fromValue(paddingValue, _session, _supergraph, _graph, _connection) : null;
+    const gridValue = objectValue["56"];
+    const unpackedGrid =
+      gridValue !== undefined ? Grid.fromValue(gridValue, _session, _supergraph, _graph, _connection) : null;
+    const gridSpanValue = objectValue["57"];
+    const unpackedGridSpan =
+      gridSpanValue !== undefined
+        ? GridSpan.fromValue(gridSpanValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const aspectRatioValue = objectValue["58"];
+    const unpackedAspectRatio = aspectRatioValue !== undefined ? aspectRatioValue : null;
+    const isWrapValue = objectValue["59"];
+    const unpackedIsWrap = isWrapValue !== undefined ? isWrapValue : null;
+    const isVisibleValue = objectValue["60"];
+    const unpackedIsVisible = isVisibleValue !== undefined ? isVisibleValue : null;
+    const opacityValue = objectValue["61"];
+    const unpackedOpacity = opacityValue !== undefined ? opacityValue : null;
+    const fillValue = objectValue["62"];
+    const unpackedFill =
+      fillValue !== undefined ? Fill.fromValue(fillValue, _session, _supergraph, _graph, _connection) : null;
+    const rotationValue = objectValue["63"];
+    const unpackedRotation =
+      rotationValue !== undefined ? Axis3.fromValue(rotationValue, _session, _supergraph, _graph, _connection) : null;
+    const skewValue = objectValue["64"];
+    const unpackedSkew =
+      skewValue !== undefined ? Vector2.fromValue(skewValue, _session, _supergraph, _graph, _connection) : null;
+    const scaleValue = objectValue["65"];
+    const unpackedScale = scaleValue !== undefined ? scaleValue : null;
+    const shadowValue = objectValue["66"];
+    const unpackedShadow =
+      shadowValue !== undefined ? Shadow.fromValue(shadowValue, _session, _supergraph, _graph, _connection) : null;
+    const borderValue = objectValue["67"];
+    const unpackedBorder =
+      borderValue !== undefined ? Border.fromValue(borderValue, _session, _supergraph, _graph, _connection) : null;
+    const radiusValue = objectValue["68"];
+    const unpackedRadius =
+      radiusValue !== undefined ? Corners.fromValue(radiusValue, _session, _supergraph, _graph, _connection) : null;
+    const positionValue = objectValue["40"];
+    const unpackedPosition =
+      positionValue !== undefined
+        ? Position.fromValue(positionValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const widthValue = objectValue["41"];
+    const unpackedWidth =
+      widthValue !== undefined ? Dimension.fromValue(widthValue, _session, _supergraph, _graph, _connection) : null;
+    const heightValue = objectValue["42"];
+    const unpackedHeight =
+      heightValue !== undefined ? Dimension.fromValue(heightValue, _session, _supergraph, _graph, _connection) : null;
+    const minWidthValue = objectValue["43"];
+    const unpackedMinWidth =
+      minWidthValue !== undefined
+        ? Dimension.fromValue(minWidthValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const minHeightValue = objectValue["44"];
+    const unpackedMinHeight =
+      minHeightValue !== undefined
+        ? Dimension.fromValue(minHeightValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const maxWidthValue = objectValue["45"];
+    const unpackedMaxWidth =
+      maxWidthValue !== undefined
+        ? Dimension.fromValue(maxWidthValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const maxHeightValue = objectValue["46"];
+    const unpackedMaxHeight =
+      maxHeightValue !== undefined
+        ? Dimension.fromValue(maxHeightValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const deletedAtValue = objectValue["20"];
+    const unpackedDeletedAt = deletedAtValue !== undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const unpackedValue: { [key: string]: any } = {};
+    if (objectValue["21"] !== undefined) {
+      for (const [key, value] of Object.entries(objectValue["21"])) {
+        unpackedValue[String(key)] = Value.fromValue(value, _session, _supergraph, _graph, _connection);
+      }
+    }
+    const parentValue = objectValue["3"];
+    const unpackedParent =
+      parentValue !== undefined
+        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spaceValue = objectValue["5"];
+    const unpackedSpace =
+      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+    const createdByValue = objectValue["16"];
+    const unpackedCreatedBy =
+      createdByValue !== undefined
+        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByValue = objectValue["18"];
+    const unpackedUpdatedBy =
+      updatedByValue !== undefined
+        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const scriptValue = objectValue["200"];
+    const unpackedScript =
+      scriptValue !== undefined
+        ? NodeReference.fromValue(scriptValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new PlaneShape({
+      points: unpackedPoints,
+      layout: unpackedLayout,
+      direction: unpackedDirection,
+      distribute: unpackedDistribute,
+      align: unpackedAlign,
+      gap: unpackedGap,
+      padding: unpackedPadding,
+      grid: unpackedGrid,
+      gridSpan: unpackedGridSpan,
+      aspectRatio: unpackedAspectRatio,
+      isWrap: unpackedIsWrap,
+      isVisible: unpackedIsVisible,
+      opacity: unpackedOpacity,
+      fill: unpackedFill,
+      rotation: unpackedRotation,
+      skew: unpackedSkew,
+      scale: unpackedScale,
+      shadow: unpackedShadow,
+      border: unpackedBorder,
+      radius: unpackedRadius,
+      position: unpackedPosition,
+      width: unpackedWidth,
+      height: unpackedHeight,
+      minWidth: unpackedMinWidth,
+      minHeight: unpackedMinHeight,
+      maxWidth: unpackedMaxWidth,
+      maxHeight: unpackedMaxHeight,
+      id: String(objectValue["2"]),
+      materialization: Number(objectValue["7"]),
+      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      name: objectValue["31"],
+      orderKey: objectValue["22"],
+      deletedAt: unpackedDeletedAt,
+      value: unpackedValue,
+      parent: unpackedParent,
+      space: unpackedSpace,
+      createdBy: unpackedCreatedBy,
+      updatedBy: unpackedUpdatedBy,
+      script: unpackedScript,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): PlaneShape {
+    return PlaneShape.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
 }
 /* ==== DESTACK_GENERATED_END:NODE:11011 ==== */

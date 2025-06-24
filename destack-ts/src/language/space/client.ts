@@ -57,6 +57,10 @@ export class Origin extends StructFrozen {
     nonce?: string | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -79,7 +83,14 @@ export class Origin extends StructFrozen {
     this.nonce = _nonce;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -92,6 +103,63 @@ export class Origin extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Origin.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Origin): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 50001;
+    objectValue["30"] = object.type;
+    if (object.id !== null) {
+      objectValue["31"] = String(object.id);
+    }
+    if (object.ck !== null) {
+      objectValue["32"] = String(object.ck);
+    }
+    if (object.nonce !== null) {
+      objectValue["33"] = String(object.nonce);
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Origin {
+    const idValue = objectValue["31"];
+    const unpackedId = idValue !== undefined ? String(idValue) : null;
+    const ckValue = objectValue["32"];
+    const unpackedCk = ckValue !== undefined ? String(ckValue) : null;
+    const nonceValue = objectValue["33"];
+    const unpackedNonce = nonceValue !== undefined ? String(nonceValue) : null;
+    return new Origin({
+      type: Number(objectValue["30"]),
+      id: unpackedId,
+      ck: unpackedCk,
+      nonce: unpackedNonce,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Origin {
+    return Origin.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50001 ==== */
@@ -444,6 +512,158 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  toValue(): { [key: string]: any } {
+    return Client.__packValue__(this);
+  }
+
+  static __packValue__(object: Client): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 100;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr !== null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    objectValue["7"] = object.materialization;
+    objectValue["15"] = object.createdAt.toString();
+    if (object.createdByPtr !== null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
+    objectValue["17"] = object.updatedAt.toString();
+    if (object.updatedByPtr !== null) {
+      objectValue["18"] = object.updatedByPtr.toValue();
+    }
+    if (object.deletedAt !== null) {
+      objectValue["20"] = object.deletedAt.toString();
+    }
+    objectValue["30"] = object.type;
+    objectValue["31"] = object.name;
+    if (object.machinePtr !== null) {
+      objectValue["36"] = object.machinePtr.toValue();
+    }
+    if (object.userPtr !== null) {
+      objectValue["37"] = object.userPtr.toValue();
+    }
+    if (object.deviceType !== null) {
+      objectValue["40"] = object.deviceType;
+    }
+    if (object.deviceName !== null) {
+      objectValue["41"] = object.deviceName;
+    }
+    if (object.operatingSystem !== null) {
+      objectValue["42"] = object.operatingSystem;
+    }
+    if (object.browserName !== null) {
+      objectValue["43"] = object.browserName;
+    }
+    if (object.browserVersion !== null) {
+      objectValue["44"] = object.browserVersion;
+    }
+    if (object.accessToken !== null) {
+      objectValue["50"] = object.accessToken;
+    }
+    if (object.seenAt !== null) {
+      objectValue["51"] = object.seenAt.toString();
+    }
+    if (object.loggedInAt !== null) {
+      objectValue["52"] = object.loggedInAt.toString();
+    }
+    if (object.cursorPtr !== null) {
+      objectValue["55"] = object.cursorPtr.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Client {
+    const accessTokenValue = objectValue["50"];
+    const unpackedAccessToken = accessTokenValue !== undefined ? accessTokenValue : null;
+    const seenAtValue = objectValue["51"];
+    const unpackedSeenAt = seenAtValue !== undefined ? Temporal.ZonedDateTime.from(seenAtValue) : null;
+    const loggedInAtValue = objectValue["52"];
+    const unpackedLoggedInAt = loggedInAtValue !== undefined ? Temporal.ZonedDateTime.from(loggedInAtValue) : null;
+    const deviceTypeValue = objectValue["40"];
+    const unpackedDeviceType = deviceTypeValue !== undefined ? deviceTypeValue : null;
+    const deviceNameValue = objectValue["41"];
+    const unpackedDeviceName = deviceNameValue !== undefined ? deviceNameValue : null;
+    const operatingSystemValue = objectValue["42"];
+    const unpackedOperatingSystem = operatingSystemValue !== undefined ? operatingSystemValue : null;
+    const browserNameValue = objectValue["43"];
+    const unpackedBrowserName = browserNameValue !== undefined ? browserNameValue : null;
+    const browserVersionValue = objectValue["44"];
+    const unpackedBrowserVersion = browserVersionValue !== undefined ? browserVersionValue : null;
+    const deletedAtValue = objectValue["20"];
+    const unpackedDeletedAt = deletedAtValue !== undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const parentValue = objectValue["3"];
+    const unpackedParent =
+      parentValue !== undefined
+        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const machineValue = objectValue["36"];
+    const unpackedMachine =
+      machineValue !== undefined
+        ? NodeReference.fromValue(machineValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const userValue = objectValue["37"];
+    const unpackedUser =
+      userValue !== undefined ? NodeReference.fromValue(userValue, _session, _supergraph, _graph, _connection) : null;
+    const cursorValue = objectValue["55"];
+    const unpackedCursor =
+      cursorValue !== undefined
+        ? NodeReference.fromValue(cursorValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const createdByValue = objectValue["16"];
+    const unpackedCreatedBy =
+      createdByValue !== undefined
+        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByValue = objectValue["18"];
+    const unpackedUpdatedBy =
+      updatedByValue !== undefined
+        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new Client({
+      type: Number(objectValue["30"]),
+      accessToken: unpackedAccessToken,
+      seenAt: unpackedSeenAt,
+      loggedInAt: unpackedLoggedInAt,
+      deviceType: unpackedDeviceType,
+      deviceName: unpackedDeviceName,
+      operatingSystem: unpackedOperatingSystem,
+      browserName: unpackedBrowserName,
+      browserVersion: unpackedBrowserVersion,
+      name: objectValue["31"],
+      id: String(objectValue["2"]),
+      materialization: Number(objectValue["7"]),
+      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      deletedAt: unpackedDeletedAt,
+      parent: unpackedParent,
+      machine: unpackedMachine,
+      user: unpackedUser,
+      cursor: unpackedCursor,
+      createdBy: unpackedCreatedBy,
+      updatedBy: unpackedUpdatedBy,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Client {
+    return Client.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:100 ==== */

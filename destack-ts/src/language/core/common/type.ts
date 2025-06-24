@@ -1,3 +1,4 @@
+import { PRIMITIVE_JS_TYPES, PRIMITIVE_TYPE_BY_JS_TYPE } from "@destack/language";
 import {
   CustomEntityDefinition,
   DefaultFactory,
@@ -5,8 +6,6 @@ import {
   Node,
   NodeReference,
   NodeType,
-  PRIMITIVE_JS_TYPES,
-  PRIMITIVE_TYPE_BY_JS_TYPE,
   PrimitiveType,
   ScalarType,
   Session,
@@ -81,6 +80,10 @@ export class StringConstraint extends StructFrozen {
     endsWith?: string | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -100,7 +103,14 @@ export class StringConstraint extends StructFrozen {
     this.endsWith = _endsWith;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -113,6 +123,67 @@ export class StringConstraint extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = StringConstraint.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: StringConstraint): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 2503;
+    if (object.format !== null) {
+      objectValue["40"] = object.format;
+    }
+    if (object.regex !== null) {
+      objectValue["41"] = object.regex;
+    }
+    if (object.startsWith !== null) {
+      objectValue["42"] = object.startsWith;
+    }
+    if (object.endsWith !== null) {
+      objectValue["43"] = object.endsWith;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): StringConstraint {
+    const formatValue = objectValue["40"];
+    const unpackedFormat = formatValue !== undefined ? Number(formatValue) : null;
+    const regexValue = objectValue["41"];
+    const unpackedRegex = regexValue !== undefined ? regexValue : null;
+    const startsWithValue = objectValue["42"];
+    const unpackedStartsWith = startsWithValue !== undefined ? startsWithValue : null;
+    const endsWithValue = objectValue["43"];
+    const unpackedEndsWith = endsWithValue !== undefined ? endsWithValue : null;
+    return new StringConstraint({
+      format: unpackedFormat,
+      regex: unpackedRegex,
+      startsWith: unpackedStartsWith,
+      endsWith: unpackedEndsWith,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): StringConstraint {
+    return StringConstraint.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:2503 ==== */
@@ -164,6 +235,10 @@ export class NumberConstraint extends StructFrozen {
     scale?: number | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -187,7 +262,14 @@ export class NumberConstraint extends StructFrozen {
     this.scale = _scale;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -200,6 +282,79 @@ export class NumberConstraint extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = NumberConstraint.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: NumberConstraint): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 2502;
+    if (object.format !== null) {
+      objectValue["40"] = object.format;
+    }
+    if (object.minValue !== null) {
+      objectValue["41"] = object.minValue;
+    }
+    if (object.maxValue !== null) {
+      objectValue["42"] = object.maxValue;
+    }
+    if (object.stepValue !== null) {
+      objectValue["43"] = object.stepValue;
+    }
+    if (object.precision !== null) {
+      objectValue["44"] = object.precision;
+    }
+    if (object.scale !== null) {
+      objectValue["45"] = object.scale;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): NumberConstraint {
+    const formatValue = objectValue["40"];
+    const unpackedFormat = formatValue !== undefined ? Number(formatValue) : null;
+    const minValueValue = objectValue["41"];
+    const unpackedMinValue = minValueValue !== undefined ? minValueValue : null;
+    const maxValueValue = objectValue["42"];
+    const unpackedMaxValue = maxValueValue !== undefined ? maxValueValue : null;
+    const stepValueValue = objectValue["43"];
+    const unpackedStepValue = stepValueValue !== undefined ? stepValueValue : null;
+    const precisionValue = objectValue["44"];
+    const unpackedPrecision = precisionValue !== undefined ? Number(precisionValue) : null;
+    const scaleValue = objectValue["45"];
+    const unpackedScale = scaleValue !== undefined ? Number(scaleValue) : null;
+    return new NumberConstraint({
+      format: unpackedFormat,
+      minValue: unpackedMinValue,
+      maxValue: unpackedMaxValue,
+      stepValue: unpackedStepValue,
+      precision: unpackedPrecision,
+      scale: unpackedScale,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): NumberConstraint {
+    return NumberConstraint.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:2502 ==== */
@@ -227,6 +382,10 @@ export class CollectionConstraint extends StructFrozen {
     maxLength?: number | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -242,7 +401,14 @@ export class CollectionConstraint extends StructFrozen {
     this.maxLength = _maxLength;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -255,6 +421,55 @@ export class CollectionConstraint extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = CollectionConstraint.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: CollectionConstraint): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 2504;
+    if (object.minLength !== null) {
+      objectValue["41"] = object.minLength;
+    }
+    if (object.maxLength !== null) {
+      objectValue["42"] = object.maxLength;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): CollectionConstraint {
+    const minLengthValue = objectValue["41"];
+    const unpackedMinLength = minLengthValue !== undefined ? Number(minLengthValue) : null;
+    const maxLengthValue = objectValue["42"];
+    const unpackedMaxLength = maxLengthValue !== undefined ? Number(maxLengthValue) : null;
+    return new CollectionConstraint({
+      minLength: unpackedMinLength,
+      maxLength: unpackedMaxLength,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): CollectionConstraint {
+    return CollectionConstraint.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:2504 ==== */
@@ -282,6 +497,10 @@ export class NodeConstraint extends StructFrozen {
     nodeTraits?: Array<TraitType>;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -303,7 +522,14 @@ export class NodeConstraint extends StructFrozen {
     this.nodeTraits = _nodeTraits;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -316,6 +542,71 @@ export class NodeConstraint extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = NodeConstraint.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: NodeConstraint): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 2505;
+    if (object.nodeTypes) {
+      const packedNodeTypes: any[] = [];
+      for (const item of object.nodeTypes) {
+        packedNodeTypes.push(item);
+      }
+      objectValue["41"] = packedNodeTypes;
+    }
+    if (object.nodeTraits) {
+      const packedNodeTraits: any[] = [];
+      for (const item of object.nodeTraits) {
+        packedNodeTraits.push(item);
+      }
+      objectValue["42"] = packedNodeTraits;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): NodeConstraint {
+    const unpackedNodeTypes: any[] = [];
+    if (objectValue["41"] !== undefined) {
+      for (const item of objectValue["41"]) {
+        unpackedNodeTypes.push(Number(item));
+      }
+    }
+    const unpackedNodeTraits: any[] = [];
+    if (objectValue["42"] !== undefined) {
+      for (const item of objectValue["42"]) {
+        unpackedNodeTraits.push(Number(item));
+      }
+    }
+    return new NodeConstraint({
+      nodeTypes: unpackedNodeTypes,
+      nodeTraits: unpackedNodeTraits,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): NodeConstraint {
+    return NodeConstraint.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:2505 ==== */
@@ -453,6 +744,10 @@ export class Type extends StructFrozen {
     nodeConstraint?: NodeConstraint | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -513,7 +808,14 @@ export class Type extends StructFrozen {
     this.nodeConstraint = _nodeConstraint;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
@@ -526,6 +828,159 @@ export class Type extends StructFrozen {
 
   validate(): void {
     throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Type.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Type): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 2501;
+    objectValue["40"] = object.cardinality;
+    objectValue["41"] = object.scalarType;
+    if (object.primitiveType !== null) {
+      objectValue["42"] = object.primitiveType;
+    }
+    if (object.enumType !== null) {
+      objectValue["43"] = object.enumType;
+    }
+    if (object.nodeType !== null) {
+      objectValue["44"] = object.nodeType;
+    }
+    if (object.nodeDefinitionPtr !== null) {
+      objectValue["45"] = object.nodeDefinitionPtr.toValue();
+    }
+    if (object.structType !== null) {
+      objectValue["46"] = object.structType;
+    }
+    if (object.baseTypePtr !== null) {
+      objectValue["47"] = object.baseTypePtr.toValue();
+    }
+    if (object.keyType !== null) {
+      objectValue["48"] = object.keyType.toValue();
+    }
+    if (object.isRequired !== null) {
+      objectValue["50"] = object.isRequired;
+    }
+    if (object.isVariable !== null) {
+      objectValue["51"] = object.isVariable;
+    }
+    if (object.defaultValue !== null) {
+      objectValue["55"] = object.defaultValue.toValue();
+    }
+    if (object.defaultFactory !== null) {
+      objectValue["56"] = object.defaultFactory;
+    }
+    if (object.collectionConstraint !== null) {
+      objectValue["60"] = object.collectionConstraint.toValue();
+    }
+    if (object.stringConstraint !== null) {
+      objectValue["61"] = object.stringConstraint.toValue();
+    }
+    if (object.numberConstraint !== null) {
+      objectValue["62"] = object.numberConstraint.toValue();
+    }
+    if (object.nodeConstraint !== null) {
+      objectValue["63"] = object.nodeConstraint.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Type {
+    const primitiveTypeValue = objectValue["42"];
+    const unpackedPrimitiveType = primitiveTypeValue !== undefined ? Number(primitiveTypeValue) : null;
+    const enumTypeValue = objectValue["43"];
+    const unpackedEnumType = enumTypeValue !== undefined ? Number(enumTypeValue) : null;
+    const nodeTypeValue = objectValue["44"];
+    const unpackedNodeType = nodeTypeValue !== undefined ? Number(nodeTypeValue) : null;
+    const structTypeValue = objectValue["46"];
+    const unpackedStructType = structTypeValue !== undefined ? Number(structTypeValue) : null;
+    const keyTypeValue = objectValue["48"];
+    const unpackedKeyType =
+      keyTypeValue !== undefined ? Type.fromValue(keyTypeValue, _session, _supergraph, _graph, _connection) : null;
+    const isRequiredValue = objectValue["50"];
+    const unpackedIsRequired = isRequiredValue !== undefined ? isRequiredValue : null;
+    const isVariableValue = objectValue["51"];
+    const unpackedIsVariable = isVariableValue !== undefined ? isVariableValue : null;
+    const defaultValueValue = objectValue["55"];
+    const unpackedDefaultValue =
+      defaultValueValue !== undefined
+        ? Value.fromValue(defaultValueValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const defaultFactoryValue = objectValue["56"];
+    const unpackedDefaultFactory = defaultFactoryValue !== undefined ? Number(defaultFactoryValue) : null;
+    const collectionConstraintValue = objectValue["60"];
+    const unpackedCollectionConstraint =
+      collectionConstraintValue !== undefined
+        ? CollectionConstraint.fromValue(collectionConstraintValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const stringConstraintValue = objectValue["61"];
+    const unpackedStringConstraint =
+      stringConstraintValue !== undefined
+        ? StringConstraint.fromValue(stringConstraintValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const numberConstraintValue = objectValue["62"];
+    const unpackedNumberConstraint =
+      numberConstraintValue !== undefined
+        ? NumberConstraint.fromValue(numberConstraintValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const nodeConstraintValue = objectValue["63"];
+    const unpackedNodeConstraint =
+      nodeConstraintValue !== undefined
+        ? NodeConstraint.fromValue(nodeConstraintValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const nodeDefinitionValue = objectValue["45"];
+    const unpackedNodeDefinition =
+      nodeDefinitionValue !== undefined
+        ? NodeReference.fromValue(nodeDefinitionValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const baseTypeValue = objectValue["47"];
+    const unpackedBaseType =
+      baseTypeValue !== undefined
+        ? NodeReference.fromValue(baseTypeValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new Type({
+      cardinality: Number(objectValue["40"]),
+      scalarType: Number(objectValue["41"]),
+      primitiveType: unpackedPrimitiveType,
+      enumType: unpackedEnumType,
+      nodeType: unpackedNodeType,
+      structType: unpackedStructType,
+      keyType: unpackedKeyType,
+      isRequired: unpackedIsRequired,
+      isVariable: unpackedIsVariable,
+      defaultValue: unpackedDefaultValue,
+      defaultFactory: unpackedDefaultFactory,
+      collectionConstraint: unpackedCollectionConstraint,
+      stringConstraint: unpackedStringConstraint,
+      numberConstraint: unpackedNumberConstraint,
+      nodeConstraint: unpackedNodeConstraint,
+      nodeDefinition: unpackedNodeDefinition,
+      baseType: unpackedBaseType,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Type {
+    return Type.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:2501 ==== */

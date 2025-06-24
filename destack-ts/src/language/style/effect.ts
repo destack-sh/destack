@@ -256,6 +256,137 @@ export class Effect extends Struct {
   validate(): void {
     throw new Error("not implemented");
   }
+
+  toValue(): { [key: string]: any } {
+    return Effect.__packValue__(this);
+  }
+
+  static __packValue__(object: Effect): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 12025;
+    objectValue["30"] = object.type;
+    if (object.stylePtr !== null) {
+      objectValue["41"] = object.stylePtr.toValue();
+    }
+    if (object.opacity !== null) {
+      objectValue["50"] = object.opacity;
+    }
+    if (object.offset !== null) {
+      objectValue["51"] = object.offset.toValue();
+    }
+    if (object.scale !== null) {
+      objectValue["52"] = object.scale;
+    }
+    if (object.rotate !== null) {
+      objectValue["53"] = object.rotate.toValue();
+    }
+    if (object.skew !== null) {
+      objectValue["54"] = object.skew.toValue();
+    }
+    if (object.perspective !== null) {
+      objectValue["55"] = object.perspective;
+    }
+    if (object.delay !== null) {
+      objectValue["56"] = timedeltaToISOFormat(object.delay);
+    }
+    if (object.duration !== null) {
+      objectValue["57"] = object.duration;
+    }
+    if (object.threshold !== null) {
+      objectValue["58"] = object.threshold;
+    }
+    if (object.once !== null) {
+      objectValue["59"] = object.once;
+    }
+    if (object.repeat !== null) {
+      objectValue["60"] = object.repeat;
+    }
+    if (object.split !== null) {
+      objectValue["61"] = object.split;
+    }
+    if (object.offscreen !== null) {
+      objectValue["62"] = object.offscreen;
+    }
+    if (object.transition !== null) {
+      objectValue["70"] = object.transition.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Effect {
+    const opacityValue = objectValue["50"];
+    const unpackedOpacity = opacityValue !== undefined ? opacityValue : null;
+    const offsetValue = objectValue["51"];
+    const unpackedOffset =
+      offsetValue !== undefined ? Vector2.fromValue(offsetValue, _session, _supergraph, _graph, _connection) : null;
+    const scaleValue = objectValue["52"];
+    const unpackedScale = scaleValue !== undefined ? scaleValue : null;
+    const rotateValue = objectValue["53"];
+    const unpackedRotate =
+      rotateValue !== undefined ? Axis3.fromValue(rotateValue, _session, _supergraph, _graph, _connection) : null;
+    const skewValue = objectValue["54"];
+    const unpackedSkew =
+      skewValue !== undefined ? Vector2.fromValue(skewValue, _session, _supergraph, _graph, _connection) : null;
+    const perspectiveValue = objectValue["55"];
+    const unpackedPerspective = perspectiveValue !== undefined ? perspectiveValue : null;
+    const delayValue = objectValue["56"];
+    const unpackedDelay = delayValue !== undefined ? timedeltaFromISOFormat(delayValue) : null;
+    const durationValue = objectValue["57"];
+    const unpackedDuration = durationValue !== undefined ? durationValue : null;
+    const thresholdValue = objectValue["58"];
+    const unpackedThreshold = thresholdValue !== undefined ? thresholdValue : null;
+    const onceValue = objectValue["59"];
+    const unpackedOnce = onceValue !== undefined ? onceValue : null;
+    const repeatValue = objectValue["60"];
+    const unpackedRepeat = repeatValue !== undefined ? Number(repeatValue) : null;
+    const splitValue = objectValue["61"];
+    const unpackedSplit = splitValue !== undefined ? Number(splitValue) : null;
+    const offscreenValue = objectValue["62"];
+    const unpackedOffscreen = offscreenValue !== undefined ? Number(offscreenValue) : null;
+    const transitionValue = objectValue["70"];
+    const unpackedTransition =
+      transitionValue !== undefined
+        ? Transition.fromValue(transitionValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const styleValue = objectValue["41"];
+    const unpackedStyle =
+      styleValue !== undefined ? NodeReference.fromValue(styleValue, _session, _supergraph, _graph, _connection) : null;
+    return new Effect({
+      type: Number(objectValue["30"]),
+      opacity: unpackedOpacity,
+      offset: unpackedOffset,
+      scale: unpackedScale,
+      rotate: unpackedRotate,
+      skew: unpackedSkew,
+      perspective: unpackedPerspective,
+      delay: unpackedDelay,
+      duration: unpackedDuration,
+      threshold: unpackedThreshold,
+      once: unpackedOnce,
+      repeat: unpackedRepeat,
+      split: unpackedSplit,
+      offscreen: unpackedOffscreen,
+      transition: unpackedTransition,
+      style: unpackedStyle,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Effect {
+    return Effect.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:12025 ==== */
 
@@ -663,6 +794,184 @@ export class EffectStyle extends Node implements Style {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  toValue(): { [key: string]: any } {
+    return EffectStyle.__packValue__(this);
+  }
+
+  static __packValue__(object: EffectStyle): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 12027;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr !== null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr !== null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    objectValue["7"] = object.materialization;
+    objectValue["15"] = object.createdAt.toString();
+    if (object.createdByPtr !== null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
+    objectValue["17"] = object.updatedAt.toString();
+    if (object.updatedByPtr !== null) {
+      objectValue["18"] = object.updatedByPtr.toValue();
+    }
+    if (object.deletedAt !== null) {
+      objectValue["20"] = object.deletedAt.toString();
+    }
+    objectValue["22"] = object.orderKey;
+    objectValue["30"] = object.type;
+    objectValue["31"] = object.name;
+    if (object.opacity !== null) {
+      objectValue["50"] = object.opacity;
+    }
+    if (object.offset !== null) {
+      objectValue["51"] = object.offset.toValue();
+    }
+    if (object.scale !== null) {
+      objectValue["52"] = object.scale;
+    }
+    if (object.rotate !== null) {
+      objectValue["53"] = object.rotate.toValue();
+    }
+    if (object.skew !== null) {
+      objectValue["54"] = object.skew.toValue();
+    }
+    if (object.perspective !== null) {
+      objectValue["55"] = object.perspective;
+    }
+    if (object.delay !== null) {
+      objectValue["56"] = timedeltaToISOFormat(object.delay);
+    }
+    if (object.duration !== null) {
+      objectValue["57"] = object.duration;
+    }
+    if (object.threshold !== null) {
+      objectValue["58"] = object.threshold;
+    }
+    if (object.once !== null) {
+      objectValue["59"] = object.once;
+    }
+    if (object.repeat !== null) {
+      objectValue["60"] = object.repeat;
+    }
+    if (object.split !== null) {
+      objectValue["61"] = object.split;
+    }
+    if (object.offscreen !== null) {
+      objectValue["62"] = object.offscreen;
+    }
+    if (object.transition !== null) {
+      objectValue["70"] = object.transition.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): EffectStyle {
+    const deletedAtValue = objectValue["20"];
+    const unpackedDeletedAt = deletedAtValue !== undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const opacityValue = objectValue["50"];
+    const unpackedOpacity = opacityValue !== undefined ? opacityValue : null;
+    const offsetValue = objectValue["51"];
+    const unpackedOffset =
+      offsetValue !== undefined ? Vector2.fromValue(offsetValue, _session, _supergraph, _graph, _connection) : null;
+    const scaleValue = objectValue["52"];
+    const unpackedScale = scaleValue !== undefined ? scaleValue : null;
+    const rotateValue = objectValue["53"];
+    const unpackedRotate =
+      rotateValue !== undefined ? Axis3.fromValue(rotateValue, _session, _supergraph, _graph, _connection) : null;
+    const skewValue = objectValue["54"];
+    const unpackedSkew =
+      skewValue !== undefined ? Vector2.fromValue(skewValue, _session, _supergraph, _graph, _connection) : null;
+    const perspectiveValue = objectValue["55"];
+    const unpackedPerspective = perspectiveValue !== undefined ? perspectiveValue : null;
+    const delayValue = objectValue["56"];
+    const unpackedDelay = delayValue !== undefined ? timedeltaFromISOFormat(delayValue) : null;
+    const durationValue = objectValue["57"];
+    const unpackedDuration = durationValue !== undefined ? durationValue : null;
+    const thresholdValue = objectValue["58"];
+    const unpackedThreshold = thresholdValue !== undefined ? thresholdValue : null;
+    const onceValue = objectValue["59"];
+    const unpackedOnce = onceValue !== undefined ? onceValue : null;
+    const repeatValue = objectValue["60"];
+    const unpackedRepeat = repeatValue !== undefined ? Number(repeatValue) : null;
+    const splitValue = objectValue["61"];
+    const unpackedSplit = splitValue !== undefined ? Number(splitValue) : null;
+    const offscreenValue = objectValue["62"];
+    const unpackedOffscreen = offscreenValue !== undefined ? Number(offscreenValue) : null;
+    const transitionValue = objectValue["70"];
+    const unpackedTransition =
+      transitionValue !== undefined
+        ? Transition.fromValue(transitionValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const parentValue = objectValue["3"];
+    const unpackedParent =
+      parentValue !== undefined
+        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spaceValue = objectValue["5"];
+    const unpackedSpace =
+      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+    const createdByValue = objectValue["16"];
+    const unpackedCreatedBy =
+      createdByValue !== undefined
+        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByValue = objectValue["18"];
+    const unpackedUpdatedBy =
+      updatedByValue !== undefined
+        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new EffectStyle({
+      id: String(objectValue["2"]),
+      materialization: Number(objectValue["7"]),
+      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      name: objectValue["31"],
+      orderKey: objectValue["22"],
+      deletedAt: unpackedDeletedAt,
+      type: Number(objectValue["30"]),
+      opacity: unpackedOpacity,
+      offset: unpackedOffset,
+      scale: unpackedScale,
+      rotate: unpackedRotate,
+      skew: unpackedSkew,
+      perspective: unpackedPerspective,
+      delay: unpackedDelay,
+      duration: unpackedDuration,
+      threshold: unpackedThreshold,
+      once: unpackedOnce,
+      repeat: unpackedRepeat,
+      split: unpackedSplit,
+      offscreen: unpackedOffscreen,
+      transition: unpackedTransition,
+      parent: unpackedParent,
+      space: unpackedSpace,
+      createdBy: unpackedCreatedBy,
+      updatedBy: unpackedUpdatedBy,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): EffectStyle {
+    return EffectStyle.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:12027 ==== */

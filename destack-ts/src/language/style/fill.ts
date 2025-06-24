@@ -195,6 +195,82 @@ export class Fill extends Struct {
   validate(): void {
     throw new Error("not implemented");
   }
+
+  toValue(): { [key: string]: any } {
+    return Fill.__packValue__(this);
+  }
+
+  static __packValue__(object: Fill): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 12017;
+    objectValue["30"] = object.type;
+    if (object.stylePtr !== null) {
+      objectValue["42"] = object.stylePtr.toValue();
+    }
+    if (object.color !== null) {
+      objectValue["50"] = object.color.toValue();
+    }
+    if (object.gradient !== null) {
+      objectValue["51"] = object.gradient.toValue();
+    }
+    if (object.imagePtr !== null) {
+      objectValue["52"] = object.imagePtr.toValue();
+    }
+    if (object.position !== null) {
+      objectValue["53"] = object.position;
+    }
+    if (object.size !== null) {
+      objectValue["54"] = object.size;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Fill {
+    const colorValue = objectValue["50"];
+    const unpackedColor =
+      colorValue !== undefined ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection) : null;
+    const gradientValue = objectValue["51"];
+    const unpackedGradient =
+      gradientValue !== undefined
+        ? Gradient.fromValue(gradientValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const positionValue = objectValue["53"];
+    const unpackedPosition = positionValue !== undefined ? Number(positionValue) : null;
+    const sizeValue = objectValue["54"];
+    const unpackedSize = sizeValue !== undefined ? Number(sizeValue) : null;
+    const styleValue = objectValue["42"];
+    const unpackedStyle =
+      styleValue !== undefined ? NodeReference.fromValue(styleValue, _session, _supergraph, _graph, _connection) : null;
+    const imageValue = objectValue["52"];
+    const unpackedImage =
+      imageValue !== undefined ? NodeReference.fromValue(imageValue, _session, _supergraph, _graph, _connection) : null;
+    return new Fill({
+      type: Number(objectValue["30"]),
+      color: unpackedColor,
+      gradient: unpackedGradient,
+      position: unpackedPosition,
+      size: unpackedSize,
+      style: unpackedStyle,
+      image: unpackedImage,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Fill {
+    return Fill.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:12017 ==== */
 
@@ -547,6 +623,129 @@ export class FillStyle extends Node implements Style {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  toValue(): { [key: string]: any } {
+    return FillStyle.__packValue__(this);
+  }
+
+  static __packValue__(object: FillStyle): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 12021;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr !== null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr !== null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    objectValue["7"] = object.materialization;
+    objectValue["15"] = object.createdAt.toString();
+    if (object.createdByPtr !== null) {
+      objectValue["16"] = object.createdByPtr.toValue();
+    }
+    objectValue["17"] = object.updatedAt.toString();
+    if (object.updatedByPtr !== null) {
+      objectValue["18"] = object.updatedByPtr.toValue();
+    }
+    if (object.deletedAt !== null) {
+      objectValue["20"] = object.deletedAt.toString();
+    }
+    objectValue["22"] = object.orderKey;
+    objectValue["30"] = object.type;
+    objectValue["31"] = object.name;
+    if (object.color !== null) {
+      objectValue["50"] = object.color.toValue();
+    }
+    if (object.gradient !== null) {
+      objectValue["51"] = object.gradient.toValue();
+    }
+    if (object.imagePtr !== null) {
+      objectValue["52"] = object.imagePtr.toValue();
+    }
+    if (object.position !== null) {
+      objectValue["53"] = object.position;
+    }
+    if (object.size !== null) {
+      objectValue["54"] = object.size;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): FillStyle {
+    const deletedAtValue = objectValue["20"];
+    const unpackedDeletedAt = deletedAtValue !== undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const colorValue = objectValue["50"];
+    const unpackedColor =
+      colorValue !== undefined ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection) : null;
+    const gradientValue = objectValue["51"];
+    const unpackedGradient =
+      gradientValue !== undefined
+        ? Gradient.fromValue(gradientValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const positionValue = objectValue["53"];
+    const unpackedPosition = positionValue !== undefined ? Number(positionValue) : null;
+    const sizeValue = objectValue["54"];
+    const unpackedSize = sizeValue !== undefined ? Number(sizeValue) : null;
+    const parentValue = objectValue["3"];
+    const unpackedParent =
+      parentValue !== undefined
+        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spaceValue = objectValue["5"];
+    const unpackedSpace =
+      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+    const createdByValue = objectValue["16"];
+    const unpackedCreatedBy =
+      createdByValue !== undefined
+        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByValue = objectValue["18"];
+    const unpackedUpdatedBy =
+      updatedByValue !== undefined
+        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const imageValue = objectValue["52"];
+    const unpackedImage =
+      imageValue !== undefined ? NodeReference.fromValue(imageValue, _session, _supergraph, _graph, _connection) : null;
+    return new FillStyle({
+      id: String(objectValue["2"]),
+      materialization: Number(objectValue["7"]),
+      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      name: objectValue["31"],
+      orderKey: objectValue["22"],
+      deletedAt: unpackedDeletedAt,
+      type: Number(objectValue["30"]),
+      color: unpackedColor,
+      gradient: unpackedGradient,
+      position: unpackedPosition,
+      size: unpackedSize,
+      parent: unpackedParent,
+      space: unpackedSpace,
+      createdBy: unpackedCreatedBy,
+      updatedBy: unpackedUpdatedBy,
+      image: unpackedImage,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): FillStyle {
+    return FillStyle.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:12021 ==== */
