@@ -13,6 +13,7 @@ import {
   Type,
   TypeCardinality,
 } from "@destack/language/core";
+import { ValueProto } from "@destack/proto";
 import { assertNever, timedeltaFromISOFormat, timedeltaToISOFormat } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
@@ -125,6 +126,46 @@ export class Value extends StructFrozen {
     _connection?: any | null,
   ): Value {
     return Value.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): ValueProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Value.__packProto__(this);
+    }
+    return this._proto as ValueProto;
+  }
+
+  static __packProto__(object: Value): ValueProto {
+    const objectProto: Partial<ValueProto> = { metatype: 2500 };
+    objectProto.type = object.type.toProto();
+    objectProto.value = object.value;
+    return objectProto as ValueProto;
+  }
+
+  static __unpackProto__(
+    objectProto: ValueProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Value {
+    return new Value({
+      type: Type.fromProto(objectProto.type!, _session, _supergraph, _graph, _connection),
+      value: objectProto.value,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: ValueProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Value {
+    return Value.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:2500 ==== */

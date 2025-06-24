@@ -1,4 +1,5 @@
 import { Region, Session, Struct, StructType, Supergraph } from "@destack/language/core";
+import { GalaxyInfoProto, RegionProto } from "@destack/proto";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:7601 ==== */
 /**
@@ -106,6 +107,43 @@ export class GalaxyInfo extends Struct {
     _connection?: any | null,
   ): GalaxyInfo {
     return GalaxyInfo.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): GalaxyInfoProto {
+    return GalaxyInfo.__packProto__(this);
+  }
+
+  static __packProto__(object: GalaxyInfo): GalaxyInfoProto {
+    const objectProto: Partial<GalaxyInfoProto> = { metatype: 7601 };
+    objectProto.region = Number(object.region) as RegionProto;
+    objectProto.name = object.name;
+    objectProto.host = object.host;
+    return objectProto as GalaxyInfoProto;
+  }
+
+  static __unpackProto__(
+    objectProto: GalaxyInfoProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): GalaxyInfo {
+    return new GalaxyInfo({
+      region: Number(objectProto.region) as Region,
+      name: objectProto.name,
+      host: objectProto.host,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: GalaxyInfoProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): GalaxyInfo {
+    return GalaxyInfo.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:7601 ==== */

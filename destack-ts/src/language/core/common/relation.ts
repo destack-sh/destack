@@ -11,6 +11,20 @@ import {
   Supergraph,
   TraitType,
 } from "@destack/language/core";
+import {
+  AttributeReferenceProto,
+  AttributeTypeProto,
+  NodeReferenceProto,
+  NodeTypeProto,
+  PropertyReferenceProto,
+  PropertyReferenceTypeProto,
+  RegionProto,
+  RelationReferenceProto,
+  RelationTypeProto,
+  ScopeProto,
+  StructTypeProto,
+  TraitTypeProto,
+} from "@destack/proto";
 import { assertNever } from "@destack/utils/functools";
 
 /* ==== DESTACK_GENERATED_START:ENUM:50010 ==== */
@@ -120,10 +134,10 @@ export class Scope extends StructFrozen {
   static __packValue__(object: Scope): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 50000;
-    if (object.region !== null) {
+    if (object.region != null) {
       objectValue["31"] = object.region;
     }
-    if (object.spaceId !== null) {
+    if (object.spaceId != null) {
       objectValue["32"] = String(object.spaceId);
     }
     return objectValue;
@@ -137,9 +151,9 @@ export class Scope extends StructFrozen {
     _connection?: any | null,
   ): Scope {
     const regionValue = objectValue["31"];
-    const unpackedRegion = regionValue !== undefined ? Number(regionValue) : null;
+    const unpackedRegion = regionValue != undefined ? Number(regionValue) : null;
     const spaceIdValue = objectValue["32"];
-    const unpackedSpaceId = spaceIdValue !== undefined ? String(spaceIdValue) : null;
+    const unpackedSpaceId = spaceIdValue != undefined ? String(spaceIdValue) : null;
     return new Scope({
       region: unpackedRegion,
       spaceId: unpackedSpaceId,
@@ -156,6 +170,50 @@ export class Scope extends StructFrozen {
     _connection?: any | null,
   ): Scope {
     return Scope.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): ScopeProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Scope.__packProto__(this);
+    }
+    return this._proto as ScopeProto;
+  }
+
+  static __packProto__(object: Scope): ScopeProto {
+    const objectProto: Partial<ScopeProto> = { metatype: 50000 };
+    if (object.region != null) {
+      objectProto.region = Number(object.region) as RegionProto;
+    }
+    if (object.spaceId != null) {
+      objectProto.spaceId = String(object.spaceId);
+    }
+    return objectProto as ScopeProto;
+  }
+
+  static __unpackProto__(
+    objectProto: ScopeProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Scope {
+    return new Scope({
+      region: objectProto.region != undefined ? (Number(objectProto.region) as Region) : null,
+      spaceId: objectProto.spaceId != undefined ? String(objectProto.spaceId) : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: ScopeProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Scope {
+    return Scope.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50000 ==== */
@@ -268,13 +326,13 @@ export class RelationReference extends StructFrozen {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 50107;
     objectValue["30"] = object.type;
-    if (object.nodeType !== null) {
+    if (object.nodeType != null) {
       objectValue["31"] = object.nodeType;
     }
-    if (object.definitionPtr !== null) {
+    if (object.definitionPtr != null) {
       objectValue["32"] = object.definitionPtr.toValue();
     }
-    if (object.traitType !== null) {
+    if (object.traitType != null) {
       objectValue["33"] = object.traitType;
     }
     return objectValue;
@@ -288,12 +346,12 @@ export class RelationReference extends StructFrozen {
     _connection?: any | null,
   ): RelationReference {
     const nodeTypeValue = objectValue["31"];
-    const unpackedNodeType = nodeTypeValue !== undefined ? Number(nodeTypeValue) : null;
+    const unpackedNodeType = nodeTypeValue != undefined ? Number(nodeTypeValue) : null;
     const traitTypeValue = objectValue["33"];
-    const unpackedTraitType = traitTypeValue !== undefined ? Number(traitTypeValue) : null;
+    const unpackedTraitType = traitTypeValue != undefined ? Number(traitTypeValue) : null;
     const definitionValue = objectValue["32"];
     const unpackedDefinition =
-      definitionValue !== undefined
+      definitionValue != undefined
         ? NodeReference.fromValue(definitionValue, _session, _supergraph, _graph, _connection)
         : null;
     return new RelationReference({
@@ -314,6 +372,59 @@ export class RelationReference extends StructFrozen {
     _connection?: any | null,
   ): RelationReference {
     return RelationReference.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): RelationReferenceProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = RelationReference.__packProto__(this);
+    }
+    return this._proto as RelationReferenceProto;
+  }
+
+  static __packProto__(object: RelationReference): RelationReferenceProto {
+    const objectProto: Partial<RelationReferenceProto> = { metatype: 50107 };
+    objectProto.type = Number(object.type) as RelationTypeProto;
+    if (object.nodeType != null) {
+      objectProto.nodeType = Number(object.nodeType) as NodeTypeProto;
+    }
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
+    if (object.traitType != null) {
+      objectProto.traitType = Number(object.traitType) as TraitTypeProto;
+    }
+    return objectProto as RelationReferenceProto;
+  }
+
+  static __unpackProto__(
+    objectProto: RelationReferenceProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): RelationReference {
+    return new RelationReference({
+      type: Number(objectProto.type) as RelationType,
+      nodeType: objectProto.nodeType != undefined ? (Number(objectProto.nodeType) as NodeType) : null,
+      traitType: objectProto.traitType != undefined ? (Number(objectProto.traitType) as TraitType) : null,
+      definition:
+        objectProto.definitionPtr != undefined
+          ? NodeReference.fromProto(objectProto.definitionPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: RelationReferenceProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): RelationReference {
+    return RelationReference.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -431,10 +542,10 @@ export class AttributeReference extends StructFrozen {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 50108;
     objectValue["30"] = object.type;
-    if (object.propPtr !== null) {
+    if (object.propPtr != null) {
       objectValue["31"] = object.propPtr.toValue();
     }
-    if (object.fieldPtr !== null) {
+    if (object.fieldPtr != null) {
       objectValue["32"] = object.fieldPtr.toValue();
     }
     return objectValue;
@@ -449,12 +560,12 @@ export class AttributeReference extends StructFrozen {
   ): AttributeReference {
     const propPtrValue = objectValue["31"];
     const unpackedPropPtr =
-      propPtrValue !== undefined
+      propPtrValue != undefined
         ? PropertyReference.fromValue(propPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const fieldValue = objectValue["32"];
     const unpackedField =
-      fieldValue !== undefined ? NodeReference.fromValue(fieldValue, _session, _supergraph, _graph, _connection) : null;
+      fieldValue != undefined ? NodeReference.fromValue(fieldValue, _session, _supergraph, _graph, _connection) : null;
     return new AttributeReference({
       type: Number(objectValue["30"]),
       propPtr: unpackedPropPtr,
@@ -472,6 +583,58 @@ export class AttributeReference extends StructFrozen {
     _connection?: any | null,
   ): AttributeReference {
     return AttributeReference.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): AttributeReferenceProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = AttributeReference.__packProto__(this);
+    }
+    return this._proto as AttributeReferenceProto;
+  }
+
+  static __packProto__(object: AttributeReference): AttributeReferenceProto {
+    const objectProto: Partial<AttributeReferenceProto> = { metatype: 50108 };
+    objectProto.type = Number(object.type) as AttributeTypeProto;
+    if (object.propPtr != null) {
+      objectProto.propPtr = object.propPtr.toProto();
+    }
+    if (object.fieldPtr != null) {
+      objectProto.fieldPtr = object.fieldPtr.toProto();
+    }
+    return objectProto as AttributeReferenceProto;
+  }
+
+  static __unpackProto__(
+    objectProto: AttributeReferenceProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): AttributeReference {
+    return new AttributeReference({
+      type: Number(objectProto.type) as AttributeType,
+      propPtr:
+        objectProto.propPtr != undefined
+          ? PropertyReference.fromProto(objectProto.propPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      field:
+        objectProto.fieldPtr != undefined
+          ? NodeReference.fromProto(objectProto.fieldPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: AttributeReferenceProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): AttributeReference {
+    return AttributeReference.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -598,13 +761,13 @@ export class PropertyReference extends StructFrozen {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 50003;
     objectValue["30"] = object.type;
-    if (object.nodeType !== null) {
+    if (object.nodeType != null) {
       objectValue["31"] = object.nodeType;
     }
-    if (object.traitType !== null) {
+    if (object.traitType != null) {
       objectValue["32"] = object.traitType;
     }
-    if (object.structType !== null) {
+    if (object.structType != null) {
       objectValue["33"] = object.structType;
     }
     objectValue["35"] = object.id;
@@ -619,11 +782,11 @@ export class PropertyReference extends StructFrozen {
     _connection?: any | null,
   ): PropertyReference {
     const nodeTypeValue = objectValue["31"];
-    const unpackedNodeType = nodeTypeValue !== undefined ? Number(nodeTypeValue) : null;
+    const unpackedNodeType = nodeTypeValue != undefined ? Number(nodeTypeValue) : null;
     const traitTypeValue = objectValue["32"];
-    const unpackedTraitType = traitTypeValue !== undefined ? Number(traitTypeValue) : null;
+    const unpackedTraitType = traitTypeValue != undefined ? Number(traitTypeValue) : null;
     const structTypeValue = objectValue["33"];
-    const unpackedStructType = structTypeValue !== undefined ? Number(structTypeValue) : null;
+    const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : null;
     return new PropertyReference({
       type: Number(objectValue["30"]),
       nodeType: unpackedNodeType,
@@ -643,6 +806,58 @@ export class PropertyReference extends StructFrozen {
     _connection?: any | null,
   ): PropertyReference {
     return PropertyReference.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): PropertyReferenceProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = PropertyReference.__packProto__(this);
+    }
+    return this._proto as PropertyReferenceProto;
+  }
+
+  static __packProto__(object: PropertyReference): PropertyReferenceProto {
+    const objectProto: Partial<PropertyReferenceProto> = { metatype: 50003 };
+    objectProto.type = Number(object.type) as PropertyReferenceTypeProto;
+    if (object.nodeType != null) {
+      objectProto.nodeType = Number(object.nodeType) as NodeTypeProto;
+    }
+    if (object.traitType != null) {
+      objectProto.traitType = Number(object.traitType) as TraitTypeProto;
+    }
+    if (object.structType != null) {
+      objectProto.structType = Number(object.structType) as StructTypeProto;
+    }
+    objectProto.id = object.id;
+    return objectProto as PropertyReferenceProto;
+  }
+
+  static __unpackProto__(
+    objectProto: PropertyReferenceProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): PropertyReference {
+    return new PropertyReference({
+      type: Number(objectProto.type) as PropertyReferenceType,
+      nodeType: objectProto.nodeType != undefined ? (Number(objectProto.nodeType) as NodeType) : null,
+      traitType: objectProto.traitType != undefined ? (Number(objectProto.traitType) as TraitType) : null,
+      structType: objectProto.structType != undefined ? (Number(objectProto.structType) as StructType) : null,
+      id: Number(objectProto.id),
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: PropertyReferenceProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): PropertyReference {
+    return PropertyReference.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50003 ==== */
@@ -746,10 +961,10 @@ export class NodeReference extends StructFrozen {
     objectValue["1"] = 50002;
     objectValue["31"] = object.nodeType;
     objectValue["32"] = String(object.id);
-    if (object.spaceId !== null) {
+    if (object.spaceId != null) {
       objectValue["34"] = String(object.spaceId);
     }
-    if (object.definitionId !== null) {
+    if (object.definitionId != null) {
       objectValue["35"] = String(object.definitionId);
     }
     return objectValue;
@@ -763,9 +978,9 @@ export class NodeReference extends StructFrozen {
     _connection?: any | null,
   ): NodeReference {
     const spaceIdValue = objectValue["34"];
-    const unpackedSpaceId = spaceIdValue !== undefined ? String(spaceIdValue) : null;
+    const unpackedSpaceId = spaceIdValue != undefined ? String(spaceIdValue) : null;
     const definitionIdValue = objectValue["35"];
-    const unpackedDefinitionId = definitionIdValue !== undefined ? String(definitionIdValue) : null;
+    const unpackedDefinitionId = definitionIdValue != undefined ? String(definitionIdValue) : null;
     return new NodeReference({
       nodeType: Number(objectValue["31"]),
       id: String(objectValue["32"]),
@@ -784,6 +999,54 @@ export class NodeReference extends StructFrozen {
     _connection?: any | null,
   ): NodeReference {
     return NodeReference.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): NodeReferenceProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = NodeReference.__packProto__(this);
+    }
+    return this._proto as NodeReferenceProto;
+  }
+
+  static __packProto__(object: NodeReference): NodeReferenceProto {
+    const objectProto: Partial<NodeReferenceProto> = { metatype: 50002 };
+    objectProto.nodeType = Number(object.nodeType) as NodeTypeProto;
+    objectProto.id = String(object.id);
+    if (object.spaceId != null) {
+      objectProto.spaceId = String(object.spaceId);
+    }
+    if (object.definitionId != null) {
+      objectProto.definitionId = String(object.definitionId);
+    }
+    return objectProto as NodeReferenceProto;
+  }
+
+  static __unpackProto__(
+    objectProto: NodeReferenceProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): NodeReference {
+    return new NodeReference({
+      nodeType: Number(objectProto.nodeType) as NodeType,
+      id: String(objectProto.id),
+      spaceId: objectProto.spaceId != undefined ? String(objectProto.spaceId) : null,
+      definitionId: objectProto.definitionId != undefined ? String(objectProto.definitionId) : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: NodeReferenceProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): NodeReference {
+    return NodeReference.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50002 ==== */

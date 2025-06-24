@@ -9,6 +9,7 @@ from destack.language import (
     ScalarType,
     TypeCardinality,
 )
+from destack.language.registry import STRUCT_CLASS_BY_TYPE
 from destack.utils.string import Casing, to_casing
 
 if TYPE_CHECKING:
@@ -144,7 +145,7 @@ def _generate_pack_value_property(prop: "Property") -> list[str]:
             value_expr = _generate_pack_value_scalar(prop, obj_value)
             lines.append(f'objectValue["{prop.id}"] = {value_expr};')
         else:
-            lines.append(f"if ({obj_value} !== null) {{")
+            lines.append(f"if ({obj_value} != null) {{")
             value_expr = _generate_pack_value_scalar(prop, obj_value)
             lines.append(f'  objectValue["{prop.id}"] = {value_expr};')
             lines.append("}")
@@ -161,7 +162,7 @@ def _generate_pack_value_property(prop: "Property") -> list[str]:
         assert prop.key_type is not None, f"no key type for {prop!r}"
         lines.append(f"if ({obj_value}) {{")
         lines.append(f"  const {packed_name}: {{ [key: string]: any }} = {{}};")
-        lines.append(f"  for (const [key, value] of Object.entries({obj_value})) {{")
+        lines.append(f"  for (const [key, value] of {obj_value}) {{")
         key_expr = _generate_pack_value_scalar(prop.key_type, "key")
         value_expr = _generate_pack_value_scalar(prop, "value")
         lines.append(f"    {packed_name}[String({key_expr})] = {value_expr};")
@@ -188,10 +189,10 @@ def _generate_unpack_value_property(prop: "Property") -> list[str]:
         else:
             value_expr = _generate_unpack_value_scalar(prop, f"{ts_name}Value")
             lines.append(f"const {ts_name}Value = {data_value};")
-            lines.append(f"const {var_name} = {ts_name}Value !== undefined ? {value_expr} : null;")
+            lines.append(f"const {var_name} = {ts_name}Value != undefined ? {value_expr} : null;")
     elif prop.cardinality == TypeCardinality.LIST:
         lines.append(f"const {var_name}: any[] = [];")
-        lines.append(f"if ({data_value} !== undefined) {{")
+        lines.append(f"if ({data_value} != undefined) {{")
         lines.append(f"  for (const item of {data_value}) {{")
         item_expr = _generate_unpack_value_scalar(prop, "item")
         lines.append(f"    {var_name}.push({item_expr})")
@@ -199,12 +200,12 @@ def _generate_unpack_value_property(prop: "Property") -> list[str]:
         lines.append("}")
     elif prop.cardinality == TypeCardinality.MAP:
         assert prop.key_type is not None, f"no key type for {prop!r}"
-        lines.append(f"const {var_name}: {{ [key: string]: any }} = {{}};")
-        lines.append(f"if ({data_value} !== undefined) {{")
+        lines.append(f"const {var_name} = new Map();")
+        lines.append(f"if ({data_value} != undefined) {{")
         lines.append(f"  for (const [key, value] of Object.entries({data_value})) {{")
         key_expr = _generate_unpack_value_scalar(prop.key_type, "key")
-        value_expr = _generate_unpack_value_scalar(prop, "value")
-        lines.append(f"    {var_name}[{key_expr}] = {value_expr}")
+        value_expr = _generate_unpack_value_scalar(prop, "value as any")
+        lines.append(f"    {var_name}.set({key_expr}, {value_expr});")
         lines.append("  }")
         lines.append("}")
     else:
@@ -265,8 +266,8 @@ def _generate_unpack_value_scalar(prop: "Property | IntoType", value_expr: str) 
         return f"Number({value_expr})"
     elif prop.scalar_type == ScalarType.STRUCT:
         assert prop.struct_type is not None, f"no struct type for {prop!r}"
-        struct_type_name = prop.struct_type.camel_name
-        return f"{struct_type_name}.fromValue({value_expr}, _session, _supergraph, _graph, _connection)"
+        struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
+        return f"{struct_cls.__name__}.fromValue({value_expr}, _session, _supergraph, _graph, _connection)"
     elif prop.scalar_type == ScalarType.NODE_REFERENCE:
         return f"NodeReference.fromValue({value_expr}, _session, _supergraph, _graph, _connection)"
     elif prop.scalar_type == ScalarType.NODE_VALUE:

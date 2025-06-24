@@ -2,6 +2,7 @@ import re
 import subprocess
 import textwrap
 from collections import defaultdict
+from itertools import chain
 from pathlib import Path
 from typing import Any, assert_never, cast
 
@@ -52,8 +53,11 @@ from .core import (
     TypescriptImport,
     TypescriptImportBlock,
 )
+from .grpc import generate_object_proto
 from .map import TYPESCRIPT_TYPE_BY_PRIMITIVE_TYPE
 from .value import generate_object_value
+
+# ruff: noqa: FURB113
 
 
 def _generate_multiline_doc(description: str) -> str:
@@ -675,6 +679,8 @@ def _generate_struct(definition: StructDefinition) -> str:
     struct_parts.append(validate_str)
     value_str = generate_object_value(struct_cls)
     struct_parts.append(value_str)
+    proto_str = generate_object_proto(struct_cls)
+    struct_parts.append(proto_str)
 
     struct_str = f"""\
 {_generate_multiline_doc(definition.description or definition.name)}
@@ -774,6 +780,8 @@ def _generate_node(definition: NodeDefinition) -> str:
     node_parts.append(path_str)
     value_str = generate_object_value(node_cls)
     node_parts.append(value_str)
+    proto_str = generate_object_proto(node_cls)
+    node_parts.append(proto_str)
 
     # class
     super_trait_classes = [
@@ -1106,6 +1114,18 @@ def _generate_file(
         if imports:
             import_path = f"@destack/language/{module}" if module else "@destack/language"
             import_parts.append(f"import {{ {', '.join(sorted(imports))} }} from '{import_path}';")
+    # add proto imports for all definitions and dependencies
+    proto_names = {
+        f"{definition.cls.__name__}Proto"
+        for definition in chain(file.definitions.values(), file.dependencies.values())
+    }
+    import_parts.append(f"import {{ {', '.join(sorted(proto_names))} }} from '@destack/proto';")
+    import_parts.append(
+        "import { packProtoDuration, packProtoTimestamp, unpackProtoDuration, unpackProtoTimestamp } from '@destack/grpc';"
+    )
+    import_parts.append(
+        "import { timedeltaToISOFormat, timedeltaFromISOFormat } from '@destack/utils';"
+    )
     import_parts.extend(
         [
             "import { Temporal } from 'temporal-polyfill';",

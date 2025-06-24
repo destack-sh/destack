@@ -1,3 +1,4 @@
+import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Graph,
   IsSubject,
@@ -17,6 +18,17 @@ import { Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Fill, Style, Theme } from "@destack/language/style";
 import { View } from "@destack/language/view";
+import {
+  FontProto,
+  FontSizeProto,
+  FontStyleProto,
+  FontTypeProto,
+  FontWeightProto,
+  MaterializationTypeProto,
+  TextAlignProto,
+  TextDecorationProto,
+  TextTransformProto,
+} from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12026 ==== */
@@ -268,31 +280,31 @@ export class Font extends Struct {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 12014;
     objectValue["30"] = object.type;
-    if (object.stylePtr !== null) {
+    if (object.stylePtr != null) {
       objectValue["41"] = object.stylePtr.toValue();
     }
-    if (object.weight !== null) {
+    if (object.weight != null) {
       objectValue["50"] = object.weight;
     }
-    if (object.color !== null) {
+    if (object.color != null) {
       objectValue["51"] = object.color.toValue();
     }
-    if (object.size !== null) {
+    if (object.size != null) {
       objectValue["52"] = object.size;
     }
-    if (object.align !== null) {
+    if (object.align != null) {
       objectValue["53"] = object.align;
     }
-    if (object.lineHeight !== null) {
+    if (object.lineHeight != null) {
       objectValue["54"] = object.lineHeight.toValue();
     }
-    if (object.letterSpacing !== null) {
+    if (object.letterSpacing != null) {
       objectValue["55"] = object.letterSpacing.toValue();
     }
-    if (object.decoration !== null) {
+    if (object.decoration != null) {
       objectValue["56"] = object.decoration;
     }
-    if (object.transform !== null) {
+    if (object.transform != null) {
       objectValue["57"] = object.transform;
     }
     return objectValue;
@@ -306,31 +318,31 @@ export class Font extends Struct {
     _connection?: any | null,
   ): Font {
     const weightValue = objectValue["50"];
-    const unpackedWeight = weightValue !== undefined ? Number(weightValue) : null;
+    const unpackedWeight = weightValue != undefined ? Number(weightValue) : null;
     const colorValue = objectValue["51"];
     const unpackedColor =
-      colorValue !== undefined ? Fill.fromValue(colorValue, _session, _supergraph, _graph, _connection) : null;
+      colorValue != undefined ? Fill.fromValue(colorValue, _session, _supergraph, _graph, _connection) : null;
     const sizeValue = objectValue["52"];
-    const unpackedSize = sizeValue !== undefined ? Number(sizeValue) : null;
+    const unpackedSize = sizeValue != undefined ? Number(sizeValue) : null;
     const alignValue = objectValue["53"];
-    const unpackedAlign = alignValue !== undefined ? Number(alignValue) : null;
+    const unpackedAlign = alignValue != undefined ? Number(alignValue) : null;
     const lineHeightValue = objectValue["54"];
     const unpackedLineHeight =
-      lineHeightValue !== undefined
+      lineHeightValue != undefined
         ? Length.fromValue(lineHeightValue, _session, _supergraph, _graph, _connection)
         : null;
     const letterSpacingValue = objectValue["55"];
     const unpackedLetterSpacing =
-      letterSpacingValue !== undefined
+      letterSpacingValue != undefined
         ? Length.fromValue(letterSpacingValue, _session, _supergraph, _graph, _connection)
         : null;
     const decorationValue = objectValue["56"];
-    const unpackedDecoration = decorationValue !== undefined ? Number(decorationValue) : null;
+    const unpackedDecoration = decorationValue != undefined ? Number(decorationValue) : null;
     const transformValue = objectValue["57"];
-    const unpackedTransform = transformValue !== undefined ? Number(transformValue) : null;
+    const unpackedTransform = transformValue != undefined ? Number(transformValue) : null;
     const styleValue = objectValue["41"];
     const unpackedStyle =
-      styleValue !== undefined ? NodeReference.fromValue(styleValue, _session, _supergraph, _graph, _connection) : null;
+      styleValue != undefined ? NodeReference.fromValue(styleValue, _session, _supergraph, _graph, _connection) : null;
     return new Font({
       type: Number(objectValue["30"]),
       weight: unpackedWeight,
@@ -354,6 +366,87 @@ export class Font extends Struct {
     _connection?: any | null,
   ): Font {
     return Font.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): FontProto {
+    return Font.__packProto__(this);
+  }
+
+  static __packProto__(object: Font): FontProto {
+    const objectProto: Partial<FontProto> = { metatype: 12014 };
+    objectProto.type = Number(object.type) as FontTypeProto;
+    if (object.stylePtr != null) {
+      objectProto.stylePtr = object.stylePtr.toProto();
+    }
+    if (object.weight != null) {
+      objectProto.weight = Number(object.weight) as FontWeightProto;
+    }
+    if (object.color != null) {
+      objectProto.color = object.color.toProto();
+    }
+    if (object.size != null) {
+      objectProto.size = Number(object.size) as FontSizeProto;
+    }
+    if (object.align != null) {
+      objectProto.align = Number(object.align) as TextAlignProto;
+    }
+    if (object.lineHeight != null) {
+      objectProto.lineHeight = object.lineHeight.toProto();
+    }
+    if (object.letterSpacing != null) {
+      objectProto.letterSpacing = object.letterSpacing.toProto();
+    }
+    if (object.decoration != null) {
+      objectProto.decoration = Number(object.decoration) as TextDecorationProto;
+    }
+    if (object.transform != null) {
+      objectProto.transform = Number(object.transform) as TextTransformProto;
+    }
+    return objectProto as FontProto;
+  }
+
+  static __unpackProto__(
+    objectProto: FontProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Font {
+    return new Font({
+      type: Number(objectProto.type) as FontType,
+      weight: objectProto.weight != undefined ? (Number(objectProto.weight) as FontWeight) : null,
+      color:
+        objectProto.color != undefined
+          ? Fill.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
+          : null,
+      size: objectProto.size != undefined ? (Number(objectProto.size) as FontSize) : null,
+      align: objectProto.align != undefined ? (Number(objectProto.align) as TextAlign) : null,
+      lineHeight:
+        objectProto.lineHeight != undefined
+          ? Length.fromProto(objectProto.lineHeight!, _session, _supergraph, _graph, _connection)
+          : null,
+      letterSpacing:
+        objectProto.letterSpacing != undefined
+          ? Length.fromProto(objectProto.letterSpacing!, _session, _supergraph, _graph, _connection)
+          : null,
+      decoration: objectProto.decoration != undefined ? (Number(objectProto.decoration) as TextDecoration) : null,
+      transform: objectProto.transform != undefined ? (Number(objectProto.transform) as TextTransform) : null,
+      style:
+        objectProto.stylePtr != undefined
+          ? NodeReference.fromProto(objectProto.stylePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: FontProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Font {
+    return Font.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:12014 ==== */
@@ -742,49 +835,49 @@ export class FontStyle extends Node implements Style {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 12022;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr !== null) {
+    if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr !== null) {
+    if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
-    if (object.createdByPtr !== null) {
+    if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
     objectValue["17"] = object.updatedAt.toString();
-    if (object.updatedByPtr !== null) {
+    if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
-    if (object.deletedAt !== null) {
+    if (object.deletedAt != null) {
       objectValue["20"] = object.deletedAt.toString();
     }
     objectValue["22"] = object.orderKey;
     objectValue["30"] = object.type;
     objectValue["31"] = object.name;
-    if (object.weight !== null) {
+    if (object.weight != null) {
       objectValue["50"] = object.weight;
     }
-    if (object.color !== null) {
+    if (object.color != null) {
       objectValue["51"] = object.color.toValue();
     }
-    if (object.size !== null) {
+    if (object.size != null) {
       objectValue["52"] = object.size;
     }
-    if (object.align !== null) {
+    if (object.align != null) {
       objectValue["53"] = object.align;
     }
-    if (object.lineHeight !== null) {
+    if (object.lineHeight != null) {
       objectValue["54"] = object.lineHeight.toValue();
     }
-    if (object.letterSpacing !== null) {
+    if (object.letterSpacing != null) {
       objectValue["55"] = object.letterSpacing.toValue();
     }
-    if (object.decoration !== null) {
+    if (object.decoration != null) {
       objectValue["56"] = object.decoration;
     }
-    if (object.transform !== null) {
+    if (object.transform != null) {
       objectValue["57"] = object.transform;
     }
     return objectValue;
@@ -798,46 +891,46 @@ export class FontStyle extends Node implements Style {
     _connection?: any | null,
   ): FontStyle {
     const deletedAtValue = objectValue["20"];
-    const unpackedDeletedAt = deletedAtValue !== undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
     const weightValue = objectValue["50"];
-    const unpackedWeight = weightValue !== undefined ? Number(weightValue) : null;
+    const unpackedWeight = weightValue != undefined ? Number(weightValue) : null;
     const colorValue = objectValue["51"];
     const unpackedColor =
-      colorValue !== undefined ? Fill.fromValue(colorValue, _session, _supergraph, _graph, _connection) : null;
+      colorValue != undefined ? Fill.fromValue(colorValue, _session, _supergraph, _graph, _connection) : null;
     const sizeValue = objectValue["52"];
-    const unpackedSize = sizeValue !== undefined ? Number(sizeValue) : null;
+    const unpackedSize = sizeValue != undefined ? Number(sizeValue) : null;
     const alignValue = objectValue["53"];
-    const unpackedAlign = alignValue !== undefined ? Number(alignValue) : null;
+    const unpackedAlign = alignValue != undefined ? Number(alignValue) : null;
     const lineHeightValue = objectValue["54"];
     const unpackedLineHeight =
-      lineHeightValue !== undefined
+      lineHeightValue != undefined
         ? Length.fromValue(lineHeightValue, _session, _supergraph, _graph, _connection)
         : null;
     const letterSpacingValue = objectValue["55"];
     const unpackedLetterSpacing =
-      letterSpacingValue !== undefined
+      letterSpacingValue != undefined
         ? Length.fromValue(letterSpacingValue, _session, _supergraph, _graph, _connection)
         : null;
     const decorationValue = objectValue["56"];
-    const unpackedDecoration = decorationValue !== undefined ? Number(decorationValue) : null;
+    const unpackedDecoration = decorationValue != undefined ? Number(decorationValue) : null;
     const transformValue = objectValue["57"];
-    const unpackedTransform = transformValue !== undefined ? Number(transformValue) : null;
+    const unpackedTransform = transformValue != undefined ? Number(transformValue) : null;
     const parentValue = objectValue["3"];
     const unpackedParent =
-      parentValue !== undefined
+      parentValue != undefined
         ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
         : null;
     const spaceValue = objectValue["5"];
     const unpackedSpace =
-      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
     const createdByValue = objectValue["16"];
     const unpackedCreatedBy =
-      createdByValue !== undefined
+      createdByValue != undefined
         ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByValue = objectValue["18"];
     const unpackedUpdatedBy =
-      updatedByValue !== undefined
+      updatedByValue != undefined
         ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
         : null;
     return new FontStyle({
@@ -875,6 +968,126 @@ export class FontStyle extends Node implements Style {
     _connection?: any | null,
   ): FontStyle {
     return FontStyle.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): FontStyleProto {
+    return FontStyle.__packProto__(this);
+  }
+
+  static __packProto__(object: FontStyle): FontStyleProto {
+    const objectProto: Partial<FontStyleProto> = { metatype: 12022 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    if (object.deletedAt != null) {
+      objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
+    }
+    objectProto.orderKey = object.orderKey;
+    objectProto.type = Number(object.type) as FontTypeProto;
+    objectProto.name = object.name;
+    if (object.weight != null) {
+      objectProto.weight = Number(object.weight) as FontWeightProto;
+    }
+    if (object.color != null) {
+      objectProto.color = object.color.toProto();
+    }
+    if (object.size != null) {
+      objectProto.size = Number(object.size) as FontSizeProto;
+    }
+    if (object.align != null) {
+      objectProto.align = Number(object.align) as TextAlignProto;
+    }
+    if (object.lineHeight != null) {
+      objectProto.lineHeight = object.lineHeight.toProto();
+    }
+    if (object.letterSpacing != null) {
+      objectProto.letterSpacing = object.letterSpacing.toProto();
+    }
+    if (object.decoration != null) {
+      objectProto.decoration = Number(object.decoration) as TextDecorationProto;
+    }
+    if (object.transform != null) {
+      objectProto.transform = Number(object.transform) as TextTransformProto;
+    }
+    return objectProto as FontStyleProto;
+  }
+
+  static __unpackProto__(
+    objectProto: FontStyleProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): FontStyle {
+    return new FontStyle({
+      id: String(objectProto.id),
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      name: objectProto.name,
+      orderKey: objectProto.orderKey,
+      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      type: Number(objectProto.type) as FontType,
+      weight: objectProto.weight != undefined ? (Number(objectProto.weight) as FontWeight) : null,
+      color:
+        objectProto.color != undefined
+          ? Fill.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
+          : null,
+      size: objectProto.size != undefined ? (Number(objectProto.size) as FontSize) : null,
+      align: objectProto.align != undefined ? (Number(objectProto.align) as TextAlign) : null,
+      lineHeight:
+        objectProto.lineHeight != undefined
+          ? Length.fromProto(objectProto.lineHeight!, _session, _supergraph, _graph, _connection)
+          : null,
+      letterSpacing:
+        objectProto.letterSpacing != undefined
+          ? Length.fromProto(objectProto.letterSpacing!, _session, _supergraph, _graph, _connection)
+          : null,
+      decoration: objectProto.decoration != undefined ? (Number(objectProto.decoration) as TextDecoration) : null,
+      transform: objectProto.transform != undefined ? (Number(objectProto.transform) as TextTransform) : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: FontStyleProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): FontStyle {
+    return FontStyle.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:12022 ==== */

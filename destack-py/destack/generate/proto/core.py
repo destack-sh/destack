@@ -151,6 +151,7 @@ class ProtoField(ProtoObject):
     )
     value_type: ProtoFieldType | ProtoEnum | ProtoMessage | str | None = None
     sub_fields: Sequence["ProtoField"] | None = None
+    annotations: list[str] = dataclasses.field(default_factory=list)
 
     def to_proto_source(self) -> str:
         """Convert to proto source."""
@@ -185,4 +186,7 @@ class ProtoField(ProtoObject):
             type = f"{prefix}{self.type.value}"
         else:
             type = f"{prefix}{self.type}"
-        return f"{type} {self.name} = {self.id}"
+        type_str = f"{type} {self.name} = {self.id}"
+        if self.annotations:
+            type_str = f"{type_str} [{', '.join(self.annotations)}]"
+        return type_str

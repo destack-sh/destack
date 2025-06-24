@@ -1887,8 +1887,8 @@ message ClientProto {
 
 message CollectionConstraintProto {
   StructTypeProto metatype = 1;
-  optional int64 min_length = 41;
-  optional int64 max_length = 42;
+  optional int64 min_length = 41 [jstype = JS_NUMBER];
+  optional int64 max_length = 42 [jstype = JS_NUMBER];
 }
 
 message ColorProto {
@@ -1945,11 +1945,11 @@ message ConstantDefinitionProto {
 
 message CornersProto {
   StructTypeProto metatype = 1;
-  optional int64 base = 50;
-  optional int64 top_left = 51;
-  optional int64 top_right = 52;
-  optional int64 bottom_left = 53;
-  optional int64 bottom_right = 54;
+  optional int64 base = 50 [jstype = JS_NUMBER];
+  optional int64 top_left = 51 [jstype = JS_NUMBER];
+  optional int64 top_right = 52 [jstype = JS_NUMBER];
+  optional int64 bottom_left = 53 [jstype = JS_NUMBER];
+  optional int64 bottom_right = 54 [jstype = JS_NUMBER];
 }
 
 // A Counter Measurement.
@@ -2332,7 +2332,7 @@ message EntitlementEventProto {
 
 message EnumDefinitionProto {
   StructTypeProto metatype = 1;
-  int64 id = 2;
+  int64 id = 2 [jstype = JS_NUMBER];
   EnumTypeProto type = 30;
   string name = 31;
   optional IconProto icon = 34;
@@ -2342,7 +2342,7 @@ message EnumDefinitionProto {
 
 message EnumOptionDefinitionProto {
   StructTypeProto metatype = 1;
-  int64 id = 2;
+  int64 id = 2 [jstype = JS_NUMBER];
   EnumTypeProto type = 30;
   string name = 31;
   optional IconProto icon = 34;
@@ -2446,10 +2446,10 @@ message FileProto {
   FileSourceProto source = 60;
   optional string mime_type = 61;
   optional FileFormatProto format = 62;
-  optional int64 size = 63;
+  optional int64 size = 63 [jstype = JS_NUMBER];
   optional string sha256 = 64;
-  optional int64 width = 65;
-  optional int64 height = 66;
+  optional int64 width = 65 [jstype = JS_NUMBER];
+  optional int64 height = 66 [jstype = JS_NUMBER];
   optional double aspect_ratio = 67;
   optional string codec = 68;
   optional google.protobuf.Duration duration = 69;
@@ -2457,8 +2457,8 @@ message FileProto {
   optional string content_url = 71;
   optional string thumbnail_url = 72;
   optional string favicon_url = 73;
-  optional int64 thumbnail_width = 74;
-  optional int64 thumbnail_height = 75;
+  optional int64 thumbnail_width = 74 [jstype = JS_NUMBER];
+  optional int64 thumbnail_height = 75 [jstype = JS_NUMBER];
   optional bytes content = 76;
 }
 
@@ -2738,8 +2738,8 @@ message GradientStyleProto {
 
 message GridProto {
   StructTypeProto metatype = 1;
-  int64 columns = 50;
-  int64 rows = 51;
+  int64 columns = 50 [jstype = JS_NUMBER];
+  int64 rows = 51 [jstype = JS_NUMBER];
   optional DimensionProto column_width = 52;
   optional DimensionProto column_min_width = 53;
   optional DimensionProto row_height = 54;
@@ -2747,8 +2747,8 @@ message GridProto {
 
 message GridSpanProto {
   StructTypeProto metatype = 1;
-  int64 columns = 50;
-  int64 rows = 51;
+  int64 columns = 50 [jstype = JS_NUMBER];
+  int64 rows = 51 [jstype = JS_NUMBER];
 }
 
 // A Destack @handle.
@@ -2767,7 +2767,7 @@ message HandleProto {
 message HistogramProto {
   StructTypeProto metatype = 1;
   repeated ValueProto buckets = 40;
-  repeated int64 counts = 41;
+  repeated int64 counts = 41 [jstype = JS_NUMBER];
 }
 
 // A Histogram Measurement.
@@ -2813,11 +2813,11 @@ message IconProto {
 
 message InsetsProto {
   StructTypeProto metatype = 1;
-  optional int64 base = 50;
-  optional int64 top = 51;
-  optional int64 left = 52;
-  optional int64 right = 53;
-  optional int64 bottom = 54;
+  optional int64 base = 50 [jstype = JS_NUMBER];
+  optional int64 top = 51 [jstype = JS_NUMBER];
+  optional int64 left = 52 [jstype = JS_NUMBER];
+  optional int64 right = 53 [jstype = JS_NUMBER];
+  optional int64 bottom = 54 [jstype = JS_NUMBER];
 }
 
 // An Interruption in run of something.
@@ -2881,7 +2881,7 @@ message JoinProto {
   JoinTypeProto type = 30;
   optional RelationReferenceProto relation = 31;
   bool recursive = 33;
-  optional int64 depth = 34;
+  optional int64 depth = 34 [jstype = JS_NUMBER];
   optional ConditionProto on = 35;
 }
 
@@ -3031,8 +3031,8 @@ message LinkProto {
   optional string content_url = 52;
   optional string thumbnail_url = 53;
   optional string favicon_url = 54;
-  optional int64 thumbnail_width = 55;
-  optional int64 thumbnail_height = 56;
+  optional int64 thumbnail_width = 55 [jstype = JS_NUMBER];
+  optional int64 thumbnail_height = 56 [jstype = JS_NUMBER];
   optional string content = 60;
   optional string attribution = 62;
   optional string attribution_tag = 63;
@@ -3080,8 +3080,8 @@ message MachineProto {
   optional NodeReferenceProto client_ptr = 69;
   double cpu = 70;
   double ram = 71;
-  int64 width = 75;
-  int64 height = 76;
+  int64 width = 75 [jstype = JS_NUMBER];
+  int64 height = 76 [jstype = JS_NUMBER];
   bool is_headless = 77;
 }
 
@@ -3149,7 +3149,7 @@ message NodeConstraintProto {
 
 message NodeDefinitionProto {
   StructTypeProto metatype = 1;
-  int64 id = 2;
+  int64 id = 2 [jstype = JS_NUMBER];
   NodeTypeProto type = 30;
   string name = 31;
   optional IconProto icon = 34;
@@ -3208,8 +3208,8 @@ message NumberConstraintProto {
   optional double min_value = 41;
   optional double max_value = 42;
   optional double step_value = 43;
-  optional int64 precision = 44;
-  optional int64 scale = 45;
+  optional int64 precision = 44 [jstype = JS_NUMBER];
+  optional int64 scale = 45 [jstype = JS_NUMBER];
 }
 
 // A general number input View.
@@ -3320,7 +3320,7 @@ message PermissionProto {
 
 message PermissionDefinitionProto {
   StructTypeProto metatype = 1;
-  int64 id = 2;
+  int64 id = 2 [jstype = JS_NUMBER];
   EnumTypeProto type = 30;
   string name = 31;
   NodeTypeProto node_type = 32;
@@ -3382,7 +3382,7 @@ message PositionProto {
 
 message PropertyDefinitionProto {
   StructTypeProto metatype = 1;
-  int64 id = 2;
+  int64 id = 2 [jstype = JS_NUMBER];
   string name = 31;
   optional IconProto icon = 34;
   optional string description = 36;
@@ -3419,7 +3419,7 @@ message PropertyReferenceProto {
   optional NodeTypeProto node_type = 31;
   optional TraitTypeProto trait_type = 32;
   optional StructTypeProto struct_type = 33;
-  int64 id = 35;
+  int64 id = 35 [jstype = JS_NUMBER];
 }
 
 message QueryProto {
@@ -3436,8 +3436,8 @@ message QueryProto {
   repeated ExpressionProto group_by = 42;
   optional AggregationProto aggregation = 43;
   repeated SortProto sort = 44;
-  optional int64 limit = 50;
-  optional int64 offset = 51;
+  optional int64 limit = 50 [jstype = JS_NUMBER];
+  optional int64 offset = 51 [jstype = JS_NUMBER];
 }
 
 message QueryResultProto {
@@ -3447,7 +3447,7 @@ message QueryResultProto {
   repeated QueryResultGroupProto groups = 35;
   repeated QueryResultProto subresults = 36;
   repeated ValueProto nodes = 40;
-  optional int64 count = 41;
+  optional int64 count = 41 [jstype = JS_NUMBER];
   optional bool exists = 42;
   optional ValueProto scalar = 43;
 }
@@ -3457,7 +3457,7 @@ message QueryResultGroupProto {
   QueryTypeProto type = 30;
   ValueProto discriminator = 31;
   repeated ValueProto nodes = 40;
-  optional int64 count = 41;
+  optional int64 count = 41 [jstype = JS_NUMBER];
   optional bool exists = 42;
   optional ValueProto scalar = 43;
 }
@@ -3673,21 +3673,21 @@ message SceneEventProto {
 message ScheduleProto {
   StructTypeProto metatype = 1;
   ScheduleFrequencyProto frequency = 31;
-  int64 interval = 32;
+  int64 interval = 32 [jstype = JS_NUMBER];
   optional google.protobuf.Timestamp start = 33;
   optional google.protobuf.Timestamp end = 34;
-  optional int64 count = 35;
+  optional int64 count = 35 [jstype = JS_NUMBER];
   optional DayOfWeekProto week_start = 36;
-  repeated int64 by_set_pos = 37;
+  repeated int64 by_set_pos = 37 [jstype = JS_NUMBER];
   repeated MonthProto by_month = 38;
-  repeated int64 by_month_day = 39;
-  repeated int64 by_year_day = 40;
-  repeated int64 by_easter = 41;
-  repeated int64 by_week_no = 42;
+  repeated int64 by_month_day = 39 [jstype = JS_NUMBER];
+  repeated int64 by_year_day = 40 [jstype = JS_NUMBER];
+  repeated int64 by_easter = 41 [jstype = JS_NUMBER];
+  repeated int64 by_week_no = 42 [jstype = JS_NUMBER];
   repeated DayOfWeekProto by_week_day = 43;
-  repeated int64 by_hour = 44;
-  repeated int64 by_minute = 45;
-  repeated int64 by_second = 46;
+  repeated int64 by_hour = 44 [jstype = JS_NUMBER];
+  repeated int64 by_minute = 45 [jstype = JS_NUMBER];
+  repeated int64 by_second = 46 [jstype = JS_NUMBER];
 }
 
 message ScopeProto {
@@ -3767,8 +3767,8 @@ message ShadowProto {
   optional ColorProto color = 50;
   ShadowPositionProto position = 51;
   optional Axis2Proto offset = 52;
-  optional int64 blur = 53;
-  optional int64 spread = 54;
+  optional int64 blur = 53 [jstype = JS_NUMBER];
+  optional int64 spread = 54 [jstype = JS_NUMBER];
   optional double diffusion = 55;
 }
 
@@ -3790,8 +3790,8 @@ message ShadowStyleProto {
   optional ColorProto color = 50;
   ShadowPositionProto position = 51;
   optional Axis2Proto offset = 52;
-  optional int64 blur = 53;
-  optional int64 spread = 54;
+  optional int64 blur = 53 [jstype = JS_NUMBER];
+  optional int64 spread = 54 [jstype = JS_NUMBER];
   optional double diffusion = 55;
 }
 
@@ -3954,7 +3954,7 @@ message StringConstraintProto {
 
 message StructDefinitionProto {
   StructTypeProto metatype = 1;
-  int64 id = 2;
+  int64 id = 2 [jstype = JS_NUMBER];
   StructTypeProto type = 30;
   string name = 31;
   optional IconProto icon = 34;
@@ -4174,7 +4174,7 @@ message TimerEventProto {
 
 message TraitDefinitionProto {
   StructTypeProto metatype = 1;
-  int64 id = 2;
+  int64 id = 2 [jstype = JS_NUMBER];
   TraitTypeProto type = 30;
   string name = 31;
   string alias = 32;
@@ -4338,8 +4338,8 @@ message Vector2Proto {
 
 message Vector2iProto {
   StructTypeProto metatype = 1;
-  int64 x = 50;
-  int64 y = 51;
+  int64 x = 50 [jstype = JS_NUMBER];
+  int64 y = 51 [jstype = JS_NUMBER];
 }
 
 message Vector3Proto {
@@ -4351,9 +4351,9 @@ message Vector3Proto {
 
 message Vector3iProto {
   StructTypeProto metatype = 1;
-  int64 x = 50;
-  int64 y = 51;
-  int64 z = 52;
+  int64 x = 50 [jstype = JS_NUMBER];
+  int64 y = 51 [jstype = JS_NUMBER];
+  int64 z = 52 [jstype = JS_NUMBER];
 }
 
 message Vector4Proto {
@@ -4366,10 +4366,10 @@ message Vector4Proto {
 
 message Vector4iProto {
   StructTypeProto metatype = 1;
-  int64 x = 50;
-  int64 y = 51;
-  int64 z = 52;
-  int64 w = 53;
+  int64 x = 50 [jstype = JS_NUMBER];
+  int64 y = 51 [jstype = JS_NUMBER];
+  int64 z = 52 [jstype = JS_NUMBER];
+  int64 w = 53 [jstype = JS_NUMBER];
 }
 
 // A Window for someone to interact with a Space via Scenes.

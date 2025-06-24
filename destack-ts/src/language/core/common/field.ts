@@ -1,3 +1,4 @@
+import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   CascadeAction,
   CollectionConstraint,
@@ -36,6 +37,20 @@ import {
 } from "@destack/language/core";
 import { Script } from "@destack/language/logic";
 import { Space } from "@destack/language/space";
+import {
+  CascadeActionProto,
+  DefaultFactoryProto,
+  EdgeTypeProto,
+  EnumTypeProto,
+  FieldProto,
+  FieldTypeProto,
+  MaterializationTypeProto,
+  NodeTypeProto,
+  PrimitiveTypeProto,
+  ScalarTypeProto,
+  StructTypeProto,
+  TypeCardinalityProto,
+} from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2580 ==== */
@@ -577,81 +592,81 @@ export class Field extends Node implements Spatial, Entity, HasName, HasIcon, Is
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 2520;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr !== null) {
+    if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr !== null) {
+    if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
-    if (object.createdByPtr !== null) {
+    if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
     objectValue["17"] = object.updatedAt.toString();
-    if (object.updatedByPtr !== null) {
+    if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
-    if (object.deletedAt !== null) {
+    if (object.deletedAt != null) {
       objectValue["20"] = object.deletedAt.toString();
     }
     objectValue["22"] = object.orderKey;
     objectValue["30"] = object.type;
     objectValue["31"] = object.name;
-    if (object.icon !== null) {
+    if (object.icon != null) {
       objectValue["34"] = object.icon.toValue();
     }
     objectValue["40"] = object.cardinality;
     objectValue["41"] = object.scalarType;
-    if (object.primitiveType !== null) {
+    if (object.primitiveType != null) {
       objectValue["42"] = object.primitiveType;
     }
-    if (object.enumType !== null) {
+    if (object.enumType != null) {
       objectValue["43"] = object.enumType;
     }
-    if (object.nodeType !== null) {
+    if (object.nodeType != null) {
       objectValue["44"] = object.nodeType;
     }
-    if (object.nodeDefinitionPtr !== null) {
+    if (object.nodeDefinitionPtr != null) {
       objectValue["45"] = object.nodeDefinitionPtr.toValue();
     }
-    if (object.structType !== null) {
+    if (object.structType != null) {
       objectValue["46"] = object.structType;
     }
-    if (object.baseTypePtr !== null) {
+    if (object.baseTypePtr != null) {
       objectValue["47"] = object.baseTypePtr.toValue();
     }
-    if (object.keyType !== null) {
+    if (object.keyType != null) {
       objectValue["48"] = object.keyType.toValue();
     }
-    if (object.isRequired !== null) {
+    if (object.isRequired != null) {
       objectValue["50"] = object.isRequired;
     }
-    if (object.defaultValue !== null) {
+    if (object.defaultValue != null) {
       objectValue["55"] = object.defaultValue.toValue();
     }
-    if (object.defaultFactory !== null) {
+    if (object.defaultFactory != null) {
       objectValue["56"] = object.defaultFactory;
     }
-    if (object.collectionConstraint !== null) {
+    if (object.collectionConstraint != null) {
       objectValue["60"] = object.collectionConstraint.toValue();
     }
-    if (object.stringConstraint !== null) {
+    if (object.stringConstraint != null) {
       objectValue["61"] = object.stringConstraint.toValue();
     }
-    if (object.numberConstraint !== null) {
+    if (object.numberConstraint != null) {
       objectValue["62"] = object.numberConstraint.toValue();
     }
-    if (object.nodeConstraint !== null) {
+    if (object.nodeConstraint != null) {
       objectValue["63"] = object.nodeConstraint.toValue();
     }
-    if (object.edgeType !== null) {
+    if (object.edgeType != null) {
       objectValue["70"] = object.edgeType;
     }
-    if (object.cascade !== null) {
+    if (object.cascade != null) {
       objectValue["71"] = object.cascade;
     }
-    if (object.sourcePtr !== null) {
+    if (object.sourcePtr != null) {
       objectValue["210"] = object.sourcePtr.toValue();
     }
     return objectValue;
@@ -665,85 +680,85 @@ export class Field extends Node implements Spatial, Entity, HasName, HasIcon, Is
     _connection?: any | null,
   ): Field {
     const primitiveTypeValue = objectValue["42"];
-    const unpackedPrimitiveType = primitiveTypeValue !== undefined ? Number(primitiveTypeValue) : null;
+    const unpackedPrimitiveType = primitiveTypeValue != undefined ? Number(primitiveTypeValue) : null;
     const enumTypeValue = objectValue["43"];
-    const unpackedEnumType = enumTypeValue !== undefined ? Number(enumTypeValue) : null;
+    const unpackedEnumType = enumTypeValue != undefined ? Number(enumTypeValue) : null;
     const nodeTypeValue = objectValue["44"];
-    const unpackedNodeType = nodeTypeValue !== undefined ? Number(nodeTypeValue) : null;
+    const unpackedNodeType = nodeTypeValue != undefined ? Number(nodeTypeValue) : null;
     const structTypeValue = objectValue["46"];
-    const unpackedStructType = structTypeValue !== undefined ? Number(structTypeValue) : null;
+    const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : null;
     const keyTypeValue = objectValue["48"];
     const unpackedKeyType =
-      keyTypeValue !== undefined ? Type.fromValue(keyTypeValue, _session, _supergraph, _graph, _connection) : null;
+      keyTypeValue != undefined ? Type.fromValue(keyTypeValue, _session, _supergraph, _graph, _connection) : null;
     const isRequiredValue = objectValue["50"];
-    const unpackedIsRequired = isRequiredValue !== undefined ? isRequiredValue : null;
+    const unpackedIsRequired = isRequiredValue != undefined ? isRequiredValue : null;
     const defaultValueValue = objectValue["55"];
     const unpackedDefaultValue =
-      defaultValueValue !== undefined
+      defaultValueValue != undefined
         ? Value.fromValue(defaultValueValue, _session, _supergraph, _graph, _connection)
         : null;
     const defaultFactoryValue = objectValue["56"];
-    const unpackedDefaultFactory = defaultFactoryValue !== undefined ? Number(defaultFactoryValue) : null;
+    const unpackedDefaultFactory = defaultFactoryValue != undefined ? Number(defaultFactoryValue) : null;
     const collectionConstraintValue = objectValue["60"];
     const unpackedCollectionConstraint =
-      collectionConstraintValue !== undefined
+      collectionConstraintValue != undefined
         ? CollectionConstraint.fromValue(collectionConstraintValue, _session, _supergraph, _graph, _connection)
         : null;
     const stringConstraintValue = objectValue["61"];
     const unpackedStringConstraint =
-      stringConstraintValue !== undefined
+      stringConstraintValue != undefined
         ? StringConstraint.fromValue(stringConstraintValue, _session, _supergraph, _graph, _connection)
         : null;
     const numberConstraintValue = objectValue["62"];
     const unpackedNumberConstraint =
-      numberConstraintValue !== undefined
+      numberConstraintValue != undefined
         ? NumberConstraint.fromValue(numberConstraintValue, _session, _supergraph, _graph, _connection)
         : null;
     const nodeConstraintValue = objectValue["63"];
     const unpackedNodeConstraint =
-      nodeConstraintValue !== undefined
+      nodeConstraintValue != undefined
         ? NodeConstraint.fromValue(nodeConstraintValue, _session, _supergraph, _graph, _connection)
         : null;
     const edgeTypeValue = objectValue["70"];
-    const unpackedEdgeType = edgeTypeValue !== undefined ? Number(edgeTypeValue) : null;
+    const unpackedEdgeType = edgeTypeValue != undefined ? Number(edgeTypeValue) : null;
     const cascadeValue = objectValue["71"];
-    const unpackedCascade = cascadeValue !== undefined ? Number(cascadeValue) : null;
+    const unpackedCascade = cascadeValue != undefined ? Number(cascadeValue) : null;
     const iconValue = objectValue["34"];
     const unpackedIcon =
-      iconValue !== undefined ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection) : null;
+      iconValue != undefined ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection) : null;
     const deletedAtValue = objectValue["20"];
-    const unpackedDeletedAt = deletedAtValue !== undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
     const parentValue = objectValue["3"];
     const unpackedParent =
-      parentValue !== undefined
+      parentValue != undefined
         ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
         : null;
     const nodeDefinitionValue = objectValue["45"];
     const unpackedNodeDefinition =
-      nodeDefinitionValue !== undefined
+      nodeDefinitionValue != undefined
         ? NodeReference.fromValue(nodeDefinitionValue, _session, _supergraph, _graph, _connection)
         : null;
     const baseTypeValue = objectValue["47"];
     const unpackedBaseType =
-      baseTypeValue !== undefined
+      baseTypeValue != undefined
         ? NodeReference.fromValue(baseTypeValue, _session, _supergraph, _graph, _connection)
         : null;
     const spaceValue = objectValue["5"];
     const unpackedSpace =
-      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
     const createdByValue = objectValue["16"];
     const unpackedCreatedBy =
-      createdByValue !== undefined
+      createdByValue != undefined
         ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByValue = objectValue["18"];
     const unpackedUpdatedBy =
-      updatedByValue !== undefined
+      updatedByValue != undefined
         ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
         : null;
     const sourceValue = objectValue["210"];
     const unpackedSource =
-      sourceValue !== undefined
+      sourceValue != undefined
         ? NodeReference.fromValue(sourceValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Field({
@@ -793,6 +808,199 @@ export class Field extends Node implements Spatial, Entity, HasName, HasIcon, Is
     _connection?: any | null,
   ): Field {
     return Field.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): FieldProto {
+    return Field.__packProto__(this);
+  }
+
+  static __packProto__(object: Field): FieldProto {
+    const objectProto: Partial<FieldProto> = { metatype: 2520 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    if (object.deletedAt != null) {
+      objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
+    }
+    objectProto.orderKey = object.orderKey;
+    objectProto.type = Number(object.type) as FieldTypeProto;
+    objectProto.name = object.name;
+    if (object.icon != null) {
+      objectProto.icon = object.icon.toProto();
+    }
+    objectProto.cardinality = Number(object.cardinality) as TypeCardinalityProto;
+    objectProto.scalarType = Number(object.scalarType) as ScalarTypeProto;
+    if (object.primitiveType != null) {
+      objectProto.primitiveType = Number(object.primitiveType) as PrimitiveTypeProto;
+    }
+    if (object.enumType != null) {
+      objectProto.enumType = Number(object.enumType) as EnumTypeProto;
+    }
+    if (object.nodeType != null) {
+      objectProto.nodeType = Number(object.nodeType) as NodeTypeProto;
+    }
+    if (object.nodeDefinitionPtr != null) {
+      objectProto.nodeDefinitionPtr = object.nodeDefinitionPtr.toProto();
+    }
+    if (object.structType != null) {
+      objectProto.structType = Number(object.structType) as StructTypeProto;
+    }
+    if (object.baseTypePtr != null) {
+      objectProto.baseTypePtr = object.baseTypePtr.toProto();
+    }
+    if (object.keyType != null) {
+      objectProto.keyType = object.keyType.toProto();
+    }
+    if (object.isRequired != null) {
+      objectProto.isRequired = object.isRequired;
+    }
+    if (object.defaultValue != null) {
+      objectProto.defaultValue = object.defaultValue.toProto();
+    }
+    if (object.defaultFactory != null) {
+      objectProto.defaultFactory = Number(object.defaultFactory) as DefaultFactoryProto;
+    }
+    if (object.collectionConstraint != null) {
+      objectProto.collectionConstraint = object.collectionConstraint.toProto();
+    }
+    if (object.stringConstraint != null) {
+      objectProto.stringConstraint = object.stringConstraint.toProto();
+    }
+    if (object.numberConstraint != null) {
+      objectProto.numberConstraint = object.numberConstraint.toProto();
+    }
+    if (object.nodeConstraint != null) {
+      objectProto.nodeConstraint = object.nodeConstraint.toProto();
+    }
+    if (object.edgeType != null) {
+      objectProto.edgeType = Number(object.edgeType) as EdgeTypeProto;
+    }
+    if (object.cascade != null) {
+      objectProto.cascade = Number(object.cascade) as CascadeActionProto;
+    }
+    if (object.sourcePtr != null) {
+      objectProto.sourcePtr = object.sourcePtr.toProto();
+    }
+    return objectProto as FieldProto;
+  }
+
+  static __unpackProto__(
+    objectProto: FieldProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Field {
+    return new Field({
+      type: Number(objectProto.type) as FieldType,
+      cardinality: Number(objectProto.cardinality) as TypeCardinality,
+      scalarType: Number(objectProto.scalarType) as ScalarType,
+      primitiveType:
+        objectProto.primitiveType != undefined ? (Number(objectProto.primitiveType) as PrimitiveType) : null,
+      enumType: objectProto.enumType != undefined ? (Number(objectProto.enumType) as EnumType) : null,
+      nodeType: objectProto.nodeType != undefined ? (Number(objectProto.nodeType) as NodeType) : null,
+      structType: objectProto.structType != undefined ? (Number(objectProto.structType) as StructType) : null,
+      keyType:
+        objectProto.keyType != undefined
+          ? Type.fromProto(objectProto.keyType!, _session, _supergraph, _graph, _connection)
+          : null,
+      isRequired: objectProto.isRequired != undefined ? objectProto.isRequired : null,
+      defaultValue:
+        objectProto.defaultValue != undefined
+          ? Value.fromProto(objectProto.defaultValue!, _session, _supergraph, _graph, _connection)
+          : null,
+      defaultFactory:
+        objectProto.defaultFactory != undefined ? (Number(objectProto.defaultFactory) as DefaultFactory) : null,
+      collectionConstraint:
+        objectProto.collectionConstraint != undefined
+          ? CollectionConstraint.fromProto(
+              objectProto.collectionConstraint!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      stringConstraint:
+        objectProto.stringConstraint != undefined
+          ? StringConstraint.fromProto(objectProto.stringConstraint!, _session, _supergraph, _graph, _connection)
+          : null,
+      numberConstraint:
+        objectProto.numberConstraint != undefined
+          ? NumberConstraint.fromProto(objectProto.numberConstraint!, _session, _supergraph, _graph, _connection)
+          : null,
+      nodeConstraint:
+        objectProto.nodeConstraint != undefined
+          ? NodeConstraint.fromProto(objectProto.nodeConstraint!, _session, _supergraph, _graph, _connection)
+          : null,
+      edgeType: objectProto.edgeType != undefined ? (Number(objectProto.edgeType) as EdgeType) : null,
+      cascade: objectProto.cascade != undefined ? (Number(objectProto.cascade) as CascadeAction) : null,
+      id: String(objectProto.id),
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      name: objectProto.name,
+      icon:
+        objectProto.icon != undefined
+          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
+      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      orderKey: objectProto.orderKey,
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      nodeDefinition:
+        objectProto.nodeDefinitionPtr != undefined
+          ? NodeReference.fromProto(objectProto.nodeDefinitionPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      baseType:
+        objectProto.baseTypePtr != undefined
+          ? NodeReference.fromProto(objectProto.baseTypePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      source:
+        objectProto.sourcePtr != undefined
+          ? NodeReference.fromProto(objectProto.sourcePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: FieldProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Field {
+    return Field.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:2520 ==== */

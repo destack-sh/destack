@@ -1,3 +1,4 @@
+import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Graph,
   IsSubject,
@@ -15,6 +16,7 @@ import {
   TraitType,
 } from "@destack/language/core";
 import { Client, Space } from "@destack/language/space";
+import { MachineProto, MachineTypeProto, MaterializationTypeProto, ResourceStatusProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:7600 ==== */
@@ -424,43 +426,43 @@ export class Machine extends Node implements Spatial, Resource {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 7600;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr !== null) {
+    if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr !== null) {
+    if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
-    if (object.createdByPtr !== null) {
+    if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
     objectValue["17"] = object.updatedAt.toString();
-    if (object.updatedByPtr !== null) {
+    if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
     objectValue["30"] = object.type;
     objectValue["40"] = object.status;
-    if (object.targetStatus !== null) {
+    if (object.targetStatus != null) {
       objectValue["41"] = object.targetStatus.toString();
     }
     objectValue["60"] = object.version;
-    if (object.externalName !== null) {
+    if (object.externalName != null) {
       objectValue["62"] = object.externalName;
     }
-    if (object.externalId !== null) {
+    if (object.externalId != null) {
       objectValue["63"] = object.externalId;
     }
-    if (object.imageId !== null) {
+    if (object.imageId != null) {
       objectValue["64"] = object.imageId;
     }
-    if (object.grpcUrl !== null) {
+    if (object.grpcUrl != null) {
       objectValue["65"] = object.grpcUrl;
     }
-    if (object.vncUrl !== null) {
+    if (object.vncUrl != null) {
       objectValue["66"] = object.vncUrl;
     }
-    if (object.clientPtr !== null) {
+    if (object.clientPtr != null) {
       objectValue["69"] = object.clientPtr.toValue();
     }
     objectValue["70"] = object.cpu;
@@ -479,39 +481,38 @@ export class Machine extends Node implements Spatial, Resource {
     _connection?: any | null,
   ): Machine {
     const externalNameValue = objectValue["62"];
-    const unpackedExternalName = externalNameValue !== undefined ? externalNameValue : null;
+    const unpackedExternalName = externalNameValue != undefined ? externalNameValue : null;
     const externalIdValue = objectValue["63"];
-    const unpackedExternalId = externalIdValue !== undefined ? externalIdValue : null;
+    const unpackedExternalId = externalIdValue != undefined ? externalIdValue : null;
     const imageIdValue = objectValue["64"];
-    const unpackedImageId = imageIdValue !== undefined ? imageIdValue : null;
+    const unpackedImageId = imageIdValue != undefined ? imageIdValue : null;
     const grpcUrlValue = objectValue["65"];
-    const unpackedGrpcUrl = grpcUrlValue !== undefined ? grpcUrlValue : null;
+    const unpackedGrpcUrl = grpcUrlValue != undefined ? grpcUrlValue : null;
     const vncUrlValue = objectValue["66"];
-    const unpackedVncUrl = vncUrlValue !== undefined ? vncUrlValue : null;
+    const unpackedVncUrl = vncUrlValue != undefined ? vncUrlValue : null;
     const targetStatusValue = objectValue["41"];
-    const unpackedTargetStatus =
-      targetStatusValue !== undefined ? Temporal.ZonedDateTime.from(targetStatusValue) : null;
+    const unpackedTargetStatus = targetStatusValue != undefined ? Temporal.ZonedDateTime.from(targetStatusValue) : null;
     const clientValue = objectValue["69"];
     const unpackedClient =
-      clientValue !== undefined
+      clientValue != undefined
         ? NodeReference.fromValue(clientValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentValue = objectValue["3"];
     const unpackedParent =
-      parentValue !== undefined
+      parentValue != undefined
         ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
         : null;
     const spaceValue = objectValue["5"];
     const unpackedSpace =
-      spaceValue !== undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
+      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
     const createdByValue = objectValue["16"];
     const unpackedCreatedBy =
-      createdByValue !== undefined
+      createdByValue != undefined
         ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByValue = objectValue["18"];
     const unpackedUpdatedBy =
-      updatedByValue !== undefined
+      updatedByValue != undefined
         ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Machine({
@@ -552,6 +553,122 @@ export class Machine extends Node implements Spatial, Resource {
     _connection?: any | null,
   ): Machine {
     return Machine.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): MachineProto {
+    return Machine.__packProto__(this);
+  }
+
+  static __packProto__(object: Machine): MachineProto {
+    const objectProto: Partial<MachineProto> = { metatype: 7600 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    objectProto.type = Number(object.type) as MachineTypeProto;
+    objectProto.status = Number(object.status) as ResourceStatusProto;
+    if (object.targetStatus != null) {
+      objectProto.targetStatus = packProtoTimestamp(object.targetStatus);
+    }
+    objectProto.version = object.version;
+    if (object.externalName != null) {
+      objectProto.externalName = object.externalName;
+    }
+    if (object.externalId != null) {
+      objectProto.externalId = object.externalId;
+    }
+    if (object.imageId != null) {
+      objectProto.imageId = object.imageId;
+    }
+    if (object.grpcUrl != null) {
+      objectProto.grpcUrl = object.grpcUrl;
+    }
+    if (object.vncUrl != null) {
+      objectProto.vncUrl = object.vncUrl;
+    }
+    if (object.clientPtr != null) {
+      objectProto.clientPtr = object.clientPtr.toProto();
+    }
+    objectProto.cpu = object.cpu;
+    objectProto.ram = object.ram;
+    objectProto.width = object.width;
+    objectProto.height = object.height;
+    objectProto.isHeadless = object.isHeadless;
+    return objectProto as MachineProto;
+  }
+
+  static __unpackProto__(
+    objectProto: MachineProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Machine {
+    return new Machine({
+      type: Number(objectProto.type) as MachineType,
+      version: objectProto.version,
+      externalName: objectProto.externalName != undefined ? objectProto.externalName : null,
+      externalId: objectProto.externalId != undefined ? objectProto.externalId : null,
+      imageId: objectProto.imageId != undefined ? objectProto.imageId : null,
+      grpcUrl: objectProto.grpcUrl != undefined ? objectProto.grpcUrl : null,
+      vncUrl: objectProto.vncUrl != undefined ? objectProto.vncUrl : null,
+      cpu: objectProto.cpu,
+      ram: objectProto.ram,
+      width: Number(objectProto.width),
+      height: Number(objectProto.height),
+      isHeadless: objectProto.isHeadless,
+      id: String(objectProto.id),
+      status: Number(objectProto.status) as ResourceStatus,
+      targetStatus: objectProto.targetStatus != undefined ? unpackProtoTimestamp(objectProto.targetStatus!) : null,
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      client:
+        objectProto.clientPtr != undefined
+          ? NodeReference.fromProto(objectProto.clientPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: MachineProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Machine {
+    return Machine.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:7600 ==== */

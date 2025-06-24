@@ -1,3 +1,4 @@
+import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Entity,
   Global,
@@ -21,6 +22,7 @@ import {
 } from "@destack/language/core";
 import { Cursor } from "@destack/language/logic";
 import { Handle, Space } from "@destack/language/space";
+import { MaterializationTypeProto, UserProto, UserStatusProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:20 ==== */
@@ -367,42 +369,42 @@ export class User extends Node implements Global, Entity, HasName, HasIcon, HasS
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 20;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr !== null) {
+    if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
     objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
-    if (object.createdByPtr !== null) {
+    if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
     objectValue["17"] = object.updatedAt.toString();
-    if (object.updatedByPtr !== null) {
+    if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
     objectValue["31"] = object.name;
     objectValue["33"] = object.slug;
-    if (object.icon !== null) {
+    if (object.icon != null) {
       objectValue["34"] = object.icon.toValue();
     }
     objectValue["40"] = object.status;
-    if (object.lastLoggedInAt !== null) {
+    if (object.lastLoggedInAt != null) {
       objectValue["41"] = object.lastLoggedInAt.toString();
     }
     objectValue["45"] = object.isStaff;
     objectValue["50"] = object.spacePtr.toValue();
-    if (object.handlePtr !== null) {
+    if (object.handlePtr != null) {
       objectValue["51"] = object.handlePtr.toValue();
     }
-    if (object.cursorPtr !== null) {
+    if (object.cursorPtr != null) {
       objectValue["52"] = object.cursorPtr.toValue();
     }
-    if (object.email !== null) {
+    if (object.email != null) {
       objectValue["60"] = object.email;
     }
-    if (object.passwordSalt !== null) {
+    if (object.passwordSalt != null) {
       objectValue["61"] = Buffer.from(object.passwordSalt).toString("base64");
     }
-    if (object.passwordHash !== null) {
+    if (object.passwordHash != null) {
       objectValue["62"] = Buffer.from(object.passwordHash).toString("base64");
     }
     return objectValue;
@@ -417,39 +419,39 @@ export class User extends Node implements Global, Entity, HasName, HasIcon, HasS
   ): User {
     const lastLoggedInAtValue = objectValue["41"];
     const unpackedLastLoggedInAt =
-      lastLoggedInAtValue !== undefined ? Temporal.ZonedDateTime.from(lastLoggedInAtValue) : null;
+      lastLoggedInAtValue != undefined ? Temporal.ZonedDateTime.from(lastLoggedInAtValue) : null;
     const emailValue = objectValue["60"];
-    const unpackedEmail = emailValue !== undefined ? emailValue : null;
+    const unpackedEmail = emailValue != undefined ? emailValue : null;
     const passwordSaltValue = objectValue["61"];
-    const unpackedPasswordSalt = passwordSaltValue !== undefined ? Buffer.from(passwordSaltValue, "base64") : null;
+    const unpackedPasswordSalt = passwordSaltValue != undefined ? Buffer.from(passwordSaltValue, "base64") : null;
     const passwordHashValue = objectValue["62"];
-    const unpackedPasswordHash = passwordHashValue !== undefined ? Buffer.from(passwordHashValue, "base64") : null;
+    const unpackedPasswordHash = passwordHashValue != undefined ? Buffer.from(passwordHashValue, "base64") : null;
     const iconValue = objectValue["34"];
     const unpackedIcon =
-      iconValue !== undefined ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection) : null;
+      iconValue != undefined ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection) : null;
     const handleValue = objectValue["51"];
     const unpackedHandle =
-      handleValue !== undefined
+      handleValue != undefined
         ? NodeReference.fromValue(handleValue, _session, _supergraph, _graph, _connection)
         : null;
     const cursorValue = objectValue["52"];
     const unpackedCursor =
-      cursorValue !== undefined
+      cursorValue != undefined
         ? NodeReference.fromValue(cursorValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentValue = objectValue["3"];
     const unpackedParent =
-      parentValue !== undefined
+      parentValue != undefined
         ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByValue = objectValue["16"];
     const unpackedCreatedBy =
-      createdByValue !== undefined
+      createdByValue != undefined
         ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
         : null;
     const updatedByValue = objectValue["18"];
     const unpackedUpdatedBy =
-      updatedByValue !== undefined
+      updatedByValue != undefined
         ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
         : null;
     return new User({
@@ -486,6 +488,116 @@ export class User extends Node implements Global, Entity, HasName, HasIcon, HasS
     _connection?: any | null,
   ): User {
     return User.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): UserProto {
+    return User.__packProto__(this);
+  }
+
+  static __packProto__(object: User): UserProto {
+    const objectProto: Partial<UserProto> = { metatype: 20 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    objectProto.name = object.name;
+    objectProto.slug = object.slug;
+    if (object.icon != null) {
+      objectProto.icon = object.icon.toProto();
+    }
+    objectProto.status = Number(object.status) as UserStatusProto;
+    if (object.lastLoggedInAt != null) {
+      objectProto.lastLoggedInAt = packProtoTimestamp(object.lastLoggedInAt);
+    }
+    objectProto.isStaff = object.isStaff;
+    objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.handlePtr != null) {
+      objectProto.handlePtr = object.handlePtr.toProto();
+    }
+    if (object.cursorPtr != null) {
+      objectProto.cursorPtr = object.cursorPtr.toProto();
+    }
+    if (object.email != null) {
+      objectProto.email = object.email;
+    }
+    if (object.passwordSalt != null) {
+      objectProto.passwordSalt = object.passwordSalt;
+    }
+    if (object.passwordHash != null) {
+      objectProto.passwordHash = object.passwordHash;
+    }
+    return objectProto as UserProto;
+  }
+
+  static __unpackProto__(
+    objectProto: UserProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): User {
+    return new User({
+      name: objectProto.name,
+      slug: objectProto.slug,
+      status: Number(objectProto.status) as UserStatus,
+      lastLoggedInAt:
+        objectProto.lastLoggedInAt != undefined ? unpackProtoTimestamp(objectProto.lastLoggedInAt!) : null,
+      isStaff: objectProto.isStaff,
+      email: objectProto.email != undefined ? objectProto.email : null,
+      passwordSalt: objectProto.passwordSalt != undefined ? objectProto.passwordSalt : null,
+      passwordHash: objectProto.passwordHash != undefined ? objectProto.passwordHash : null,
+      id: String(objectProto.id),
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      icon:
+        objectProto.icon != undefined
+          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
+      space: NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection),
+      handle:
+        objectProto.handlePtr != undefined
+          ? NodeReference.fromProto(objectProto.handlePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      cursor:
+        objectProto.cursorPtr != undefined
+          ? NodeReference.fromProto(objectProto.cursorPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: UserProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): User {
+    return User.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:NODE:20 ==== */

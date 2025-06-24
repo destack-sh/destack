@@ -1,3 +1,4 @@
+import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Field,
   IsSubject,
@@ -11,6 +12,15 @@ import {
   Value,
 } from "@destack/language/core";
 import { Origin } from "@destack/language/space";
+import {
+  ChangeDebounceProto,
+  ChangeProto,
+  ChangeResultProto,
+  ChangeStatusProto,
+  EditOperationProto,
+  EditProto,
+  EditTypeProto,
+} from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
 import { v4 as uuid4 } from "uuid";
 
@@ -232,23 +242,23 @@ export class Edit extends StructFrozen {
     objectValue["1"] = 50020;
     objectValue["2"] = String(object.id);
     objectValue["30"] = object.type;
-    if (object.operation !== null) {
+    if (object.operation != null) {
       objectValue["31"] = object.operation;
     }
     objectValue["32"] = object.nodePtr.toValue();
-    if (object.propPtr !== null) {
+    if (object.propPtr != null) {
       objectValue["33"] = object.propPtr.toValue();
     }
-    if (object.fieldPtr !== null) {
+    if (object.fieldPtr != null) {
       objectValue["34"] = object.fieldPtr.toValue();
     }
-    if (object.key !== null) {
+    if (object.key != null) {
       objectValue["35"] = object.key.toValue();
     }
-    if (object.value !== null) {
+    if (object.value != null) {
       objectValue["40"] = object.value.toValue();
     }
-    if (object.undo !== null) {
+    if (object.undo != null) {
       objectValue["50"] = object.undo.toValue();
     }
     return objectValue;
@@ -262,24 +272,24 @@ export class Edit extends StructFrozen {
     _connection?: any | null,
   ): Edit {
     const operationValue = objectValue["31"];
-    const unpackedOperation = operationValue !== undefined ? Number(operationValue) : null;
+    const unpackedOperation = operationValue != undefined ? Number(operationValue) : null;
     const propPtrValue = objectValue["33"];
     const unpackedPropPtr =
-      propPtrValue !== undefined
+      propPtrValue != undefined
         ? PropertyReference.fromValue(propPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const keyValue = objectValue["35"];
     const unpackedKey =
-      keyValue !== undefined ? Value.fromValue(keyValue, _session, _supergraph, _graph, _connection) : null;
+      keyValue != undefined ? Value.fromValue(keyValue, _session, _supergraph, _graph, _connection) : null;
     const valueValue = objectValue["40"];
     const unpackedValue =
-      valueValue !== undefined ? Value.fromValue(valueValue, _session, _supergraph, _graph, _connection) : null;
+      valueValue != undefined ? Value.fromValue(valueValue, _session, _supergraph, _graph, _connection) : null;
     const undoValue = objectValue["50"];
     const unpackedUndo =
-      undoValue !== undefined ? Edit.fromValue(undoValue, _session, _supergraph, _graph, _connection) : null;
+      undoValue != undefined ? Edit.fromValue(undoValue, _session, _supergraph, _graph, _connection) : null;
     const fieldValue = objectValue["34"];
     const unpackedField =
-      fieldValue !== undefined ? NodeReference.fromValue(fieldValue, _session, _supergraph, _graph, _connection) : null;
+      fieldValue != undefined ? NodeReference.fromValue(fieldValue, _session, _supergraph, _graph, _connection) : null;
     return new Edit({
       id: String(objectValue["2"]),
       type: Number(objectValue["30"]),
@@ -303,6 +313,87 @@ export class Edit extends StructFrozen {
     _connection?: any | null,
   ): Edit {
     return Edit.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): EditProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Edit.__packProto__(this);
+    }
+    return this._proto as EditProto;
+  }
+
+  static __packProto__(object: Edit): EditProto {
+    const objectProto: Partial<EditProto> = { metatype: 50020 };
+    objectProto.id = String(object.id);
+    objectProto.type = Number(object.type) as EditTypeProto;
+    if (object.operation != null) {
+      objectProto.operation = Number(object.operation) as EditOperationProto;
+    }
+    objectProto.nodePtr = object.nodePtr.toProto();
+    if (object.propPtr != null) {
+      objectProto.propPtr = object.propPtr.toProto();
+    }
+    if (object.fieldPtr != null) {
+      objectProto.fieldPtr = object.fieldPtr.toProto();
+    }
+    if (object.key != null) {
+      objectProto.key = object.key.toProto();
+    }
+    if (object.value != null) {
+      objectProto.value = object.value.toProto();
+    }
+    if (object.undo != null) {
+      objectProto.undo = object.undo.toProto();
+    }
+    return objectProto as EditProto;
+  }
+
+  static __unpackProto__(
+    objectProto: EditProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Edit {
+    return new Edit({
+      id: String(objectProto.id),
+      type: Number(objectProto.type) as EditType,
+      operation: objectProto.operation != undefined ? (Number(objectProto.operation) as EditOperation) : null,
+      propPtr:
+        objectProto.propPtr != undefined
+          ? PropertyReference.fromProto(objectProto.propPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      key:
+        objectProto.key != undefined
+          ? Value.fromProto(objectProto.key!, _session, _supergraph, _graph, _connection)
+          : null,
+      value:
+        objectProto.value != undefined
+          ? Value.fromProto(objectProto.value!, _session, _supergraph, _graph, _connection)
+          : null,
+      undo:
+        objectProto.undo != undefined
+          ? Edit.fromProto(objectProto.undo!, _session, _supergraph, _graph, _connection)
+          : null,
+      node: NodeReference.fromProto(objectProto.nodePtr!, _session, _supergraph, _graph, _connection),
+      field:
+        objectProto.fieldPtr != undefined
+          ? NodeReference.fromProto(objectProto.fieldPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: EditProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Edit {
+    return Edit.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50020 ==== */
@@ -451,17 +542,17 @@ export class Change extends StructFrozen {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 50021;
     objectValue["2"] = String(object.id);
-    if (object.name !== null) {
+    if (object.name != null) {
       objectValue["31"] = object.name;
     }
     objectValue["32"] = object.createdAt.toString();
-    if (object.createdByPtr !== null) {
+    if (object.createdByPtr != null) {
       objectValue["33"] = object.createdByPtr.toValue();
     }
-    if (object.origin !== null) {
+    if (object.origin != null) {
       objectValue["34"] = object.origin.toValue();
     }
-    if (object.debounce !== null) {
+    if (object.debounce != null) {
       objectValue["35"] = object.debounce;
     }
     if (object.edits) {
@@ -482,21 +573,21 @@ export class Change extends StructFrozen {
     _connection?: any | null,
   ): Change {
     const nameValue = objectValue["31"];
-    const unpackedName = nameValue !== undefined ? nameValue : null;
+    const unpackedName = nameValue != undefined ? nameValue : null;
     const originValue = objectValue["34"];
     const unpackedOrigin =
-      originValue !== undefined ? Origin.fromValue(originValue, _session, _supergraph, _graph, _connection) : null;
+      originValue != undefined ? Origin.fromValue(originValue, _session, _supergraph, _graph, _connection) : null;
     const debounceValue = objectValue["35"];
-    const unpackedDebounce = debounceValue !== undefined ? Number(debounceValue) : null;
+    const unpackedDebounce = debounceValue != undefined ? Number(debounceValue) : null;
     const unpackedEdits: any[] = [];
-    if (objectValue["40"] !== undefined) {
+    if (objectValue["40"] != undefined) {
       for (const item of objectValue["40"]) {
         unpackedEdits.push(Edit.fromValue(item, _session, _supergraph, _graph, _connection));
       }
     }
     const createdByValue = objectValue["33"];
     const unpackedCreatedBy =
-      createdByValue !== undefined
+      createdByValue != undefined
         ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Change({
@@ -520,6 +611,82 @@ export class Change extends StructFrozen {
     _connection?: any | null,
   ): Change {
     return Change.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): ChangeProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Change.__packProto__(this);
+    }
+    return this._proto as ChangeProto;
+  }
+
+  static __packProto__(object: Change): ChangeProto {
+    const objectProto: Partial<ChangeProto> = { metatype: 50021 };
+    objectProto.id = String(object.id);
+    if (object.name != null) {
+      objectProto.name = object.name;
+    }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    if (object.origin != null) {
+      objectProto.origin = object.origin.toProto();
+    }
+    if (object.debounce != null) {
+      objectProto.debounce = Number(object.debounce) as ChangeDebounceProto;
+    }
+    if (object.edits) {
+      const packedEdits: any[] = [];
+      for (const item of object.edits) {
+        packedEdits.push(item.toProto());
+      }
+      objectProto.edits = packedEdits;
+    }
+    return objectProto as ChangeProto;
+  }
+
+  static __unpackProto__(
+    objectProto: ChangeProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Change {
+    const unpackedEdits: any[] = [];
+    if (objectProto.edits) {
+      for (const item of objectProto.edits) {
+        unpackedEdits.push(Edit.fromProto(item!, _session, _supergraph, _graph, _connection));
+      }
+    }
+    return new Change({
+      id: String(objectProto.id),
+      name: objectProto.name != undefined ? objectProto.name : null,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      origin:
+        objectProto.origin != undefined
+          ? Origin.fromProto(objectProto.origin!, _session, _supergraph, _graph, _connection)
+          : null,
+      debounce: objectProto.debounce != undefined ? (Number(objectProto.debounce) as ChangeDebounce) : null,
+      edits: unpackedEdits,
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: ChangeProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Change {
+    return Change.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50021 ==== */
@@ -654,7 +821,7 @@ export class ChangeResult extends StructFrozen {
     objectValue["1"] = 50022;
     objectValue["2"] = String(object.id);
     objectValue["10"] = object.createdAt.toString();
-    if (object.debounce !== null) {
+    if (object.debounce != null) {
       objectValue["35"] = object.debounce;
     }
     objectValue["40"] = object.status;
@@ -683,15 +850,15 @@ export class ChangeResult extends StructFrozen {
     _connection?: any | null,
   ): ChangeResult {
     const debounceValue = objectValue["35"];
-    const unpackedDebounce = debounceValue !== undefined ? Number(debounceValue) : null;
+    const unpackedDebounce = debounceValue != undefined ? Number(debounceValue) : null;
     const unpackedEdits: any[] = [];
-    if (objectValue["41"] !== undefined) {
+    if (objectValue["41"] != undefined) {
       for (const item of objectValue["41"]) {
         unpackedEdits.push(Edit.fromValue(item, _session, _supergraph, _graph, _connection));
       }
     }
     const unpackedCascadedEdits: any[] = [];
-    if (objectValue["42"] !== undefined) {
+    if (objectValue["42"] != undefined) {
       for (const item of objectValue["42"]) {
         unpackedCascadedEdits.push(Edit.fromValue(item, _session, _supergraph, _graph, _connection));
       }
@@ -716,6 +883,80 @@ export class ChangeResult extends StructFrozen {
     _connection?: any | null,
   ): ChangeResult {
     return ChangeResult.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): ChangeResultProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = ChangeResult.__packProto__(this);
+    }
+    return this._proto as ChangeResultProto;
+  }
+
+  static __packProto__(object: ChangeResult): ChangeResultProto {
+    const objectProto: Partial<ChangeResultProto> = { metatype: 50022 };
+    objectProto.id = String(object.id);
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.debounce != null) {
+      objectProto.debounce = Number(object.debounce) as ChangeDebounceProto;
+    }
+    objectProto.status = Number(object.status) as ChangeStatusProto;
+    if (object.edits) {
+      const packedEdits: any[] = [];
+      for (const item of object.edits) {
+        packedEdits.push(item.toProto());
+      }
+      objectProto.edits = packedEdits;
+    }
+    if (object.cascadedEdits) {
+      const packedCascadedEdits: any[] = [];
+      for (const item of object.cascadedEdits) {
+        packedCascadedEdits.push(item.toProto());
+      }
+      objectProto.cascadedEdits = packedCascadedEdits;
+    }
+    return objectProto as ChangeResultProto;
+  }
+
+  static __unpackProto__(
+    objectProto: ChangeResultProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ChangeResult {
+    const unpackedEdits: any[] = [];
+    if (objectProto.edits) {
+      for (const item of objectProto.edits) {
+        unpackedEdits.push(Edit.fromProto(item!, _session, _supergraph, _graph, _connection));
+      }
+    }
+    const unpackedCascadedEdits: any[] = [];
+    if (objectProto.cascadedEdits) {
+      for (const item of objectProto.cascadedEdits) {
+        unpackedCascadedEdits.push(Edit.fromProto(item!, _session, _supergraph, _graph, _connection));
+      }
+    }
+    return new ChangeResult({
+      id: String(objectProto.id),
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      debounce: objectProto.debounce != undefined ? (Number(objectProto.debounce) as ChangeDebounce) : null,
+      status: Number(objectProto.status) as ChangeStatus,
+      edits: unpackedEdits,
+      cascadedEdits: unpackedCascadedEdits,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: ChangeResultProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ChangeResult {
+    return ChangeResult.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 }
 /* ==== DESTACK_GENERATED_END:STRUCT:50022 ==== */
