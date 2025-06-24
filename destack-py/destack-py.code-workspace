@@ -4,8 +4,6 @@
         "editor.tabSize": 4,
         "editor.rulers": [100, 120],
         "workbench.colorTheme": "Night Owl (No Italics)",
-        "search.exclude": {
-        },
         "python.languageServer": "Default",
         "python.analysis.typeCheckingMode": "strict",
         "python.analysis.diagnosticMode": "workspace",

@@ -1,7 +1,5 @@
-// tests
-
 import { expect, test } from "vitest";
-import { BASE_62_DIGITS, generateOrderKey } from "./fractional";
+import { BASE_62_DIGITS, generateOrderKey } from "@destack/utils/fractional";
 
 test.each([
   [null, null, "a0"],
@@ -28,7 +26,7 @@ test.each([
   ["a00", "a1", "!error"],
   ["0", "1", "!error"],
   ["a1", "a0", "!error"],
-])("test_fractional(%s, %s) -> %s", (a: string | null, b: string | null, expected: string) => {
+])("fractional(%s, %s) -> %s", (a: string | null, b: string | null, expected: string) => {
   try {
     expect(generateOrderKey(a, b, BASE_62_DIGITS)).toBe(expected);
   } catch {
