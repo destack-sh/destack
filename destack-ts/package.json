@@ -8,6 +8,11 @@
   "files": [
     "src"
   ],
+  "bun": {
+    "alias": {
+      "@destack/*": "src/*"
+    }
+  },
   "scripts": {
     "build": "tsc",
     "test": "vitest",
@@ -34,6 +39,7 @@
     "prettier-plugin-tailwindcss": "^0.6.12",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.34.1",
+    "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.2.3"
   }
 }
