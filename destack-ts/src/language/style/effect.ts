@@ -257,7 +257,90 @@ export class Effect extends Struct {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (
+      (this.opacity == null) !== (other.opacity == null) ||
+      (this.opacity != null && !(this.opacity === other.opacity || Math.abs(this.opacity - other.opacity) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.offset == null) !== (other.offset == null) ||
+      (this.offset != null && !this.offset.equals(other.offset))
+    ) {
+      return false;
+    }
+    if (
+      (this.scale == null) !== (other.scale == null) ||
+      (this.scale != null && !(this.scale === other.scale || Math.abs(this.scale - other.scale) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.rotate == null) !== (other.rotate == null) ||
+      (this.rotate != null && !this.rotate.equals(other.rotate))
+    ) {
+      return false;
+    }
+    if ((this.skew == null) !== (other.skew == null) || (this.skew != null && !this.skew.equals(other.skew))) {
+      return false;
+    }
+    if (
+      (this.perspective == null) !== (other.perspective == null) ||
+      (this.perspective != null &&
+        !(this.perspective === other.perspective || Math.abs(this.perspective - other.perspective) < 1e-10))
+    ) {
+      return false;
+    }
+    if ((this.delay == null) !== (other.delay == null) || (this.delay != null && !(this.delay === other.delay))) {
+      return false;
+    }
+    if (
+      (this.duration == null) !== (other.duration == null) ||
+      (this.duration != null && !(this.duration === other.duration || Math.abs(this.duration - other.duration) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.threshold == null) !== (other.threshold == null) ||
+      (this.threshold != null &&
+        !(this.threshold === other.threshold || Math.abs(this.threshold - other.threshold) < 1e-10))
+    ) {
+      return false;
+    }
+    if ((this.once == null) !== (other.once == null) || (this.once != null && !(this.once === other.once))) {
+      return false;
+    }
+    if ((this.repeat == null) !== (other.repeat == null) || (this.repeat != null && !(this.repeat === other.repeat))) {
+      return false;
+    }
+    if ((this.split == null) !== (other.split == null) || (this.split != null && !(this.split === other.split))) {
+      return false;
+    }
+    if (
+      (this.offscreen == null) !== (other.offscreen == null) ||
+      (this.offscreen != null && !(this.offscreen === other.offscreen))
+    ) {
+      return false;
+    }
+    if (
+      (this.transition == null) !== (other.transition == null) ||
+      (this.transition != null && !this.transition.equals(other.transition))
+    ) {
+      return false;
+    }
+    if (
+      (this.stylePtr == null) !== (other.stylePtr == null) ||
+      (this.stylePtr != null && !(this.stylePtr.id === other.stylePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -877,7 +960,96 @@ export class EffectStyle extends Node implements Style {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (
+      (this.opacity == null) !== (other.opacity == null) ||
+      (this.opacity != null && !(this.opacity === other.opacity || Math.abs(this.opacity - other.opacity) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.offset == null) !== (other.offset == null) ||
+      (this.offset != null && !this.offset.equals(other.offset))
+    ) {
+      return false;
+    }
+    if (
+      (this.scale == null) !== (other.scale == null) ||
+      (this.scale != null && !(this.scale === other.scale || Math.abs(this.scale - other.scale) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.rotate == null) !== (other.rotate == null) ||
+      (this.rotate != null && !this.rotate.equals(other.rotate))
+    ) {
+      return false;
+    }
+    if ((this.skew == null) !== (other.skew == null) || (this.skew != null && !this.skew.equals(other.skew))) {
+      return false;
+    }
+    if (
+      (this.perspective == null) !== (other.perspective == null) ||
+      (this.perspective != null &&
+        !(this.perspective === other.perspective || Math.abs(this.perspective - other.perspective) < 1e-10))
+    ) {
+      return false;
+    }
+    if ((this.delay == null) !== (other.delay == null) || (this.delay != null && !(this.delay === other.delay))) {
+      return false;
+    }
+    if (
+      (this.duration == null) !== (other.duration == null) ||
+      (this.duration != null && !(this.duration === other.duration || Math.abs(this.duration - other.duration) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.threshold == null) !== (other.threshold == null) ||
+      (this.threshold != null &&
+        !(this.threshold === other.threshold || Math.abs(this.threshold - other.threshold) < 1e-10))
+    ) {
+      return false;
+    }
+    if ((this.once == null) !== (other.once == null) || (this.once != null && !(this.once === other.once))) {
+      return false;
+    }
+    if ((this.repeat == null) !== (other.repeat == null) || (this.repeat != null && !(this.repeat === other.repeat))) {
+      return false;
+    }
+    if ((this.split == null) !== (other.split == null) || (this.split != null && !(this.split === other.split))) {
+      return false;
+    }
+    if (
+      (this.offscreen == null) !== (other.offscreen == null) ||
+      (this.offscreen != null && !(this.offscreen === other.offscreen))
+    ) {
+      return false;
+    }
+    if (
+      (this.transition == null) !== (other.transition == null) ||
+      (this.transition != null && !this.transition.equals(other.transition))
+    ) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

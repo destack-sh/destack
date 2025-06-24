@@ -546,7 +546,136 @@ export class Field extends Node implements Spatial, Entity, HasName, HasIcon, Is
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!(this.cardinality === other.cardinality)) {
+      return false;
+    }
+    if (!(this.scalarType === other.scalarType)) {
+      return false;
+    }
+    if (
+      (this.primitiveType == null) !== (other.primitiveType == null) ||
+      (this.primitiveType != null && !(this.primitiveType === other.primitiveType))
+    ) {
+      return false;
+    }
+    if (
+      (this.enumType == null) !== (other.enumType == null) ||
+      (this.enumType != null && !(this.enumType === other.enumType))
+    ) {
+      return false;
+    }
+    if (
+      (this.nodeType == null) !== (other.nodeType == null) ||
+      (this.nodeType != null && !(this.nodeType === other.nodeType))
+    ) {
+      return false;
+    }
+    if (
+      (this.structType == null) !== (other.structType == null) ||
+      (this.structType != null && !(this.structType === other.structType))
+    ) {
+      return false;
+    }
+    if (
+      (this.keyType == null) !== (other.keyType == null) ||
+      (this.keyType != null && !this.keyType.equals(other.keyType))
+    ) {
+      return false;
+    }
+    if (
+      (this.isRequired == null) !== (other.isRequired == null) ||
+      (this.isRequired != null && !(this.isRequired === other.isRequired))
+    ) {
+      return false;
+    }
+    if (
+      (this.defaultValue == null) !== (other.defaultValue == null) ||
+      (this.defaultValue != null && !this.defaultValue.equals(other.defaultValue))
+    ) {
+      return false;
+    }
+    if (
+      (this.defaultFactory == null) !== (other.defaultFactory == null) ||
+      (this.defaultFactory != null && !(this.defaultFactory === other.defaultFactory))
+    ) {
+      return false;
+    }
+    if (
+      (this.collectionConstraint == null) !== (other.collectionConstraint == null) ||
+      (this.collectionConstraint != null && !this.collectionConstraint.equals(other.collectionConstraint))
+    ) {
+      return false;
+    }
+    if (
+      (this.stringConstraint == null) !== (other.stringConstraint == null) ||
+      (this.stringConstraint != null && !this.stringConstraint.equals(other.stringConstraint))
+    ) {
+      return false;
+    }
+    if (
+      (this.numberConstraint == null) !== (other.numberConstraint == null) ||
+      (this.numberConstraint != null && !this.numberConstraint.equals(other.numberConstraint))
+    ) {
+      return false;
+    }
+    if (
+      (this.nodeConstraint == null) !== (other.nodeConstraint == null) ||
+      (this.nodeConstraint != null && !this.nodeConstraint.equals(other.nodeConstraint))
+    ) {
+      return false;
+    }
+    if (
+      (this.edgeType == null) !== (other.edgeType == null) ||
+      (this.edgeType != null && !(this.edgeType === other.edgeType))
+    ) {
+      return false;
+    }
+    if (
+      (this.cascade == null) !== (other.cascade == null) ||
+      (this.cascade != null && !(this.cascade === other.cascade))
+    ) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
+      return false;
+    }
+    if (
+      (this.nodeDefinitionPtr == null) !== (other.nodeDefinitionPtr == null) ||
+      (this.nodeDefinitionPtr != null && !(this.nodeDefinitionPtr.id === other.nodeDefinitionPtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.baseTypePtr == null) !== (other.baseTypePtr == null) ||
+      (this.baseTypePtr != null && !(this.baseTypePtr.id === other.baseTypePtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.sourcePtr == null) !== (other.sourcePtr == null) ||
+      (this.sourcePtr != null && !(this.sourcePtr.id === other.sourcePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

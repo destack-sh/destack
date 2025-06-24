@@ -96,7 +96,22 @@ export class Origin extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if ((this.id == null) !== (other.id == null) || (this.id != null && !(this.id === other.id))) {
+      return false;
+    }
+    if ((this.ck == null) !== (other.ck == null) || (this.ck != null && !(this.ck === other.ck))) {
+      return false;
+    }
+    if ((this.nonce == null) !== (other.nonce == null) || (this.nonce != null && !(this.nonce === other.nonce))) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -529,7 +544,82 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (
+      (this.accessToken == null) !== (other.accessToken == null) ||
+      (this.accessToken != null && !(this.accessToken === other.accessToken))
+    ) {
+      return false;
+    }
+    if ((this.seenAt == null) !== (other.seenAt == null) || (this.seenAt != null && !(this.seenAt === other.seenAt))) {
+      return false;
+    }
+    if (
+      (this.loggedInAt == null) !== (other.loggedInAt == null) ||
+      (this.loggedInAt != null && !(this.loggedInAt === other.loggedInAt))
+    ) {
+      return false;
+    }
+    if (
+      (this.deviceType == null) !== (other.deviceType == null) ||
+      (this.deviceType != null && !(this.deviceType === other.deviceType))
+    ) {
+      return false;
+    }
+    if (
+      (this.deviceName == null) !== (other.deviceName == null) ||
+      (this.deviceName != null && !(this.deviceName === other.deviceName))
+    ) {
+      return false;
+    }
+    if (
+      (this.operatingSystem == null) !== (other.operatingSystem == null) ||
+      (this.operatingSystem != null && !(this.operatingSystem === other.operatingSystem))
+    ) {
+      return false;
+    }
+    if (
+      (this.browserName == null) !== (other.browserName == null) ||
+      (this.browserName != null && !(this.browserName === other.browserName))
+    ) {
+      return false;
+    }
+    if (
+      (this.browserVersion == null) !== (other.browserVersion == null) ||
+      (this.browserVersion != null && !(this.browserVersion === other.browserVersion))
+    ) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if (
+      (this.machinePtr == null) !== (other.machinePtr == null) ||
+      (this.machinePtr != null && !(this.machinePtr.id === other.machinePtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.userPtr == null) !== (other.userPtr == null) ||
+      (this.userPtr != null && !(this.userPtr.id === other.userPtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.cursorPtr == null) !== (other.cursorPtr == null) ||
+      (this.cursorPtr != null && !(this.cursorPtr.id === other.cursorPtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

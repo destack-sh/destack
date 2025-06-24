@@ -511,12 +511,105 @@ constructor(options: {{
 
 def _generate_equals(cls: type[BuiltinObjectBase]) -> str:
     """Generate a Typescript equals method."""
-    equals_str = """\
-equals(other: any): boolean {
-  throw new Error("not implemented");
-}
-"""
-    return equals_str.strip()
+    eq_properties = [
+        prop
+        for prop in cls.__properties__.values()
+        if prop.is_eq and prop.is_wired and prop.ptr_prop is None
+    ]
+    assert eq_properties, f"{cls.__name__} has no properties to compare"
+
+    cmp_strs = []
+    for prop in eq_properties:
+        cmp_str = _generate_property_cmp_impl(prop)
+        cmp_strs.append(cmp_str)
+
+    body_str = "\n".join(cmp_strs)
+    body_str = textwrap.indent(body_str, "  ")
+
+    equals_impl = f"""\
+equals(other: any): boolean {{
+{body_str}
+  return true;
+}}"""
+
+    return equals_impl.strip()
+
+
+def _generate_property_cmp_impl(prop: Property) -> str:
+    """Generate equality check code for a single property."""
+    prop_name = to_casing(prop.name, Casing.LOWER_CAMEL)
+
+    scalar_cmps_str = _generate_scalar_cmp_impl(prop)
+    if prop.cardinality == TypeCardinality.SCALAR:
+        # scalar
+        if prop.is_required:
+            # required scalar
+            return f"""\
+if (!({scalar_cmps_str.format(self_val=f"this.{prop_name}", other_val=f"other.{prop_name}")})) {{
+  return false;
+}}"""
+        else:
+            # optional scalar
+            return f"""\
+if ((this.{prop_name} == null) !== (other.{prop_name} == null) || (this.{prop_name} != null && !({scalar_cmps_str.format(self_val=f"this.{prop_name}", other_val=f"other.{prop_name}")}))) {{
+  return false;
+}}"""
+    elif prop.cardinality == TypeCardinality.LIST:
+        # list (always required)
+        return f"""\
+if (this.{prop_name}.length !== other.{prop_name}.length) {{
+  return false;
+}}
+for (let i = 0; i < this.{prop_name}.length; i++) {{
+  if (!({scalar_cmps_str.format(self_val=f"this.{prop_name}[i]", other_val=f"other.{prop_name}[i]")})) {{
+    return false;
+  }}
+}}"""
+    elif prop.cardinality == TypeCardinality.MAP:
+        # map (always required)
+        if prop.scalar_type in (
+            ScalarType.STRUCT,
+            ScalarType.NODE_REFERENCE,
+            ScalarType.NODE_VALUE,
+        ):
+            # maps with complex values need key-by-key comparison
+            return f"""\
+if (Object.keys(this.{prop_name}).length !== Object.keys(other.{prop_name}).length) {{
+  return false;
+}}
+for (const key in this.{prop_name}) {{
+  if (!(key in other.{prop_name})) {{
+    return false;
+  }}
+  if (!({scalar_cmps_str.format(self_val=f"this.{prop_name}[key]", other_val=f"other.{prop_name}[key]")})) {{
+    return false;
+  }}
+}}"""
+        else:
+            # maps with primitive/enum values can use direct comparison
+            return f"""\
+if (JSON.stringify(this.{prop_name}) !== JSON.stringify(other.{prop_name})) {{
+  return false;
+}}"""
+    else:
+        assert_never(prop.cardinality)
+
+
+def _generate_scalar_cmp_impl(prop: Property) -> str:
+    """Generate the core scalar comparison logic. Returns a format string with {self_val} and {other_val} placeholders."""
+    if prop.scalar_type == ScalarType.PRIMITIVE:
+        if prop.primitive_type and prop.primitive_type.is_float:
+            return "{self_val} === {other_val} || Math.abs({self_val} - {other_val}) < 1e-10"
+        else:
+            return "{self_val} === {other_val}"
+    elif prop.scalar_type == ScalarType.ENUM:
+        return "{self_val} === {other_val}"
+    elif prop.scalar_type == ScalarType.NODE_REFERENCE or prop.scalar_type == ScalarType.NODE_VALUE:
+        return "{self_val}.id === {other_val}.id"
+    elif prop.scalar_type == ScalarType.STRUCT:
+        return "{self_val}.equals({other_val})"
+    else:
+        assert_never(prop.scalar_type)
 
 
 def _generate_hash(cls: type[BuiltinObjectBase]) -> str:

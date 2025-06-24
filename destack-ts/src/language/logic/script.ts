@@ -296,7 +296,36 @@ export class Script extends Node implements Spatial, Entity, HasName, IsOrdered,
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if ((this.code == null) !== (other.code == null) || (this.code != null && !(this.code === other.code))) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (Object.keys(this.value).length !== Object.keys(other.value).length) {
+      return false;
+    }
+    for (const key in this.value) {
+      if (!(key in other.value)) {
+        return false;
+      }
+      if (!this.value[key].equals(other.value[key])) {
+        return false;
+      }
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

@@ -519,7 +519,70 @@ export class Space
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (!(this.slug === other.slug)) {
+      return false;
+    }
+    if (!(this.status === other.status)) {
+      return false;
+    }
+    if (!(this.region === other.region)) {
+      return false;
+    }
+    if (
+      (this.galaxyName == null) !== (other.galaxyName == null) ||
+      (this.galaxyName != null && !(this.galaxyName === other.galaxyName))
+    ) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
+      return false;
+    }
+    if (
+      (this.handlePtr == null) !== (other.handlePtr == null) ||
+      (this.handlePtr != null && !(this.handlePtr.id === other.handlePtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.systemFolderPtr == null) !== (other.systemFolderPtr == null) ||
+      (this.systemFolderPtr != null && !(this.systemFolderPtr.id === other.systemFolderPtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.homeFolderPtr == null) !== (other.homeFolderPtr == null) ||
+      (this.homeFolderPtr != null && !(this.homeFolderPtr.id === other.homeFolderPtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.databasePtr == null) !== (other.databasePtr == null) ||
+      (this.databasePtr != null && !(this.databasePtr.id === other.databasePtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.ownedByPtr == null) !== (other.ownedByPtr == null) ||
+      (this.ownedByPtr != null && !(this.ownedByPtr.id === other.ownedByPtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

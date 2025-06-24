@@ -281,7 +281,34 @@ export class Organization extends Node implements Global, Entity, HasSlug, HasIc
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.slug === other.slug)) {
+      return false;
+    }
+    if (!(this.status === other.status)) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
+      return false;
+    }
+    if (
+      (this.handlePtr == null) !== (other.handlePtr == null) ||
+      (this.handlePtr != null && !(this.handlePtr.id === other.handlePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

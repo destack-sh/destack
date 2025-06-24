@@ -271,7 +271,42 @@ export class CustomStructDefinition
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
+      return false;
+    }
+    if (Object.keys(this.value).length !== Object.keys(other.value).length) {
+      return false;
+    }
+    for (const key in this.value) {
+      if (!(key in other.value)) {
+        return false;
+      }
+      if (!this.value[key].equals(other.value[key])) {
+        return false;
+      }
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.sourcePtr == null) !== (other.sourcePtr == null) ||
+      (this.sourcePtr != null && !(this.sourcePtr.id === other.sourcePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

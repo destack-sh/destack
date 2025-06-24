@@ -76,7 +76,16 @@ export class Value extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!this.type.equals(other.type)) {
+      return false;
+    }
+    if (!(this.value === other.value)) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

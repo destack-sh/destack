@@ -284,7 +284,46 @@ export class EditEvent extends Node implements Event, IsTaggable {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (
+      (this.operation == null) !== (other.operation == null) ||
+      (this.operation != null && !(this.operation === other.operation))
+    ) {
+      return false;
+    }
+    if (
+      (this.propPtr == null) !== (other.propPtr == null) ||
+      (this.propPtr != null && !this.propPtr.equals(other.propPtr))
+    ) {
+      return false;
+    }
+    if ((this.key == null) !== (other.key == null) || (this.key != null && !this.key.equals(other.key))) {
+      return false;
+    }
+    if ((this.value == null) !== (other.value == null) || (this.value != null && !this.value.equals(other.value))) {
+      return false;
+    }
+    if (!(this.nodePtr.id === other.nodePtr.id)) {
+      return false;
+    }
+    if (
+      (this.fieldPtr == null) !== (other.fieldPtr == null) ||
+      (this.fieldPtr != null && !(this.fieldPtr.id === other.fieldPtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -752,7 +791,28 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, HasN
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.sourcePtr == null) !== (other.sourcePtr == null) ||
+      (this.sourcePtr != null && !(this.sourcePtr.id === other.sourcePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -1166,7 +1226,25 @@ export class CustomEvent extends Node implements Event {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.definitionPtr.id === other.definitionPtr.id)) {
+      return false;
+    }
+    if (
+      (this.nodePtr == null) !== (other.nodePtr == null) ||
+      (this.nodePtr != null && !(this.nodePtr.id === other.nodePtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

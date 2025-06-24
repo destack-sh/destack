@@ -330,7 +330,105 @@ export class Link extends Node implements Spatial, Resource {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if ((this.url == null) !== (other.url == null) || (this.url != null && !(this.url === other.url))) {
+      return false;
+    }
+    if ((this.domain == null) !== (other.domain == null) || (this.domain != null && !(this.domain === other.domain))) {
+      return false;
+    }
+    if (
+      (this.contentUrl == null) !== (other.contentUrl == null) ||
+      (this.contentUrl != null && !(this.contentUrl === other.contentUrl))
+    ) {
+      return false;
+    }
+    if (
+      (this.thumbnailUrl == null) !== (other.thumbnailUrl == null) ||
+      (this.thumbnailUrl != null && !(this.thumbnailUrl === other.thumbnailUrl))
+    ) {
+      return false;
+    }
+    if (
+      (this.faviconUrl == null) !== (other.faviconUrl == null) ||
+      (this.faviconUrl != null && !(this.faviconUrl === other.faviconUrl))
+    ) {
+      return false;
+    }
+    if (
+      (this.thumbnailWidth == null) !== (other.thumbnailWidth == null) ||
+      (this.thumbnailWidth != null && !(this.thumbnailWidth === other.thumbnailWidth))
+    ) {
+      return false;
+    }
+    if (
+      (this.thumbnailHeight == null) !== (other.thumbnailHeight == null) ||
+      (this.thumbnailHeight != null && !(this.thumbnailHeight === other.thumbnailHeight))
+    ) {
+      return false;
+    }
+    if (
+      (this.content == null) !== (other.content == null) ||
+      (this.content != null && !(this.content === other.content))
+    ) {
+      return false;
+    }
+    if (
+      (this.attribution == null) !== (other.attribution == null) ||
+      (this.attribution != null && !(this.attribution === other.attribution))
+    ) {
+      return false;
+    }
+    if (
+      (this.attributionTag == null) !== (other.attributionTag == null) ||
+      (this.attributionTag != null && !(this.attributionTag === other.attributionTag))
+    ) {
+      return false;
+    }
+    if (
+      (this.publishedAt == null) !== (other.publishedAt == null) ||
+      (this.publishedAt != null && !(this.publishedAt === other.publishedAt))
+    ) {
+      return false;
+    }
+    if (
+      (this.expiresAt == null) !== (other.expiresAt == null) ||
+      (this.expiresAt != null && !(this.expiresAt === other.expiresAt))
+    ) {
+      return false;
+    }
+    if (this.imageUrls.length !== other.imageUrls.length) {
+      return false;
+    }
+    for (let i = 0; i < this.imageUrls.length; i++) {
+      if (!(this.imageUrls[i] === other.imageUrls[i])) {
+        return false;
+      }
+    }
+    if (!(this.status === other.status)) {
+      return false;
+    }
+    if (
+      (this.targetStatus == null) !== (other.targetStatus == null) ||
+      (this.targetStatus != null && !(this.targetStatus === other.targetStatus))
+    ) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

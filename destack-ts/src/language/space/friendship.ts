@@ -225,7 +225,19 @@ export class Friendship extends Node implements Global, Entity {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if (!(this.userAPtr.id === other.userAPtr.id)) {
+      return false;
+    }
+    if (!(this.userBPtr.id === other.userBPtr.id)) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -585,7 +597,22 @@ export class FriendshipInviteEvent extends Node implements Event {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!(this.nodePtr.id === other.nodePtr.id)) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -972,7 +999,19 @@ export class FriendshipInvite extends Node implements Global, Entity, LikeInvite
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if (!(this.ownedByPtr.id === other.ownedByPtr.id)) {
+      return false;
+    }
+    if (!(this.memberPtr.id === other.memberPtr.id)) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

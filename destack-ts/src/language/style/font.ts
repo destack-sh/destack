@@ -261,7 +261,55 @@ export class Font extends Struct {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if ((this.weight == null) !== (other.weight == null) || (this.weight != null && !(this.weight === other.weight))) {
+      return false;
+    }
+    if ((this.color == null) !== (other.color == null) || (this.color != null && !this.color.equals(other.color))) {
+      return false;
+    }
+    if ((this.size == null) !== (other.size == null) || (this.size != null && !(this.size === other.size))) {
+      return false;
+    }
+    if ((this.align == null) !== (other.align == null) || (this.align != null && !(this.align === other.align))) {
+      return false;
+    }
+    if (
+      (this.lineHeight == null) !== (other.lineHeight == null) ||
+      (this.lineHeight != null && !this.lineHeight.equals(other.lineHeight))
+    ) {
+      return false;
+    }
+    if (
+      (this.letterSpacing == null) !== (other.letterSpacing == null) ||
+      (this.letterSpacing != null && !this.letterSpacing.equals(other.letterSpacing))
+    ) {
+      return false;
+    }
+    if (
+      (this.decoration == null) !== (other.decoration == null) ||
+      (this.decoration != null && !(this.decoration === other.decoration))
+    ) {
+      return false;
+    }
+    if (
+      (this.transform == null) !== (other.transform == null) ||
+      (this.transform != null && !(this.transform === other.transform))
+    ) {
+      return false;
+    }
+    if (
+      (this.stylePtr == null) !== (other.stylePtr == null) ||
+      (this.stylePtr != null && !(this.stylePtr.id === other.stylePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -789,7 +837,61 @@ export class FontStyle extends Node implements Style {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if ((this.weight == null) !== (other.weight == null) || (this.weight != null && !(this.weight === other.weight))) {
+      return false;
+    }
+    if ((this.color == null) !== (other.color == null) || (this.color != null && !this.color.equals(other.color))) {
+      return false;
+    }
+    if ((this.size == null) !== (other.size == null) || (this.size != null && !(this.size === other.size))) {
+      return false;
+    }
+    if ((this.align == null) !== (other.align == null) || (this.align != null && !(this.align === other.align))) {
+      return false;
+    }
+    if (
+      (this.lineHeight == null) !== (other.lineHeight == null) ||
+      (this.lineHeight != null && !this.lineHeight.equals(other.lineHeight))
+    ) {
+      return false;
+    }
+    if (
+      (this.letterSpacing == null) !== (other.letterSpacing == null) ||
+      (this.letterSpacing != null && !this.letterSpacing.equals(other.letterSpacing))
+    ) {
+      return false;
+    }
+    if (
+      (this.decoration == null) !== (other.decoration == null) ||
+      (this.decoration != null && !(this.decoration === other.decoration))
+    ) {
+      return false;
+    }
+    if (
+      (this.transform == null) !== (other.transform == null) ||
+      (this.transform != null && !(this.transform === other.transform))
+    ) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

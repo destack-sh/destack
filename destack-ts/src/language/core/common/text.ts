@@ -143,7 +143,52 @@ export class TextSpan extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (
+      (this.content == null) !== (other.content == null) ||
+      (this.content != null && !(this.content === other.content))
+    ) {
+      return false;
+    }
+    if ((this.url == null) !== (other.url == null) || (this.url != null && !(this.url === other.url))) {
+      return false;
+    }
+    if ((this.isBold == null) !== (other.isBold == null) || (this.isBold != null && !(this.isBold === other.isBold))) {
+      return false;
+    }
+    if (
+      (this.isItalic == null) !== (other.isItalic == null) ||
+      (this.isItalic != null && !(this.isItalic === other.isItalic))
+    ) {
+      return false;
+    }
+    if (
+      (this.isStrikethrough == null) !== (other.isStrikethrough == null) ||
+      (this.isStrikethrough != null && !(this.isStrikethrough === other.isStrikethrough))
+    ) {
+      return false;
+    }
+    if (
+      (this.isUnderline == null) !== (other.isUnderline == null) ||
+      (this.isUnderline != null && !(this.isUnderline === other.isUnderline))
+    ) {
+      return false;
+    }
+    if ((this.isCode == null) !== (other.isCode == null) || (this.isCode != null && !(this.isCode === other.isCode))) {
+      return false;
+    }
+    if (
+      (this.nodePtr == null) !== (other.nodePtr == null) ||
+      (this.nodePtr != null && !(this.nodePtr.id === other.nodePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -405,7 +450,42 @@ export class Text extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (this.spans.length !== other.spans.length) {
+      return false;
+    }
+    for (let i = 0; i < this.spans.length; i++) {
+      if (!this.spans[i].equals(other.spans[i])) {
+        return false;
+      }
+    }
+    if ((this.isBold == null) !== (other.isBold == null) || (this.isBold != null && !(this.isBold === other.isBold))) {
+      return false;
+    }
+    if (
+      (this.isItalic == null) !== (other.isItalic == null) ||
+      (this.isItalic != null && !(this.isItalic === other.isItalic))
+    ) {
+      return false;
+    }
+    if (
+      (this.isStrikethrough == null) !== (other.isStrikethrough == null) ||
+      (this.isStrikethrough != null && !(this.isStrikethrough === other.isStrikethrough))
+    ) {
+      return false;
+    }
+    if (
+      (this.isUnderline == null) !== (other.isUnderline == null) ||
+      (this.isUnderline != null && !(this.isUnderline === other.isUnderline))
+    ) {
+      return false;
+    }
+    if ((this.isCode == null) !== (other.isCode == null) || (this.isCode != null && !(this.isCode === other.isCode))) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

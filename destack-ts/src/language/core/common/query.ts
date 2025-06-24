@@ -228,7 +228,19 @@ export class Function extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!this.left.equals(other.left)) {
+      return false;
+    }
+    if ((this.right == null) !== (other.right == null) || (this.right != null && !this.right.equals(other.right))) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -411,7 +423,19 @@ export class Condition extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!this.left.equals(other.left)) {
+      return false;
+    }
+    if ((this.right == null) !== (other.right == null) || (this.right != null && !this.right.equals(other.right))) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -589,7 +613,19 @@ export class Aggregation extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (
+      (this.expression == null) !== (other.expression == null) ||
+      (this.expression != null && !this.expression.equals(other.expression))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -791,7 +827,43 @@ export class Expression extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (
+      (this.literal == null) !== (other.literal == null) ||
+      (this.literal != null && !this.literal.equals(other.literal))
+    ) {
+      return false;
+    }
+    if (
+      (this.attribute == null) !== (other.attribute == null) ||
+      (this.attribute != null && !this.attribute.equals(other.attribute))
+    ) {
+      return false;
+    }
+    if (
+      (this.condition == null) !== (other.condition == null) ||
+      (this.condition != null && !this.condition.equals(other.condition))
+    ) {
+      return false;
+    }
+    if (
+      (this.function == null) !== (other.function == null) ||
+      (this.function != null && !this.function.equals(other.function))
+    ) {
+      return false;
+    }
+    if (
+      (this.aggregation == null) !== (other.aggregation == null) ||
+      (this.aggregation != null && !this.aggregation.equals(other.aggregation))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -1060,7 +1132,19 @@ export class Sort extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!this.by.equals(other.by)) {
+      return false;
+    }
+    if ((this.mode == null) !== (other.mode == null) || (this.mode != null && !(this.mode === other.mode))) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -1220,7 +1304,18 @@ export class Select extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (this.attributes.length !== other.attributes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.attributes.length; i++) {
+      if (!this.attributes[i].equals(other.attributes[i])) {
+        return false;
+      }
+    }
+    return true;
   }
 
   hash(): number {
@@ -1428,7 +1523,28 @@ export class Join extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (
+      (this.relation == null) !== (other.relation == null) ||
+      (this.relation != null && !this.relation.equals(other.relation))
+    ) {
+      return false;
+    }
+    if (!(this.recursive === other.recursive)) {
+      return false;
+    }
+    if ((this.depth == null) !== (other.depth == null) || (this.depth != null && !(this.depth === other.depth))) {
+      return false;
+    }
+    if ((this.on == null) !== (other.on == null) || (this.on != null && !this.on.equals(other.on))) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -1754,7 +1870,76 @@ export class Query extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.id === other.id)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (!this.relation.equals(other.relation)) {
+      return false;
+    }
+    if ((this.join == null) !== (other.join == null) || (this.join != null && !this.join.equals(other.join))) {
+      return false;
+    }
+    if (
+      (this.select == null) !== (other.select == null) ||
+      (this.select != null && !this.select.equals(other.select))
+    ) {
+      return false;
+    }
+    if (this.subqueries.length !== other.subqueries.length) {
+      return false;
+    }
+    for (let i = 0; i < this.subqueries.length; i++) {
+      if (!this.subqueries[i].equals(other.subqueries[i])) {
+        return false;
+      }
+    }
+    if ((this.where == null) !== (other.where == null) || (this.where != null && !this.where.equals(other.where))) {
+      return false;
+    }
+    if (
+      (this.having == null) !== (other.having == null) ||
+      (this.having != null && !this.having.equals(other.having))
+    ) {
+      return false;
+    }
+    if (this.groupBy.length !== other.groupBy.length) {
+      return false;
+    }
+    for (let i = 0; i < this.groupBy.length; i++) {
+      if (!this.groupBy[i].equals(other.groupBy[i])) {
+        return false;
+      }
+    }
+    if (
+      (this.aggregation == null) !== (other.aggregation == null) ||
+      (this.aggregation != null && !this.aggregation.equals(other.aggregation))
+    ) {
+      return false;
+    }
+    if (this.sort.length !== other.sort.length) {
+      return false;
+    }
+    for (let i = 0; i < this.sort.length; i++) {
+      if (!this.sort[i].equals(other.sort[i])) {
+        return false;
+      }
+    }
+    if ((this.limit == null) !== (other.limit == null) || (this.limit != null && !(this.limit === other.limit))) {
+      return false;
+    }
+    if ((this.offset == null) !== (other.offset == null) || (this.offset != null && !(this.offset === other.offset))) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -2091,7 +2276,26 @@ export class Histogram extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (this.buckets.length !== other.buckets.length) {
+      return false;
+    }
+    for (let i = 0; i < this.buckets.length; i++) {
+      if (!this.buckets[i].equals(other.buckets[i])) {
+        return false;
+      }
+    }
+    if (this.counts.length !== other.counts.length) {
+      return false;
+    }
+    for (let i = 0; i < this.counts.length; i++) {
+      if (!(this.counts[i] === other.counts[i])) {
+        return false;
+      }
+    }
+    return true;
   }
 
   hash(): number {
@@ -2341,7 +2545,52 @@ export class QueryResult extends Struct {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.id === other.id)) {
+      return false;
+    }
+    if (this.groups.length !== other.groups.length) {
+      return false;
+    }
+    for (let i = 0; i < this.groups.length; i++) {
+      if (!this.groups[i].equals(other.groups[i])) {
+        return false;
+      }
+    }
+    if (this.subresults.length !== other.subresults.length) {
+      return false;
+    }
+    for (let i = 0; i < this.subresults.length; i++) {
+      if (!this.subresults[i].equals(other.subresults[i])) {
+        return false;
+      }
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (this.nodes.length !== other.nodes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.nodes.length; i++) {
+      if (!this.nodes[i].equals(other.nodes[i])) {
+        return false;
+      }
+    }
+    if ((this.count == null) !== (other.count == null) || (this.count != null && !(this.count === other.count))) {
+      return false;
+    }
+    if ((this.exists == null) !== (other.exists == null) || (this.exists != null && !(this.exists === other.exists))) {
+      return false;
+    }
+    if (
+      (this.scalar == null) !== (other.scalar == null) ||
+      (this.scalar != null && !this.scalar.equals(other.scalar))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -2626,7 +2875,36 @@ export class QueryResultGroup extends Struct {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!this.discriminator.equals(other.discriminator)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (this.nodes.length !== other.nodes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.nodes.length; i++) {
+      if (!this.nodes[i].equals(other.nodes[i])) {
+        return false;
+      }
+    }
+    if ((this.count == null) !== (other.count == null) || (this.count != null && !(this.count === other.count))) {
+      return false;
+    }
+    if ((this.exists == null) !== (other.exists == null) || (this.exists != null && !(this.exists === other.exists))) {
+      return false;
+    }
+    if (
+      (this.scalar == null) !== (other.scalar == null) ||
+      (this.scalar != null && !this.scalar.equals(other.scalar))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -2828,7 +3106,19 @@ export class QueryUpdate extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (
+      (this.result == null) !== (other.result == null) ||
+      (this.result != null && !this.result.equals(other.result))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -2969,7 +3259,10 @@ export class Selection extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

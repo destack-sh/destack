@@ -112,7 +112,19 @@ export class Scope extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if ((this.region == null) !== (other.region == null) || (this.region != null && !(this.region === other.region))) {
+      return false;
+    }
+    if (
+      (this.spaceId == null) !== (other.spaceId == null) ||
+      (this.spaceId != null && !(this.spaceId === other.spaceId))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -303,7 +315,31 @@ export class RelationReference extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (
+      (this.nodeType == null) !== (other.nodeType == null) ||
+      (this.nodeType != null && !(this.nodeType === other.nodeType))
+    ) {
+      return false;
+    }
+    if (
+      (this.traitType == null) !== (other.traitType == null) ||
+      (this.traitType != null && !(this.traitType === other.traitType))
+    ) {
+      return false;
+    }
+    if (
+      (this.definitionPtr == null) !== (other.definitionPtr == null) ||
+      (this.definitionPtr != null && !(this.definitionPtr.id === other.definitionPtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -519,7 +555,25 @@ export class AttributeReference extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (
+      (this.propPtr == null) !== (other.propPtr == null) ||
+      (this.propPtr != null && !this.propPtr.equals(other.propPtr))
+    ) {
+      return false;
+    }
+    if (
+      (this.fieldPtr == null) !== (other.fieldPtr == null) ||
+      (this.fieldPtr != null && !(this.fieldPtr.id === other.fieldPtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -738,7 +792,34 @@ export class PropertyReference extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (
+      (this.nodeType == null) !== (other.nodeType == null) ||
+      (this.nodeType != null && !(this.nodeType === other.nodeType))
+    ) {
+      return false;
+    }
+    if (
+      (this.traitType == null) !== (other.traitType == null) ||
+      (this.traitType != null && !(this.traitType === other.traitType))
+    ) {
+      return false;
+    }
+    if (
+      (this.structType == null) !== (other.structType == null) ||
+      (this.structType != null && !(this.structType === other.structType))
+    ) {
+      return false;
+    }
+    if (!(this.id === other.id)) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -937,7 +1018,28 @@ export class NodeReference extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.nodeType === other.nodeType)) {
+      return false;
+    }
+    if (!(this.id === other.id)) {
+      return false;
+    }
+    if (
+      (this.spaceId == null) !== (other.spaceId == null) ||
+      (this.spaceId != null && !(this.spaceId === other.spaceId))
+    ) {
+      return false;
+    }
+    if (
+      (this.definitionId == null) !== (other.definitionId == null) ||
+      (this.definitionId != null && !(this.definitionId === other.definitionId))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

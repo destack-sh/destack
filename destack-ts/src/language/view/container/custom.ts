@@ -579,7 +579,178 @@ export class CustomViewDefinition extends Node implements ContainerView, IsCusto
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if ((this.layout == null) !== (other.layout == null) || (this.layout != null && !(this.layout === other.layout))) {
+      return false;
+    }
+    if (
+      (this.direction == null) !== (other.direction == null) ||
+      (this.direction != null && !(this.direction === other.direction))
+    ) {
+      return false;
+    }
+    if (
+      (this.distribute == null) !== (other.distribute == null) ||
+      (this.distribute != null && !(this.distribute === other.distribute))
+    ) {
+      return false;
+    }
+    if ((this.align == null) !== (other.align == null) || (this.align != null && !(this.align === other.align))) {
+      return false;
+    }
+    if ((this.gap == null) !== (other.gap == null) || (this.gap != null && !this.gap.equals(other.gap))) {
+      return false;
+    }
+    if (
+      (this.padding == null) !== (other.padding == null) ||
+      (this.padding != null && !this.padding.equals(other.padding))
+    ) {
+      return false;
+    }
+    if ((this.grid == null) !== (other.grid == null) || (this.grid != null && !this.grid.equals(other.grid))) {
+      return false;
+    }
+    if (
+      (this.gridSpan == null) !== (other.gridSpan == null) ||
+      (this.gridSpan != null && !this.gridSpan.equals(other.gridSpan))
+    ) {
+      return false;
+    }
+    if (
+      (this.aspectRatio == null) !== (other.aspectRatio == null) ||
+      (this.aspectRatio != null &&
+        !(this.aspectRatio === other.aspectRatio || Math.abs(this.aspectRatio - other.aspectRatio) < 1e-10))
+    ) {
+      return false;
+    }
+    if ((this.isWrap == null) !== (other.isWrap == null) || (this.isWrap != null && !(this.isWrap === other.isWrap))) {
+      return false;
+    }
+    if (
+      (this.isVisible == null) !== (other.isVisible == null) ||
+      (this.isVisible != null && !(this.isVisible === other.isVisible))
+    ) {
+      return false;
+    }
+    if (
+      (this.opacity == null) !== (other.opacity == null) ||
+      (this.opacity != null && !(this.opacity === other.opacity || Math.abs(this.opacity - other.opacity) < 1e-10))
+    ) {
+      return false;
+    }
+    if ((this.fill == null) !== (other.fill == null) || (this.fill != null && !this.fill.equals(other.fill))) {
+      return false;
+    }
+    if (
+      (this.rotation == null) !== (other.rotation == null) ||
+      (this.rotation != null && !this.rotation.equals(other.rotation))
+    ) {
+      return false;
+    }
+    if ((this.skew == null) !== (other.skew == null) || (this.skew != null && !this.skew.equals(other.skew))) {
+      return false;
+    }
+    if (
+      (this.scale == null) !== (other.scale == null) ||
+      (this.scale != null && !(this.scale === other.scale || Math.abs(this.scale - other.scale) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.shadow == null) !== (other.shadow == null) ||
+      (this.shadow != null && !this.shadow.equals(other.shadow))
+    ) {
+      return false;
+    }
+    if (
+      (this.border == null) !== (other.border == null) ||
+      (this.border != null && !this.border.equals(other.border))
+    ) {
+      return false;
+    }
+    if (
+      (this.radius == null) !== (other.radius == null) ||
+      (this.radius != null && !this.radius.equals(other.radius))
+    ) {
+      return false;
+    }
+    if (
+      (this.position == null) !== (other.position == null) ||
+      (this.position != null && !this.position.equals(other.position))
+    ) {
+      return false;
+    }
+    if ((this.width == null) !== (other.width == null) || (this.width != null && !this.width.equals(other.width))) {
+      return false;
+    }
+    if (
+      (this.height == null) !== (other.height == null) ||
+      (this.height != null && !this.height.equals(other.height))
+    ) {
+      return false;
+    }
+    if (
+      (this.minWidth == null) !== (other.minWidth == null) ||
+      (this.minWidth != null && !this.minWidth.equals(other.minWidth))
+    ) {
+      return false;
+    }
+    if (
+      (this.minHeight == null) !== (other.minHeight == null) ||
+      (this.minHeight != null && !this.minHeight.equals(other.minHeight))
+    ) {
+      return false;
+    }
+    if (
+      (this.maxWidth == null) !== (other.maxWidth == null) ||
+      (this.maxWidth != null && !this.maxWidth.equals(other.maxWidth))
+    ) {
+      return false;
+    }
+    if (
+      (this.maxHeight == null) !== (other.maxHeight == null) ||
+      (this.maxHeight != null && !this.maxHeight.equals(other.maxHeight))
+    ) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (Object.keys(this.value).length !== Object.keys(other.value).length) {
+      return false;
+    }
+    for (const key in this.value) {
+      if (!(key in other.value)) {
+        return false;
+      }
+      if (!this.value[key].equals(other.value[key])) {
+        return false;
+      }
+    }
+    if (
+      (this.prototypePtr == null) !== (other.prototypePtr == null) ||
+      (this.prototypePtr != null && !(this.prototypePtr.id === other.prototypePtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.scriptPtr == null) !== (other.scriptPtr == null) ||
+      (this.scriptPtr != null && !(this.scriptPtr.id === other.scriptPtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -1732,7 +1903,175 @@ export class CustomView extends Node implements ContainerView, IsCustomNode {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if ((this.layout == null) !== (other.layout == null) || (this.layout != null && !(this.layout === other.layout))) {
+      return false;
+    }
+    if (
+      (this.direction == null) !== (other.direction == null) ||
+      (this.direction != null && !(this.direction === other.direction))
+    ) {
+      return false;
+    }
+    if (
+      (this.distribute == null) !== (other.distribute == null) ||
+      (this.distribute != null && !(this.distribute === other.distribute))
+    ) {
+      return false;
+    }
+    if ((this.align == null) !== (other.align == null) || (this.align != null && !(this.align === other.align))) {
+      return false;
+    }
+    if ((this.gap == null) !== (other.gap == null) || (this.gap != null && !this.gap.equals(other.gap))) {
+      return false;
+    }
+    if (
+      (this.padding == null) !== (other.padding == null) ||
+      (this.padding != null && !this.padding.equals(other.padding))
+    ) {
+      return false;
+    }
+    if ((this.grid == null) !== (other.grid == null) || (this.grid != null && !this.grid.equals(other.grid))) {
+      return false;
+    }
+    if (
+      (this.gridSpan == null) !== (other.gridSpan == null) ||
+      (this.gridSpan != null && !this.gridSpan.equals(other.gridSpan))
+    ) {
+      return false;
+    }
+    if (
+      (this.aspectRatio == null) !== (other.aspectRatio == null) ||
+      (this.aspectRatio != null &&
+        !(this.aspectRatio === other.aspectRatio || Math.abs(this.aspectRatio - other.aspectRatio) < 1e-10))
+    ) {
+      return false;
+    }
+    if ((this.isWrap == null) !== (other.isWrap == null) || (this.isWrap != null && !(this.isWrap === other.isWrap))) {
+      return false;
+    }
+    if (
+      (this.isVisible == null) !== (other.isVisible == null) ||
+      (this.isVisible != null && !(this.isVisible === other.isVisible))
+    ) {
+      return false;
+    }
+    if (
+      (this.opacity == null) !== (other.opacity == null) ||
+      (this.opacity != null && !(this.opacity === other.opacity || Math.abs(this.opacity - other.opacity) < 1e-10))
+    ) {
+      return false;
+    }
+    if ((this.fill == null) !== (other.fill == null) || (this.fill != null && !this.fill.equals(other.fill))) {
+      return false;
+    }
+    if (
+      (this.rotation == null) !== (other.rotation == null) ||
+      (this.rotation != null && !this.rotation.equals(other.rotation))
+    ) {
+      return false;
+    }
+    if ((this.skew == null) !== (other.skew == null) || (this.skew != null && !this.skew.equals(other.skew))) {
+      return false;
+    }
+    if (
+      (this.scale == null) !== (other.scale == null) ||
+      (this.scale != null && !(this.scale === other.scale || Math.abs(this.scale - other.scale) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.shadow == null) !== (other.shadow == null) ||
+      (this.shadow != null && !this.shadow.equals(other.shadow))
+    ) {
+      return false;
+    }
+    if (
+      (this.border == null) !== (other.border == null) ||
+      (this.border != null && !this.border.equals(other.border))
+    ) {
+      return false;
+    }
+    if (
+      (this.radius == null) !== (other.radius == null) ||
+      (this.radius != null && !this.radius.equals(other.radius))
+    ) {
+      return false;
+    }
+    if (
+      (this.position == null) !== (other.position == null) ||
+      (this.position != null && !this.position.equals(other.position))
+    ) {
+      return false;
+    }
+    if ((this.width == null) !== (other.width == null) || (this.width != null && !this.width.equals(other.width))) {
+      return false;
+    }
+    if (
+      (this.height == null) !== (other.height == null) ||
+      (this.height != null && !this.height.equals(other.height))
+    ) {
+      return false;
+    }
+    if (
+      (this.minWidth == null) !== (other.minWidth == null) ||
+      (this.minWidth != null && !this.minWidth.equals(other.minWidth))
+    ) {
+      return false;
+    }
+    if (
+      (this.minHeight == null) !== (other.minHeight == null) ||
+      (this.minHeight != null && !this.minHeight.equals(other.minHeight))
+    ) {
+      return false;
+    }
+    if (
+      (this.maxWidth == null) !== (other.maxWidth == null) ||
+      (this.maxWidth != null && !this.maxWidth.equals(other.maxWidth))
+    ) {
+      return false;
+    }
+    if (
+      (this.maxHeight == null) !== (other.maxHeight == null) ||
+      (this.maxHeight != null && !this.maxHeight.equals(other.maxHeight))
+    ) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (Object.keys(this.value).length !== Object.keys(other.value).length) {
+      return false;
+    }
+    for (const key in this.value) {
+      if (!(key in other.value)) {
+        return false;
+      }
+      if (!this.value[key].equals(other.value[key])) {
+        return false;
+      }
+    }
+    if (!(this.definitionPtr.id === other.definitionPtr.id)) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.scriptPtr == null) !== (other.scriptPtr == null) ||
+      (this.scriptPtr != null && !(this.scriptPtr.id === other.scriptPtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

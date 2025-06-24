@@ -218,7 +218,46 @@ export class Edit extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.id === other.id)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (
+      (this.operation == null) !== (other.operation == null) ||
+      (this.operation != null && !(this.operation === other.operation))
+    ) {
+      return false;
+    }
+    if (
+      (this.propPtr == null) !== (other.propPtr == null) ||
+      (this.propPtr != null && !this.propPtr.equals(other.propPtr))
+    ) {
+      return false;
+    }
+    if ((this.key == null) !== (other.key == null) || (this.key != null && !this.key.equals(other.key))) {
+      return false;
+    }
+    if ((this.value == null) !== (other.value == null) || (this.value != null && !this.value.equals(other.value))) {
+      return false;
+    }
+    if ((this.undo == null) !== (other.undo == null) || (this.undo != null && !this.undo.equals(other.undo))) {
+      return false;
+    }
+    if (!(this.nodePtr.id === other.nodePtr.id)) {
+      return false;
+    }
+    if (
+      (this.fieldPtr == null) !== (other.fieldPtr == null) ||
+      (this.fieldPtr != null && !(this.fieldPtr.id === other.fieldPtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -519,7 +558,45 @@ export class Change extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.id === other.id)) {
+      return false;
+    }
+    if ((this.name == null) !== (other.name == null) || (this.name != null && !(this.name === other.name))) {
+      return false;
+    }
+    if (!(this.createdAt === other.createdAt)) {
+      return false;
+    }
+    if (
+      (this.origin == null) !== (other.origin == null) ||
+      (this.origin != null && !this.origin.equals(other.origin))
+    ) {
+      return false;
+    }
+    if (
+      (this.debounce == null) !== (other.debounce == null) ||
+      (this.debounce != null && !(this.debounce === other.debounce))
+    ) {
+      return false;
+    }
+    if (this.edits.length !== other.edits.length) {
+      return false;
+    }
+    for (let i = 0; i < this.edits.length; i++) {
+      if (!this.edits[i].equals(other.edits[i])) {
+        return false;
+      }
+    }
+    if (
+      (this.createdByPtr == null) !== (other.createdByPtr == null) ||
+      (this.createdByPtr != null && !(this.createdByPtr.id === other.createdByPtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -797,7 +874,41 @@ export class ChangeResult extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.id === other.id)) {
+      return false;
+    }
+    if (!(this.createdAt === other.createdAt)) {
+      return false;
+    }
+    if (
+      (this.debounce == null) !== (other.debounce == null) ||
+      (this.debounce != null && !(this.debounce === other.debounce))
+    ) {
+      return false;
+    }
+    if (!(this.status === other.status)) {
+      return false;
+    }
+    if (this.edits.length !== other.edits.length) {
+      return false;
+    }
+    for (let i = 0; i < this.edits.length; i++) {
+      if (!this.edits[i].equals(other.edits[i])) {
+        return false;
+      }
+    }
+    if (this.cascadedEdits.length !== other.cascadedEdits.length) {
+      return false;
+    }
+    for (let i = 0; i < this.cascadedEdits.length; i++) {
+      if (!this.cascadedEdits[i].equals(other.cascadedEdits[i])) {
+        return false;
+      }
+    }
+    return true;
   }
 
   hash(): number {

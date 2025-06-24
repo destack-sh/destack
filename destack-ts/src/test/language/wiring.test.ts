@@ -52,6 +52,7 @@ sessionTest("roundtrip node reference", ({ session }) => {
 sessionTest("roundtrip query", ({ session }) => {
   // pack and unpack a Query as value
   const query = Thread.search({
+		// nocheckin: IntoQuery and that stuff
     // sort: [Thread.property("createdAt").asc()],
     // limit: 25,
     // cursor: ThreadCursor.get({

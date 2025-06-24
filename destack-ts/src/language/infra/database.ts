@@ -137,7 +137,40 @@ export class DatabaseInfo extends Struct {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!(this.region === other.region)) {
+      return false;
+    }
+    if (
+      (this.galaxyName == null) !== (other.galaxyName == null) ||
+      (this.galaxyName != null && !(this.galaxyName === other.galaxyName))
+    ) {
+      return false;
+    }
+    if (!(this.externalName === other.externalName)) {
+      return false;
+    }
+    if (
+      (this.customSchemaName == null) !== (other.customSchemaName == null) ||
+      (this.customSchemaName != null && !(this.customSchemaName === other.customSchemaName))
+    ) {
+      return false;
+    }
+    if (!(this.tenancy === other.tenancy)) {
+      return false;
+    }
+    if (
+      (this.connectionUrl == null) !== (other.connectionUrl == null) ||
+      (this.connectionUrl != null && !(this.connectionUrl === other.connectionUrl))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -525,7 +558,61 @@ export class Database extends Node implements Spatial, Resource, HasName {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.status === other.status)) {
+      return false;
+    }
+    if (
+      (this.targetStatus == null) !== (other.targetStatus == null) ||
+      (this.targetStatus != null && !(this.targetStatus === other.targetStatus))
+    ) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!(this.region === other.region)) {
+      return false;
+    }
+    if (
+      (this.galaxyName == null) !== (other.galaxyName == null) ||
+      (this.galaxyName != null && !(this.galaxyName === other.galaxyName))
+    ) {
+      return false;
+    }
+    if (!(this.externalName === other.externalName)) {
+      return false;
+    }
+    if (
+      (this.customSchemaName == null) !== (other.customSchemaName == null) ||
+      (this.customSchemaName != null && !(this.customSchemaName === other.customSchemaName))
+    ) {
+      return false;
+    }
+    if (!(this.tenancy === other.tenancy)) {
+      return false;
+    }
+    if (
+      (this.connectionUrl == null) !== (other.connectionUrl == null) ||
+      (this.connectionUrl != null && !(this.connectionUrl === other.connectionUrl))
+    ) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

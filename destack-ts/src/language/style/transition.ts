@@ -182,7 +182,70 @@ export class Transition extends Struct {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (
+      (this.delay == null) !== (other.delay == null) ||
+      (this.delay != null && !(this.delay === other.delay || Math.abs(this.delay - other.delay) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.duration == null) !== (other.duration == null) ||
+      (this.duration != null && !(this.duration === other.duration || Math.abs(this.duration - other.duration) < 1e-10))
+    ) {
+      return false;
+    }
+    if (this.ease.length !== other.ease.length) {
+      return false;
+    }
+    for (let i = 0; i < this.ease.length; i++) {
+      if (!(this.ease[i] === other.ease[i] || Math.abs(this.ease[i] - other.ease[i]) < 1e-10)) {
+        return false;
+      }
+    }
+    if (
+      (this.stiffness == null) !== (other.stiffness == null) ||
+      (this.stiffness != null &&
+        !(this.stiffness === other.stiffness || Math.abs(this.stiffness - other.stiffness) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.damping == null) !== (other.damping == null) ||
+      (this.damping != null && !(this.damping === other.damping || Math.abs(this.damping - other.damping) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.mass == null) !== (other.mass == null) ||
+      (this.mass != null && !(this.mass === other.mass || Math.abs(this.mass - other.mass) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.bounce == null) !== (other.bounce == null) ||
+      (this.bounce != null && !(this.bounce === other.bounce || Math.abs(this.bounce - other.bounce) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.springType == null) !== (other.springType == null) ||
+      (this.springType != null && !(this.springType === other.springType))
+    ) {
+      return false;
+    }
+    if (
+      (this.stylePtr == null) !== (other.stylePtr == null) ||
+      (this.stylePtr != null && !(this.stylePtr.id === other.stylePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -700,7 +763,76 @@ export class TransitionStyle extends Node implements Style {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (
+      (this.delay == null) !== (other.delay == null) ||
+      (this.delay != null && !(this.delay === other.delay || Math.abs(this.delay - other.delay) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.duration == null) !== (other.duration == null) ||
+      (this.duration != null && !(this.duration === other.duration || Math.abs(this.duration - other.duration) < 1e-10))
+    ) {
+      return false;
+    }
+    if (this.ease.length !== other.ease.length) {
+      return false;
+    }
+    for (let i = 0; i < this.ease.length; i++) {
+      if (!(this.ease[i] === other.ease[i] || Math.abs(this.ease[i] - other.ease[i]) < 1e-10)) {
+        return false;
+      }
+    }
+    if (
+      (this.stiffness == null) !== (other.stiffness == null) ||
+      (this.stiffness != null &&
+        !(this.stiffness === other.stiffness || Math.abs(this.stiffness - other.stiffness) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.damping == null) !== (other.damping == null) ||
+      (this.damping != null && !(this.damping === other.damping || Math.abs(this.damping - other.damping) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.mass == null) !== (other.mass == null) ||
+      (this.mass != null && !(this.mass === other.mass || Math.abs(this.mass - other.mass) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.bounce == null) !== (other.bounce == null) ||
+      (this.bounce != null && !(this.bounce === other.bounce || Math.abs(this.bounce - other.bounce) < 1e-10))
+    ) {
+      return false;
+    }
+    if (
+      (this.springType == null) !== (other.springType == null) ||
+      (this.springType != null && !(this.springType === other.springType))
+    ) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

@@ -96,7 +96,16 @@ export class GradientStop extends StructFrozen {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if ((this.color == null) !== (other.color == null) || (this.color != null && !this.color.equals(other.color))) {
+      return false;
+    }
+    if (!(this.position === other.position || Math.abs(this.position - other.position) < 1e-10)) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -295,7 +304,39 @@ export class Gradient extends Struct {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (
+      (this.angle == null) !== (other.angle == null) ||
+      (this.angle != null && !(this.angle === other.angle || Math.abs(this.angle - other.angle) < 1e-10))
+    ) {
+      return false;
+    }
+    if (this.stops.length !== other.stops.length) {
+      return false;
+    }
+    for (let i = 0; i < this.stops.length; i++) {
+      if (!this.stops[i].equals(other.stops[i])) {
+        return false;
+      }
+    }
+    if (
+      (this.centerAnchor == null) !== (other.centerAnchor == null) ||
+      (this.centerAnchor != null && !this.centerAnchor.equals(other.centerAnchor))
+    ) {
+      return false;
+    }
+    if (
+      (this.stylePtr == null) !== (other.stylePtr == null) ||
+      (this.stylePtr != null && !(this.stylePtr.id === other.stylePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -737,7 +778,48 @@ export class GradientStyle extends Node implements Style {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if ((this.dark == null) !== (other.dark == null) || (this.dark != null && !this.dark.equals(other.dark))) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (
+      (this.angle == null) !== (other.angle == null) ||
+      (this.angle != null && !(this.angle === other.angle || Math.abs(this.angle - other.angle) < 1e-10))
+    ) {
+      return false;
+    }
+    if (this.stops.length !== other.stops.length) {
+      return false;
+    }
+    for (let i = 0; i < this.stops.length; i++) {
+      if (!this.stops[i].equals(other.stops[i])) {
+        return false;
+      }
+    }
+    if (
+      (this.centerAnchor == null) !== (other.centerAnchor == null) ||
+      (this.centerAnchor != null && !this.centerAnchor.equals(other.centerAnchor))
+    ) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

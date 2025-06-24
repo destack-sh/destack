@@ -369,7 +369,54 @@ export class CustomEntityDefinition
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (this.traits.length !== other.traits.length) {
+      return false;
+    }
+    for (let i = 0; i < this.traits.length; i++) {
+      if (!(this.traits[i] === other.traits[i])) {
+        return false;
+      }
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (
+      (this.prototypePtr == null) !== (other.prototypePtr == null) ||
+      (this.prototypePtr != null && !(this.prototypePtr.id === other.prototypePtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.ownedByPtr == null) !== (other.ownedByPtr == null) ||
+      (this.ownedByPtr != null && !(this.ownedByPtr.id === other.ownedByPtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.scriptPtr == null) !== (other.scriptPtr == null) ||
+      (this.scriptPtr != null && !(this.scriptPtr.id === other.scriptPtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.sourcePtr == null) !== (other.sourcePtr == null) ||
+      (this.sourcePtr != null && !(this.sourcePtr.id === other.sourcePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -878,7 +925,33 @@ export class CustomEntity extends Node implements Spatial, Entity, IsExtensible,
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if (Object.keys(this.value).length !== Object.keys(other.value).length) {
+      return false;
+    }
+    for (const key in this.value) {
+      if (!(key in other.value)) {
+        return false;
+      }
+      if (!this.value[key].equals(other.value[key])) {
+        return false;
+      }
+    }
+    if (!(this.definitionPtr.id === other.definitionPtr.id)) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

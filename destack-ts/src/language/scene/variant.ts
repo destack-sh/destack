@@ -334,7 +334,61 @@ export class Variant extends Node implements Spatial, Entity, HasName, HasSlug, 
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (
+      (this.maxWidth == null) !== (other.maxWidth == null) ||
+      (this.maxWidth != null && !this.maxWidth.equals(other.maxWidth))
+    ) {
+      return false;
+    }
+    if (
+      (this.maxHeight == null) !== (other.maxHeight == null) ||
+      (this.maxHeight != null && !this.maxHeight.equals(other.maxHeight))
+    ) {
+      return false;
+    }
+    if (
+      (this.minWidth == null) !== (other.minWidth == null) ||
+      (this.minWidth != null && !this.minWidth.equals(other.minWidth))
+    ) {
+      return false;
+    }
+    if (
+      (this.minHeight == null) !== (other.minHeight == null) ||
+      (this.minHeight != null && !this.minHeight.equals(other.minHeight))
+    ) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if ((this.slug == null) !== (other.slug == null) || (this.slug != null && !(this.slug === other.slug))) {
+      return false;
+    }
+    if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.ownedByPtr == null) !== (other.ownedByPtr == null) ||
+      (this.ownedByPtr != null && !(this.ownedByPtr.id === other.ownedByPtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

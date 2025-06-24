@@ -194,7 +194,43 @@ export class Fill extends Struct {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if ((this.color == null) !== (other.color == null) || (this.color != null && !this.color.equals(other.color))) {
+      return false;
+    }
+    if (
+      (this.gradient == null) !== (other.gradient == null) ||
+      (this.gradient != null && !this.gradient.equals(other.gradient))
+    ) {
+      return false;
+    }
+    if (
+      (this.position == null) !== (other.position == null) ||
+      (this.position != null && !(this.position === other.position))
+    ) {
+      return false;
+    }
+    if ((this.size == null) !== (other.size == null) || (this.size != null && !(this.size === other.size))) {
+      return false;
+    }
+    if (
+      (this.stylePtr == null) !== (other.stylePtr == null) ||
+      (this.stylePtr != null && !(this.stylePtr.id === other.stylePtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.imagePtr == null) !== (other.imagePtr == null) ||
+      (this.imagePtr != null && !(this.imagePtr.id === other.imagePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
@@ -663,7 +699,49 @@ export class FillStyle extends Node implements Style {
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if ((this.color == null) !== (other.color == null) || (this.color != null && !this.color.equals(other.color))) {
+      return false;
+    }
+    if (
+      (this.gradient == null) !== (other.gradient == null) ||
+      (this.gradient != null && !this.gradient.equals(other.gradient))
+    ) {
+      return false;
+    }
+    if (
+      (this.position == null) !== (other.position == null) ||
+      (this.position != null && !(this.position === other.position))
+    ) {
+      return false;
+    }
+    if ((this.size == null) !== (other.size == null) || (this.size != null && !(this.size === other.size))) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.imagePtr == null) !== (other.imagePtr == null) ||
+      (this.imagePtr != null && !(this.imagePtr.id === other.imagePtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {

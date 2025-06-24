@@ -279,7 +279,34 @@ export class Route extends Node implements Spatial, Entity, HasName, IsDeletable
   }
 
   equals(other: any): boolean {
-    throw new Error("not implemented");
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (
+      (this.scenePtr == null) !== (other.scenePtr == null) ||
+      (this.scenePtr != null && !(this.scenePtr.id === other.scenePtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.ownedByPtr == null) !== (other.ownedByPtr == null) ||
+      (this.ownedByPtr != null && !(this.ownedByPtr.id === other.ownedByPtr.id))
+    ) {
+      return false;
+    }
+    return true;
   }
 
   hash(): number {
