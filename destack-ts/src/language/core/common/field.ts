@@ -7,14 +7,14 @@ import {
   Entity,
   EnumType,
   Graph,
+  HasIcon,
+  HasName,
   Icon,
   IsDeletable,
   IsExtensible,
-  IsOrdered,
   IsSourceable,
   IsSubject,
   IsTaggable,
-  IsTracked,
   MaterializationType,
   Node,
   NodeConstraint,
@@ -39,6 +39,9 @@ import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2580 ==== */
+/**
+ * FieldType
+ */
 export enum FieldType {
   MEMBER = 1,
   INPUT = 2,
@@ -47,10 +50,10 @@ export enum FieldType {
 /* ==== DESTACK_GENERATED_END:ENUM:2580 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:2520 ==== */
-export class Field
-  extends Node
-  implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsTaggable, IsSourceable
-{
+/**
+ * A Field is a custom attribute of a CustomStructDefinition or an IsExtensible.
+ */
+export class Field extends Node implements Spatial, Entity, HasName, HasIcon, IsTaggable, IsDeletable, IsSourceable {
   static metatype: NodeType = NodeType.FIELD;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
@@ -119,59 +122,129 @@ export class Field
   ];
   static __descendantTypes__: NodeType[] = [NodeType.FIELD, NodeType.OPTION, NodeType.TAGGING];
 
-  get parent(): (Node & IsExtensible) | Field | null | null {
+  /**
+   * Field.parent
+   */
+  get parent(): (Node & IsExtensible) | Field | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsExtensible) | Field | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsExtensible) | Field | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
   readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * IsOrdered.orderKey
+   */
   readonly orderKey: string;
+
+  /**
+   * Field.type
+   */
   type: FieldType;
+
+  /**
+   * HasName.name
+   */
   name: string;
+
+  /**
+   * HasIcon.icon
+   */
   icon: Icon | null;
+
+  /**
+   * Field.cardinality
+   */
   cardinality: TypeCardinality;
+
+  /**
+   * Field.scalarType
+   */
   scalarType: ScalarType;
+
+  /**
+   * Field.primitiveType
+   */
   primitiveType: PrimitiveType | null;
+
+  /**
+   * Field.enumType
+   */
   enumType: EnumType | null;
+
+  /**
+   * Field.nodeType
+   */
   nodeType: NodeType | null;
-  get nodeDefinition(): CustomEntityDefinition | null | null {
+
+  /**
+   * Field.nodeDefinition
+   */
+  get nodeDefinition(): CustomEntityDefinition | null {
     const nodePtr: NodeReference | null = this.nodeDefinitionPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as CustomEntityDefinition | null | null;
+      return this._supergraph.get(nodePtr.id) as CustomEntityDefinition | null;
     }
     return null;
   }
-
   set nodeDefinition(node: CustomEntityDefinition | null) {
     if (node === null) {
       this.nodeDefinitionPtr = null;
@@ -180,15 +253,22 @@ export class Field
     }
   }
   nodeDefinitionPtr: NodeReference | null;
+
+  /**
+   * Field.structType
+   */
   structType: StructType | null;
-  get baseType(): Node | null | null {
+
+  /**
+   * Field.baseType
+   */
+  get baseType(): Node | null {
     const nodePtr: NodeReference | null = this.baseTypePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
-
   set baseType(node: Node | null) {
     if (node === null) {
       this.baseTypePtr = null;
@@ -197,20 +277,64 @@ export class Field
     }
   }
   baseTypePtr: NodeReference | null;
+
+  /**
+   * Field.keyType
+   */
   keyType: Type | null;
+
+  /**
+   * Field.isRequired
+   */
   isRequired: boolean | null;
+
+  /**
+   * Field.defaultValue
+   */
   defaultValue: Value | null;
+
+  /**
+   * Field.defaultFactory
+   */
   defaultFactory: DefaultFactory | null;
+
+  /**
+   * Field.collectionConstraint
+   */
   collectionConstraint: CollectionConstraint | null;
+
+  /**
+   * Field.stringConstraint
+   */
   stringConstraint: StringConstraint | null;
+
+  /**
+   * Field.numberConstraint
+   */
   numberConstraint: NumberConstraint | null;
+
+  /**
+   * Field.nodeConstraint
+   */
   nodeConstraint: NodeConstraint | null;
+
+  /**
+   * Field.edgeType
+   */
   edgeType: EdgeType | null;
+
+  /**
+   * Field.cascade
+   */
   cascade: CascadeAction | null;
-  get source(): Script | null | null {
+
+  /**
+   * IsSourceable.source
+   */
+  get source(): Script | null {
     const nodePtr: NodeReference | null = this.sourcePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Script | null | null;
+      return this._supergraph.get(nodePtr.id) as Script | null;
     }
     return null;
   }

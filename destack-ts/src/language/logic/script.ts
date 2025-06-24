@@ -1,13 +1,13 @@
 import {
   Entity,
   Graph,
+  HasName,
   IsDeletable,
   IsExtensible,
   IsOrdered,
   IsRunnable,
   IsScriptable,
   IsSubject,
-  IsTracked,
   MaterializationType,
   Node,
   NodeReference,
@@ -25,10 +25,10 @@ import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:3000 ==== */
-export class Script
-  extends Node
-  implements Spatial, Entity, IsTracked, IsDeletable, IsExtensible, IsOrdered, IsRunnable
-{
+/**
+ * A Script.
+ */
+export class Script extends Node implements Spatial, Entity, HasName, IsOrdered, IsDeletable, IsRunnable, IsExtensible {
   static metatype: NodeType = NodeType.SCRIPT;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
@@ -93,45 +93,92 @@ export class Script
   ];
   static __descendantTypes__: NodeType[] = [NodeType.SCRIPT, NodeType.OPTION, NodeType.TAGGING, NodeType.FIELD];
 
-  get parent(): Folder | (Node & IsScriptable) | Script | null | null {
+  /**
+   * Script.parent
+   */
+  get parent(): Folder | (Node & IsScriptable) | Script | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Folder | (Node & IsScriptable) | Script | null | null;
+      return this._supergraph.get(nodePtr.id) as Folder | (Node & IsScriptable) | Script | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
   readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * IsExtensible.value
+   */
   value: Map<string, Value>;
+
+  /**
+   * IsOrdered.orderKey
+   */
   readonly orderKey: string;
+
+  /**
+   * HasName.name
+   */
   name: string;
+
+  /**
+   * Script.code
+   */
   code: string | null;
 
   constructor(options: {

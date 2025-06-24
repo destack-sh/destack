@@ -7,19 +7,11 @@ import {
   Dimension,
   Direction,
   Distribute,
-  Entity,
   Graph,
   Grid,
   GridSpan,
   Insets,
-  IsDeletable,
-  IsExtensible,
-  IsOrdered,
-  IsScriptable,
   IsSubject,
-  IsTaggable,
-  IsTracked,
-  IsVisual,
   Layout,
   MaterializationType,
   Node,
@@ -28,7 +20,6 @@ import {
   Position,
   QueryConnection,
   Session,
-  Spatial,
   StructType,
   Supergraph,
   TraitType,
@@ -39,10 +30,13 @@ import { Script } from "@destack/language/logic";
 import { Layer, Scene, Window } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Border, Fill, Shadow } from "@destack/language/style";
-import { ContainerView, View } from "@destack/language/view";
+import { ContainerView } from "@destack/language/view";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:11011 ==== */
+/**
+ * PlaneShapeType
+ */
 export enum PlaneShapeType {
   RECTANGLE = 1,
   TRIANGLE = 2,
@@ -53,22 +47,10 @@ export enum PlaneShapeType {
 /* ==== DESTACK_GENERATED_END:ENUM:11011 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:11011 ==== */
-export class PlaneShape
-  extends Node
-  implements
-    Spatial,
-    Entity,
-    IsTracked,
-    IsDeletable,
-    IsExtensible,
-    IsOrdered,
-    IsTaggable,
-    IsScriptable,
-    IsVisual,
-    View,
-    ContainerView,
-    IsShape
-{
+/**
+ * PlaneShape
+ */
+export class PlaneShape extends Node implements ContainerView, IsShape {
   static metatype: NodeType = NodeType.PLANE_SHAPE;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
@@ -172,80 +154,234 @@ export class PlaneShape
     NodeType.EFFECT_STYLE,
   ];
 
-  get parent(): Window | Scene | Layer | (Node & ContainerView) | null | null {
+  /**
+   * View.parent
+   */
+  get parent(): Window | Scene | Layer | (Node & ContainerView) | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Window | Scene | Layer | (Node & ContainerView) | null | null;
+      return this._supergraph.get(nodePtr.id) as Window | Scene | Layer | (Node & ContainerView) | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
   readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * IsExtensible.value
+   */
   value: Map<string, Value>;
+
+  /**
+   * IsOrdered.orderKey
+   */
   readonly orderKey: string;
+
+  /**
+   * HasName.name
+   */
   name: string;
+
+  /**
+   * View.position
+   */
   position: Position | null;
+
+  /**
+   * View.width
+   */
   width: Dimension | null;
+
+  /**
+   * View.height
+   */
   height: Dimension | null;
+
+  /**
+   * View.minWidth
+   */
   minWidth: Dimension | null;
+
+  /**
+   * View.minHeight
+   */
   minHeight: Dimension | null;
+
+  /**
+   * View.maxWidth
+   */
   maxWidth: Dimension | null;
+
+  /**
+   * View.maxHeight
+   */
   maxHeight: Dimension | null;
+
+  /**
+   * ContainerView.layout
+   */
   layout: Layout | null;
+
+  /**
+   * ContainerView.direction
+   */
   direction: Direction | null;
+
+  /**
+   * ContainerView.distribute
+   */
   distribute: Distribute | null;
+
+  /**
+   * ContainerView.align
+   */
   align: Align | null;
+
+  /**
+   * ContainerView.gap
+   */
   gap: Axis2 | null;
+
+  /**
+   * ContainerView.padding
+   */
   padding: Insets | null;
+
+  /**
+   * ContainerView.grid
+   */
   grid: Grid | null;
+
+  /**
+   * ContainerView.gridSpan
+   */
   gridSpan: GridSpan | null;
+
+  /**
+   * ContainerView.aspectRatio
+   */
   aspectRatio: number | null;
+
+  /**
+   * ContainerView.isWrap
+   */
   isWrap: boolean | null;
+
+  /**
+   * ContainerView.isVisible
+   */
   isVisible: boolean | null;
+
+  /**
+   * ContainerView.opacity
+   */
   opacity: number | null;
+
+  /**
+   * ContainerView.fill
+   */
   fill: Fill | null;
+
+  /**
+   * ContainerView.rotation
+   */
   rotation: Axis3 | null;
+
+  /**
+   * ContainerView.skew
+   */
   skew: Vector2 | null;
+
+  /**
+   * ContainerView.scale
+   */
   scale: number | null;
+
+  /**
+   * ContainerView.shadow
+   */
   shadow: Shadow | null;
+
+  /**
+   * ContainerView.border
+   */
   border: Border | null;
+
+  /**
+   * ContainerView.radius
+   */
   radius: Corners | null;
+
+  /**
+   * PlaneShape.points
+   */
   points: Array<Vector2>;
-  get script(): Script | null | null {
+
+  /**
+   * The main / root Script of this Node.
+   */
+  get script(): Script | null {
     const nodePtr: NodeReference | null = this.scriptPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Script | null | null;
+      return this._supergraph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
-
   set script(node: Script | null) {
     if (node === null) {
       this.scriptPtr = null;

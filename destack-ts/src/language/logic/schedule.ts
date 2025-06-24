@@ -2,6 +2,9 @@ import { Session, Struct, StructType, Supergraph } from "@destack/language/core"
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:3051 ==== */
+/**
+ * DayOfWeek
+ */
 export enum DayOfWeek {
   MONDAY = 1,
   TUESDAY = 2,
@@ -14,6 +17,9 @@ export enum DayOfWeek {
 /* ==== DESTACK_GENERATED_END:ENUM:3051 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:3052 ==== */
+/**
+ * Month
+ */
 export enum Month {
   JANUARY = 1,
   FEBRUARY = 2,
@@ -31,6 +37,9 @@ export enum Month {
 /* ==== DESTACK_GENERATED_END:ENUM:3052 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:3050 ==== */
+/**
+ * ScheduleFrequency
+ */
 export enum ScheduleFrequency {
   YEAR = 1,
   MONTH = 2,
@@ -42,25 +51,91 @@ export enum ScheduleFrequency {
 /* ==== DESTACK_GENERATED_END:ENUM:3050 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:3001 ==== */
+/**
+ * The time-based schedule of something (compatible with rrule).
+ */
 export class Schedule extends Struct {
   static metatype: StructType = StructType.SCHEDULE;
   static __isFrozen__: boolean = false;
 
+  /**
+   * Schedule.frequency
+   */
   frequency: ScheduleFrequency;
+
+  /**
+   * Schedule.interval
+   */
   interval: number;
+
+  /**
+   * Schedule.start
+   */
   start: Temporal.ZonedDateTime | null;
+
+  /**
+   * Schedule.end
+   */
   end: Temporal.ZonedDateTime | null;
+
+  /**
+   * Schedule.count
+   */
   count: number | null;
+
+  /**
+   * Schedule.weekStart
+   */
   weekStart: DayOfWeek | null;
+
+  /**
+   * Schedule.bySetPos
+   */
   bySetPos: Array<number>;
+
+  /**
+   * Schedule.byMonth
+   */
   byMonth: Array<Month>;
+
+  /**
+   * Schedule.byMonthDay
+   */
   byMonthDay: Array<number>;
+
+  /**
+   * Schedule.byYearDay
+   */
   byYearDay: Array<number>;
+
+  /**
+   * Schedule.byEaster
+   */
   byEaster: Array<number>;
+
+  /**
+   * Schedule.byWeekNo
+   */
   byWeekNo: Array<number>;
+
+  /**
+   * Schedule.byWeekDay
+   */
   byWeekDay: Array<DayOfWeek>;
+
+  /**
+   * Schedule.byHour
+   */
   byHour: Array<number>;
+
+  /**
+   * Schedule.byMinute
+   */
   byMinute: Array<number>;
+
+  /**
+   * Schedule.bySecond
+   */
   bySecond: Array<number>;
 
   constructor(options: {

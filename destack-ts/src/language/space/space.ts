@@ -2,6 +2,9 @@ import {
   Entity,
   Global,
   Graph,
+  HasIcon,
+  HasName,
+  HasSlug,
   Icon,
   IsFollowable,
   IsJoinable,
@@ -9,7 +12,6 @@ import {
   IsOwner,
   IsStarable,
   IsSubject,
-  IsTracked,
   MaterializationType,
   Node,
   NodeReference,
@@ -28,6 +30,9 @@ import { Handle } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:1 ==== */
+/**
+ * SpaceStatus
+ */
 export enum SpaceStatus {
   CREATING = 1,
   QUEUED = 3,
@@ -37,9 +42,12 @@ export enum SpaceStatus {
 /* ==== DESTACK_GENERATED_END:ENUM:1 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:1 ==== */
+/**
+ * A Space is the home of your personal software studio.
+ */
 export class Space
   extends Node
-  implements Global, Spatial, Entity, IsTracked, IsOwnable, IsJoinable, IsStarable, IsFollowable
+  implements Global, Entity, HasName, HasSlug, HasIcon, IsFollowable, IsJoinable, IsOwnable, IsStarable, Spatial
 {
   static metatype: NodeType = NodeType.SPACE;
   static __traits__: TraitType[] = [
@@ -203,49 +211,79 @@ export class Space
     NodeType.INVITE_EVENT,
   ];
 
-  get parent(): Node | null | null {
+  /**
+   * Trait.parent
+   */
+  get parent(): Node | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
-  get ownedBy(): (Node & IsOwner) | null | null {
+
+  /**
+   * IsOwnable.ownedBy
+   */
+  get ownedBy(): (Node & IsOwner) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null;
     }
     return null;
   }
-
   set ownedBy(node: (Node & IsOwner) | null) {
     if (node === null) {
       this.ownedByPtr = null;
@@ -254,40 +292,80 @@ export class Space
     }
   }
   ownedByPtr: NodeReference | null;
+
+  /**
+   * Space.name
+   */
   name: string;
+
+  /**
+   * Space.slug
+   */
   slug: string;
+
+  /**
+   * HasIcon.icon
+   */
   icon: Icon | null;
+
+  /**
+   * Space.status
+   */
   readonly status: SpaceStatus;
-  get handle(): Handle | null | null {
+
+  /**
+   * Space.handle
+   */
+  get handle(): Handle | null {
     const nodePtr: NodeReference | null = this.handlePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Handle | null | null;
+      return this._supergraph.get(nodePtr.id) as Handle | null;
     }
     return null;
   }
   readonly handlePtr: NodeReference | null;
-  get systemFolder(): Folder | null | null {
+
+  /**
+   * The system Folder.
+   */
+  get systemFolder(): Folder | null {
     const nodePtr: NodeReference | null = this.systemFolderPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Folder | null | null;
+      return this._supergraph.get(nodePtr.id) as Folder | null;
     }
     return null;
   }
   readonly systemFolderPtr: NodeReference | null;
-  get homeFolder(): Folder | null | null {
+
+  /**
+   * The home Folder.
+   */
+  get homeFolder(): Folder | null {
     const nodePtr: NodeReference | null = this.homeFolderPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Folder | null | null;
+      return this._supergraph.get(nodePtr.id) as Folder | null;
     }
     return null;
   }
   readonly homeFolderPtr: NodeReference | null;
+
+  /**
+   * Space.region
+   */
   readonly region: Region;
+
+  /**
+   * Space.galaxyName
+   */
   readonly galaxyName: string | null;
-  get database(): Database | null | null {
+
+  /**
+   * Space.database
+   */
+  get database(): Database | null {
     const nodePtr: NodeReference | null = this.databasePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Database | null | null;
+      return this._supergraph.get(nodePtr.id) as Database | null;
     }
     return null;
   }

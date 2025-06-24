@@ -1,13 +1,8 @@
 import {
-  Analytic,
-  Entity,
   Graph,
+  HasName,
   IsCustomNode,
-  IsCustomNodeDefinition,
-  IsOrdered,
-  IsSourceable,
   IsSubject,
-  IsTracked,
   MaterializationType,
   Measurement,
   Metric,
@@ -26,10 +21,10 @@ import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:4110 ==== */
-export class GaugeMetric
-  extends Node
-  implements Spatial, Entity, IsCustomNodeDefinition, IsTracked, IsOrdered, IsSourceable, Metric
-{
+/**
+ * A Gauge Metric.
+ */
+export class GaugeMetric extends Node implements Spatial, Metric, HasName {
   static metatype: NodeType = NodeType.GAUGE_METRIC;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
@@ -46,30 +41,40 @@ export class GaugeMetric
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): Space | null | null {
+  /**
+   * Spatial.parent
+   */
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
-  get prototype(): (Node & IsCustomNode) | null | null {
+
+  /**
+   * A custom Node Definition's prototype is the default template new CustomNode instances are based on.
+   */
+  get prototype(): (Node & IsCustomNode) | null {
     const nodePtr: NodeReference | null = this.prototypePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsCustomNode) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsCustomNode) | null;
     }
     return null;
   }
-
   set prototype(node: (Node & IsCustomNode) | null) {
     if (node === null) {
       this.prototypePtr = null;
@@ -78,31 +83,63 @@ export class GaugeMetric
     }
   }
   prototypePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsOrdered.orderKey
+   */
   readonly orderKey: string;
+
+  /**
+   * HasName.name
+   */
   name: string;
-  get source(): Script | null | null {
+
+  /**
+   * IsSourceable.source
+   */
+  get source(): Script | null {
     const nodePtr: NodeReference | null = this.sourcePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Script | null | null;
+      return this._supergraph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
@@ -262,7 +299,10 @@ export class GaugeMetric
 /* ==== DESTACK_GENERATED_END:NODE:4110 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:4111 ==== */
-export class GaugeMeasurement extends Node implements Spatial, Analytic, IsCustomNode, IsTracked, Measurement {
+/**
+ * A Gauge Measurement.
+ */
+export class GaugeMeasurement extends Node implements Spatial, Measurement {
   static metatype: NodeType = NodeType.GAUGE_MEASUREMENT;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
@@ -277,22 +317,33 @@ export class GaugeMeasurement extends Node implements Spatial, Analytic, IsCusto
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): Space | null | null {
+  /**
+   * Spatial.parent
+   */
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * GaugeMeasurement.definition
+   */
   get definition(): GaugeMetric | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr !== null) {
@@ -300,25 +351,40 @@ export class GaugeMeasurement extends Node implements Spatial, Analytic, IsCusto
     }
     return null;
   }
-
   set definition(node: GaugeMetric) {
     this.definitionPtr = node.toRef();
   }
   definitionPtr: NodeReference;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
@@ -452,10 +518,10 @@ export class GaugeMeasurement extends Node implements Spatial, Analytic, IsCusto
 /* ==== DESTACK_GENERATED_END:NODE:4111 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:4112 ==== */
-export class CounterMetric
-  extends Node
-  implements Spatial, Entity, IsCustomNodeDefinition, IsTracked, IsOrdered, IsSourceable, Metric
-{
+/**
+ * A Counter Metric.
+ */
+export class CounterMetric extends Node implements Spatial, Metric, HasName {
   static metatype: NodeType = NodeType.COUNTER_METRIC;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
@@ -472,30 +538,40 @@ export class CounterMetric
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): Space | null | null {
+  /**
+   * Spatial.parent
+   */
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
-  get prototype(): (Node & IsCustomNode) | null | null {
+
+  /**
+   * A custom Node Definition's prototype is the default template new CustomNode instances are based on.
+   */
+  get prototype(): (Node & IsCustomNode) | null {
     const nodePtr: NodeReference | null = this.prototypePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsCustomNode) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsCustomNode) | null;
     }
     return null;
   }
-
   set prototype(node: (Node & IsCustomNode) | null) {
     if (node === null) {
       this.prototypePtr = null;
@@ -504,31 +580,63 @@ export class CounterMetric
     }
   }
   prototypePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsOrdered.orderKey
+   */
   readonly orderKey: string;
+
+  /**
+   * HasName.name
+   */
   name: string;
-  get source(): Script | null | null {
+
+  /**
+   * IsSourceable.source
+   */
+  get source(): Script | null {
     const nodePtr: NodeReference | null = this.sourcePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Script | null | null;
+      return this._supergraph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
@@ -688,7 +796,10 @@ export class CounterMetric
 /* ==== DESTACK_GENERATED_END:NODE:4112 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:4113 ==== */
-export class CounterMeasurement extends Node implements Spatial, Analytic, IsCustomNode, IsTracked, Measurement {
+/**
+ * A Counter Measurement.
+ */
+export class CounterMeasurement extends Node implements Spatial, Measurement {
   static metatype: NodeType = NodeType.COUNTER_MEASUREMENT;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
@@ -703,22 +814,33 @@ export class CounterMeasurement extends Node implements Spatial, Analytic, IsCus
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): Space | null | null {
+  /**
+   * Spatial.parent
+   */
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * CounterMeasurement.definition
+   */
   get definition(): CounterMetric | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr !== null) {
@@ -726,25 +848,40 @@ export class CounterMeasurement extends Node implements Spatial, Analytic, IsCus
     }
     return null;
   }
-
   set definition(node: CounterMetric) {
     this.definitionPtr = node.toRef();
   }
   definitionPtr: NodeReference;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
@@ -878,10 +1015,10 @@ export class CounterMeasurement extends Node implements Spatial, Analytic, IsCus
 /* ==== DESTACK_GENERATED_END:NODE:4113 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:4114 ==== */
-export class HistogramMetric
-  extends Node
-  implements Spatial, Entity, IsCustomNodeDefinition, IsTracked, IsOrdered, IsSourceable, Metric
-{
+/**
+ * A Histogram Metric.
+ */
+export class HistogramMetric extends Node implements Spatial, Metric, HasName {
   static metatype: NodeType = NodeType.HISTOGRAM_METRIC;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
@@ -898,30 +1035,40 @@ export class HistogramMetric
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): Space | null | null {
+  /**
+   * Spatial.parent
+   */
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
-  get prototype(): (Node & IsCustomNode) | null | null {
+
+  /**
+   * A custom Node Definition's prototype is the default template new CustomNode instances are based on.
+   */
+  get prototype(): (Node & IsCustomNode) | null {
     const nodePtr: NodeReference | null = this.prototypePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsCustomNode) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsCustomNode) | null;
     }
     return null;
   }
-
   set prototype(node: (Node & IsCustomNode) | null) {
     if (node === null) {
       this.prototypePtr = null;
@@ -930,31 +1077,63 @@ export class HistogramMetric
     }
   }
   prototypePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsOrdered.orderKey
+   */
   readonly orderKey: string;
+
+  /**
+   * HasName.name
+   */
   name: string;
-  get source(): Script | null | null {
+
+  /**
+   * IsSourceable.source
+   */
+  get source(): Script | null {
     const nodePtr: NodeReference | null = this.sourcePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Script | null | null;
+      return this._supergraph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
@@ -1114,7 +1293,10 @@ export class HistogramMetric
 /* ==== DESTACK_GENERATED_END:NODE:4114 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:4115 ==== */
-export class HistogramMeasurement extends Node implements Spatial, Analytic, IsCustomNode, IsTracked, Measurement {
+/**
+ * A Histogram Measurement.
+ */
+export class HistogramMeasurement extends Node implements Spatial, Measurement {
   static metatype: NodeType = NodeType.HISTOGRAM_MEASUREMENT;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
@@ -1129,22 +1311,33 @@ export class HistogramMeasurement extends Node implements Spatial, Analytic, IsC
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): Space | null | null {
+  /**
+   * Spatial.parent
+   */
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * HistogramMeasurement.definition
+   */
   get definition(): HistogramMetric | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr !== null) {
@@ -1152,25 +1345,40 @@ export class HistogramMeasurement extends Node implements Spatial, Analytic, IsC
     }
     return null;
   }
-
   set definition(node: HistogramMetric) {
     this.definitionPtr = node.toRef();
   }
   definitionPtr: NodeReference;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }

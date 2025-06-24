@@ -1,20 +1,13 @@
 import {
   Axis3,
-  Entity,
   Graph,
-  IsDeletable,
-  IsOrdered,
   IsSubject,
-  IsTaggable,
-  IsTracked,
-  IsVisual,
   MaterializationType,
   Node,
   NodeReference,
   NodeType,
   QueryConnection,
   Session,
-  Spatial,
   Struct,
   StructType,
   Supergraph,
@@ -28,6 +21,9 @@ import { View } from "@destack/language/view";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12046 ==== */
+/**
+ * EffectType
+ */
 export enum EffectType {
   STYLE = 2,
   APPEAR = 10,
@@ -42,6 +38,9 @@ export enum EffectType {
 /* ==== DESTACK_GENERATED_END:ENUM:12046 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12047 ==== */
+/**
+ * RepeatType
+ */
 export enum RepeatType {
   LOOP = 1,
   REVERSE = 2,
@@ -50,6 +49,9 @@ export enum RepeatType {
 /* ==== DESTACK_GENERATED_END:ENUM:12047 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12048 ==== */
+/**
+ * TextSplitType
+ */
 export enum TextSplitType {
   CHAR = 1,
   WORD = 2,
@@ -58,6 +60,9 @@ export enum TextSplitType {
 /* ==== DESTACK_GENERATED_END:ENUM:12048 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12049 ==== */
+/**
+ * OffscreenBehavior
+ */
 export enum OffscreenBehavior {
   PLAY = 1,
   PAUSE = 2,
@@ -65,12 +70,22 @@ export enum OffscreenBehavior {
 /* ==== DESTACK_GENERATED_END:ENUM:12049 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12025 ==== */
+/**
+ * An effect value.
+ */
 export class Effect extends Struct {
   static metatype: StructType = StructType.EFFECT;
   static __isFrozen__: boolean = false;
 
+  /**
+   * EffectBase.type
+   */
   type: EffectType;
-  get style(): EffectStyle | null | null {
+
+  /**
+   * style
+   */
+  get style(): EffectStyle | null {
     const nodePtr: NodeReference | null = this.stylePtr;
     if (nodePtr !== null) {
       if (this._supergraph === null) {
@@ -80,7 +95,6 @@ export class Effect extends Struct {
     }
     return null;
   }
-
   set style(value: EffectStyle | null) {
     if (value == null) {
       this.stylePtr = null;
@@ -89,19 +103,75 @@ export class Effect extends Struct {
     }
   }
   stylePtr: NodeReference | null;
+
+  /**
+   * EffectBase.opacity
+   */
   opacity: number | null;
+
+  /**
+   * EffectBase.offset
+   */
   offset: Vector2 | null;
+
+  /**
+   * EffectBase.scale
+   */
   scale: number | null;
+
+  /**
+   * EffectBase.rotate
+   */
   rotate: Axis3 | null;
+
+  /**
+   * EffectBase.skew
+   */
   skew: Vector2 | null;
+
+  /**
+   * EffectBase.perspective
+   */
   perspective: number | null;
+
+  /**
+   * EffectBase.delay
+   */
   delay: Temporal.Duration | null;
+
+  /**
+   * EffectBase.duration
+   */
   duration: number | null;
+
+  /**
+   * EffectBase.threshold
+   */
   threshold: number | null;
+
+  /**
+   * EffectBase.once
+   */
   once: boolean | null;
+
+  /**
+   * EffectBase.repeat
+   */
   repeat: RepeatType | null;
+
+  /**
+   * EffectBase.split
+   */
   split: TextSplitType | null;
+
+  /**
+   * EffectBase.offscreen
+   */
   offscreen: OffscreenBehavior | null;
+
+  /**
+   * EffectBase.transition
+   */
   transition: Transition | null;
 
   constructor(options: {
@@ -190,10 +260,10 @@ export class Effect extends Struct {
 /* ==== DESTACK_GENERATED_END:STRUCT:12025 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:12027 ==== */
-export class EffectStyle
-  extends Node
-  implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsTaggable, IsVisual, Style
-{
+/**
+ * An effect style.
+ */
+export class EffectStyle extends Node implements Style {
   static metatype: NodeType = NodeType.EFFECT_STYLE;
   static __traits__: TraitType[] = [
     TraitType.STYLE,
@@ -252,58 +322,157 @@ export class EffectStyle
   ];
   static __descendantTypes__: NodeType[] = [NodeType.TAGGING];
 
-  get parent(): Scene | (Node & View) | Theme | null | null {
+  /**
+   * Style.parent
+   */
+  get parent(): Scene | (Node & View) | Theme | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Scene | (Node & View) | Theme | null | null;
+      return this._supergraph.get(nodePtr.id) as Scene | (Node & View) | Theme | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
   readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * IsOrdered.orderKey
+   */
   readonly orderKey: string;
+
+  /**
+   * EffectBase.type
+   */
   type: EffectType;
+
+  /**
+   * HasName.name
+   */
   name: string;
+
+  /**
+   * EffectBase.opacity
+   */
   opacity: number | null;
+
+  /**
+   * EffectBase.offset
+   */
   offset: Vector2 | null;
+
+  /**
+   * EffectBase.scale
+   */
   scale: number | null;
+
+  /**
+   * EffectBase.rotate
+   */
   rotate: Axis3 | null;
+
+  /**
+   * EffectBase.skew
+   */
   skew: Vector2 | null;
+
+  /**
+   * EffectBase.perspective
+   */
   perspective: number | null;
+
+  /**
+   * EffectBase.delay
+   */
   delay: Temporal.Duration | null;
+
+  /**
+   * EffectBase.duration
+   */
   duration: number | null;
+
+  /**
+   * EffectBase.threshold
+   */
   threshold: number | null;
+
+  /**
+   * EffectBase.once
+   */
   once: boolean | null;
+
+  /**
+   * EffectBase.repeat
+   */
   repeat: RepeatType | null;
+
+  /**
+   * EffectBase.split
+   */
   split: TextSplitType | null;
+
+  /**
+   * EffectBase.offscreen
+   */
   offscreen: OffscreenBehavior | null;
+
+  /**
+   * EffectBase.transition
+   */
   transition: Transition | null;
 
   constructor(options: {

@@ -1,19 +1,12 @@
 import {
-  Entity,
   Graph,
-  IsDeletable,
-  IsOrdered,
   IsSubject,
-  IsTaggable,
-  IsTracked,
-  IsVisual,
   MaterializationType,
   Node,
   NodeReference,
   NodeType,
   QueryConnection,
   Session,
-  Spatial,
   Struct,
   StructType,
   Supergraph,
@@ -26,6 +19,9 @@ import { View } from "@destack/language/view";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12043 ==== */
+/**
+ * TransitionType
+ */
 export enum TransitionType {
   STYLE = 2,
   TWEEN = 10,
@@ -34,6 +30,9 @@ export enum TransitionType {
 /* ==== DESTACK_GENERATED_END:ENUM:12043 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12044 ==== */
+/**
+ * SpringType
+ */
 export enum SpringType {
   TIME = 1,
   PHYSICS = 2,
@@ -41,12 +40,22 @@ export enum SpringType {
 /* ==== DESTACK_GENERATED_END:ENUM:12044 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12024 ==== */
+/**
+ * A transition value.
+ */
 export class Transition extends Struct {
   static metatype: StructType = StructType.TRANSITION;
   static __isFrozen__: boolean = false;
 
+  /**
+   * TransitionBase.type
+   */
   type: TransitionType;
-  get style(): TransitionStyle | null | null {
+
+  /**
+   * style
+   */
+  get style(): TransitionStyle | null {
     const nodePtr: NodeReference | null = this.stylePtr;
     if (nodePtr !== null) {
       if (this._supergraph === null) {
@@ -56,7 +65,6 @@ export class Transition extends Struct {
     }
     return null;
   }
-
   set style(value: TransitionStyle | null) {
     if (value == null) {
       this.stylePtr = null;
@@ -65,13 +73,45 @@ export class Transition extends Struct {
     }
   }
   stylePtr: NodeReference | null;
+
+  /**
+   * TransitionBase.delay
+   */
   delay: number | null;
+
+  /**
+   * TransitionBase.duration
+   */
   duration: number | null;
+
+  /**
+   * TransitionBase.ease
+   */
   ease: Array<number>;
+
+  /**
+   * TransitionBase.stiffness
+   */
   stiffness: number | null;
+
+  /**
+   * TransitionBase.damping
+   */
   damping: number | null;
+
+  /**
+   * TransitionBase.mass
+   */
   mass: number | null;
+
+  /**
+   * TransitionBase.bounce
+   */
   bounce: number | null;
+
+  /**
+   * TransitionBase.springType
+   */
   springType: SpringType | null;
 
   constructor(options: {
@@ -148,10 +188,10 @@ export class Transition extends Struct {
 /* ==== DESTACK_GENERATED_END:STRUCT:12024 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:12026 ==== */
-export class TransitionStyle
-  extends Node
-  implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsTaggable, IsVisual, Style
-{
+/**
+ * A transition style.
+ */
+export class TransitionStyle extends Node implements Style {
   static metatype: NodeType = NodeType.TRANSITION_STYLE;
   static __traits__: TraitType[] = [
     TraitType.STYLE,
@@ -210,52 +250,127 @@ export class TransitionStyle
   ];
   static __descendantTypes__: NodeType[] = [NodeType.TAGGING];
 
-  get parent(): Scene | (Node & View) | Theme | null | null {
+  /**
+   * Style.parent
+   */
+  get parent(): Scene | (Node & View) | Theme | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Scene | (Node & View) | Theme | null | null;
+      return this._supergraph.get(nodePtr.id) as Scene | (Node & View) | Theme | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
   readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * IsOrdered.orderKey
+   */
   readonly orderKey: string;
+
+  /**
+   * TransitionBase.type
+   */
   type: TransitionType;
+
+  /**
+   * HasName.name
+   */
   name: string;
+
+  /**
+   * TransitionBase.delay
+   */
   delay: number | null;
+
+  /**
+   * TransitionBase.duration
+   */
   duration: number | null;
+
+  /**
+   * TransitionBase.ease
+   */
   ease: Array<number>;
+
+  /**
+   * TransitionBase.stiffness
+   */
   stiffness: number | null;
+
+  /**
+   * TransitionBase.damping
+   */
   damping: number | null;
+
+  /**
+   * TransitionBase.mass
+   */
   mass: number | null;
+
+  /**
+   * TransitionBase.bounce
+   */
   bounce: number | null;
+
+  /**
+   * TransitionBase.springType
+   */
   springType: SpringType | null;
 
   constructor(options: {

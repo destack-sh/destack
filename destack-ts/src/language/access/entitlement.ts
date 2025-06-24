@@ -1,19 +1,14 @@
 import {
-  Analytic,
   Entity,
   Event,
   Graph,
-  Indexed,
   IsDeletable,
-  IsFrozen,
   IsJoinable,
   IsSubject,
-  IsTracked,
   MaterializationType,
   Node,
   NodeReference,
   NodeType,
-  Particle,
   QueryConnection,
   Session,
   Spatial,
@@ -25,6 +20,9 @@ import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:551 ==== */
+/**
+ * EntitlementEventType
+ */
 export enum EntitlementEventType {
   REQUESTED = 1,
   GRANTED = 2,
@@ -34,6 +32,9 @@ export enum EntitlementEventType {
 /* ==== DESTACK_GENERATED_END:ENUM:551 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:550 ==== */
+/**
+ * EntitlementType
+ */
 export enum EntitlementType {
   PERMISSION = 1,
   ROLE = 2,
@@ -41,7 +42,10 @@ export enum EntitlementType {
 /* ==== DESTACK_GENERATED_END:ENUM:550 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:551 ==== */
-export class EntitlementEvent extends Node implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked {
+/**
+ * EntitlementEvent
+ */
+export class EntitlementEvent extends Node implements Event {
   static metatype: NodeType = NodeType.ENTITLEMENT_EVENT;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
@@ -58,40 +62,67 @@ export class EntitlementEvent extends Node implements Spatial, Particle, Analyti
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): Space | null | null {
+  /**
+   * Spatial.parent
+   */
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * EntitlementEvent.node
+   */
   get node(): Entitlement | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr !== null) {
@@ -99,7 +130,6 @@ export class EntitlementEvent extends Node implements Spatial, Particle, Analyti
     }
     return null;
   }
-
   set node(node: Entitlement) {
     this.nodePtr = node.toRef();
   }
@@ -232,7 +262,10 @@ export class EntitlementEvent extends Node implements Spatial, Particle, Analyti
 /* ==== DESTACK_GENERATED_END:NODE:551 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:550 ==== */
-export class Entitlement extends Node implements Spatial, Entity, IsTracked, IsDeletable {
+/**
+ * A Entitlement to some Subject.
+ */
+export class Entitlement extends Node implements Spatial, Entity, IsDeletable {
   static metatype: NodeType = NodeType.ENTITLEMENT;
   static __traits__: TraitType[] = [TraitType.TRACKED, TraitType.SPATIAL, TraitType.ENTITY, TraitType.DELETABLE];
   static __rootType__: NodeType | null = NodeType.SPACE;
@@ -257,44 +290,87 @@ export class Entitlement extends Node implements Spatial, Entity, IsTracked, IsD
   ];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): (Node & IsSubject) | (Node & IsJoinable) | null | null {
+  /**
+   * Entitlement.parent
+   */
+  get parent(): (Node & IsSubject) | (Node & IsJoinable) | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | (Node & IsJoinable) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | (Node & IsJoinable) | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
   readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * Entitlement.type
+   */
   type: EntitlementType;
+
+  /**
+   * Entitlement.expiresAt
+   */
   expiresAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * Entitlement.target
+   */
   get target(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr !== null) {
@@ -302,7 +378,6 @@ export class Entitlement extends Node implements Spatial, Entity, IsTracked, IsD
     }
     return null;
   }
-
   set target(node: Node & IsSubject) {
     this.targetPtr = node.toRef();
   }

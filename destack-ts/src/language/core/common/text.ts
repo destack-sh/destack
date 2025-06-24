@@ -1,6 +1,9 @@
 import { Node, NodeReference, Session, StructFrozen, StructType, Supergraph } from "@destack/language/core";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2521 ==== */
+/**
+ * TextSpanType
+ */
 export enum TextSpanType {
   TEXT = 1,
   HARD_BREAK = 2,
@@ -12,13 +15,27 @@ export enum TextSpanType {
 /* ==== DESTACK_GENERATED_END:ENUM:2521 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2521 ==== */
+/**
+ * A span of text with optional formatting
+ */
 export class TextSpan extends StructFrozen {
   static metatype: StructType = StructType.TEXT_SPAN;
   static __isFrozen__: boolean = true;
 
+  /**
+   * TextSpan.type
+   */
   readonly type: TextSpanType;
+
+  /**
+   * TextSpan.content
+   */
   readonly content: string | null;
-  get node(): Node | null | null {
+
+  /**
+   * node
+   */
+  get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr !== null) {
       if (this._supergraph === null) {
@@ -29,11 +46,35 @@ export class TextSpan extends StructFrozen {
     return null;
   }
   readonly nodePtr: NodeReference | null;
+
+  /**
+   * TextSpan.url
+   */
   readonly url: string | null;
+
+  /**
+   * TextOptionsBase.isBold
+   */
   readonly isBold: boolean | null;
+
+  /**
+   * TextOptionsBase.isItalic
+   */
   readonly isItalic: boolean | null;
+
+  /**
+   * TextOptionsBase.isStrikethrough
+   */
   readonly isStrikethrough: boolean | null;
+
+  /**
+   * TextOptionsBase.isUnderline
+   */
   readonly isUnderline: boolean | null;
+
+  /**
+   * TextOptionsBase.isCode
+   */
   readonly isCode: boolean | null;
 
   constructor(options: {
@@ -104,15 +145,41 @@ export class TextSpan extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:2521 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2520 ==== */
+/**
+ * Rich Text; a single paragraph composed of TextSpans with inline formatting.
+ */
 export class Text extends StructFrozen {
   static metatype: StructType = StructType.TEXT;
   static __isFrozen__: boolean = true;
 
+  /**
+   * Text.spans
+   */
   readonly spans: Array<TextSpan>;
+
+  /**
+   * TextOptionsBase.isBold
+   */
   readonly isBold: boolean | null;
+
+  /**
+   * TextOptionsBase.isItalic
+   */
   readonly isItalic: boolean | null;
+
+  /**
+   * TextOptionsBase.isStrikethrough
+   */
   readonly isStrikethrough: boolean | null;
+
+  /**
+   * TextOptionsBase.isUnderline
+   */
   readonly isUnderline: boolean | null;
+
+  /**
+   * TextOptionsBase.isCode
+   */
   readonly isCode: boolean | null;
 
   constructor(options: {

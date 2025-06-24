@@ -1,20 +1,13 @@
 import {
   Axis2,
-  Entity,
   Graph,
-  IsDeletable,
-  IsOrdered,
   IsSubject,
-  IsTaggable,
-  IsTracked,
-  IsVisual,
   MaterializationType,
   Node,
   NodeReference,
   NodeType,
   QueryConnection,
   Session,
-  Spatial,
   Struct,
   StructFrozen,
   StructType,
@@ -28,6 +21,9 @@ import { View } from "@destack/language/view";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12033 ==== */
+/**
+ * GradientType
+ */
 export enum GradientType {
   STYLE = 2,
   LINEAR = 10,
@@ -37,11 +33,21 @@ export enum GradientType {
 /* ==== DESTACK_GENERATED_END:ENUM:12033 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12015 ==== */
+/**
+ * A gradient stop with color and position.
+ */
 export class GradientStop extends StructFrozen {
   static metatype: StructType = StructType.GRADIENT_STOP;
   static __isFrozen__: boolean = true;
 
+  /**
+   * GradientStop.color
+   */
   readonly color: Color | null;
+
+  /**
+   * GradientStop.position
+   */
   readonly position: number;
 
   constructor(options: {
@@ -85,12 +91,22 @@ export class GradientStop extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:12015 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12016 ==== */
+/**
+ * A gradient value.
+ */
 export class Gradient extends Struct {
   static metatype: StructType = StructType.GRADIENT;
   static __isFrozen__: boolean = false;
 
+  /**
+   * GradientBase.type
+   */
   type: GradientType;
-  get style(): GradientStyle | null | null {
+
+  /**
+   * style
+   */
+  get style(): GradientStyle | null {
     const nodePtr: NodeReference | null = this.stylePtr;
     if (nodePtr !== null) {
       if (this._supergraph === null) {
@@ -100,7 +116,6 @@ export class Gradient extends Struct {
     }
     return null;
   }
-
   set style(value: GradientStyle | null) {
     if (value == null) {
       this.stylePtr = null;
@@ -109,8 +124,20 @@ export class Gradient extends Struct {
     }
   }
   stylePtr: NodeReference | null;
+
+  /**
+   * GradientBase.angle
+   */
   angle: number | null;
+
+  /**
+   * GradientBase.stops
+   */
   stops: Array<GradientStop>;
+
+  /**
+   * GradientBase.centerAnchor
+   */
   centerAnchor: Axis2 | null;
 
   constructor(options: {
@@ -172,10 +199,10 @@ export class Gradient extends Struct {
 /* ==== DESTACK_GENERATED_END:STRUCT:12016 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:12025 ==== */
-export class GradientStyle
-  extends Node
-  implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsTaggable, IsVisual, Style
-{
+/**
+ * A gradient style.
+ */
+export class GradientStyle extends Node implements Style {
   static metatype: NodeType = NodeType.GRADIENT_STYLE;
   static __traits__: TraitType[] = [
     TraitType.STYLE,
@@ -234,48 +261,107 @@ export class GradientStyle
   ];
   static __descendantTypes__: NodeType[] = [NodeType.TAGGING];
 
-  get parent(): Scene | (Node & View) | Theme | null | null {
+  /**
+   * Style.parent
+   */
+  get parent(): Scene | (Node & View) | Theme | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Scene | (Node & View) | Theme | null | null;
+      return this._supergraph.get(nodePtr.id) as Scene | (Node & View) | Theme | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
   readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * IsOrdered.orderKey
+   */
   readonly orderKey: string;
+
+  /**
+   * GradientBase.type
+   */
   type: GradientType;
+
+  /**
+   * HasName.name
+   */
   name: string;
+
+  /**
+   * GradientBase.angle
+   */
   angle: number | null;
+
+  /**
+   * GradientBase.stops
+   */
   stops: Array<GradientStop>;
+
+  /**
+   * GradientBase.centerAnchor
+   */
   centerAnchor: Axis2 | null;
+
+  /**
+   * GradientStyle.dark
+   */
   dark: Gradient | null;
 
   constructor(options: {

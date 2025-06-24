@@ -6,7 +6,6 @@ import {
   IsFollowable,
   IsOwnable,
   IsSubject,
-  IsTracked,
   LikeFollow,
   MaterializationType,
   Node,
@@ -23,7 +22,10 @@ import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:5530 ==== */
-export class Follow extends Node implements Global, Spatial, Entity, IsTracked, IsDeletable, IsOwnable, LikeFollow {
+/**
+ * A Follow is a relationship between a Subject and a Followred Node.
+ */
+export class Follow extends Node implements Global, Spatial, Entity, LikeFollow, IsDeletable, IsOwnable {
   static metatype: NodeType = NodeType.FOLLOW;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
@@ -40,42 +42,77 @@ export class Follow extends Node implements Global, Spatial, Entity, IsTracked, 
   static __ancestorTypes__: NodeType[] = [NodeType.AGENT, NodeType.FOLDER, NodeType.USER, NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): (Node & IsFollowable) | null | null {
+  /**
+   * Follow.parent
+   */
+  get parent(): (Node & IsFollowable) | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsFollowable) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsFollowable) | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
   readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * Follow.ownedBy
+   */
   get ownedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
@@ -83,7 +120,6 @@ export class Follow extends Node implements Global, Spatial, Entity, IsTracked, 
     }
     return null;
   }
-
   set ownedBy(node: Node & IsSubject) {
     this.ownedByPtr = node.toRef();
   }

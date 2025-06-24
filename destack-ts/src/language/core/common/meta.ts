@@ -22,38 +22,156 @@ import {
 } from "@destack/language/core";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50004 ==== */
+/**
+ * Information about a builtin Property.
+ */
 export class PropertyDefinition extends StructFrozen {
   static metatype: StructType = StructType.PROPERTY_DEFINITION;
   static __isFrozen__: boolean = true;
 
+  /**
+   * PropertyDefinition.id
+   */
   readonly id: number;
+
+  /**
+   * PropertyDefinition.name
+   */
   readonly name: string;
+
+  /**
+   * PropertyDefinition.icon
+   */
   readonly icon: Icon | null;
+
+  /**
+   * PropertyDefinition.description
+   */
   readonly description: string | null;
+
+  /**
+   * PropertyDefinition.cardinality
+   */
   readonly cardinality: TypeCardinality;
+
+  /**
+   * PropertyDefinition.scalarType
+   */
   readonly scalarType: ScalarType;
+
+  /**
+   * PropertyDefinition.primitiveType
+   */
   readonly primitiveType: PrimitiveType | null;
+
+  /**
+   * PropertyDefinition.enumType
+   */
   readonly enumType: EnumType | null;
+
+  /**
+   * PropertyDefinition.nodeType
+   */
   readonly nodeType: NodeType | null;
+
+  /**
+   * PropertyDefinition.structType
+   */
   readonly structType: StructType | null;
+
+  /**
+   * PropertyDefinition.keyType
+   */
   readonly keyType: Type | null;
+
+  /**
+   * PropertyDefinition.isRequired
+   */
   readonly isRequired: boolean | null;
+
+  /**
+   * PropertyDefinition.isUnique
+   */
   readonly isUnique: boolean | null;
+
+  /**
+   * PropertyDefinition.defaultValue
+   */
   readonly defaultValue: Value | null;
+
+  /**
+   * PropertyDefinition.defaultFactory
+   */
   readonly defaultFactory: DefaultFactory | null;
+
+  /**
+   * PropertyDefinition.collectionConstraint
+   */
   readonly collectionConstraint: CollectionConstraint | null;
+
+  /**
+   * PropertyDefinition.stringConstraint
+   */
   readonly stringConstraint: StringConstraint | null;
+
+  /**
+   * PropertyDefinition.numberConstraint
+   */
   readonly numberConstraint: NumberConstraint | null;
+
+  /**
+   * PropertyDefinition.nodeConstraint
+   */
   readonly nodeConstraint: NodeConstraint | null;
+
+  /**
+   * PropertyDefinition.nodeIsCustomizable
+   */
   readonly nodeIsCustomizable: boolean;
+
+  /**
+   * PropertyDefinition.edgeType
+   */
   readonly edgeType: EdgeType | null;
+
+  /**
+   * PropertyDefinition.cascade
+   */
   readonly cascade: CascadeAction | null;
+
+  /**
+   * PropertyDefinition.isWired
+   */
   readonly isWired: boolean;
+
+  /**
+   * PropertyDefinition.isStored
+   */
   readonly isStored: boolean;
+
+  /**
+   * PropertyDefinition.isRepr
+   */
   readonly isRepr: boolean;
+
+  /**
+   * PropertyDefinition.isHash
+   */
   readonly isHash: boolean;
+
+  /**
+   * PropertyDefinition.isEq
+   */
   readonly isEq: boolean;
+
+  /**
+   * PropertyDefinition.isManaged
+   */
   readonly isManaged: boolean;
+
+  /**
+   * PropertyDefinition.isComputed
+   */
   readonly isComputed: boolean;
 
   constructor(options: {
@@ -214,17 +332,51 @@ export class PropertyDefinition extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:50004 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50005 ==== */
+/**
+ * Definition of a builtin Trait.
+ */
 export class TraitDefinition extends StructFrozen {
   static metatype: StructType = StructType.TRAIT_DEFINITION;
   static __isFrozen__: boolean = true;
 
+  /**
+   * TraitDefinition.id
+   */
   readonly id: number;
+
+  /**
+   * TraitDefinition.type
+   */
   readonly type: TraitType;
+
+  /**
+   * TraitDefinition.name
+   */
   readonly name: string;
+
+  /**
+   * TraitDefinition.alias
+   */
   readonly alias: string;
+
+  /**
+   * TraitDefinition.icon
+   */
   readonly icon: Icon | null;
+
+  /**
+   * TraitDefinition.description
+   */
   readonly description: string | null;
+
+  /**
+   * TraitDefinition.properties
+   */
   readonly properties: Array<PropertyDefinition>;
+
+  /**
+   * TraitDefinition.traits
+   */
   readonly traits: Array<TraitType>;
 
   constructor(options: {
@@ -301,21 +453,71 @@ export class TraitDefinition extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:50005 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50006 ==== */
+/**
+ * Definition of a builtin Node.
+ */
 export class NodeDefinition extends StructFrozen {
   static metatype: StructType = StructType.NODE_DEFINITION;
   static __isFrozen__: boolean = true;
 
+  /**
+   * NodeDefinition.id
+   */
   readonly id: number;
+
+  /**
+   * NodeDefinition.type
+   */
   readonly type: NodeType;
+
+  /**
+   * NodeDefinition.name
+   */
   readonly name: string;
+
+  /**
+   * NodeDefinition.icon
+   */
   readonly icon: Icon | null;
+
+  /**
+   * NodeDefinition.description
+   */
   readonly description: string | null;
+
+  /**
+   * NodeDefinition.properties
+   */
   readonly properties: Array<PropertyDefinition>;
+
+  /**
+   * NodeDefinition.traits
+   */
   readonly traits: Array<TraitType>;
+
+  /**
+   * NodeDefinition.rootType
+   */
   readonly rootType: NodeType | null;
+
+  /**
+   * NodeDefinition.parentTypes
+   */
   readonly parentTypes: Array<NodeType>;
+
+  /**
+   * NodeDefinition.childTypes
+   */
   readonly childTypes: Array<NodeType>;
+
+  /**
+   * NodeDefinition.ancestorTypes
+   */
   readonly ancestorTypes: Array<NodeType>;
+
+  /**
+   * NodeDefinition.descendantTypes
+   */
   readonly descendantTypes: Array<NodeType>;
 
   constructor(options: {
@@ -413,16 +615,46 @@ export class NodeDefinition extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:50006 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50007 ==== */
+/**
+ * Definition of a builtin Struct.
+ */
 export class StructDefinition extends StructFrozen {
   static metatype: StructType = StructType.STRUCT_DEFINITION;
   static __isFrozen__: boolean = true;
 
+  /**
+   * StructDefinition.id
+   */
   readonly id: number;
+
+  /**
+   * StructDefinition.type
+   */
   readonly type: StructType;
+
+  /**
+   * StructDefinition.name
+   */
   readonly name: string;
+
+  /**
+   * StructDefinition.icon
+   */
   readonly icon: Icon | null;
+
+  /**
+   * StructDefinition.description
+   */
   readonly description: string | null;
+
+  /**
+   * StructDefinition.properties
+   */
   readonly properties: Array<PropertyDefinition>;
+
+  /**
+   * StructDefinition.isFrozen
+   */
   readonly isFrozen: boolean;
 
   constructor(options: {
@@ -493,15 +725,41 @@ export class StructDefinition extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:50007 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50008 ==== */
+/**
+ * Definition of a builtin Enum.
+ */
 export class EnumDefinition extends StructFrozen {
   static metatype: StructType = StructType.ENUM_DEFINITION;
   static __isFrozen__: boolean = true;
 
+  /**
+   * EnumDefinition.id
+   */
   readonly id: number;
+
+  /**
+   * EnumDefinition.type
+   */
   readonly type: EnumType;
+
+  /**
+   * EnumDefinition.name
+   */
   readonly name: string;
+
+  /**
+   * EnumDefinition.icon
+   */
   readonly icon: Icon | null;
+
+  /**
+   * EnumDefinition.description
+   */
   readonly description: string | null;
+
+  /**
+   * EnumDefinition.options
+   */
   readonly options: Array<EnumOptionDefinition>;
 
   constructor(options: {
@@ -566,14 +824,36 @@ export class EnumDefinition extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:50008 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50009 ==== */
+/**
+ * Definition of a builtin Enum Option.
+ */
 export class EnumOptionDefinition extends StructFrozen {
   static metatype: StructType = StructType.ENUM_OPTION_DEFINITION;
   static __isFrozen__: boolean = true;
 
+  /**
+   * EnumOptionDefinition.id
+   */
   readonly id: number;
+
+  /**
+   * EnumOptionDefinition.type
+   */
   readonly type: EnumType;
+
+  /**
+   * EnumOptionDefinition.name
+   */
   readonly name: string;
+
+  /**
+   * EnumOptionDefinition.icon
+   */
   readonly icon: Icon | null;
+
+  /**
+   * EnumOptionDefinition.description
+   */
   readonly description: string | null;
 
   constructor(options: {
@@ -632,14 +912,36 @@ export class EnumOptionDefinition extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:50009 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50010 ==== */
+/**
+ * Definition of a builtin Permission for a builtin Node.
+ */
 export class PermissionDefinition extends StructFrozen {
   static metatype: StructType = StructType.PERMISSION_DEFINITION;
   static __isFrozen__: boolean = true;
 
+  /**
+   * PermissionDefinition.id
+   */
   readonly id: number;
+
+  /**
+   * PermissionDefinition.type
+   */
   readonly type: EnumType;
+
+  /**
+   * PermissionDefinition.name
+   */
   readonly name: string;
+
+  /**
+   * PermissionDefinition.nodeType
+   */
   readonly nodeType: NodeType;
+
+  /**
+   * PermissionDefinition.icon
+   */
   readonly icon: Icon | null;
 
   constructor(options: {
@@ -701,12 +1003,26 @@ export class PermissionDefinition extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:50010 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50011 ==== */
+/**
+ * Definition of a builtin Constant.
+ */
 export class ConstantDefinition extends StructFrozen {
   static metatype: StructType = StructType.CONSTANT_DEFINITION;
   static __isFrozen__: boolean = true;
 
+  /**
+   * ConstantDefinition.name
+   */
   readonly name: string;
+
+  /**
+   * ConstantDefinition.path
+   */
   readonly path: string;
+
+  /**
+   * ConstantDefinition.value
+   */
   readonly value: Value;
 
   constructor(options: {

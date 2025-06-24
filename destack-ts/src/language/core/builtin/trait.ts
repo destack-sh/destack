@@ -4,6 +4,9 @@ import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:50101 ==== */
+/**
+ * JoinablePermission
+ */
 export enum JoinablePermission {
   INVITE = 1,
   REMOVE = 2,
@@ -13,191 +16,257 @@ export enum JoinablePermission {
 /* ==== DESTACK_GENERATED_END:ENUM:50101 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:100 ==== */
+/**
+ * A Node with a plain name.
+ */
 export interface HasName {
-  readonly id: string;
+  /**
+   * HasName.name
+   */
   name: string;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:100 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:101 ==== */
+/**
+ * A Node with a slug.
+ */
 export interface HasSlug {
-  readonly id: string;
+  /**
+   * HasSlug.slug
+   */
   slug: string | null;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:101 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:102 ==== */
+/**
+ * A Node with an icon.
+ */
 export interface HasIcon {
-  readonly id: string;
+  /**
+   * HasIcon.icon
+   */
   icon: Icon | null;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:102 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:51 ==== */
+/**
+ * A Node that is "tracked" on create/update.
+ */
 export interface IsTracked {
-  readonly id: string;
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null;
+
+  get createdBy(): (Node & IsSubject) | null;
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null;
+
+  get updatedBy(): (Node & IsSubject) | null;
   readonly updatedByPtr: NodeReference | null;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:51 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:9000 ==== */
-export interface IsVisual {
-  readonly id: string;
-  readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null;
-  readonly createdByPtr: NodeReference | null;
-  readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null;
-  readonly updatedByPtr: NodeReference | null;
-}
+/**
+ * A Node that is a visual in some sense (views, styles, drawings, ...).
+ */
+export interface IsVisual extends IsTracked {}
 /* ==== DESTACK_GENERATED_END:TRAIT:9000 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:50 ==== */
-export interface IsFrozen {
-  readonly id: string;
-}
+/**
+ * A Node that is frozen (read-only).
+ * TODO :Cleanup: Nodes don't set 'real' frozen=True (like StructFrozen) :PretendFrozen
+ *  (because that would require two separate inheritance chains for NodeMutable and NodeFrozen,
+ *   which would have to include copies of every relevant trait and .. ughh no)
+ */
+export interface IsFrozen {}
 /* ==== DESTACK_GENERATED_END:TRAIT:50 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:52 ==== */
+/**
+ * A Node that can be archived.
+ */
 export interface IsArchivable {
-  readonly id: string;
+  /**
+   * IsArchivable.archivedAt
+   */
   readonly archivedAt: Temporal.ZonedDateTime | null;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:52 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:53 ==== */
+/**
+ * A Node that can be deleted.
+ */
 export interface IsDeletable {
-  readonly id: string;
+  /**
+   * IsDeletable.deletedAt
+   */
   readonly deletedAt: Temporal.ZonedDateTime | null;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:53 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:23 ==== */
+/**
+ * A Node that defines a Custom Node type.
+ */
 export interface IsCustomNodeDefinition {
-  readonly id: string;
-  get prototype(): (Node & IsCustomNode) | null | null;
+  get prototype(): (Node & IsCustomNode) | null;
   set prototype(value: (Node & IsCustomNode) | null);
   prototypePtr: NodeReference | null;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:23 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:24 ==== */
+/**
+ * A Node that is asome Custom Node.
+ */
 export interface IsCustomNode {
-  readonly id: string;
   get definition(): (Node & IsCustomNodeDefinition) | null;
   readonly definitionPtr: NodeReference;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:24 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:55 ==== */
+/**
+ * A Node that can be extended with custom Values (one Value per Field).
+ */
 export interface IsExtensible {
-  readonly id: string;
+  /**
+   * IsExtensible.value
+   */
   value: Map<string, Value>;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:55 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:56 ==== */
+/**
+ * A Node that can be ordered.
+ */
 export interface IsOrdered {
-  readonly id: string;
+  /**
+   * IsOrdered.orderKey
+   */
   readonly orderKey: string;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:56 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:5532 ==== */
-export interface IsReactable {
-  readonly id: string;
-}
+/**
+ * A Node that can be reacted to (with Reactions).
+ */
+export interface IsReactable {}
 /* ==== DESTACK_GENERATED_END:TRAIT:5532 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:5530 ==== */
-export interface IsStarable {
-  readonly id: string;
-}
+/**
+ * A Node that can be starred (with Stars).
+ */
+export interface IsStarable {}
 /* ==== DESTACK_GENERATED_END:TRAIT:5530 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:5534 ==== */
-export interface IsFollowable {
-  readonly id: string;
-}
+/**
+ * A Node that can be followed (with Follows).
+ */
+export interface IsFollowable {}
 /* ==== DESTACK_GENERATED_END:TRAIT:5534 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:3003 ==== */
-export interface IsSourceable {
-  readonly id: string;
-  readonly orderKey: string;
-  get source(): Script | null | null;
+/**
+ * A Node that can be sourced from / defined by a Script.
+ */
+export interface IsSourceable extends IsOrdered {
+  get source(): Script | null;
   readonly sourcePtr: NodeReference | null;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:3003 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:3002 ==== */
+/**
+ * A Node that can be scripted.
+ */
 export interface IsScriptable {
-  readonly id: string;
-  get script(): Script | null | null;
+  get script(): Script | null;
   set script(value: Script | null);
   scriptPtr: NodeReference | null;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:3002 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:3001 ==== */
-export interface IsRunnable {
-  readonly id: string;
-}
+/**
+ * A Node that can be run (with Runs).
+ */
+export interface IsRunnable {}
 /* ==== DESTACK_GENERATED_END:TRAIT:3001 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:3000 ==== */
-export interface IsActionable {
-  readonly id: string;
-}
+/**
+ * A Node that can define an Action.
+ */
+export interface IsActionable {}
 /* ==== DESTACK_GENERATED_END:TRAIT:3000 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:500 ==== */
+/**
+ * A Node that can be owned by another Node.
+ */
 export interface IsOwnable {
-  readonly id: string;
-  get ownedBy(): (Node & IsOwner) | null | null;
+  get ownedBy(): (Node & IsOwner) | null;
   set ownedBy(value: (Node & IsOwner) | null);
   ownedByPtr: NodeReference | null;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:500 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:5000 ==== */
-export interface IsSettings {
-  readonly id: string;
-}
+/**
+ * A Node that defines Settings.
+ */
+export interface IsSettings {}
 /* ==== DESTACK_GENERATED_END:TRAIT:5000 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:502 ==== */
-export interface IsJoinable {
-  readonly id: string;
-}
+/**
+ * A Node that can be joined by Subjects.
+ */
+export interface IsJoinable {}
 /* ==== DESTACK_GENERATED_END:TRAIT:502 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:505 ==== */
-export interface IsSubject {
-  readonly id: string;
-}
+/**
+ * A Node that can be a Subject.
+ */
+export interface IsSubject {}
 /* ==== DESTACK_GENERATED_END:TRAIT:505 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:506 ==== */
-export interface IsOwner {
-  readonly id: string;
-}
+/**
+ * A Node that can be an Owner.
+ */
+export interface IsOwner {}
 /* ==== DESTACK_GENERATED_END:TRAIT:506 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:1000 ==== */
-export interface IsTaggable {
-  readonly id: string;
-}
+/**
+ * A Node that can be tagged (with a Tag).
+ */
+export interface IsTaggable {}
 /* ==== DESTACK_GENERATED_END:TRAIT:1000 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:510 ==== */
+/**
+ * A Node that represents a Membership.
+ */
 export interface LikeMembership {
-  readonly id: string;
   get member(): (Node & IsSubject) | null;
   set member(value: Node & IsSubject);
   memberPtr: NodeReference;
@@ -205,8 +274,10 @@ export interface LikeMembership {
 /* ==== DESTACK_GENERATED_END:TRAIT:510 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:511 ==== */
+/**
+ * A Node that represents an Invite.
+ */
 export interface LikeInvite {
-  readonly id: string;
   get member(): (Node & IsSubject) | null;
   set member(value: Node & IsSubject);
   memberPtr: NodeReference;
@@ -214,140 +285,111 @@ export interface LikeInvite {
 /* ==== DESTACK_GENERATED_END:TRAIT:511 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:1001 ==== */
-export interface LikeTag {
-  readonly id: string;
-}
+/**
+ * A Node that represents a Tag.
+ */
+export interface LikeTag {}
 /* ==== DESTACK_GENERATED_END:TRAIT:1001 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:5535 ==== */
-export interface LikeFollow {
-  readonly id: string;
-}
+/**
+ * A Node that represents a Follow.
+ */
+export interface LikeFollow {}
 /* ==== DESTACK_GENERATED_END:TRAIT:5535 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:1 ==== */
-export interface Global {
-  readonly id: string;
-}
+/**
+ * A Node that is global.
+ */
+export interface Global {}
 /* ==== DESTACK_GENERATED_END:TRAIT:1 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:2 ==== */
+/**
+ * A Node in a Space.
+ */
 export interface Spatial {
-  readonly id: string;
-  get space(): Space | null | null;
+  get space(): Space | null;
   readonly spacePtr: NodeReference | null;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:2 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:10 ==== */
-export interface Entity {
-  readonly id: string;
+/**
+ * An Entity is a versioned Node in primary relational storage (OLTP).
+ */
+export interface Entity extends IsTracked {
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
-  readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null;
-  readonly createdByPtr: NodeReference | null;
-  readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null;
-  readonly updatedByPtr: NodeReference | null;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:10 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:11 ==== */
-export interface Particle {
-  readonly id: string;
-  readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null;
-  readonly createdByPtr: NodeReference | null;
-  readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null;
-  readonly updatedByPtr: NodeReference | null;
-}
+/**
+ * A Particle is a forward-only Node in primary document storage (OLTP, high volume).
+ */
+export interface Particle extends IsTracked {}
 /* ==== DESTACK_GENERATED_END:TRAIT:11 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:12 ==== */
-export interface Analytic {
-  readonly id: string;
-  readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null;
-  readonly createdByPtr: NodeReference | null;
-  readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null;
-  readonly updatedByPtr: NodeReference | null;
-}
+/**
+ * An Analytic is a read-only Node in primary or secondary warehouse storage (OLAP, bulk).
+ */
+export interface Analytic extends IsTracked {}
 /* ==== DESTACK_GENERATED_END:TRAIT:12 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:13 ==== */
-export interface Indexed {
-  readonly id: string;
-  readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null;
-  readonly createdByPtr: NodeReference | null;
-  readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null;
-  readonly updatedByPtr: NodeReference | null;
-}
+/**
+ * A Node that is indexed in secondary search storage (OLTP).
+ */
+export interface Indexed extends IsTracked {}
 /* ==== DESTACK_GENERATED_END:TRAIT:13 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:21 ==== */
-export interface Resource {
-  readonly id: string;
-  readonly materialization: MaterializationType;
-  readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null;
-  readonly createdByPtr: NodeReference | null;
-  readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null;
-  readonly updatedByPtr: NodeReference | null;
+/**
+ * A Resource represents an external asset.
+ * The lifecycle of a Resource may be managed by some provisioner.
+ */
+export interface Resource extends Entity {
+  /**
+   * Resource.status
+   */
   status: ResourceStatus;
+
+  /**
+   * Resource.targetStatus
+   */
   targetStatus: Temporal.ZonedDateTime | null;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:21 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:4010 ==== */
-export interface Metric {
-  readonly id: string;
-  get prototype(): (Node & IsCustomNode) | null | null;
-  set prototype(value: (Node & IsCustomNode) | null);
-  prototypePtr: NodeReference | null;
-  readonly materialization: MaterializationType;
-  readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null;
-  readonly createdByPtr: NodeReference | null;
-  readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null;
-  readonly updatedByPtr: NodeReference | null;
-  readonly orderKey: string;
-  get source(): Script | null | null;
-  readonly sourcePtr: NodeReference | null;
-}
+/**
+ * An Entity that represents a Metric.
+ */
+export interface Metric extends Entity, IsCustomNodeDefinition, IsSourceable {}
 /* ==== DESTACK_GENERATED_END:TRAIT:4010 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:4011 ==== */
-export interface Measurement {
-  readonly id: string;
+/**
+ * An Analytic that represents a Measurement.
+ */
+export interface Measurement extends Analytic, IsCustomNode {
   get definition(): (Node & Metric) | null;
   readonly definitionPtr: NodeReference;
-  readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null;
-  readonly createdByPtr: NodeReference | null;
-  readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null;
-  readonly updatedByPtr: NodeReference | null;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:4011 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:22 ==== */
-export interface Event {
-  readonly id: string;
-  get space(): Space | null | null;
-  readonly spacePtr: NodeReference | null;
-  readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null;
-  readonly createdByPtr: NodeReference | null;
-  readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null;
-  readonly updatedByPtr: NodeReference | null;
-  get node(): Node | null | null;
+/**
+ * An Event is a Node that represents an Event.
+ * Events always belong to a specific Space.
+ */
+export interface Event extends Spatial, Particle, Analytic, Indexed, IsFrozen {
+  get node(): Node | null;
   set node(value: Node | null);
   nodePtr: NodeReference | null;
 }

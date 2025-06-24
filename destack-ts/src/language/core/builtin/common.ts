@@ -1,4 +1,7 @@
 /* ==== DESTACK_GENERATED_START:ENUM:50000 ==== */
+/**
+ * EnumType
+ */
 export enum EnumType {
   SPACE_STATUS = 1,
   USER_STATUS = 20,
@@ -137,6 +140,9 @@ export enum EnumType {
 /* ==== DESTACK_GENERATED_END:ENUM:50000 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50002 ==== */
+/**
+ * StructType
+ */
 export enum StructType {
   VALUE = 2500,
   TYPE = 2501,
@@ -209,6 +215,9 @@ export enum StructType {
 /* ==== DESTACK_GENERATED_END:ENUM:50002 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50001 ==== */
+/**
+ * NodeType
+ */
 export enum NodeType {
   SPACE = 1,
   HANDLE = 10,
@@ -313,6 +322,9 @@ export enum NodeType {
 /* ==== DESTACK_GENERATED_END:ENUM:50001 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50003 ==== */
+/**
+ * TraitType
+ */
 export enum TraitType {
   GLOBAL = 1,
   SPATIAL = 2,
@@ -366,6 +378,9 @@ export enum TraitType {
 /* ==== DESTACK_GENERATED_END:ENUM:50003 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50020 ==== */
+/**
+ * StoreZone
+ */
 export enum StoreZone {
   GLOBAL = 1,
   SPATIAL = 2,
@@ -374,6 +389,9 @@ export enum StoreZone {
 /* ==== DESTACK_GENERATED_END:ENUM:50020 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50021 ==== */
+/**
+ * StoreType
+ */
 export enum StoreType {
   GLOBAL_ENTITY = 100,
   SPATIAL_ENTITY = 200,
@@ -382,6 +400,9 @@ export enum StoreType {
 /* ==== DESTACK_GENERATED_END:ENUM:50021 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50022 ==== */
+/**
+ * StoreImplementation
+ */
 export enum StoreImplementation {
   MEMORY = 1,
   POSTGRES = 10,
@@ -389,6 +410,9 @@ export enum StoreImplementation {
 /* ==== DESTACK_GENERATED_END:ENUM:50022 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50031 ==== */
+/**
+ * RuntimeType
+ */
 export enum RuntimeType {
   PYTHON = 1,
   JAVASCRIPT = 2,
@@ -396,6 +420,9 @@ export enum RuntimeType {
 /* ==== DESTACK_GENERATED_END:ENUM:50031 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50030 ==== */
+/**
+ * PlatformType
+ */
 export enum PlatformType {
   SYSTEM = 1,
   RUNTIME = 2,
@@ -404,6 +431,9 @@ export enum PlatformType {
 /* ==== DESTACK_GENERATED_END:ENUM:50030 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50040 ==== */
+/**
+ * OperatingSystem
+ */
 export enum OperatingSystem {
   LINUX = 1,
   WINDOWS = 2,
@@ -414,6 +444,9 @@ export enum OperatingSystem {
 /* ==== DESTACK_GENERATED_END:ENUM:50040 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:4500 ==== */
+/**
+ * EnvironmentType
+ */
 export enum EnvironmentType {
   SYSTEM = 1,
   DEVELOPMENT = 3,
@@ -424,6 +457,9 @@ export enum EnvironmentType {
 /* ==== DESTACK_GENERATED_END:ENUM:4500 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50100 ==== */
+/**
+ * NodePermission
+ */
 export enum NodePermission {
   READ = 1,
   ADD = 10,
@@ -433,6 +469,9 @@ export enum NodePermission {
 /* ==== DESTACK_GENERATED_END:ENUM:50100 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50013 ==== */
+/**
+ * MaterializationType
+ */
 export enum MaterializationType {
   PARTIAL_NODE = 1,
   PARTIAL_GRAPH = 2,
@@ -441,6 +480,9 @@ export enum MaterializationType {
 /* ==== DESTACK_GENERATED_END:ENUM:50013 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:9500 ==== */
+/**
+ * ModeType
+ */
 export enum ModeType {
   EDIT = 1,
   DEBUG = 2,
@@ -451,6 +493,9 @@ export enum ModeType {
 /* ==== DESTACK_GENERATED_END:ENUM:9500 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:9501 ==== */
+/**
+ * ToolType
+ */
 export enum ToolType {
   SELECT = 1,
   DRAG = 2,
@@ -460,6 +505,9 @@ export enum ToolType {
 /* ==== DESTACK_GENERATED_END:ENUM:9501 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:7500 ==== */
+/**
+ * Cloud
+ */
 export enum Cloud {
   PRIVATE = 1,
   AWS = 10,
@@ -470,6 +518,9 @@ export enum Cloud {
 /* ==== DESTACK_GENERATED_END:ENUM:7500 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:7503 ==== */
+/**
+ * RegionContinent
+ */
 export enum RegionContinent {
   EUROPE = 1000,
   NORTH_AMERICA = 2000,
@@ -483,6 +534,9 @@ export enum RegionContinent {
 /* ==== DESTACK_GENERATED_END:ENUM:7503 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:7502 ==== */
+/**
+ * RegionArea
+ */
 export enum RegionArea {
   EUROPE_CENTRAL = 1000,
   NORTH_AMERICA_EAST = 2000,
@@ -499,6 +553,9 @@ export enum RegionArea {
 /* ==== DESTACK_GENERATED_END:ENUM:7502 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:7501 ==== */
+/**
+ * Region
+ */
 export enum Region {
   ZURICH = 1000,
   FRANKFURT = 1010,
@@ -515,6 +572,9 @@ export enum Region {
 /* ==== DESTACK_GENERATED_END:ENUM:7501 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:2581 ==== */
+/**
+ * EdgeType
+ */
 export enum EdgeType {
   PARENT = 1,
   REGULAR = 5,
@@ -522,6 +582,9 @@ export enum EdgeType {
 /* ==== DESTACK_GENERATED_END:ENUM:2581 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:2583 ==== */
+/**
+ * CascadeAction
+ */
 export enum CascadeAction {
   RESTRICT = 1,
   CASCADE = 2,
@@ -530,6 +593,9 @@ export enum CascadeAction {
 /* ==== DESTACK_GENERATED_END:ENUM:2583 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:2582 ==== */
+/**
+ * EdgeDirection
+ */
 export enum EdgeDirection {
   PARENT = 1,
   CHILD = 2,
@@ -538,6 +604,9 @@ export enum EdgeDirection {
 /* ==== DESTACK_GENERATED_END:ENUM:2582 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:2560 ==== */
+/**
+ * PrimitiveType
+ */
 export enum PrimitiveType {
   BOOLEAN = 1,
   INT16 = 4,
@@ -558,6 +627,9 @@ export enum PrimitiveType {
 /* ==== DESTACK_GENERATED_END:ENUM:2560 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:2561 ==== */
+/**
+ * TypeCardinality
+ */
 export enum TypeCardinality {
   SCALAR = 1,
   LIST = 2,
@@ -566,6 +638,9 @@ export enum TypeCardinality {
 /* ==== DESTACK_GENERATED_END:ENUM:2561 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:2562 ==== */
+/**
+ * ScalarType
+ */
 export enum ScalarType {
   PRIMITIVE = 1,
   ENUM = 2,
@@ -576,6 +651,9 @@ export enum ScalarType {
 /* ==== DESTACK_GENERATED_END:ENUM:2562 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:2563 ==== */
+/**
+ * DefaultFactory
+ */
 export enum DefaultFactory {
   UUID = 1,
   NOW = 2,
@@ -584,6 +662,9 @@ export enum DefaultFactory {
 /* ==== DESTACK_GENERATED_END:ENUM:2563 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:520 ==== */
+/**
+ * RoleType
+ */
 export enum RoleType {
   SYSTEM = 1,
   OWNER = 2,
@@ -595,6 +676,9 @@ export enum RoleType {
 /* ==== DESTACK_GENERATED_END:ENUM:520 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:2590 ==== */
+/**
+ * ResourceStatus
+ */
 export enum ResourceStatus {
   PENDING = 1,
   CREATING = 2,
@@ -609,6 +693,9 @@ export enum ResourceStatus {
 /* ==== DESTACK_GENERATED_END:ENUM:2590 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:100 ==== */
+/**
+ * ClientType
+ */
 export enum ClientType {
   WEB = 1,
   BROWSER_PLUGIN = 2,
@@ -619,6 +706,9 @@ export enum ClientType {
 /* ==== DESTACK_GENERATED_END:ENUM:100 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:7504 ==== */
+/**
+ * Tenancy
+ */
 export enum Tenancy {
   DEDICATED = 1,
   SHARED = 2,

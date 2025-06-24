@@ -1,20 +1,13 @@
 import {
   Axis2,
-  Entity,
   Graph,
-  IsDeletable,
-  IsOrdered,
   IsSubject,
-  IsTaggable,
-  IsTracked,
-  IsVisual,
   MaterializationType,
   Node,
   NodeReference,
   NodeType,
   QueryConnection,
   Session,
-  Spatial,
   Struct,
   StructType,
   Supergraph,
@@ -27,6 +20,9 @@ import { View } from "@destack/language/view";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12030 ==== */
+/**
+ * ShadowType
+ */
 export enum ShadowType {
   STYLE = 2,
   BOX = 10,
@@ -35,6 +31,9 @@ export enum ShadowType {
 /* ==== DESTACK_GENERATED_END:ENUM:12030 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12031 ==== */
+/**
+ * ShadowPosition
+ */
 export enum ShadowPosition {
   OUTSIDE = 1,
   INSIDE = 2,
@@ -42,12 +41,22 @@ export enum ShadowPosition {
 /* ==== DESTACK_GENERATED_END:ENUM:12031 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12012 ==== */
+/**
+ * A shadow value.
+ */
 export class Shadow extends Struct {
   static metatype: StructType = StructType.SHADOW;
   static __isFrozen__: boolean = false;
 
+  /**
+   * ShadowBase.type
+   */
   type: ShadowType;
-  get style(): ShadowStyle | null | null {
+
+  /**
+   * style
+   */
+  get style(): ShadowStyle | null {
     const nodePtr: NodeReference | null = this.stylePtr;
     if (nodePtr !== null) {
       if (this._supergraph === null) {
@@ -57,7 +66,6 @@ export class Shadow extends Struct {
     }
     return null;
   }
-
   set style(value: ShadowStyle | null) {
     if (value == null) {
       this.stylePtr = null;
@@ -66,11 +74,35 @@ export class Shadow extends Struct {
     }
   }
   stylePtr: NodeReference | null;
+
+  /**
+   * ShadowBase.color
+   */
   color: Color | null;
+
+  /**
+   * ShadowBase.position
+   */
   position: ShadowPosition;
+
+  /**
+   * ShadowBase.offset
+   */
   offset: Axis2 | null;
+
+  /**
+   * ShadowBase.blur
+   */
   blur: number | null;
+
+  /**
+   * ShadowBase.spread
+   */
   spread: number | null;
+
+  /**
+   * ShadowBase.diffusion
+   */
   diffusion: number | null;
 
   constructor(options: {
@@ -144,10 +176,10 @@ export class Shadow extends Struct {
 /* ==== DESTACK_GENERATED_END:STRUCT:12012 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:12024 ==== */
-export class ShadowStyle
-  extends Node
-  implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsTaggable, IsVisual, Style
-{
+/**
+ * A shadow style.
+ */
+export class ShadowStyle extends Node implements Style {
   static metatype: NodeType = NodeType.SHADOW_STYLE;
   static __traits__: TraitType[] = [
     TraitType.STYLE,
@@ -206,50 +238,117 @@ export class ShadowStyle
   ];
   static __descendantTypes__: NodeType[] = [NodeType.TAGGING];
 
-  get parent(): Scene | (Node & View) | Theme | null | null {
+  /**
+   * Style.parent
+   */
+  get parent(): Scene | (Node & View) | Theme | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Scene | (Node & View) | Theme | null | null;
+      return this._supergraph.get(nodePtr.id) as Scene | (Node & View) | Theme | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
   readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * IsOrdered.orderKey
+   */
   readonly orderKey: string;
+
+  /**
+   * ShadowBase.type
+   */
   type: ShadowType;
+
+  /**
+   * HasName.name
+   */
   name: string;
+
+  /**
+   * ShadowBase.color
+   */
   color: Color | null;
+
+  /**
+   * ShadowBase.position
+   */
   position: ShadowPosition;
+
+  /**
+   * ShadowBase.offset
+   */
   offset: Axis2 | null;
+
+  /**
+   * ShadowBase.blur
+   */
   blur: number | null;
+
+  /**
+   * ShadowBase.spread
+   */
   spread: number | null;
+
+  /**
+   * ShadowBase.diffusion
+   */
   diffusion: number | null;
 
   constructor(options: {

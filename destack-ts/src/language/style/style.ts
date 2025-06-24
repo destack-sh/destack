@@ -1,21 +1,8 @@
-import { IsSubject, MaterializationType, Node, NodeReference } from "@destack/language/core";
-import { Space } from "@destack/language/space";
-import { Temporal } from "temporal-polyfill";
+import { Entity, HasName, IsDeletable, IsOrdered, IsTaggable, IsVisual, Spatial } from "@destack/language/core";
 
 /* ==== DESTACK_GENERATED_START:TRAIT:12000 ==== */
-export interface Style {
-  readonly id: string;
-  get space(): Space | null | null;
-  readonly spacePtr: NodeReference | null;
-  readonly materialization: MaterializationType;
-  readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null;
-  readonly createdByPtr: NodeReference | null;
-  readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null;
-  readonly updatedByPtr: NodeReference | null;
-  readonly deletedAt: Temporal.ZonedDateTime | null;
-  readonly orderKey: string;
-  name: string;
-}
+/**
+ * A Style is a style definition.
+ */
+export interface Style extends Spatial, Entity, IsDeletable, IsOrdered, HasName, IsTaggable, IsVisual {}
 /* ==== DESTACK_GENERATED_END:TRAIT:12000 ==== */

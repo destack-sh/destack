@@ -1,13 +1,13 @@
 import {
   Entity,
   Graph,
+  HasName,
   IsDeletable,
   IsJoinable,
   IsOwnable,
   IsOwner,
   IsSubject,
   IsTaggable,
-  IsTracked,
   MaterializationType,
   Node,
   NodeReference,
@@ -24,6 +24,9 @@ import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:5500 ==== */
+/**
+ * ThreadStatus
+ */
 export enum ThreadStatus {
   OPEN = 10,
   CLOSED = 30,
@@ -31,7 +34,12 @@ export enum ThreadStatus {
 /* ==== DESTACK_GENERATED_END:ENUM:5500 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:5500 ==== */
-export class Thread extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOwnable, IsJoinable, IsTaggable {
+/**
+ * A Thread for communicating with Messages.
+ * Threads may be nested to organize conversations and work.
+ * NOTE :Incomplete: multiple Channels, nested Threads, ThreadType & "monologue" Threads, ...?
+ */
+export class Thread extends Node implements Spatial, Entity, HasName, IsTaggable, IsDeletable, IsJoinable, IsOwnable {
   static metatype: NodeType = NodeType.THREAD;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
@@ -69,50 +77,84 @@ export class Thread extends Node implements Spatial, Entity, IsTracked, IsDeleta
     NodeType.INVITE,
   ];
 
-  get parent(): Folder | Thread | null | null {
+  /**
+   * Thread.parent
+   */
+  get parent(): Folder | Thread | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Folder | Thread | null | null;
+      return this._supergraph.get(nodePtr.id) as Folder | Thread | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
   readonly deletedAt: Temporal.ZonedDateTime | null;
-  get ownedBy(): (Node & IsOwner) | null | null {
+
+  /**
+   * IsOwnable.ownedBy
+   */
+  get ownedBy(): (Node & IsOwner) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null;
     }
     return null;
   }
-
   set ownedBy(node: (Node & IsOwner) | null) {
     if (node === null) {
       this.ownedByPtr = null;
@@ -121,6 +163,10 @@ export class Thread extends Node implements Spatial, Entity, IsTracked, IsDeleta
     }
   }
   ownedByPtr: NodeReference | null;
+
+  /**
+   * Thread.name
+   */
   name: string;
 
   constructor(options: {

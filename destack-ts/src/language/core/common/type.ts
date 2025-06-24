@@ -17,6 +17,9 @@ import {
 } from "@destack/language/core";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2570 ==== */
+/**
+ * StringFormat
+ */
 export enum StringFormat {
   NAME = 1,
   SLUG = 2,
@@ -30,6 +33,9 @@ export enum StringFormat {
 /* ==== DESTACK_GENERATED_END:ENUM:2570 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:2571 ==== */
+/**
+ * NumberFormat
+ */
 export enum NumberFormat {
   PERCENTAGE = 1,
   ANGLE = 2,
@@ -38,13 +44,31 @@ export enum NumberFormat {
 /* ==== DESTACK_GENERATED_END:ENUM:2571 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2503 ==== */
+/**
+ * The constraint of a string.
+ */
 export class StringConstraint extends StructFrozen {
   static metatype: StructType = StructType.STRING_CONSTRAINT;
   static __isFrozen__: boolean = true;
 
+  /**
+   * StringConstraint.format
+   */
   readonly format: StringFormat | null;
+
+  /**
+   * StringConstraint.regex
+   */
   readonly regex: string | null;
+
+  /**
+   * StringConstraint.startsWith
+   */
   readonly startsWith: string | null;
+
+  /**
+   * StringConstraint.endsWith
+   */
   readonly endsWith: string | null;
 
   constructor(options: {
@@ -91,15 +115,41 @@ export class StringConstraint extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:2503 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2502 ==== */
+/**
+ * The constraint of a number.
+ */
 export class NumberConstraint extends StructFrozen {
   static metatype: StructType = StructType.NUMBER_CONSTRAINT;
   static __isFrozen__: boolean = true;
 
+  /**
+   * NumberConstraint.format
+   */
   readonly format: NumberFormat | null;
+
+  /**
+   * NumberConstraint.minValue
+   */
   readonly minValue: number | null;
+
+  /**
+   * NumberConstraint.maxValue
+   */
   readonly maxValue: number | null;
+
+  /**
+   * NumberConstraint.stepValue
+   */
   readonly stepValue: number | null;
+
+  /**
+   * NumberConstraint.precision
+   */
   readonly precision: number | null;
+
+  /**
+   * NumberConstraint.scale
+   */
   readonly scale: number | null;
 
   constructor(options: {
@@ -152,11 +202,21 @@ export class NumberConstraint extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:2502 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2504 ==== */
+/**
+ * The constraint of a collection.
+ */
 export class CollectionConstraint extends StructFrozen {
   static metatype: StructType = StructType.COLLECTION_CONSTRAINT;
   static __isFrozen__: boolean = true;
 
+  /**
+   * CollectionConstraint.minLength
+   */
   readonly minLength: number | null;
+
+  /**
+   * CollectionConstraint.maxLength
+   */
   readonly maxLength: number | null;
 
   constructor(options: {
@@ -197,11 +257,21 @@ export class CollectionConstraint extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:2504 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2505 ==== */
+/**
+ * The constraint of a node.
+ */
 export class NodeConstraint extends StructFrozen {
   static metatype: StructType = StructType.NODE_CONSTRAINT;
   static __isFrozen__: boolean = true;
 
+  /**
+   * NodeConstraint.nodeTypes
+   */
   readonly nodeTypes: Array<NodeType>;
+
+  /**
+   * NodeConstraint.nodeTraits
+   */
   readonly nodeTraits: Array<TraitType>;
 
   constructor(options: {
@@ -248,16 +318,42 @@ export class NodeConstraint extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:2505 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2501 ==== */
+/**
+ * A Type in the type system.
+ */
 export class Type extends StructFrozen {
   static metatype: StructType = StructType.TYPE;
   static __isFrozen__: boolean = true;
 
+  /**
+   * Type.cardinality
+   */
   readonly cardinality: TypeCardinality;
+
+  /**
+   * Type.scalarType
+   */
   readonly scalarType: ScalarType;
+
+  /**
+   * Type.primitiveType
+   */
   readonly primitiveType: PrimitiveType | null;
+
+  /**
+   * Type.enumType
+   */
   readonly enumType: EnumType | null;
+
+  /**
+   * Type.nodeType
+   */
   readonly nodeType: NodeType | null;
-  get nodeDefinition(): CustomEntityDefinition | null | null {
+
+  /**
+   * node_definition
+   */
+  get nodeDefinition(): CustomEntityDefinition | null {
     const nodePtr: NodeReference | null = this.nodeDefinitionPtr;
     if (nodePtr !== null) {
       if (this._supergraph === null) {
@@ -268,8 +364,16 @@ export class Type extends StructFrozen {
     return null;
   }
   readonly nodeDefinitionPtr: NodeReference | null;
+
+  /**
+   * Type.structType
+   */
   readonly structType: StructType | null;
-  get baseType(): Node | null | null {
+
+  /**
+   * base_type
+   */
+  get baseType(): Node | null {
     const nodePtr: NodeReference | null = this.baseTypePtr;
     if (nodePtr !== null) {
       if (this._supergraph === null) {
@@ -280,14 +384,50 @@ export class Type extends StructFrozen {
     return null;
   }
   readonly baseTypePtr: NodeReference | null;
+
+  /**
+   * Type.keyType
+   */
   readonly keyType: Type | null;
+
+  /**
+   * Type.isRequired
+   */
   readonly isRequired: boolean | null;
+
+  /**
+   * Type.isVariable
+   */
   readonly isVariable: boolean | null;
+
+  /**
+   * Type.defaultValue
+   */
   readonly defaultValue: Value | null;
+
+  /**
+   * Type.defaultFactory
+   */
   readonly defaultFactory: DefaultFactory | null;
+
+  /**
+   * Type.collectionConstraint
+   */
   readonly collectionConstraint: CollectionConstraint | null;
+
+  /**
+   * Type.stringConstraint
+   */
   readonly stringConstraint: StringConstraint | null;
+
+  /**
+   * Type.numberConstraint
+   */
   readonly numberConstraint: NumberConstraint | null;
+
+  /**
+   * Type.nodeConstraint
+   */
   readonly nodeConstraint: NodeConstraint | null;
 
   constructor(options: {

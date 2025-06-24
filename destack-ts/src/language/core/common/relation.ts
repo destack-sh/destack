@@ -14,6 +14,9 @@ import {
 import { assertNever } from "@destack/utils/functools";
 
 /* ==== DESTACK_GENERATED_START:ENUM:50010 ==== */
+/**
+ * RelationType
+ */
 export enum RelationType {
   BUILTIN_NODE = 1,
   CUSTOM_NODE = 2,
@@ -22,6 +25,9 @@ export enum RelationType {
 /* ==== DESTACK_GENERATED_END:ENUM:50010 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50011 ==== */
+/**
+ * AttributeType
+ */
 export enum AttributeType {
   PROPERTY = 1,
   FIELD = 2,
@@ -29,6 +35,9 @@ export enum AttributeType {
 /* ==== DESTACK_GENERATED_END:ENUM:50011 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50012 ==== */
+/**
+ * PropertyReferenceType
+ */
 export enum PropertyReferenceType {
   NODE = 1,
   TRAIT = 2,
@@ -37,11 +46,21 @@ export enum PropertyReferenceType {
 /* ==== DESTACK_GENERATED_END:ENUM:50012 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50000 ==== */
+/**
+ * The scope in the Space graph.
+ */
 export class Scope extends StructFrozen {
   static metatype: StructType = StructType.SCOPE;
   static __isFrozen__: boolean = true;
 
+  /**
+   * Scope.region
+   */
   readonly region: Region | null;
+
+  /**
+   * Scope.spaceId
+   */
   readonly spaceId: string | null;
 
   constructor(options: {
@@ -82,13 +101,27 @@ export class Scope extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:50000 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50107 ==== */
+/**
+ * Reference to a Node "type" (builtin or custom, i.e. a "relation").
+ */
 export class RelationReference extends StructFrozen {
   static metatype: StructType = StructType.RELATION_REFERENCE;
   static __isFrozen__: boolean = true;
 
+  /**
+   * RelationReference.type
+   */
   readonly type: RelationType;
+
+  /**
+   * RelationReference.nodeType
+   */
   readonly nodeType: NodeType | null;
-  get definition(): CustomEntityDefinition | null | null {
+
+  /**
+   * definition
+   */
+  get definition(): CustomEntityDefinition | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr !== null) {
       if (this._supergraph === null) {
@@ -99,6 +132,10 @@ export class RelationReference extends StructFrozen {
     return null;
   }
   readonly definitionPtr: NodeReference | null;
+
+  /**
+   * RelationReference.traitType
+   */
   readonly traitType: TraitType | null;
 
   constructor(options: {
@@ -164,13 +201,27 @@ export class RelationReference extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:50107 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50108 ==== */
+/**
+ * Reference to a Field or Property.
+ */
 export class AttributeReference extends StructFrozen {
   static metatype: StructType = StructType.ATTRIBUTE_REFERENCE;
   static __isFrozen__: boolean = true;
 
+  /**
+   * AttributeReference.type
+   */
   readonly type: AttributeType;
+
+  /**
+   * AttributeReference.propPtr
+   */
   readonly propPtr: PropertyReference | null;
-  get field(): Field | null | null {
+
+  /**
+   * field
+   */
+  get field(): Field | null {
     const nodePtr: NodeReference | null = this.fieldPtr;
     if (nodePtr !== null) {
       if (this._supergraph === null) {
@@ -244,14 +295,37 @@ export class AttributeReference extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:50108 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50003 ==== */
+/**
+ * A reference to a builtin object's Property.
+ * If type is unset, this refers to a base property in one of the base BuiltinObject types.
+ */
 export class PropertyReference extends StructFrozen {
   static metatype: StructType = StructType.PROPERTY_REFERENCE;
   static __isFrozen__: boolean = true;
 
+  /**
+   * PropertyReference.type
+   */
   readonly type: PropertyReferenceType;
+
+  /**
+   * PropertyReference.nodeType
+   */
   readonly nodeType: NodeType | null;
+
+  /**
+   * PropertyReference.traitType
+   */
   readonly traitType: TraitType | null;
+
+  /**
+   * PropertyReference.structType
+   */
   readonly structType: StructType | null;
+
+  /**
+   * PropertyReference.id
+   */
   readonly id: number;
 
   constructor(options: {
@@ -307,13 +381,31 @@ export class PropertyReference extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:50003 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50002 ==== */
+/**
+ * A reference to a Node.
+ */
 export class NodeReference extends StructFrozen {
   static metatype: StructType = StructType.NODE_REFERENCE;
   static __isFrozen__: boolean = true;
 
+  /**
+   * NodeReference.nodeType
+   */
   readonly nodeType: NodeType;
+
+  /**
+   * NodeReference.id
+   */
   readonly id: string;
+
+  /**
+   * NodeReference.spaceId
+   */
   readonly spaceId: string | null;
+
+  /**
+   * NodeReference.definitionId
+   */
   readonly definitionId: string | null;
 
   constructor(options: {

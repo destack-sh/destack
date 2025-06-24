@@ -1,23 +1,17 @@
 import {
-  Analytic,
   Entity,
   Event,
   Global,
   Graph,
-  Indexed,
-  IsFrozen,
   IsOwnable,
   IsSubject,
-  IsTracked,
   LikeInvite,
   MaterializationType,
   Node,
   NodeReference,
   NodeType,
-  Particle,
   QueryConnection,
   Session,
-  Spatial,
   StructType,
   Supergraph,
   TraitType,
@@ -26,6 +20,9 @@ import { Space, User } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:31 ==== */
+/**
+ * FriendshipInviteEventType
+ */
 export enum FriendshipInviteEventType {
   SENT = 1,
   RESCINDED = 2,
@@ -35,7 +32,10 @@ export enum FriendshipInviteEventType {
 /* ==== DESTACK_GENERATED_END:ENUM:31 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:30 ==== */
-export class Friendship extends Node implements Global, Entity, IsTracked {
+/**
+ * A Friendship between two Users.
+ */
+export class Friendship extends Node implements Global, Entity {
   static metatype: NodeType = NodeType.FRIENDSHIP;
   static __traits__: TraitType[] = [TraitType.GLOBAL, TraitType.ENTITY, TraitType.TRACKED];
   static __rootType__: NodeType | null = null;
@@ -44,33 +44,60 @@ export class Friendship extends Node implements Global, Entity, IsTracked {
   static __ancestorTypes__: NodeType[] = [];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): Node | null | null {
+  /**
+   * Trait.parent
+   */
+  get parent(): Node | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * Friendship.userA
+   */
   get userA(): User | null {
     const nodePtr: NodeReference | null = this.userAPtr;
     if (nodePtr !== null) {
@@ -79,6 +106,10 @@ export class Friendship extends Node implements Global, Entity, IsTracked {
     return null;
   }
   readonly userAPtr: NodeReference;
+
+  /**
+   * Friendship.userB
+   */
   get userB(): User | null {
     const nodePtr: NodeReference | null = this.userBPtr;
     if (nodePtr !== null) {
@@ -217,10 +248,10 @@ export class Friendship extends Node implements Global, Entity, IsTracked {
 /* ==== DESTACK_GENERATED_END:NODE:30 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:32 ==== */
-export class FriendshipInviteEvent
-  extends Node
-  implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked
-{
+/**
+ * A Event regarding a Friendship Invite.
+ */
+export class FriendshipInviteEvent extends Node implements Event {
   static metatype: NodeType = NodeType.FRIENDSHIP_INVITE_EVENT;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
@@ -237,41 +268,72 @@ export class FriendshipInviteEvent
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): Space | null | null {
+  /**
+   * Spatial.parent
+   */
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * FriendshipInviteEvent.type
+   */
   type: FriendshipInviteEventType;
+
+  /**
+   * FriendshipInviteEvent.node
+   */
   get node(): FriendshipInvite | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr !== null) {
@@ -279,7 +341,6 @@ export class FriendshipInviteEvent
     }
     return null;
   }
-
   set node(node: FriendshipInvite) {
     this.nodePtr = node.toRef();
   }
@@ -418,7 +479,10 @@ export class FriendshipInviteEvent
 /* ==== DESTACK_GENERATED_END:NODE:32 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:31 ==== */
-export class FriendshipInvite extends Node implements Global, Entity, IsTracked, IsOwnable, LikeInvite {
+/**
+ * An invite to be friends with another User.
+ */
+export class FriendshipInvite extends Node implements Global, Entity, LikeInvite, IsOwnable {
   static metatype: NodeType = NodeType.FRIENDSHIP_INVITE;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
@@ -433,33 +497,60 @@ export class FriendshipInvite extends Node implements Global, Entity, IsTracked,
   static __ancestorTypes__: NodeType[] = [];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): Node | null | null {
+  /**
+   * Trait.parent
+   */
+  get parent(): Node | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * FriendshipInvite.ownedBy
+   */
   get ownedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
@@ -467,11 +558,14 @@ export class FriendshipInvite extends Node implements Global, Entity, IsTracked,
     }
     return null;
   }
-
   set ownedBy(node: Node & IsSubject) {
     this.ownedByPtr = node.toRef();
   }
   ownedByPtr: NodeReference;
+
+  /**
+   * LikeInvite.member
+   */
   get member(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.memberPtr;
     if (nodePtr !== null) {
@@ -479,7 +573,6 @@ export class FriendshipInvite extends Node implements Global, Entity, IsTracked,
     }
     return null;
   }
-
   set member(node: Node & IsSubject) {
     this.memberPtr = node.toRef();
   }

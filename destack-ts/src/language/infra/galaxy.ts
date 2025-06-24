@@ -1,12 +1,26 @@
 import { Region, Session, Struct, StructType, Supergraph } from "@destack/language/core";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:7601 ==== */
+/**
+ * GalaxyInfo
+ */
 export class GalaxyInfo extends Struct {
   static metatype: StructType = StructType.GALAXY_INFO;
   static __isFrozen__: boolean = false;
 
+  /**
+   * GalaxyBase.region
+   */
   region: Region;
+
+  /**
+   * GalaxyBase.name
+   */
   name: string;
+
+  /**
+   * GalaxyBase.host
+   */
   host: string;
 
   constructor(options: {

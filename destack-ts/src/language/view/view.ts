@@ -1,32 +1,54 @@
-import { Dimension, IsSubject, MaterializationType, Node, NodeReference, Position } from "@destack/language/core";
-import { Script } from "@destack/language/logic";
-import { Space } from "@destack/language/space";
-import { Temporal } from "temporal-polyfill";
+import {
+  Dimension,
+  Entity,
+  HasName,
+  IsDeletable,
+  IsOrdered,
+  IsScriptable,
+  IsTaggable,
+  IsVisual,
+  Position,
+  Spatial,
+} from "@destack/language/core";
 
 /* ==== DESTACK_GENERATED_START:TRAIT:9001 ==== */
-export interface View {
-  readonly id: string;
-  get space(): Space | null | null;
-  readonly spacePtr: NodeReference | null;
-  readonly materialization: MaterializationType;
-  readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null;
-  readonly createdByPtr: NodeReference | null;
-  readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null;
-  readonly updatedByPtr: NodeReference | null;
-  readonly deletedAt: Temporal.ZonedDateTime | null;
-  readonly orderKey: string;
-  name: string;
+/**
+ * A View is a graphical interface.
+ */
+export interface View extends Spatial, Entity, IsDeletable, IsOrdered, HasName, IsTaggable, IsScriptable, IsVisual {
+  /**
+   * View.position
+   */
   position: Position | null;
+
+  /**
+   * View.width
+   */
   width: Dimension | null;
+
+  /**
+   * View.height
+   */
   height: Dimension | null;
+
+  /**
+   * View.minWidth
+   */
   minWidth: Dimension | null;
+
+  /**
+   * View.minHeight
+   */
   minHeight: Dimension | null;
+
+  /**
+   * View.maxWidth
+   */
   maxWidth: Dimension | null;
+
+  /**
+   * View.maxHeight
+   */
   maxHeight: Dimension | null;
-  get script(): Script | null | null;
-  set script(value: Script | null);
-  scriptPtr: NodeReference | null;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:9001 ==== */

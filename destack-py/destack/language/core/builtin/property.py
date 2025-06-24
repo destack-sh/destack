@@ -343,6 +343,7 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
     name: str = UNSET  # name from LHS of assignment
     description: str | None = None
     component: type["BuiltinObjectBase"] = UNSET  # builtin object component
+    original_component: type["BuiltinObjectBase"] = UNSET  # original component (first in chain)
 
     # pointers
     ptr_prop: Optional["Property"] = None  # wired representation for pointers
@@ -388,7 +389,13 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
     __hash__ = hash  # type: ignore
 
     def clone(self):
-        return dataclasses.replace(self, component=None, runtime_prop=None, ptr_prop=None)
+        return dataclasses.replace(
+            self,
+            component=None,
+            original_component=self.original_component,
+            runtime_prop=None,
+            ptr_prop=None,
+        )
 
     def to_ref(self) -> "PropertyReference":
         """A pointer to this property. `to_ref()` for consistency with `Node.to_ref()`."""

@@ -1,12 +1,14 @@
 import {
   Entity,
   Graph,
+  HasIcon,
+  HasName,
+  HasSlug,
   Icon,
   IsDeletable,
   IsOwnable,
   IsOwner,
   IsSubject,
-  IsTracked,
   Length,
   MaterializationType,
   Node,
@@ -25,6 +27,9 @@ import { CustomViewDefinition } from "@destack/language/view";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:9030 ==== */
+/**
+ * VariantType
+ */
 export enum VariantType {
   DYNAMIC = 1,
   BREAKPOINT = 2,
@@ -33,6 +38,9 @@ export enum VariantType {
 /* ==== DESTACK_GENERATED_END:ENUM:9030 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:9031 ==== */
+/**
+ * VariantStateType
+ */
 export enum VariantStateType {
   LOADING = 10,
   ERROR = 11,
@@ -40,7 +48,10 @@ export enum VariantStateType {
 /* ==== DESTACK_GENERATED_END:ENUM:9031 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:9030 ==== */
-export class Variant extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOwnable {
+/**
+ * A Variant is an alternative presentation of a visual.
+ */
+export class Variant extends Node implements Spatial, Entity, HasName, HasSlug, HasIcon, IsOwnable, IsDeletable {
   static metatype: NodeType = NodeType.VARIANT;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
@@ -69,50 +80,84 @@ export class Variant extends Node implements Spatial, Entity, IsTracked, IsDelet
   ];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): Scene | Layer | CustomViewDefinition | null | null {
+  /**
+   * Variant.parent
+   */
+  get parent(): Scene | Layer | CustomViewDefinition | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Scene | Layer | CustomViewDefinition | null | null;
+      return this._supergraph.get(nodePtr.id) as Scene | Layer | CustomViewDefinition | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
   readonly deletedAt: Temporal.ZonedDateTime | null;
-  get ownedBy(): (Node & IsOwner) | null | null {
+
+  /**
+   * IsOwnable.ownedBy
+   */
+  get ownedBy(): (Node & IsOwner) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null;
     }
     return null;
   }
-
   set ownedBy(node: (Node & IsOwner) | null) {
     if (node === null) {
       this.ownedByPtr = null;
@@ -121,13 +166,45 @@ export class Variant extends Node implements Spatial, Entity, IsTracked, IsDelet
     }
   }
   ownedByPtr: NodeReference | null;
+
+  /**
+   * Variant.type
+   */
   type: VariantType;
+
+  /**
+   * HasName.name
+   */
   name: string;
+
+  /**
+   * HasSlug.slug
+   */
   slug: string | null;
+
+  /**
+   * HasIcon.icon
+   */
   icon: Icon | null;
+
+  /**
+   * Variant.maxWidth
+   */
   maxWidth: Length | null;
+
+  /**
+   * Variant.maxHeight
+   */
   maxHeight: Length | null;
+
+  /**
+   * Variant.minWidth
+   */
   minWidth: Length | null;
+
+  /**
+   * Variant.minHeight
+   */
   minHeight: Length | null;
 
   constructor(options: {

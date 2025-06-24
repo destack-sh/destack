@@ -1,20 +1,13 @@
 import {
-  Entity,
   Graph,
   Insets,
-  IsDeletable,
-  IsOrdered,
   IsSubject,
-  IsTaggable,
-  IsTracked,
-  IsVisual,
   MaterializationType,
   Node,
   NodeReference,
   NodeType,
   QueryConnection,
   Session,
-  Spatial,
   Struct,
   StructType,
   Supergraph,
@@ -27,6 +20,9 @@ import { View } from "@destack/language/view";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12032 ==== */
+/**
+ * BorderType
+ */
 export enum BorderType {
   STYLE = 2,
   SOLID = 10,
@@ -37,12 +33,22 @@ export enum BorderType {
 /* ==== DESTACK_GENERATED_END:ENUM:12032 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12013 ==== */
+/**
+ * A border value.
+ */
 export class Border extends Struct {
   static metatype: StructType = StructType.BORDER;
   static __isFrozen__: boolean = false;
 
+  /**
+   * BorderBase.type
+   */
   type: BorderType;
-  get style(): BorderStyle | null | null {
+
+  /**
+   * style
+   */
+  get style(): BorderStyle | null {
     const nodePtr: NodeReference | null = this.stylePtr;
     if (nodePtr !== null) {
       if (this._supergraph === null) {
@@ -52,7 +58,6 @@ export class Border extends Struct {
     }
     return null;
   }
-
   set style(value: BorderStyle | null) {
     if (value == null) {
       this.stylePtr = null;
@@ -61,7 +66,15 @@ export class Border extends Struct {
     }
   }
   stylePtr: NodeReference | null;
+
+  /**
+   * BorderBase.color
+   */
   color: Color | null;
+
+  /**
+   * BorderBase.width
+   */
   width: Insets | null;
 
   constructor(options: {
@@ -117,10 +130,10 @@ export class Border extends Struct {
 /* ==== DESTACK_GENERATED_END:STRUCT:12013 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:12023 ==== */
-export class BorderStyle
-  extends Node
-  implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsTaggable, IsVisual, Style
-{
+/**
+ * A border style.
+ */
+export class BorderStyle extends Node implements Style {
   static metatype: NodeType = NodeType.BORDER_STYLE;
   static __traits__: TraitType[] = [
     TraitType.STYLE,
@@ -179,46 +192,97 @@ export class BorderStyle
   ];
   static __descendantTypes__: NodeType[] = [NodeType.TAGGING];
 
-  get parent(): Scene | (Node & View) | Theme | null | null {
+  /**
+   * Style.parent
+   */
+  get parent(): Scene | (Node & View) | Theme | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Scene | (Node & View) | Theme | null | null;
+      return this._supergraph.get(nodePtr.id) as Scene | (Node & View) | Theme | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
   readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * IsOrdered.orderKey
+   */
   readonly orderKey: string;
+
+  /**
+   * BorderBase.type
+   */
   type: BorderType;
+
+  /**
+   * HasName.name
+   */
   name: string;
+
+  /**
+   * BorderBase.color
+   */
   color: Color | null;
+
+  /**
+   * BorderBase.width
+   */
   width: Insets | null;
 
   constructor(options: {

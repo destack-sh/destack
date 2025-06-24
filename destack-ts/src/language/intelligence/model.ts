@@ -1,4 +1,7 @@
 /* ==== DESTACK_GENERATED_START:ENUM:8000 ==== */
+/**
+ * ModelDeveloper
+ */
 export enum ModelDeveloper {
   OPENAI = 1010,
   ANTHROPIC = 1020,
@@ -8,6 +11,9 @@ export enum ModelDeveloper {
 /* ==== DESTACK_GENERATED_END:ENUM:8000 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:8001 ==== */
+/**
+ * ModelProvider
+ */
 export enum ModelProvider {
   OPENROUTER = 1000,
   OPENAI = 1010,

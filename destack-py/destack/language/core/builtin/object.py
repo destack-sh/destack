@@ -254,10 +254,7 @@ if {prop.name}:
             continue
 
         # check if node is passed if required and scalar
-        if (
-            prop.is_required
-            and prop.scalar_type == ScalarType.NODE_REFERENCE
-        ):
+        if prop.is_required and prop.scalar_type == ScalarType.NODE_REFERENCE:
             method_body_lines.append(f"""\
 if {prop.name} is None:
     raise AttributeError(f"{cls.__name__}.{prop.name} is required")""")
@@ -825,6 +822,8 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
             raise TypeError(f"{cls.__name__}.{name} is not a Property: {prop} ({type(prop)})")
         prop.name = intern(name)
         prop.component = cls
+        if prop.original_component is UNSET:
+            prop.original_component = cls
         prop.py_type = cls.__annotations__.get(name, None)
         properties[name] = prop
     cls.__declared_properties__ = frozendict(properties)
@@ -846,6 +845,8 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
             # add property
             prop = prop.clone()
             prop.component = cls
+            if prop.original_component is UNSET:
+                prop.original_component = component
             properties[name] = prop
 
     # determine property types
@@ -897,6 +898,8 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
     )
     for i, prop in enumerate(cls.__properties_in_order__):
         prop.component = cls
+        if prop.original_component is UNSET:
+            prop.original_component = cls
         prop.ord = i
         if prop.ptr_prop:
             prop.ptr_prop.ord = i
@@ -977,6 +980,8 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
     # update cls references in props
     for prop in properties.values():
         prop.component = cls
+        if prop.original_component is UNSET:
+            prop.original_component = cls
 
     return cls, properties  # type: ignore
 

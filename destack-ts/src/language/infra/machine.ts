@@ -1,8 +1,6 @@
 import {
-  Entity,
   Graph,
   IsSubject,
-  IsTracked,
   MaterializationType,
   Node,
   NodeReference,
@@ -20,6 +18,9 @@ import { Client, Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:7600 ==== */
+/**
+ * MachineType
+ */
 export enum MachineType {
   RUNTIME = 10,
   UBUNTU = 1000,
@@ -30,7 +31,11 @@ export enum MachineType {
 /* ==== DESTACK_GENERATED_END:ENUM:7600 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:7600 ==== */
-export class Machine extends Node implements Spatial, Entity, Resource, IsTracked {
+/**
+ * A Machine provides physical compute.
+ * NOTE :RichComputing: Machines also need Deployments/Endpoints/...?
+ */
+export class Machine extends Node implements Spatial, Resource {
   static metatype: NodeType = NodeType.MACHINE;
   static __traits__: TraitType[] = [TraitType.TRACKED, TraitType.SPATIAL, TraitType.ENTITY, TraitType.RESOURCE];
   static __rootType__: NodeType | null = NodeType.SPACE;
@@ -39,58 +44,124 @@ export class Machine extends Node implements Spatial, Entity, Resource, IsTracke
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): Space | null | null {
+  /**
+   * Spatial.parent
+   */
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * Machine.type
+   */
   type: MachineType;
+
+  /**
+   * Resource.status
+   */
   status: ResourceStatus;
+
+  /**
+   * Resource.targetStatus
+   */
   targetStatus: Temporal.ZonedDateTime | null;
+
+  /**
+   * Machine.version
+   */
   version: string;
+
+  /**
+   * Machine.externalName
+   */
   readonly externalName: string | null;
+
+  /**
+   * Machine.externalId
+   */
   readonly externalId: string | null;
+
+  /**
+   * Machine.imageId
+   */
   readonly imageId: string | null;
+
+  /**
+   * Machine.grpcUrl
+   */
   readonly grpcUrl: string | null;
+
+  /**
+   * Machine.vncUrl
+   */
   readonly vncUrl: string | null;
-  get client(): Client | null | null {
+
+  /**
+   * Machine.client
+   */
+  get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Client | null | null;
+      return this._supergraph.get(nodePtr.id) as Client | null;
     }
     return null;
   }
-
   set client(node: Client | null) {
     if (node === null) {
       this.clientPtr = null;
@@ -99,10 +170,30 @@ export class Machine extends Node implements Spatial, Entity, Resource, IsTracke
     }
   }
   clientPtr: NodeReference | null;
+
+  /**
+   * vCPU count
+   */
   readonly cpu: number;
+
+  /**
+   * GB
+   */
   readonly ram: number;
+
+  /**
+   * Machine.width
+   */
   readonly width: number;
+
+  /**
+   * Machine.height
+   */
   readonly height: number;
+
+  /**
+   * Machine.isHeadless
+   */
   readonly isHeadless: boolean;
 
   constructor(options: {

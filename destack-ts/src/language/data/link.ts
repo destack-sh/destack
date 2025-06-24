@@ -1,8 +1,6 @@
 import {
-  Entity,
   Graph,
   IsSubject,
-  IsTracked,
   MaterializationType,
   Node,
   NodeReference,
@@ -20,13 +18,19 @@ import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2550 ==== */
+/**
+ * LinkType
+ */
 export enum LinkType {
   WEB = 1,
 }
 /* ==== DESTACK_GENERATED_END:ENUM:2550 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:2550 ==== */
-export class Link extends Node implements Spatial, Entity, Resource, IsTracked {
+/**
+ * A Link to an external resource (like a web URL, or anything that doesn't fit into other Nodes).
+ */
+export class Link extends Node implements Spatial, Resource {
   static metatype: NodeType = NodeType.LINK;
   static __traits__: TraitType[] = [TraitType.TRACKED, TraitType.SPATIAL, TraitType.ENTITY, TraitType.RESOURCE];
   static __rootType__: NodeType | null = NodeType.SPACE;
@@ -35,56 +39,147 @@ export class Link extends Node implements Spatial, Entity, Resource, IsTracked {
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): Space | null | null {
+  /**
+   * Spatial.parent
+   */
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * Link.type
+   */
   type: LinkType;
+
+  /**
+   * Resource.status
+   */
   status: ResourceStatus;
+
+  /**
+   * Resource.targetStatus
+   */
   targetStatus: Temporal.ZonedDateTime | null;
+
+  /**
+   * Link.url
+   */
   url: string | null;
+
+  /**
+   * Link.domain
+   */
   domain: string | null;
+
+  /**
+   * Link.contentUrl
+   */
   contentUrl: string | null;
+
+  /**
+   * Link.thumbnailUrl
+   */
   thumbnailUrl: string | null;
+
+  /**
+   * Link.faviconUrl
+   */
   faviconUrl: string | null;
+
+  /**
+   * Link.thumbnailWidth
+   */
   thumbnailWidth: number | null;
+
+  /**
+   * Link.thumbnailHeight
+   */
   thumbnailHeight: number | null;
+
+  /**
+   * Link.content
+   */
   content: string | null;
+
+  /**
+   * Link.attribution
+   */
   attribution: string | null;
+
+  /**
+   * Link.attributionTag
+   */
   attributionTag: string | null;
+
+  /**
+   * Link.publishedAt
+   */
   publishedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * Link.expiresAt
+   */
   expiresAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * Link.imageUrls
+   */
   imageUrls: Array<string>;
 
   constructor(options: {

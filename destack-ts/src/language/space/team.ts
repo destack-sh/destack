@@ -2,11 +2,13 @@ import {
   Entity,
   Global,
   Graph,
+  HasIcon,
+  HasName,
+  HasSlug,
   Icon,
   IsJoinable,
   IsOwner,
   IsSubject,
-  IsTracked,
   MaterializationType,
   Node,
   NodeReference,
@@ -20,7 +22,10 @@ import {
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:50 ==== */
-export class Team extends Node implements Global, Entity, IsTracked, IsJoinable, IsOwner {
+/**
+ * An Team with Users and Teams.
+ */
+export class Team extends Node implements Global, Entity, HasSlug, HasIcon, HasName, IsOwner, IsJoinable {
   static metatype: NodeType = NodeType.TEAM;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
@@ -49,35 +54,70 @@ export class Team extends Node implements Global, Entity, IsTracked, IsJoinable,
     NodeType.INVITE,
   ];
 
-  get parent(): Node | null | null {
+  /**
+   * Team.parent
+   */
+  get parent(): Node | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * HasName.name
+   */
   name: string;
+
+  /**
+   * HasSlug.slug
+   */
   slug: string | null;
+
+  /**
+   * HasIcon.icon
+   */
   icon: Icon | null;
 
   constructor(options: {

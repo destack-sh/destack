@@ -1,13 +1,15 @@
 import {
   Entity,
   Graph,
+  HasIcon,
+  HasName,
+  HasSlug,
   Icon,
   IsDeletable,
   IsFollowable,
   IsOwner,
   IsScriptable,
   IsSubject,
-  IsTracked,
   MaterializationType,
   Node,
   NodeReference,
@@ -25,9 +27,12 @@ import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:600 ==== */
+/**
+ * An Agent is an identity for a bot.
+ */
 export class Agent
   extends Node
-  implements Spatial, Entity, IsTracked, IsDeletable, IsSubject, IsOwner, IsScriptable, IsFollowable
+  implements Spatial, Entity, HasName, HasIcon, HasSlug, IsOwner, IsFollowable, IsScriptable, IsDeletable, IsSubject
 {
   static metatype: NodeType = NodeType.AGENT;
   static __traits__: TraitType[] = [
@@ -61,53 +66,99 @@ export class Agent
     NodeType.SANCTION,
   ];
 
-  get parent(): Folder | null | null {
+  /**
+   * Agent.parent
+   */
+  get parent(): Folder | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Folder | null | null;
+      return this._supergraph.get(nodePtr.id) as Folder | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
   readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * Agent.name
+   */
   name: string;
+
+  /**
+   * Agent.slug
+   */
   slug: string;
+
+  /**
+   * HasIcon.icon
+   */
   icon: Icon | null;
-  get cursor(): (Node & Cursor) | null | null {
+
+  /**
+   * Agent.cursor
+   */
+  get cursor(): (Node & Cursor) | null {
     const nodePtr: NodeReference | null = this.cursorPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & Cursor) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & Cursor) | null;
     }
     return null;
   }
-
   set cursor(node: (Node & Cursor) | null) {
     if (node === null) {
       this.cursorPtr = null;
@@ -116,14 +167,17 @@ export class Agent
     }
   }
   cursorPtr: NodeReference | null;
-  get script(): Script | null | null {
+
+  /**
+   * The main / root Script of this Node.
+   */
+  get script(): Script | null {
     const nodePtr: NodeReference | null = this.scriptPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Script | null | null;
+      return this._supergraph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
-
   set script(node: Script | null) {
     if (node === null) {
       this.scriptPtr = null;

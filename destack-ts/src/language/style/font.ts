@@ -1,12 +1,6 @@
 import {
-  Entity,
   Graph,
-  IsDeletable,
-  IsOrdered,
   IsSubject,
-  IsTaggable,
-  IsTracked,
-  IsVisual,
   Length,
   MaterializationType,
   Node,
@@ -14,7 +8,6 @@ import {
   NodeType,
   QueryConnection,
   Session,
-  Spatial,
   Struct,
   StructType,
   Supergraph,
@@ -27,6 +20,9 @@ import { View } from "@destack/language/view";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12026 ==== */
+/**
+ * FontType
+ */
 export enum FontType {
   STYLE = 2,
   SERIF = 10,
@@ -36,6 +32,9 @@ export enum FontType {
 /* ==== DESTACK_GENERATED_END:ENUM:12026 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12024 ==== */
+/**
+ * FontWeight
+ */
 export enum FontWeight {
   THIN = 100,
   EXTRA_LIGHT = 200,
@@ -50,6 +49,9 @@ export enum FontWeight {
 /* ==== DESTACK_GENERATED_END:ENUM:12024 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12025 ==== */
+/**
+ * FontSize
+ */
 export enum FontSize {
   XS = 12,
   SM = 14,
@@ -66,6 +68,9 @@ export enum FontSize {
 /* ==== DESTACK_GENERATED_END:ENUM:12025 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12027 ==== */
+/**
+ * TextAlign
+ */
 export enum TextAlign {
   LEFT = 1,
   CENTER = 2,
@@ -75,6 +80,9 @@ export enum TextAlign {
 /* ==== DESTACK_GENERATED_END:ENUM:12027 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12028 ==== */
+/**
+ * TextDecoration
+ */
 export enum TextDecoration {
   NONE = 1,
   UNDERLINE = 2,
@@ -83,6 +91,9 @@ export enum TextDecoration {
 /* ==== DESTACK_GENERATED_END:ENUM:12028 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12029 ==== */
+/**
+ * TextTransform
+ */
 export enum TextTransform {
   NONE = 1,
   UPPERCASE = 2,
@@ -92,12 +103,22 @@ export enum TextTransform {
 /* ==== DESTACK_GENERATED_END:ENUM:12029 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12014 ==== */
+/**
+ * A font value.
+ */
 export class Font extends Struct {
   static metatype: StructType = StructType.FONT;
   static __isFrozen__: boolean = false;
 
+  /**
+   * FontBase.type
+   */
   type: FontType;
-  get style(): FontStyle | null | null {
+
+  /**
+   * style
+   */
+  get style(): FontStyle | null {
     const nodePtr: NodeReference | null = this.stylePtr;
     if (nodePtr !== null) {
       if (this._supergraph === null) {
@@ -107,7 +128,6 @@ export class Font extends Struct {
     }
     return null;
   }
-
   set style(value: FontStyle | null) {
     if (value == null) {
       this.stylePtr = null;
@@ -116,13 +136,45 @@ export class Font extends Struct {
     }
   }
   stylePtr: NodeReference | null;
+
+  /**
+   * FontBase.weight
+   */
   weight: FontWeight | null;
+
+  /**
+   * FontBase.color
+   */
   color: Fill | null;
+
+  /**
+   * FontBase.size
+   */
   size: FontSize | null;
+
+  /**
+   * FontBase.align
+   */
   align: TextAlign | null;
+
+  /**
+   * FontBase.lineHeight
+   */
   lineHeight: Length | null;
+
+  /**
+   * FontBase.letterSpacing
+   */
   letterSpacing: Length | null;
+
+  /**
+   * FontBase.decoration
+   */
   decoration: TextDecoration | null;
+
+  /**
+   * FontBase.transform
+   */
   transform: TextTransform | null;
 
   constructor(options: {
@@ -211,10 +263,10 @@ export class Font extends Struct {
 /* ==== DESTACK_GENERATED_END:STRUCT:12014 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:12022 ==== */
-export class FontStyle
-  extends Node
-  implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsTaggable, IsVisual, Style
-{
+/**
+ * A font style.
+ */
+export class FontStyle extends Node implements Style {
   static metatype: NodeType = NodeType.FONT_STYLE;
   static __traits__: TraitType[] = [
     TraitType.STYLE,
@@ -273,52 +325,127 @@ export class FontStyle
   ];
   static __descendantTypes__: NodeType[] = [NodeType.TAGGING];
 
-  get parent(): Scene | (Node & View) | Theme | null | null {
+  /**
+   * Style.parent
+   */
+  get parent(): Scene | (Node & View) | Theme | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Scene | (Node & View) | Theme | null | null;
+      return this._supergraph.get(nodePtr.id) as Scene | (Node & View) | Theme | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
   readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * IsOrdered.orderKey
+   */
   readonly orderKey: string;
+
+  /**
+   * FontBase.type
+   */
   type: FontType;
+
+  /**
+   * HasName.name
+   */
   name: string;
+
+  /**
+   * FontBase.weight
+   */
   weight: FontWeight | null;
+
+  /**
+   * FontBase.color
+   */
   color: Fill | null;
+
+  /**
+   * FontBase.size
+   */
   size: FontSize | null;
+
+  /**
+   * FontBase.align
+   */
   align: TextAlign | null;
+
+  /**
+   * FontBase.lineHeight
+   */
   lineHeight: Length | null;
+
+  /**
+   * FontBase.letterSpacing
+   */
   letterSpacing: Length | null;
+
+  /**
+   * FontBase.decoration
+   */
   decoration: TextDecoration | null;
+
+  /**
+   * FontBase.transform
+   */
   transform: TextTransform | null;
 
   constructor(options: {

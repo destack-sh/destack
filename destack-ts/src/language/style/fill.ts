@@ -1,19 +1,12 @@
 import {
-  Entity,
   Graph,
-  IsDeletable,
-  IsOrdered,
   IsSubject,
-  IsTaggable,
-  IsTracked,
-  IsVisual,
   MaterializationType,
   Node,
   NodeReference,
   NodeType,
   QueryConnection,
   Session,
-  Spatial,
   Struct,
   StructType,
   Supergraph,
@@ -27,6 +20,9 @@ import { View } from "@destack/language/view";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12034 ==== */
+/**
+ * FillType
+ */
 export enum FillType {
   STYLE = 2,
   SOLID = 10,
@@ -36,6 +32,9 @@ export enum FillType {
 /* ==== DESTACK_GENERATED_END:ENUM:12034 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12035 ==== */
+/**
+ * FillPosition
+ */
 export enum FillPosition {
   TOP_LEFT = 1,
   TOP_CENTER = 2,
@@ -50,6 +49,9 @@ export enum FillPosition {
 /* ==== DESTACK_GENERATED_END:ENUM:12035 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12036 ==== */
+/**
+ * FillSize
+ */
 export enum FillSize {
   FILL = 1,
   STRETCH = 2,
@@ -59,12 +61,22 @@ export enum FillSize {
 /* ==== DESTACK_GENERATED_END:ENUM:12036 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12017 ==== */
+/**
+ * A fill value.
+ */
 export class Fill extends Struct {
   static metatype: StructType = StructType.FILL;
   static __isFrozen__: boolean = false;
 
+  /**
+   * FillBase.type
+   */
   type: FillType;
-  get style(): FillStyle | null | null {
+
+  /**
+   * style
+   */
+  get style(): FillStyle | null {
     const nodePtr: NodeReference | null = this.stylePtr;
     if (nodePtr !== null) {
       if (this._supergraph === null) {
@@ -74,7 +86,6 @@ export class Fill extends Struct {
     }
     return null;
   }
-
   set style(value: FillStyle | null) {
     if (value == null) {
       this.stylePtr = null;
@@ -83,9 +94,21 @@ export class Fill extends Struct {
     }
   }
   stylePtr: NodeReference | null;
+
+  /**
+   * FillBase.color
+   */
   color: Color | null;
+
+  /**
+   * FillBase.gradient
+   */
   gradient: Gradient | null;
-  get image(): File | null | null {
+
+  /**
+   * image
+   */
+  get image(): File | null {
     const nodePtr: NodeReference | null = this.imagePtr;
     if (nodePtr !== null) {
       if (this._supergraph === null) {
@@ -95,7 +118,6 @@ export class Fill extends Struct {
     }
     return null;
   }
-
   set image(value: File | null) {
     if (value == null) {
       this.imagePtr = null;
@@ -104,7 +126,15 @@ export class Fill extends Struct {
     }
   }
   imagePtr: NodeReference | null;
+
+  /**
+   * FillBase.position
+   */
   position: FillPosition | null;
+
+  /**
+   * FillBase.size
+   */
   size: FillSize | null;
 
   constructor(options: {
@@ -169,10 +199,10 @@ export class Fill extends Struct {
 /* ==== DESTACK_GENERATED_END:STRUCT:12017 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:12021 ==== */
-export class FillStyle
-  extends Node
-  implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsTaggable, IsVisual, Style
-{
+/**
+ * A fill style.
+ */
+export class FillStyle extends Node implements Style {
   static metatype: NodeType = NodeType.FILL_STYLE;
   static __traits__: TraitType[] = [
     TraitType.STYLE,
@@ -231,55 +261,109 @@ export class FillStyle
   ];
   static __descendantTypes__: NodeType[] = [NodeType.TAGGING];
 
-  get parent(): Scene | (Node & View) | Theme | null | null {
+  /**
+   * Style.parent
+   */
+  get parent(): Scene | (Node & View) | Theme | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Scene | (Node & View) | Theme | null | null;
+      return this._supergraph.get(nodePtr.id) as Scene | (Node & View) | Theme | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
   readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * IsOrdered.orderKey
+   */
   readonly orderKey: string;
+
+  /**
+   * FillBase.type
+   */
   type: FillType;
+
+  /**
+   * HasName.name
+   */
   name: string;
+
+  /**
+   * FillBase.color
+   */
   color: Color | null;
+
+  /**
+   * FillBase.gradient
+   */
   gradient: Gradient | null;
-  get image(): File | null | null {
+
+  /**
+   * FillBase.image
+   */
+  get image(): File | null {
     const nodePtr: NodeReference | null = this.imagePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as File | null | null;
+      return this._supergraph.get(nodePtr.id) as File | null;
     }
     return null;
   }
-
   set image(node: File | null) {
     if (node === null) {
       this.imagePtr = null;
@@ -288,7 +372,15 @@ export class FillStyle
     }
   }
   imagePtr: NodeReference | null;
+
+  /**
+   * FillBase.position
+   */
   position: FillPosition | null;
+
+  /**
+   * FillBase.size
+   */
   size: FillSize | null;
 
   constructor(options: {
