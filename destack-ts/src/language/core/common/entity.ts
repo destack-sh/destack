@@ -1,19 +1,18 @@
 import {
   Entity,
   Graph,
+  HasName,
   IsActionable,
   IsCustomNode,
   IsCustomNodeDefinition,
   IsDeletable,
   IsExtensible,
-  IsOrdered,
   IsOwnable,
   IsOwner,
   IsScriptable,
   IsSourceable,
   IsSubject,
   IsTaggable,
-  IsTracked,
   MaterializationType,
   Node,
   NodeReference,
@@ -32,20 +31,23 @@ import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:2000 ==== */
+/**
+ * A definition for a custom Entity type (instantiated in CustomEntities).
+ * Custom Entities may be materialized as physical or logical tables in primary storage.
+ */
 export class CustomEntityDefinition
   extends Node
   implements
     Spatial,
     Entity,
+    HasName,
     IsCustomNodeDefinition,
-    IsTracked,
-    IsDeletable,
-    IsOrdered,
-    IsOwnable,
     IsTaggable,
-    IsActionable,
+    IsOwnable,
+    IsDeletable,
     IsScriptable,
-    IsSourceable
+    IsSourceable,
+    IsActionable
 {
   static metatype: NodeType = NodeType.CUSTOM_ENTITY_DEFINITION;
   static __traits__: TraitType[] = [
@@ -74,30 +76,40 @@ export class CustomEntityDefinition
     NodeType.SCRIPT,
   ];
 
-  get parent(): Folder | null | null {
+  /**
+   * CustomEntityDefinition.parent
+   */
+  get parent(): Folder | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Folder | null | null;
+      return this._supergraph.get(nodePtr.id) as Folder | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
-  get prototype(): CustomEntity | null | null {
+
+  /**
+   * A custom Entity's prototype is the default template new CustomEntity instances are based on.
+   */
+  get prototype(): CustomEntity | null {
     const nodePtr: NodeReference | null = this.prototypePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as CustomEntity | null | null;
+      return this._supergraph.get(nodePtr.id) as CustomEntity | null;
     }
     return null;
   }
-
   set prototype(node: CustomEntity | null) {
     if (node === null) {
       this.prototypePtr = null;
@@ -106,35 +118,66 @@ export class CustomEntityDefinition
     }
   }
   prototypePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
   readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * IsOrdered.orderKey
+   */
   readonly orderKey: string;
-  get ownedBy(): (Node & IsOwner) | null | null {
+
+  /**
+   * IsOwnable.ownedBy
+   */
+  get ownedBy(): (Node & IsOwner) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null;
     }
     return null;
   }
-
   set ownedBy(node: (Node & IsOwner) | null) {
     if (node === null) {
       this.ownedByPtr = null;
@@ -143,16 +186,27 @@ export class CustomEntityDefinition
     }
   }
   ownedByPtr: NodeReference | null;
+
+  /**
+   * HasName.name
+   */
   name: string;
+
+  /**
+   * CustomEntityDefinition.traits
+   */
   traits: Array<TraitType>;
-  get script(): Script | null | null {
+
+  /**
+   * The main / root Script of this Node.
+   */
+  get script(): Script | null {
     const nodePtr: NodeReference | null = this.scriptPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Script | null | null;
+      return this._supergraph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
-
   set script(node: Script | null) {
     if (node === null) {
       this.scriptPtr = null;
@@ -161,10 +215,14 @@ export class CustomEntityDefinition
     }
   }
   scriptPtr: NodeReference | null;
-  get source(): Script | null | null {
+
+  /**
+   * IsSourceable.source
+   */
+  get source(): Script | null {
     const nodePtr: NodeReference | null = this.sourcePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Script | null | null;
+      return this._supergraph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
@@ -345,7 +403,10 @@ export class CustomEntityDefinition
 /* ==== DESTACK_GENERATED_END:NODE:2000 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:2001 ==== */
-export class CustomEntity extends Node implements Spatial, Entity, IsCustomNode, IsTracked, IsDeletable, IsExtensible {
+/**
+ * A CustomEntity is an instance of a CustomEntityDefinition.
+ */
+export class CustomEntity extends Node implements Spatial, Entity, IsExtensible, IsDeletable, IsCustomNode {
   static metatype: NodeType = NodeType.CUSTOM_ENTITY;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
@@ -366,22 +427,33 @@ export class CustomEntity extends Node implements Spatial, Entity, IsCustomNode,
   ];
   static __descendantTypes__: NodeType[] = [NodeType.FIELD, NodeType.CUSTOM_ENTITY, NodeType.OPTION, NodeType.TAGGING];
 
-  get parent(): CustomEntityDefinition | CustomEntity | null | null {
+  /**
+   * CustomEntity.parent
+   */
+  get parent(): CustomEntityDefinition | CustomEntity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as CustomEntityDefinition | CustomEntity | null | null;
+      return this._supergraph.get(nodePtr.id) as CustomEntityDefinition | CustomEntity | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * The CustomEntityDefinition this CustomEntity is an instance of.
+   */
   get definition(): CustomEntityDefinition | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr !== null) {
@@ -390,26 +462,54 @@ export class CustomEntity extends Node implements Spatial, Entity, IsCustomNode,
     return null;
   }
   readonly definitionPtr: NodeReference;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
   readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * IsExtensible.value
+   */
   value: Map<string, Value>;
 
   constructor(options: {

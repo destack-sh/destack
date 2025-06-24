@@ -1,11 +1,13 @@
 import {
   Entity,
   Graph,
+  HasIcon,
+  HasName,
+  HasSlug,
   Icon,
   IsDeletable,
   IsJoinable,
   IsSubject,
-  IsTracked,
   MaterializationType,
   Node,
   NodeReference,
@@ -22,13 +24,19 @@ import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:530 ==== */
+/**
+ * PermissionType
+ */
 export enum PermissionType {
   GENERAL = 1,
 }
 /* ==== DESTACK_GENERATED_END:ENUM:530 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:530 ==== */
-export class Permission extends Node implements Spatial, Entity, IsTracked, IsDeletable {
+/**
+ * A Permission for something.
+ */
+export class Permission extends Node implements Spatial, Entity, HasName, HasSlug, HasIcon, IsDeletable {
   static metatype: NodeType = NodeType.PERMISSION;
   static __traits__: TraitType[] = [TraitType.TRACKED, TraitType.SPATIAL, TraitType.ENTITY, TraitType.DELETABLE];
   static __rootType__: NodeType | null = NodeType.SPACE;
@@ -49,45 +57,92 @@ export class Permission extends Node implements Spatial, Entity, IsTracked, IsDe
   ];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): (Node & IsJoinable) | Folder | null | null {
+  /**
+   * Permission.parent
+   */
+  get parent(): (Node & IsJoinable) | Folder | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsJoinable) | Folder | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsJoinable) | Folder | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
   readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * Permission.type
+   */
   type: PermissionType;
+
+  /**
+   * HasName.name
+   */
   name: string;
+
+  /**
+   * HasSlug.slug
+   */
   slug: string | null;
+
+  /**
+   * HasIcon.icon
+   */
   icon: Icon | null;
 
   constructor(options: {

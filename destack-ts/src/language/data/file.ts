@@ -1,9 +1,8 @@
 import {
-  Entity,
   Global,
   Graph,
+  HasName,
   IsSubject,
-  IsTracked,
   MaterializationType,
   Node,
   NodeReference,
@@ -21,6 +20,9 @@ import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2541 ==== */
+/**
+ * FileSource
+ */
 export enum FileSource {
   SPACE = 1,
   INLINE = 3,
@@ -29,6 +31,9 @@ export enum FileSource {
 /* ==== DESTACK_GENERATED_END:ENUM:2541 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:2540 ==== */
+/**
+ * FileRetentionMode
+ */
 export enum FileRetentionMode {
   AUTOMATIC = 1,
   MANUAL = 2,
@@ -37,6 +42,9 @@ export enum FileRetentionMode {
 /* ==== DESTACK_GENERATED_END:ENUM:2540 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:2542 ==== */
+/**
+ * FileType
+ */
 export enum FileType {
   TEXT = 1,
   CODE = 2,
@@ -52,6 +60,9 @@ export enum FileType {
 /* ==== DESTACK_GENERATED_END:ENUM:2542 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:2543 ==== */
+/**
+ * FileFormat
+ */
 export enum FileFormat {
   TXT = 10000,
   MARKDOWN = 10001,
@@ -143,7 +154,10 @@ export enum FileFormat {
 /* ==== DESTACK_GENERATED_END:ENUM:2543 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:2540 ==== */
-export class File extends Node implements Global, Spatial, Entity, Resource, IsTracked {
+/**
+ * A File stored somewhere.
+ */
+export class File extends Node implements Spatial, Global, Resource, HasName {
   static metatype: NodeType = NodeType.FILE;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
@@ -158,61 +172,172 @@ export class File extends Node implements Global, Spatial, Entity, Resource, IsT
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): Space | null | null {
+  /**
+   * Spatial.parent
+   */
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * File.type
+   */
   type: FileType;
+
+  /**
+   * HasName.name
+   */
   name: string;
+
+  /**
+   * Resource.status
+   */
   status: ResourceStatus;
+
+  /**
+   * Resource.targetStatus
+   */
   targetStatus: Temporal.ZonedDateTime | null;
+
+  /**
+   * File.source
+   */
   source: FileSource;
+
+  /**
+   * File.mimeType
+   */
   mimeType: string | null;
+
+  /**
+   * File.format
+   */
   format: FileFormat | null;
+
+  /**
+   * File.size
+   */
   size: number | null;
+
+  /**
+   * File.sha256
+   */
   sha256: string | null;
+
+  /**
+   * File.width
+   */
   width: number | null;
+
+  /**
+   * File.height
+   */
   height: number | null;
+
+  /**
+   * File.aspectRatio
+   */
   aspectRatio: number | null;
+
+  /**
+   * File.codec
+   */
   codec: string | null;
+
+  /**
+   * File.duration
+   */
   duration: Temporal.Duration | null;
+
+  /**
+   * File.url
+   */
   url: string | null;
+
+  /**
+   * File.contentUrl
+   */
   contentUrl: string | null;
+
+  /**
+   * File.thumbnailUrl
+   */
   thumbnailUrl: string | null;
+
+  /**
+   * File.faviconUrl
+   */
   faviconUrl: string | null;
+
+  /**
+   * File.thumbnailWidth
+   */
   thumbnailWidth: number | null;
+
+  /**
+   * File.thumbnailHeight
+   */
   thumbnailHeight: number | null;
+
+  /**
+   * File.content
+   */
   content: Uint8Array | null;
 
   constructor(options: {

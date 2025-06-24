@@ -1,19 +1,14 @@
 import {
-  Analytic,
   Entity,
   Event,
   Graph,
-  Indexed,
-  IsFrozen,
   IsOwnable,
   IsOwner,
   IsSubject,
-  IsTracked,
   MaterializationType,
   Node,
   NodeReference,
   NodeType,
-  Particle,
   QueryConnection,
   Session,
   Spatial,
@@ -26,6 +21,9 @@ import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:5600 ==== */
+/**
+ * NotificationStatus
+ */
 export enum NotificationStatus {
   UNREAD = 1,
   READ = 2,
@@ -36,6 +34,9 @@ export enum NotificationStatus {
 /* ==== DESTACK_GENERATED_END:ENUM:5600 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:5601 ==== */
+/**
+ * NotificationEventType
+ */
 export enum NotificationEventType {
   SENT = 1,
   RESCINDED = 2,
@@ -46,10 +47,10 @@ export enum NotificationEventType {
 /* ==== DESTACK_GENERATED_END:ENUM:5601 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:5601 ==== */
-export class NotificationEvent
-  extends Node
-  implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked
-{
+/**
+ * A Event regarding a Notification.
+ */
+export class NotificationEvent extends Node implements Event {
   static metatype: NodeType = NodeType.NOTIFICATION_EVENT;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
@@ -66,41 +67,72 @@ export class NotificationEvent
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): Space | null | null {
+  /**
+   * Spatial.parent
+   */
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * NotificationEvent.type
+   */
   type: NotificationEventType;
+
+  /**
+   * NotificationEvent.node
+   */
   get node(): Notification | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr !== null) {
@@ -108,7 +140,6 @@ export class NotificationEvent
     }
     return null;
   }
-
   set node(node: Notification) {
     this.nodePtr = node.toRef();
   }
@@ -247,7 +278,10 @@ export class NotificationEvent
 /* ==== DESTACK_GENERATED_END:NODE:5601 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:5600 ==== */
-export class Notification extends Node implements Spatial, Entity, IsTracked, IsOwnable {
+/**
+ * A Notification is a message about something.
+ */
+export class Notification extends Node implements Spatial, Entity, IsOwnable {
   static metatype: NodeType = NodeType.NOTIFICATION;
   static __traits__: TraitType[] = [TraitType.TRACKED, TraitType.SPATIAL, TraitType.ENTITY, TraitType.OWNABLE];
   static __rootType__: NodeType | null = NodeType.SPACE;
@@ -256,49 +290,79 @@ export class Notification extends Node implements Spatial, Entity, IsTracked, Is
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): Space | null | null {
+  /**
+   * Spatial.parent
+   */
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
-  get ownedBy(): (Node & IsOwner) | null | null {
+
+  /**
+   * IsOwnable.ownedBy
+   */
+  get ownedBy(): (Node & IsOwner) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null;
     }
     return null;
   }
-
   set ownedBy(node: (Node & IsOwner) | null) {
     if (node === null) {
       this.ownedByPtr = null;
@@ -307,8 +371,20 @@ export class Notification extends Node implements Spatial, Entity, IsTracked, Is
     }
   }
   ownedByPtr: NodeReference | null;
+
+  /**
+   * Notification.status
+   */
   status: NotificationStatus;
+
+  /**
+   * Notification.title
+   */
   title: string;
+
+  /**
+   * Notification.text
+   */
   text: Text | null;
 
   constructor(options: {

@@ -1,19 +1,14 @@
 import {
-  Analytic,
   Entity,
   Event,
   Graph,
-  Indexed,
   IsDeletable,
-  IsFrozen,
   IsJoinable,
   IsSubject,
-  IsTracked,
   MaterializationType,
   Node,
   NodeReference,
   NodeType,
-  Particle,
   QueryConnection,
   Session,
   Spatial,
@@ -25,6 +20,9 @@ import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:541 ==== */
+/**
+ * SanctionEventType
+ */
 export enum SanctionEventType {
   REQUESTED = 1,
   GRANTED = 2,
@@ -34,6 +32,9 @@ export enum SanctionEventType {
 /* ==== DESTACK_GENERATED_END:ENUM:541 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:540 ==== */
+/**
+ * SanctionType
+ */
 export enum SanctionType {
   BAN = 1,
   MUTE = 2,
@@ -41,7 +42,10 @@ export enum SanctionType {
 /* ==== DESTACK_GENERATED_END:ENUM:540 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:541 ==== */
-export class SanctionEvent extends Node implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked {
+/**
+ * SanctionEvent
+ */
+export class SanctionEvent extends Node implements Event {
   static metatype: NodeType = NodeType.SANCTION_EVENT;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
@@ -58,40 +62,67 @@ export class SanctionEvent extends Node implements Spatial, Particle, Analytic, 
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): Space | null | null {
+  /**
+   * Spatial.parent
+   */
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * SanctionEvent.node
+   */
   get node(): Sanction | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr !== null) {
@@ -99,7 +130,6 @@ export class SanctionEvent extends Node implements Spatial, Particle, Analytic, 
     }
     return null;
   }
-
   set node(node: Sanction) {
     this.nodePtr = node.toRef();
   }
@@ -232,7 +262,10 @@ export class SanctionEvent extends Node implements Spatial, Particle, Analytic, 
 /* ==== DESTACK_GENERATED_END:NODE:541 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:540 ==== */
-export class Sanction extends Node implements Spatial, Entity, IsTracked, IsDeletable {
+/**
+ * A Sanction on some Subject.
+ */
+export class Sanction extends Node implements Spatial, Entity, IsDeletable {
   static metatype: NodeType = NodeType.SANCTION;
   static __traits__: TraitType[] = [TraitType.TRACKED, TraitType.SPATIAL, TraitType.ENTITY, TraitType.DELETABLE];
   static __rootType__: NodeType | null = NodeType.SPACE;
@@ -257,44 +290,87 @@ export class Sanction extends Node implements Spatial, Entity, IsTracked, IsDele
   ];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): (Node & IsSubject) | (Node & IsJoinable) | null | null {
+  /**
+   * Sanction.parent
+   */
+  get parent(): (Node & IsSubject) | (Node & IsJoinable) | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | (Node & IsJoinable) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | (Node & IsJoinable) | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
   readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * Sanction.type
+   */
   type: SanctionType;
+
+  /**
+   * Sanction.expiresAt
+   */
   expiresAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * Sanction.target
+   */
   get target(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr !== null) {
@@ -302,7 +378,6 @@ export class Sanction extends Node implements Spatial, Entity, IsTracked, IsDele
     }
     return null;
   }
-
   set target(node: Node & IsSubject) {
     this.targetPtr = node.toRef();
   }

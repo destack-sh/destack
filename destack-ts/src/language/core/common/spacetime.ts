@@ -1,11 +1,12 @@
 import {
   Entity,
   Graph,
+  HasName,
+  HasSlug,
   IsDeletable,
   IsOwnable,
   IsOwner,
   IsSubject,
-  IsTracked,
   MaterializationType,
   Node,
   NodeReference,
@@ -21,7 +22,10 @@ import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:1500 ==== */
-export class Snapshot extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOwnable {
+/**
+ * A Snapshot is a point in Space time.
+ */
+export class Snapshot extends Node implements Spatial, Entity, HasName, HasSlug, IsOwnable, IsDeletable {
   static metatype: NodeType = NodeType.SNAPSHOT;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
@@ -36,50 +40,84 @@ export class Snapshot extends Node implements Spatial, Entity, IsTracked, IsDele
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE, NodeType.BRANCH];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): Space | Branch | null | null {
+  /**
+   * Snapshot.parent
+   */
+  get parent(): Space | Branch | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | Branch | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | Branch | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
   readonly deletedAt: Temporal.ZonedDateTime | null;
-  get ownedBy(): (Node & IsOwner) | null | null {
+
+  /**
+   * IsOwnable.ownedBy
+   */
+  get ownedBy(): (Node & IsOwner) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null;
     }
     return null;
   }
-
   set ownedBy(node: (Node & IsOwner) | null) {
     if (node === null) {
       this.ownedByPtr = null;
@@ -88,7 +126,15 @@ export class Snapshot extends Node implements Spatial, Entity, IsTracked, IsDele
     }
   }
   ownedByPtr: NodeReference | null;
+
+  /**
+   * HasName.name
+   */
   name: string;
+
+  /**
+   * HasSlug.slug
+   */
   slug: string | null;
 
   constructor(options: {
@@ -236,7 +282,10 @@ export class Snapshot extends Node implements Spatial, Entity, IsTracked, IsDele
 /* ==== DESTACK_GENERATED_END:NODE:1500 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:1510 ==== */
-export class Branch extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOwnable {
+/**
+ * A Branch is a version of a Snapshot.
+ */
+export class Branch extends Node implements Spatial, Entity, HasName, HasSlug, IsOwnable, IsDeletable {
   static metatype: NodeType = NodeType.BRANCH;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
@@ -251,50 +300,84 @@ export class Branch extends Node implements Spatial, Entity, IsTracked, IsDeleta
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [NodeType.SNAPSHOT];
 
-  get parent(): Space | null | null {
+  /**
+   * Branch.parent
+   */
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
   readonly deletedAt: Temporal.ZonedDateTime | null;
-  get ownedBy(): (Node & IsOwner) | null | null {
+
+  /**
+   * IsOwnable.ownedBy
+   */
+  get ownedBy(): (Node & IsOwner) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null;
     }
     return null;
   }
-
   set ownedBy(node: (Node & IsOwner) | null) {
     if (node === null) {
       this.ownedByPtr = null;
@@ -303,16 +386,27 @@ export class Branch extends Node implements Spatial, Entity, IsTracked, IsDeleta
     }
   }
   ownedByPtr: NodeReference | null;
+
+  /**
+   * HasName.name
+   */
   name: string;
+
+  /**
+   * HasSlug.slug
+   */
   slug: string | null;
-  get head(): Snapshot | null | null {
+
+  /**
+   * Branch.head
+   */
+  get head(): Snapshot | null {
     const nodePtr: NodeReference | null = this.headPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null | null;
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
-
   set head(node: Snapshot | null) {
     if (node === null) {
       this.headPtr = null;

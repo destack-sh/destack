@@ -3,9 +3,9 @@ import {
   Entity,
   Global,
   Graph,
+  HasName,
   IsDeletable,
   IsSubject,
-  IsTracked,
   MaterializationType,
   Node,
   NodeReference,
@@ -23,13 +23,31 @@ import { User } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50001 ==== */
+/**
+ * Origin of something.
+ */
 export class Origin extends StructFrozen {
   static metatype: StructType = StructType.ORIGIN;
   static __isFrozen__: boolean = true;
 
+  /**
+   * Origin.type
+   */
   readonly type: ClientType;
+
+  /**
+   * Origin.id
+   */
   readonly id: string | null;
+
+  /**
+   * Origin.ck
+   */
   readonly ck: string | null;
+
+  /**
+   * Origin.nonce
+   */
   readonly nonce: string | null;
 
   constructor(options: {
@@ -79,7 +97,10 @@ export class Origin extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:50001 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:100 ==== */
-export class Client extends Node implements Global, Entity, IsTracked, IsDeletable {
+/**
+ * A Client to connect with the system.
+ */
+export class Client extends Node implements HasName, Global, Entity, IsDeletable {
   static metatype: NodeType = NodeType.CLIENT;
   static __traits__: TraitType[] = [TraitType.GLOBAL, TraitType.ENTITY, TraitType.TRACKED, TraitType.DELETABLE];
   static __rootType__: NodeType | null = NodeType.SPACE;
@@ -88,44 +109,82 @@ export class Client extends Node implements Global, Entity, IsTracked, IsDeletab
   static __ancestorTypes__: NodeType[] = [NodeType.AGENT, NodeType.FOLDER, NodeType.USER, NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): (Node & IsSubject) | null | null {
+  /**
+   * Client.parent
+   */
+  get parent(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
   readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * Client.type
+   */
   type: ClientType;
+
+  /**
+   * HasName.name
+   */
   name: string;
-  get machine(): Machine | null | null {
+
+  /**
+   * Client.machine
+   */
+  get machine(): Machine | null {
     const nodePtr: NodeReference | null = this.machinePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Machine | null | null;
+      return this._supergraph.get(nodePtr.id) as Machine | null;
     }
     return null;
   }
-
   set machine(node: Machine | null) {
     if (node === null) {
       this.machinePtr = null;
@@ -134,14 +193,17 @@ export class Client extends Node implements Global, Entity, IsTracked, IsDeletab
     }
   }
   machinePtr: NodeReference | null;
-  get user(): User | null | null {
+
+  /**
+   * Client.user
+   */
+  get user(): User | null {
     const nodePtr: NodeReference | null = this.userPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as User | null | null;
+      return this._supergraph.get(nodePtr.id) as User | null;
     }
     return null;
   }
-
   set user(node: User | null) {
     if (node === null) {
       this.userPtr = null;
@@ -150,22 +212,57 @@ export class Client extends Node implements Global, Entity, IsTracked, IsDeletab
     }
   }
   userPtr: NodeReference | null;
+
+  /**
+   * Client.deviceType
+   */
   deviceType: string | null;
+
+  /**
+   * Client.deviceName
+   */
   deviceName: string | null;
+
+  /**
+   * Client.operatingSystem
+   */
   operatingSystem: string | null;
+
+  /**
+   * Client.browserName
+   */
   browserName: string | null;
+
+  /**
+   * Client.browserVersion
+   */
   browserVersion: string | null;
+
+  /**
+   * Client.accessToken
+   */
   accessToken: string | null;
+
+  /**
+   * Client.seenAt
+   */
   seenAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * Client.loggedInAt
+   */
   loggedInAt: Temporal.ZonedDateTime | null;
-  get cursor(): (Node & Cursor) | null | null {
+
+  /**
+   * Client.cursor
+   */
+  get cursor(): (Node & Cursor) | null {
     const nodePtr: NodeReference | null = this.cursorPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & Cursor) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & Cursor) | null;
     }
     return null;
   }
-
   set cursor(node: (Node & Cursor) | null) {
     if (node === null) {
       this.cursorPtr = null;

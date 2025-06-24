@@ -17,6 +17,9 @@ import { assertNever } from "@destack/utils/functools";
 import { v4 as uuid4 } from "uuid";
 
 /* ==== DESTACK_GENERATED_START:ENUM:108 ==== */
+/**
+ * FunctionType
+ */
 export enum FunctionType {
   ADD = 1,
   SUBTRACT = 2,
@@ -28,6 +31,9 @@ export enum FunctionType {
 /* ==== DESTACK_GENERATED_END:ENUM:108 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:103 ==== */
+/**
+ * ConditionalType
+ */
 export enum ConditionalType {
   NOT = 1,
   AND = 2,
@@ -49,6 +55,9 @@ export enum ConditionalType {
 /* ==== DESTACK_GENERATED_END:ENUM:103 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:104 ==== */
+/**
+ * AggregationType
+ */
 export enum AggregationType {
   EXISTS = 1,
   COUNT = 2,
@@ -60,6 +69,9 @@ export enum AggregationType {
 /* ==== DESTACK_GENERATED_END:ENUM:104 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:109 ==== */
+/**
+ * ExpressionType
+ */
 export enum ExpressionType {
   LITERAL = 1,
   ATTRIBUTE = 2,
@@ -70,6 +82,9 @@ export enum ExpressionType {
 /* ==== DESTACK_GENERATED_END:ENUM:109 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:106 ==== */
+/**
+ * SortType
+ */
 export enum SortType {
   ASCENDING = 1,
   DESCENDING = 2,
@@ -77,6 +92,9 @@ export enum SortType {
 /* ==== DESTACK_GENERATED_END:ENUM:106 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:105 ==== */
+/**
+ * SortMode
+ */
 export enum SortMode {
   MAX = 1,
   MIN = 2,
@@ -87,6 +105,9 @@ export enum SortMode {
 /* ==== DESTACK_GENERATED_END:ENUM:105 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:107 ==== */
+/**
+ * JoinType
+ */
 export enum JoinType {
   LEFT = 1,
   PARENT = 10,
@@ -95,6 +116,9 @@ export enum JoinType {
 /* ==== DESTACK_GENERATED_END:ENUM:107 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:120 ==== */
+/**
+ * QueryType
+ */
 export enum QueryType {
   NODE = 1,
   SCALAR = 2,
@@ -104,6 +128,9 @@ export enum QueryType {
 /* ==== DESTACK_GENERATED_END:ENUM:120 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:121 ==== */
+/**
+ * QueryUpdateType
+ */
 export enum QueryUpdateType {
   FULL_RESULT = 1,
   PARTIAL_RESULT = 2,
@@ -111,12 +138,26 @@ export enum QueryUpdateType {
 /* ==== DESTACK_GENERATED_END:ENUM:121 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50101 ==== */
+/**
+ * Function
+ */
 export class Function extends StructFrozen {
   static metatype: StructType = StructType.FUNCTION;
   static __isFrozen__: boolean = true;
 
+  /**
+   * Function.type
+   */
   readonly type: FunctionType;
+
+  /**
+   * Function.left
+   */
   readonly left: Expression;
+
+  /**
+   * Function.right
+   */
   readonly right: Expression | null;
 
   constructor(options: {
@@ -174,12 +215,26 @@ export class Function extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:50101 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50104 ==== */
+/**
+ * Boolean predicate (AND, =, <, etc.).
+ */
 export class Condition extends StructFrozen {
   static metatype: StructType = StructType.CONDITION;
   static __isFrozen__: boolean = true;
 
+  /**
+   * Condition.type
+   */
   readonly type: ConditionalType;
+
+  /**
+   * Condition.left
+   */
   readonly left: Expression;
+
+  /**
+   * Condition.right
+   */
   readonly right: Expression | null;
 
   constructor(options: {
@@ -243,11 +298,21 @@ export class Condition extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:50104 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50103 ==== */
+/**
+ * Aggregation.
+ */
 export class Aggregation extends StructFrozen {
   static metatype: StructType = StructType.AGGREGATION;
   static __isFrozen__: boolean = true;
 
+  /**
+   * Aggregation.type
+   */
   readonly type: AggregationType;
+
+  /**
+   * Aggregation.expression
+   */
   readonly expression: Expression | null;
 
   constructor(options: {
@@ -299,15 +364,41 @@ export class Aggregation extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:50103 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50100 ==== */
+/**
+ * Wrapper to unify any scalar / boolean / aggregate sub-tree.
+ */
 export class Expression extends StructFrozen {
   static metatype: StructType = StructType.EXPRESSION;
   static __isFrozen__: boolean = true;
 
+  /**
+   * Expression.type
+   */
   readonly type: ExpressionType;
+
+  /**
+   * Expression.literal
+   */
   readonly literal: Value | null;
+
+  /**
+   * Expression.attribute
+   */
   readonly attribute: AttributeReference | null;
+
+  /**
+   * Expression.condition
+   */
   readonly condition: Condition | null;
+
+  /**
+   * Expression.function
+   */
   readonly function: Function | null;
+
+  /**
+   * Expression.aggregation
+   */
   readonly aggregation: Aggregation | null;
 
   constructor(options: {
@@ -399,12 +490,26 @@ export type ExpressionIn =
   | Expression;
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50105 ==== */
+/**
+ * ORDER BY specification.
+ */
 export class Sort extends StructFrozen {
   static metatype: StructType = StructType.SORT;
   static __isFrozen__: boolean = true;
 
+  /**
+   * Sort.type
+   */
   readonly type: SortType;
+
+  /**
+   * Sort.by
+   */
   readonly by: Expression;
+
+  /**
+   * Sort.mode
+   */
   readonly mode: SortMode | null;
 
   constructor(options: {
@@ -462,10 +567,16 @@ export class Sort extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:50105 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50106 ==== */
+/**
+ * Select specific Attributes.
+ */
 export class Select extends StructFrozen {
   static metatype: StructType = StructType.SELECT;
   static __isFrozen__: boolean = true;
 
+  /**
+   * Select.attributes
+   */
   readonly attributes: Array<AttributeReference>;
 
   constructor(options: {
@@ -514,14 +625,36 @@ export class Select extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:50106 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50102 ==== */
+/**
+ * Join a Query with another Query.
+ */
 export class Join extends StructFrozen {
   static metatype: StructType = StructType.JOIN;
   static __isFrozen__: boolean = true;
 
+  /**
+   * Join.type
+   */
   readonly type: JoinType;
+
+  /**
+   * Join.relation
+   */
   readonly relation: RelationReference | null;
+
+  /**
+   * Join.recursive
+   */
   readonly recursive: boolean;
+
+  /**
+   * Join.depth
+   */
   readonly depth: number | null;
+
+  /**
+   * Join.on
+   */
   readonly on: Condition | null;
 
   constructor(options: {
@@ -599,23 +732,81 @@ export class Join extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:50102 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50110 ==== */
+/**
+ * A GraphQL-inspired Query node (with subqueries).
+ */
 export class Query extends StructFrozen {
   static metatype: StructType = StructType.QUERY;
   static __isFrozen__: boolean = true;
 
+  /**
+   * Query.id
+   */
   readonly id: string;
+
+  /**
+   * Query.type
+   */
   readonly type: QueryType;
+
+  /**
+   * Name for this subquery. Must be unique within the parent Query.
+   */
   readonly name: string;
+
+  /**
+   * Query.relation
+   */
   readonly relation: RelationReference;
+
+  /**
+   * Relative to parent Query.
+   */
   readonly join: Join | null;
+
+  /**
+   * Query.select
+   */
   readonly select: Select | null;
+
+  /**
+   * Query.subqueries
+   */
   readonly subqueries: Array<Query>;
+
+  /**
+   * Query.where
+   */
   readonly where: Condition | null;
+
+  /**
+   * Query.having
+   */
   readonly having: Condition | null;
+
+  /**
+   * Query.groupBy
+   */
   readonly groupBy: Array<Expression>;
+
+  /**
+   * Query.aggregation
+   */
   readonly aggregation: Aggregation | null;
+
+  /**
+   * Query.sort
+   */
   readonly sort: Array<Sort>;
+
+  /**
+   * Query.limit
+   */
   readonly limit: number | null;
+
+  /**
+   * Query.offset
+   */
   readonly offset: number | null;
 
   constructor(options: {
@@ -716,11 +907,21 @@ export class Query extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:50110 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50114 ==== */
+/**
+ * A histogram.
+ */
 export class Histogram extends StructFrozen {
   static metatype: StructType = StructType.HISTOGRAM;
   static __isFrozen__: boolean = true;
 
+  /**
+   * Histogram.buckets
+   */
   readonly buckets: Array<Value>;
+
+  /**
+   * Histogram.counts
+   */
   readonly counts: Array<number>;
 
   constructor(options: {
@@ -767,17 +968,54 @@ export class Histogram extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:50114 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50111 ==== */
+/**
+ * The result of a Query.
+ * For grouped queries, group results are in Query.groups.
+ * The subresults correspond to Query.subqueries.
+ * If subresults for a Query clause may be missing if the subquery was deemed empty.
+ */
 export class QueryResult extends Struct {
   static metatype: StructType = StructType.QUERY_RESULT;
   static __isFrozen__: boolean = false;
 
+  /**
+   * QueryResult.id
+   */
   id: string;
+
+  /**
+   * QueryResultBase.type
+   */
   type: QueryType;
+
+  /**
+   * QueryResult.groups
+   */
   groups: Array<QueryResultGroup>;
+
+  /**
+   * QueryResult.subresults
+   */
   subresults: Array<QueryResult>;
+
+  /**
+   * QueryResultBase.nodes
+   */
   nodes: Array<Value>;
+
+  /**
+   * QueryResultBase.count
+   */
   count: number | null;
+
+  /**
+   * QueryResultBase.exists
+   */
   exists: boolean | null;
+
+  /**
+   * QueryResultBase.scalar
+   */
   scalar: Value | null;
 
   constructor(options: {
@@ -851,15 +1089,41 @@ export class QueryResult extends Struct {
 /* ==== DESTACK_GENERATED_END:STRUCT:50111 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50112 ==== */
+/**
+ * A group in a QueryResult.
+ */
 export class QueryResultGroup extends Struct {
   static metatype: StructType = StructType.QUERY_RESULT_GROUP;
   static __isFrozen__: boolean = false;
 
+  /**
+   * QueryResultBase.type
+   */
   type: QueryType;
+
+  /**
+   * QueryResultGroup.discriminator
+   */
   discriminator: Value;
+
+  /**
+   * QueryResultBase.nodes
+   */
   nodes: Array<Value>;
+
+  /**
+   * QueryResultBase.count
+   */
   count: number | null;
+
+  /**
+   * QueryResultBase.exists
+   */
   exists: boolean | null;
+
+  /**
+   * QueryResultBase.scalar
+   */
   scalar: Value | null;
 
   constructor(options: {
@@ -921,11 +1185,21 @@ export class QueryResultGroup extends Struct {
 /* ==== DESTACK_GENERATED_END:STRUCT:50112 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50113 ==== */
+/**
+ * An update to a QueryResult.
+ */
 export class QueryUpdate extends StructFrozen {
   static metatype: StructType = StructType.QUERY_UPDATE;
   static __isFrozen__: boolean = true;
 
+  /**
+   * QueryUpdate.type
+   */
   readonly type: QueryUpdateType;
+
+  /**
+   * QueryUpdate.result
+   */
   readonly result: QueryResult | null;
 
   constructor(options: {
@@ -969,6 +1243,9 @@ export class QueryUpdate extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:50113 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2571 ==== */
+/**
+ * A selection of fields from a Node.
+ */
 export class Selection extends StructFrozen {
   static metatype: StructType = StructType.SELECTION;
   static __isFrozen__: boolean = true;

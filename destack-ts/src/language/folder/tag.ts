@@ -1,12 +1,13 @@
 import {
   Entity,
   Graph,
+  HasIcon,
+  HasName,
   Icon,
   IsDeletable,
   IsOrdered,
   IsSubject,
   IsTaggable,
-  IsTracked,
   LikeTag,
   MaterializationType,
   Node,
@@ -24,7 +25,10 @@ import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:1010 ==== */
-export class Tag extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, LikeTag {
+/**
+ * A Tag to tag something.
+ */
+export class Tag extends Node implements Spatial, Entity, LikeTag, HasName, HasIcon, IsOrdered, IsDeletable {
   static metatype: NodeType = NodeType.TAG;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
@@ -40,44 +44,87 @@ export class Tag extends Node implements Spatial, Entity, IsTracked, IsDeletable
   static __ancestorTypes__: NodeType[] = [NodeType.FOLDER, NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): Folder | null | null {
+  /**
+   * Tag.parent
+   */
+  get parent(): Folder | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Folder | null | null;
+      return this._supergraph.get(nodePtr.id) as Folder | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
   readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * IsOrdered.orderKey
+   */
   readonly orderKey: string;
+
+  /**
+   * HasName.name
+   */
   name: string;
+
+  /**
+   * HasIcon.icon
+   */
   icon: Icon | null;
 
   constructor(options: {
@@ -228,7 +275,10 @@ export class Tag extends Node implements Spatial, Entity, IsTracked, IsDeletable
 /* ==== DESTACK_GENERATED_END:NODE:1010 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:1011 ==== */
-export class Tagging extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsTaggable {
+/**
+ * A Tagging of a Node by a Tag.
+ */
+export class Tagging extends Node implements Spatial, Entity, IsTaggable, IsOrdered, IsDeletable {
   static metatype: NodeType = NodeType.TAGGING;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
@@ -333,51 +383,89 @@ export class Tagging extends Node implements Spatial, Entity, IsTracked, IsDelet
   ];
   static __descendantTypes__: NodeType[] = [NodeType.TAGGING];
 
-  get parent(): (Node & IsTaggable) | null | null {
+  /**
+   * Tagging.parent
+   */
+  get parent(): (Node & IsTaggable) | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsTaggable) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsTaggable) | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
   readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * IsOrdered.orderKey
+   */
   readonly orderKey: string;
-  get tag(): Tag | null | null {
+
+  /**
+   * Tagging.tag
+   */
+  get tag(): Tag | null {
     const nodePtr: NodeReference | null = this.tagPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Tag | null | null;
+      return this._supergraph.get(nodePtr.id) as Tag | null;
     }
     return null;
   }
-
   set tag(node: Tag | null) {
     if (node === null) {
       this.tagPtr = null;

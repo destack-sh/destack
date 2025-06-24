@@ -1,17 +1,13 @@
 import {
-  Analytic,
   Entity,
   Event,
   Graph,
-  Indexed,
-  IsFrozen,
+  HasName,
   IsSubject,
-  IsTracked,
   MaterializationType,
   Node,
   NodeReference,
   NodeType,
-  Particle,
   QueryConnection,
   Session,
   Spatial,
@@ -24,6 +20,9 @@ import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:3054 ==== */
+/**
+ * TimerEventType
+ */
 export enum TimerEventType {
   STARTED = 1,
   STOPPED = 2,
@@ -32,6 +31,9 @@ export enum TimerEventType {
 /* ==== DESTACK_GENERATED_END:ENUM:3054 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:3053 ==== */
+/**
+ * TimerType
+ */
 export enum TimerType {
   ONCE = 1,
   RECURRING = 2,
@@ -39,7 +41,10 @@ export enum TimerType {
 /* ==== DESTACK_GENERATED_END:ENUM:3053 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:3051 ==== */
-export class TimerEvent extends Node implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked {
+/**
+ * A Event regarding a Timer.
+ */
+export class TimerEvent extends Node implements Event {
   static metatype: NodeType = NodeType.TIMER_EVENT;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
@@ -56,41 +61,72 @@ export class TimerEvent extends Node implements Spatial, Particle, Analytic, Ind
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): Space | null | null {
+  /**
+   * Spatial.parent
+   */
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * TimerEvent.type
+   */
   type: TimerEventType;
+
+  /**
+   * TimerEvent.node
+   */
   get node(): Timer | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr !== null) {
@@ -98,7 +134,6 @@ export class TimerEvent extends Node implements Spatial, Particle, Analytic, Ind
     }
     return null;
   }
-
   set node(node: Timer) {
     this.nodePtr = node.toRef();
   }
@@ -237,7 +272,10 @@ export class TimerEvent extends Node implements Spatial, Particle, Analytic, Ind
 /* ==== DESTACK_GENERATED_END:NODE:3051 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:3050 ==== */
-export class Timer extends Node implements Spatial, Entity, IsTracked {
+/**
+ * A Timer.
+ */
+export class Timer extends Node implements Spatial, Entity, HasName {
   static metatype: NodeType = NodeType.TIMER;
   static __traits__: TraitType[] = [TraitType.TRACKED, TraitType.SPATIAL, TraitType.ENTITY];
   static __rootType__: NodeType | null = NodeType.SPACE;
@@ -246,43 +284,82 @@ export class Timer extends Node implements Spatial, Entity, IsTracked {
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): Space | null | null {
+  /**
+   * Spatial.parent
+   */
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * Timer.type
+   */
   type: TimerType;
+
+  /**
+   * HasName.name
+   */
   name: string;
+
+  /**
+   * Timer.schedule
+   */
   schedule: Schedule | null;
 
   constructor(options: {

@@ -3,70 +3,116 @@ import {
   Axis2,
   Axis3,
   Corners,
-  Dimension,
   Direction,
   Distribute,
   Grid,
   GridSpan,
   Insets,
-  IsSubject,
+  IsExtensible,
   Layout,
-  MaterializationType,
-  Node,
-  NodeReference,
-  Position,
-  Value,
   Vector2,
 } from "@destack/language/core";
-import { Script } from "@destack/language/logic";
-import { Space } from "@destack/language/space";
 import { Border, Fill, Shadow } from "@destack/language/style";
-import { Temporal } from "temporal-polyfill";
+import { View } from "@destack/language/view";
 
 /* ==== DESTACK_GENERATED_START:TRAIT:10000 ==== */
-export interface ContainerView {
-  readonly id: string;
-  get space(): Space | null | null;
-  readonly spacePtr: NodeReference | null;
-  readonly materialization: MaterializationType;
-  readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null;
-  readonly createdByPtr: NodeReference | null;
-  readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null;
-  readonly updatedByPtr: NodeReference | null;
-  readonly deletedAt: Temporal.ZonedDateTime | null;
-  value: Map<string, Value>;
-  readonly orderKey: string;
-  name: string;
-  position: Position | null;
-  width: Dimension | null;
-  height: Dimension | null;
-  minWidth: Dimension | null;
-  minHeight: Dimension | null;
-  maxWidth: Dimension | null;
-  maxHeight: Dimension | null;
+/**
+ * A container View contains other Views.
+ */
+export interface ContainerView extends IsExtensible, View {
+  /**
+   * ContainerView.layout
+   */
   layout: Layout | null;
+
+  /**
+   * ContainerView.direction
+   */
   direction: Direction | null;
+
+  /**
+   * ContainerView.distribute
+   */
   distribute: Distribute | null;
+
+  /**
+   * ContainerView.align
+   */
   align: Align | null;
+
+  /**
+   * ContainerView.gap
+   */
   gap: Axis2 | null;
+
+  /**
+   * ContainerView.padding
+   */
   padding: Insets | null;
+
+  /**
+   * ContainerView.grid
+   */
   grid: Grid | null;
+
+  /**
+   * ContainerView.gridSpan
+   */
   gridSpan: GridSpan | null;
+
+  /**
+   * ContainerView.aspectRatio
+   */
   aspectRatio: number | null;
+
+  /**
+   * ContainerView.isWrap
+   */
   isWrap: boolean | null;
+
+  /**
+   * ContainerView.isVisible
+   */
   isVisible: boolean | null;
+
+  /**
+   * ContainerView.opacity
+   */
   opacity: number | null;
+
+  /**
+   * ContainerView.fill
+   */
   fill: Fill | null;
+
+  /**
+   * ContainerView.rotation
+   */
   rotation: Axis3 | null;
+
+  /**
+   * ContainerView.skew
+   */
   skew: Vector2 | null;
+
+  /**
+   * ContainerView.scale
+   */
   scale: number | null;
+
+  /**
+   * ContainerView.shadow
+   */
   shadow: Shadow | null;
+
+  /**
+   * ContainerView.border
+   */
   border: Border | null;
+
+  /**
+   * ContainerView.radius
+   */
   radius: Corners | null;
-  get script(): Script | null | null;
-  set script(value: Script | null);
-  scriptPtr: NodeReference | null;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:10000 ==== */

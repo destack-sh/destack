@@ -1,6 +1,9 @@
 import { Session, StructFrozen, StructType, Supergraph } from "@destack/language/core";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12038 ==== */
+/**
+ * Layout
+ */
 export enum Layout {
   STACK = 1,
   GRID = 2,
@@ -8,6 +11,9 @@ export enum Layout {
 /* ==== DESTACK_GENERATED_END:ENUM:12038 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12042 ==== */
+/**
+ * Overflow
+ */
 export enum Overflow {
   HIDDEN = 2,
   VISIBLE = 3,
@@ -16,6 +22,9 @@ export enum Overflow {
 /* ==== DESTACK_GENERATED_END:ENUM:12042 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12041 ==== */
+/**
+ * Direction
+ */
 export enum Direction {
   HORIZONTAL = 1,
   VERTICAL = 2,
@@ -23,6 +32,9 @@ export enum Direction {
 /* ==== DESTACK_GENERATED_END:ENUM:12041 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12039 ==== */
+/**
+ * Distribute
+ */
 export enum Distribute {
   START = 1,
   CENTER = 2,
@@ -34,6 +46,9 @@ export enum Distribute {
 /* ==== DESTACK_GENERATED_END:ENUM:12039 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12040 ==== */
+/**
+ * Align
+ */
 export enum Align {
   START = 1,
   CENTER = 2,
@@ -42,6 +57,9 @@ export enum Align {
 /* ==== DESTACK_GENERATED_END:ENUM:12040 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12037 ==== */
+/**
+ * LengthUnit
+ */
 export enum LengthUnit {
   PIXEL = 1,
   REM = 2,
@@ -51,6 +69,9 @@ export enum LengthUnit {
 /* ==== DESTACK_GENERATED_END:ENUM:12037 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12000 ==== */
+/**
+ * PositionType
+ */
 export enum PositionType {
   RELATIVE = 1,
   ABSOLUTE = 2,
@@ -60,6 +81,9 @@ export enum PositionType {
 /* ==== DESTACK_GENERATED_END:ENUM:12000 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12045 ==== */
+/**
+ * DimensionType
+ */
 export enum DimensionType {
   FIXED = 2,
   FIT = 3,
@@ -68,11 +92,21 @@ export enum DimensionType {
 /* ==== DESTACK_GENERATED_END:ENUM:12045 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12018 ==== */
+/**
+ * A length value.
+ */
 export class Length extends StructFrozen {
   static metatype: StructType = StructType.LENGTH;
   static __isFrozen__: boolean = true;
 
+  /**
+   * Length.unit
+   */
   readonly unit: LengthUnit;
+
+  /**
+   * Length.value
+   */
   readonly value: number;
 
   constructor(options: {
@@ -119,14 +153,36 @@ export class Length extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:12018 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12020 ==== */
+/**
+ * A position value.
+ */
 export class Position extends StructFrozen {
   static metatype: StructType = StructType.POSITION;
   static __isFrozen__: boolean = true;
 
+  /**
+   * Position.type
+   */
   readonly type: PositionType;
+
+  /**
+   * Position.top
+   */
   readonly top: Length | null;
+
+  /**
+   * Position.left
+   */
   readonly left: Length | null;
+
+  /**
+   * Position.width
+   */
   readonly width: Length | null;
+
+  /**
+   * Position.height
+   */
   readonly height: Length | null;
 
   constructor(options: {
@@ -179,12 +235,26 @@ export class Position extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:12020 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12022 ==== */
+/**
+ * A dimension value (like Length but can fit or fill container).
+ */
 export class Dimension extends StructFrozen {
   static metatype: StructType = StructType.DIMENSION;
   static __isFrozen__: boolean = true;
 
+  /**
+   * Dimension.type
+   */
   readonly type: DimensionType;
+
+  /**
+   * Dimension.unit
+   */
   readonly unit: LengthUnit;
+
+  /**
+   * Dimension.value
+   */
   readonly value: number;
 
   constructor(options: {
@@ -237,14 +307,36 @@ export class Dimension extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:12022 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12030 ==== */
+/**
+ * An insets value (base + side overrides).
+ */
 export class Insets extends StructFrozen {
   static metatype: StructType = StructType.INSETS;
   static __isFrozen__: boolean = true;
 
+  /**
+   * Insets.base
+   */
   readonly base: number | null;
+
+  /**
+   * Insets.top
+   */
   readonly top: number | null;
+
+  /**
+   * Insets.left
+   */
   readonly left: number | null;
+
+  /**
+   * Insets.right
+   */
   readonly right: number | null;
+
+  /**
+   * Insets.bottom
+   */
   readonly bottom: number | null;
 
   constructor(options: {
@@ -294,14 +386,36 @@ export class Insets extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:12030 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12032 ==== */
+/**
+ * A corners value (base + corner overrides).
+ */
 export class Corners extends StructFrozen {
   static metatype: StructType = StructType.CORNERS;
   static __isFrozen__: boolean = true;
 
+  /**
+   * Corners.base
+   */
   readonly base: number | null;
+
+  /**
+   * Corners.topLeft
+   */
   readonly topLeft: number | null;
+
+  /**
+   * Corners.topRight
+   */
   readonly topRight: number | null;
+
+  /**
+   * Corners.bottomLeft
+   */
   readonly bottomLeft: number | null;
+
+  /**
+   * Corners.bottomRight
+   */
   readonly bottomRight: number | null;
 
   constructor(options: {
@@ -351,12 +465,26 @@ export class Corners extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:12032 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50207 ==== */
+/**
+ * A gap value (base + x/y overrides).
+ */
 export class Axis2 extends StructFrozen {
   static metatype: StructType = StructType.AXIS2;
   static __isFrozen__: boolean = true;
 
+  /**
+   * Axis2.base
+   */
   readonly base: number | null;
+
+  /**
+   * Axis2.x
+   */
   readonly x: number | null;
+
+  /**
+   * Axis2.y
+   */
   readonly y: number | null;
 
   constructor(options: {
@@ -400,13 +528,31 @@ export class Axis2 extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:50207 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50209 ==== */
+/**
+ * A rotation value (base + x/y/z overrides).
+ */
 export class Axis3 extends StructFrozen {
   static metatype: StructType = StructType.AXIS3;
   static __isFrozen__: boolean = true;
 
+  /**
+   * Axis3.base
+   */
   readonly base: number | null;
+
+  /**
+   * Axis3.x
+   */
   readonly x: number | null;
+
+  /**
+   * Axis3.y
+   */
   readonly y: number | null;
+
+  /**
+   * Axis3.z
+   */
   readonly z: number | null;
 
   constructor(options: {
@@ -453,11 +599,21 @@ export class Axis3 extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:50209 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50200 ==== */
+/**
+ * A 2D float vector.
+ */
 export class Vector2 extends StructFrozen {
   static metatype: StructType = StructType.VECTOR2;
   static __isFrozen__: boolean = true;
 
+  /**
+   * Vector2.x
+   */
   readonly x: number;
+
+  /**
+   * Vector2.y
+   */
   readonly y: number;
 
   constructor(options: { x: number; y: number; _session?: Session | null; _supergraph?: Supergraph | null }) {
@@ -499,12 +655,26 @@ export class Vector2 extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:50200 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50201 ==== */
+/**
+ * A 3D float vector.
+ */
 export class Vector3 extends StructFrozen {
   static metatype: StructType = StructType.VECTOR3;
   static __isFrozen__: boolean = true;
 
+  /**
+   * Vector3.x
+   */
   readonly x: number;
+
+  /**
+   * Vector3.y
+   */
   readonly y: number;
+
+  /**
+   * Vector3.z
+   */
   readonly z: number;
 
   constructor(options: {
@@ -557,13 +727,31 @@ export class Vector3 extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:50201 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50202 ==== */
+/**
+ * A 4D float vector.
+ */
 export class Vector4 extends StructFrozen {
   static metatype: StructType = StructType.VECTOR4;
   static __isFrozen__: boolean = true;
 
+  /**
+   * Vector4.x
+   */
   readonly x: number;
+
+  /**
+   * Vector4.y
+   */
   readonly y: number;
+
+  /**
+   * Vector4.z
+   */
   readonly z: number;
+
+  /**
+   * Vector4.w
+   */
   readonly w: number;
 
   constructor(options: {
@@ -622,11 +810,21 @@ export class Vector4 extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:50202 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50203 ==== */
+/**
+ * A 2D integer vector.
+ */
 export class Vector2i extends StructFrozen {
   static metatype: StructType = StructType.VECTOR2I;
   static __isFrozen__: boolean = true;
 
+  /**
+   * Vector2i.x
+   */
   readonly x: number;
+
+  /**
+   * Vector2i.y
+   */
   readonly y: number;
 
   constructor(options: { x: number; y: number; _session?: Session | null; _supergraph?: Supergraph | null }) {
@@ -668,12 +866,26 @@ export class Vector2i extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:50203 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50204 ==== */
+/**
+ * A 3D integer vector.
+ */
 export class Vector3i extends StructFrozen {
   static metatype: StructType = StructType.VECTOR3I;
   static __isFrozen__: boolean = true;
 
+  /**
+   * Vector3i.x
+   */
   readonly x: number;
+
+  /**
+   * Vector3i.y
+   */
   readonly y: number;
+
+  /**
+   * Vector3i.z
+   */
   readonly z: number;
 
   constructor(options: {
@@ -726,13 +938,31 @@ export class Vector3i extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:50204 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50205 ==== */
+/**
+ * A 4D integer vector.
+ */
 export class Vector4i extends StructFrozen {
   static metatype: StructType = StructType.VECTOR4I;
   static __isFrozen__: boolean = true;
 
+  /**
+   * Vector4i.x
+   */
   readonly x: number;
+
+  /**
+   * Vector4i.y
+   */
   readonly y: number;
+
+  /**
+   * Vector4i.z
+   */
   readonly z: number;
+
+  /**
+   * Vector4i.w
+   */
   readonly w: number;
 
   constructor(options: {
@@ -791,14 +1021,36 @@ export class Vector4i extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:50205 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12026 ==== */
+/**
+ * A grid configuration value.
+ */
 export class Grid extends StructFrozen {
   static metatype: StructType = StructType.GRID;
   static __isFrozen__: boolean = true;
 
+  /**
+   * Grid.columns
+   */
   readonly columns: number;
+
+  /**
+   * Grid.rows
+   */
   readonly rows: number;
+
+  /**
+   * Grid.columnWidth
+   */
   readonly columnWidth: Dimension | null;
+
+  /**
+   * Grid.columnMinWidth
+   */
   readonly columnMinWidth: Dimension | null;
+
+  /**
+   * Grid.rowHeight
+   */
   readonly rowHeight: Dimension | null;
 
   constructor(options: {
@@ -854,11 +1106,21 @@ export class Grid extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:12026 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12028 ==== */
+/**
+ * A grid span value.
+ */
 export class GridSpan extends StructFrozen {
   static metatype: StructType = StructType.GRID_SPAN;
   static __isFrozen__: boolean = true;
 
+  /**
+   * GridSpan.columns
+   */
   readonly columns: number;
+
+  /**
+   * GridSpan.rows
+   */
   readonly rows: number;
 
   constructor(options: { columns: number; rows: number; _session?: Session | null; _supergraph?: Supergraph | null }) {

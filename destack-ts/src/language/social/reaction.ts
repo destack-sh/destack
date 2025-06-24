@@ -6,7 +6,6 @@ import {
   IsOwnable,
   IsReactable,
   IsSubject,
-  IsTracked,
   MaterializationType,
   Node,
   NodeReference,
@@ -22,7 +21,10 @@ import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:5520 ==== */
-export class Reaction extends Node implements Global, Spatial, Entity, IsTracked, IsDeletable, IsOwnable, IsReactable {
+/**
+ * A Reaction is a relationship between a Subject and a Reaction Node.
+ */
+export class Reaction extends Node implements Global, Spatial, Entity, IsReactable, IsDeletable, IsOwnable {
   static metatype: NodeType = NodeType.REACTION;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
@@ -45,42 +47,77 @@ export class Reaction extends Node implements Global, Spatial, Entity, IsTracked
   ];
   static __descendantTypes__: NodeType[] = [NodeType.REACTION];
 
-  get parent(): (Node & IsReactable) | null | null {
+  /**
+   * Reaction.parent
+   */
+  get parent(): (Node & IsReactable) | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsReactable) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsReactable) | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
   readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * Reaction.ownedBy
+   */
   get ownedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
@@ -88,11 +125,14 @@ export class Reaction extends Node implements Global, Spatial, Entity, IsTracked
     }
     return null;
   }
-
   set ownedBy(node: Node & IsSubject) {
     this.ownedByPtr = node.toRef();
   }
   ownedByPtr: NodeReference;
+
+  /**
+   * Reaction.content
+   */
   content: string;
 
   constructor(options: {

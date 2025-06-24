@@ -1,13 +1,13 @@
 import {
   Entity,
   Graph,
+  HasName,
   IsDeletable,
   IsOrdered,
   IsOwnable,
   IsOwner,
   IsSubject,
   IsTaggable,
-  IsTracked,
   MaterializationType,
   Node,
   NodeReference,
@@ -25,7 +25,10 @@ import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:3030 ==== */
-export class Route extends Node implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsOwnable, IsTaggable {
+/**
+ * A Route is a path to a Scene.
+ */
+export class Route extends Node implements Spatial, Entity, HasName, IsDeletable, IsOrdered, IsOwnable, IsTaggable {
   static metatype: NodeType = NodeType.ROUTE;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
@@ -42,51 +45,89 @@ export class Route extends Node implements Spatial, Entity, IsTracked, IsDeletab
   static __ancestorTypes__: NodeType[] = [NodeType.FOLDER, NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [NodeType.TAGGING];
 
-  get parent(): Folder | null | null {
+  /**
+   * Route.parent
+   */
+  get parent(): Folder | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Folder | null | null;
+      return this._supergraph.get(nodePtr.id) as Folder | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
   readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * IsOrdered.orderKey
+   */
   readonly orderKey: string;
-  get ownedBy(): (Node & IsOwner) | null | null {
+
+  /**
+   * IsOwnable.ownedBy
+   */
+  get ownedBy(): (Node & IsOwner) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null;
     }
     return null;
   }
-
   set ownedBy(node: (Node & IsOwner) | null) {
     if (node === null) {
       this.ownedByPtr = null;
@@ -95,15 +136,22 @@ export class Route extends Node implements Spatial, Entity, IsTracked, IsDeletab
     }
   }
   ownedByPtr: NodeReference | null;
+
+  /**
+   * HasName.name
+   */
   name: string;
-  get scene(): Scene | null | null {
+
+  /**
+   * The Scene to route to.
+   */
+  get scene(): Scene | null {
     const nodePtr: NodeReference | null = this.scenePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Scene | null | null;
+      return this._supergraph.get(nodePtr.id) as Scene | null;
     }
     return null;
   }
-
   set scene(node: Scene | null) {
     if (node === null) {
       this.scenePtr = null;

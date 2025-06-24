@@ -2,11 +2,13 @@ import {
   Entity,
   Global,
   Graph,
+  HasIcon,
+  HasName,
+  HasSlug,
   Icon,
   IsFollowable,
   IsOwner,
   IsSubject,
-  IsTracked,
   MaterializationType,
   Node,
   NodeReference,
@@ -22,6 +24,9 @@ import { Handle, Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:20 ==== */
+/**
+ * UserStatus
+ */
 export enum UserStatus {
   CREATING = 2,
   ACTIVE = 10,
@@ -29,7 +34,10 @@ export enum UserStatus {
 /* ==== DESTACK_GENERATED_END:ENUM:20 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:20 ==== */
-export class User extends Node implements Global, Entity, IsTracked, IsSubject, IsOwner, IsFollowable {
+/**
+ * A User is a human using Destack.
+ */
+export class User extends Node implements Global, Entity, HasName, HasIcon, HasSlug, IsOwner, IsFollowable, IsSubject {
   static metatype: NodeType = NodeType.USER;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
@@ -45,39 +53,90 @@ export class User extends Node implements Global, Entity, IsTracked, IsSubject, 
   static __ancestorTypes__: NodeType[] = [];
   static __descendantTypes__: NodeType[] = [NodeType.FOLLOW, NodeType.CLIENT, NodeType.SANCTION, NodeType.ENTITLEMENT];
 
-  get parent(): Node | null | null {
+  /**
+   * Trait.parent
+   */
+  get parent(): Node | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * User.name
+   */
   name: string;
+
+  /**
+   * User.slug
+   */
   slug: string;
+
+  /**
+   * HasIcon.icon
+   */
   icon: Icon | null;
+
+  /**
+   * User.status
+   */
   readonly status: UserStatus;
+
+  /**
+   * User.lastLoggedInAt
+   */
   readonly lastLoggedInAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * User.isStaff
+   */
   readonly isStaff: boolean;
+
+  /**
+   * User.space
+   */
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
@@ -86,24 +145,44 @@ export class User extends Node implements Global, Entity, IsTracked, IsSubject, 
     return null;
   }
   readonly spacePtr: NodeReference;
-  get handle(): Handle | null | null {
+
+  /**
+   * User.handle
+   */
+  get handle(): Handle | null {
     const nodePtr: NodeReference | null = this.handlePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Handle | null | null;
+      return this._supergraph.get(nodePtr.id) as Handle | null;
     }
     return null;
   }
   readonly handlePtr: NodeReference | null;
-  get cursor(): (Node & Cursor) | null | null {
+
+  /**
+   * User.cursor
+   */
+  get cursor(): (Node & Cursor) | null {
     const nodePtr: NodeReference | null = this.cursorPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & Cursor) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & Cursor) | null;
     }
     return null;
   }
   readonly cursorPtr: NodeReference | null;
+
+  /**
+   * User.email
+   */
   readonly email: string | null;
+
+  /**
+   * User.passwordSalt
+   */
   readonly passwordSalt: Uint8Array | null;
+
+  /**
+   * User.passwordHash
+   */
   readonly passwordHash: Uint8Array | null;
 
   constructor(options: {

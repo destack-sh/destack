@@ -15,6 +15,9 @@ import { Temporal } from "temporal-polyfill";
 import { v4 as uuid4 } from "uuid";
 
 /* ==== DESTACK_GENERATED_START:ENUM:50050 ==== */
+/**
+ * EditType
+ */
 export enum EditType {
   CREATE = 1,
   UPSERT = 2,
@@ -29,6 +32,9 @@ export enum EditType {
 /* ==== DESTACK_GENERATED_END:ENUM:50050 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50051 ==== */
+/**
+ * EditOperation
+ */
 export enum EditOperation {
   SET = 1,
   CLEAR = 2,
@@ -36,6 +42,9 @@ export enum EditOperation {
 /* ==== DESTACK_GENERATED_END:ENUM:50051 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50052 ==== */
+/**
+ * ChangeStatus
+ */
 export enum ChangeStatus {
   COMPLETED = 10,
   FAILED = 12,
@@ -44,19 +53,40 @@ export enum ChangeStatus {
 /* ==== DESTACK_GENERATED_END:ENUM:50052 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50053 ==== */
+/**
+ * ChangeDebounce
+ */
 export enum ChangeDebounce {
   LAZY = 10,
 }
 /* ==== DESTACK_GENERATED_END:ENUM:50053 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50020 ==== */
+/**
+ * An Edit to a Node.
+ */
 export class Edit extends StructFrozen {
   static metatype: StructType = StructType.EDIT;
   static __isFrozen__: boolean = true;
 
+  /**
+   * Edit.id
+   */
   readonly id: string;
+
+  /**
+   * Edit.type
+   */
   readonly type: EditType;
+
+  /**
+   * Edit.operation
+   */
   readonly operation: EditOperation | null;
+
+  /**
+   * node
+   */
   get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr !== null) {
@@ -68,8 +98,16 @@ export class Edit extends StructFrozen {
     return null;
   }
   readonly nodePtr: NodeReference;
+
+  /**
+   * Edit.propPtr
+   */
   readonly propPtr: PropertyReference | null;
-  get field(): Field | null | null {
+
+  /**
+   * field
+   */
+  get field(): Field | null {
     const nodePtr: NodeReference | null = this.fieldPtr;
     if (nodePtr !== null) {
       if (this._supergraph === null) {
@@ -80,8 +118,20 @@ export class Edit extends StructFrozen {
     return null;
   }
   readonly fieldPtr: NodeReference | null;
+
+  /**
+   * Edit.key
+   */
   readonly key: Value | null;
+
+  /**
+   * Edit.value
+   */
   readonly value: Value | null;
+
+  /**
+   * The inverse Edit (if it cannot be derived from the Edit itself).
+   */
   readonly undo: Edit | null;
 
   constructor(options: {
@@ -161,14 +211,32 @@ export class Edit extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:50020 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50021 ==== */
+/**
+ * A Change is an atomic sequence of Edits.
+ */
 export class Change extends StructFrozen {
   static metatype: StructType = StructType.CHANGE;
   static __isFrozen__: boolean = true;
 
+  /**
+   * Change.id
+   */
   readonly id: string;
+
+  /**
+   * Change.name
+   */
   readonly name: string | null;
+
+  /**
+   * Change.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * created_by
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
       if (this._supergraph === null) {
@@ -179,8 +247,20 @@ export class Change extends StructFrozen {
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * Change.origin
+   */
   readonly origin: Origin | null;
+
+  /**
+   * Change.debounce
+   */
   readonly debounce: ChangeDebounce | null;
+
+  /**
+   * Change.edits
+   */
   readonly edits: Array<Edit>;
 
   constructor(options: {
@@ -254,15 +334,41 @@ export class Change extends StructFrozen {
 /* ==== DESTACK_GENERATED_END:STRUCT:50021 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50022 ==== */
+/**
+ * The result of a Change. If rejected, edits/cascaded_edits are empty.
+ */
 export class ChangeResult extends StructFrozen {
   static metatype: StructType = StructType.CHANGE_RESULT;
   static __isFrozen__: boolean = true;
 
+  /**
+   * The id of the Change.
+   */
   readonly id: string;
+
+  /**
+   * The time the ChangeResult was created.
+   */
   readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * ChangeResult.debounce
+   */
   readonly debounce: ChangeDebounce | null;
+
+  /**
+   * ChangeResult.status
+   */
   readonly status: ChangeStatus;
+
+  /**
+   * The applied Edits (may differ).
+   */
   readonly edits: Array<Edit>;
+
+  /**
+   * The Edits cascaded from the applied Edits.
+   */
   readonly cascadedEdits: Array<Edit>;
 
   constructor(options: {

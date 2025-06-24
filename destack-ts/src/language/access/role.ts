@@ -1,23 +1,21 @@
 import {
-  Analytic,
   Entity,
   Event,
   Global,
   Graph,
+  HasIcon,
+  HasName,
+  HasSlug,
   Icon,
-  Indexed,
   IsDeletable,
-  IsFrozen,
   IsJoinable,
   IsOrdered,
   IsOwner,
   IsSubject,
-  IsTracked,
   MaterializationType,
   Node,
   NodeReference,
   NodeType,
-  Particle,
   QueryConnection,
   RoleType,
   Session,
@@ -30,6 +28,9 @@ import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:521 ==== */
+/**
+ * RoleEventType
+ */
 export enum RoleEventType {
   ASSIGNED = 1,
   REMOVED = 2,
@@ -37,7 +38,10 @@ export enum RoleEventType {
 /* ==== DESTACK_GENERATED_END:ENUM:521 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:521 ==== */
-export class RoleEvent extends Node implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked {
+/**
+ * A Event regarding a Role.
+ */
+export class RoleEvent extends Node implements Event {
   static metatype: NodeType = NodeType.ROLE_EVENT;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
@@ -54,41 +58,72 @@ export class RoleEvent extends Node implements Spatial, Particle, Analytic, Inde
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): Space | null | null {
+  /**
+   * Spatial.parent
+   */
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * RoleEvent.type
+   */
   type: RoleEventType;
+
+  /**
+   * RoleEvent.node
+   */
   get node(): Role | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr !== null) {
@@ -96,7 +131,6 @@ export class RoleEvent extends Node implements Spatial, Particle, Analytic, Inde
     }
     return null;
   }
-
   set node(node: Role) {
     this.nodePtr = node.toRef();
   }
@@ -235,7 +269,13 @@ export class RoleEvent extends Node implements Spatial, Particle, Analytic, Inde
 /* ==== DESTACK_GENERATED_END:NODE:521 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:520 ==== */
-export class Role extends Node implements Global, Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsOwner {
+/**
+ * A Role for Subjects to take.
+ */
+export class Role
+  extends Node
+  implements Global, Spatial, Entity, HasSlug, HasIcon, HasName, IsOwner, IsOrdered, IsDeletable
+{
   static metatype: NodeType = NodeType.ROLE;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
@@ -264,46 +304,97 @@ export class Role extends Node implements Global, Spatial, Entity, IsTracked, Is
   ];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): (Node & IsJoinable) | null | null {
+  /**
+   * Role.parent
+   */
+  get parent(): (Node & IsJoinable) | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsJoinable) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsJoinable) | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
   readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * IsOrdered.orderKey
+   */
   readonly orderKey: string;
+
+  /**
+   * Role.type
+   */
   type: RoleType;
+
+  /**
+   * HasName.name
+   */
   name: string;
+
+  /**
+   * HasSlug.slug
+   */
   slug: string | null;
+
+  /**
+   * HasIcon.icon
+   */
   icon: Icon | null;
 
   constructor(options: {

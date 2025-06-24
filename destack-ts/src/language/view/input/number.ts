@@ -1,14 +1,7 @@
 import {
   Dimension,
-  Entity,
   Graph,
-  IsDeletable,
-  IsOrdered,
-  IsScriptable,
   IsSubject,
-  IsTaggable,
-  IsTracked,
-  IsVisual,
   MaterializationType,
   Node,
   NodeReference,
@@ -16,7 +9,6 @@ import {
   Position,
   QueryConnection,
   Session,
-  Spatial,
   StructType,
   Supergraph,
   TraitType,
@@ -24,14 +16,14 @@ import {
 import { Script } from "@destack/language/logic";
 import { Layer, Scene, Window } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
-import { ContainerView, InputView, View } from "@destack/language/view";
+import { ContainerView, InputView } from "@destack/language/view";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:10400 ==== */
-export class NumberInputView
-  extends Node
-  implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsTaggable, IsScriptable, IsVisual, View, InputView
-{
+/**
+ * A general number input View.
+ */
+export class NumberInputView extends Node implements InputView {
   static metatype: NodeType = NodeType.NUMBER_INPUT_VIEW;
   static __traits__: TraitType[] = [
     TraitType.INPUT_VIEW,
@@ -101,63 +93,149 @@ export class NumberInputView
     NodeType.SCRIPT,
   ];
 
-  get parent(): Window | Scene | Layer | (Node & ContainerView) | null | null {
+  /**
+   * View.parent
+   */
+  get parent(): Window | Scene | Layer | (Node & ContainerView) | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Window | Scene | Layer | (Node & ContainerView) | null | null;
+      return this._supergraph.get(nodePtr.id) as Window | Scene | Layer | (Node & ContainerView) | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
   readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * IsOrdered.orderKey
+   */
   readonly orderKey: string;
+
+  /**
+   * HasName.name
+   */
   name: string;
+
+  /**
+   * View.position
+   */
   position: Position | null;
+
+  /**
+   * View.width
+   */
   width: Dimension | null;
+
+  /**
+   * View.height
+   */
   height: Dimension | null;
+
+  /**
+   * View.minWidth
+   */
   minWidth: Dimension | null;
+
+  /**
+   * View.minHeight
+   */
   minHeight: Dimension | null;
+
+  /**
+   * View.maxWidth
+   */
   maxWidth: Dimension | null;
+
+  /**
+   * View.maxHeight
+   */
   maxHeight: Dimension | null;
+
+  /**
+   * InputView.isVisible
+   */
   isVisible: boolean | null;
+
+  /**
+   * InputView.opacity
+   */
   opacity: number | null;
+
+  /**
+   * NumberInputView.value
+   */
   value: string | null;
+
+  /**
+   * NumberInputView.placeholder
+   */
   placeholder: string | null;
-  get script(): Script | null | null {
+
+  /**
+   * The main / root Script of this Node.
+   */
+  get script(): Script | null {
     const nodePtr: NodeReference | null = this.scriptPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Script | null | null;
+      return this._supergraph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
-
   set script(node: Script | null) {
     if (node === null) {
       this.scriptPtr = null;

@@ -1,8 +1,7 @@
 import {
-  Entity,
   Graph,
+  HasName,
   IsSubject,
-  IsTracked,
   MaterializationType,
   Node,
   NodeReference,
@@ -23,22 +22,55 @@ import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:7505 ==== */
+/**
+ * DatabaseType
+ */
 export enum DatabaseType {
   POSTGRES = 1,
 }
 /* ==== DESTACK_GENERATED_END:ENUM:7505 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:7501 ==== */
+/**
+ * DatabaseInfo
+ */
 export class DatabaseInfo extends Struct {
   static metatype: StructType = StructType.DATABASE_INFO;
   static __isFrozen__: boolean = false;
 
+  /**
+   * DatabaseBase.type
+   */
   type: DatabaseType;
+
+  /**
+   * DatabaseBase.region
+   */
   region: Region;
+
+  /**
+   * DatabaseBase.galaxyName
+   */
   galaxyName: string | null;
+
+  /**
+   * DatabaseBase.externalName
+   */
   externalName: string;
+
+  /**
+   * DatabaseBase.customSchemaName
+   */
   customSchemaName: string | null;
+
+  /**
+   * DatabaseBase.tenancy
+   */
   tenancy: Tenancy;
+
+  /**
+   * DatabaseBase.connectionUrl
+   */
   connectionUrl: string | null;
 
   constructor(options: {
@@ -109,7 +141,10 @@ export class DatabaseInfo extends Struct {
 /* ==== DESTACK_GENERATED_END:STRUCT:7501 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:7500 ==== */
-export class Database extends Node implements Spatial, Entity, Resource, IsTracked {
+/**
+ * A primary storage Database of some flavor.
+ */
+export class Database extends Node implements Spatial, Resource, HasName {
   static metatype: NodeType = NodeType.DATABASE;
   static __traits__: TraitType[] = [TraitType.TRACKED, TraitType.SPATIAL, TraitType.ENTITY, TraitType.RESOURCE];
   static __rootType__: NodeType | null = NodeType.SPACE;
@@ -118,50 +153,117 @@ export class Database extends Node implements Spatial, Entity, Resource, IsTrack
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): Space | null | null {
+  /**
+   * Database.parent
+   */
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * DatabaseBase.type
+   */
   readonly type: DatabaseType;
+
+  /**
+   * HasName.name
+   */
   name: string;
+
+  /**
+   * Resource.status
+   */
   status: ResourceStatus;
+
+  /**
+   * Resource.targetStatus
+   */
   targetStatus: Temporal.ZonedDateTime | null;
+
+  /**
+   * DatabaseBase.region
+   */
   readonly region: Region;
+
+  /**
+   * DatabaseBase.galaxyName
+   */
   readonly galaxyName: string | null;
+
+  /**
+   * DatabaseBase.externalName
+   */
   readonly externalName: string;
+
+  /**
+   * DatabaseBase.customSchemaName
+   */
   readonly customSchemaName: string | null;
+
+  /**
+   * DatabaseBase.tenancy
+   */
   tenancy: Tenancy;
+
+  /**
+   * DatabaseBase.connectionUrl
+   */
   readonly connectionUrl: string | null;
 
   constructor(options: {

@@ -1,6 +1,9 @@
 import {
   Entity,
   Graph,
+  HasIcon,
+  HasName,
+  HasSlug,
   Icon,
   IsDeletable,
   IsFollowable,
@@ -11,7 +14,6 @@ import {
   IsStarable,
   IsSubject,
   IsTaggable,
-  IsTracked,
   MaterializationType,
   Node,
   NodeReference,
@@ -28,6 +30,9 @@ import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:1000 ==== */
+/**
+ * FolderType
+ */
 export enum FolderType {
   SYSTEM = 1,
   HOME = 2,
@@ -38,17 +43,22 @@ export enum FolderType {
 /* ==== DESTACK_GENERATED_END:ENUM:1000 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:1000 ==== */
+/**
+ * A Folder is a sub-space of a Space.
+ */
 export class Folder
   extends Node
   implements
     Spatial,
     Entity,
-    IsTracked,
-    IsDeletable,
-    IsOrdered,
+    HasIcon,
+    HasSlug,
+    HasName,
+    IsTaggable,
     IsOwnable,
     IsJoinable,
-    IsTaggable,
+    IsOrdered,
+    IsDeletable,
     IsStarable,
     IsFollowable
 {
@@ -141,51 +151,89 @@ export class Folder
     NodeType.INVITE,
   ];
 
-  get parent(): Space | Folder | null | null {
+  /**
+   * Folder.parent
+   */
+  get parent(): Space | Folder | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | Folder | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | Folder | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
   readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * IsOrdered.orderKey
+   */
   readonly orderKey: string;
-  get ownedBy(): (Node & IsOwner) | null | null {
+
+  /**
+   * IsOwnable.ownedBy
+   */
+  get ownedBy(): (Node & IsOwner) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null;
     }
     return null;
   }
-
   set ownedBy(node: (Node & IsOwner) | null) {
     if (node === null) {
       this.ownedByPtr = null;
@@ -194,18 +242,37 @@ export class Folder
     }
   }
   ownedByPtr: NodeReference | null;
+
+  /**
+   * Folder.type
+   */
   type: FolderType;
+
+  /**
+   * HasName.name
+   */
   name: string;
+
+  /**
+   * HasSlug.slug
+   */
   slug: string | null;
+
+  /**
+   * HasIcon.icon
+   */
   icon: Icon | null;
-  get mainScene(): Scene | null | null {
+
+  /**
+   * Folder.mainScene
+   */
+  get mainScene(): Scene | null {
     const nodePtr: NodeReference | null = this.mainScenePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Scene | null | null;
+      return this._supergraph.get(nodePtr.id) as Scene | null;
     }
     return null;
   }
-
   set mainScene(node: Scene | null) {
     if (node === null) {
       this.mainScenePtr = null;

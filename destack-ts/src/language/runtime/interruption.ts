@@ -5,7 +5,6 @@ import {
   IsExtensible,
   IsRunnable,
   IsSubject,
-  IsTracked,
   Node,
   NodeReference,
   NodeType,
@@ -24,6 +23,9 @@ import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:4020 ==== */
+/**
+ * InterruptionType
+ */
 export enum InterruptionType {
   PAUSE = 10,
   YIELD = 20,
@@ -32,6 +34,9 @@ export enum InterruptionType {
 /* ==== DESTACK_GENERATED_END:ENUM:4020 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:4021 ==== */
+/**
+ * InterruptionStatus
+ */
 export enum InterruptionStatus {
   OPEN = 10,
   CANGALAXYED = 30,
@@ -40,6 +45,9 @@ export enum InterruptionStatus {
 /* ==== DESTACK_GENERATED_END:ENUM:4021 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:4022 ==== */
+/**
+ * InterruptionResponse
+ */
 export enum InterruptionResponse {
   ACCEPT = 10,
   REJECT = 20,
@@ -47,7 +55,10 @@ export enum InterruptionResponse {
 /* ==== DESTACK_GENERATED_END:ENUM:4022 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:4020 ==== */
-export class Interruption extends Node implements Spatial, Particle, Analytic, Indexed, IsTracked, IsExtensible {
+/**
+ * An Interruption in run of something.
+ */
+export class Interruption extends Node implements Spatial, Particle, Analytic, Indexed, IsExtensible {
   static metatype: NodeType = NodeType.INTERRUPTION;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
@@ -63,50 +74,84 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
   static __ancestorTypes__: NodeType[] = [NodeType.RUN, NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [NodeType.FIELD, NodeType.OPTION, NodeType.TAGGING];
 
-  get parent(): Run | null | null {
+  /**
+   * Interruption.parent
+   */
+  get parent(): Run | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Run | null | null;
+      return this._supergraph.get(nodePtr.id) as Run | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsExtensible.value
+   */
   value: Map<string, Value>;
+
+  /**
+   * Interruption.type
+   */
   type: InterruptionType;
-  get runnable(): (Node & IsRunnable) | null | null {
+
+  /**
+   * Interruption.runnable
+   */
+  get runnable(): (Node & IsRunnable) | null {
     const nodePtr: NodeReference | null = this.runnablePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsRunnable) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsRunnable) | null;
     }
     return null;
   }
-
   set runnable(node: (Node & IsRunnable) | null) {
     if (node === null) {
       this.runnablePtr = null;
@@ -115,14 +160,17 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
     }
   }
   runnablePtr: NodeReference | null;
-  get span(): Span | null | null {
+
+  /**
+   * Interruption.span
+   */
+  get span(): Span | null {
     const nodePtr: NodeReference | null = this.spanPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Span | null | null;
+      return this._supergraph.get(nodePtr.id) as Span | null;
     }
     return null;
   }
-
   set span(node: Span | null) {
     if (node === null) {
       this.spanPtr = null;
@@ -131,18 +179,37 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
     }
   }
   spanPtr: NodeReference | null;
+
+  /**
+   * Interruption.status
+   */
   status: InterruptionStatus;
+
+  /**
+   * Interruption.duration
+   */
   duration: Temporal.Duration | null;
+
+  /**
+   * Interruption.closedAt
+   */
   closedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * Interruption.response
+   */
   response: InterruptionResponse | null;
-  get message(): Message | null | null {
+
+  /**
+   * The Message that was created for this Interruption.
+   */
+  get message(): Message | null {
     const nodePtr: NodeReference | null = this.messagePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Message | null | null;
+      return this._supergraph.get(nodePtr.id) as Message | null;
     }
     return null;
   }
-
   set message(node: Message | null) {
     if (node === null) {
       this.messagePtr = null;

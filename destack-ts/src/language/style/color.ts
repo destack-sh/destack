@@ -1,19 +1,12 @@
 import {
-  Entity,
   Graph,
-  IsDeletable,
-  IsOrdered,
   IsSubject,
-  IsTaggable,
-  IsTracked,
-  IsVisual,
   MaterializationType,
   Node,
   NodeReference,
   NodeType,
   QueryConnection,
   Session,
-  Spatial,
   Struct,
   StructType,
   Supergraph,
@@ -26,6 +19,9 @@ import { View } from "@destack/language/view";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12020 ==== */
+/**
+ * ColorType
+ */
 export enum ColorType {
   BUILTIN = 1,
   STYLE = 2,
@@ -37,6 +33,9 @@ export enum ColorType {
 /* ==== DESTACK_GENERATED_END:ENUM:12020 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12022 ==== */
+/**
+ * ColorHue
+ */
 export enum ColorHue {
   GRAY = 30,
   RED = 31,
@@ -60,6 +59,9 @@ export enum ColorHue {
 /* ==== DESTACK_GENERATED_END:ENUM:12022 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12021 ==== */
+/**
+ * ColorShade
+ */
 export enum ColorShade {
   S25 = 25,
   S50 = 50,
@@ -77,6 +79,9 @@ export enum ColorShade {
 /* ==== DESTACK_GENERATED_END:ENUM:12021 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:12023 ==== */
+/**
+ * ColorIntent
+ */
 export enum ColorIntent {
   PRIMARY = 1,
   SECONDARY = 2,
@@ -89,12 +94,22 @@ export enum ColorIntent {
 /* ==== DESTACK_GENERATED_END:ENUM:12023 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:12011 ==== */
+/**
+ * A color value.
+ */
 export class Color extends Struct {
   static metatype: StructType = StructType.COLOR;
   static __isFrozen__: boolean = false;
 
+  /**
+   * ColorBase.type
+   */
   type: ColorType;
-  get style(): ColorStyle | null | null {
+
+  /**
+   * style
+   */
+  get style(): ColorStyle | null {
     const nodePtr: NodeReference | null = this.stylePtr;
     if (nodePtr !== null) {
       if (this._supergraph === null) {
@@ -104,7 +119,6 @@ export class Color extends Struct {
     }
     return null;
   }
-
   set style(value: ColorStyle | null) {
     if (value == null) {
       this.stylePtr = null;
@@ -113,12 +127,40 @@ export class Color extends Struct {
     }
   }
   stylePtr: NodeReference | null;
+
+  /**
+   * ColorBase.hue
+   */
   hue: ColorHue | null;
+
+  /**
+   * ColorBase.shade
+   */
   shade: ColorShade | null;
+
+  /**
+   * ColorBase.intent
+   */
   intent: ColorIntent | null;
+
+  /**
+   * ColorBase.x
+   */
   x: number | null;
+
+  /**
+   * ColorBase.y
+   */
   y: number | null;
+
+  /**
+   * ColorBase.z
+   */
   z: number | null;
+
+  /**
+   * ColorBase.alpha
+   */
   alpha: number | null;
 
   constructor(options: {
@@ -186,10 +228,10 @@ export class Color extends Struct {
 /* ==== DESTACK_GENERATED_END:STRUCT:12011 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:12020 ==== */
-export class ColorStyle
-  extends Node
-  implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsTaggable, IsVisual, Style
-{
+/**
+ * A color style, with an optional dark variant.
+ */
+export class ColorStyle extends Node implements Style {
   static metatype: NodeType = NodeType.COLOR_STYLE;
   static __traits__: TraitType[] = [
     TraitType.STYLE,
@@ -250,52 +292,127 @@ export class ColorStyle
   ];
   static __descendantTypes__: NodeType[] = [NodeType.TAGGING];
 
-  get parent(): Scene | (Node & View) | Theme | Palette | null | null {
+  /**
+   * ColorStyle.parent
+   */
+  get parent(): Scene | (Node & View) | Theme | Palette | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Scene | (Node & View) | Theme | Palette | null | null;
+      return this._supergraph.get(nodePtr.id) as Scene | (Node & View) | Theme | Palette | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
   readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * IsOrdered.orderKey
+   */
   readonly orderKey: string;
+
+  /**
+   * ColorBase.type
+   */
   type: ColorType;
+
+  /**
+   * HasName.name
+   */
   name: string;
+
+  /**
+   * ColorBase.hue
+   */
   hue: ColorHue | null;
+
+  /**
+   * ColorBase.shade
+   */
   shade: ColorShade | null;
+
+  /**
+   * ColorBase.intent
+   */
   intent: ColorIntent | null;
+
+  /**
+   * ColorBase.x
+   */
   x: number | null;
+
+  /**
+   * ColorBase.y
+   */
   y: number | null;
+
+  /**
+   * ColorBase.z
+   */
   z: number | null;
+
+  /**
+   * ColorBase.alpha
+   */
   alpha: number | null;
+
+  /**
+   * ColorStyle.dark
+   */
   dark: Color | null;
 
   constructor(options: {

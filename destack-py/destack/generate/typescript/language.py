@@ -54,6 +54,20 @@ from .core import (
 from .map import TYPESCRIPT_TYPE_BY_PRIMITIVE_TYPE
 
 
+def _generate_multiline_doc(description: str) -> str:
+    """Generate a multiline JSDoc comment."""
+    if "\n" in description:
+        # multiline description - format each line with proper JSDoc comment prefix
+        description_lines = description.strip().split("\n")
+        formatted_description = "\n".join(
+            f" * {line}" if line.strip() else " *" for line in description_lines
+        )
+    else:
+        # single line description
+        formatted_description = f" * {description}"
+    return f"/**\n{formatted_description}\n */"
+
+
 def _get_properties(cls: type[BuiltinObjectBase]) -> list[Property]:
     """Get the properties of a class."""
     properties: list[Property] = []
@@ -183,14 +197,16 @@ def _generate_property(
             # actual getter/setter
             if is_node:
                 node_getter_str = f"""\
+/**
+ * {prop.description or f"{prop.original_component.__name__}.{to_casing(prop.name, Casing.LOWER_CAMEL)}"}
+ */
 get {ts_name}(): {node_type_str} | null {{
     const nodePtr: NodeReference | null = this.{ptr_prop_name};
     if (nodePtr !== null) {{
         return this._supergraph.get(nodePtr.id) as {node_type_str} | null;
     }}
     return null;
-}}
-"""
+}}"""
                 if not is_readonly:
                     if prop.is_optional:
                         node_setter_str = f"""\
@@ -200,20 +216,21 @@ set {ts_name}(node: {node_type_str}) {{
     }} else {{
         this.{ptr_prop_name} = node.toRef();
     }}
-}}
-"""
+}}"""
                     else:
                         node_setter_str = f"""\
 set {ts_name}(node: {node_type_str}) {{
     this.{ptr_prop_name} = node.toRef();
-}}
-"""
+}}"""
                     node_prop_str = f"{node_getter_str}\n{node_setter_str}"
                 else:
                     node_prop_str = node_getter_str
 
             else:
                 node_getter_str = f"""\
+/**
+ * {prop.description or prop.name}
+ */
 get {ts_name}(): {node_type_str} | null {{
     const nodePtr: NodeReference | null = this.{ptr_prop_name};
     if (nodePtr !== null) {{
@@ -223,8 +240,7 @@ get {ts_name}(): {node_type_str} | null {{
         return this._supergraph.get(nodePtr.id) as {node_type_str};
     }}
     return null;
-}}
-"""
+}}"""
                 if not is_readonly:
                     node_setter_str = f"""\
 set {ts_name}(value: {node_type_str}) {{
@@ -233,8 +249,7 @@ set {ts_name}(value: {node_type_str}) {{
     }} else {{
         this.{ptr_prop_name} = value.toRef();
     }}
-}}
-"""
+}}"""
                     node_prop_str = f"{node_getter_str}\n{node_setter_str}"
                 else:
                     node_prop_str = node_getter_str
@@ -251,6 +266,11 @@ set {ts_name}(value: {node_type_str}) {{
             node_prop_str = f"readonly {node_prop_str}"
         if node_prop_str.count("\n") < 1:
             node_prop_str = f"{node_prop_str};"
+        node_prop_str = f"""\
+/**
+ * {prop.description or f"{prop.original_component.__name__}.{to_casing(prop.name, Casing.LOWER_CAMEL)}"}
+ */
+{node_prop_str}"""
         return node_prop_str
 
 
@@ -588,6 +608,7 @@ def _generate_enum(definition: EnumDefinition) -> str:
     for option in definition.options:
         enum_parts.append(f"{option.name} = {option.id},")
     enum_str = f"""\
+{_generate_multiline_doc(definition.description or definition.name)}
 export enum {definition.name} {{
 {textwrap.indent("\n".join(enum_parts), "  ")}
 }}
@@ -617,7 +638,7 @@ def _generate_struct(definition: StructDefinition) -> str:
             is_interface=False,
         )
         prop_parts.append(prop_str)
-    struct_parts.append("\n".join(prop_parts))
+    struct_parts.append("\n\n".join(prop_parts))
 
     # body
     init_str = _generate_init(struct_cls)
@@ -630,6 +651,7 @@ def _generate_struct(definition: StructDefinition) -> str:
     struct_parts.append(validate_str)
 
     struct_str = f"""\
+{_generate_multiline_doc(definition.description or definition.name)}
 export class {definition.name} extends {"StructFrozen" if definition.is_frozen else "Struct"} {{
 {textwrap.indent("\n\n".join(struct_parts), "  ")}
 }}"""
@@ -645,8 +667,11 @@ def _generate_trait(definition: TraitDefinition) -> str:
     # properties
     prop_parts: list[str] = []
     for prop in _get_properties(trait_cls):
-        if prop.name == "parent":
-            continue  # ignore parent for traits
+        if (
+            prop.name in ("id", "parent")
+            or prop.original_component.__name__ != prop.component.__name__
+        ):
+            continue  # ignore node base properties for traits
         prop_str = _generate_property(
             prop,
             is_readonly=_is_property_readonly(prop),
@@ -654,20 +679,23 @@ def _generate_trait(definition: TraitDefinition) -> str:
             is_interface=True,
         )
         prop_parts.append(prop_str)
-    trait_parts.append("\n".join(prop_parts))
+    trait_parts.append("\n\n".join(prop_parts))
 
     # interface
-    trait_classes: list[type[NodeBase]] = [
-        TRAIT_CLASS_BY_TYPE[trait_type] for trait_type in definition.traits
+    super_trait_classes = [
+        super_cls
+        for super_cls in trait_cls.__bases__
+        if super_cls != trait_cls and issubclass(super_cls, Trait) and super_cls != Trait
     ]
-    trait_classes.sort(key=lambda cls: TRAIT_TYPE_BY_CLASS[cast(type[Trait], cls)])
-    implements_str = (
-        " implements " + ", ".join(trait_cls.__name__ for trait_cls in trait_classes)
-        if trait_classes
+    super_trait_classes.sort(key=lambda cls: TRAIT_TYPE_BY_CLASS[cast(type[Trait], cls)])
+    extends_str = (
+        " extends " + ", ".join(super_cls.__name__ for super_cls in super_trait_classes)
+        if super_trait_classes
         else ""
     )
     trait_str = f"""\
-export interface {definition.alias}{implements_str} {{
+{_generate_multiline_doc(definition.description or definition.name)}
+export interface {definition.alias}{extends_str} {{
 {textwrap.indent("\n".join(trait_parts), "  ")}
 }}"""
     return trait_str.strip()
@@ -702,8 +730,8 @@ def _generate_node(definition: NodeDefinition) -> str:
             is_node=True,
             is_interface=False,
         )
-        prop_parts.extend(prop_str.splitlines())
-    node_parts.append("\n".join(prop_parts))
+        prop_parts.append(prop_str)
+    node_parts.append("\n\n".join(prop_parts))
 
     # body
     init_str = _generate_init(node_cls)
@@ -720,16 +748,22 @@ def _generate_node(definition: NodeDefinition) -> str:
     node_parts.append(path_str)
 
     # class
-    trait_classes: list[type[NodeBase]] = [
-        TRAIT_CLASS_BY_TYPE[trait_type] for trait_type in definition.traits
+    super_trait_classes = [
+        super_cls
+        for super_cls in node_cls.__bases__
+        if super_cls != node_cls
+        and issubclass(super_cls, Trait)
+        and super_cls != NodeBase
+        and super_cls != Node
     ]
-    trait_classes.sort(key=lambda cls: TRAIT_TYPE_BY_CLASS[cast(type[Trait], cls)])
     implements_str = (
-        " implements " + ", ".join(trait_cls.__name__ for trait_cls in trait_classes)
-        if trait_classes
+        " implements " + ", ".join(super_cls.__name__ for super_cls in super_trait_classes)
+        if super_trait_classes
         else ""
     )
+
     node_str = f"""\
+{_generate_multiline_doc(definition.description or definition.name)}
 export class {definition.name} extends Node{implements_str} {{
 {textwrap.indent("\n\n".join(node_parts), "  ")}
 }}
@@ -743,9 +777,14 @@ def _get_definition_dependencies(cls: type[BuiltinObjectBase]) -> dict[str, Defi
 
     # base classes
     if issubclass(cls, (Trait, NodeBase)):
-        for trait_type in cls.__traits__:
-            trait_cls = TRAIT_CLASS_BY_TYPE[trait_type]
-            dependencies[trait_cls.__name__] = TRAIT_DEFINITION_BY_TYPE[trait_type]
+        for super_cls in cls.__bases__:
+            if (
+                super_cls != cls
+                and issubclass(super_cls, Trait)
+                and super_cls != Trait
+                and super_cls != NodeBase
+            ):
+                dependencies[super_cls.__name__] = TRAIT_DEFINITION_BY_TYPE[super_cls.metatype]
 
     # properties
     for prop in _get_properties(cls):
@@ -1009,6 +1048,14 @@ def _generate_file(
         "activeSession",
     }
     seen_language_imports: set[str] = {*language_imports_by_module["core"]}
+    # add any new language imports
+    for definition in file.definitions.values():
+        for dependency_name in definition.dependencies:
+            if dependency_name not in definitions_by_name:
+                raise RuntimeError(f"missing dependency: {dependency_name}")
+            definition = definitions_by_name[dependency_name]
+            language_imports_by_module[definition.submodule].add(definition.cls.__name__)
+            seen_language_imports.add(definition.cls.__name__)
     # add any previous language imports
     for import_ in import_block.imports:
         if not import_.path.startswith("@destack/language"):
@@ -1022,7 +1069,6 @@ def _generate_file(
                 language_imports_by_module[""].add(name)
             else:
                 language_imports_by_module[definition.submodule].add(name)
-
     # remove any imports that are already defined in this file
     for _, imports in language_imports_by_module.items():
         imports.difference_update(definition.name for definition in file.definitions.values())
@@ -1043,7 +1089,10 @@ def _generate_file(
             import_parts.append(import_.content)
     file_parts.insert(0, "\n".join(import_parts))
 
+    # assemble and clean up
     new_str = "\n\n".join(file_parts)
+    new_str = new_str.replace(" | null | null", " | null")
+
     return new_str
 
 

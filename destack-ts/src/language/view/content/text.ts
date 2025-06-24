@@ -1,15 +1,8 @@
 import {
   Align,
   Dimension,
-  Entity,
   Graph,
-  IsDeletable,
-  IsOrdered,
-  IsScriptable,
   IsSubject,
-  IsTaggable,
-  IsTracked,
-  IsVisual,
   MaterializationType,
   Node,
   NodeReference,
@@ -17,7 +10,6 @@ import {
   Position,
   QueryConnection,
   Session,
-  Spatial,
   StructType,
   Supergraph,
   TraitType,
@@ -26,14 +18,14 @@ import { Script } from "@destack/language/logic";
 import { Layer, Scene, Window } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Fill, Font } from "@destack/language/style";
-import { ContainerView, ContentView, View } from "@destack/language/view";
+import { ContainerView, ContentView } from "@destack/language/view";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:10200 ==== */
-export class TextView
-  extends Node
-  implements Spatial, Entity, IsTracked, IsDeletable, IsOrdered, IsTaggable, IsScriptable, IsVisual, View, ContentView
-{
+/**
+ * A (rich) text view.
+ */
+export class TextView extends Node implements ContentView {
   static metatype: NodeType = NodeType.TEXT_VIEW;
   static __traits__: TraitType[] = [
     TraitType.SCRIPTABLE,
@@ -103,66 +95,164 @@ export class TextView
     NodeType.SCRIPT,
   ];
 
-  get parent(): Window | Scene | Layer | (Node & ContainerView) | null | null {
+  /**
+   * View.parent
+   */
+  get parent(): Window | Scene | Layer | (Node & ContainerView) | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Window | Scene | Layer | (Node & ContainerView) | null | null;
+      return this._supergraph.get(nodePtr.id) as Window | Scene | Layer | (Node & ContainerView) | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
   readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * IsOrdered.orderKey
+   */
   readonly orderKey: string;
+
+  /**
+   * HasName.name
+   */
   name: string;
+
+  /**
+   * View.position
+   */
   position: Position | null;
+
+  /**
+   * View.width
+   */
   width: Dimension | null;
+
+  /**
+   * View.height
+   */
   height: Dimension | null;
+
+  /**
+   * View.minWidth
+   */
   minWidth: Dimension | null;
+
+  /**
+   * View.minHeight
+   */
   minHeight: Dimension | null;
+
+  /**
+   * View.maxWidth
+   */
   maxWidth: Dimension | null;
+
+  /**
+   * View.maxHeight
+   */
   maxHeight: Dimension | null;
+
+  /**
+   * ContentView.align
+   */
   align: Align | null;
+
+  /**
+   * ContentView.isVisible
+   */
   isVisible: boolean | null;
+
+  /**
+   * ContentView.opacity
+   */
   opacity: number | null;
+
+  /**
+   * TextView.userSelect
+   */
   userSelect: boolean | null;
+
+  /**
+   * TextView.font
+   */
   font: Font | null;
+
+  /**
+   * TextView.color
+   */
   color: Fill | null;
+
+  /**
+   * TextView.text
+   */
   text: string | null;
-  get script(): Script | null | null {
+
+  /**
+   * The main / root Script of this Node.
+   */
+  get script(): Script | null {
     const nodePtr: NodeReference | null = this.scriptPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Script | null | null;
+      return this._supergraph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
-
   set script(node: Script | null) {
     if (node === null) {
       this.scriptPtr = null;

@@ -4,7 +4,6 @@ import {
   IsOwnable,
   IsOwner,
   IsSubject,
-  IsTracked,
   MaterializationType,
   Node,
   NodeReference,
@@ -21,6 +20,9 @@ import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:3100 ==== */
+/**
+ * CursorStatus
+ */
 export enum CursorStatus {
   CREATED = 1,
   WORKING = 10,
@@ -35,24 +37,27 @@ export enum CursorStatus {
 /* ==== DESTACK_GENERATED_END:ENUM:3100 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:3012 ==== */
-export interface Cursor {
-  readonly id: string;
-  get space(): Space | null | null;
-  readonly spacePtr: NodeReference | null;
-  readonly materialization: MaterializationType;
-  readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null;
-  readonly createdByPtr: NodeReference | null;
-  readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null;
-  readonly updatedByPtr: NodeReference | null;
+/**
+ * A Node that is a Cursor.
+ */
+export interface Cursor extends Spatial, Entity {
+  /**
+   * Cursor.status
+   */
   status: CursorStatus;
+
+  /**
+   * Cursor.activeAt
+   */
   activeAt: Temporal.ZonedDateTime | null;
 }
 /* ==== DESTACK_GENERATED_END:TRAIT:3012 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:3100 ==== */
-export class EventCursor extends Node implements Spatial, Entity, IsTracked, IsOwnable, Cursor {
+/**
+ * A EventCursor is a cursor for iterating over Events.
+ */
+export class EventCursor extends Node implements Cursor, IsOwnable {
   static metatype: NodeType = NodeType.EVENT_CURSOR;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
@@ -67,49 +72,79 @@ export class EventCursor extends Node implements Spatial, Entity, IsTracked, IsO
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): Space | null | null {
+  /**
+   * Spatial.parent
+   */
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
-  get ownedBy(): (Node & IsOwner) | null | null {
+
+  /**
+   * IsOwnable.ownedBy
+   */
+  get ownedBy(): (Node & IsOwner) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null;
     }
     return null;
   }
-
   set ownedBy(node: (Node & IsOwner) | null) {
     if (node === null) {
       this.ownedByPtr = null;
@@ -118,7 +153,15 @@ export class EventCursor extends Node implements Spatial, Entity, IsTracked, IsO
     }
   }
   ownedByPtr: NodeReference | null;
+
+  /**
+   * Cursor.status
+   */
   status: CursorStatus;
+
+  /**
+   * Cursor.activeAt
+   */
   activeAt: Temporal.ZonedDateTime | null;
 
   constructor(options: {
@@ -266,7 +309,10 @@ export class EventCursor extends Node implements Spatial, Entity, IsTracked, IsO
 /* ==== DESTACK_GENERATED_END:NODE:3100 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:3101 ==== */
-export class ScreenCursor extends Node implements Spatial, Entity, IsTracked, IsOwnable, Cursor {
+/**
+ * A ScreenCursor is a visual cursor corresponding to a pointing device on some screen.
+ */
+export class ScreenCursor extends Node implements Cursor, IsOwnable {
   static metatype: NodeType = NodeType.SCREEN_CURSOR;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
@@ -281,49 +327,79 @@ export class ScreenCursor extends Node implements Spatial, Entity, IsTracked, Is
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): Space | null | null {
+  /**
+   * Spatial.parent
+   */
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
-  get ownedBy(): (Node & IsOwner) | null | null {
+
+  /**
+   * IsOwnable.ownedBy
+   */
+  get ownedBy(): (Node & IsOwner) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null;
     }
     return null;
   }
-
   set ownedBy(node: (Node & IsOwner) | null) {
     if (node === null) {
       this.ownedByPtr = null;
@@ -332,8 +408,20 @@ export class ScreenCursor extends Node implements Spatial, Entity, IsTracked, Is
     }
   }
   ownedByPtr: NodeReference | null;
+
+  /**
+   * Cursor.status
+   */
   status: CursorStatus;
+
+  /**
+   * Cursor.activeAt
+   */
   activeAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * ScreenCursor.position
+   */
   position: Vector2i | null;
 
   constructor(options: {
@@ -484,7 +572,10 @@ export class ScreenCursor extends Node implements Spatial, Entity, IsTracked, Is
 /* ==== DESTACK_GENERATED_END:NODE:3101 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:3102 ==== */
-export class ThreadCursor extends Node implements Spatial, Entity, IsTracked, IsOwnable, Cursor {
+/**
+ * A ThreadCursor is a cursor corresponding to a Thread.
+ */
+export class ThreadCursor extends Node implements Cursor, IsOwnable {
   static metatype: NodeType = NodeType.THREAD_CURSOR;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
@@ -499,49 +590,79 @@ export class ThreadCursor extends Node implements Spatial, Entity, IsTracked, Is
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): Space | null | null {
+  /**
+   * Spatial.parent
+   */
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
-  get ownedBy(): (Node & IsOwner) | null | null {
+
+  /**
+   * IsOwnable.ownedBy
+   */
+  get ownedBy(): (Node & IsOwner) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null;
     }
     return null;
   }
-
   set ownedBy(node: (Node & IsOwner) | null) {
     if (node === null) {
       this.ownedByPtr = null;
@@ -550,7 +671,15 @@ export class ThreadCursor extends Node implements Spatial, Entity, IsTracked, Is
     }
   }
   ownedByPtr: NodeReference | null;
+
+  /**
+   * Cursor.status
+   */
   status: CursorStatus;
+
+  /**
+   * Cursor.activeAt
+   */
   activeAt: Temporal.ZonedDateTime | null;
 
   constructor(options: {

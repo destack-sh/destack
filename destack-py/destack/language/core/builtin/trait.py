@@ -19,6 +19,7 @@ from destack.language.registry import (
 )
 from destack.proto import AnyObjectProto
 from destack.utils.fractional import INTEGER_ZERO
+from destack.utils.func import get_superclasses
 from destack.utils.uuid import UUID
 
 from .common import (
@@ -33,7 +34,13 @@ from .common import (
 )
 from .const import UNSET
 from .object import BuiltinObjectMutable, _process_object_cls
-from .property import _PROPERTY_SPECIFIERS, Property, property_, property_parent_
+from .property import (
+    _PROPERTY_SPECIFIERS,
+    Property,
+    _resolve_trait_type,
+    property_,
+    property_parent_,
+)
 
 if TYPE_CHECKING:
     from destack.language import (
@@ -116,6 +123,14 @@ def builtin_trait(
             is_node=True,
             is_frozen=pretend_frozen,
         )
+        cls.__is_trait__ = True
+        traits = set()
+        for superclass in get_superclasses(cls):
+            if superclass == cls:
+                continue
+            if super_trait_type := _resolve_trait_type(superclass.__name__):
+                traits.add(super_trait_type)
+        cls.__traits__ = tuple(traits)
 
         # register
         if trait_type is not None:
@@ -678,7 +693,11 @@ class Spatial(Trait):
     """A Node in a Space."""
 
     parent: Optional["Space"] = property_parent_(node_is_customizable=False)
-    space: "Space | None" = property_(5, is_managed=True)
+    space: "Space | None" = property_(
+        5,
+        is_managed=True,
+        description="The Space this Node is in.",
+    )
     if TYPE_CHECKING:
         space_ptr: Optional[NodeReference] = None
 

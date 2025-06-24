@@ -1,23 +1,18 @@
 import {
-  Analytic,
   EditOperation,
   EditType,
   Entity,
   Event,
   Field,
   Graph,
-  Indexed,
-  IsFrozen,
-  IsOrdered,
+  HasName,
   IsSourceable,
   IsSubject,
   IsTaggable,
-  IsTracked,
   MaterializationType,
   Node,
   NodeReference,
   NodeType,
-  Particle,
   PropertyReference,
   QueryConnection,
   Session,
@@ -32,10 +27,10 @@ import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:4202 ==== */
-export class EditEvent
-  extends Node
-  implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked, IsTaggable
-{
+/**
+ * A Event of an Edit. Only EditEvents of Entities are allowed.
+ */
+export class EditEvent extends Node implements Event, IsTaggable {
   static metatype: NodeType = NodeType.EDIT_EVENT;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
@@ -53,42 +48,77 @@ export class EditEvent
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [NodeType.TAGGING];
 
-  get parent(): Space | null | null {
+  /**
+   * Spatial.parent
+   */
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * EditEvent.type
+   */
   type: EditType;
+
+  /**
+   * EditEvent.operation
+   */
   operation: EditOperation | null;
+
+  /**
+   * EditEvent.node
+   */
   get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr !== null) {
@@ -96,20 +126,26 @@ export class EditEvent
     }
     return null;
   }
-
   set node(node: Node) {
     this.nodePtr = node.toRef();
   }
   nodePtr: NodeReference;
+
+  /**
+   * EditEvent.propPtr
+   */
   propPtr: PropertyReference | null;
-  get field(): Field | null | null {
+
+  /**
+   * EditEvent.field
+   */
+  get field(): Field | null {
     const nodePtr: NodeReference | null = this.fieldPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Field | null | null;
+      return this._supergraph.get(nodePtr.id) as Field | null;
     }
     return null;
   }
-
   set field(node: Field | null) {
     if (node === null) {
       this.fieldPtr = null;
@@ -118,7 +154,15 @@ export class EditEvent
     }
   }
   fieldPtr: NodeReference | null;
+
+  /**
+   * EditEvent.key
+   */
   key: Value | null;
+
+  /**
+   * EditEvent.value
+   */
   value: Value | null;
 
   constructor(options: {
@@ -272,7 +316,10 @@ export class EditEvent
 /* ==== DESTACK_GENERATED_END:NODE:4202 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:4200 ==== */
-export class CustomEventDefinition extends Node implements Spatial, Entity, IsTracked, IsOrdered, IsSourceable {
+/**
+ * A CustomEventDefinition defines a kind of CustomEvent.
+ */
+export class CustomEventDefinition extends Node implements Spatial, Entity, HasName, IsSourceable {
   static metatype: NodeType = NodeType.CUSTOM_EVENT_DEFINITION;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
@@ -287,47 +334,86 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, IsTr
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): Space | null | null {
+  /**
+   * Spatial.parent
+   */
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsOrdered.orderKey
+   */
   readonly orderKey: string;
+
+  /**
+   * HasName.name
+   */
   name: string;
-  get source(): Script | null | null {
+
+  /**
+   * IsSourceable.source
+   */
+  get source(): Script | null {
     const nodePtr: NodeReference | null = this.sourcePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Script | null | null;
+      return this._supergraph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
@@ -481,7 +567,10 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, IsTr
 /* ==== DESTACK_GENERATED_END:NODE:4200 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:4201 ==== */
-export class CustomEvent extends Node implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked {
+/**
+ * An instance of a CustomEventDefinition.
+ */
+export class CustomEvent extends Node implements Event {
   static metatype: NodeType = NodeType.CUSTOM_EVENT;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
@@ -498,48 +587,74 @@ export class CustomEvent extends Node implements Spatial, Particle, Analytic, In
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): Space | null | null {
+  /**
+   * Spatial.parent
+   */
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
-  get node(): Node | null | null {
+
+  /**
+   * The Node this Event is about.
+   */
+  get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
-
   set node(node: Node | null) {
     if (node === null) {
       this.nodePtr = null;
@@ -548,6 +663,10 @@ export class CustomEvent extends Node implements Spatial, Particle, Analytic, In
     }
   }
   nodePtr: NodeReference | null;
+
+  /**
+   * The CustomEventDefinition this CustomEvent is an instance of.
+   */
   get definition(): CustomEventDefinition | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr !== null) {
@@ -555,7 +674,6 @@ export class CustomEvent extends Node implements Spatial, Particle, Analytic, In
     }
     return null;
   }
-
   set definition(node: CustomEventDefinition) {
     this.definitionPtr = node.toRef();
   }

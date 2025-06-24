@@ -2,11 +2,13 @@ import {
   Entity,
   Global,
   Graph,
+  HasIcon,
+  HasName,
+  HasSlug,
   Icon,
   IsJoinable,
   IsOwner,
   IsSubject,
-  IsTracked,
   MaterializationType,
   Node,
   NodeReference,
@@ -21,6 +23,9 @@ import { Handle, Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:40 ==== */
+/**
+ * OrganizationStatus
+ */
 export enum OrganizationStatus {
   CREATING = 1,
   ACTIVE = 10,
@@ -28,7 +33,10 @@ export enum OrganizationStatus {
 /* ==== DESTACK_GENERATED_END:ENUM:40 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:40 ==== */
-export class Organization extends Node implements Global, Entity, IsTracked, IsJoinable, IsOwner {
+/**
+ * An Organization with Users and Teams.
+ */
+export class Organization extends Node implements Global, Entity, HasSlug, HasIcon, HasName, IsOwner, IsJoinable {
   static metatype: NodeType = NodeType.ORGANIZATION;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
@@ -57,37 +65,80 @@ export class Organization extends Node implements Global, Entity, IsTracked, IsJ
     NodeType.INVITE,
   ];
 
-  get parent(): Node | null | null {
+  /**
+   * Trait.parent
+   */
+  get parent(): Node | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * HasName.name
+   */
   name: string;
+
+  /**
+   * Organization.slug
+   */
   slug: string;
+
+  /**
+   * HasIcon.icon
+   */
   icon: Icon | null;
+
+  /**
+   * Organization.status
+   */
   readonly status: OrganizationStatus;
+
+  /**
+   * Organization.space
+   */
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
@@ -96,10 +147,14 @@ export class Organization extends Node implements Global, Entity, IsTracked, IsJ
     return null;
   }
   readonly spacePtr: NodeReference;
-  get handle(): Handle | null | null {
+
+  /**
+   * Organization.handle
+   */
+  get handle(): Handle | null {
     const nodePtr: NodeReference | null = this.handlePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Handle | null | null;
+      return this._supergraph.get(nodePtr.id) as Handle | null;
     }
     return null;
   }

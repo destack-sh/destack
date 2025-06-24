@@ -3,6 +3,9 @@ import { File } from "@destack/language/data";
 import { Color } from "@destack/language/style";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2531 ==== */
+/**
+ * IconType
+ */
 export enum IconType {
   EMOJI = 1,
   FONT_AWESOME = 3,
@@ -13,15 +16,37 @@ export enum IconType {
 /* ==== DESTACK_GENERATED_END:ENUM:2531 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2531 ==== */
+/**
+ * An icon to be displayed in some view.
+ */
 export class Icon extends StructFrozen {
   static metatype: StructType = StructType.ICON;
   static __isFrozen__: boolean = true;
 
+  /**
+   * Icon.type
+   */
   readonly type: IconType;
+
+  /**
+   * Icon.emoji
+   */
   readonly emoji: string | null;
+
+  /**
+   * Icon.faName
+   */
   readonly faName: string | null;
+
+  /**
+   * Icon.vscName
+   */
   readonly vscName: string | null;
-  get file(): File | null | null {
+
+  /**
+   * file
+   */
+  get file(): File | null {
     const nodePtr: NodeReference | null = this.filePtr;
     if (nodePtr !== null) {
       if (this._supergraph === null) {
@@ -32,7 +57,15 @@ export class Icon extends StructFrozen {
     return null;
   }
   readonly filePtr: NodeReference | null;
+
+  /**
+   * Icon.fileUrl
+   */
   readonly fileUrl: string | null;
+
+  /**
+   * Icon.color
+   */
   readonly color: Color | null;
 
   constructor(options: {

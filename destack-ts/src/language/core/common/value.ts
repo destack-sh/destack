@@ -1,11 +1,21 @@
 import { Session, StructFrozen, StructType, Supergraph, Type } from "@destack/language/core";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2500 ==== */
+/**
+ * A generic Value of any Type.
+ */
 export class Value extends StructFrozen {
   static metatype: StructType = StructType.VALUE;
   static __isFrozen__: boolean = true;
 
+  /**
+   * Value.type
+   */
   readonly type: Type;
+
+  /**
+   * Value.value
+   */
   readonly value: any;
 
   constructor(options: { type: Type; value: any; _session?: Session | null; _supergraph?: Supergraph | null }) {

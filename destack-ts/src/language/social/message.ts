@@ -7,7 +7,6 @@ import {
   IsReactable,
   IsSubject,
   IsTaggable,
-  IsTracked,
   MaterializationType,
   Node,
   NodeReference,
@@ -25,10 +24,10 @@ import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:5510 ==== */
-export class Message
-  extends Node
-  implements Spatial, Entity, IsTracked, IsDeletable, IsOwnable, IsTaggable, IsReactable
-{
+/**
+ * A Message about something (usually in a Thread or a Channel).
+ */
+export class Message extends Node implements Spatial, Entity, IsOwnable, IsDeletable, IsTaggable, IsReactable {
   static metatype: NodeType = NodeType.MESSAGE;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
@@ -45,50 +44,84 @@ export class Message
   static __ancestorTypes__: NodeType[] = [NodeType.FOLDER, NodeType.SPACE, NodeType.THREAD];
   static __descendantTypes__: NodeType[] = [NodeType.REACTION, NodeType.TAGGING];
 
-  get parent(): Thread | null | null {
+  /**
+   * Message.parent
+   */
+  get parent(): Thread | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Thread | null | null;
+      return this._supergraph.get(nodePtr.id) as Thread | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
   readonly deletedAt: Temporal.ZonedDateTime | null;
-  get ownedBy(): (Node & IsOwner) | null | null {
+
+  /**
+   * IsOwnable.ownedBy
+   */
+  get ownedBy(): (Node & IsOwner) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null;
     }
     return null;
   }
-
   set ownedBy(node: (Node & IsOwner) | null) {
     if (node === null) {
       this.ownedByPtr = null;
@@ -97,14 +130,17 @@ export class Message
     }
   }
   ownedByPtr: NodeReference | null;
-  get thread(): Thread | null | null {
+
+  /**
+   * Message.thread
+   */
+  get thread(): Thread | null {
     const nodePtr: NodeReference | null = this.threadPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Thread | null | null;
+      return this._supergraph.get(nodePtr.id) as Thread | null;
     }
     return null;
   }
-
   set thread(node: Thread | null) {
     if (node === null) {
       this.threadPtr = null;
@@ -113,15 +149,22 @@ export class Message
     }
   }
   threadPtr: NodeReference | null;
+
+  /**
+   * Message.editedAt
+   */
   editedAt: Temporal.ZonedDateTime | null;
-  get replyTo(): Message | null | null {
+
+  /**
+   * Message.replyTo
+   */
+  get replyTo(): Message | null {
     const nodePtr: NodeReference | null = this.replyToPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Message | null | null;
+      return this._supergraph.get(nodePtr.id) as Message | null;
     }
     return null;
   }
-
   set replyTo(node: Message | null) {
     if (node === null) {
       this.replyToPtr = null;
@@ -130,14 +173,17 @@ export class Message
     }
   }
   replyToPtr: NodeReference | null;
-  get forwardedFrom(): Message | null | null {
+
+  /**
+   * Message.forwardedFrom
+   */
+  get forwardedFrom(): Message | null {
     const nodePtr: NodeReference | null = this.forwardedFromPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Message | null | null;
+      return this._supergraph.get(nodePtr.id) as Message | null;
     }
     return null;
   }
-
   set forwardedFrom(node: Message | null) {
     if (node === null) {
       this.forwardedFromPtr = null;
@@ -146,15 +192,22 @@ export class Message
     }
   }
   forwardedFromPtr: NodeReference | null;
+
+  /**
+   * Message.text
+   */
   text: Text | null;
-  get node(): Node | null | null {
+
+  /**
+   * Message.node
+   */
+  get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
-
   set node(node: Node | null) {
     if (node === null) {
       this.nodePtr = null;

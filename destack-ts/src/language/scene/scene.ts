@@ -1,41 +1,29 @@
 import {
   Align,
-  Analytic,
   Axis2,
   Axis3,
   Corners,
   Dimension,
   Direction,
   Distribute,
-  Entity,
   Event,
   Graph,
   Grid,
   GridSpan,
+  HasIcon,
   Icon,
-  Indexed,
   Insets,
-  IsDeletable,
-  IsExtensible,
-  IsFrozen,
-  IsOrdered,
   IsOwnable,
   IsOwner,
-  IsScriptable,
   IsSubject,
-  IsTaggable,
-  IsTracked,
-  IsVisual,
   Layout,
   MaterializationType,
   Node,
   NodeReference,
   NodeType,
-  Particle,
   Position,
   QueryConnection,
   Session,
-  Spatial,
   StructType,
   Supergraph,
   TraitType,
@@ -47,10 +35,13 @@ import { Script } from "@destack/language/logic";
 import { Window } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Border, Fill, Shadow } from "@destack/language/style";
-import { ContainerView, View } from "@destack/language/view";
+import { ContainerView } from "@destack/language/view";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:9011 ==== */
+/**
+ * SceneEventType
+ */
 export enum SceneEventType {
   ENTERED = 1,
   EXITED = 2,
@@ -58,7 +49,10 @@ export enum SceneEventType {
 /* ==== DESTACK_GENERATED_END:ENUM:9011 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:9011 ==== */
-export class SceneEvent extends Node implements Spatial, Particle, Analytic, Indexed, Event, IsFrozen, IsTracked {
+/**
+ * A Event regarding a Scene.
+ */
+export class SceneEvent extends Node implements Event {
   static metatype: NodeType = NodeType.SCENE_EVENT;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
@@ -75,41 +69,72 @@ export class SceneEvent extends Node implements Spatial, Particle, Analytic, Ind
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [];
 
-  get parent(): Space | null | null {
+  /**
+   * Spatial.parent
+   */
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * SceneEvent.type
+   */
   type: SceneEventType;
+
+  /**
+   * SceneEvent.node
+   */
   get node(): Scene | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr !== null) {
@@ -117,7 +142,6 @@ export class SceneEvent extends Node implements Spatial, Particle, Analytic, Ind
     }
     return null;
   }
-
   set node(node: Scene) {
     this.nodePtr = node.toRef();
   }
@@ -256,22 +280,10 @@ export class SceneEvent extends Node implements Spatial, Particle, Analytic, Ind
 /* ==== DESTACK_GENERATED_END:NODE:9011 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:9010 ==== */
-export class Scene
-  extends Node
-  implements
-    Spatial,
-    Entity,
-    IsTracked,
-    IsDeletable,
-    IsExtensible,
-    IsOrdered,
-    IsOwnable,
-    IsTaggable,
-    IsScriptable,
-    IsVisual,
-    View,
-    ContainerView
-{
+/**
+ * A Scene is a container for a specific interaction point.
+ */
+export class Scene extends Node implements ContainerView, HasIcon, IsOwnable {
   static metatype: NodeType = NodeType.SCENE;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
@@ -356,52 +368,94 @@ export class Scene
     NodeType.EFFECT_STYLE,
   ];
 
-  get parent(): Folder | Scene | Window | null | null {
+  /**
+   * Scene.parent
+   */
+  get parent(): Folder | Scene | Window | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Folder | Scene | Window | null | null;
+      return this._supergraph.get(nodePtr.id) as Folder | Scene | Window | null;
     }
     return null;
   }
   readonly parentPtr: NodeReference | null;
-  get space(): Space | null | null {
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
   readonly spacePtr: NodeReference | null;
+
+  /**
+   * Entity.materialization
+   */
   readonly materialization: MaterializationType;
+
+  /**
+   * IsTracked.createdAt
+   */
   readonly createdAt: Temporal.ZonedDateTime;
-  get createdBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.createdBy
+   */
+  get createdBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly createdByPtr: NodeReference | null;
+
+  /**
+   * IsTracked.updatedAt
+   */
   readonly updatedAt: Temporal.ZonedDateTime;
-  get updatedBy(): (Node & IsSubject) | null | null {
+
+  /**
+   * IsTracked.updatedBy
+   */
+  get updatedBy(): (Node & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
     }
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * IsDeletable.deletedAt
+   */
   readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * IsExtensible.value
+   */
   value: Map<string, Value>;
+
+  /**
+   * IsOrdered.orderKey
+   */
   readonly orderKey: string;
-  get ownedBy(): (Node & IsOwner) | null | null {
+
+  /**
+   * IsOwnable.ownedBy
+   */
+  get ownedBy(): (Node & IsOwner) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null;
     }
     return null;
   }
-
   set ownedBy(node: (Node & IsOwner) | null) {
     if (node === null) {
       this.ownedByPtr = null;
@@ -410,42 +464,157 @@ export class Scene
     }
   }
   ownedByPtr: NodeReference | null;
+
+  /**
+   * HasName.name
+   */
   name: string;
+
+  /**
+   * HasIcon.icon
+   */
   icon: Icon | null;
+
+  /**
+   * View.position
+   */
   position: Position | null;
+
+  /**
+   * View.width
+   */
   width: Dimension | null;
+
+  /**
+   * View.height
+   */
   height: Dimension | null;
+
+  /**
+   * View.minWidth
+   */
   minWidth: Dimension | null;
+
+  /**
+   * View.minHeight
+   */
   minHeight: Dimension | null;
+
+  /**
+   * View.maxWidth
+   */
   maxWidth: Dimension | null;
+
+  /**
+   * View.maxHeight
+   */
   maxHeight: Dimension | null;
+
+  /**
+   * ContainerView.layout
+   */
   layout: Layout | null;
+
+  /**
+   * ContainerView.direction
+   */
   direction: Direction | null;
+
+  /**
+   * ContainerView.distribute
+   */
   distribute: Distribute | null;
+
+  /**
+   * ContainerView.align
+   */
   align: Align | null;
+
+  /**
+   * ContainerView.gap
+   */
   gap: Axis2 | null;
+
+  /**
+   * ContainerView.padding
+   */
   padding: Insets | null;
+
+  /**
+   * ContainerView.grid
+   */
   grid: Grid | null;
+
+  /**
+   * ContainerView.gridSpan
+   */
   gridSpan: GridSpan | null;
+
+  /**
+   * ContainerView.aspectRatio
+   */
   aspectRatio: number | null;
+
+  /**
+   * ContainerView.isWrap
+   */
   isWrap: boolean | null;
+
+  /**
+   * ContainerView.isVisible
+   */
   isVisible: boolean | null;
+
+  /**
+   * ContainerView.opacity
+   */
   opacity: number | null;
+
+  /**
+   * ContainerView.fill
+   */
   fill: Fill | null;
+
+  /**
+   * ContainerView.rotation
+   */
   rotation: Axis3 | null;
+
+  /**
+   * ContainerView.skew
+   */
   skew: Vector2 | null;
+
+  /**
+   * ContainerView.scale
+   */
   scale: number | null;
+
+  /**
+   * ContainerView.shadow
+   */
   shadow: Shadow | null;
+
+  /**
+   * ContainerView.border
+   */
   border: Border | null;
+
+  /**
+   * ContainerView.radius
+   */
   radius: Corners | null;
-  get rootView(): (Node & ContainerView) | null | null {
+
+  /**
+   * The root view of the Scene.
+   */
+  get rootView(): (Node & ContainerView) | null {
     const nodePtr: NodeReference | null = this.rootViewPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & ContainerView) | null | null;
+      return this._supergraph.get(nodePtr.id) as (Node & ContainerView) | null;
     }
     return null;
   }
-
   set rootView(node: (Node & ContainerView) | null) {
     if (node === null) {
       this.rootViewPtr = null;
@@ -454,14 +623,17 @@ export class Scene
     }
   }
   rootViewPtr: NodeReference | null;
-  get script(): Script | null | null {
+
+  /**
+   * The main / root Script of this Node.
+   */
+  get script(): Script | null {
     const nodePtr: NodeReference | null = this.scriptPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Script | null | null;
+      return this._supergraph.get(nodePtr.id) as Script | null;
     }
     return null;
   }
-
   set script(node: Script | null) {
     if (node === null) {
       this.scriptPtr = null;
