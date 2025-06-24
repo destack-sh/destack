@@ -1,16 +1,12 @@
 import { fileURLToPath, URL } from "node:url";
 
-import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { dirname, join } from "node:path";
+import { defineConfig } from "vite";
 import { viteStaticCopy } from "vite-plugin-static-copy";
+import tsconfigPaths from "vite-tsconfig-paths";
 
-const PYODIDE_EXCLUDE = [
-  "!**/*.{md,html}",
-  "!**/*.d.ts",
-  "!**/*.whl",
-  "!**/node_modules",
-];
+const PYODIDE_EXCLUDE = ["!**/*.{md,html}", "!**/*.d.ts", "!**/*.whl", "!**/node_modules"];
 
 export function viteStaticCopyPyodide() {
   const pyodideDir = dirname(fileURLToPath(import.meta.resolve("pyodide")));
@@ -27,19 +23,23 @@ export function viteStaticCopyPyodide() {
 // https://vitejs.dev/config/
 const defaultConfig = defineConfig(() => ({
   logLevel: "info",
-  optimizeDeps: { exclude: ["pyodide"] },
+  optimizeDeps: { exclude: ["pyodide", "destack"] },
   plugins: [
     react({
       babel: {
-        plugins: [['module:@preact/signals-react-transform']],
+        plugins: [["module:@preact/signals-react-transform"]],
       },
     }),
     viteStaticCopyPyodide(),
+    tsconfigPaths({
+      projects: ["./tsconfig.json", "../destack-ts/tsconfig.json"],
+    }),
   ],
   resolve: {
     preserveSymlinks: true,
     alias: {
-      "@": fileURLToPath(new URL("./src", import.meta.url)),
+      "@destack": fileURLToPath(new URL("../destack-ts/src", import.meta.url)),
+      "@destack-web": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
   build: {
@@ -56,9 +56,6 @@ const defaultConfig = defineConfig(() => ({
         manualChunks: () => "everything.js",
       },
       onwarn(warning, warn) {
-        if (warning.message.includes("but also statically imported by")) {
-          return;
-        }
         warn(warning);
       },
     },
