@@ -1,4 +1,4 @@
-import { PropertyDefinition } from "@destack/language";
+import { Graph, PropertyDefinition, QueryConnection, Session } from "@destack/language/core";
 import { AnyNodeProto, AnyStructProto } from "@destack/proto";
 import { Supergraph } from "../runtime/graph";
 
@@ -60,7 +60,13 @@ export abstract class BuiltinObject {
   }
 
   /** Convert a proto to an instance of this BuiltinObject. */
-  static __unpackProto__(proto: AnyStructProto | AnyNodeProto): BuiltinObject {
+  static __unpackProto__(
+    proto: AnyStructProto | AnyNodeProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null,
+  ): BuiltinObject {
     throw new Error(`__unpackProto__ not implemented for ${this.constructor.name}`);
   }
 
@@ -70,7 +76,13 @@ export abstract class BuiltinObject {
   }
 
   /** Convert a proto to an instance of this BuiltinObject. */
-  static fromProto(proto: AnyStructProto | AnyNodeProto): BuiltinObject {
+  static fromProto(
+    proto: AnyStructProto | AnyNodeProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null,
+  ): BuiltinObject {
     throw new Error(`fromProto not implemented for ${this.constructor.name}`);
   }
 
@@ -82,7 +94,13 @@ export abstract class BuiltinObject {
   }
 
   /** Convert a value to an instance of this BuiltinObject. */
-  static __unpackValue__(value: Record<string, any>): BuiltinObject {
+  static __unpackValue__(
+    value: Record<string, any>,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null,
+  ): BuiltinObject {
     throw new Error(`__unpackValue__ not implemented for ${this.constructor.name}`);
   }
 
@@ -92,7 +110,58 @@ export abstract class BuiltinObject {
   }
 
   /** Convert a value to an instance of this BuiltinObject. */
-  static fromValue(value: Record<string, any>): BuiltinObject {
+  static fromValue(
+    value: Record<string, any>,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null,
+  ): BuiltinObject {
     throw new Error(`fromValue not implemented for ${this.constructor.name}`);
   }
 }
+
+/** A BuiltinObject constructor/class. */
+export type BuiltinObjectClass = { new (...args: any[]): BuiltinObject } & {
+  /** Convert an instance of this BuiltinObject to a proto. */
+  __packProto__: (object: BuiltinObject) => AnyStructProto | AnyNodeProto;
+
+  /** Convert a proto to an instance of this BuiltinObject. */
+  __unpackProto__: (
+    proto: AnyStructProto | AnyNodeProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null,
+  ) => BuiltinObject;
+
+  /** Convert a proto to an instance of this BuiltinObject. */
+  fromProto: (
+    proto: AnyStructProto | AnyNodeProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null,
+  ) => BuiltinObject;
+
+  /** Convert an instance of this BuiltinObject to a value. */
+  __packValue__: (object: BuiltinObject) => Record<string, any>;
+
+  /** Convert a value to an instance of this BuiltinObject. */
+  __unpackValue__: (
+    value: Record<string, any>,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null,
+  ) => BuiltinObject;
+
+  /** Convert a value to an instance of this BuiltinObject. */
+  fromValue: (
+    value: Record<string, any>,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: Graph | null,
+    _connection?: QueryConnection | null,
+  ) => BuiltinObject;
+};

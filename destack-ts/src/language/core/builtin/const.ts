@@ -8,10 +8,6 @@ export const VERSION = "2025.06.23.0";
 export const FLOAT_EPSILON = 1e-6;
 export const BEGINNING_OF_TIME = Temporal.ZonedDateTime.from("1970-01-01T00:00:00+00:00[UTC]");
 
-// builtin destackes :Builtins
-export const DESTACK_SLUG = "destack";
-export const DESTACK_ID = "11111111-1111-1111-1111-000000000000";
-
 // runtime constants
 export const NONCE = uuidv4();
 export const UNSET = Symbol("UNSET");

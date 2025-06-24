@@ -1330,7 +1330,6 @@ class StructTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_ICON: _ClassVar[StructTypeProto]
     STRUCT_TYPE_SELECTION: _ClassVar[StructTypeProto]
     STRUCT_TYPE_SCHEDULE: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_ERROR: _ClassVar[StructTypeProto]
     STRUCT_TYPE_DATABASE_INFO: _ClassVar[StructTypeProto]
     STRUCT_TYPE_GALAXY_INFO: _ClassVar[StructTypeProto]
     STRUCT_TYPE_COLOR: _ClassVar[StructTypeProto]
@@ -2529,7 +2528,6 @@ STRUCT_TYPE_TEXT_SPAN: StructTypeProto
 STRUCT_TYPE_ICON: StructTypeProto
 STRUCT_TYPE_SELECTION: StructTypeProto
 STRUCT_TYPE_SCHEDULE: StructTypeProto
-STRUCT_TYPE_ERROR: StructTypeProto
 STRUCT_TYPE_DATABASE_INFO: StructTypeProto
 STRUCT_TYPE_GALAXY_INFO: StructTypeProto
 STRUCT_TYPE_COLOR: StructTypeProto

@@ -423,8 +423,6 @@ def _pack_scalar_value(value: Any, type: Type) -> Json:
             return base64.b64encode(value).decode()
         elif type.primitive_type == PrimitiveType.UUID:
             return str(value)
-        elif type.primitive_type == PrimitiveType.JSON:
-            return value
         elif type.primitive_type in (
             PrimitiveType.DATE,
             PrimitiveType.TIME,
@@ -434,7 +432,7 @@ def _pack_scalar_value(value: Any, type: Type) -> Json:
         elif type.primitive_type == PrimitiveType.DURATION:
             return timedelta_to_isoformat(value)
         else:
-            return value
+            return value  # as is
     elif type.scalar_type == ScalarType.ENUM:
         return value.value
     elif type.scalar_type in (ScalarType.NODE_REFERENCE, ScalarType.NODE_VALUE, ScalarType.STRUCT):
@@ -457,8 +455,6 @@ def _unpack_scalar_value(
             return base64.b64decode(value)
         elif type.primitive_type == PrimitiveType.UUID:
             return UUID(value)
-        elif type.primitive_type == PrimitiveType.JSON:
-            return value
         elif type.primitive_type == PrimitiveType.DATETIME:
             return datetime.fromisoformat(value).replace(tzinfo=None)
         elif type.primitive_type == PrimitiveType.DATE:

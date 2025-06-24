@@ -1366,7 +1366,6 @@ enum StructTypeProto {
   STRUCT_TYPE_ICON = 2531;
   STRUCT_TYPE_SELECTION = 2571;
   STRUCT_TYPE_SCHEDULE = 3001;
-  STRUCT_TYPE_ERROR = 4001;
   STRUCT_TYPE_DATABASE_INFO = 7501;
   STRUCT_TYPE_GALAXY_INFO = 7601;
   STRUCT_TYPE_COLOR = 12011;
@@ -4388,7 +4387,7 @@ message WindowProto {
   string order_key = 22;
   optional NodeReferenceProto owned_by_ptr = 25;
   WindowTypeProto type = 30;
-  optional string name = 31;
+  string name = 31;
 }
 
 message WizardViewProto {

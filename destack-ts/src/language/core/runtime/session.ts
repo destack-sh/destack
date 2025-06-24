@@ -1,4 +1,5 @@
 import {
+  ACTIVE_SESSION,
   Change,
   ChangeResult,
   Edit,
@@ -29,6 +30,7 @@ export class Session {
   store: Store | null;
   subject: (Node & IsSubject) | null;
   supergraph: Supergraph;
+  _token: string | null;
 
   constructor(options?: {
     oracle?: Oracle;
@@ -52,6 +54,7 @@ export class Session {
     // runtime
     this.connections = [];
     this.closedAt = null;
+    this._token = null;
   }
 
   repr(): string {
@@ -78,6 +81,7 @@ export class Session {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is already closed`);
     }
+    this._token = ACTIVE_SESSION.set(this);
   }
 
   /**
@@ -87,6 +91,8 @@ export class Session {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is already closed`);
     }
+    ACTIVE_SESSION.reset(this._token);
+    this._token = null;
   }
 
   /** Create a new Node. */

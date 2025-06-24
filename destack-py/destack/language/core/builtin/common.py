@@ -270,7 +270,6 @@ class StructType(Enum):
     # ...
 
     # runtime [4000-4500]
-    ERROR = 4001
     # ...
 
     # deployment [4500-5000]

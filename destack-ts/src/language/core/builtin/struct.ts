@@ -1,6 +1,6 @@
 import { ACTIVE_SESSION, Session, StructType, Supergraph } from "@destack/language";
 import { AnyStructProto } from "@destack/proto";
-import { BuiltinObject } from "./object";
+import { BuiltinObject, BuiltinObjectClass } from "./object";
 
 /** A Struct is an ordered collection of Properties. */
 export abstract class Struct extends BuiltinObject {
@@ -38,5 +38,5 @@ export abstract class StructFrozen extends Struct {
   }
 }
 
-/** A Struct constructor. */
-export type StructClass = { new (...args: any[]): Struct } & { metatype: StructType };
+/** A Struct constructor/class. */
+export type StructClass = { new (...args: any[]): Struct } & BuiltinObjectClass & { metatype: StructType };
