@@ -1,2 +1,2 @@
-export * from "./file";
-export * from "./link";
+export * from "@destack/language/data/file";
+export * from "@destack/language/data/link";

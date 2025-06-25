@@ -1,1 +1,1 @@
-export * from "./model";
+export * from "@destack/language/intelligence/model";

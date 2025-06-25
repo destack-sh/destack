@@ -1,2 +1,2 @@
-export * from "./folder";
-export * from "./tag";
+export * from "@destack/language/folder/folder";
+export * from "@destack/language/folder/tag";
