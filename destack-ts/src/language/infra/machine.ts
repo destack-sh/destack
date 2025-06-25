@@ -423,6 +423,12 @@ export class Machine extends Node implements Spatial, Resource {
     if ((this.vncUrl == null) !== (other.vncUrl == null) || (this.vncUrl != null && !(this.vncUrl === other.vncUrl))) {
       return false;
     }
+    if (
+      (this.clientPtr == null) !== (other.clientPtr == null) ||
+      (this.clientPtr != null && !(this.clientPtr.id === other.clientPtr.id))
+    ) {
+      return false;
+    }
     if (!(this.cpu === other.cpu || Math.abs(this.cpu - other.cpu) < 1e-10)) {
       return false;
     }
@@ -438,6 +444,12 @@ export class Machine extends Node implements Spatial, Resource {
     if (!(this.isHeadless === other.isHeadless)) {
       return false;
     }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
     if (!(this.status === other.status)) {
       return false;
     }
@@ -448,18 +460,6 @@ export class Machine extends Node implements Spatial, Resource {
       return false;
     }
     if (!(this.materialization === other.materialization)) {
-      return false;
-    }
-    if (
-      (this.clientPtr == null) !== (other.clientPtr == null) ||
-      (this.clientPtr != null && !(this.clientPtr.id === other.clientPtr.id))
-    ) {
-      return false;
-    }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
       return false;
     }
     return true;
@@ -572,30 +572,32 @@ export class Machine extends Node implements Spatial, Resource {
     const unpackedGrpcUrl = grpcUrlValue != undefined ? grpcUrlValue : null;
     const vncUrlValue = objectValue["66"];
     const unpackedVncUrl = vncUrlValue != undefined ? vncUrlValue : null;
+    const clientPtrValue = objectValue["69"];
+    const unpackedClientPtr =
+      clientPtrValue != undefined
+        ? NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const targetStatusValue = objectValue["41"];
     const unpackedTargetStatus = targetStatusValue != undefined ? Temporal.ZonedDateTime.from(targetStatusValue) : null;
-    const clientValue = objectValue["69"];
-    const unpackedClient =
-      clientValue != undefined
-        ? NodeReference.fromValue(clientValue, _session, _supergraph, _graph, _connection)
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentValue = objectValue["3"];
-    const unpackedParent =
-      parentValue != undefined
-        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const spaceValue = objectValue["5"];
-    const unpackedSpace =
-      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
-    const createdByValue = objectValue["16"];
-    const unpackedCreatedBy =
-      createdByValue != undefined
-        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByValue = objectValue["18"];
-    const unpackedUpdatedBy =
-      updatedByValue != undefined
-        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Machine({
       type: Number(objectValue["30"]),
@@ -605,22 +607,22 @@ export class Machine extends Node implements Spatial, Resource {
       imageId: unpackedImageId,
       grpcUrl: unpackedGrpcUrl,
       vncUrl: unpackedVncUrl,
+      client: unpackedClientPtr,
       cpu: objectValue["70"],
       ram: objectValue["71"],
       width: Number(objectValue["75"]),
       height: Number(objectValue["76"]),
       isHeadless: objectValue["77"],
+      parent: unpackedParentPtr,
+      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       status: Number(objectValue["40"]),
       targetStatus: unpackedTargetStatus,
       materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
-      client: unpackedClient,
-      parent: unpackedParent,
-      space: unpackedSpace,
-      createdBy: unpackedCreatedBy,
-      updatedBy: unpackedUpdatedBy,
+      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -706,21 +708,15 @@ export class Machine extends Node implements Spatial, Resource {
       imageId: objectProto.imageId != undefined ? objectProto.imageId : null,
       grpcUrl: objectProto.grpcUrl != undefined ? objectProto.grpcUrl : null,
       vncUrl: objectProto.vncUrl != undefined ? objectProto.vncUrl : null,
+      client:
+        objectProto.clientPtr != undefined
+          ? NodeReference.fromProto(objectProto.clientPtr!, _session, _supergraph, _graph, _connection)
+          : null,
       cpu: objectProto.cpu,
       ram: objectProto.ram,
       width: Number(objectProto.width),
       height: Number(objectProto.height),
       isHeadless: objectProto.isHeadless,
-      id: String(objectProto.id),
-      status: Number(objectProto.status) as ResourceStatus,
-      targetStatus: objectProto.targetStatus != undefined ? unpackProtoTimestamp(objectProto.targetStatus!) : null,
-      materialization: Number(objectProto.materialization) as MaterializationType,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      client:
-        objectProto.clientPtr != undefined
-          ? NodeReference.fromProto(objectProto.clientPtr!, _session, _supergraph, _graph, _connection)
-          : null,
       parent:
         objectProto.parentPtr != undefined
           ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
@@ -729,10 +725,16 @@ export class Machine extends Node implements Spatial, Resource {
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
           : null,
+      id: String(objectProto.id),
+      status: Number(objectProto.status) as ResourceStatus,
+      targetStatus: objectProto.targetStatus != undefined ? unpackProtoTimestamp(objectProto.targetStatus!) : null,
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
           ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
           ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)

@@ -8,6 +8,7 @@ import {
   NodeConstraint,
   NodeType,
   NumberConstraint,
+  ObjectReference,
   PrimitiveType,
   ScalarType,
   Session,
@@ -27,10 +28,10 @@ import {
   DefaultFactoryProto,
   EdgeTypeProto,
   EnumDefinitionProto,
-  EnumOptionDefinitionProto,
   EnumTypeProto,
   NodeDefinitionProto,
   NodeTypeProto,
+  OptionDefinitionProto,
   PermissionDefinitionProto,
   PrimitiveTypeProto,
   PropertyDefinitionProto,
@@ -44,7 +45,7 @@ import {
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50004 ==== */
 /**
- * Information about a builtin Property.
+ * Definition of a builtin Property.
  */
 export class PropertyDefinition extends StructFrozen {
   static metatype: StructType = StructType.PROPERTY_DEFINITION;
@@ -69,6 +70,11 @@ export class PropertyDefinition extends StructFrozen {
    * PropertyDefinition.description
    */
   readonly description: string | null;
+
+  /**
+   * PropertyDefinition.object
+   */
+  readonly object: ObjectReference;
 
   /**
    * PropertyDefinition.cardinality
@@ -151,6 +157,21 @@ export class PropertyDefinition extends StructFrozen {
   readonly nodeIsCustomizable: boolean;
 
   /**
+   * PropertyDefinition.nodeHasType
+   */
+  readonly nodeHasType: boolean;
+
+  /**
+   * PropertyDefinition.nodeHasSpace
+   */
+  readonly nodeHasSpace: boolean;
+
+  /**
+   * PropertyDefinition.nodeHasDefinition
+   */
+  readonly nodeHasDefinition: boolean;
+
+  /**
    * PropertyDefinition.edgeType
    */
   readonly edgeType: EdgeType | null;
@@ -200,6 +221,7 @@ export class PropertyDefinition extends StructFrozen {
     name: string;
     icon?: Icon | null;
     description?: string | null;
+    object: ObjectReference;
     cardinality?: TypeCardinality;
     scalarType: ScalarType;
     primitiveType?: PrimitiveType | null;
@@ -216,6 +238,9 @@ export class PropertyDefinition extends StructFrozen {
     numberConstraint?: NumberConstraint | null;
     nodeConstraint?: NodeConstraint | null;
     nodeIsCustomizable: boolean;
+    nodeHasType: boolean;
+    nodeHasSpace: boolean;
+    nodeHasDefinition: boolean;
     edgeType?: EdgeType | null;
     cascade?: CascadeAction | null;
     isWired: boolean;
@@ -254,6 +279,11 @@ export class PropertyDefinition extends StructFrozen {
     this.icon = _icon;
     let _description = options.description ?? null;
     this.description = _description;
+    let _object = options.object;
+    if (_object === null) {
+      throw new Error(`PropertyDefinition.object is required`);
+    }
+    this.object = _object;
     let _cardinality = options.cardinality ?? null;
     if (_cardinality === null) {
       _cardinality = TypeCardinality.SCALAR;
@@ -298,6 +328,21 @@ export class PropertyDefinition extends StructFrozen {
       throw new Error(`PropertyDefinition.nodeIsCustomizable is required`);
     }
     this.nodeIsCustomizable = _nodeIsCustomizable;
+    let _nodeHasType = options.nodeHasType;
+    if (_nodeHasType === null) {
+      throw new Error(`PropertyDefinition.nodeHasType is required`);
+    }
+    this.nodeHasType = _nodeHasType;
+    let _nodeHasSpace = options.nodeHasSpace;
+    if (_nodeHasSpace === null) {
+      throw new Error(`PropertyDefinition.nodeHasSpace is required`);
+    }
+    this.nodeHasSpace = _nodeHasSpace;
+    let _nodeHasDefinition = options.nodeHasDefinition;
+    if (_nodeHasDefinition === null) {
+      throw new Error(`PropertyDefinition.nodeHasDefinition is required`);
+    }
+    this.nodeHasDefinition = _nodeHasDefinition;
     let _edgeType = options.edgeType ?? null;
     this.edgeType = _edgeType;
     let _cascade = options.cascade ?? null;
@@ -366,6 +411,9 @@ export class PropertyDefinition extends StructFrozen {
       (this.description == null) !== (other.description == null) ||
       (this.description != null && !(this.description === other.description))
     ) {
+      return false;
+    }
+    if (!this.object.equals(other.object)) {
       return false;
     }
     if (!(this.cardinality === other.cardinality)) {
@@ -455,6 +503,15 @@ export class PropertyDefinition extends StructFrozen {
     if (!(this.nodeIsCustomizable === other.nodeIsCustomizable)) {
       return false;
     }
+    if (!(this.nodeHasType === other.nodeHasType)) {
+      return false;
+    }
+    if (!(this.nodeHasSpace === other.nodeHasSpace)) {
+      return false;
+    }
+    if (!(this.nodeHasDefinition === other.nodeHasDefinition)) {
+      return false;
+    }
     if (
       (this.edgeType == null) !== (other.edgeType == null) ||
       (this.edgeType != null && !(this.edgeType === other.edgeType))
@@ -518,6 +575,7 @@ export class PropertyDefinition extends StructFrozen {
     if (object.description != null) {
       objectValue["36"] = object.description;
     }
+    objectValue["37"] = object.object.toValue();
     objectValue["40"] = object.cardinality;
     objectValue["41"] = object.scalarType;
     if (object.primitiveType != null) {
@@ -560,11 +618,14 @@ export class PropertyDefinition extends StructFrozen {
       objectValue["63"] = object.nodeConstraint.toValue();
     }
     objectValue["73"] = object.nodeIsCustomizable;
+    objectValue["74"] = object.nodeHasType;
+    objectValue["75"] = object.nodeHasSpace;
+    objectValue["76"] = object.nodeHasDefinition;
     if (object.edgeType != null) {
-      objectValue["74"] = object.edgeType;
+      objectValue["77"] = object.edgeType;
     }
     if (object.cascade != null) {
-      objectValue["75"] = object.cascade;
+      objectValue["78"] = object.cascade;
     }
     objectValue["80"] = object.isWired;
     objectValue["81"] = object.isStored;
@@ -630,15 +691,16 @@ export class PropertyDefinition extends StructFrozen {
       nodeConstraintValue != undefined
         ? NodeConstraint.fromValue(nodeConstraintValue, _session, _supergraph, _graph, _connection)
         : null;
-    const edgeTypeValue = objectValue["74"];
+    const edgeTypeValue = objectValue["77"];
     const unpackedEdgeType = edgeTypeValue != undefined ? Number(edgeTypeValue) : null;
-    const cascadeValue = objectValue["75"];
+    const cascadeValue = objectValue["78"];
     const unpackedCascade = cascadeValue != undefined ? Number(cascadeValue) : null;
     return new PropertyDefinition({
       id: Number(objectValue["2"]),
       name: objectValue["31"],
       icon: unpackedIcon,
       description: unpackedDescription,
+      object: ObjectReference.fromValue(objectValue["37"], _session, _supergraph, _graph, _connection),
       cardinality: Number(objectValue["40"]),
       scalarType: Number(objectValue["41"]),
       primitiveType: unpackedPrimitiveType,
@@ -655,6 +717,9 @@ export class PropertyDefinition extends StructFrozen {
       numberConstraint: unpackedNumberConstraint,
       nodeConstraint: unpackedNodeConstraint,
       nodeIsCustomizable: objectValue["73"],
+      nodeHasType: objectValue["74"],
+      nodeHasSpace: objectValue["75"],
+      nodeHasDefinition: objectValue["76"],
       edgeType: unpackedEdgeType,
       cascade: unpackedCascade,
       isWired: objectValue["80"],
@@ -697,6 +762,7 @@ export class PropertyDefinition extends StructFrozen {
     if (object.description != null) {
       objectProto.description = object.description;
     }
+    objectProto.object = object.object.toProto();
     objectProto.cardinality = Number(object.cardinality) as TypeCardinalityProto;
     objectProto.scalarType = Number(object.scalarType) as ScalarTypeProto;
     if (object.primitiveType != null) {
@@ -739,6 +805,9 @@ export class PropertyDefinition extends StructFrozen {
       objectProto.nodeConstraint = object.nodeConstraint.toProto();
     }
     objectProto.nodeIsCustomizable = object.nodeIsCustomizable;
+    objectProto.nodeHasType = object.nodeHasType;
+    objectProto.nodeHasSpace = object.nodeHasSpace;
+    objectProto.nodeHasDefinition = object.nodeHasDefinition;
     if (object.edgeType != null) {
       objectProto.edgeType = Number(object.edgeType) as EdgeTypeProto;
     }
@@ -770,6 +839,7 @@ export class PropertyDefinition extends StructFrozen {
           ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
       description: objectProto.description != undefined ? objectProto.description : null,
+      object: ObjectReference.fromProto(objectProto.object!, _session, _supergraph, _graph, _connection),
       cardinality: Number(objectProto.cardinality) as TypeCardinality,
       scalarType: Number(objectProto.scalarType) as ScalarType,
       primitiveType:
@@ -812,6 +882,9 @@ export class PropertyDefinition extends StructFrozen {
           ? NodeConstraint.fromProto(objectProto.nodeConstraint!, _session, _supergraph, _graph, _connection)
           : null,
       nodeIsCustomizable: objectProto.nodeIsCustomizable,
+      nodeHasType: objectProto.nodeHasType,
+      nodeHasSpace: objectProto.nodeHasSpace,
+      nodeHasDefinition: objectProto.nodeHasDefinition,
       edgeType: objectProto.edgeType != undefined ? (Number(objectProto.edgeType) as EdgeType) : null,
       cascade: objectProto.cascade != undefined ? (Number(objectProto.cascade) as CascadeAction) : null,
       isWired: objectProto.isWired,
@@ -2064,7 +2137,7 @@ export class EnumDefinition extends StructFrozen {
   /**
    * EnumDefinition.options
    */
-  readonly options: Array<EnumOptionDefinition>;
+  readonly options: Array<OptionDefinition>;
 
   constructor(options: {
     id: number;
@@ -2072,7 +2145,7 @@ export class EnumDefinition extends StructFrozen {
     name: string;
     icon?: Icon | null;
     description?: string | null;
-    options?: Array<EnumOptionDefinition>;
+    options?: Array<OptionDefinition>;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -2210,7 +2283,7 @@ export class EnumDefinition extends StructFrozen {
     const unpackedOptions: any[] = [];
     if (objectValue["50"] != undefined) {
       for (const item of objectValue["50"]) {
-        unpackedOptions.push(EnumOptionDefinition.fromValue(item, _session, _supergraph, _graph, _connection));
+        unpackedOptions.push(OptionDefinition.fromValue(item, _session, _supergraph, _graph, _connection));
       }
     }
     return new EnumDefinition({
@@ -2274,7 +2347,7 @@ export class EnumDefinition extends StructFrozen {
     const unpackedOptions: any[] = [];
     if (objectProto.options) {
       for (const item of objectProto.options) {
-        unpackedOptions.push(EnumOptionDefinition.fromProto(item!, _session, _supergraph, _graph, _connection));
+        unpackedOptions.push(OptionDefinition.fromProto(item!, _session, _supergraph, _graph, _connection));
       }
     }
     return new EnumDefinition({
@@ -2313,32 +2386,32 @@ registerStructClass(StructType.ENUM_DEFINITION, EnumDefinition);
 /**
  * Definition of a builtin Enum Option.
  */
-export class EnumOptionDefinition extends StructFrozen {
-  static metatype: StructType = StructType.ENUM_OPTION_DEFINITION;
+export class OptionDefinition extends StructFrozen {
+  static metatype: StructType = StructType.OPTION_DEFINITION;
   static __isFrozen__: boolean = true;
 
   /**
-   * EnumOptionDefinition.id
+   * OptionDefinition.id
    */
   readonly id: number;
 
   /**
-   * EnumOptionDefinition.type
+   * OptionDefinition.type
    */
   readonly type: EnumType;
 
   /**
-   * EnumOptionDefinition.name
+   * OptionDefinition.name
    */
   readonly name: string;
 
   /**
-   * EnumOptionDefinition.icon
+   * OptionDefinition.icon
    */
   readonly icon: Icon | null;
 
   /**
-   * EnumOptionDefinition.description
+   * OptionDefinition.description
    */
   readonly description: string | null;
 
@@ -2365,17 +2438,17 @@ export class EnumOptionDefinition extends StructFrozen {
     // properties
     let _id = options.id;
     if (_id === null) {
-      throw new Error(`EnumOptionDefinition.id is required`);
+      throw new Error(`OptionDefinition.id is required`);
     }
     this.id = _id;
     let _type = options.type;
     if (_type === null) {
-      throw new Error(`EnumOptionDefinition.type is required`);
+      throw new Error(`OptionDefinition.type is required`);
     }
     this.type = _type;
     let _name = options.name;
     if (_name === null) {
-      throw new Error(`EnumOptionDefinition.name is required`);
+      throw new Error(`OptionDefinition.name is required`);
     }
     this.name = _name;
     let _icon = options.icon ?? null;
@@ -2430,12 +2503,12 @@ export class EnumOptionDefinition extends StructFrozen {
   toValue(): { [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
-      this._value = EnumOptionDefinition.__packValue__(this);
+      this._value = OptionDefinition.__packValue__(this);
     }
     return this._value;
   }
 
-  static __packValue__(object: EnumOptionDefinition): { [key: string]: any } {
+  static __packValue__(object: OptionDefinition): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 50009;
     objectValue["2"] = object.id;
@@ -2456,13 +2529,13 @@ export class EnumOptionDefinition extends StructFrozen {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): EnumOptionDefinition {
+  ): OptionDefinition {
     const iconValue = objectValue["34"];
     const unpackedIcon =
       iconValue != undefined ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection) : null;
     const descriptionValue = objectValue["36"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
-    return new EnumOptionDefinition({
+    return new OptionDefinition({
       id: Number(objectValue["2"]),
       type: Number(objectValue["30"]),
       name: objectValue["31"],
@@ -2479,20 +2552,20 @@ export class EnumOptionDefinition extends StructFrozen {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): EnumOptionDefinition {
-    return EnumOptionDefinition.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  ): OptionDefinition {
+    return OptionDefinition.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): EnumOptionDefinitionProto {
+  toProto(): OptionDefinitionProto {
     if (this._proto === null) {
       // @ts-expect-error(readonly)
-      this._proto = EnumOptionDefinition.__packProto__(this);
+      this._proto = OptionDefinition.__packProto__(this);
     }
-    return this._proto as EnumOptionDefinitionProto;
+    return this._proto as OptionDefinitionProto;
   }
 
-  static __packProto__(object: EnumOptionDefinition): EnumOptionDefinitionProto {
-    const objectProto: Partial<EnumOptionDefinitionProto> = { metatype: 50009 };
+  static __packProto__(object: OptionDefinition): OptionDefinitionProto {
+    const objectProto: Partial<OptionDefinitionProto> = { metatype: 50009 };
     objectProto.id = object.id;
     objectProto.type = Number(object.type) as EnumTypeProto;
     objectProto.name = object.name;
@@ -2502,17 +2575,17 @@ export class EnumOptionDefinition extends StructFrozen {
     if (object.description != null) {
       objectProto.description = object.description;
     }
-    return objectProto as EnumOptionDefinitionProto;
+    return objectProto as OptionDefinitionProto;
   }
 
   static __unpackProto__(
-    objectProto: EnumOptionDefinitionProto,
+    objectProto: OptionDefinitionProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): EnumOptionDefinition {
-    return new EnumOptionDefinition({
+  ): OptionDefinition {
+    return new OptionDefinition({
       id: Number(objectProto.id),
       type: Number(objectProto.type) as EnumType,
       name: objectProto.name,
@@ -2527,20 +2600,20 @@ export class EnumOptionDefinition extends StructFrozen {
   }
 
   static fromProto(
-    objectProto: EnumOptionDefinitionProto,
+    objectProto: OptionDefinitionProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): EnumOptionDefinition {
-    return EnumOptionDefinition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  ): OptionDefinition {
+    return OptionDefinition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerStructClass(StructType.ENUM_OPTION_DEFINITION, EnumOptionDefinition);
+registerStructClass(StructType.OPTION_DEFINITION, OptionDefinition);
 /* ==== DESTACK_GENERATED_END:STRUCT:50009 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50010 ==== */

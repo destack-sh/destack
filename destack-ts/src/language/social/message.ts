@@ -349,20 +349,14 @@ export class Message extends Node implements Spatial, Entity, IsOwnable, IsDelet
       return false;
     }
     if (
-      (this.editedAt == null) !== (other.editedAt == null) ||
-      (this.editedAt != null && !(this.editedAt === other.editedAt))
+      (this.threadPtr == null) !== (other.threadPtr == null) ||
+      (this.threadPtr != null && !(this.threadPtr.id === other.threadPtr.id))
     ) {
       return false;
     }
-    if ((this.text == null) !== (other.text == null) || (this.text != null && !this.text.equals(other.text))) {
-      return false;
-    }
-    if (!(this.materialization === other.materialization)) {
-      return false;
-    }
     if (
-      (this.threadPtr == null) !== (other.threadPtr == null) ||
-      (this.threadPtr != null && !(this.threadPtr.id === other.threadPtr.id))
+      (this.editedAt == null) !== (other.editedAt == null) ||
+      (this.editedAt != null && !(this.editedAt === other.editedAt))
     ) {
       return false;
     }
@@ -378,6 +372,9 @@ export class Message extends Node implements Spatial, Entity, IsOwnable, IsDelet
     ) {
       return false;
     }
+    if ((this.text == null) !== (other.text == null) || (this.text != null && !this.text.equals(other.text))) {
+      return false;
+    }
     if (
       (this.nodePtr == null) !== (other.nodePtr == null) ||
       (this.nodePtr != null && !(this.nodePtr.id === other.nodePtr.id))
@@ -388,6 +385,9 @@ export class Message extends Node implements Spatial, Entity, IsOwnable, IsDelet
       (this.spacePtr == null) !== (other.spacePtr == null) ||
       (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
     ) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
       return false;
     }
     if (
@@ -491,71 +491,75 @@ export class Message extends Node implements Spatial, Entity, IsOwnable, IsDelet
     _graph?: any | null,
     _connection?: any | null,
   ): Message {
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const threadPtrValue = objectValue["35"];
+    const unpackedThreadPtr =
+      threadPtrValue != undefined
+        ? NodeReference.fromValue(threadPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const editedAtValue = objectValue["40"];
     const unpackedEditedAt = editedAtValue != undefined ? Temporal.ZonedDateTime.from(editedAtValue) : null;
+    const replyToPtrValue = objectValue["50"];
+    const unpackedReplyToPtr =
+      replyToPtrValue != undefined
+        ? NodeReference.fromValue(replyToPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const forwardedFromPtrValue = objectValue["51"];
+    const unpackedForwardedFromPtr =
+      forwardedFromPtrValue != undefined
+        ? NodeReference.fromValue(forwardedFromPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const textValue = objectValue["61"];
     const unpackedText =
       textValue != undefined ? Text.fromValue(textValue, _session, _supergraph, _graph, _connection) : null;
+    const nodePtrValue = objectValue["62"];
+    const unpackedNodePtr =
+      nodePtrValue != undefined
+        ? NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const ownedByPtrValue = objectValue["25"];
+    const unpackedOwnedByPtr =
+      ownedByPtrValue != undefined
+        ? NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
-    const parentValue = objectValue["3"];
-    const unpackedParent =
-      parentValue != undefined
-        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const threadValue = objectValue["35"];
-    const unpackedThread =
-      threadValue != undefined
-        ? NodeReference.fromValue(threadValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const replyToValue = objectValue["50"];
-    const unpackedReplyTo =
-      replyToValue != undefined
-        ? NodeReference.fromValue(replyToValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const forwardedFromValue = objectValue["51"];
-    const unpackedForwardedFrom =
-      forwardedFromValue != undefined
-        ? NodeReference.fromValue(forwardedFromValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const nodeValue = objectValue["62"];
-    const unpackedNode =
-      nodeValue != undefined ? NodeReference.fromValue(nodeValue, _session, _supergraph, _graph, _connection) : null;
-    const spaceValue = objectValue["5"];
-    const unpackedSpace =
-      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
-    const createdByValue = objectValue["16"];
-    const unpackedCreatedBy =
-      createdByValue != undefined
-        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByValue = objectValue["18"];
-    const unpackedUpdatedBy =
-      updatedByValue != undefined
-        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const ownedByValue = objectValue["25"];
-    const unpackedOwnedBy =
-      ownedByValue != undefined
-        ? NodeReference.fromValue(ownedByValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new Message({
+      parent: unpackedParentPtr,
+      thread: unpackedThreadPtr,
       editedAt: unpackedEditedAt,
+      replyTo: unpackedReplyToPtr,
+      forwardedFrom: unpackedForwardedFromPtr,
       text: unpackedText,
+      node: unpackedNodePtr,
+      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedBy: unpackedUpdatedByPtr,
+      ownedBy: unpackedOwnedByPtr,
       deletedAt: unpackedDeletedAt,
-      parent: unpackedParent,
-      thread: unpackedThread,
-      replyTo: unpackedReplyTo,
-      forwardedFrom: unpackedForwardedFrom,
-      node: unpackedNode,
-      space: unpackedSpace,
-      createdBy: unpackedCreatedBy,
-      updatedBy: unpackedUpdatedBy,
-      ownedBy: unpackedOwnedBy,
       _session,
       _graph,
       _connection,
@@ -629,16 +633,6 @@ export class Message extends Node implements Spatial, Entity, IsOwnable, IsDelet
     _connection?: any | null,
   ): Message {
     return new Message({
-      editedAt: objectProto.editedAt != undefined ? unpackProtoTimestamp(objectProto.editedAt!) : null,
-      text:
-        objectProto.text != undefined
-          ? Text.fromProto(objectProto.text!, _session, _supergraph, _graph, _connection)
-          : null,
-      id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       parent:
         objectProto.parentPtr != undefined
           ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
@@ -647,6 +641,7 @@ export class Message extends Node implements Spatial, Entity, IsOwnable, IsDelet
         objectProto.threadPtr != undefined
           ? NodeReference.fromProto(objectProto.threadPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      editedAt: objectProto.editedAt != undefined ? unpackProtoTimestamp(objectProto.editedAt!) : null,
       replyTo:
         objectProto.replyToPtr != undefined
           ? NodeReference.fromProto(objectProto.replyToPtr!, _session, _supergraph, _graph, _connection)
@@ -654,6 +649,10 @@ export class Message extends Node implements Spatial, Entity, IsOwnable, IsDelet
       forwardedFrom:
         objectProto.forwardedFromPtr != undefined
           ? NodeReference.fromProto(objectProto.forwardedFromPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      text:
+        objectProto.text != undefined
+          ? Text.fromProto(objectProto.text!, _session, _supergraph, _graph, _connection)
           : null,
       node:
         objectProto.nodePtr != undefined
@@ -663,10 +662,14 @@ export class Message extends Node implements Spatial, Entity, IsOwnable, IsDelet
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
           : null,
+      id: String(objectProto.id),
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
           ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
           ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
@@ -675,6 +678,7 @@ export class Message extends Node implements Spatial, Entity, IsOwnable, IsDelet
         objectProto.ownedByPtr != undefined
           ? NodeReference.fromProto(objectProto.ownedByPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       _session,
       _graph,
       _connection,

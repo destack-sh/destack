@@ -17,13 +17,13 @@ from destack.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 from destack.utils.uuid import UUID
 
 from ..builtin import (
-    IntoType,
     Node,
     NodeType,
     PrimitiveType,
     PropertyDeclaration,
     StructFrozen,
     StructType,
+    TypeDeclaration,
     builtin_struct,
     property_,
     property_runtime_,
@@ -149,12 +149,15 @@ def _generate_unpack_value(cls: type["BuiltinObjectBase"]) -> str:
     for prop in cls.__wired_properties__.values():
         if prop.is_computed:
             continue  # set implicitly
+        prop_name = (
+            prop.name if prop.scalar_type != ScalarType.NODE_REFERENCE else f"{prop.name}_ptr"
+        )
         unpack_code = _generate_unpack_value_property(prop)
         if len(unpack_code) == 1:
-            unpack_assignments.append(f"{prop.name}={unpack_code[0].split(' = ', 1)[1]}")
+            unpack_assignments.append(f"{prop_name}={unpack_code[0].split(' = ', 1)[1]}")
         else:
             unpack_method_parts.extend(unpack_code)
-            unpack_assignments.append(f"{prop.name}=_unpacked_{prop.name}")
+            unpack_assignments.append(f"{prop_name}=_unpacked_{prop_name}")
     if cls.__is_frozen__ and not cls.__is_node__:
         unpack_assignments.append("_value = _object_value")
 
@@ -176,32 +179,33 @@ def _generate_unpack_value(cls: type["BuiltinObjectBase"]) -> str:
 def _generate_pack_value_property(prop: "PropertyDeclaration") -> list[str]:
     """Generate the packing code for a property value."""
     lines: list[str] = []
-    obj_value = f"_object.{prop.name}"
+    prop_name = prop.name if prop.scalar_type != ScalarType.NODE_REFERENCE else f"{prop.name}_ptr"
+    obj_value = f"_object.{prop_name}"
 
     if prop.cardinality == TypeCardinality.SCALAR:
         if prop.is_required:
             value_expr = _generate_pack_value_scalar(prop, obj_value)
             lines.append(f'_object_value["{prop.id}"] = {value_expr}')
         else:
-            lines.append(f"if ({prop.name} := {obj_value}) is not None:")
-            value_expr = _generate_pack_value_scalar(prop, prop.name)
+            lines.append(f"if ({prop_name} := {obj_value}) is not None:")
+            value_expr = _generate_pack_value_scalar(prop, prop_name)
             lines.append(f'    _object_value["{prop.id}"] = {value_expr}')
     elif prop.cardinality == TypeCardinality.LIST:
         lines.append(f"if {obj_value}:")
-        lines.append(f"    _packed_{prop.name} = []")
+        lines.append(f"    _packed_{prop_name} = []")
         lines.append(f"    for _item in {obj_value}:")
         item_expr = _generate_pack_value_scalar(prop, "_item")
-        lines.append(f"        _packed_{prop.name}.append({item_expr})")
-        lines.append(f'    _object_value["{prop.id}"] = _packed_{prop.name}')
+        lines.append(f"        _packed_{prop_name}.append({item_expr})")
+        lines.append(f'    _object_value["{prop.id}"] = _packed_{prop_name}')
     elif prop.cardinality == TypeCardinality.MAP:
         assert prop.key_type is not None, f"no key type for {prop!r}"
         lines.append(f"if {obj_value}:")
-        lines.append(f"    _packed_{prop.name} = {{}}")
+        lines.append(f"    _packed_{prop_name} = {{}}")
         lines.append(f"    for _key, _value in {obj_value}.items():")
         key_expr = _generate_pack_value_scalar(prop.key_type, "_key")
         value_expr = _generate_pack_value_scalar(prop, "_value")
-        lines.append(f"        _packed_{prop.name}[str({key_expr})] = {value_expr}")
-        lines.append(f'    _object_value["{prop.id}"] = _packed_{prop.name}')
+        lines.append(f"        _packed_{prop_name}[str({key_expr})] = {value_expr}")
+        lines.append(f'    _object_value["{prop.id}"] = _packed_{prop_name}')
     else:
         assert_never(prop.cardinality)
 
@@ -211,38 +215,41 @@ def _generate_pack_value_property(prop: "PropertyDeclaration") -> list[str]:
 def _generate_unpack_value_property(prop: "PropertyDeclaration") -> list[str]:
     """Generate the unpacking code for a property value."""
     lines: list[str] = []
+    prop_name = prop.name if prop.scalar_type != ScalarType.NODE_REFERENCE else f"{prop.name}_ptr"
     data_value = f'_object_value.get("{prop.id}")'
 
     if prop.cardinality == TypeCardinality.SCALAR:
         if prop.is_required:
             value_expr = _generate_unpack_value_scalar(prop, data_value)
-            lines.append(f"_unpacked_{prop.name} = {value_expr}")
+            lines.append(f"_unpacked_{prop_name} = {value_expr}")
         else:
-            value_expr = _generate_unpack_value_scalar(prop, prop.name)
+            value_expr = _generate_unpack_value_scalar(prop, prop_name)
             lines.append(
-                f"_unpacked_{prop.name} = {value_expr} if ({prop.name} := {data_value}) is not None else None"
+                f"_unpacked_{prop_name} = {value_expr} if ({prop_name} := {data_value}) is not None else None"
             )
     elif prop.cardinality == TypeCardinality.LIST:
-        lines.append(f"_unpacked_{prop.name} = []")
+        lines.append(f"_unpacked_{prop_name} = []")
         lines.append(f"if {data_value} is not None:")
         lines.append(f"    for _item in {data_value}:")
         item_expr = _generate_unpack_value_scalar(prop, "_item")
-        lines.append(f"        _unpacked_{prop.name}.append({item_expr})")
+        lines.append(f"        _unpacked_{prop_name}.append({item_expr})")
     elif prop.cardinality == TypeCardinality.MAP:
         assert prop.key_type is not None, f"no key type for {prop!r}"
-        lines.append(f"_unpacked_{prop.name} = {{}}")
+        lines.append(f"_unpacked_{prop_name} = {{}}")
         lines.append(f"if {data_value} is not None:")
         lines.append(f"    for _key, _value in {data_value}.items():")
         key_expr = _generate_unpack_value_scalar(prop.key_type, "_key")
         value_expr = _generate_unpack_value_scalar(prop, "_value")
-        lines.append(f"        _unpacked_{prop.name}[{key_expr}] = {value_expr}")
+        lines.append(f"        _unpacked_{prop_name}[{key_expr}] = {value_expr}")
     else:
         assert_never(prop.cardinality)
 
     return lines
 
 
-def _generate_pack_value_scalar(prop: "PropertyDeclaration | IntoType", value_expr: str) -> str:
+def _generate_pack_value_scalar(
+    prop: "PropertyDeclaration | TypeDeclaration", value_expr: str
+) -> str:
     """Generate the packing code for a scalar value."""
 
     if prop.scalar_type == ScalarType.PRIMITIVE:
@@ -270,7 +277,9 @@ def _generate_pack_value_scalar(prop: "PropertyDeclaration | IntoType", value_ex
         assert_never(prop.scalar_type)
 
 
-def _generate_unpack_value_scalar(prop: "PropertyDeclaration | IntoType", value_expr: str) -> str:
+def _generate_unpack_value_scalar(
+    prop: "PropertyDeclaration | TypeDeclaration", value_expr: str
+) -> str:
     """Generate the unpacking code for a scalar value."""
 
     if prop.scalar_type == ScalarType.PRIMITIVE:

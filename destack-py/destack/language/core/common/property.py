@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Optional, Union
 
-from destack.proto import FieldProto
+from destack.proto import CustomPropertyProto
 
 from ..builtin import (
     CascadeAction,
@@ -64,7 +64,7 @@ class CustomProperty(
     IsDeletable,
     IsSourceable,
     IntoQuery,
-    Node[FieldProto],
+    Node[CustomPropertyProto],
 ):
     """
     A CustomProperty is a custom attribute of a CustomStructDefinition or an IsExtensible.

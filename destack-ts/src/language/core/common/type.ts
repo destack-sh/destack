@@ -1204,8 +1204,20 @@ export class Type extends StructFrozen {
       return false;
     }
     if (
+      (this.nodeDefinitionPtr == null) !== (other.nodeDefinitionPtr == null) ||
+      (this.nodeDefinitionPtr != null && !(this.nodeDefinitionPtr.id === other.nodeDefinitionPtr.id))
+    ) {
+      return false;
+    }
+    if (
       (this.structType == null) !== (other.structType == null) ||
       (this.structType != null && !(this.structType === other.structType))
+    ) {
+      return false;
+    }
+    if (
+      (this.baseTypePtr == null) !== (other.baseTypePtr == null) ||
+      (this.baseTypePtr != null && !(this.baseTypePtr.id === other.baseTypePtr.id))
     ) {
       return false;
     }
@@ -1260,18 +1272,6 @@ export class Type extends StructFrozen {
     if (
       (this.nodeConstraint == null) !== (other.nodeConstraint == null) ||
       (this.nodeConstraint != null && !this.nodeConstraint.equals(other.nodeConstraint))
-    ) {
-      return false;
-    }
-    if (
-      (this.nodeDefinitionPtr == null) !== (other.nodeDefinitionPtr == null) ||
-      (this.nodeDefinitionPtr != null && !(this.nodeDefinitionPtr.id === other.nodeDefinitionPtr.id))
-    ) {
-      return false;
-    }
-    if (
-      (this.baseTypePtr == null) !== (other.baseTypePtr == null) ||
-      (this.baseTypePtr != null && !(this.baseTypePtr.id === other.baseTypePtr.id))
     ) {
       return false;
     }
@@ -1360,8 +1360,18 @@ export class Type extends StructFrozen {
     const unpackedEnumType = enumTypeValue != undefined ? Number(enumTypeValue) : null;
     const nodeTypeValue = objectValue["44"];
     const unpackedNodeType = nodeTypeValue != undefined ? Number(nodeTypeValue) : null;
+    const nodeDefinitionPtrValue = objectValue["45"];
+    const unpackedNodeDefinitionPtr =
+      nodeDefinitionPtrValue != undefined
+        ? NodeReference.fromValue(nodeDefinitionPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const structTypeValue = objectValue["46"];
     const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : null;
+    const baseTypePtrValue = objectValue["47"];
+    const unpackedBaseTypePtr =
+      baseTypePtrValue != undefined
+        ? NodeReference.fromValue(baseTypePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const keyTypeValue = objectValue["48"];
     const unpackedKeyType =
       keyTypeValue != undefined ? Type.fromValue(keyTypeValue, _session, _supergraph, _graph, _connection) : null;
@@ -1396,23 +1406,15 @@ export class Type extends StructFrozen {
       nodeConstraintValue != undefined
         ? NodeConstraint.fromValue(nodeConstraintValue, _session, _supergraph, _graph, _connection)
         : null;
-    const nodeDefinitionValue = objectValue["45"];
-    const unpackedNodeDefinition =
-      nodeDefinitionValue != undefined
-        ? NodeReference.fromValue(nodeDefinitionValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const baseTypeValue = objectValue["47"];
-    const unpackedBaseType =
-      baseTypeValue != undefined
-        ? NodeReference.fromValue(baseTypeValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new Type({
       cardinality: Number(objectValue["40"]),
       scalarType: Number(objectValue["41"]),
       primitiveType: unpackedPrimitiveType,
       enumType: unpackedEnumType,
       nodeType: unpackedNodeType,
+      nodeDefinition: unpackedNodeDefinitionPtr,
       structType: unpackedStructType,
+      baseType: unpackedBaseTypePtr,
       keyType: unpackedKeyType,
       isRequired: unpackedIsRequired,
       isVariable: unpackedIsVariable,
@@ -1422,8 +1424,6 @@ export class Type extends StructFrozen {
       stringConstraint: unpackedStringConstraint,
       numberConstraint: unpackedNumberConstraint,
       nodeConstraint: unpackedNodeConstraint,
-      nodeDefinition: unpackedNodeDefinition,
-      baseType: unpackedBaseType,
       _value: objectValue,
       _supergraph,
     });
@@ -1513,7 +1513,15 @@ export class Type extends StructFrozen {
         objectProto.primitiveType != undefined ? (Number(objectProto.primitiveType) as PrimitiveType) : null,
       enumType: objectProto.enumType != undefined ? (Number(objectProto.enumType) as EnumType) : null,
       nodeType: objectProto.nodeType != undefined ? (Number(objectProto.nodeType) as NodeType) : null,
+      nodeDefinition:
+        objectProto.nodeDefinitionPtr != undefined
+          ? NodeReference.fromProto(objectProto.nodeDefinitionPtr!, _session, _supergraph, _graph, _connection)
+          : null,
       structType: objectProto.structType != undefined ? (Number(objectProto.structType) as StructType) : null,
+      baseType:
+        objectProto.baseTypePtr != undefined
+          ? NodeReference.fromProto(objectProto.baseTypePtr!, _session, _supergraph, _graph, _connection)
+          : null,
       keyType:
         objectProto.keyType != undefined
           ? Type.fromProto(objectProto.keyType!, _session, _supergraph, _graph, _connection)
@@ -1547,14 +1555,6 @@ export class Type extends StructFrozen {
       nodeConstraint:
         objectProto.nodeConstraint != undefined
           ? NodeConstraint.fromProto(objectProto.nodeConstraint!, _session, _supergraph, _graph, _connection)
-          : null,
-      nodeDefinition:
-        objectProto.nodeDefinitionPtr != undefined
-          ? NodeReference.fromProto(objectProto.nodeDefinitionPtr!, _session, _supergraph, _graph, _connection)
-          : null,
-      baseType:
-        objectProto.baseTypePtr != undefined
-          ? NodeReference.fromProto(objectProto.baseTypePtr!, _session, _supergraph, _graph, _connection)
           : null,
       _proto: objectProto,
       _supergraph,

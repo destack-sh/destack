@@ -150,18 +150,18 @@ export class Icon extends StructFrozen {
       return false;
     }
     if (
+      (this.filePtr == null) !== (other.filePtr == null) ||
+      (this.filePtr != null && !(this.filePtr.id === other.filePtr.id))
+    ) {
+      return false;
+    }
+    if (
       (this.fileUrl == null) !== (other.fileUrl == null) ||
       (this.fileUrl != null && !(this.fileUrl === other.fileUrl))
     ) {
       return false;
     }
     if ((this.color == null) !== (other.color == null) || (this.color != null && !this.color.equals(other.color))) {
-      return false;
-    }
-    if (
-      (this.filePtr == null) !== (other.filePtr == null) ||
-      (this.filePtr != null && !(this.filePtr.id === other.filePtr.id))
-    ) {
       return false;
     }
     return true;
@@ -221,22 +221,24 @@ export class Icon extends StructFrozen {
     const unpackedFaName = faNameValue != undefined ? faNameValue : null;
     const vscNameValue = objectValue["34"];
     const unpackedVscName = vscNameValue != undefined ? vscNameValue : null;
+    const filePtrValue = objectValue["35"];
+    const unpackedFilePtr =
+      filePtrValue != undefined
+        ? NodeReference.fromValue(filePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const fileUrlValue = objectValue["36"];
     const unpackedFileUrl = fileUrlValue != undefined ? fileUrlValue : null;
     const colorValue = objectValue["40"];
     const unpackedColor =
       colorValue != undefined ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection) : null;
-    const fileValue = objectValue["35"];
-    const unpackedFile =
-      fileValue != undefined ? NodeReference.fromValue(fileValue, _session, _supergraph, _graph, _connection) : null;
     return new Icon({
       type: Number(objectValue["30"]),
       emoji: unpackedEmoji,
       faName: unpackedFaName,
       vscName: unpackedVscName,
+      file: unpackedFilePtr,
       fileUrl: unpackedFileUrl,
       color: unpackedColor,
-      file: unpackedFile,
       _value: objectValue,
       _supergraph,
     });
@@ -296,14 +298,14 @@ export class Icon extends StructFrozen {
       emoji: objectProto.emoji != undefined ? objectProto.emoji : null,
       faName: objectProto.faName != undefined ? objectProto.faName : null,
       vscName: objectProto.vscName != undefined ? objectProto.vscName : null,
+      file:
+        objectProto.filePtr != undefined
+          ? NodeReference.fromProto(objectProto.filePtr!, _session, _supergraph, _graph, _connection)
+          : null,
       fileUrl: objectProto.fileUrl != undefined ? objectProto.fileUrl : null,
       color:
         objectProto.color != undefined
           ? Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
-          : null,
-      file:
-        objectProto.filePtr != undefined
-          ? NodeReference.fromProto(objectProto.filePtr!, _session, _supergraph, _graph, _connection)
           : null,
       _proto: objectProto,
       _supergraph,

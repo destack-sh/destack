@@ -1,7 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
+  CustomProperty,
   EnumType,
-  Field,
   IsSubject,
   Node,
   NodeReference,
@@ -139,13 +139,13 @@ export class Edit extends StructFrozen {
   /**
    * field
    */
-  get field(): Field | null {
+  get field(): CustomProperty | null {
     const nodePtr: NodeReference | null = this.fieldPtr;
     if (nodePtr !== null) {
       if (this._supergraph === null) {
         return null;
       }
-      return this._supergraph.get(nodePtr.id) as Field | null;
+      return this._supergraph.get(nodePtr.id) as CustomProperty | null;
     }
     return null;
   }
@@ -172,7 +172,7 @@ export class Edit extends StructFrozen {
     operation?: EditOperation | null;
     node: Node | NodeReference;
     propPtr?: PropertyReference | null;
-    field?: Field | NodeReference | null;
+    field?: CustomProperty | NodeReference | null;
     key?: Value | null;
     value?: Value | null;
     undo?: Edit | null;
@@ -255,9 +255,18 @@ export class Edit extends StructFrozen {
     ) {
       return false;
     }
+    if (!(this.nodePtr.id === other.nodePtr.id)) {
+      return false;
+    }
     if (
       (this.propPtr == null) !== (other.propPtr == null) ||
       (this.propPtr != null && !this.propPtr.equals(other.propPtr))
+    ) {
+      return false;
+    }
+    if (
+      (this.fieldPtr == null) !== (other.fieldPtr == null) ||
+      (this.fieldPtr != null && !(this.fieldPtr.id === other.fieldPtr.id))
     ) {
       return false;
     }
@@ -268,15 +277,6 @@ export class Edit extends StructFrozen {
       return false;
     }
     if ((this.undo == null) !== (other.undo == null) || (this.undo != null && !this.undo.equals(other.undo))) {
-      return false;
-    }
-    if (!(this.nodePtr.id === other.nodePtr.id)) {
-      return false;
-    }
-    if (
-      (this.fieldPtr == null) !== (other.fieldPtr == null) ||
-      (this.fieldPtr != null && !(this.fieldPtr.id === other.fieldPtr.id))
-    ) {
       return false;
     }
     return true;
@@ -339,6 +339,11 @@ export class Edit extends StructFrozen {
       propPtrValue != undefined
         ? PropertyReference.fromValue(propPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const fieldPtrValue = objectValue["34"];
+    const unpackedFieldPtr =
+      fieldPtrValue != undefined
+        ? NodeReference.fromValue(fieldPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const keyValue = objectValue["35"];
     const unpackedKey =
       keyValue != undefined ? Value.fromValue(keyValue, _session, _supergraph, _graph, _connection) : null;
@@ -348,19 +353,16 @@ export class Edit extends StructFrozen {
     const undoValue = objectValue["50"];
     const unpackedUndo =
       undoValue != undefined ? Edit.fromValue(undoValue, _session, _supergraph, _graph, _connection) : null;
-    const fieldValue = objectValue["34"];
-    const unpackedField =
-      fieldValue != undefined ? NodeReference.fromValue(fieldValue, _session, _supergraph, _graph, _connection) : null;
     return new Edit({
       id: String(objectValue["2"]),
       type: Number(objectValue["30"]),
       operation: unpackedOperation,
+      node: NodeReference.fromValue(objectValue["32"], _session, _supergraph, _graph, _connection),
       propPtr: unpackedPropPtr,
+      field: unpackedFieldPtr,
       key: unpackedKey,
       value: unpackedValue,
       undo: unpackedUndo,
-      node: NodeReference.fromValue(objectValue["32"], _session, _supergraph, _graph, _connection),
-      field: unpackedField,
       _value: objectValue,
       _supergraph,
     });
@@ -421,9 +423,14 @@ export class Edit extends StructFrozen {
       id: String(objectProto.id),
       type: Number(objectProto.type) as EditType,
       operation: objectProto.operation != undefined ? (Number(objectProto.operation) as EditOperation) : null,
+      node: NodeReference.fromProto(objectProto.nodePtr!, _session, _supergraph, _graph, _connection),
       propPtr:
         objectProto.propPtr != undefined
           ? PropertyReference.fromProto(objectProto.propPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      field:
+        objectProto.fieldPtr != undefined
+          ? NodeReference.fromProto(objectProto.fieldPtr!, _session, _supergraph, _graph, _connection)
           : null,
       key:
         objectProto.key != undefined
@@ -436,11 +443,6 @@ export class Edit extends StructFrozen {
       undo:
         objectProto.undo != undefined
           ? Edit.fromProto(objectProto.undo!, _session, _supergraph, _graph, _connection)
-          : null,
-      node: NodeReference.fromProto(objectProto.nodePtr!, _session, _supergraph, _graph, _connection),
-      field:
-        objectProto.fieldPtr != undefined
-          ? NodeReference.fromProto(objectProto.fieldPtr!, _session, _supergraph, _graph, _connection)
           : null,
       _proto: objectProto,
       _supergraph,
@@ -598,6 +600,12 @@ export class Change extends StructFrozen {
       return false;
     }
     if (
+      (this.createdByPtr == null) !== (other.createdByPtr == null) ||
+      (this.createdByPtr != null && !(this.createdByPtr.id === other.createdByPtr.id))
+    ) {
+      return false;
+    }
+    if (
       (this.origin == null) !== (other.origin == null) ||
       (this.origin != null && !this.origin.equals(other.origin))
     ) {
@@ -616,12 +624,6 @@ export class Change extends StructFrozen {
       if (!this.edits[i].equals(other.edits[i])) {
         return false;
       }
-    }
-    if (
-      (this.createdByPtr == null) !== (other.createdByPtr == null) ||
-      (this.createdByPtr != null && !(this.createdByPtr.id === other.createdByPtr.id))
-    ) {
-      return false;
     }
     return true;
   }
@@ -678,6 +680,11 @@ export class Change extends StructFrozen {
   ): Change {
     const nameValue = objectValue["31"];
     const unpackedName = nameValue != undefined ? nameValue : null;
+    const createdByPtrValue = objectValue["33"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const originValue = objectValue["34"];
     const unpackedOrigin =
       originValue != undefined ? Origin.fromValue(originValue, _session, _supergraph, _graph, _connection) : null;
@@ -689,19 +696,14 @@ export class Change extends StructFrozen {
         unpackedEdits.push(Edit.fromValue(item, _session, _supergraph, _graph, _connection));
       }
     }
-    const createdByValue = objectValue["33"];
-    const unpackedCreatedBy =
-      createdByValue != undefined
-        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new Change({
       id: String(objectValue["2"]),
       name: unpackedName,
       createdAt: Temporal.ZonedDateTime.from(objectValue["32"]),
+      createdBy: unpackedCreatedByPtr,
       origin: unpackedOrigin,
       debounce: unpackedDebounce,
       edits: unpackedEdits,
-      createdBy: unpackedCreatedBy,
       _value: objectValue,
       _supergraph,
     });
@@ -768,16 +770,16 @@ export class Change extends StructFrozen {
       id: String(objectProto.id),
       name: objectProto.name != undefined ? objectProto.name : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
       origin:
         objectProto.origin != undefined
           ? Origin.fromProto(objectProto.origin!, _session, _supergraph, _graph, _connection)
           : null,
       debounce: objectProto.debounce != undefined ? (Number(objectProto.debounce) as ChangeDebounce) : null,
       edits: unpackedEdits,
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
-          : null,
       _proto: objectProto,
       _supergraph,
     });

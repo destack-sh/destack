@@ -1,9 +1,8 @@
 import { NodeClass, toValue } from "@destack/language";
 import {
-  AttributeReference,
   CustomEntityDefinition,
+  CustomProperty,
   EnumType,
-  Field,
   NodeType,
   PropertyReference,
   RelationReference,
@@ -594,7 +593,7 @@ export class Condition extends StructFrozen {
 
   /** Make a Condition from a shorthand expression. */
   static of(
-    attribute: Field | PropertyReference | AttributeReference,
+    attribute: CustomProperty | PropertyReference,
     type: ConditionalType = ConditionalType.EQUALS,
     value: any = null,
   ): Condition {
@@ -813,7 +812,7 @@ export class Expression extends StructFrozen {
   /**
    * Expression.attribute
    */
-  readonly attribute: AttributeReference | null;
+  readonly attribute: PropertyReference | null;
 
   /**
    * Expression.condition
@@ -833,7 +832,7 @@ export class Expression extends StructFrozen {
   constructor(options: {
     type: ExpressionType;
     literal?: Value | null;
-    attribute?: AttributeReference | null;
+    attribute?: PropertyReference | null;
     condition?: Condition | null;
     function?: Function | null;
     aggregation?: Aggregation | null;
@@ -970,7 +969,7 @@ export class Expression extends StructFrozen {
     const attributeValue = objectValue["32"];
     const unpackedAttribute =
       attributeValue != undefined
-        ? AttributeReference.fromValue(attributeValue, _session, _supergraph, _graph, _connection)
+        ? PropertyReference.fromValue(attributeValue, _session, _supergraph, _graph, _connection)
         : null;
     const conditionValue = objectValue["33"];
     const unpackedCondition =
@@ -1051,7 +1050,7 @@ export class Expression extends StructFrozen {
           : null,
       attribute:
         objectProto.attribute != undefined
-          ? AttributeReference.fromProto(objectProto.attribute!, _session, _supergraph, _graph, _connection)
+          ? PropertyReference.fromProto(objectProto.attribute!, _session, _supergraph, _graph, _connection)
           : null,
       condition:
         objectProto.condition != undefined
@@ -1086,7 +1085,7 @@ export class Expression extends StructFrozen {
   static of(thing: ExpressionIn): Expression {
     if (thing instanceof Value) {
       return new Expression({ type: ExpressionType.LITERAL, literal: thing });
-    } else if (thing instanceof AttributeReference) {
+    } else if (thing instanceof PropertyReference) {
       return new Expression({ type: ExpressionType.ATTRIBUTE, attribute: thing });
     } else if (thing instanceof Condition) {
       return new Expression({ type: ExpressionType.CONDITION, condition: thing });
@@ -1096,10 +1095,8 @@ export class Expression extends StructFrozen {
       return new Expression({ type: ExpressionType.AGGREGATION, aggregation: thing });
     } else if (thing instanceof Expression) {
       return thing;
-    } else if (thing instanceof Field) {
-      return new Expression({ type: ExpressionType.ATTRIBUTE, attribute: AttributeReference.of(thing) });
-    } else if (thing instanceof PropertyReference) {
-      return new Expression({ type: ExpressionType.ATTRIBUTE, attribute: AttributeReference.of(thing) });
+    } else if (thing instanceof CustomProperty) {
+      return new Expression({ type: ExpressionType.ATTRIBUTE, attribute: PropertyReference.of(thing) });
     } else {
       assertNever(thing);
     }
@@ -1112,8 +1109,7 @@ registerStructClass(StructType.EXPRESSION, Expression);
 
 export type ExpressionIn =
   | Value
-  | AttributeReference
-  | Field
+  | CustomProperty
   | PropertyReference
   | Condition
   | Function
@@ -1324,10 +1320,10 @@ export class Select extends StructFrozen {
   /**
    * Select.attributes
    */
-  readonly attributes: Array<AttributeReference>;
+  readonly attributes: Array<PropertyReference>;
 
   constructor(options: {
-    attributes?: Array<AttributeReference>;
+    attributes?: Array<PropertyReference>;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -1414,7 +1410,7 @@ export class Select extends StructFrozen {
     const unpackedAttributes: any[] = [];
     if (objectValue["31"] != undefined) {
       for (const item of objectValue["31"]) {
-        unpackedAttributes.push(AttributeReference.fromValue(item, _session, _supergraph, _graph, _connection));
+        unpackedAttributes.push(PropertyReference.fromValue(item, _session, _supergraph, _graph, _connection));
       }
     }
     return new Select({
@@ -1464,7 +1460,7 @@ export class Select extends StructFrozen {
     const unpackedAttributes: any[] = [];
     if (objectProto.attributes) {
       for (const item of objectProto.attributes) {
-        unpackedAttributes.push(AttributeReference.fromProto(item!, _session, _supergraph, _graph, _connection));
+        unpackedAttributes.push(PropertyReference.fromProto(item!, _session, _supergraph, _graph, _connection));
       }
     }
     return new Select({
@@ -1487,8 +1483,8 @@ export class Select extends StructFrozen {
   /* ==== DESTACK_CUSTOM_START ==== */
 
   /** Make a Select from a shorthand expression. */
-  static of(...attributes: (Field | PropertyReference)[]): Select {
-    return new Select({ attributes: attributes.map((attr) => AttributeReference.of(attr)) });
+  static of(...attributes: (CustomProperty | PropertyReference)[]): Select {
+    return new Select({ attributes: attributes.map((attr) => PropertyReference.of(attr)) });
   }
 
   /* ==== DESTACK_CUSTOM_END ==== */

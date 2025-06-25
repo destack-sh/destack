@@ -161,6 +161,12 @@ export class TextSpan extends StructFrozen {
     ) {
       return false;
     }
+    if (
+      (this.nodePtr == null) !== (other.nodePtr == null) ||
+      (this.nodePtr != null && !(this.nodePtr.id === other.nodePtr.id))
+    ) {
+      return false;
+    }
     if ((this.url == null) !== (other.url == null) || (this.url != null && !(this.url === other.url))) {
       return false;
     }
@@ -186,12 +192,6 @@ export class TextSpan extends StructFrozen {
       return false;
     }
     if ((this.isCode == null) !== (other.isCode == null) || (this.isCode != null && !(this.isCode === other.isCode))) {
-      return false;
-    }
-    if (
-      (this.nodePtr == null) !== (other.nodePtr == null) ||
-      (this.nodePtr != null && !(this.nodePtr.id === other.nodePtr.id))
-    ) {
       return false;
     }
     return true;
@@ -253,6 +253,11 @@ export class TextSpan extends StructFrozen {
   ): TextSpan {
     const contentValue = objectValue["33"];
     const unpackedContent = contentValue != undefined ? contentValue : null;
+    const nodePtrValue = objectValue["34"];
+    const unpackedNodePtr =
+      nodePtrValue != undefined
+        ? NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const urlValue = objectValue["35"];
     const unpackedUrl = urlValue != undefined ? urlValue : null;
     const isBoldValue = objectValue["60"];
@@ -265,19 +270,16 @@ export class TextSpan extends StructFrozen {
     const unpackedIsUnderline = isUnderlineValue != undefined ? isUnderlineValue : null;
     const isCodeValue = objectValue["64"];
     const unpackedIsCode = isCodeValue != undefined ? isCodeValue : null;
-    const nodeValue = objectValue["34"];
-    const unpackedNode =
-      nodeValue != undefined ? NodeReference.fromValue(nodeValue, _session, _supergraph, _graph, _connection) : null;
     return new TextSpan({
       type: Number(objectValue["30"]),
       content: unpackedContent,
+      node: unpackedNodePtr,
       url: unpackedUrl,
       isBold: unpackedIsBold,
       isItalic: unpackedIsItalic,
       isStrikethrough: unpackedIsStrikethrough,
       isUnderline: unpackedIsUnderline,
       isCode: unpackedIsCode,
-      node: unpackedNode,
       _value: objectValue,
       _supergraph,
     });
@@ -341,16 +343,16 @@ export class TextSpan extends StructFrozen {
     return new TextSpan({
       type: Number(objectProto.type) as TextSpanType,
       content: objectProto.content != undefined ? objectProto.content : null,
+      node:
+        objectProto.nodePtr != undefined
+          ? NodeReference.fromProto(objectProto.nodePtr!, _session, _supergraph, _graph, _connection)
+          : null,
       url: objectProto.url != undefined ? objectProto.url : null,
       isBold: objectProto.isBold != undefined ? objectProto.isBold : null,
       isItalic: objectProto.isItalic != undefined ? objectProto.isItalic : null,
       isStrikethrough: objectProto.isStrikethrough != undefined ? objectProto.isStrikethrough : null,
       isUnderline: objectProto.isUnderline != undefined ? objectProto.isUnderline : null,
       isCode: objectProto.isCode != undefined ? objectProto.isCode : null,
-      node:
-        objectProto.nodePtr != undefined
-          ? NodeReference.fromProto(objectProto.nodePtr!, _session, _supergraph, _graph, _connection)
-          : null,
       _proto: objectProto,
       _supergraph,
     });

@@ -198,12 +198,12 @@ export class Space
     NodeType.CUSTOM_ENTITY_DEFINITION,
     NodeType.CUSTOM_ENTITY,
     NodeType.ROUTE,
-    NodeType.FIELD,
+    NodeType.CUSTOM_PROPERTY,
     NodeType.TEXT_VIEW,
     NodeType.SNAPSHOT,
     NodeType.NOTIFICATION,
     NodeType.NOTIFICATION_EVENT,
-    NodeType.OPTION,
+    NodeType.CUSTOM_OPTION,
     NodeType.TRIGGER,
     NodeType.TRIGGER_EVENT,
     NodeType.BRANCH,
@@ -538,21 +538,6 @@ export class Space
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.region === other.region)) {
-      return false;
-    }
-    if (
-      (this.galaxyName == null) !== (other.galaxyName == null) ||
-      (this.galaxyName != null && !(this.galaxyName === other.galaxyName))
-    ) {
-      return false;
-    }
-    if (!(this.materialization === other.materialization)) {
-      return false;
-    }
-    if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
-      return false;
-    }
     if (
       (this.handlePtr == null) !== (other.handlePtr == null) ||
       (this.handlePtr != null && !(this.handlePtr.id === other.handlePtr.id))
@@ -571,10 +556,25 @@ export class Space
     ) {
       return false;
     }
+    if (!(this.region === other.region)) {
+      return false;
+    }
+    if (
+      (this.galaxyName == null) !== (other.galaxyName == null) ||
+      (this.galaxyName != null && !(this.galaxyName === other.galaxyName))
+    ) {
+      return false;
+    }
     if (
       (this.databasePtr == null) !== (other.databasePtr == null) ||
       (this.databasePtr != null && !(this.databasePtr.id === other.databasePtr.id))
     ) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
       return false;
     }
     if (
@@ -676,74 +676,76 @@ export class Space
     _graph?: any | null,
     _connection?: any | null,
   ): Space {
+    const handlePtrValue = objectValue["41"];
+    const unpackedHandlePtr =
+      handlePtrValue != undefined
+        ? NodeReference.fromValue(handlePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const systemFolderPtrValue = objectValue["42"];
+    const unpackedSystemFolderPtr =
+      systemFolderPtrValue != undefined
+        ? NodeReference.fromValue(systemFolderPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const homeFolderPtrValue = objectValue["43"];
+    const unpackedHomeFolderPtr =
+      homeFolderPtrValue != undefined
+        ? NodeReference.fromValue(homeFolderPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const galaxyNameValue = objectValue["51"];
     const unpackedGalaxyName = galaxyNameValue != undefined ? galaxyNameValue : null;
+    const databasePtrValue = objectValue["55"];
+    const unpackedDatabasePtr =
+      databasePtrValue != undefined
+        ? NodeReference.fromValue(databasePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const iconValue = objectValue["34"];
     const unpackedIcon =
       iconValue != undefined ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection) : null;
-    const handleValue = objectValue["41"];
-    const unpackedHandle =
-      handleValue != undefined
-        ? NodeReference.fromValue(handleValue, _session, _supergraph, _graph, _connection)
+    const ownedByPtrValue = objectValue["25"];
+    const unpackedOwnedByPtr =
+      ownedByPtrValue != undefined
+        ? NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const systemFolderValue = objectValue["42"];
-    const unpackedSystemFolder =
-      systemFolderValue != undefined
-        ? NodeReference.fromValue(systemFolderValue, _session, _supergraph, _graph, _connection)
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const homeFolderValue = objectValue["43"];
-    const unpackedHomeFolder =
-      homeFolderValue != undefined
-        ? NodeReference.fromValue(homeFolderValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const databaseValue = objectValue["55"];
-    const unpackedDatabase =
-      databaseValue != undefined
-        ? NodeReference.fromValue(databaseValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const parentValue = objectValue["3"];
-    const unpackedParent =
-      parentValue != undefined
-        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const createdByValue = objectValue["16"];
-    const unpackedCreatedBy =
-      createdByValue != undefined
-        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByValue = objectValue["18"];
-    const unpackedUpdatedBy =
-      updatedByValue != undefined
-        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const ownedByValue = objectValue["25"];
-    const unpackedOwnedBy =
-      ownedByValue != undefined
-        ? NodeReference.fromValue(ownedByValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const spaceValue = objectValue["5"];
-    const unpackedSpace =
-      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
     return new Space({
       name: objectValue["31"],
       slug: objectValue["33"],
       status: Number(objectValue["40"]),
+      handle: unpackedHandlePtr,
+      systemFolder: unpackedSystemFolderPtr,
+      homeFolder: unpackedHomeFolderPtr,
       region: Number(objectValue["50"]),
       galaxyName: unpackedGalaxyName,
+      database: unpackedDatabasePtr,
       id: String(objectValue["2"]),
+      parent: unpackedParentPtr,
       materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedBy: unpackedUpdatedByPtr,
       icon: unpackedIcon,
-      handle: unpackedHandle,
-      systemFolder: unpackedSystemFolder,
-      homeFolder: unpackedHomeFolder,
-      database: unpackedDatabase,
-      parent: unpackedParent,
-      createdBy: unpackedCreatedBy,
-      updatedBy: unpackedUpdatedBy,
-      ownedBy: unpackedOwnedBy,
-      space: unpackedSpace,
+      ownedBy: unpackedOwnedByPtr,
+      space: unpackedSpacePtr,
       _session,
       _graph,
       _connection,
@@ -821,16 +823,6 @@ export class Space
       name: objectProto.name,
       slug: objectProto.slug,
       status: Number(objectProto.status) as SpaceStatus,
-      region: Number(objectProto.region) as Region,
-      galaxyName: objectProto.galaxyName != undefined ? objectProto.galaxyName : null,
-      id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      icon:
-        objectProto.icon != undefined
-          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
       handle:
         objectProto.handlePtr != undefined
           ? NodeReference.fromProto(objectProto.handlePtr!, _session, _supergraph, _graph, _connection)
@@ -843,21 +835,31 @@ export class Space
         objectProto.homeFolderPtr != undefined
           ? NodeReference.fromProto(objectProto.homeFolderPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      region: Number(objectProto.region) as Region,
+      galaxyName: objectProto.galaxyName != undefined ? objectProto.galaxyName : null,
       database:
         objectProto.databasePtr != undefined
           ? NodeReference.fromProto(objectProto.databasePtr!, _session, _supergraph, _graph, _connection)
           : null,
+      id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
           ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
           ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
           ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      icon:
+        objectProto.icon != undefined
+          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
       ownedBy:
         objectProto.ownedByPtr != undefined

@@ -67,7 +67,7 @@ export class Script extends Node implements Spatial, Entity, HasName, IsOrdered,
     NodeType.THREAD_VIEW,
     NodeType.CANVAS,
   ];
-  static __childTypes__: NodeType[] = [NodeType.FIELD, NodeType.SCRIPT];
+  static __childTypes__: NodeType[] = [NodeType.CUSTOM_PROPERTY, NodeType.SCRIPT];
   static __ancestorTypes__: NodeType[] = [
     NodeType.SPACE,
     NodeType.LINE_SHAPE,
@@ -94,7 +94,12 @@ export class Script extends Node implements Spatial, Entity, HasName, IsOrdered,
     NodeType.THREAD_VIEW,
     NodeType.CANVAS,
   ];
-  static __descendantTypes__: NodeType[] = [NodeType.SCRIPT, NodeType.OPTION, NodeType.TAGGING, NodeType.FIELD];
+  static __descendantTypes__: NodeType[] = [
+    NodeType.SCRIPT,
+    NodeType.CUSTOM_OPTION,
+    NodeType.TAGGING,
+    NodeType.CUSTOM_PROPERTY,
+  ];
 
   /**
    * Script.parent
@@ -303,6 +308,12 @@ export class Script extends Node implements Spatial, Entity, HasName, IsOrdered,
     if ((this.code == null) !== (other.code == null) || (this.code != null && !(this.code === other.code))) {
       return false;
     }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
     if (!(this.materialization === other.materialization)) {
       return false;
     }
@@ -319,12 +330,6 @@ export class Script extends Node implements Spatial, Entity, HasName, IsOrdered,
       if (!this.value[key].equals(other.value[key])) {
         return false;
       }
-    }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
-      return false;
     }
     return true;
   }
@@ -412,8 +417,28 @@ export class Script extends Node implements Spatial, Entity, HasName, IsOrdered,
     _graph?: any | null,
     _connection?: any | null,
   ): Script {
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const codeValue = objectValue["100"];
     const unpackedCode = codeValue != undefined ? codeValue : null;
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
     const unpackedValue = new Map();
@@ -422,38 +447,20 @@ export class Script extends Node implements Spatial, Entity, HasName, IsOrdered,
         unpackedValue.set(String(key), Value.fromValue(value as any, _session, _supergraph, _graph, _connection));
       }
     }
-    const parentValue = objectValue["3"];
-    const unpackedParent =
-      parentValue != undefined
-        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const spaceValue = objectValue["5"];
-    const unpackedSpace =
-      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
-    const createdByValue = objectValue["16"];
-    const unpackedCreatedBy =
-      createdByValue != undefined
-        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByValue = objectValue["18"];
-    const unpackedUpdatedBy =
-      updatedByValue != undefined
-        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new Script({
+      parent: unpackedParentPtr,
       code: unpackedCode,
+      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedBy: unpackedUpdatedByPtr,
       name: objectValue["31"],
       orderKey: objectValue["22"],
       deletedAt: unpackedDeletedAt,
       value: unpackedValue,
-      parent: unpackedParent,
-      space: unpackedSpace,
-      createdBy: unpackedCreatedBy,
-      updatedBy: unpackedUpdatedBy,
       _session,
       _graph,
       _connection,
@@ -523,31 +530,31 @@ export class Script extends Node implements Spatial, Entity, HasName, IsOrdered,
       }
     }
     return new Script({
-      code: objectProto.code != undefined ? objectProto.code : null,
-      id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      name: objectProto.name,
-      orderKey: objectProto.orderKey,
-      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
-      value: unpackedValue,
       parent:
         objectProto.parentPtr != undefined
           ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      code: objectProto.code != undefined ? objectProto.code : null,
       space:
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
           : null,
+      id: String(objectProto.id),
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
           ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
           ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      name: objectProto.name,
+      orderKey: objectProto.orderKey,
+      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      value: unpackedValue,
       _session,
       _graph,
       _connection,

@@ -38,7 +38,7 @@ from .common import (
     TypeCardinality,
 )
 from .const import ACTIVE_SESSION, EMPTY_DICT, REGION, UNSET
-from .property import _PROPERTY_SPECIFIERS, IntoType, PropertyDeclaration, property_runtime_
+from .property import _PROPERTY_SPECIFIERS, PropertyDeclaration, TypeDeclaration, property_runtime_
 
 if TYPE_CHECKING:
     from destack.language import (
@@ -134,6 +134,8 @@ def _generate_init[ObjectT: BuiltinObjectBase](
             extra_glbls[default_name] = prop.default
             default_str = default_name
         method_header_lines.append(f"{prop.name}={default_str}")
+        if prop.scalar_type == ScalarType.NODE_REFERENCE:
+            method_header_lines.append(f"{prop.name}_ptr=None")
 
     method_header_lines.append(")")
     method_header = ", ".join(method_header_lines)
@@ -231,64 +233,65 @@ if _supergraph is None:
         if prop.is_computed:
             # computed, can't assign
             continue
-        elif (ptr_prop := prop.ptr_prop) is not None:
-            # derive ptr_prop from prop if prop is set
-            if prop.cardinality == TypeCardinality.SCALAR:
-                method_body_lines.append(f"""\
-if {prop.name} is not None:
-    {ptr_prop.name} = {prop.name}.to_ref()""")
-            else:
-                raise RuntimeError(f"unsupported cardinality: {prop!r}")
-            # (don't need to actually assign since these come before the ptr_prop in the list)
-            continue
+
+        arg_name = prop.name
+        self_name = (
+            prop.name if prop.scalar_type != ScalarType.NODE_REFERENCE else f"{prop.name}_ptr"
+        )
+
+        # cast node to node_ptr
+        if prop.scalar_type == ScalarType.NODE_REFERENCE:
+            method_body_lines.append(f"""\
+if {arg_name} is not None:
+    {self_name} = {arg_name}.to_ref()""")
 
         # check if node is passed if required and scalar
         if prop.is_required and prop.scalar_type == ScalarType.NODE_REFERENCE:
             method_body_lines.append(f"""\
-if {prop.name} is None:
+if {self_name} is None:
     raise AttributeError(f"{cls.__name__}.{prop.name} is required")""")
 
         # init default factory
         if prop.default_factory is not None:
             if prop.default_factory == DefaultFactory.UUID:
                 method_body_lines.append(f"""\
-if {prop.name} is None:
-    {prop.name} = uuid4()""")
+if {arg_name} is None:
+    {arg_name} = uuid4()""")
             elif prop.default_factory == DefaultFactory.NOW:
                 if is_node:
                     method_body_lines.append(f"""\
-if {prop.name} is None:
+if {arg_name} is None:
     assert self._session is not None, "no session for {cls.__name__}"
-    {prop.name} = self._session.oracle.utc()""")
+    {arg_name} = self._session.oracle.utc()""")
                 else:
                     method_body_lines.append(f"""\
-if {prop.name} is None:
+if {arg_name} is None:
     session = ACTIVE_SESSION.get()
     if session is None:
         raise RuntimeError("no active session for {cls.__name__}")
-    {prop.name} = session.oracle.utc()""")
+    {arg_name} = session.oracle.utc()""")
             elif prop.default_factory == DefaultFactory.REGION:
                 method_body_lines.append(f"""\
-if {prop.name} is None:
-    {prop.name} = REGION""")
+if {arg_name} is None:
+    {arg_name} = REGION""")
             else:
                 assert_never(prop.default_factory)
 
         # init list/map if unset
         if prop.cardinality == TypeCardinality.LIST:
             method_body_lines.append(f"""\
-if {prop.name} is None:
-    {prop.name} = {"[]" if not is_frozen else "EMPTY_LIST"}""")
+if {arg_name} is None:
+    {arg_name} = {"[]" if not is_frozen else "EMPTY_LIST"}""")
         elif prop.cardinality == TypeCardinality.MAP:
             method_body_lines.append(f"""\
-if {prop.name} is None:
-    {prop.name} = {"{}" if not is_frozen else "EMPTY_DICT"}""")
+if {arg_name} is None:
+    {arg_name} = {"{}" if not is_frozen else "EMPTY_DICT"}""")
 
         # regular assignment
         if is_node and not is_frozen:
-            method_body_lines.append(f"__setattr__(self, '{prop.name}', {prop.name})")
+            method_body_lines.append(f"__setattr__(self, '{self_name}', {self_name})")
         else:
-            method_body_lines.append(f"self.{prop.name} = {prop.name}")
+            method_body_lines.append(f"self.{self_name} = {self_name}")
 
     if is_node:
         method_body_lines.append(f"""\
@@ -332,7 +335,7 @@ __str__ = __repr__
 """
         return repr_impl, {}
 
-    def _get_scalar_repr(prop: IntoType, value_expr: str) -> str:
+    def _get_scalar_repr(prop: TypeDeclaration, value_expr: str) -> str:
         """Get repr expression for a scalar value."""
         if prop.scalar_type == ScalarType.ENUM:
             return f"{value_expr}.name"
@@ -512,11 +515,7 @@ def _generate_equals[ObjectT: BuiltinObjectBase](
 ) -> tuple[str, dict[str, Any]]:
     """Generate BuiltinObject.equals method."""
 
-    eq_properties = [
-        prop
-        for prop in cls.__properties__.values()
-        if prop.is_eq and prop.is_wired and prop.ptr_prop is None
-    ]
+    eq_properties = [prop for prop in cls.__properties__.values() if prop.is_eq and prop.is_wired]
     assert eq_properties, f"{cls.__name__} has no properties to compare"
     cmp_strs = []
     for prop in eq_properties:
@@ -542,6 +541,8 @@ __eq__ = equals
 def _generate_property_cmp_impl(prop: PropertyDeclaration) -> str:
     """Generate equality check code for a single property."""
     prop_name = prop.name
+    if prop.scalar_type == ScalarType.NODE_REFERENCE:
+        prop_name = f"{prop_name}_ptr"
 
     scalar_cmps_str = _generate_scalar_cmp_impl(prop)
     if prop.cardinality == TypeCardinality.SCALAR:
@@ -691,8 +692,6 @@ def _generate_node_property_impl(prop: PropertyDeclaration) -> str:
     """The computed get/set property for a node reference. Resolved against the active supergraph."""
     # NOTE :Performance: we could inline Supergraph.get into node property getters
 
-    ptr_prop = prop.ptr_prop
-    assert ptr_prop is not None, f"no wired prop for {prop!r}"
     assert prop.cardinality == TypeCardinality.SCALAR, f"node properties must be scalar: {prop!r}"
     is_node = prop.component.__is_node__
 
@@ -700,7 +699,7 @@ def _generate_node_property_impl(prop: PropertyDeclaration) -> str:
         getter = f"""\
 @property
 def {prop.name}(self: "BuiltinObjectBase") -> "Node | None":
-    node_ptr: NodeReference | None = self.{ptr_prop.name}
+    node_ptr: NodeReference | None = self.{prop.name}_ptr
     if node_ptr is not None:
         return self._supergraph.get(node_ptr.id)
     else:
@@ -710,7 +709,7 @@ def {prop.name}(self: "BuiltinObjectBase") -> "Node | None":
         getter = f"""\
 @property
 def {prop.name}(self: "BuiltinObjectBase") -> "Node | None":
-    node_ptr: NodeReference | None = self.{ptr_prop.name}
+    node_ptr: NodeReference | None = self.{prop.name}_ptr
     if node_ptr is not None:
         if self._supergraph is None:
             return None
@@ -724,18 +723,18 @@ def {prop.name}(self: "BuiltinObjectBase") -> "Node | None":
 @{prop.name}.setter
 def {prop.name}(self: "BuiltinObjectBase", value: "Node | None"):
     if value is None:
-        self._do_set("{ptr_prop.name}", None)
+        self._do_set("{prop.name}_ptr", None)
     else:
-        self._do_set("{ptr_prop.name}", value.to_ref())
+        self._do_set("{prop.name}_ptr", value.to_ref())
 """
     else:
         setter = f"""\
 @{prop.name}.setter
 def {prop.name}(self: "BuiltinObjectBase", value: "Node | None"):
     if value is None:
-        self.{ptr_prop.name} = None
+        self.{prop.name}_ptr = None
     else:
-        self.{ptr_prop.name} = value.to_ref()
+        self.{prop.name}_ptr = value.to_ref()
 """
 
     return getter + "\n\n" + setter
@@ -841,44 +840,29 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
     # determine property types
     for prop in tuple(properties.values()):
         prop.determine(object_type, is_root_node=is_root_node)
-        if prop.ptr_prop is not None:
-            properties[prop.ptr_prop.name] = prop.ptr_prop
 
     # index properties
     cls.__properties__ = frozendict(properties)
     properties_by_id: dict[int, PropertyDeclaration] = {}
     for prop in properties.values():
-        if prop.id is not None and prop.runtime_prop is None:
+        if prop.id is not None:
             existing = properties_by_id.get(prop.id, None)
             if existing is None:
                 properties_by_id[prop.id] = prop
-            elif not prop.runtime_prop:
-                # contributed reference properties can share an id
+            else:
                 raise ValueError(f"property id conflict: {prop!r}, {existing!r}")
     props = properties.values()
     cls.__properties_by_id__ = frozendict(properties_by_id)
     cls.__node_properties__ = frozendict(
-        {
-            p.name: p
-            for p in props
-            if p.scalar_type == ScalarType.NODE_REFERENCE and not p.runtime_prop
-        }
+        {p.name: p for p in props if p.scalar_type == ScalarType.NODE_REFERENCE}
     )
-    cls.__wired_properties__ = frozendict(
-        {p.name: p for p in props if p.is_wired is True and p.ptr_prop is None}
-    )
-    cls.__stored_properties__ = frozendict(
-        {p.name: p for p in props if p.is_stored is True and p.ptr_prop is None}
-    )
+    cls.__wired_properties__ = frozendict({p.name: p for p in props if p.is_wired is True})
+    cls.__stored_properties__ = frozendict({p.name: p for p in props if p.is_stored is True})
     if is_frozen:
         cls.__tracked_properties__ = frozendict()
     else:
         cls.__tracked_properties__ = frozendict(
-            {
-                p.name: p
-                for p in props
-                if not p.is_managed and not p.is_computed and p.ptr_prop is None
-            }
+            {p.name: p for p in props if not p.is_managed and not p.is_computed}
         )
 
     # assign property ordinals
@@ -890,8 +874,6 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
         if prop.original_component is UNSET:
             prop.original_component = cls
         prop.ord = i
-        if prop.ptr_prop:
-            prop.ptr_prop.ord = i
     cls.__properties_id_in_order__ = tuple(cast(int, p.id) for p in cls.__properties_in_order__)
 
     cls_dict = dict(cls.__dict__)
@@ -936,9 +918,6 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
 
         # add computed properties to concrete classes
         for prop in properties.values():
-            if prop.runtime_prop is not None:
-                continue  # not a contributed property
-            # computed node property
             if prop.edge_type in (EdgeType.PARENT, EdgeType.REGULAR):
                 node_property_str = _generate_node_property_impl(prop)
                 exec_(node_property_str, {}, cls_dict, f"{cls.__name__}:node_property:{prop.name}")
@@ -955,7 +934,9 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
             if isinstance(cls_dict.get(prop.name), PropertyDeclaration):
                 cls_dict.pop(prop.name, None)
         cls_dict["__slots__"] = tuple(
-            p.name for p in properties.values() if p.ptr_prop is None and not p.is_computed
+            p.name if p.scalar_type != ScalarType.NODE_REFERENCE else f"{p.name}_ptr"
+            for p in properties.values()
+            if not p.is_computed
         )
     else:
         cls_dict["__slots__"] = ()

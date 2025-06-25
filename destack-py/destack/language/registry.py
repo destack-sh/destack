@@ -26,6 +26,7 @@ if TYPE_CHECKING:
         Node,
         NodeBase,
         NodeDefinition,
+        ObjectReference,
         RelationReference,
         StructBase,
         StructDefinition,
@@ -50,6 +51,7 @@ STRUCT_CLASS_BY_TYPE: dict[StructType, type["StructBase"]] = {}
 STRUCT_TYPE_BY_CLASS: dict[type["StructBase"], StructType] = {}
 
 RELATION_REF_BY_CLASS: dict[type["NodeBase"], "RelationReference"] = {}
+OBJECT_REF_BY_CLASS: dict[type["BuiltinObjectBase"], "ObjectReference"] = {}
 ENUM_DEFINITION_BY_TYPE: dict[EnumType, "EnumDefinition"] = {}
 STRUCT_DEFINITION_BY_TYPE: dict[StructType, "StructDefinition"] = {}
 TRAIT_DEFINITION_BY_TYPE: dict[TraitType, "TraitDefinition"] = {}
@@ -148,8 +150,8 @@ def _complete_setup():
         assert node_cls.__parent_property__ is not UNSET
         if node_cls.__root_type__ is None:
             node_cls.__parent_types__ = ()
-            if node_cls.__parent_property__.ptr_prop is not None:
-                node_cls.__parent_property__.ptr_prop.node_types = ()
+            if node_cls.__parent_property__ is not None:
+                node_cls.__parent_property__.node_types = ()
         else:
             parent_types = expand_node_types(node_cls.__parent_property__.node_types or ())
             assert len(parent_types) < len(NodeType), f"generic parent for '{node_cls.__name__}'"
@@ -245,12 +247,16 @@ def _complete_setup():
             setattr(PropertyDeclaration, name, attr)
 
     # generate relation refs
-    from destack.language.core import RelationReference
+    from destack.language.core import ObjectReference, RelationReference
 
     for cls in NODE_CLASS_BY_TYPE.values():
         RELATION_REF_BY_CLASS[cls] = RelationReference.of(cls)
+        OBJECT_REF_BY_CLASS[cls] = ObjectReference.of(cls)
     for cls in TRAIT_TYPE_BY_CLASS:
         RELATION_REF_BY_CLASS[cls] = RelationReference.of(cls)
+        OBJECT_REF_BY_CLASS[cls] = ObjectReference.of(cls)
+    for cls in STRUCT_CLASS_BY_TYPE.values():
+        OBJECT_REF_BY_CLASS[cls] = ObjectReference.of(cls)
 
     # generate meta info
     from destack.language.core import (

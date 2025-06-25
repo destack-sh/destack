@@ -297,15 +297,6 @@ export class Organization extends Node implements Global, Entity, HasSlug, HasIc
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.materialization === other.materialization)) {
-      return false;
-    }
-    if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
@@ -313,6 +304,15 @@ export class Organization extends Node implements Global, Entity, HasSlug, HasIc
       (this.handlePtr == null) !== (other.handlePtr == null) ||
       (this.handlePtr != null && !(this.handlePtr.id === other.handlePtr.id))
     ) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
       return false;
     }
     return true;
@@ -383,43 +383,43 @@ export class Organization extends Node implements Global, Entity, HasSlug, HasIc
     _graph?: any | null,
     _connection?: any | null,
   ): Organization {
+    const handlePtrValue = objectValue["51"];
+    const unpackedHandlePtr =
+      handlePtrValue != undefined
+        ? NodeReference.fromValue(handlePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const iconValue = objectValue["34"];
     const unpackedIcon =
       iconValue != undefined ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection) : null;
-    const handleValue = objectValue["51"];
-    const unpackedHandle =
-      handleValue != undefined
-        ? NodeReference.fromValue(handleValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const parentValue = objectValue["3"];
-    const unpackedParent =
-      parentValue != undefined
-        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const createdByValue = objectValue["16"];
-    const unpackedCreatedBy =
-      createdByValue != undefined
-        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByValue = objectValue["18"];
-    const unpackedUpdatedBy =
-      updatedByValue != undefined
-        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new Organization({
       slug: objectValue["33"],
       status: Number(objectValue["40"]),
+      space: NodeReference.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
+      handle: unpackedHandlePtr,
       id: String(objectValue["2"]),
+      parent: unpackedParentPtr,
       materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedBy: unpackedUpdatedByPtr,
       icon: unpackedIcon,
       name: objectValue["31"],
-      space: NodeReference.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
-      handle: unpackedHandle,
-      parent: unpackedParent,
-      createdBy: unpackedCreatedBy,
-      updatedBy: unpackedUpdatedBy,
       _session,
       _graph,
       _connection,
@@ -478,32 +478,32 @@ export class Organization extends Node implements Global, Entity, HasSlug, HasIc
     return new Organization({
       slug: objectProto.slug,
       status: Number(objectProto.status) as OrganizationStatus,
-      id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      icon:
-        objectProto.icon != undefined
-          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
-      name: objectProto.name,
       space: NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection),
       handle:
         objectProto.handlePtr != undefined
           ? NodeReference.fromProto(objectProto.handlePtr!, _session, _supergraph, _graph, _connection)
           : null,
+      id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
           ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
           ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
           ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      icon:
+        objectProto.icon != undefined
+          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
+      name: objectProto.name,
       _session,
       _graph,
       _connection,

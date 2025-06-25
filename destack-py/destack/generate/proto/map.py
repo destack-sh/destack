@@ -52,7 +52,7 @@ def _map_property_to_proto_field(
     if prop.scalar_type == ScalarType.NODE_REFERENCE:
         field = ProtoField(
             id=prop.id,
-            name=prop.name,
+            name=prop.name + "_ptr",
             type="NodeReferenceProto",
             optional=prop.is_optional,
             repeated=prop.cardinality == TypeCardinality.LIST,
@@ -146,7 +146,7 @@ def _map_builtin_object_to_proto_message(
     message.comment = (doc or "").strip()
     cache[cls] = message  # to solve recursive references
     for prop in properties if properties is not None else cls.__properties__.values():
-        if not prop.is_wired or prop.ptr_prop is not None:
+        if not prop.is_wired:
             continue
         field = _map_property_to_proto_field(prop, cache)
         message.fields.append(field)

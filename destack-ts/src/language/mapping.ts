@@ -37,8 +37,6 @@ import type {
   AggregationType,
   Align,
   Analytic,
-  AttributeReference,
-  AttributeType,
   Axis2,
   Axis3,
   Branch,
@@ -61,6 +59,9 @@ import type {
   CustomEnumDefinition,
   CustomEvent,
   CustomEventDefinition,
+  CustomOption,
+  CustomProperty,
+  CustomPropertyType,
   CustomStructDefinition,
   DefaultFactory,
   Dimension,
@@ -75,14 +76,11 @@ import type {
   EditType,
   Entity,
   EnumDefinition,
-  EnumOptionDefinition,
   EnumType,
   EnvironmentType,
   Event,
   Expression,
   ExpressionType,
-  Field,
-  FieldType,
   Function,
   FunctionType,
   GaugeMeasurement,
@@ -143,8 +141,10 @@ import type {
   NodeType,
   NumberConstraint,
   NumberFormat,
+  ObjectReference,
+  ObjectType,
   OperatingSystem,
-  Option,
+  OptionDefinition,
   Overflow,
   Particle,
   PermissionDefinition,
@@ -357,14 +357,14 @@ export type NodeTypeMapping = {
   [NodeType.EDIT_EVENT]: EditEvent;
   [NodeType.CUSTOM_EVENT_DEFINITION]: CustomEventDefinition;
   [NodeType.CUSTOM_EVENT]: CustomEvent;
-  [NodeType.FIELD]: Field;
   [NodeType.GAUGE_METRIC]: GaugeMetric;
   [NodeType.GAUGE_MEASUREMENT]: GaugeMeasurement;
   [NodeType.COUNTER_METRIC]: CounterMetric;
   [NodeType.COUNTER_MEASUREMENT]: CounterMeasurement;
   [NodeType.HISTOGRAM_METRIC]: HistogramMetric;
   [NodeType.HISTOGRAM_MEASUREMENT]: HistogramMeasurement;
-  [NodeType.OPTION]: Option;
+  [NodeType.CUSTOM_OPTION]: CustomOption;
+  [NodeType.CUSTOM_PROPERTY]: CustomProperty;
   [NodeType.SNAPSHOT]: Snapshot;
   [NodeType.BRANCH]: Branch;
   [NodeType.CUSTOM_STRUCT_DEFINITION]: CustomStructDefinition;
@@ -506,17 +506,26 @@ export type TraitTypeMapping = {
 export type StructTypeMapping = {
   [StructType.SCOPE]: Scope;
   [StructType.RELATION_REFERENCE]: RelationReference;
-  [StructType.ATTRIBUTE_REFERENCE]: AttributeReference;
+  [StructType.OBJECT_REFERENCE]: ObjectReference;
   [StructType.PROPERTY_REFERENCE]: PropertyReference;
   [StructType.NODE_REFERENCE]: NodeReference;
   [StructType.EDIT]: Edit;
   [StructType.CHANGE]: Change;
   [StructType.CHANGE_RESULT]: ChangeResult;
+  [StructType.ICON]: Icon;
   [StructType.STRING_CONSTRAINT]: StringConstraint;
   [StructType.NUMBER_CONSTRAINT]: NumberConstraint;
   [StructType.COLLECTION_CONSTRAINT]: CollectionConstraint;
   [StructType.NODE_CONSTRAINT]: NodeConstraint;
   [StructType.TYPE]: Type;
+  [StructType.PROPERTY_DEFINITION]: PropertyDefinition;
+  [StructType.TRAIT_DEFINITION]: TraitDefinition;
+  [StructType.NODE_DEFINITION]: NodeDefinition;
+  [StructType.STRUCT_DEFINITION]: StructDefinition;
+  [StructType.ENUM_DEFINITION]: EnumDefinition;
+  [StructType.OPTION_DEFINITION]: OptionDefinition;
+  [StructType.PERMISSION_DEFINITION]: PermissionDefinition;
+  [StructType.CONSTANT_DEFINITION]: ConstantDefinition;
   [StructType.VALUE]: Value;
   [StructType.FUNCTION]: Function;
   [StructType.CONDITION]: Condition;
@@ -531,15 +540,6 @@ export type StructTypeMapping = {
   [StructType.QUERY_RESULT_GROUP]: QueryResultGroup;
   [StructType.QUERY_UPDATE]: QueryUpdate;
   [StructType.SELECTION]: Selection;
-  [StructType.ICON]: Icon;
-  [StructType.PROPERTY_DEFINITION]: PropertyDefinition;
-  [StructType.TRAIT_DEFINITION]: TraitDefinition;
-  [StructType.NODE_DEFINITION]: NodeDefinition;
-  [StructType.STRUCT_DEFINITION]: StructDefinition;
-  [StructType.ENUM_DEFINITION]: EnumDefinition;
-  [StructType.ENUM_OPTION_DEFINITION]: EnumOptionDefinition;
-  [StructType.PERMISSION_DEFINITION]: PermissionDefinition;
-  [StructType.CONSTANT_DEFINITION]: ConstantDefinition;
   [StructType.TEXT_SPAN]: TextSpan;
   [StructType.TEXT]: Text;
   [StructType.LENGTH]: Length;
@@ -605,12 +605,13 @@ export type EnumTypeMapping = {
   [EnumType.TENANCY]: Tenancy;
   [EnumType.JOINABLE_PERMISSION]: JoinablePermission;
   [EnumType.RELATION_TYPE]: RelationType;
-  [EnumType.ATTRIBUTE_TYPE]: AttributeType;
+  [EnumType.OBJECT_TYPE]: ObjectType;
   [EnumType.PROPERTY_REFERENCE_TYPE]: PropertyReferenceType;
   [EnumType.EDIT_TYPE]: EditType;
   [EnumType.EDIT_OPERATION]: EditOperation;
   [EnumType.CHANGE_STATUS]: ChangeStatus;
   [EnumType.CHANGE_DEBOUNCE]: ChangeDebounce;
+  [EnumType.ICON_TYPE]: IconType;
   [EnumType.STRING_FORMAT]: StringFormat;
   [EnumType.NUMBER_FORMAT]: NumberFormat;
   [EnumType.FUNCTION_TYPE]: FunctionType;
@@ -622,8 +623,7 @@ export type EnumTypeMapping = {
   [EnumType.JOIN_TYPE]: JoinType;
   [EnumType.QUERY_TYPE]: QueryType;
   [EnumType.QUERY_UPDATE_TYPE]: QueryUpdateType;
-  [EnumType.FIELD_TYPE]: FieldType;
-  [EnumType.ICON_TYPE]: IconType;
+  [EnumType.CUSTOM_PROPERTY_TYPE]: CustomPropertyType;
   [EnumType.TEXT_SPAN_TYPE]: TextSpanType;
   [EnumType.LAYOUT]: Layout;
   [EnumType.OVERFLOW]: Overflow;

@@ -112,8 +112,8 @@ def _try_resolve(
 
 
 @dataclass(slots=True)
-class IntoType:
-    """Type annotation to be turned into a Property/Type/Field."""
+class TypeDeclaration:
+    """Type annotation to be turned into a Property/Type."""
 
     py_type: Any = None
     cardinality: TypeCardinality = UNSET
@@ -122,7 +122,7 @@ class IntoType:
     enum_type: EnumType | None = None
     struct_type: StructType | None = None
     node_types: Sequence[NodeType | TraitType] | None = None  # for node scalar nodes
-    key_type: "IntoType | None" = None
+    key_type: "TypeDeclaration | None" = None
     is_required: bool = True
 
     default: Any = UNSET
@@ -203,7 +203,7 @@ class IntoType:
 
 def parse_type_annotation(
     py_type: type | str | typing.ForwardRef, type_map: Mapping[str, type] = EMPTY_DICT
-) -> IntoType:
+) -> TypeDeclaration:
     """Parses the type information from a given py type. Uses type map to resolve forward refs."""
     is_required: bool = True
     scalar_type: ScalarType | None = None
@@ -228,7 +228,7 @@ def parse_type_annotation(
         assert element_annotation.cardinality == TypeCardinality.SCALAR, (
             f"non-scalar element: {py_type!r}"
         )
-        return IntoType(
+        return TypeDeclaration(
             cardinality=TypeCardinality.LIST,
             py_type=py_type,
             scalar_type=element_annotation.scalar_type,
@@ -259,7 +259,7 @@ def parse_type_annotation(
                 if union_class_name and (node_t := _resolve_node_types(union_class_name)):
                     node_types.extend(node_t)
             assert node_types, f"non-node union: {py_type!r}"
-            return IntoType(
+            return TypeDeclaration(
                 cardinality=TypeCardinality.SCALAR,
                 py_type=py_type,
                 scalar_type=ScalarType.NODE_REFERENCE,
@@ -276,7 +276,7 @@ def parse_type_annotation(
         assert value_annotation.cardinality == TypeCardinality.SCALAR, (
             f"non-scalar value: {py_type!r}"
         )
-        return IntoType(
+        return TypeDeclaration(
             cardinality=TypeCardinality.MAP,
             py_type=py_type,
             key_type=key_annotation,
@@ -308,7 +308,7 @@ def parse_type_annotation(
     assert scalar_type is not None, f"undetermined scalar type: {py_type!r}"
 
     # default: scalar
-    return IntoType(
+    return TypeDeclaration(
         cardinality=TypeCardinality.SCALAR,
         py_type=py_type,
         scalar_type=scalar_type,
@@ -334,8 +334,12 @@ def get_class_name(py_type: type | typing.ForwardRef | typing.TypeAliasType | st
 
 
 @dataclass(eq=False, slots=True)
-class PropertyDeclaration(IntoType, IntoQuery if TYPE_CHECKING else object):
-    """A system-defined attribute of a BuiltinObject (Struct or Node)."""
+class PropertyDeclaration(TypeDeclaration, IntoQuery if TYPE_CHECKING else object):
+    """
+    A system-defined attribute of a BuiltinObject (Struct or Node).
+    PropertyDeclarations are turned into PropertyDefinitions at runtime.
+    (We can't get rid of PropertyDeclarations because it would be circular.)
+    """
 
     # meta
     id: int | None = None
@@ -346,8 +350,6 @@ class PropertyDeclaration(IntoType, IntoQuery if TYPE_CHECKING else object):
     original_component: type["BuiltinObjectBase"] = UNSET  # original component (first in chain)
 
     # pointers
-    ptr_prop: Optional["PropertyDeclaration"] = None  # wired representation for pointers
-    runtime_prop: Optional["PropertyDeclaration"] = None  # for the proto property
     node_space_from: Literal["self"] | None = None
     node_is_customizable: bool = False
     node_has_type: bool = False
@@ -389,13 +391,7 @@ class PropertyDeclaration(IntoType, IntoQuery if TYPE_CHECKING else object):
     __hash__ = hash  # type: ignore
 
     def clone(self):
-        return dataclasses.replace(
-            self,
-            component=None,
-            original_component=self.original_component,
-            runtime_prop=None,
-            ptr_prop=None,
-        )
+        return dataclasses.replace(self, component=None, original_component=self.original_component)
 
     def to_ref(self) -> "PropertyReference":
         """A pointer to this property. `to_ref()` for consistency with `Node.to_ref()`."""
@@ -450,37 +446,6 @@ class PropertyDeclaration(IntoType, IntoQuery if TYPE_CHECKING else object):
             self._definition = PropertyDefinition.from_property(self)
         return self._definition
 
-    def _to_ptr_prop(self) -> Optional["PropertyDeclaration"]:
-        """
-        Contribute the wired and stored pointer properties required by this property.
-        """
-
-        if self.scalar_type == ScalarType.NODE_REFERENCE:
-            assert self.edge_type is not None, f"no edge type for {self!r}"
-            ptr_prop = PropertyDeclaration(
-                id=self.id,
-                name=self.name + "_ptr",
-                component=self.component,
-                cardinality=self.cardinality,
-                scalar_type=ScalarType.NODE_REFERENCE,
-                primitive_type=PrimitiveType.JSON,
-                struct_type=StructType.NODE_REFERENCE,
-                node_types=self.node_types,
-                is_required=self.is_required,
-                default=None,
-                constraint=self.constraint,
-                runtime_prop=self,
-                node_space_from=self.node_space_from,
-                node_is_customizable=self.node_is_customizable,
-                edge_type=self.edge_type,
-                is_wired=True,
-                is_stored=True,
-                is_eq=self.is_eq,
-                is_hash=self.is_hash,
-                is_computed=False,
-            )
-            return ptr_prop
-
     def determine(self, object_type: NodeType | StructType | None, is_root_node: bool) -> None:
         """Determine type information from annotation, add _ptr property if needed."""
         if not self.is_wired:
@@ -530,8 +495,7 @@ class PropertyDeclaration(IntoType, IntoQuery if TYPE_CHECKING else object):
             assert self.cardinality == TypeCardinality.SCALAR or not self.component.__is_node__, (
                 f"invalid list: {self!r}"
             )
-            self.ptr_prop = self._to_ptr_prop()
-            return  # bail, no need to determine primitive type
+            self.primitive_type = PrimitiveType.JSON
 
         # determine primitive type
         if self.primitive_type is None:
@@ -565,16 +529,6 @@ class PropertyDeclaration(IntoType, IntoQuery if TYPE_CHECKING else object):
             self.node_has_space = self.node_space_from is None and any(
                 issubclass(NODE_CLASS_BY_TYPE[node_type], Spatial) for node_type in node_types
             )
-            if self.runtime_prop is not None:
-                assert self.runtime_prop.node_has_type == self.node_has_type, (
-                    f"bad {self!r}.node_has_type ({self.runtime_prop.node_has_type} != {self.node_has_type})"
-                )
-                assert self.runtime_prop.node_has_space == self.node_has_space, (
-                    f"bad {self!r}.node_has_space ({self.runtime_prop.node_has_space} != {self.node_has_space})"
-                )
-                assert self.runtime_prop.node_has_definition == self.node_has_definition, (
-                    f"bad {self!r}.node_has_definition ({self.runtime_prop.node_has_definition} != {self.node_has_definition})"
-                )
 
 
 def property_(
