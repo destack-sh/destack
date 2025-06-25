@@ -199,6 +199,7 @@ export class Session {
     this.dirty[node.id] = node;
   }
 
+  /** Turn a dirty Node into Edits. */
   _flushNode(node: Node): void {
     throw new Error("not implemented");
   }

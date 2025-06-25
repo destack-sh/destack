@@ -12,6 +12,7 @@ import {
   Layout,
   Vector2,
 } from "@destack/language/core";
+import { TraitType } from "@destack/language/core/builtin";
 import { Border, Fill, Shadow } from "@destack/language/style";
 import { View } from "@destack/language/view";
 
@@ -119,4 +120,7 @@ export interface ContainerView extends IsExtensible, View {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
+
+class ContainerView$Type extends TraitFacade {}
+export const ContainerView = new ContainerView$Type(TraitType.CONTAINER_VIEW);
 /* ==== DESTACK_GENERATED_END:TRAIT:10000 ==== */
