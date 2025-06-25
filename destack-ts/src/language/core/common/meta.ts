@@ -1,6 +1,8 @@
 import {
   CascadeAction,
   CollectionConstraint,
+  Condition,
+  ConditionalType,
   DefaultFactory,
   EdgeType,
   Icon,
@@ -10,6 +12,8 @@ import {
   PrimitiveType,
   ScalarType,
   Session,
+  Sort,
+  SortType,
   StringConstraint,
   Supergraph,
   Type,
@@ -876,7 +880,77 @@ export class PropertyDefinition extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
+
+  eq(value: any): Condition {
+    if (value === null) {
+      return Condition.of(this, ConditionalType.NOT_EXISTS);
+    }
+    return Condition.of(this, ConditionalType.EQUALS, value);
+  }
+
+  neq(value: any): Condition {
+    if (value === null) {
+      return Condition.of(this, ConditionalType.EXISTS);
+    }
+    return Condition.of(this, ConditionalType.NOT_EQUALS, value);
+  }
+
+  gt(value: any): Condition {
+    return Condition.of(this, ConditionalType.GREATER_THAN, value);
+  }
+
+  gte(value: any): Condition {
+    return Condition.of(this, ConditionalType.GREATER_THAN_OR_EQUALS, value);
+  }
+
+  lt(value: any): Condition {
+    return Condition.of(this, ConditionalType.LESS_THAN, value);
+  }
+
+  lte(value: any): Condition {
+    return Condition.of(this, ConditionalType.LESS_THAN_OR_EQUALS, value);
+  }
+
+  startsWith(value: string): Condition {
+    return Condition.of(this, ConditionalType.STARTS_WITH, value);
+  }
+
+  endsWith(value: string): Condition {
+    return Condition.of(this, ConditionalType.ENDS_WITH, value);
+  }
+
+  in(...values: any[]): Condition {
+    return Condition.of(this, ConditionalType.IN, values);
+  }
+
+  notIn(...values: any[]): Condition {
+    return Condition.of(this, ConditionalType.NOT_IN, values);
+  }
+
+  exists(): Condition {
+    return Condition.of(this, ConditionalType.EXISTS);
+  }
+
+  isNotNone(): Condition {
+    return Condition.of(this, ConditionalType.EXISTS);
+  }
+
+  notExists(): Condition {
+    return Condition.of(this, ConditionalType.NOT_EXISTS);
+  }
+
+  isNone(): Condition {
+    return Condition.of(this, ConditionalType.NOT_EXISTS);
+  }
+
+  asc(): Sort {
+    return Sort.of(this, SortType.ASCENDING);
+  }
+
+  desc(): Sort {
+    return Sort.of(this, SortType.DESCENDING);
+  }
+
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.PROPERTY_DEFINITION, PropertyDefinition);
@@ -1070,14 +1144,14 @@ export class TraitDefinition extends StructFrozen {
     if (object.description != null) {
       objectValue["36"] = object.description;
     }
-    if (object.properties) {
+    if (object.properties.length > 0) {
       const packedProperties: any[] = [];
       for (const item of object.properties) {
         packedProperties.push(item.toValue());
       }
       objectValue["50"] = packedProperties;
     }
-    if (object.traits) {
+    if (object.traits.length > 0) {
       const packedTraits: any[] = [];
       for (const item of object.traits) {
         packedTraits.push(item);
@@ -1485,14 +1559,14 @@ export class NodeDefinition extends StructFrozen {
     if (object.description != null) {
       objectValue["36"] = object.description;
     }
-    if (object.properties) {
+    if (object.properties.length > 0) {
       const packedProperties: any[] = [];
       for (const item of object.properties) {
         packedProperties.push(item.toValue());
       }
       objectValue["50"] = packedProperties;
     }
-    if (object.traits) {
+    if (object.traits.length > 0) {
       const packedTraits: any[] = [];
       for (const item of object.traits) {
         packedTraits.push(item);
@@ -1502,28 +1576,28 @@ export class NodeDefinition extends StructFrozen {
     if (object.rootType != null) {
       objectValue["52"] = object.rootType;
     }
-    if (object.parentTypes) {
+    if (object.parentTypes.length > 0) {
       const packedParentTypes: any[] = [];
       for (const item of object.parentTypes) {
         packedParentTypes.push(item);
       }
       objectValue["53"] = packedParentTypes;
     }
-    if (object.childTypes) {
+    if (object.childTypes.length > 0) {
       const packedChildTypes: any[] = [];
       for (const item of object.childTypes) {
         packedChildTypes.push(item);
       }
       objectValue["54"] = packedChildTypes;
     }
-    if (object.ancestorTypes) {
+    if (object.ancestorTypes.length > 0) {
       const packedAncestorTypes: any[] = [];
       for (const item of object.ancestorTypes) {
         packedAncestorTypes.push(item);
       }
       objectValue["55"] = packedAncestorTypes;
     }
-    if (object.descendantTypes) {
+    if (object.descendantTypes.length > 0) {
       const packedDescendantTypes: any[] = [];
       for (const item of object.descendantTypes) {
         packedDescendantTypes.push(item);
@@ -1927,7 +2001,7 @@ export class StructDefinition extends StructFrozen {
     if (object.description != null) {
       objectValue["36"] = object.description;
     }
-    if (object.properties) {
+    if (object.properties.length > 0) {
       const packedProperties: any[] = [];
       for (const item of object.properties) {
         packedProperties.push(item.toValue());
@@ -2209,7 +2283,7 @@ export class EnumDefinition extends StructFrozen {
     if (object.description != null) {
       objectValue["36"] = object.description;
     }
-    if (object.options) {
+    if (object.options.length > 0) {
       const packedOptions: any[] = [];
       for (const item of object.options) {
         packedOptions.push(item.toValue());

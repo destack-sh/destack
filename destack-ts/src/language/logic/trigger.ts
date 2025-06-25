@@ -794,7 +794,7 @@ export class Trigger extends Node implements Spatial, Entity, HasName {
       objectValue["41"] = object.where.toValue();
     }
     objectValue["50"] = object.targetPtr.toValue();
-    if (object.arguments) {
+    if (object.arguments.size > 0) {
       const packedArguments: { [key: string]: any } = {};
       for (const [key, value] of object.arguments) {
         packedArguments[String(String(key))] = value.toValue();

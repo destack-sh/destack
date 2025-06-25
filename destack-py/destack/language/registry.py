@@ -239,13 +239,6 @@ def _complete_setup():
         setattr(cls, "to_value", cls_dict_copy["to_value"])
         setattr(cls, "from_value", cls_dict_copy["from_value"])
 
-    # hook IntoQuery methods into Property
-    from destack.language.core import IntoQuery, PropertyDeclaration
-
-    for name, attr in IntoQuery.__dict__.items():
-        if name not in PropertyDeclaration.__dict__ and name not in ("__annotations__", "__dict__"):
-            setattr(PropertyDeclaration, name, attr)
-
     # generate relation refs
     from destack.language.core import ObjectReference, RelationReference
 

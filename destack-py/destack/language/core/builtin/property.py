@@ -40,14 +40,14 @@ from .const import EMPTY_DICT, UNSET
 if TYPE_CHECKING:
     from destack.language import (
         BuiltinObjectBase,
+        Condition,
         Constraint,
         Format,
         PropertyDefinition,
         PropertyReference,
+        Sort,
         Type,
     )
-
-    from ..common.query import IntoQuery
 
 
 def _resolve_enum_type(class_name: str) -> EnumType | None:
@@ -334,11 +334,12 @@ def get_class_name(py_type: type | typing.ForwardRef | typing.TypeAliasType | st
 
 
 @dataclass(eq=False, slots=True)
-class PropertyDeclaration(TypeDeclaration, IntoQuery if TYPE_CHECKING else object):
+class PropertyDeclaration(TypeDeclaration):
     """
     A system-defined attribute of a BuiltinObject (Struct or Node).
     PropertyDeclarations are turned into PropertyDefinitions at runtime.
     (We can't get rid of PropertyDeclarations because it would be circular.)
+    TODO :Cleanup: should probably use PropertyDefinition wherever possible instead of PropertyDeclaration?
     """
 
     # meta
@@ -529,6 +530,94 @@ class PropertyDeclaration(TypeDeclaration, IntoQuery if TYPE_CHECKING else objec
             self.node_has_space = self.node_space_from is None and any(
                 issubclass(NODE_CLASS_BY_TYPE[node_type], Spatial) for node_type in node_types
             )
+
+    #
+    # Querying
+    #
+
+    def eq(self, value: Any) -> "Condition":
+        from destack.language import Condition, ConditionalType
+
+        if value is None:
+            return self.not_exists()
+        return Condition.of(self, ConditionalType.EQUALS, value=value)
+
+    def neq(self, value: Any) -> "Condition":
+        from destack.language import Condition, ConditionalType
+
+        if value is None:
+            return self.exists()
+        return Condition.of(self, ConditionalType.NOT_EQUALS, value=value)
+
+    def gt(self, value: Any) -> "Condition":
+        from destack.language import Condition, ConditionalType
+
+        return Condition.of(self, ConditionalType.GREATER_THAN, value=value)
+
+    def gte(self, value: Any) -> "Condition":
+        from destack.language import Condition, ConditionalType
+
+        return Condition.of(self, ConditionalType.GREATER_THAN_OR_EQUALS, value=value)
+
+    def lt(self, value: Any) -> "Condition":
+        from destack.language import Condition, ConditionalType
+
+        return Condition.of(self, ConditionalType.LESS_THAN, value=value)
+
+    def lte(self, value: Any) -> "Condition":
+        from destack.language import Condition, ConditionalType
+
+        return Condition.of(self, ConditionalType.LESS_THAN_OR_EQUALS, value=value)
+
+    def starts_with(self, value: str) -> "Condition":
+        from destack.language import Condition, ConditionalType
+
+        return Condition.of(self, ConditionalType.STARTS_WITH, value=value)
+
+    def ends_with(self, value: str) -> "Condition":
+        from destack.language import Condition, ConditionalType
+
+        return Condition.of(self, ConditionalType.ENDS_WITH, value=value)
+
+    def in_(self, *values: Any) -> "Condition":
+        from destack.language import Condition, ConditionalType
+
+        return Condition.of(self, ConditionalType.IN, value=values)
+
+    def not_in(self, *values: Any) -> "Condition":
+        from destack.language import Condition, ConditionalType
+
+        return Condition.of(self, ConditionalType.NOT_IN, value=values)
+
+    def exists(self) -> "Condition":
+        from destack.language import Condition, ConditionalType
+
+        return Condition.of(self, ConditionalType.EXISTS)
+
+    def is_not_none(self) -> "Condition":
+        from destack.language import Condition, ConditionalType
+
+        return Condition.of(self, ConditionalType.EXISTS)
+
+    def not_exists(self) -> "Condition":
+        from destack.language import Condition, ConditionalType
+
+        return Condition.of(self, ConditionalType.NOT_EXISTS)
+
+    def is_none(self) -> "Condition":
+        from destack.language import Condition, ConditionalType
+
+        return Condition.of(self, ConditionalType.NOT_EXISTS)
+
+    def asc(self) -> "Sort":
+        from destack.language import Sort, SortType
+
+        return Sort.of(self, SortType.ASCENDING)
+
+    def desc(self) -> "Sort":
+        from destack.language import Sort, SortType
+
+        return Sort.of(self, SortType.DESCENDING)
 
 
 def property_(

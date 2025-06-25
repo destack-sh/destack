@@ -395,70 +395,70 @@ export class Schedule extends Struct {
     if (object.weekStart != null) {
       objectValue["36"] = object.weekStart;
     }
-    if (object.bySetPos) {
+    if (object.bySetPos.length > 0) {
       const packedBySetPos: any[] = [];
       for (const item of object.bySetPos) {
         packedBySetPos.push(item);
       }
       objectValue["37"] = packedBySetPos;
     }
-    if (object.byMonth) {
+    if (object.byMonth.length > 0) {
       const packedByMonth: any[] = [];
       for (const item of object.byMonth) {
         packedByMonth.push(item);
       }
       objectValue["38"] = packedByMonth;
     }
-    if (object.byMonthDay) {
+    if (object.byMonthDay.length > 0) {
       const packedByMonthDay: any[] = [];
       for (const item of object.byMonthDay) {
         packedByMonthDay.push(item);
       }
       objectValue["39"] = packedByMonthDay;
     }
-    if (object.byYearDay) {
+    if (object.byYearDay.length > 0) {
       const packedByYearDay: any[] = [];
       for (const item of object.byYearDay) {
         packedByYearDay.push(item);
       }
       objectValue["40"] = packedByYearDay;
     }
-    if (object.byEaster) {
+    if (object.byEaster.length > 0) {
       const packedByEaster: any[] = [];
       for (const item of object.byEaster) {
         packedByEaster.push(item);
       }
       objectValue["41"] = packedByEaster;
     }
-    if (object.byWeekNo) {
+    if (object.byWeekNo.length > 0) {
       const packedByWeekNo: any[] = [];
       for (const item of object.byWeekNo) {
         packedByWeekNo.push(item);
       }
       objectValue["42"] = packedByWeekNo;
     }
-    if (object.byWeekDay) {
+    if (object.byWeekDay.length > 0) {
       const packedByWeekDay: any[] = [];
       for (const item of object.byWeekDay) {
         packedByWeekDay.push(item);
       }
       objectValue["43"] = packedByWeekDay;
     }
-    if (object.byHour) {
+    if (object.byHour.length > 0) {
       const packedByHour: any[] = [];
       for (const item of object.byHour) {
         packedByHour.push(item);
       }
       objectValue["44"] = packedByHour;
     }
-    if (object.byMinute) {
+    if (object.byMinute.length > 0) {
       const packedByMinute: any[] = [];
       for (const item of object.byMinute) {
         packedByMinute.push(item);
       }
       objectValue["45"] = packedByMinute;
     }
-    if (object.bySecond) {
+    if (object.bySecond.length > 0) {
       const packedBySecond: any[] = [];
       for (const item of object.bySecond) {
         packedBySecond.push(item);

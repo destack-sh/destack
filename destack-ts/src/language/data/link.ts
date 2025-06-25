@@ -494,7 +494,7 @@ export class Link extends Node implements Spatial, Resource {
     if (object.expiresAt != null) {
       objectValue["65"] = object.expiresAt.toString();
     }
-    if (object.imageUrls) {
+    if (object.imageUrls.length > 0) {
       const packedImageUrls: any[] = [];
       for (const item of object.imageUrls) {
         packedImageUrls.push(item);

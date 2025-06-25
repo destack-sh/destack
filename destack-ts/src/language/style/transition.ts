@@ -274,7 +274,7 @@ export class Transition extends Struct {
     if (object.duration != null) {
       objectValue["51"] = object.duration;
     }
-    if (object.ease) {
+    if (object.ease.length > 0) {
       const packedEase: any[] = [];
       for (const item of object.ease) {
         packedEase.push(item);
@@ -904,7 +904,7 @@ export class TransitionStyle extends Node implements Style {
     if (object.duration != null) {
       objectValue["51"] = object.duration;
     }
-    if (object.ease) {
+    if (object.ease.length > 0) {
       const packedEase: any[] = [];
       for (const item of object.ease) {
         packedEase.push(item);

@@ -2,6 +2,7 @@ import { NodeClass, toValue } from "@destack/language";
 import {
   CustomEntityDefinition,
   CustomProperty,
+  PropertyDefinition,
   PropertyReference,
   RelationReference,
   Session,
@@ -589,7 +590,7 @@ export class Condition extends StructFrozen {
 
   /** Make a Condition from a shorthand expression. */
   static of(
-    attribute: CustomProperty | PropertyReference,
+    attribute: CustomProperty | PropertyReference | PropertyDefinition,
     type: ConditionalType = ConditionalType.EQUALS,
     value: any = null,
   ): Condition {
@@ -1083,6 +1084,8 @@ export class Expression extends StructFrozen {
       return new Expression({ type: ExpressionType.LITERAL, literal: thing });
     } else if (thing instanceof PropertyReference) {
       return new Expression({ type: ExpressionType.ATTRIBUTE, attribute: thing });
+    } else if (thing instanceof PropertyDefinition) {
+      return new Expression({ type: ExpressionType.ATTRIBUTE, attribute: thing.toRef() });
     } else if (thing instanceof Condition) {
       return new Expression({ type: ExpressionType.CONDITION, condition: thing });
     } else if (thing instanceof Function) {
@@ -1103,7 +1106,15 @@ export class Expression extends StructFrozen {
 registerStructClass(StructType.EXPRESSION, Expression);
 /* ==== DESTACK_GENERATED_END:STRUCT:50100 ==== */
 
-export type ExpressionIn = Value | CustomProperty | PropertyReference | Condition | Function | Aggregation | Expression;
+export type ExpressionIn =
+  | Value
+  | CustomProperty
+  | PropertyReference
+  | PropertyDefinition
+  | Condition
+  | Function
+  | Aggregation
+  | Expression;
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50105 ==== */
 /**
@@ -1289,8 +1300,8 @@ export class Sort extends StructFrozen {
   /* ==== DESTACK_CUSTOM_START ==== */
 
   /** Make a Sort from a shorthand expression. */
-  static of(by: ExpressionIn, mode?: SortMode | null): Sort {
-    return new Sort({ type: SortType.ASCENDING, by: Expression.of(by), mode: mode ?? null });
+  static of(by: ExpressionIn, type: SortType = SortType.ASCENDING, mode?: SortMode | null): Sort {
+    return new Sort({ type, by: Expression.of(by), mode: mode ?? null });
   }
 
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -1379,7 +1390,7 @@ export class Select extends StructFrozen {
   static __packValue__(object: Select): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 50106;
-    if (object.attributes) {
+    if (object.attributes.length > 0) {
       const packedAttributes: any[] = [];
       for (const item of object.attributes) {
         packedAttributes.push(item.toValue());
@@ -2017,7 +2028,7 @@ export class Query extends StructFrozen {
     if (object.select != null) {
       objectValue["34"] = object.select.toValue();
     }
-    if (object.subqueries) {
+    if (object.subqueries.length > 0) {
       const packedSubqueries: any[] = [];
       for (const item of object.subqueries) {
         packedSubqueries.push(item.toValue());
@@ -2030,7 +2041,7 @@ export class Query extends StructFrozen {
     if (object.having != null) {
       objectValue["41"] = object.having.toValue();
     }
-    if (object.groupBy) {
+    if (object.groupBy.length > 0) {
       const packedGroupBy: any[] = [];
       for (const item of object.groupBy) {
         packedGroupBy.push(item.toValue());
@@ -2040,7 +2051,7 @@ export class Query extends StructFrozen {
     if (object.aggregation != null) {
       objectValue["43"] = object.aggregation.toValue();
     }
-    if (object.sort) {
+    if (object.sort.length > 0) {
       const packedSort: any[] = [];
       for (const item of object.sort) {
         packedSort.push(item.toValue());
@@ -2368,14 +2379,14 @@ export class Histogram extends StructFrozen {
   static __packValue__(object: Histogram): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 50114;
-    if (object.buckets) {
+    if (object.buckets.length > 0) {
       const packedBuckets: any[] = [];
       for (const item of object.buckets) {
         packedBuckets.push(item.toValue());
       }
       objectValue["40"] = packedBuckets;
     }
-    if (object.counts) {
+    if (object.counts.length > 0) {
       const packedCounts: any[] = [];
       for (const item of object.counts) {
         packedCounts.push(item);
@@ -2666,21 +2677,21 @@ export class QueryResult extends Struct {
     objectValue["1"] = 50111;
     objectValue["2"] = String(object.id);
     objectValue["30"] = object.type;
-    if (object.groups) {
+    if (object.groups.length > 0) {
       const packedGroups: any[] = [];
       for (const item of object.groups) {
         packedGroups.push(item.toValue());
       }
       objectValue["35"] = packedGroups;
     }
-    if (object.subresults) {
+    if (object.subresults.length > 0) {
       const packedSubresults: any[] = [];
       for (const item of object.subresults) {
         packedSubresults.push(item.toValue());
       }
       objectValue["36"] = packedSubresults;
     }
-    if (object.nodes) {
+    if (object.nodes.length > 0) {
       const packedNodes: any[] = [];
       for (const item of object.nodes) {
         packedNodes.push(item.toValue());
@@ -2985,7 +2996,7 @@ export class QueryResultGroup extends Struct {
     objectValue["1"] = 50112;
     objectValue["30"] = object.type;
     objectValue["31"] = object.discriminator.toValue();
-    if (object.nodes) {
+    if (object.nodes.length > 0) {
       const packedNodes: any[] = [];
       for (const item of object.nodes) {
         packedNodes.push(item.toValue());

@@ -364,7 +364,7 @@ export class Gradient extends Struct {
     if (object.angle != null) {
       objectValue["50"] = object.angle;
     }
-    if (object.stops) {
+    if (object.stops.length > 0) {
       const packedStops: any[] = [];
       for (const item of object.stops) {
         packedStops.push(item.toValue());
@@ -893,7 +893,7 @@ export class GradientStyle extends Node implements Style {
     if (object.angle != null) {
       objectValue["50"] = object.angle;
     }
-    if (object.stops) {
+    if (object.stops.length > 0) {
       const packedStops: any[] = [];
       for (const item of object.stops) {
         packedStops.push(item.toValue());

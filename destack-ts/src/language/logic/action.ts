@@ -398,7 +398,7 @@ export class Action
     if (object.deletedAt != null) {
       objectValue["20"] = object.deletedAt.toString();
     }
-    if (object.value) {
+    if (object.value.size > 0) {
       const packedValue: { [key: string]: any } = {};
       for (const [key, value] of object.value) {
         packedValue[String(String(key))] = value.toValue();

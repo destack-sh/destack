@@ -2,6 +2,8 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   CascadeAction,
   CollectionConstraint,
+  Condition,
+  ConditionalType,
   CustomEntityDefinition,
   DefaultFactory,
   EdgeType,
@@ -23,6 +25,8 @@ import {
   QueryConnection,
   ScalarType,
   Session,
+  Sort,
+  SortType,
   Spatial,
   StringConstraint,
   Supergraph,
@@ -1101,7 +1105,77 @@ export class CustomProperty
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
+
+  eq(value: any): Condition {
+    if (value === null) {
+      return Condition.of(this, ConditionalType.NOT_EXISTS);
+    }
+    return Condition.of(this, ConditionalType.EQUALS, value);
+  }
+
+  neq(value: any): Condition {
+    if (value === null) {
+      return Condition.of(this, ConditionalType.EXISTS);
+    }
+    return Condition.of(this, ConditionalType.NOT_EQUALS, value);
+  }
+
+  gt(value: any): Condition {
+    return Condition.of(this, ConditionalType.GREATER_THAN, value);
+  }
+
+  gte(value: any): Condition {
+    return Condition.of(this, ConditionalType.GREATER_THAN_OR_EQUALS, value);
+  }
+
+  lt(value: any): Condition {
+    return Condition.of(this, ConditionalType.LESS_THAN, value);
+  }
+
+  lte(value: any): Condition {
+    return Condition.of(this, ConditionalType.LESS_THAN_OR_EQUALS, value);
+  }
+
+  startsWith(value: string): Condition {
+    return Condition.of(this, ConditionalType.STARTS_WITH, value);
+  }
+
+  endsWith(value: string): Condition {
+    return Condition.of(this, ConditionalType.ENDS_WITH, value);
+  }
+
+  in(...values: any[]): Condition {
+    return Condition.of(this, ConditionalType.IN, values);
+  }
+
+  notIn(...values: any[]): Condition {
+    return Condition.of(this, ConditionalType.NOT_IN, values);
+  }
+
+  exists(): Condition {
+    return Condition.of(this, ConditionalType.EXISTS);
+  }
+
+  isNotNone(): Condition {
+    return Condition.of(this, ConditionalType.EXISTS);
+  }
+
+  notExists(): Condition {
+    return Condition.of(this, ConditionalType.NOT_EXISTS);
+  }
+
+  isNone(): Condition {
+    return Condition.of(this, ConditionalType.NOT_EXISTS);
+  }
+
+  asc(): Sort {
+    return Sort.of(this, SortType.ASCENDING);
+  }
+
+  desc(): Sort {
+    return Sort.of(this, SortType.DESCENDING);
+  }
+
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CUSTOM_PROPERTY, CustomProperty);

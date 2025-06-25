@@ -497,7 +497,7 @@ export class Text extends StructFrozen {
   static __packValue__(object: Text): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 2520;
-    if (object.spans) {
+    if (object.spans.length > 0) {
       const packedSpans: any[] = [];
       for (const item of object.spans) {
         packedSpans.push(item.toValue());

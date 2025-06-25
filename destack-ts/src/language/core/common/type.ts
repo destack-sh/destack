@@ -822,14 +822,14 @@ export class NodeConstraint extends StructFrozen {
   static __packValue__(object: NodeConstraint): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 2505;
-    if (object.nodeTypes) {
+    if (object.nodeTypes.length > 0) {
       const packedNodeTypes: any[] = [];
       for (const item of object.nodeTypes) {
         packedNodeTypes.push(item);
       }
       objectValue["41"] = packedNodeTypes;
     }
-    if (object.nodeTraits) {
+    if (object.nodeTraits.length > 0) {
       const packedNodeTraits: any[] = [];
       for (const item of object.nodeTraits) {
         packedNodeTraits.push(item);

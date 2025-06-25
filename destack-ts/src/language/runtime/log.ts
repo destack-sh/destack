@@ -292,7 +292,7 @@ export class Log extends Node implements Spatial, Analytic, IsFrozen {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
     objectValue["40"] = object.content;
-    if (object.attributes) {
+    if (object.attributes.size > 0) {
       const packedAttributes: { [key: string]: any } = {};
       for (const [key, value] of object.attributes) {
         packedAttributes[String(key)] = value;
