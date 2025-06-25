@@ -71,7 +71,7 @@ class EnumType(Enum):
     DEFAULT_FACTORY = 2563
     STRING_FORMAT = 2570
     NUMBER_FORMAT = 2571
-    FIELD_TYPE = 2580
+    CUSTOM_PROPERTY_TYPE = 2580
     EDGE_TYPE = 2581
     EDGE_DIRECTION = 2582
     CASCADE_ACTION = 2583
@@ -212,7 +212,6 @@ class EnumType(Enum):
     STRUCT_TYPE = 50002
     TRAIT_TYPE = 50003
     RELATION_TYPE = 50010
-    ATTRIBUTE_TYPE = 50011
     PROPERTY_REFERENCE_TYPE = 50012
     MATERIALIZATION_TYPE = 50013
     STORE_ZONE = 50020
@@ -352,7 +351,7 @@ class StructType(Enum):
     NODE_DEFINITION = 50006
     STRUCT_DEFINITION = 50007
     ENUM_DEFINITION = 50008
-    ENUM_OPTION_DEFINITION = 50009
+    OPTION_DEFINITION = 50009
     PERMISSION_DEFINITION = 50010
     CONSTANT_DEFINITION = 50011
     # ACTION_DEFINITION, ...?
@@ -449,8 +448,8 @@ class NodeType(Enum):
     # data [2500-3000]
     CUSTOM_STRUCT_DEFINITION = 2500, "Struct", "Struct", "fas fa-shapes"
     CUSTOM_ENUM_DEFINITION = 2510, "Enum", "Enum", "fas fa-shapes"
-    FIELD = 2520, "Field", "Field", "fas fa-triangle"
-    OPTION = 2530, "Option", "Option", "fas fa-circle"
+    CUSTOM_PROPERTY = 2520, "Field", "Field", "fas fa-triangle"
+    CUSTOM_OPTION = 2530, "Option", "Option", "fas fa-circle"
     FILE = 2540, "File", "File", "fas fa-file"
     LINK = 2550, "Link", "Link to something", "fas fa-link"
     # STREAM, SECRET, ...

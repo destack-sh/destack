@@ -22,7 +22,7 @@ from .core import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import Property
+    from destack.language import PropertyDeclaration
 
 
 PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, ProtoFieldType] = {
@@ -43,7 +43,7 @@ PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, ProtoFieldType] = {
 
 
 def _map_property_to_proto_field(
-    prop: "Property", cache: dict[type[BuiltinObjectBase] | type[Enum], ProtoObject]
+    prop: "PropertyDeclaration", cache: dict[type[BuiltinObjectBase] | type[Enum], ProtoObject]
 ) -> ProtoField:
     assert prop.id == 1 or prop.is_wired, f"not a wired property: {prop!r}"
     assert isinstance(prop.id, int), f"invalid id: {prop!r}"
@@ -133,7 +133,7 @@ def _map_builtin_object_to_proto_message(
     cls: type[BuiltinObjectBase],
     cache: dict[type[BuiltinObjectBase] | type[Enum], ProtoObject],
     alias: str | None = None,
-    properties: Sequence["Property"] | None = None,
+    properties: Sequence["PropertyDeclaration"] | None = None,
 ) -> ProtoMessage:
     if cls in cache:
         message = cache[cls]

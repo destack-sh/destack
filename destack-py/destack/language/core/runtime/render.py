@@ -7,15 +7,12 @@ from typing import (
     Any,
     assert_never,
     cast,
-    overload,
-    override,
 )
 
 import regex
 import structlog
 from opentelemetry import trace
 
-from destack.utils.code import format_code
 from destack.utils.uuid import UUID
 
 from ..builtin import (
@@ -23,10 +20,10 @@ from ..builtin import (
     BuiltinObjectBase,
     Node,
     NodeType,
-    Property,
+    PropertyDeclaration,
     StructType,
 )
-from ..common import NodeReference, PropertyReference
+from ..common import NodeReference
 from .graph import Supergraph
 
 if TYPE_CHECKING:
@@ -39,8 +36,12 @@ tracer = trace.get_tracer(__name__)
 @dataclass(slots=True)
 class RenderOptions:
     aliasing: "Aliasing"
-    include_properties: Mapping[NodeType | StructType, Collection[Property]] | None = None
-    exclude_properties: Mapping[NodeType | StructType, Collection[Property]] | None = None
+    include_properties: Mapping[NodeType | StructType, Collection[PropertyDeclaration]] | None = (
+        None
+    )
+    exclude_properties: Mapping[NodeType | StructType, Collection[PropertyDeclaration]] | None = (
+        None
+    )
     node_types: Collection[NodeType] = NODE_TYPES
     # formatting
     statement_separator: str = "\n"
@@ -181,16 +182,6 @@ class Renderer:
     def __repr__(self) -> str:
         return f"<Renderer {self}>"
 
-    def render_node_ref(self, node: Node | NodeReference) -> str:
-        """Renders a python-valid reference to the given node in this context."""
-        alias = self.aliasing.get_or_add(node)
-        return alias
-
-    def render_property_ref(self, prop: Property | PropertyReference) -> str:
-        if isinstance(prop, PropertyReference):
-            prop = prop.resolve_or_error()
-        return f'{prop.component.__name__}.get_property("{prop.name}")'
-
     def render_kwargs(self, **kwargs: Any) -> str:
         """Renders kwargs into a string."""
         return ", ".join(f"{k}={v}" for k, v in kwargs.items())
@@ -207,23 +198,12 @@ class Renderer:
 
     def render_expression(
         self,
-        value: BuiltinObjectBase | Property,
+        value: BuiltinObjectBase | PropertyDeclaration,
         as_ref: bool = False,
         format: bool = False,
     ) -> str:
         """Renders a value into an expression."""
-        if isinstance(value, BuiltinObjectBase):
-            if isinstance(value, Node) and as_ref:
-                rendered = self.render_node_ref(value)
-            else:
-                rendered = self.render_builtin_object(value)
-        elif isinstance(value, Property):
-            rendered = self.render_property_ref(value)
-        else:
-            assert_never(value)
-        if format:
-            rendered = format_code(rendered)
-        return rendered
+        raise NotImplementedError
 
     def render_statement(
         self,
@@ -233,181 +213,4 @@ class Renderer:
         options: RenderOptions | None = None,
     ) -> str:
         """Renders the given objects to a Python block that defines those objects."""
-        # render
-        rendered_objs: list[str] = []
-        current_children: list[str] = []
-        for i, node in enumerate(nodes):
-            rendered = self.render_builtin_object(node, options)
-            node_alias = self.aliasing.get_or_add(node)
-            assert node_alias is not None, f"no alias for {node!r}"
-            rendered_objs.append(f"{node_alias} = {rendered}")
-            if append and (parent := node.parent) is not None:
-                parent_key = self.aliasing.get_or_add(parent)
-                next_parent_key = (
-                    self.aliasing.get_or_add(nodes[i + 1]) if i < len(nodes) - 1 else None
-                )
-                if parent_key is not None:
-                    current_children.append(node_alias)
-                    if parent_key != next_parent_key:
-                        if len(current_children) > 1:
-                            rendered_objs.append(
-                                f"{parent_key}.extend({', '.join(current_children)})"
-                            )
-                        else:
-                            rendered_objs.append(f"{parent_key}.append({node_alias})")
-                        current_children = []
-        rendered = self.options.statement_separator.join(rendered_objs)
-        if format:
-            rendered = format_code(rendered)
-        return rendered
-
-
-def _deconstruct_builtin_object(
-    obj: BuiltinObjectBase, *, include_defaults: bool = False, options: RenderOptions
-) -> dict[Property, Any]:
-    """Gets the 'content' values for a BuiltinObject."""
-    cls = type(obj)
-    metatype = getattr(obj, "metatype", None)
-    assert metatype, f"no metatype for {obj!r}"
-    kwargs: dict[Property, Any] = {}
-    # properties
-    if options.include_properties is not None:
-        include_properties = options.include_properties.get(metatype, None)
-    else:
-        include_properties = None
-    if options.exclude_properties is not None:
-        exclude_properties = options.exclude_properties.get(metatype, None)
-    else:
-        exclude_properties = None
-    for prop in cls.__properties__.values():
-        if exclude_properties is not None and prop in exclude_properties:
-            continue  # exclude
-        elif include_properties is not None and prop not in include_properties:
-            pass  # include
-        elif prop.id is None or prop.runtime_prop:
-            continue  # ignore internal properties
-        prop_value = getattr(obj, prop.name)
-        if (
-            (prop_value is None and prop.default is None)
-            or (isinstance(prop_value, Collection) and len(prop_value) == 0)
-            or (prop_value is prop.default and not include_defaults)
-        ):
-            continue
-        kwargs[prop] = prop_value
-    return kwargs
-
-
-def _render_builtin_object_kwargs(
-    renderer: Renderer, obj: BuiltinObjectBase, kwargs: dict[Property, Any]
-) -> dict[str, str]:
-    raise NotImplementedError
-
-
-#
-# Base renderers
-#
-
-
-_renderers: dict[NodeType | StructType, "BuiltinObjectRenderer"] = {}
-
-
-def _renderer(object_type: NodeType | StructType):
-    """Decorator to register a Rewriter for a specific ObjectType."""
-
-    def decorator(cls):
-        if object_type in _renderers:
-            raise RuntimeError(f"rewriter for {object_type!r} already registered")
-        _renderers[object_type] = cls()
-
-    return decorator
-
-
-class BuiltinObjectRenderer[T: BuiltinObjectBase]:
-    """The base renderer for a BuiltinObject."""
-
-    def render(self, renderer: "Renderer", obj: T, options: RenderOptions) -> str:
-        """Render the given object to a Python expression (string)."""
-        kwargs = _deconstruct_builtin_object(obj, options=options)
-        rendered_kwargs = _render_builtin_object_kwargs(renderer, obj, kwargs)
-        return f"{obj.__class__.__name__}({renderer.render_kwargs(**rendered_kwargs)})"
-
-
-#
-# Node renderers
-#
-
-
-class NodeRenderer[T: Node](BuiltinObjectRenderer[T]):
-    """The base renderer for a Node."""
-
-    def _render_constructor(
-        self,
-        renderer: "Renderer",
-        obj: T,
-        kwargs: dict[Property, Any],
-        rendered_kwargs: dict[str, str],
-    ) -> str:
-        """Create the constructor expression for a BuiltinObject (for the default .render)."""
-        return f"{obj.__class__.__name__}({renderer.render_kwargs(**rendered_kwargs)})"
-
-    @override
-    def render(self, renderer: Renderer, obj: T, options: RenderOptions) -> str:
-        kwargs = _deconstruct_builtin_object(obj, options=options)
-        rendered_kwargs = _render_builtin_object_kwargs(renderer, obj, kwargs)
-        return self._render_constructor(renderer, obj, kwargs, rendered_kwargs)
-
-
-NODE_RENDERER = NodeRenderer[Node]()
-
-
-#
-# Struct renderers
-#
-
-
-def render_expression(
-    value: BuiltinObjectBase | Property, options: RenderOptions, as_ref: bool = False
-) -> str:
-    """Render the given object to a python expression."""
-    renderer = Renderer(options)
-    rendered = renderer.render_expression(value, as_ref=as_ref)
-    if options.format:
-        rendered = format_code(rendered, line_length=options.line_length)
-    return rendered.strip()
-
-
-def render_expressions(
-    expressions: Mapping[str, BuiltinObjectBase | Property],
-    options: RenderOptions,
-) -> str:
-    """Render the given expressions to python expressions."""
-    renderer = Renderer(options)
-    return options.statement_separator.join(
-        f"{name} = {renderer.render_expression(value, as_ref=True)}"
-        for name, value in expressions.items()
-    )
-
-
-def render_statement(*objs: Node, options: RenderOptions) -> str:
-    """Renders the given object to a python block where the objects are defined."""
-    renderer = Renderer(options)
-    for obj in objs:
-        renderer.aliasing.add(obj)
-    rendered = renderer.render_statement(*objs)
-    if options.format:
-        rendered = format_code(rendered, line_length=options.line_length)
-    return rendered.strip()
-
-
-@overload
-def render(*objs: BuiltinObjectBase, options: RenderOptions) -> str: ...
-@overload
-def render(*objs: Property, options: RenderOptions) -> str: ...
-def render(*objs: BuiltinObjectBase | Property, options: RenderOptions) -> str:
-    """Renders the given object to either an expression (for values) or statement (for nodes)."""
-    if any(isinstance(obj, Node) for obj in objs):
-        return render_statement(*cast(list[Node], objs), options=options)
-    else:
-        # render into tuple of expressions
-        value_exprs = [render_expression(obj, options) for obj in objs]
-        return ", ".join(value_exprs)
+        raise NotImplementedError

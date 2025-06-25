@@ -17,13 +17,13 @@ from ..builtin import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import CustomStructDefinition, Field
+    from destack.language import CustomProperty, CustomStructDefinition
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.OPTION)
-class Option(
+@builtin_node(NodeType.CUSTOM_OPTION)
+class CustomOption(
     Spatial,
     Entity,
     HasName,
@@ -33,6 +33,6 @@ class Option(
     IsSourceable,
     Node[OptionProto],
 ):
-    parent: Union["CustomStructDefinition", "Field", None] = property_parent_(
+    parent: Union["CustomStructDefinition", "CustomProperty", None] = property_parent_(
         node_is_customizable=True
     )

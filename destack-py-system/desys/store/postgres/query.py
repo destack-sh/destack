@@ -9,10 +9,9 @@ from opentelemetry import trace
 from destack.language import (
     Aggregation,
     AggregationType,
-    AttributeReference,
-    AttributeType,
     Condition,
     ConditionalType,
+    CustomProperty,
     EdgeDirection,
     Expression,
     ExpressionType,
@@ -20,6 +19,7 @@ from destack.language import (
     JoinType,
     NodeReference,
     NodeType,
+    PropertyReference,
     Query,
     QueryResult,
     QueryResultGroup,
@@ -31,6 +31,7 @@ from destack.language import (
     Value,
     to_value,
 )
+from destack.language.core.common.relation import PropertyReferenceType
 from destack.utils.uuid import UUID
 
 from .core import PostgresContext
@@ -62,21 +63,19 @@ def _compile_select(context: PostgresContext, arguments_out: list[Any], select: 
 
 
 def _compile_attribute(
-    context: PostgresContext, arguments_out: list[Any], attribute: AttributeReference
+    context: PostgresContext, arguments_out: list[Any], attribute: PropertyReference
 ) -> str:
     """Compile an Attribute into a SQL expression."""
-    if attribute.type == AttributeType.PROPERTY:
-        prop_ptr = attribute.prop_ptr
-        assert prop_ptr is not None, f"no property for {attribute!r}"
-        prop = prop_ptr.resolve_or_error()
+    if attribute.type == PropertyReferenceType.BUILTIN:
+        prop = attribute.resolve_or_error()
         if prop.scalar_type == ScalarType.NODE_REFERENCE:
             # unravel reference column into id
             return f"{prop.name}_id"
         else:
             return prop.name
-    elif attribute.type == AttributeType.FIELD:
-        field = attribute.field
-        assert field is not None, f"no field for {attribute!r}"
+    elif attribute.type == PropertyReferenceType.CUSTOM:
+        field = attribute.resolve_or_error()
+        assert isinstance(field, CustomProperty), f"no field for {attribute!r}"
         field_name = f"{DESTACK_CUSTOM_FIELD_PREFIX}{str(field.id).replace('-', '')}"
         if field.scalar_type == ScalarType.NODE_REFERENCE:
             return f"{field_name}_id"

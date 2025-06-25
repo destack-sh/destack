@@ -36,7 +36,7 @@ from .const import UNSET
 from .object import BuiltinObjectMutable, _process_object_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
-    Property,
+    PropertyDeclaration,
     _resolve_trait_type,
     property_,
     property_parent_,
@@ -158,7 +158,7 @@ class NodeBase[NodeProtoT: AnyObjectProto](BuiltinObjectMutable[NodeProtoT]):
     __indexes__: ClassVar[tuple[IndexIn, ...]] = ()
 
     __root_type__: ClassVar[NodeType | None] = None
-    __parent_property__: ClassVar[Property] = UNSET
+    __parent_property__: ClassVar[PropertyDeclaration] = UNSET
     __parent_types__: ClassVar[tuple[NodeType, ...]] = ()
     __child_types__: ClassVar[tuple[NodeType, ...]] = ()
     __ancestor_types__: ClassVar[tuple[NodeType, ...]] = ()

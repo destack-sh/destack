@@ -47,15 +47,15 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
 
-@builtin_enum(EnumType.FIELD_TYPE)
-class FieldType(Enum):
+@builtin_enum(EnumType.CUSTOM_PROPERTY_TYPE)
+class CustomPropertyType(Enum):
     MEMBER = 1, "Member", "Member", "fas fa-arrow-down"
     INPUT = 2, "Input", "Input", "fas fa-arrow-down"
     OUTPUT = 3, "Output", "Output", "fas fa-arrow-up"
 
 
-@builtin_node(NodeType.FIELD)
-class Field(
+@builtin_node(NodeType.CUSTOM_PROPERTY)
+class CustomProperty(
     Spatial,
     Entity,
     HasName,
@@ -67,11 +67,13 @@ class Field(
     Node[FieldProto],
 ):
     """
-    A Field is a custom attribute of a CustomStructDefinition or an IsExtensible.
+    A CustomProperty is a custom attribute of a CustomStructDefinition or an IsExtensible.
     """
 
-    parent: Union["IsExtensible", "Field", None] = property_parent_(node_is_customizable=True)
-    type: FieldType = property_(30, default=FieldType.MEMBER)
+    parent: Union["IsExtensible", "CustomProperty", None] = property_parent_(
+        node_is_customizable=True
+    )
+    type: CustomPropertyType = property_(30, default=CustomPropertyType.MEMBER)
 
     # scalar
     cardinality: TypeCardinality = property_(40, default=TypeCardinality.SCALAR, is_repr=True)

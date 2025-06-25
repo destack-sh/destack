@@ -17,9 +17,9 @@ from destack.language import (
     NODE_CLASS_BY_TYPE,
     NODE_TYPES,
     BuiltinObjectBase,
+    CustomProperty,
+    CustomPropertyType,
     EnumType,
-    Field,
-    FieldType,
     IconType,
     NodeReference,
     NodeType,
@@ -222,7 +222,7 @@ def from_object_type(
         elif object_type == StructType.ICON:
             return cast(st.SearchStrategy[BuiltinObjectBase], icons())
     elif isinstance(object_type, NodeType):
-        if object_type == NodeType.FIELD:
+        if object_type == NodeType.CUSTOM_PROPERTY:
             return cast(st.SearchStrategy[BuiltinObjectBase], fields(SIMPLE_TYPE_CARDINALITIES))
 
     # naive strategy
@@ -338,8 +338,8 @@ def types(draw: st.DrawFn, cardinalities: st.SearchStrategy[TypeCardinality]):
 @st.composite
 def fields(draw: st.DrawFn, cardinalities: st.SearchStrategy[TypeCardinality]):
     type_base_dict = draw_type_base_dict(draw, cardinalities)
-    naive_base_dict = get_naive_object_strategy(Field)
-    naive_base_dict["type"] = st.just(FieldType.INPUT)
+    naive_base_dict = get_naive_object_strategy(CustomProperty)
+    naive_base_dict["type"] = st.just(CustomPropertyType.INPUT)
     combined_dict = {}
     for key in naive_base_dict:
         # prefer type info where set
@@ -348,7 +348,7 @@ def fields(draw: st.DrawFn, cardinalities: st.SearchStrategy[TypeCardinality]):
         else:
             combined_dict[key] = draw(naive_base_dict[key])
     combined_dict["cardinality"] = TypeCardinality.SCALAR
-    return Field(**combined_dict)
+    return CustomProperty(**combined_dict)
 
 
 @st.composite

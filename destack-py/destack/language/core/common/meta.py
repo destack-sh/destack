@@ -6,7 +6,7 @@ from ..builtin import (
     Enum,
     EnumType,
     NodeType,
-    Property,
+    PropertyDeclaration,
     StructBase,
     StructFrozen,
     StructType,
@@ -34,7 +34,7 @@ _type = type
 
 @builtin_struct(StructType.PROPERTY_DEFINITION, frozen=True)
 class PropertyDefinition(StructFrozen):
-    """Information about a builtin Property."""
+    """Definition of a builtin Property."""
 
     id: int = property_(2)
     name: str = property_(31)
@@ -63,8 +63,11 @@ class PropertyDefinition(StructFrozen):
     node_constraint: Optional["NodeConstraint"] = property_(63)
 
     node_is_customizable: bool = property_(73)
-    edge_type: EdgeType | None = property_(74)
-    cascade: CascadeAction | None = property_(75)
+    node_has_type: bool = property_(74)
+    node_has_space: bool = property_(75)
+    node_has_definition: bool = property_(76)
+    edge_type: EdgeType | None = property_(77)
+    cascade: CascadeAction | None = property_(78)
 
     is_wired: bool = property_(80)
     is_stored: bool = property_(81)
@@ -75,7 +78,7 @@ class PropertyDefinition(StructFrozen):
     is_computed: bool = property_(86)
 
     @classmethod
-    def from_property(cls, property: Property) -> "PropertyDefinition":
+    def from_property(cls, property: PropertyDeclaration) -> "PropertyDefinition":
         """Create PropertyDefinition from a Property."""
         assert property.id is not None, f"{property!r} has no id"
         type = property._to_type()
@@ -102,6 +105,9 @@ class PropertyDefinition(StructFrozen):
             node_constraint=type.node_constraint,
             # node
             node_is_customizable=property.node_is_customizable,
+            node_has_type=property.node_has_type,
+            node_has_space=property.node_has_space,
+            node_has_definition=property.node_has_definition,
             edge_type=property.edge_type,
             cascade=property.cascade,
             # flags
@@ -227,7 +233,7 @@ class EnumDefinition(StructFrozen):
     name: str = property_(31)
     icon: "Icon | None" = property_(34)
     description: str | None = property_(36)
-    options: list["EnumOptionDefinition"] = property_(50)
+    options: list["OptionDefinition"] = property_(50)
 
     @classmethod
     def from_enum(cls, enum_type: EnumType, enum_cls: _type[Enum]) -> "EnumDefinition":
@@ -241,14 +247,14 @@ class EnumDefinition(StructFrozen):
             icon=to_icon(enum_type.icon) if enum_type.icon else None,
             description=enum_type.__doc__,
             options=[
-                EnumOptionDefinition.from_enum_option(enum_type, option)
+                OptionDefinition.from_enum_option(enum_type, option)
                 for option in enum_cls.__members__.values()
             ],
         )
 
 
-@builtin_struct(StructType.ENUM_OPTION_DEFINITION, frozen=True)
-class EnumOptionDefinition(StructFrozen):
+@builtin_struct(StructType.OPTION_DEFINITION, frozen=True)
+class OptionDefinition(StructFrozen):
     """Definition of a builtin Enum Option."""
 
     id: int = property_(2)
@@ -258,8 +264,8 @@ class EnumOptionDefinition(StructFrozen):
     description: str | None = property_(36)
 
     @classmethod
-    def from_enum_option(cls, enum_type: EnumType, option: Enum) -> "EnumOptionDefinition":
-        """Create EnumOptionDefinition from an Enum option."""
+    def from_enum_option(cls, enum_type: EnumType, option: Enum) -> "OptionDefinition":
+        """Create OptionDefinition from an Enum option."""
         from .icon import to_icon
 
         return cls(

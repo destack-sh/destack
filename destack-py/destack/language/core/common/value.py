@@ -21,7 +21,7 @@ from ..builtin import (
     Node,
     NodeType,
     PrimitiveType,
-    Property,
+    PropertyDeclaration,
     StructFrozen,
     StructType,
     builtin_struct,
@@ -173,7 +173,7 @@ def _generate_unpack_value(cls: type["BuiltinObjectBase"]) -> str:
     return "\n".join(unpack_method_parts)
 
 
-def _generate_pack_value_property(prop: "Property") -> list[str]:
+def _generate_pack_value_property(prop: "PropertyDeclaration") -> list[str]:
     """Generate the packing code for a property value."""
     lines: list[str] = []
     obj_value = f"_object.{prop.name}"
@@ -208,7 +208,7 @@ def _generate_pack_value_property(prop: "Property") -> list[str]:
     return lines
 
 
-def _generate_unpack_value_property(prop: "Property") -> list[str]:
+def _generate_unpack_value_property(prop: "PropertyDeclaration") -> list[str]:
     """Generate the unpacking code for a property value."""
     lines: list[str] = []
     data_value = f'_object_value.get("{prop.id}")'
@@ -242,7 +242,7 @@ def _generate_unpack_value_property(prop: "Property") -> list[str]:
     return lines
 
 
-def _generate_pack_value_scalar(prop: "Property | IntoType", value_expr: str) -> str:
+def _generate_pack_value_scalar(prop: "PropertyDeclaration | IntoType", value_expr: str) -> str:
     """Generate the packing code for a scalar value."""
 
     if prop.scalar_type == ScalarType.PRIMITIVE:
@@ -270,7 +270,7 @@ def _generate_pack_value_scalar(prop: "Property | IntoType", value_expr: str) ->
         assert_never(prop.scalar_type)
 
 
-def _generate_unpack_value_scalar(prop: "Property | IntoType", value_expr: str) -> str:
+def _generate_unpack_value_scalar(prop: "PropertyDeclaration | IntoType", value_expr: str) -> str:
     """Generate the unpacking code for a scalar value."""
 
     if prop.scalar_type == ScalarType.PRIMITIVE:

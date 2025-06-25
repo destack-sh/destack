@@ -8,7 +8,7 @@ from ..builtin import (
     Enum,
     EnumType,
     Node,
-    Property,
+    PropertyDeclaration,
     StructFrozen,
     StructMutable,
     StructType,
@@ -19,11 +19,11 @@ from ..builtin import (
     object_,
     property_,
 )
-from .relation import AttributeReference, RelationReference
+from .relation import PropertyReference, RelationReference
 from .value import Value
 
 if TYPE_CHECKING:
-    from destack.language import Field, QueryConnection
+    from destack.language import CustomProperty, QueryConnection
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -111,7 +111,7 @@ class Condition(StructFrozen):
     @classmethod
     def of(
         cls: type_["Condition"],
-        attribute: Union["Field", "Property"],
+        attribute: Union["CustomProperty", "PropertyDeclaration"],
         type: ConditionalType = ConditionalType.EQUALS,
         value: Any = None,
     ) -> "Condition":
@@ -175,7 +175,7 @@ class Expression(StructFrozen):
 
     type: ExpressionType = property_(30, is_repr=True)
     literal: Optional[Value] = property_(31, is_repr=True)
-    attribute: Optional[AttributeReference] = property_(32, is_repr=True)
+    attribute: Optional[PropertyReference] = property_(32, is_repr=True)
     condition: Optional[Condition] = property_(33, is_repr=True)
     function: Optional[Function] = property_(34, is_repr=True)
     aggregation: Optional[Aggregation] = property_(35, is_repr=True)
@@ -185,10 +185,10 @@ class Expression(StructFrozen):
     def of(cls, thing: "ExpressionIn") -> "Expression":
         if isinstance(thing, Value):
             return Expression(type=ExpressionType.LITERAL, literal=thing)
-        elif isinstance(thing, AttributeReference):
+        elif isinstance(thing, PropertyReference):
             return Expression(type=ExpressionType.ATTRIBUTE, attribute=thing)
-        elif isinstance(thing, (Node, Property)):
-            return Expression(type=ExpressionType.ATTRIBUTE, attribute=AttributeReference.of(thing))
+        elif isinstance(thing, (Node, PropertyDeclaration)):
+            return Expression(type=ExpressionType.ATTRIBUTE, attribute=PropertyReference.of(thing))
         elif isinstance(thing, Condition):
             return Expression(type=ExpressionType.CONDITION, condition=thing)
         elif isinstance(thing, Function):
@@ -203,9 +203,9 @@ class Expression(StructFrozen):
 
 ExpressionIn = Union[
     "Value",
-    "AttributeReference",
-    "Field",
-    "Property",
+    "PropertyReference",
+    "CustomProperty",
+    "PropertyDeclaration",
     "Condition",
     "Function",
     "Aggregation",
@@ -233,7 +233,7 @@ class SortMode(Enum):
     MEDIAN = 5
 
 
-SortIn = Union["Sort", "Expression", "Field", "Property"]
+SortIn = Union["Sort", "Expression", "CustomProperty", "PropertyDeclaration"]
 
 
 @builtin_struct(StructType.SORT, frozen=True)
@@ -263,11 +263,11 @@ class Sort(StructFrozen):
 class Select(StructFrozen):
     """Select specific Attributes."""
 
-    attributes: list[AttributeReference] = property_(31, is_repr=True)
+    attributes: list[PropertyReference] = property_(31, is_repr=True)
 
     @classmethod
-    def of(cls, *attributes: "Property | Field") -> "Select":
-        return Select(attributes=[AttributeReference.of(attribute) for attribute in attributes])
+    def of(cls, *attributes: "PropertyDeclaration | CustomProperty") -> "Select":
+        return Select(attributes=[PropertyReference.of(attribute) for attribute in attributes])
 
 
 #

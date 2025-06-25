@@ -7,8 +7,6 @@ from opentelemetry import trace
 from destack.language import (
     Aggregation,
     AggregationType,
-    AttributeReference,
-    AttributeType,
     Condition,
     ConditionalType,
     EdgeDirection,
@@ -19,6 +17,8 @@ from destack.language import (
     JoinType,
     NodeReference,
     PrimitiveType,
+    PropertyReference,
+    PropertyReferenceType,
     Query,
     QueryResult,
     QueryResultGroup,
@@ -55,12 +55,10 @@ def _evaluate_expression(context: MemoryContext, expression: Expression, row: Me
     elif expression.type == ExpressionType.ATTRIBUTE:
         assert expression.attribute is not None, f"no attribute for {expression!r}"
         attr = expression.attribute
-        if attr.type == AttributeType.PROPERTY:
-            prop_ptr = attr.prop_ptr
-            assert prop_ptr is not None, f"no property for {attr!r}"
-            prop = prop_ptr.resolve_or_error()
+        if attr.type == PropertyReferenceType.BUILTIN:
+            prop = attr.resolve_or_error()
             if prop.scalar_type == ScalarType.NODE_REFERENCE:
-                node_ptr_packed = row.value.get(str(prop_ptr.id))
+                node_ptr_packed = row.value.get(str(prop.id))
                 return node_ptr_packed["32"] if node_ptr_packed is not None else None
             else:
                 return row.value.get(str(prop.id))
@@ -288,9 +286,8 @@ def _is_id_condition(condition: Condition) -> tuple[bool, Sequence[UUID]]:
         and (left := condition.left) is not None
         and left.type == ExpressionType.ATTRIBUTE
         and (attribute := left.attribute) is not None
-        and attribute.type == AttributeType.PROPERTY
-        and (prop_ptr := attribute.prop_ptr) is not None
-        and prop_ptr.id == 2
+        and attribute.type == PropertyReferenceType.BUILTIN
+        and (attribute.id == 2)
         and (right := condition.right) is not None
         and right.type == ExpressionType.LITERAL
     ):
@@ -790,7 +787,7 @@ def _execute_subquery(
             subquery_where = Condition(
                 type=ConditionalType.IN,
                 left=Expression.of(
-                    AttributeReference.of(subquery.relation.resolve_property_or_error("id"))
+                    PropertyReference.of(subquery.relation.resolve_property_or_error("id"))
                 ),
                 right=Expression.of(to_value([n.id for n in expanded_nodes_ptr])),
             )

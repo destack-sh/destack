@@ -195,7 +195,7 @@ SET {", ".join(f'"{col.name}" = EXCLUDED."{col.name}"' for col in override_colum
             prop = edit.prop_ptr.resolve()
             assert prop is not None, f"no prop for {edit!r}"
             update: dict[str, Any] = {}
-            pack_column_wide(prop.type, None, table, prop.name, update)
+            pack_column_wide(prop, None, table, prop.name, update)
             all_updated_columns.update(update.keys())
 
         updated_column_names = list(all_updated_columns)
@@ -234,7 +234,7 @@ WHERE id = ${param_i}
 
             update_row: list[Any] = [None, False] * len(updated_column_names)  # default: keep
             update: dict[str, Any] = {}
-            pack_column_wide(prop.type, value_packed, table, prop.name, update)
+            pack_column_wide(prop, value_packed, table, prop.name, update)
             for column, value in update.items():  # mark touched cols
                 i = updated_column_idx[column] * 2
                 update_row[i] = value
