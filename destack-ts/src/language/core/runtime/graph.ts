@@ -16,6 +16,9 @@ export abstract class Graph {
     return `<${this.constructor.name} ${this.nodes.length} nodes>`;
   }
 
+  /** Get the number of Nodes in the Graph. */
+  abstract get size(): number;
+
   /** Get all Nodes in the Graph. */
   abstract get nodes(): Node[];
 
@@ -118,6 +121,10 @@ export class SingletonGraph extends Graph {
     return newGraph;
   }
 
+  override get size(): number {
+    return 1;
+  }
+
   override get nodes(): Node[] {
     return [this.node];
   }
@@ -168,6 +175,10 @@ export class PolyGraph extends Graph {
     super(supergraph);
     this.nodesById = new Map();
     this.nodesByParent = new Map();
+  }
+
+  override get size(): number {
+    return this.nodes.length;
   }
 
   override get nodes(): Node[] {

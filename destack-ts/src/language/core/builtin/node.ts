@@ -18,6 +18,7 @@ import {
   Session,
   SingletonGraph,
   Sort,
+  Spatial,
   Supergraph,
   TraitType,
 } from "@destack/language/core";
@@ -142,13 +143,84 @@ export abstract class Node extends BuiltinObject {
   }
 
   /** Append a child to this Node. */
-  addChild(child: Node, after?: Node, before?: Node): void {
-    throw new Error("not implemented");
+  addChild(child: Node, options?: { after?: Node; before?: Node }): this {
+    const oldGraph = child._graph;
+    const newGraph = this._graph;
+    const session = this._session;
+    const nodes: Node[] = [child, ...child._graph.getDescendants(child)];
+
+    // validate parent-child relationship
+    if (!child.__parentTypes__.includes(this.metatype)) {
+      throw new Error(`${this} cannot parent ${child} (allowed: ${child.__parentTypes__})`);
+    }
+    if (oldGraph === newGraph) {
+      throw new Error(`${child} is already in same graph of ${this}`);
+    }
+    if (oldGraph.supergraph !== this._supergraph) {
+      throw new Error(`${child} is not in supergraph of ${this}`);
+    }
+
+    // assign order
+    // nocheckin: implement order assignment like in Python SDK
+
+    // promote self to polygraph if needed
+    if (newGraph instanceof SingletonGraph) {
+      const promotedGraph = this._supergraph.promoteToPolygraph(newGraph);
+      this._graph = promotedGraph;
+    }
+
+    // move to new graph
+    if (nodes.length === oldGraph.size) {
+      // all nodes were moved
+      this._supergraph.removeGraph(oldGraph);
+    } else {
+      for (const node of nodes) {
+        oldGraph.remove(node);
+      }
+    }
+
+    // set parent reference
+    (child as any).parentPtr = this.toRef();
+    for (const node of nodes) {
+      node._graph = this._graph;
+      this._graph.add(node);
+    }
+
+    // assign space for spatial nodes
+    if (hasTrait(child, TraitType.SPATIAL)) {
+      let spacePtr: NodeReference | null = null;
+      if (hasTrait(this, TraitType.SPATIAL) && (this as unknown as Node & Spatial).spacePtr != null) {
+        spacePtr = (this as unknown as Node & Spatial).spacePtr;
+      } else if (this.metatype === NodeType.SPACE) {
+        spacePtr = this.toRef();
+      }
+      if (spacePtr) {
+        for (const node of nodes) {
+          if (hasTrait(node, TraitType.SPATIAL)) {
+            // @ts-expect-error(readonly)
+            (node as unknown as Node & Spatial).spacePtr = spacePtr;
+          }
+        }
+      }
+    }
+
+    // create new nodes if needed
+    if (child._isNew && this._isAttached) {
+      for (const node of nodes) {
+        node._ref = null; // invalidate cached ref
+        session.create(node);
+      }
+    }
+
+    return this;
   }
 
   /** Append multiple children to this Node. */
-  addChildren(children: Node[], after?: Node, before?: Node): void {
-    throw new Error("not implemented");
+  addChildren(children: Node[], options?: { after?: Node; before?: Node }): this {
+    for (const child of children) {
+      this.addChild(child, options);
+    }
+    return this;
   }
 
   /** Remove a child from this Node. */
@@ -639,7 +711,7 @@ export function isNode<T extends NodeType>(value: any, nodeType?: T): value is N
 }
 
 /** Check if a value is a Node with a specific trait. */
-export function isNodeWithTrait<T extends TraitType>(value: any, traitType: T): value is Node & TraitTypeMapping[T] {
+export function hasTrait<T extends TraitType>(value: any, traitType: T): value is Node & TraitTypeMapping[T] {
   return value instanceof Node && value.__traits__.includes(traitType);
 }
 

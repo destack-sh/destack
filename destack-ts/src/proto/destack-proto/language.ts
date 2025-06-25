@@ -6351,6 +6351,10 @@ export interface PropertyDefinitionProto {
      */
     object?: ObjectReferenceProto;
     /**
+     * @generated from protobuf field: symbol.destack.ObjectReferenceProto original_object = 38
+     */
+    originalObject?: ObjectReferenceProto;
+    /**
      * @generated from protobuf field: symbol.destack.TypeCardinalityProto cardinality = 40
      */
     cardinality: TypeCardinalityProto;
@@ -15274,10 +15278,6 @@ export enum StructTypeProto {
      * @generated from protobuf enum value: STRUCT_TYPE_OBJECT_REFERENCE = 50108;
      */
     STRUCT_TYPE_OBJECT_REFERENCE = 50108,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ATTRIBUTE_REFERENCE = 50109;
-     */
-    STRUCT_TYPE_ATTRIBUTE_REFERENCE = 50109,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_QUERY = 50110;
      */
@@ -30534,6 +30534,7 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
             { no: 34, name: "icon", kind: "message", T: () => IconProto },
             { no: 36, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 37, name: "object", kind: "message", T: () => ObjectReferenceProto },
+            { no: 38, name: "original_object", kind: "message", T: () => ObjectReferenceProto },
             { no: 40, name: "cardinality", kind: "enum", T: () => ["symbol.destack.TypeCardinalityProto", TypeCardinalityProto] },
             { no: 41, name: "scalar_type", kind: "enum", T: () => ["symbol.destack.ScalarTypeProto", ScalarTypeProto] },
             { no: 42, name: "primitive_type", kind: "enum", opt: true, T: () => ["symbol.destack.PrimitiveTypeProto", PrimitiveTypeProto] },
@@ -30608,6 +30609,9 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
                     break;
                 case /* symbol.destack.ObjectReferenceProto object */ 37:
                     message.object = ObjectReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.object);
+                    break;
+                case /* symbol.destack.ObjectReferenceProto original_object */ 38:
+                    message.originalObject = ObjectReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.originalObject);
                     break;
                 case /* symbol.destack.TypeCardinalityProto cardinality */ 40:
                     message.cardinality = reader.int32();
@@ -30723,6 +30727,9 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
         /* symbol.destack.ObjectReferenceProto object = 37; */
         if (message.object)
             ObjectReferenceProto.internalBinaryWrite(message.object, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ObjectReferenceProto original_object = 38; */
+        if (message.originalObject)
+            ObjectReferenceProto.internalBinaryWrite(message.originalObject, writer.tag(38, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.TypeCardinalityProto cardinality = 40; */
         if (message.cardinality !== 0)
             writer.tag(40, WireType.Varint).int32(message.cardinality);
@@ -40228,6 +40235,6 @@ export const SomeNodeProto = new SomeNodeProto$Type();
 
 // Any...
 export type AnyNodeProto = CustomEntityDefinitionProto | CustomEntityProto | CustomEnumDefinitionProto | EditEventProto | CustomEventDefinitionProto | CustomEventProto | GaugeMetricProto | GaugeMeasurementProto | CounterMetricProto | CounterMeasurementProto | HistogramMetricProto | HistogramMeasurementProto | CustomOptionProto | CustomPropertyProto | SnapshotProto | BranchProto | CustomStructDefinitionProto | EntitlementEventProto | EntitlementProto | InviteEventProto | InviteProto | MembershipEventProto | MembershipProto | PermissionProto | RoleEventProto | RoleProto | SanctionEventProto | SanctionProto | CustomViewDefinitionProto | CustomViewProto | FrameViewProto | LabelViewProto | SplitViewProto | TextViewProto | NumberInputViewProto | SliderInputViewProto | WizardViewProto | ThreadViewProto | AnnotationShapeProto | ArrowShapeProto | CanvasProto | LineShapeProto | PlaneShapeProto | FileProto | LinkProto | EnvironmentProto | FolderProto | TagProto | TaggingProto | DatabaseProto | MachineProto | ActionProto | EventCursorProto | ScreenCursorProto | ThreadCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerProto | TriggerEventProto | TriggerProto | InterruptionProto | LogProto | RunEventProto | RunProto | SpanProto | LayerProto | SceneEventProto | SceneProto | VariantProto | WindowProto | FollowProto | MessageProto | NotificationEventProto | NotificationProto | ReactionProto | StarProto | ThreadProto | AgentProto | ClientProto | FriendshipProto | FriendshipInviteEventProto | FriendshipInviteProto | HandleProto | OrganizationProto | SpaceProto | TeamProto | UserProto | ColorStyleProto | BorderStyleProto | TransitionStyleProto | EffectStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | PaletteProto | ShadowStyleProto | ThemeProto
-export type AnyStructProto = ScopeProto | RelationReferenceProto | ObjectReferenceProto | PropertyReferenceProto | NodeReferenceProto | EditProto | ChangeProto | ChangeResultProto | IconProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | PropertyDefinitionProto | TraitDefinitionProto | NodeDefinitionProto | StructDefinitionProto | EnumDefinitionProto | OptionDefinitionProto | PermissionDefinitionProto | ConstantDefinitionProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | SelectionProto | TextSpanProto | TextProto | LengthProto | PositionProto | DimensionProto | InsetsProto | CornersProto | Axis2Proto | Axis3Proto | Vector2Proto | Vector3Proto | Vector4Proto | Vector2iProto | Vector3iProto | Vector4iProto | GridProto | GridSpanProto | DatabaseInfoProto | GalaxyInfoProto | ScheduleProto | OriginProto | ColorProto | BorderProto | TransitionProto | EffectProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto
+export type AnyStructProto = ScopeProto | RelationReferenceProto | ObjectReferenceProto | PropertyReferenceProto | NodeReferenceProto | EditProto | ChangeProto | ChangeResultProto | IconProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | SelectionProto | PropertyDefinitionProto | TraitDefinitionProto | NodeDefinitionProto | StructDefinitionProto | EnumDefinitionProto | OptionDefinitionProto | PermissionDefinitionProto | ConstantDefinitionProto | TextSpanProto | TextProto | LengthProto | PositionProto | DimensionProto | InsetsProto | CornersProto | Axis2Proto | Axis3Proto | Vector2Proto | Vector3Proto | Vector4Proto | Vector2iProto | Vector3iProto | Vector4iProto | GridProto | GridSpanProto | DatabaseInfoProto | GalaxyInfoProto | ScheduleProto | OriginProto | ColorProto | BorderProto | TransitionProto | EffectProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto
 
     

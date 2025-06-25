@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2025.06.23.0"
+VERSION = "2025.06.25.0"
 
 # import from all generated files
 from .health_pb2 import *
@@ -136,14 +136,6 @@ AnyStructProto = Union[
     CollectionConstraintProto,
     NodeConstraintProto,
     TypeProto,
-    PropertyDefinitionProto,
-    TraitDefinitionProto,
-    NodeDefinitionProto,
-    StructDefinitionProto,
-    EnumDefinitionProto,
-    OptionDefinitionProto,
-    PermissionDefinitionProto,
-    ConstantDefinitionProto,
     ValueProto,
     FunctionProto,
     ConditionProto,
@@ -158,6 +150,14 @@ AnyStructProto = Union[
     QueryResultGroupProto,
     QueryUpdateProto,
     SelectionProto,
+    PropertyDefinitionProto,
+    TraitDefinitionProto,
+    NodeDefinitionProto,
+    StructDefinitionProto,
+    EnumDefinitionProto,
+    OptionDefinitionProto,
+    PermissionDefinitionProto,
+    ConstantDefinitionProto,
     TextSpanProto,
     TextProto,
     LengthProto,
