@@ -44,7 +44,12 @@ class PropertyDefinition(StructFrozen):
     name: str = property_(31)
     icon: "Icon | None" = property_(34)
     description: str | None = property_(36)
-    object: "ObjectReference" = property_(37)
+    object: "ObjectReference" = property_(
+        37, description="The object that this property is defined on."
+    )
+    original_object: "ObjectReference" = property_(
+        38, description="The original object that this property was defined on."
+    )
 
     # scalar
     cardinality: TypeCardinality = property_(40, default=TypeCardinality.SCALAR, is_repr=True)
@@ -87,13 +92,15 @@ class PropertyDefinition(StructFrozen):
         """Create PropertyDefinition from a Property."""
         assert prop.id is not None, f"{prop!r} has no id"
         type = prop._to_type()
-        object = OBJECT_REF_BY_CLASS[prop.component]
+        object_ref = OBJECT_REF_BY_CLASS[prop.component]
+        original_object_ref = OBJECT_REF_BY_CLASS.get(prop.original_component, object_ref)
 
         return cls(
             id=prop.id,
             name=prop.name,
             description=prop.description,
-            object=object,
+            object=object_ref,
+            original_object=original_object_ref,
             # type
             cardinality=type.cardinality,
             scalar_type=type.scalar_type,

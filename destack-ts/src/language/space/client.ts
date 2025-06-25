@@ -9,11 +9,14 @@ import {
   IsSubject,
   MaterializationType,
   NodeReference,
+  NodeType,
   QueryConnection,
   Session,
+  StructType,
   Supergraph,
+  TraitType,
 } from "@destack/language/core";
-import { Node, NodeType, StructFrozen, StructType, TraitType } from "@destack/language/core/builtin";
+import { Node, StructFrozen } from "@destack/language/core/builtin";
 import { Machine } from "@destack/language/infra";
 import { Cursor } from "@destack/language/logic";
 import { registerNodeClass, registerStructClass } from "@destack/language/registry";

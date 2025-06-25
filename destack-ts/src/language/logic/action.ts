@@ -1,6 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Entity,
+  EnumType,
   Graph,
   HasName,
   IsActionable,
@@ -12,14 +13,17 @@ import {
   IsTaggable,
   MaterializationType,
   NodeReference,
+  NodeType,
   QueryConnection,
   Session,
   Spatial,
+  StructType,
   Supergraph,
   Text,
+  TraitType,
   Value,
 } from "@destack/language/core";
-import { EnumType, Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
+import { Node } from "@destack/language/core/builtin";
 import { Script } from "@destack/language/logic";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";

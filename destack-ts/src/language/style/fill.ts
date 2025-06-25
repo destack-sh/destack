@@ -1,14 +1,18 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
+  EnumType,
   Graph,
   IsSubject,
   MaterializationType,
   NodeReference,
+  NodeType,
   QueryConnection,
   Session,
+  StructType,
   Supergraph,
+  TraitType,
 } from "@destack/language/core";
-import { EnumType, Node, NodeType, Struct, StructType, TraitType } from "@destack/language/core/builtin";
+import { Node, Struct } from "@destack/language/core/builtin";
 import { File } from "@destack/language/data";
 import { registerEnumClass, registerNodeClass, registerStructClass } from "@destack/language/registry";
 import { Scene } from "@destack/language/scene";

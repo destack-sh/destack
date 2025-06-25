@@ -245,7 +245,7 @@ def _complete_setup():
     for cls in NODE_CLASS_BY_TYPE.values():
         RELATION_REF_BY_CLASS[cls] = RelationReference.of(cls)
         OBJECT_REF_BY_CLASS[cls] = ObjectReference.of(cls)
-    for cls in TRAIT_TYPE_BY_CLASS:
+    for cls in TRAIT_CLASS_BY_TYPE.values():
         RELATION_REF_BY_CLASS[cls] = RelationReference.of(cls)
         OBJECT_REF_BY_CLASS[cls] = ObjectReference.of(cls)
     for cls in STRUCT_CLASS_BY_TYPE.values():

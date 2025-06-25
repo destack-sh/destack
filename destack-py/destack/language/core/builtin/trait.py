@@ -456,13 +456,13 @@ class IsVisual(IsTracked):
     pass
 
 
+# TODO :Cleanup: Nodes don't set 'real' frozen=True (like StructFrozen) :PretendFrozen
+#    (because that would require two separate inheritance chains for NodeMutable and NodeFrozen,
+#    which would have to include copies of every relevant trait and .. ughh no)
 @builtin_trait(TraitType.FROZEN, pretend_frozen=True)
 class IsFrozen(Trait):
     """
     A Node that is frozen (read-only).
-    TODO :Cleanup: Nodes don't set 'real' frozen=True (like StructFrozen) :PretendFrozen
-     (because that would require two separate inheritance chains for NodeMutable and NodeFrozen,
-      which would have to include copies of every relevant trait and .. ughh no)
     """
 
     pass

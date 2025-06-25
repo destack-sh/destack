@@ -3,17 +3,21 @@ import { IsShape } from "@destack/language/canvas";
 import {
   Align,
   Dimension,
+  EnumType,
   Graph,
   IsSubject,
   MaterializationType,
   NodeReference,
+  NodeType,
   Position,
   QueryConnection,
   Session,
+  StructType,
   Supergraph,
+  TraitType,
   Vector2,
 } from "@destack/language/core";
-import { EnumType, Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
+import { Node } from "@destack/language/core/builtin";
 import { Script } from "@destack/language/logic";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Layer, Scene, Window } from "@destack/language/scene";

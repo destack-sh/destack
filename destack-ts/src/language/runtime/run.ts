@@ -1,6 +1,7 @@
 import { packProtoDuration, packProtoTimestamp, unpackProtoDuration, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Analytic,
+  EnumType,
   Event,
   Graph,
   Indexed,
@@ -8,14 +9,17 @@ import {
   IsRunnable,
   IsSubject,
   NodeReference,
+  NodeType,
   Particle,
   QueryConnection,
   Session,
   Spatial,
+  StructType,
   Supergraph,
+  TraitType,
   Value,
 } from "@destack/language/core";
-import { EnumType, Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
+import { Node } from "@destack/language/core/builtin";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Interruption } from "@destack/language/runtime";
 import { Space } from "@destack/language/space";

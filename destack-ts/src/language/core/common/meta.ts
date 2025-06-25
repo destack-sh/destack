@@ -5,8 +5,10 @@ import {
   ConditionalType,
   DefaultFactory,
   EdgeType,
+  EnumType,
   Icon,
   NodeConstraint,
+  NodeType,
   NumberConstraint,
   ObjectReference,
   ObjectType,
@@ -18,12 +20,14 @@ import {
   Sort,
   SortType,
   StringConstraint,
+  StructType,
   Supergraph,
+  TraitType,
   Type,
   TypeCardinality,
   Value,
 } from "@destack/language/core";
-import { EnumType, NodeType, StructFrozen, StructType, TraitType } from "@destack/language/core/builtin";
+import { StructFrozen } from "@destack/language/core/builtin";
 import { registerStructClass } from "@destack/language/registry";
 import {
   CascadeActionProto,
