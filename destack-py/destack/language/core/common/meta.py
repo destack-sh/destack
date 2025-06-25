@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from destack.language.registry import OBJECT_REF_BY_CLASS
 
@@ -16,6 +16,7 @@ from ..builtin import (
     builtin_struct,
     property_,
 )
+from .query import Condition, ConditionalType, Sort, SortType
 from .type import (
     CollectionConstraint,
     DefaultFactory,
@@ -124,6 +125,58 @@ class PropertyDefinition(StructFrozen):
             is_managed=prop.is_managed,
             is_computed=prop.is_computed,
         )
+
+    def eq(self, value: Any) -> Condition:
+        if value is None:
+            return self.not_exists()
+        return Condition.of(self, ConditionalType.EQUALS, value=value)
+
+    def neq(self, value: Any) -> Condition:
+        if value is None:
+            return self.exists()
+        return Condition.of(self, ConditionalType.NOT_EQUALS, value=value)
+
+    def gt(self, value: Any) -> Condition:
+        return Condition.of(self, ConditionalType.GREATER_THAN, value=value)
+
+    def gte(self, value: Any) -> Condition:
+        return Condition.of(self, ConditionalType.GREATER_THAN_OR_EQUALS, value=value)
+
+    def lt(self, value: Any) -> Condition:
+        return Condition.of(self, ConditionalType.LESS_THAN, value=value)
+
+    def lte(self, value: Any) -> Condition:
+        return Condition.of(self, ConditionalType.LESS_THAN_OR_EQUALS, value=value)
+
+    def starts_with(self, value: str) -> Condition:
+        return Condition.of(self, ConditionalType.STARTS_WITH, value=value)
+
+    def ends_with(self, value: str) -> Condition:
+        return Condition.of(self, ConditionalType.ENDS_WITH, value=value)
+
+    def in_(self, *values: Any) -> Condition:
+        return Condition.of(self, ConditionalType.IN, value=values)
+
+    def not_in(self, *values: Any) -> Condition:
+        return Condition.of(self, ConditionalType.NOT_IN, value=values)
+
+    def exists(self) -> Condition:
+        return Condition.of(self, ConditionalType.EXISTS)
+
+    def is_not_none(self) -> Condition:
+        return Condition.of(self, ConditionalType.EXISTS)
+
+    def not_exists(self) -> "Condition":
+        return Condition.of(self, ConditionalType.NOT_EXISTS)
+
+    def is_none(self) -> "Condition":
+        return Condition.of(self, ConditionalType.NOT_EXISTS)
+
+    def asc(self) -> "Sort":
+        return Sort.of(self, SortType.ASCENDING)
+
+    def desc(self) -> "Sort":
+        return Sort.of(self, SortType.DESCENDING)
 
 
 @builtin_struct(StructType.TRAIT_DEFINITION, frozen=True)

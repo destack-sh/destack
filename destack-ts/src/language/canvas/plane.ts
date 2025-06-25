@@ -822,7 +822,7 @@ export class PlaneShape extends Node implements ContainerView, IsShape {
     if (object.deletedAt != null) {
       objectValue["20"] = object.deletedAt.toString();
     }
-    if (object.value) {
+    if (object.value.size > 0) {
       const packedValue: { [key: string]: any } = {};
       for (const [key, value] of object.value) {
         packedValue[String(String(key))] = value.toValue();
@@ -909,7 +909,7 @@ export class PlaneShape extends Node implements ContainerView, IsShape {
     if (object.radius != null) {
       objectValue["68"] = object.radius.toValue();
     }
-    if (object.points) {
+    if (object.points.length > 0) {
       const packedPoints: any[] = [];
       for (const item of object.points) {
         packedPoints.push(item.toValue());

@@ -153,7 +153,7 @@ def _generate_pack_value_property(prop: "PropertyDeclaration") -> list[str]:
             lines.append(f'  objectValue["{prop.id}"] = {value_expr};')
             lines.append("}")
     elif prop.cardinality == TypeCardinality.LIST:
-        lines.append(f"if ({obj_value}) {{")
+        lines.append(f"if ({obj_value}.length > 0) {{")
         lines.append(f"  const {packed_name}: any[] = [];")
         lines.append(f"  for (const item of {obj_value}) {{")
         item_expr = _generate_pack_value_scalar(prop, "item")
@@ -163,7 +163,7 @@ def _generate_pack_value_property(prop: "PropertyDeclaration") -> list[str]:
         lines.append("}")
     elif prop.cardinality == TypeCardinality.MAP:
         assert prop.key_type is not None, f"no key type for {prop!r}"
-        lines.append(f"if ({obj_value}) {{")
+        lines.append(f"if ({obj_value}.size > 0) {{")
         lines.append(f"  const {packed_name}: {{ [key: string]: any }} = {{}};")
         lines.append(f"  for (const [key, value] of {obj_value}) {{")
         key_expr = _generate_pack_value_scalar(prop.key_type, "key")

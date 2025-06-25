@@ -646,7 +646,7 @@ export class Change extends StructFrozen {
     if (object.debounce != null) {
       objectValue["35"] = object.debounce;
     }
-    if (object.edits) {
+    if (object.edits.length > 0) {
       const packedEdits: any[] = [];
       for (const item of object.edits) {
         packedEdits.push(item.toValue());
@@ -952,14 +952,14 @@ export class ChangeResult extends StructFrozen {
       objectValue["35"] = object.debounce;
     }
     objectValue["40"] = object.status;
-    if (object.edits) {
+    if (object.edits.length > 0) {
       const packedEdits: any[] = [];
       for (const item of object.edits) {
         packedEdits.push(item.toValue());
       }
       objectValue["41"] = packedEdits;
     }
-    if (object.cascadedEdits) {
+    if (object.cascadedEdits.length > 0) {
       const packedCascadedEdits: any[] = [];
       for (const item of object.cascadedEdits) {
         packedCascadedEdits.push(item.toValue());

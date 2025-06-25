@@ -468,7 +468,7 @@ export class CustomEntityDefinition
       objectValue["25"] = object.ownedByPtr.toValue();
     }
     objectValue["31"] = object.name;
-    if (object.traits) {
+    if (object.traits.length > 0) {
       const packedTraits: any[] = [];
       for (const item of object.traits) {
         packedTraits.push(item);
@@ -1003,7 +1003,7 @@ export class CustomEntity extends Node implements Spatial, Entity, IsExtensible,
     if (object.deletedAt != null) {
       objectValue["20"] = object.deletedAt.toString();
     }
-    if (object.value) {
+    if (object.value.size > 0) {
       const packedValue: { [key: string]: any } = {};
       for (const [key, value] of object.value) {
         packedValue[String(String(key))] = value.toValue();

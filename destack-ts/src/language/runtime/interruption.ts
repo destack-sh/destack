@@ -466,7 +466,7 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
-    if (object.value) {
+    if (object.value.size > 0) {
       const packedValue: { [key: string]: any } = {};
       for (const [key, value] of object.value) {
         packedValue[String(String(key))] = value.toValue();

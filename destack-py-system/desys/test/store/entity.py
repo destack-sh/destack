@@ -80,7 +80,7 @@ async def test_create_user_with_clients(_session: Session):
     user.add_children(client_a, client_b)
     await _session.commit()
     # query clients
-    clients = await Client.search(sort=[Client.property("name").descending()]).execute_list()
+    clients = await Client.search(sort=[Client.property("name").desc()]).execute_list()
     assert clients == [client_b, client_a]
 
     # query user with clients as children

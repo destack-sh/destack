@@ -111,7 +111,7 @@ class Condition(StructFrozen):
     @classmethod
     def of(
         cls: type_["Condition"],
-        attribute: Union["CustomProperty", "PropertyDeclaration"],
+        attribute: Union["CustomProperty", "PropertyDeclaration", "PropertyDefinition"],
         type: ConditionalType = ConditionalType.EQUALS,
         value: Any = None,
     ) -> "Condition":
@@ -236,7 +236,7 @@ class SortMode(Enum):
     MEDIAN = 5
 
 
-SortIn = Union["Sort", "Expression", "CustomProperty", "PropertyDeclaration"]
+SortIn = Union["Sort", "Expression", "CustomProperty", "PropertyDeclaration", "PropertyDefinition"]
 
 
 @builtin_struct(StructType.SORT, frozen=True)
@@ -248,13 +248,15 @@ class Sort(StructFrozen):
     mode: Optional[SortMode] = property_(32, is_repr=True)
 
     @classmethod
-    def of(cls, attribute: "SortIn", type: SortType = SortType.ASCENDING) -> "Sort":
+    def of(
+        cls, attribute: "SortIn", type: SortType = SortType.ASCENDING, mode: SortMode | None = None
+    ) -> "Sort":
         if isinstance(attribute, Sort):
             return attribute
         elif isinstance(attribute, Expression):
-            return Sort(type=type, by=attribute)
+            return Sort(type=type, by=attribute, mode=mode)
         else:
-            return Sort(type=type, by=Expression.of(attribute))
+            return Sort(type=type, by=Expression.of(attribute), mode=mode)
 
 
 #
@@ -470,80 +472,6 @@ class QueryUpdate(StructFrozen):
 
     type: QueryUpdateType = property_(30, is_repr=True)
     result: Optional["QueryResult"] = property_(40, is_repr=True)
-
-
-#
-# Queryable
-#
-
-
-class IntoQuery:
-    __slots__ = ()
-
-    def is_equal(self: Any, value: Any) -> "Condition":
-        if value is None:
-            return self.not_exists()
-        return Condition.of(self, ConditionalType.EQUALS, value=value)
-
-    def not_equal(self: Any, value: Any) -> "Condition":
-        return Condition.of(self, ConditionalType.NOT_EQUALS, value=value)
-
-    def greater_than(self: Any, value: Any) -> "Condition":
-        return Condition.of(self, ConditionalType.GREATER_THAN, value=value)
-
-    def greater_than_or_equals(self: Any, value: Any) -> "Condition":
-        return Condition.of(self, ConditionalType.GREATER_THAN_OR_EQUALS, value=value)
-
-    def less_than(self: Any, value: Any) -> "Condition":
-        return Condition.of(self, ConditionalType.LESS_THAN, value=value)
-
-    def less_than_or_equals(self: Any, value: Any) -> "Condition":
-        return Condition.of(self, ConditionalType.LESS_THAN_OR_EQUALS, value=value)
-
-    eq = is_equal
-    neq = not_equal
-    lt = less_than
-    lte = less_than_or_equals
-    gt = greater_than
-    gte = greater_than_or_equals
-
-    def starts_with(self: Any, value: str) -> "Condition":
-        return Condition.of(self, ConditionalType.STARTS_WITH, value=value)
-
-    startswith = starts_with
-
-    def ends_with(self: Any, value: str) -> "Condition":
-        return Condition.of(self, ConditionalType.ENDS_WITH, value=value)
-
-    endswith = ends_with
-
-    def in_(self: Any, *values: Any) -> "Condition":
-        return Condition.of(self, ConditionalType.IN, value=values)
-
-    def not_in(self: Any, *values: Any) -> "Condition":
-        return Condition.of(self, ConditionalType.NOT_IN, value=values)
-
-    def exists(self: Any) -> "Condition":
-        return Condition.of(self, ConditionalType.EXISTS)
-
-    def is_not_none(self: Any) -> "Condition":
-        return Condition.of(self, ConditionalType.EXISTS)
-
-    def not_exists(self: Any) -> "Condition":
-        return Condition.of(self, ConditionalType.NOT_EXISTS)
-
-    def is_none(self: Any) -> "Condition":
-        return Condition.of(self, ConditionalType.NOT_EXISTS)
-
-    def asc(self: Any) -> "Sort":
-        return Sort.of(self, SortType.ASCENDING)
-
-    ascending = asc
-
-    def desc(self: Any) -> "Sort":
-        return Sort.of(self, SortType.DESCENDING)
-
-    descending = desc
 
 
 @builtin_struct(StructType.SELECTION, frozen=True)

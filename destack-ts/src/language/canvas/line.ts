@@ -605,7 +605,7 @@ export class LineShape extends Node implements ContentView, IsShape {
     if (object.opacity != null) {
       objectValue["61"] = object.opacity;
     }
-    if (object.points) {
+    if (object.points.length > 0) {
       const packedPoints: any[] = [];
       for (const item of object.points) {
         packedPoints.push(item.toValue());

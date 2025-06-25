@@ -234,11 +234,11 @@ export abstract class Node extends BuiltinObject {
 
   /** Make a get Query for this Node/Trait type. */
   static get(
-    options: {
+    options: WithSubqueries<{
       where?: Condition;
       name?: string;
       join?: Join;
-    } & SubqueriesIn,
+    }>,
   ): Query {
     const { where, name, join, ...subqueries } = options;
     const query = new Query({
@@ -254,7 +254,7 @@ export abstract class Node extends BuiltinObject {
 
   /** Make a search Query for this Node/Trait type. */
   static search(
-    options: {
+    options: WithSubqueries<{
       where?: Condition;
       name?: string;
       join?: Join;
@@ -263,7 +263,7 @@ export abstract class Node extends BuiltinObject {
       sort?: Sort[];
       limit?: number;
       offset?: number;
-    } & SubqueriesIn,
+    }>,
   ): Query {
     const { where, name, join, having, groupBy, sort, limit, offset, ...subqueries } = options;
     const query = new Query({
@@ -284,11 +284,11 @@ export abstract class Node extends BuiltinObject {
 
   /** Make an exists Query for this Node/Trait type. */
   static exists(
-    options: {
+    options: WithSubqueries<{
       where?: Condition;
       name?: string;
       join?: Join;
-    } & SubqueriesIn,
+    }>,
   ): Query {
     const { where, name, join, ...subqueries } = options;
     const query = new Query({
@@ -305,14 +305,14 @@ export abstract class Node extends BuiltinObject {
 
   /** Make a count Query for this Node/Trait type. */
   static count(
-    options: {
+    options: WithSubqueries<{
       where?: Condition;
       name?: string;
       join?: Join;
       groupBy?: ExpressionIn[];
       having?: Condition;
       sort?: Sort[];
-    } & SubqueriesIn,
+    }>,
   ): Query {
     const { where, name, join, groupBy, having, sort, ...subqueries } = options;
     const query = new Query({
@@ -332,7 +332,7 @@ export abstract class Node extends BuiltinObject {
 
   /** Make a min Query for this Node/Trait type. */
   static min(
-    options: {
+    options: WithSubqueries<{
       expression: ExpressionIn;
       where?: Condition;
       name?: string;
@@ -340,7 +340,7 @@ export abstract class Node extends BuiltinObject {
       groupBy?: ExpressionIn[];
       having?: Condition;
       sort?: Sort[];
-    } & SubqueriesIn,
+    }>,
   ): Query {
     const { expression, where, name, join, groupBy, having, sort, ...subqueries } = options;
     const query = new Query({
@@ -360,7 +360,7 @@ export abstract class Node extends BuiltinObject {
 
   /** Make a max Query for this Node/Trait type. */
   static max(
-    options: {
+    options: WithSubqueries<{
       expression: ExpressionIn;
       where?: Condition;
       name?: string;
@@ -368,7 +368,7 @@ export abstract class Node extends BuiltinObject {
       groupBy?: ExpressionIn[];
       having?: Condition;
       sort?: Sort[];
-    } & SubqueriesIn,
+    }>,
   ): Query {
     const { expression, where, name, join, groupBy, having, sort, ...subqueries } = options;
     const query = new Query({
@@ -388,7 +388,7 @@ export abstract class Node extends BuiltinObject {
 
   /** Make a sum Query for this Node/Trait type. */
   static sum(
-    options: {
+    options: WithSubqueries<{
       expression: ExpressionIn;
       where?: Condition;
       name?: string;
@@ -396,7 +396,7 @@ export abstract class Node extends BuiltinObject {
       groupBy?: ExpressionIn[];
       having?: Condition;
       sort?: Sort[];
-    } & SubqueriesIn,
+    }>,
   ): Query {
     const { expression, where, name, join, groupBy, having, sort, ...subqueries } = options;
     const query = new Query({
@@ -436,12 +436,14 @@ export function isNodeWithTrait<T extends TraitType>(value: any, traitType: T): 
   return value instanceof Node && value.__traits__.includes(traitType);
 }
 
-type SubqueriesIn = Record<string, Query | undefined>;
+export type WithSubqueries<T, Subquery = Query> = T & {
+  [K in Exclude<string, keyof T>]?: Subquery;
+};
 
-function toSubqueries(subqueries: SubqueriesIn): Query[] {
+function toSubqueries(subqueries: WithSubqueries<Record<string, any>>): Query[] {
   const queries: Query[] = [];
   for (const [name, subquery] of Object.entries(subqueries)) {
-    if (subquery === undefined) {
+    if (!(subquery instanceof Query)) {
       continue;
     }
     if (subquery.join === undefined) {
