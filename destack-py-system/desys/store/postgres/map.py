@@ -44,9 +44,7 @@ def map_builtin_node_to_database_table(node: type[Node]) -> PostgresTable:
     columns: list[PostgresColumn] = []
     constraints: list[PostgresConstraint] = []
     indexes: list[PostgresIndex] = []
-    properties: list[PropertyDeclaration] = [
-        p for p in node.__properties__.values() if p.is_stored and p.ptr_prop is None
-    ]
+    properties: list[PropertyDeclaration] = [p for p in node.__properties__.values() if p.is_stored]
     properties.sort(key=lambda p: p.id or -1)
 
     # map properties to columns, add per-column indices
@@ -56,8 +54,6 @@ def map_builtin_node_to_database_table(node: type[Node]) -> PostgresTable:
 
         if prop.scalar_type == ScalarType.NODE_REFERENCE:
             # unravel node ptr column
-            assert prop.runtime_prop is not None, f"no runtime prop for {prop!r}"
-            prop = prop.runtime_prop
             assert prop.cardinality == TypeCardinality.SCALAR, (
                 f"non-scalar node reference: {prop!r}"
             )

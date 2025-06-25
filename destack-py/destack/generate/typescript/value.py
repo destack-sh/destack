@@ -3,11 +3,11 @@ from typing import TYPE_CHECKING, assert_never
 
 from destack.language import (
     BuiltinObjectBase,
-    IntoType,
     PrimitiveType,
     PropertyDeclaration,
     ScalarType,
     TypeCardinality,
+    TypeDeclaration,
 )
 from destack.language.registry import STRUCT_CLASS_BY_TYPE
 from destack.utils.string import Casing, to_casing
@@ -104,17 +104,18 @@ def _generate_from_value(cls: type["BuiltinObjectBase"]) -> str:
     for prop in cls.__wired_properties__.values():
         if prop.is_computed:
             continue  # set implicitly
-        if prop.runtime_prop is not None:
-            prop = prop.runtime_prop
         unpack_code = _generate_unpack_value_property(prop)
         ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
+        self_name = ts_name
+        if prop.scalar_type == ScalarType.NODE_REFERENCE:
+            ts_name = ts_name + "Ptr"
         if len(unpack_code) == 1:
             assignment = unpack_code[0].split(" = ", 1)[1]
             assignment = assignment.strip().rstrip(";")
-            unpack_assignments.append(f"{ts_name}: {assignment}")
+            unpack_assignments.append(f"{self_name}: {assignment}")
         else:
             unpack_method_parts.extend(unpack_code)
-            unpack_assignments.append(f"{ts_name}: unpacked{_upper_first(ts_name)}")
+            unpack_assignments.append(f"{self_name}: unpacked{_upper_first(ts_name)}")
 
     if cls.__is_frozen__ and not cls.__is_node__:
         unpack_assignments.append("_value: objectValue")
@@ -137,6 +138,8 @@ def _generate_pack_value_property(prop: "PropertyDeclaration") -> list[str]:
     """Generate the packing code for a property value."""
     lines: list[str] = []
     ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
+    if prop.scalar_type == ScalarType.NODE_REFERENCE:
+        ts_name = ts_name + "Ptr"
     obj_value = f"object.{ts_name}"
     packed_name = f"packed{_upper_first(ts_name)}"
 
@@ -179,6 +182,8 @@ def _generate_unpack_value_property(prop: "PropertyDeclaration") -> list[str]:
     """Generate the unpacking code for a property value."""
     lines: list[str] = []
     ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
+    if prop.scalar_type == ScalarType.NODE_REFERENCE:
+        ts_name = ts_name + "Ptr"
     data_value = f'objectValue["{prop.id}"]'
     var_name = f"unpacked{_upper_first(ts_name)}"
 
@@ -214,7 +219,9 @@ def _generate_unpack_value_property(prop: "PropertyDeclaration") -> list[str]:
     return lines
 
 
-def _generate_pack_value_scalar(prop: "PropertyDeclaration | IntoType", value_expr: str) -> str:
+def _generate_pack_value_scalar(
+    prop: "PropertyDeclaration | TypeDeclaration", value_expr: str
+) -> str:
     """Generate the packing code for a scalar value."""
     if prop.scalar_type == ScalarType.PRIMITIVE:
         if prop.primitive_type == PrimitiveType.BYTES:
@@ -241,7 +248,9 @@ def _generate_pack_value_scalar(prop: "PropertyDeclaration | IntoType", value_ex
         return value_expr
 
 
-def _generate_unpack_value_scalar(prop: "PropertyDeclaration | IntoType", value_expr: str) -> str:
+def _generate_unpack_value_scalar(
+    prop: "PropertyDeclaration | TypeDeclaration", value_expr: str
+) -> str:
     """Generate the unpacking code for a scalar value."""
     if prop.scalar_type == ScalarType.PRIMITIVE:
         if prop.primitive_type == PrimitiveType.BYTES:

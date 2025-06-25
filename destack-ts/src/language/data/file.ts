@@ -621,6 +621,12 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
     ) {
       return false;
     }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
     if (!(this.status === other.status)) {
       return false;
     }
@@ -634,12 +640,6 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
       return false;
     }
     if (!(this.name === other.name)) {
-      return false;
-    }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
       return false;
     }
     return true;
@@ -800,25 +800,27 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
     const unpackedThumbnailHeight = thumbnailHeightValue != undefined ? Number(thumbnailHeightValue) : null;
     const contentValue = objectValue["76"];
     const unpackedContent = contentValue != undefined ? Buffer.from(contentValue, "base64") : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const targetStatusValue = objectValue["41"];
     const unpackedTargetStatus = targetStatusValue != undefined ? Temporal.ZonedDateTime.from(targetStatusValue) : null;
-    const parentValue = objectValue["3"];
-    const unpackedParent =
-      parentValue != undefined
-        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const spaceValue = objectValue["5"];
-    const unpackedSpace =
-      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
-    const createdByValue = objectValue["16"];
-    const unpackedCreatedBy =
-      createdByValue != undefined
-        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByValue = objectValue["18"];
-    const unpackedUpdatedBy =
-      updatedByValue != undefined
-        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new File({
       type: Number(objectValue["30"]),
@@ -839,17 +841,17 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
       thumbnailWidth: unpackedThumbnailWidth,
       thumbnailHeight: unpackedThumbnailHeight,
       content: unpackedContent,
+      parent: unpackedParentPtr,
+      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       status: Number(objectValue["40"]),
       targetStatus: unpackedTargetStatus,
       materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedBy: unpackedUpdatedByPtr,
       name: objectValue["31"],
-      parent: unpackedParent,
-      space: unpackedSpace,
-      createdBy: unpackedCreatedBy,
-      updatedBy: unpackedUpdatedBy,
       _session,
       _graph,
       _connection,
@@ -972,13 +974,6 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
       thumbnailWidth: objectProto.thumbnailWidth != undefined ? Number(objectProto.thumbnailWidth) : null,
       thumbnailHeight: objectProto.thumbnailHeight != undefined ? Number(objectProto.thumbnailHeight) : null,
       content: objectProto.content != undefined ? objectProto.content : null,
-      id: String(objectProto.id),
-      status: Number(objectProto.status) as ResourceStatus,
-      targetStatus: objectProto.targetStatus != undefined ? unpackProtoTimestamp(objectProto.targetStatus!) : null,
-      materialization: Number(objectProto.materialization) as MaterializationType,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      name: objectProto.name,
       parent:
         objectProto.parentPtr != undefined
           ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
@@ -987,14 +982,21 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
           : null,
+      id: String(objectProto.id),
+      status: Number(objectProto.status) as ResourceStatus,
+      targetStatus: objectProto.targetStatus != undefined ? unpackProtoTimestamp(objectProto.targetStatus!) : null,
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
           ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
           ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      name: objectProto.name,
       _session,
       _graph,
       _connection,

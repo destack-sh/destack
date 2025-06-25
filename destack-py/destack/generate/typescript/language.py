@@ -13,7 +13,6 @@ from destack.language import (
     DefaultFactory,
     Enum,
     EnumDefinition,
-    IntoType,
     Node,
     NodeBase,
     NodeDefinition,
@@ -27,6 +26,7 @@ from destack.language import (
     TraitDefinition,
     TraitType,
     TypeCardinality,
+    TypeDeclaration,
     get_node_types,
 )
 from destack.language.core.builtin.struct import StructFrozen
@@ -88,8 +88,6 @@ def _get_properties(cls: type[BuiltinObjectBase]) -> list[PropertyDeclaration]:
     for prop in cls.__wired_properties__.values():
         if prop.id == 1:
             continue
-        if prop.runtime_prop is not None:
-            prop = prop.runtime_prop
         properties.append(prop)
     properties.sort(key=lambda prop: prop.id or 0)
     return properties
@@ -100,7 +98,7 @@ def _is_property_readonly(prop: PropertyDeclaration) -> bool:
     return prop.can_write is None or prop.can_write == RoleType.SYSTEM or prop.is_managed
 
 
-def _generate_property_scalar_type(prop: IntoType, as_ptr: bool = True) -> str:
+def _generate_property_scalar_type(prop: TypeDeclaration, as_ptr: bool = True) -> str:
     """Generate a scalar property Typescript type annotation."""
     if prop.scalar_type == ScalarType.NODE_REFERENCE:
         if as_ptr:
@@ -152,7 +150,7 @@ def _generate_property_type(prop: PropertyDeclaration, as_ptr: bool = True) -> s
     return type_str
 
 
-def _generate_value(type: IntoType, value: Any) -> str:
+def _generate_value(type: TypeDeclaration, value: Any) -> str:
     """Generate a Typescript value literal."""
     if type.scalar_type == ScalarType.PRIMITIVE:
         if type.primitive_type == PrimitiveType.BOOLEAN:
@@ -387,7 +385,7 @@ super(
             continue  # computed, can't assign
         ts_name_in = to_casing(prop.name, Casing.LOWER_CAMEL)
         ts_name_self = ts_name_in
-        if prop.ptr_prop is not None:
+        if prop.scalar_type == ScalarType.NODE_REFERENCE:
             ts_name_self = ts_name_in + "Ptr"
 
         if _is_property_required(prop):
@@ -519,11 +517,7 @@ constructor(options: {{
 
 def _generate_equals(cls: type[BuiltinObjectBase]) -> str:
     """Generate a Typescript equals method."""
-    eq_properties = [
-        prop
-        for prop in cls.__properties__.values()
-        if prop.is_eq and prop.is_wired and prop.ptr_prop is None
-    ]
+    eq_properties = [prop for prop in cls.__properties__.values() if prop.is_eq and prop.is_wired]
     assert eq_properties, f"{cls.__name__} has no properties to compare"
 
     cmp_strs = []
@@ -546,6 +540,8 @@ equals(other: any): boolean {{
 def _generate_property_cmp_impl(prop: PropertyDeclaration) -> str:
     """Generate equality check code for a single property."""
     prop_name = to_casing(prop.name, Casing.LOWER_CAMEL)
+    if prop.scalar_type == ScalarType.NODE_REFERENCE:
+        prop_name = f"{prop_name}Ptr"
 
     scalar_cmps_str = _generate_scalar_cmp_impl(prop)
     if prop.cardinality == TypeCardinality.SCALAR:

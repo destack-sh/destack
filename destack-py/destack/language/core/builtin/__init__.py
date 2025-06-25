@@ -65,8 +65,8 @@ from .object import (
     object_,
 )
 from .property import (
-    IntoType,
     PropertyDeclaration,
+    TypeDeclaration,
     parse_type_annotation,
     property_,
     property_parent_,
@@ -168,7 +168,6 @@ __all__ = [
     "HasSlug",
     "IndexIn",
     "Indexed",
-    "IntoType",
     "IsActionable",
     "IsArchivable",
     "IsCustomNode",
@@ -229,6 +228,7 @@ __all__ = [
     "Trait",
     "TraitType",
     "TypeCardinality",
+    "TypeDeclaration",
     "_is_setup_complete",
     "active_session",
     "builtin_enum",

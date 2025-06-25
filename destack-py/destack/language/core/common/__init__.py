@@ -58,6 +58,8 @@ from .query import (
 )
 from .relation import (
     NodeReference,
+    ObjectReference,
+    ObjectType,
     PropertyReference,
     PropertyReferenceType,
     RelationReference,
@@ -189,6 +191,8 @@ __all__ = [
     "NodeReference",
     "NumberConstraint",
     "NumberFormat",
+    "ObjectReference",
+    "ObjectType",
     "OptionDefinition",
     "Overflow",
     "Position",

@@ -39,12 +39,6 @@ enum ArrowHeadTypeProto {
   ARROW_HEAD_TYPE_DOT = 3;
 }
 
-enum AttributeTypeProto {
-  ATTRIBUTE_TYPE_UNSPECIFIED = 0;
-  ATTRIBUTE_TYPE_PROPERTY = 1;
-  ATTRIBUTE_TYPE_FIELD = 2;
-}
-
 // Built-in border types.
 enum BorderTypeProto {
   BORDER_TYPE_UNSPECIFIED = 0;
@@ -198,6 +192,13 @@ enum CursorStatusProto {
   CURSOR_STATUS_COMPLETED = 53;
 }
 
+enum CustomPropertyTypeProto {
+  CUSTOM_PROPERTY_TYPE_UNSPECIFIED = 0;
+  CUSTOM_PROPERTY_TYPE_MEMBER = 1;
+  CUSTOM_PROPERTY_TYPE_INPUT = 2;
+  CUSTOM_PROPERTY_TYPE_OUTPUT = 3;
+}
+
 enum DatabaseTypeProto {
   DATABASE_TYPE_UNSPECIFIED = 0;
   DATABASE_TYPE_POSTGRES = 1;
@@ -349,7 +350,7 @@ enum EnumTypeProto {
   ENUM_TYPE_DEFAULT_FACTORY = 2563;
   ENUM_TYPE_STRING_FORMAT = 2570;
   ENUM_TYPE_NUMBER_FORMAT = 2571;
-  ENUM_TYPE_FIELD_TYPE = 2580;
+  ENUM_TYPE_CUSTOM_PROPERTY_TYPE = 2580;
   ENUM_TYPE_EDGE_TYPE = 2581;
   ENUM_TYPE_EDGE_DIRECTION = 2582;
   ENUM_TYPE_CASCADE_ACTION = 2583;
@@ -429,7 +430,7 @@ enum EnumTypeProto {
   ENUM_TYPE_STRUCT_TYPE = 50002;
   ENUM_TYPE_TRAIT_TYPE = 50003;
   ENUM_TYPE_RELATION_TYPE = 50010;
-  ENUM_TYPE_ATTRIBUTE_TYPE = 50011;
+  ENUM_TYPE_OBJECT_TYPE = 50011;
   ENUM_TYPE_PROPERTY_REFERENCE_TYPE = 50012;
   ENUM_TYPE_MATERIALIZATION_TYPE = 50013;
   ENUM_TYPE_STORE_ZONE = 50020;
@@ -462,13 +463,6 @@ enum ExpressionTypeProto {
   EXPRESSION_TYPE_CONDITION = 3;
   EXPRESSION_TYPE_FUNCTION = 4;
   EXPRESSION_TYPE_AGGREGATION = 5;
-}
-
-enum FieldTypeProto {
-  FIELD_TYPE_UNSPECIFIED = 0;
-  FIELD_TYPE_MEMBER = 1;
-  FIELD_TYPE_INPUT = 2;
-  FIELD_TYPE_OUTPUT = 3;
 }
 
 // The format of a file (roughly an extension).
@@ -905,8 +899,8 @@ enum NodeTypeProto {
   NODE_TYPE_CUSTOM_ENTITY = 2001;
   NODE_TYPE_CUSTOM_STRUCT_DEFINITION = 2500;
   NODE_TYPE_CUSTOM_ENUM_DEFINITION = 2510;
-  NODE_TYPE_FIELD = 2520;
-  NODE_TYPE_OPTION = 2530;
+  NODE_TYPE_CUSTOM_PROPERTY = 2520;
+  NODE_TYPE_CUSTOM_OPTION = 2530;
   NODE_TYPE_FILE = 2540;
   NODE_TYPE_LINK = 2550;
   NODE_TYPE_SCRIPT = 3000;
@@ -1004,6 +998,14 @@ enum NumberFormatProto {
   NUMBER_FORMAT_CURRENCY = 3;
 }
 
+enum ObjectTypeProto {
+  OBJECT_TYPE_UNSPECIFIED = 0;
+  OBJECT_TYPE_BUILTIN_NODE = 1;
+  OBJECT_TYPE_CUSTOM_NODE = 2;
+  OBJECT_TYPE_TRAIT = 3;
+  OBJECT_TYPE_BUILTIN_STRUCT = 5;
+}
+
 // What happens when the element is offscreen.
 enum OffscreenBehaviorProto {
   OFFSCREEN_BEHAVIOR_UNSPECIFIED = 0;
@@ -1088,9 +1090,8 @@ enum PrimitiveTypeProto {
 // The type of a property reference.
 enum PropertyReferenceTypeProto {
   PROPERTY_REFERENCE_TYPE_UNSPECIFIED = 0;
-  PROPERTY_REFERENCE_TYPE_NODE = 1;
-  PROPERTY_REFERENCE_TYPE_TRAIT = 2;
-  PROPERTY_REFERENCE_TYPE_STRUCT = 3;
+  PROPERTY_REFERENCE_TYPE_BUILTIN = 1;
+  PROPERTY_REFERENCE_TYPE_CUSTOM = 2;
 }
 
 enum QueryTypeProto {
@@ -1393,7 +1394,7 @@ enum StructTypeProto {
   STRUCT_TYPE_NODE_DEFINITION = 50006;
   STRUCT_TYPE_STRUCT_DEFINITION = 50007;
   STRUCT_TYPE_ENUM_DEFINITION = 50008;
-  STRUCT_TYPE_ENUM_OPTION_DEFINITION = 50009;
+  STRUCT_TYPE_OPTION_DEFINITION = 50009;
   STRUCT_TYPE_PERMISSION_DEFINITION = 50010;
   STRUCT_TYPE_CONSTANT_DEFINITION = 50011;
   STRUCT_TYPE_EDIT = 50020;
@@ -1407,7 +1408,8 @@ enum StructTypeProto {
   STRUCT_TYPE_SORT = 50105;
   STRUCT_TYPE_SELECT = 50106;
   STRUCT_TYPE_RELATION_REFERENCE = 50107;
-  STRUCT_TYPE_ATTRIBUTE_REFERENCE = 50108;
+  STRUCT_TYPE_OBJECT_REFERENCE = 50108;
+  STRUCT_TYPE_ATTRIBUTE_REFERENCE = 50109;
   STRUCT_TYPE_QUERY = 50110;
   STRUCT_TYPE_QUERY_RESULT = 50111;
   STRUCT_TYPE_QUERY_RESULT_GROUP = 50112;
@@ -1724,13 +1726,6 @@ message ArrowShapeProto {
   ArrowHeadTypeProto end_type = 110;
   Vector2Proto end = 111;
   optional NodeReferenceProto script_ptr = 200;
-}
-
-message AttributeReferenceProto {
-  StructTypeProto metatype = 1;
-  AttributeTypeProto type = 30;
-  optional PropertyReferenceProto prop_ptr = 31;
-  optional NodeReferenceProto field_ptr = 32;
 }
 
 message Axis2Proto {
@@ -2069,6 +2064,60 @@ message CustomEventDefinitionProto {
   optional NodeReferenceProto source_ptr = 210;
 }
 
+message CustomOptionProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  MaterializationTypeProto materialization = 7;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  optional google.protobuf.Timestamp deleted_at = 20;
+  string order_key = 22;
+  string name = 31;
+  optional IconProto icon = 34;
+  optional NodeReferenceProto source_ptr = 210;
+}
+
+// A CustomProperty is a custom attribute of a CustomStructDefinition or an IsExtensible.
+message CustomPropertyProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  MaterializationTypeProto materialization = 7;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  optional google.protobuf.Timestamp deleted_at = 20;
+  string order_key = 22;
+  CustomPropertyTypeProto type = 30;
+  string name = 31;
+  optional IconProto icon = 34;
+  TypeCardinalityProto cardinality = 40;
+  ScalarTypeProto scalar_type = 41;
+  optional PrimitiveTypeProto primitive_type = 42;
+  optional EnumTypeProto enum_type = 43;
+  optional NodeTypeProto node_type = 44;
+  optional NodeReferenceProto node_definition_ptr = 45;
+  optional StructTypeProto struct_type = 46;
+  optional NodeReferenceProto base_type_ptr = 47;
+  optional TypeProto key_type = 48;
+  optional bool is_required = 50;
+  optional ValueProto default_value = 55;
+  optional DefaultFactoryProto default_factory = 56;
+  optional CollectionConstraintProto collection_constraint = 60;
+  optional StringConstraintProto string_constraint = 61;
+  optional NumberConstraintProto number_constraint = 62;
+  optional NodeConstraintProto node_constraint = 63;
+  optional EdgeTypeProto edge_type = 70;
+  optional CascadeActionProto cascade = 71;
+  optional NodeReferenceProto source_ptr = 210;
+}
+
 // A CustomStructDefinition describes a custom Type with Fields.
 message CustomStructDefinitionProto {
   NodeTypeProto metatype = 1;
@@ -2337,16 +2386,7 @@ message EnumDefinitionProto {
   string name = 31;
   optional IconProto icon = 34;
   optional string description = 36;
-  repeated EnumOptionDefinitionProto options = 50;
-}
-
-message EnumOptionDefinitionProto {
-  StructTypeProto metatype = 1;
-  int64 id = 2 [jstype = JS_NUMBER];
-  EnumTypeProto type = 30;
-  string name = 31;
-  optional IconProto icon = 34;
-  optional string description = 36;
+  repeated OptionDefinitionProto options = 50;
 }
 
 // An Environment is a deployment of a Space.
@@ -2385,47 +2425,10 @@ message ExpressionProto {
   StructTypeProto metatype = 1;
   ExpressionTypeProto type = 30;
   optional ValueProto literal = 31;
-  optional AttributeReferenceProto attribute = 32;
+  optional PropertyReferenceProto attribute = 32;
   optional ConditionProto condition = 33;
   optional FunctionProto function = 34;
   optional AggregationProto aggregation = 35;
-}
-
-// A Field is a custom attribute of a CustomStructDefinition or an IsExtensible.
-message FieldProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  optional NodeReferenceProto space_ptr = 5;
-  MaterializationTypeProto materialization = 7;
-  google.protobuf.Timestamp created_at = 15;
-  optional NodeReferenceProto created_by_ptr = 16;
-  google.protobuf.Timestamp updated_at = 17;
-  optional NodeReferenceProto updated_by_ptr = 18;
-  optional google.protobuf.Timestamp deleted_at = 20;
-  string order_key = 22;
-  FieldTypeProto type = 30;
-  string name = 31;
-  optional IconProto icon = 34;
-  TypeCardinalityProto cardinality = 40;
-  ScalarTypeProto scalar_type = 41;
-  optional PrimitiveTypeProto primitive_type = 42;
-  optional EnumTypeProto enum_type = 43;
-  optional NodeTypeProto node_type = 44;
-  optional NodeReferenceProto node_definition_ptr = 45;
-  optional StructTypeProto struct_type = 46;
-  optional NodeReferenceProto base_type_ptr = 47;
-  optional TypeProto key_type = 48;
-  optional bool is_required = 50;
-  optional ValueProto default_value = 55;
-  optional DefaultFactoryProto default_factory = 56;
-  optional CollectionConstraintProto collection_constraint = 60;
-  optional StringConstraintProto string_constraint = 61;
-  optional NumberConstraintProto number_constraint = 62;
-  optional NodeConstraintProto node_constraint = 63;
-  optional EdgeTypeProto edge_type = 70;
-  optional CascadeActionProto cascade = 71;
-  optional NodeReferenceProto source_ptr = 210;
 }
 
 // A File stored somewhere.
@@ -3240,21 +3243,22 @@ message NumberInputViewProto {
   optional NodeReferenceProto script_ptr = 200;
 }
 
-message OptionProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  optional NodeReferenceProto space_ptr = 5;
-  MaterializationTypeProto materialization = 7;
-  google.protobuf.Timestamp created_at = 15;
-  optional NodeReferenceProto created_by_ptr = 16;
-  google.protobuf.Timestamp updated_at = 17;
-  optional NodeReferenceProto updated_by_ptr = 18;
-  optional google.protobuf.Timestamp deleted_at = 20;
-  string order_key = 22;
+message ObjectReferenceProto {
+  StructTypeProto metatype = 1;
+  ObjectTypeProto type = 30;
+  optional NodeTypeProto node_type = 31;
+  optional TraitTypeProto trait_type = 32;
+  optional StructTypeProto struct_type = 33;
+  optional NodeReferenceProto definition_ptr = 40;
+}
+
+message OptionDefinitionProto {
+  StructTypeProto metatype = 1;
+  int64 id = 2 [jstype = JS_NUMBER];
+  EnumTypeProto type = 30;
   string name = 31;
   optional IconProto icon = 34;
-  optional NodeReferenceProto source_ptr = 210;
+  optional string description = 36;
 }
 
 // An Organization with Users and Teams.
@@ -3386,6 +3390,7 @@ message PropertyDefinitionProto {
   string name = 31;
   optional IconProto icon = 34;
   optional string description = 36;
+  ObjectReferenceProto object = 37;
   TypeCardinalityProto cardinality = 40;
   ScalarTypeProto scalar_type = 41;
   optional PrimitiveTypeProto primitive_type = 42;
@@ -3402,8 +3407,11 @@ message PropertyDefinitionProto {
   optional NumberConstraintProto number_constraint = 62;
   optional NodeConstraintProto node_constraint = 63;
   bool node_is_customizable = 73;
-  optional EdgeTypeProto edge_type = 74;
-  optional CascadeActionProto cascade = 75;
+  bool node_has_type = 74;
+  bool node_has_space = 75;
+  bool node_has_definition = 76;
+  optional EdgeTypeProto edge_type = 77;
+  optional CascadeActionProto cascade = 78;
   bool is_wired = 80;
   bool is_stored = 81;
   bool is_repr = 82;
@@ -3419,7 +3427,8 @@ message PropertyReferenceProto {
   optional NodeTypeProto node_type = 31;
   optional TraitTypeProto trait_type = 32;
   optional StructTypeProto struct_type = 33;
-  int64 id = 35 [jstype = JS_NUMBER];
+  optional int64 id = 35 [jstype = JS_NUMBER];
+  optional NodeReferenceProto custom_property_ptr = 36;
 }
 
 message QueryProto {
@@ -3733,7 +3742,7 @@ message ScriptProto {
 
 message SelectProto {
   StructTypeProto metatype = 1;
-  repeated AttributeReferenceProto attributes = 31;
+  repeated PropertyReferenceProto attributes = 31;
 }
 
 message SelectionProto {
@@ -4445,8 +4454,8 @@ message SomeNodeProto {
     CustomEntityProto custom_entity = 2001;
     CustomStructDefinitionProto custom_struct_definition = 2500;
     CustomEnumDefinitionProto custom_enum_definition = 2510;
-    FieldProto field = 2520;
-    OptionProto option = 2530;
+    CustomPropertyProto custom_property = 2520;
+    CustomOptionProto custom_option = 2530;
     FileProto file = 2540;
     LinkProto link = 2550;
     ScriptProto script = 3000;

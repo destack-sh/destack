@@ -1,8 +1,8 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
+  CustomProperty,
   CustomStructDefinition,
   Entity,
-  Field,
   Graph,
   HasIcon,
   HasName,
@@ -25,15 +25,18 @@ import {
 import { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
-import { MaterializationTypeProto, OptionProto } from "@destack/proto";
+import { CustomOptionProto, MaterializationTypeProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:2530 ==== */
 /**
- * Option
+ * CustomOption
  */
-export class Option extends Node implements Spatial, Entity, HasName, HasIcon, IsTaggable, IsDeletable, IsSourceable {
-  static metatype: NodeType = NodeType.OPTION;
+export class CustomOption
+  extends Node
+  implements Spatial, Entity, HasName, HasIcon, IsTaggable, IsDeletable, IsSourceable
+{
+  static metatype: NodeType = NodeType.CUSTOM_OPTION;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.TAGGABLE,
@@ -44,7 +47,7 @@ export class Option extends Node implements Spatial, Entity, HasName, HasIcon, I
     TraitType.SOURCEABLE,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.FIELD, NodeType.CUSTOM_STRUCT_DEFINITION];
+  static __parentTypes__: NodeType[] = [NodeType.CUSTOM_PROPERTY, NodeType.CUSTOM_STRUCT_DEFINITION];
   static __childTypes__: NodeType[] = [NodeType.TAGGING];
   static __ancestorTypes__: NodeType[] = [
     NodeType.SPACE,
@@ -72,7 +75,7 @@ export class Option extends Node implements Spatial, Entity, HasName, HasIcon, I
     NodeType.CUSTOM_ENUM_DEFINITION,
     NodeType.CUSTOM_ENTITY_DEFINITION,
     NodeType.CUSTOM_ENTITY,
-    NodeType.FIELD,
+    NodeType.CUSTOM_PROPERTY,
     NodeType.AGENT,
     NodeType.TEXT_VIEW,
     NodeType.FOLDER,
@@ -82,12 +85,12 @@ export class Option extends Node implements Spatial, Entity, HasName, HasIcon, I
   static __descendantTypes__: NodeType[] = [NodeType.TAGGING];
 
   /**
-   * Option.parent
+   * CustomOption.parent
    */
-  get parent(): CustomStructDefinition | Field | null {
+  get parent(): CustomStructDefinition | CustomProperty | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as CustomStructDefinition | Field | null;
+      return this._supergraph.get(nodePtr.id) as CustomStructDefinition | CustomProperty | null;
     }
     return null;
   }
@@ -178,7 +181,7 @@ export class Option extends Node implements Spatial, Entity, HasName, HasIcon, I
 
   constructor(options: {
     id?: string;
-    parent?: CustomStructDefinition | Field | NodeReference | null;
+    parent?: CustomStructDefinition | CustomProperty | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
@@ -234,7 +237,7 @@ export class Option extends Node implements Spatial, Entity, HasName, HasIcon, I
       _materialization = MaterializationType.FULL_GRAPH;
     }
     if (_materialization === null) {
-      throw new Error(`Option.materialization is required`);
+      throw new Error(`CustomOption.materialization is required`);
     }
     this.materialization = _materialization;
     let _deletedAt = options.deletedAt ?? null;
@@ -244,12 +247,12 @@ export class Option extends Node implements Spatial, Entity, HasName, HasIcon, I
       _orderKey = "a0";
     }
     if (_orderKey === null) {
-      throw new Error(`Option.orderKey is required`);
+      throw new Error(`CustomOption.orderKey is required`);
     }
     this.orderKey = _orderKey;
     let _name = options.name;
     if (_name === null) {
-      throw new Error(`Option.name is required`);
+      throw new Error(`CustomOption.name is required`);
     }
     this.name = _name;
     let _icon = options.icon ?? null;
@@ -292,6 +295,12 @@ export class Option extends Node implements Spatial, Entity, HasName, HasIcon, I
     if (!(this.metatype === other.metatype)) {
       return false;
     }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
     if (!(this.materialization === other.materialization)) {
       return false;
     }
@@ -299,12 +308,6 @@ export class Option extends Node implements Spatial, Entity, HasName, HasIcon, I
       return false;
     }
     if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
-      return false;
-    }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
       return false;
     }
     if (
@@ -326,7 +329,7 @@ export class Option extends Node implements Spatial, Entity, HasName, HasIcon, I
 
   __toRef__(): NodeReference {
     return new NodeReference({
-      nodeType: NodeType.OPTION,
+      nodeType: NodeType.CUSTOM_OPTION,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -352,10 +355,10 @@ export class Option extends Node implements Spatial, Entity, HasName, HasIcon, I
   }
 
   toValue(): { [key: string]: any } {
-    return Option.__packValue__(this);
+    return CustomOption.__packValue__(this);
   }
 
-  static __packValue__(object: Option): { [key: string]: any } {
+  static __packValue__(object: CustomOption): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 2530;
     objectValue["2"] = String(object.id);
@@ -394,49 +397,51 @@ export class Option extends Node implements Spatial, Entity, HasName, HasIcon, I
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Option {
+  ): CustomOption {
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const iconValue = objectValue["34"];
     const unpackedIcon =
       iconValue != undefined ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection) : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
-    const parentValue = objectValue["3"];
-    const unpackedParent =
-      parentValue != undefined
-        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
+    const sourcePtrValue = objectValue["210"];
+    const unpackedSourcePtr =
+      sourcePtrValue != undefined
+        ? NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const spaceValue = objectValue["5"];
-    const unpackedSpace =
-      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
-    const createdByValue = objectValue["16"];
-    const unpackedCreatedBy =
-      createdByValue != undefined
-        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByValue = objectValue["18"];
-    const unpackedUpdatedBy =
-      updatedByValue != undefined
-        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const sourceValue = objectValue["210"];
-    const unpackedSource =
-      sourceValue != undefined
-        ? NodeReference.fromValue(sourceValue, _session, _supergraph, _graph, _connection)
-        : null;
-    return new Option({
+    return new CustomOption({
+      parent: unpackedParentPtr,
+      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedBy: unpackedUpdatedByPtr,
       name: objectValue["31"],
       icon: unpackedIcon,
       deletedAt: unpackedDeletedAt,
+      source: unpackedSourcePtr,
       orderKey: objectValue["22"],
-      parent: unpackedParent,
-      space: unpackedSpace,
-      createdBy: unpackedCreatedBy,
-      updatedBy: unpackedUpdatedBy,
-      source: unpackedSource,
       _session,
       _graph,
       _connection,
@@ -449,16 +454,16 @@ export class Option extends Node implements Spatial, Entity, HasName, HasIcon, I
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Option {
-    return Option.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  ): CustomOption {
+    return CustomOption.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): OptionProto {
-    return Option.__packProto__(this);
+  toProto(): CustomOptionProto {
+    return CustomOption.__packProto__(this);
   }
 
-  static __packProto__(object: Option): OptionProto {
-    const objectProto: Partial<OptionProto> = { metatype: 2530 };
+  static __packProto__(object: CustomOption): CustomOptionProto {
+    const objectProto: Partial<CustomOptionProto> = { metatype: 2530 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -486,28 +491,17 @@ export class Option extends Node implements Spatial, Entity, HasName, HasIcon, I
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
-    return objectProto as OptionProto;
+    return objectProto as CustomOptionProto;
   }
 
   static __unpackProto__(
-    objectProto: OptionProto,
+    objectProto: CustomOptionProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Option {
-    return new Option({
-      id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      name: objectProto.name,
-      icon:
-        objectProto.icon != undefined
-          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
-      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
-      orderKey: objectProto.orderKey,
+  ): CustomOption {
+    return new CustomOption({
       parent:
         objectProto.parentPtr != undefined
           ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
@@ -516,18 +510,29 @@ export class Option extends Node implements Spatial, Entity, HasName, HasIcon, I
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
           : null,
+      id: String(objectProto.id),
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
           ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
           ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      name: objectProto.name,
+      icon:
+        objectProto.icon != undefined
+          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
+      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       source:
         objectProto.sourcePtr != undefined
           ? NodeReference.fromProto(objectProto.sourcePtr!, _session, _supergraph, _graph, _connection)
           : null,
+      orderKey: objectProto.orderKey,
       _session,
       _graph,
       _connection,
@@ -535,18 +540,18 @@ export class Option extends Node implements Spatial, Entity, HasName, HasIcon, I
   }
 
   static fromProto(
-    objectProto: OptionProto,
+    objectProto: CustomOptionProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Option {
-    return Option.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  ): CustomOption {
+    return CustomOption.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerNodeClass(NodeType.OPTION, Option);
+registerNodeClass(NodeType.CUSTOM_OPTION, CustomOption);
 /* ==== DESTACK_GENERATED_END:NODE:2530 ==== */

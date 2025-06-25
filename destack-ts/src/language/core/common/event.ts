@@ -1,10 +1,10 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
+  CustomProperty,
   EditOperation,
   EditType,
   Entity,
   Event,
-  Field,
   Graph,
   HasName,
   IsSourceable,
@@ -149,14 +149,14 @@ export class EditEvent extends Node implements Event, IsTaggable {
   /**
    * EditEvent.field
    */
-  get field(): Field | null {
+  get field(): CustomProperty | null {
     const nodePtr: NodeReference | null = this.fieldPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Field | null;
+      return this._supergraph.get(nodePtr.id) as CustomProperty | null;
     }
     return null;
   }
-  set field(node: Field | null) {
+  set field(node: CustomProperty | null) {
     if (node === null) {
       this.fieldPtr = null;
     } else {
@@ -187,7 +187,7 @@ export class EditEvent extends Node implements Event, IsTaggable {
     operation?: EditOperation | null;
     node: Node | NodeReference;
     propPtr?: PropertyReference | null;
-    field?: Field | NodeReference | null;
+    field?: CustomProperty | NodeReference | null;
     key?: Value | null;
     value?: Value | null;
     _session?: Session | null;
@@ -297,9 +297,18 @@ export class EditEvent extends Node implements Event, IsTaggable {
     ) {
       return false;
     }
+    if (!(this.nodePtr.id === other.nodePtr.id)) {
+      return false;
+    }
     if (
       (this.propPtr == null) !== (other.propPtr == null) ||
       (this.propPtr != null && !this.propPtr.equals(other.propPtr))
+    ) {
+      return false;
+    }
+    if (
+      (this.fieldPtr == null) !== (other.fieldPtr == null) ||
+      (this.fieldPtr != null && !(this.fieldPtr.id === other.fieldPtr.id))
     ) {
       return false;
     }
@@ -307,15 +316,6 @@ export class EditEvent extends Node implements Event, IsTaggable {
       return false;
     }
     if ((this.value == null) !== (other.value == null) || (this.value != null && !this.value.equals(other.value))) {
-      return false;
-    }
-    if (!(this.nodePtr.id === other.nodePtr.id)) {
-      return false;
-    }
-    if (
-      (this.fieldPtr == null) !== (other.fieldPtr == null) ||
-      (this.fieldPtr != null && !(this.fieldPtr.id === other.fieldPtr.id))
-    ) {
       return false;
     }
     if (
@@ -418,48 +418,52 @@ export class EditEvent extends Node implements Event, IsTaggable {
       propPtrValue != undefined
         ? PropertyReference.fromValue(propPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const fieldPtrValue = objectValue["37"];
+    const unpackedFieldPtr =
+      fieldPtrValue != undefined
+        ? NodeReference.fromValue(fieldPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const keyValue = objectValue["38"];
     const unpackedKey =
       keyValue != undefined ? Value.fromValue(keyValue, _session, _supergraph, _graph, _connection) : null;
     const valueValue = objectValue["40"];
     const unpackedValue =
       valueValue != undefined ? Value.fromValue(valueValue, _session, _supergraph, _graph, _connection) : null;
-    const fieldValue = objectValue["37"];
-    const unpackedField =
-      fieldValue != undefined ? NodeReference.fromValue(fieldValue, _session, _supergraph, _graph, _connection) : null;
-    const parentValue = objectValue["3"];
-    const unpackedParent =
-      parentValue != undefined
-        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const spaceValue = objectValue["5"];
-    const unpackedSpace =
-      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
-    const createdByValue = objectValue["16"];
-    const unpackedCreatedBy =
-      createdByValue != undefined
-        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByValue = objectValue["18"];
-    const unpackedUpdatedBy =
-      updatedByValue != undefined
-        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new EditEvent({
       type: Number(objectValue["30"]),
       operation: unpackedOperation,
+      node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       propPtr: unpackedPropPtr,
+      field: unpackedFieldPtr,
       key: unpackedKey,
       value: unpackedValue,
+      parent: unpackedParentPtr,
+      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
-      node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
-      field: unpackedField,
-      parent: unpackedParent,
-      space: unpackedSpace,
-      createdBy: unpackedCreatedBy,
-      updatedBy: unpackedUpdatedBy,
+      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -527,9 +531,14 @@ export class EditEvent extends Node implements Event, IsTaggable {
     return new EditEvent({
       type: Number(objectProto.type) as EditType,
       operation: objectProto.operation != undefined ? (Number(objectProto.operation) as EditOperation) : null,
+      node: NodeReference.fromProto(objectProto.nodePtr!, _session, _supergraph, _graph, _connection),
       propPtr:
         objectProto.propPtr != undefined
           ? PropertyReference.fromProto(objectProto.propPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      field:
+        objectProto.fieldPtr != undefined
+          ? NodeReference.fromProto(objectProto.fieldPtr!, _session, _supergraph, _graph, _connection)
           : null,
       key:
         objectProto.key != undefined
@@ -539,14 +548,6 @@ export class EditEvent extends Node implements Event, IsTaggable {
         objectProto.value != undefined
           ? Value.fromProto(objectProto.value!, _session, _supergraph, _graph, _connection)
           : null,
-      id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      node: NodeReference.fromProto(objectProto.nodePtr!, _session, _supergraph, _graph, _connection),
-      field:
-        objectProto.fieldPtr != undefined
-          ? NodeReference.fromProto(objectProto.fieldPtr!, _session, _supergraph, _graph, _connection)
-          : null,
       parent:
         objectProto.parentPtr != undefined
           ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
@@ -555,10 +556,13 @@ export class EditEvent extends Node implements Event, IsTaggable {
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
           : null,
+      id: String(objectProto.id),
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
           ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
           ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
@@ -800,16 +804,16 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, HasN
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.materialization === other.materialization)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
     if (
       (this.spacePtr == null) !== (other.spacePtr == null) ||
       (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
     ) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
       return false;
     }
     if (
@@ -894,41 +898,43 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, HasN
     _graph?: any | null,
     _connection?: any | null,
   ): CustomEventDefinition {
-    const parentValue = objectValue["3"];
-    const unpackedParent =
-      parentValue != undefined
-        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const spaceValue = objectValue["5"];
-    const unpackedSpace =
-      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
-    const createdByValue = objectValue["16"];
-    const unpackedCreatedBy =
-      createdByValue != undefined
-        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByValue = objectValue["18"];
-    const unpackedUpdatedBy =
-      updatedByValue != undefined
-        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const sourceValue = objectValue["210"];
-    const unpackedSource =
-      sourceValue != undefined
-        ? NodeReference.fromValue(sourceValue, _session, _supergraph, _graph, _connection)
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const sourcePtrValue = objectValue["210"];
+    const unpackedSourcePtr =
+      sourcePtrValue != undefined
+        ? NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new CustomEventDefinition({
+      parent: unpackedParentPtr,
+      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedBy: unpackedUpdatedByPtr,
       name: objectValue["31"],
+      source: unpackedSourcePtr,
       orderKey: objectValue["22"],
-      parent: unpackedParent,
-      space: unpackedSpace,
-      createdBy: unpackedCreatedBy,
-      updatedBy: unpackedUpdatedBy,
-      source: unpackedSource,
       _session,
       _graph,
       _connection,
@@ -983,12 +989,6 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, HasN
     _connection?: any | null,
   ): CustomEventDefinition {
     return new CustomEventDefinition({
-      id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      name: objectProto.name,
-      orderKey: objectProto.orderKey,
       parent:
         objectProto.parentPtr != undefined
           ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
@@ -997,18 +997,24 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, HasN
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
           : null,
+      id: String(objectProto.id),
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
           ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
           ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      name: objectProto.name,
       source:
         objectProto.sourcePtr != undefined
           ? NodeReference.fromProto(objectProto.sourcePtr!, _session, _supergraph, _graph, _connection)
           : null,
+      orderKey: objectProto.orderKey,
       _session,
       _graph,
       _connection,
@@ -1329,37 +1335,41 @@ export class CustomEvent extends Node implements Event {
     _graph?: any | null,
     _connection?: any | null,
   ): CustomEvent {
-    const nodeValue = objectValue["35"];
-    const unpackedNode =
-      nodeValue != undefined ? NodeReference.fromValue(nodeValue, _session, _supergraph, _graph, _connection) : null;
-    const parentValue = objectValue["3"];
-    const unpackedParent =
-      parentValue != undefined
-        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
+    const nodePtrValue = objectValue["35"];
+    const unpackedNodePtr =
+      nodePtrValue != undefined
+        ? NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const spaceValue = objectValue["5"];
-    const unpackedSpace =
-      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
-    const createdByValue = objectValue["16"];
-    const unpackedCreatedBy =
-      createdByValue != undefined
-        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByValue = objectValue["18"];
-    const unpackedUpdatedBy =
-      updatedByValue != undefined
-        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new CustomEvent({
+      definition: NodeReference.fromValue(objectValue["40"], _session, _supergraph, _graph, _connection),
+      node: unpackedNodePtr,
+      parent: unpackedParentPtr,
+      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
-      definition: NodeReference.fromValue(objectValue["40"], _session, _supergraph, _graph, _connection),
-      node: unpackedNode,
-      parent: unpackedParent,
-      space: unpackedSpace,
-      createdBy: unpackedCreatedBy,
-      updatedBy: unpackedUpdatedBy,
+      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -1412,9 +1422,6 @@ export class CustomEvent extends Node implements Event {
     _connection?: any | null,
   ): CustomEvent {
     return new CustomEvent({
-      id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       definition: NodeReference.fromProto(objectProto.definitionPtr!, _session, _supergraph, _graph, _connection),
       node:
         objectProto.nodePtr != undefined
@@ -1428,10 +1435,13 @@ export class CustomEvent extends Node implements Event {
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
           : null,
+      id: String(objectProto.id),
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
           ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
           ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)

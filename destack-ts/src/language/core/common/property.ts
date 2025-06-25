@@ -40,11 +40,11 @@ import { registerEnumClass, registerNodeClass } from "@destack/language/registry
 import { Space } from "@destack/language/space";
 import {
   CascadeActionProto,
+  CustomPropertyProto,
+  CustomPropertyTypeProto,
   DefaultFactoryProto,
   EdgeTypeProto,
   EnumTypeProto,
-  FieldProto,
-  FieldTypeProto,
   MaterializationTypeProto,
   NodeTypeProto,
   PrimitiveTypeProto,
@@ -56,9 +56,9 @@ import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2580 ==== */
 /**
- * FieldType
+ * CustomPropertyType
  */
-export enum FieldType {
+export enum CustomPropertyType {
   MEMBER = 1,
   INPUT = 2,
   OUTPUT = 3,
@@ -67,15 +67,18 @@ export enum FieldType {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerEnumClass(EnumType.FIELD_TYPE, FieldType);
+registerEnumClass(EnumType.CUSTOM_PROPERTY_TYPE, CustomPropertyType);
 /* ==== DESTACK_GENERATED_END:ENUM:2580 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:2520 ==== */
 /**
- * A Field is a custom attribute of a CustomStructDefinition or an IsExtensible.
+ * A CustomProperty is a custom attribute of a CustomStructDefinition or an IsExtensible.
  */
-export class Field extends Node implements Spatial, Entity, HasName, HasIcon, IsTaggable, IsDeletable, IsSourceable {
-  static metatype: NodeType = NodeType.FIELD;
+export class CustomProperty
+  extends Node
+  implements Spatial, Entity, HasName, HasIcon, IsTaggable, IsDeletable, IsSourceable
+{
+  static metatype: NodeType = NodeType.CUSTOM_PROPERTY;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.TAGGABLE,
@@ -104,10 +107,10 @@ export class Field extends Node implements Spatial, Entity, HasName, HasIcon, Is
     NodeType.ACTION,
     NodeType.CUSTOM_ENUM_DEFINITION,
     NodeType.CUSTOM_ENTITY,
-    NodeType.FIELD,
+    NodeType.CUSTOM_PROPERTY,
     NodeType.CANVAS,
   ];
-  static __childTypes__: NodeType[] = [NodeType.FIELD, NodeType.OPTION, NodeType.TAGGING];
+  static __childTypes__: NodeType[] = [NodeType.CUSTOM_OPTION, NodeType.CUSTOM_PROPERTY, NodeType.TAGGING];
   static __ancestorTypes__: NodeType[] = [
     NodeType.SPACE,
     NodeType.LINE_SHAPE,
@@ -134,22 +137,22 @@ export class Field extends Node implements Spatial, Entity, HasName, HasIcon, Is
     NodeType.CUSTOM_ENUM_DEFINITION,
     NodeType.CUSTOM_ENTITY_DEFINITION,
     NodeType.CUSTOM_ENTITY,
-    NodeType.FIELD,
+    NodeType.CUSTOM_PROPERTY,
     NodeType.AGENT,
     NodeType.TEXT_VIEW,
     NodeType.FOLDER,
     NodeType.THREAD_VIEW,
     NodeType.CANVAS,
   ];
-  static __descendantTypes__: NodeType[] = [NodeType.FIELD, NodeType.OPTION, NodeType.TAGGING];
+  static __descendantTypes__: NodeType[] = [NodeType.CUSTOM_PROPERTY, NodeType.CUSTOM_OPTION, NodeType.TAGGING];
 
   /**
-   * Field.parent
+   * CustomProperty.parent
    */
-  get parent(): (Node & IsExtensible) | Field | null {
+  get parent(): (Node & IsExtensible) | CustomProperty | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsExtensible) | Field | null;
+      return this._supergraph.get(nodePtr.id) as (Node & IsExtensible) | CustomProperty | null;
     }
     return null;
   }
@@ -217,9 +220,9 @@ export class Field extends Node implements Spatial, Entity, HasName, HasIcon, Is
   readonly orderKey: string;
 
   /**
-   * Field.type
+   * CustomProperty.type
    */
-  type: FieldType;
+  type: CustomPropertyType;
 
   /**
    * HasName.name
@@ -232,32 +235,32 @@ export class Field extends Node implements Spatial, Entity, HasName, HasIcon, Is
   icon: Icon | null;
 
   /**
-   * Field.cardinality
+   * CustomProperty.cardinality
    */
   cardinality: TypeCardinality;
 
   /**
-   * Field.scalarType
+   * CustomProperty.scalarType
    */
   scalarType: ScalarType;
 
   /**
-   * Field.primitiveType
+   * CustomProperty.primitiveType
    */
   primitiveType: PrimitiveType | null;
 
   /**
-   * Field.enumType
+   * CustomProperty.enumType
    */
   enumType: EnumType | null;
 
   /**
-   * Field.nodeType
+   * CustomProperty.nodeType
    */
   nodeType: NodeType | null;
 
   /**
-   * Field.nodeDefinition
+   * CustomProperty.nodeDefinition
    */
   get nodeDefinition(): CustomEntityDefinition | null {
     const nodePtr: NodeReference | null = this.nodeDefinitionPtr;
@@ -276,12 +279,12 @@ export class Field extends Node implements Spatial, Entity, HasName, HasIcon, Is
   nodeDefinitionPtr: NodeReference | null;
 
   /**
-   * Field.structType
+   * CustomProperty.structType
    */
   structType: StructType | null;
 
   /**
-   * Field.baseType
+   * CustomProperty.baseType
    */
   get baseType(): Node | null {
     const nodePtr: NodeReference | null = this.baseTypePtr;
@@ -300,52 +303,52 @@ export class Field extends Node implements Spatial, Entity, HasName, HasIcon, Is
   baseTypePtr: NodeReference | null;
 
   /**
-   * Field.keyType
+   * CustomProperty.keyType
    */
   keyType: Type | null;
 
   /**
-   * Field.isRequired
+   * CustomProperty.isRequired
    */
   isRequired: boolean | null;
 
   /**
-   * Field.defaultValue
+   * CustomProperty.defaultValue
    */
   defaultValue: Value | null;
 
   /**
-   * Field.defaultFactory
+   * CustomProperty.defaultFactory
    */
   defaultFactory: DefaultFactory | null;
 
   /**
-   * Field.collectionConstraint
+   * CustomProperty.collectionConstraint
    */
   collectionConstraint: CollectionConstraint | null;
 
   /**
-   * Field.stringConstraint
+   * CustomProperty.stringConstraint
    */
   stringConstraint: StringConstraint | null;
 
   /**
-   * Field.numberConstraint
+   * CustomProperty.numberConstraint
    */
   numberConstraint: NumberConstraint | null;
 
   /**
-   * Field.nodeConstraint
+   * CustomProperty.nodeConstraint
    */
   nodeConstraint: NodeConstraint | null;
 
   /**
-   * Field.edgeType
+   * CustomProperty.edgeType
    */
   edgeType: EdgeType | null;
 
   /**
-   * Field.cascade
+   * CustomProperty.cascade
    */
   cascade: CascadeAction | null;
 
@@ -363,7 +366,7 @@ export class Field extends Node implements Spatial, Entity, HasName, HasIcon, Is
 
   constructor(options: {
     id?: string;
-    parent?: (Node & IsExtensible) | Field | NodeReference | null;
+    parent?: (Node & IsExtensible) | CustomProperty | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
@@ -372,7 +375,7 @@ export class Field extends Node implements Spatial, Entity, HasName, HasIcon, Is
     updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;
-    type?: FieldType;
+    type?: CustomPropertyType;
     name: string;
     icon?: Icon | null;
     cardinality?: TypeCardinality;
@@ -438,7 +441,7 @@ export class Field extends Node implements Spatial, Entity, HasName, HasIcon, Is
       _materialization = MaterializationType.FULL_GRAPH;
     }
     if (_materialization === null) {
-      throw new Error(`Field.materialization is required`);
+      throw new Error(`CustomProperty.materialization is required`);
     }
     this.materialization = _materialization;
     let _deletedAt = options.deletedAt ?? null;
@@ -448,20 +451,20 @@ export class Field extends Node implements Spatial, Entity, HasName, HasIcon, Is
       _orderKey = "a0";
     }
     if (_orderKey === null) {
-      throw new Error(`Field.orderKey is required`);
+      throw new Error(`CustomProperty.orderKey is required`);
     }
     this.orderKey = _orderKey;
     let _type = options.type ?? null;
     if (_type === null) {
-      _type = FieldType.MEMBER;
+      _type = CustomPropertyType.MEMBER;
     }
     if (_type === null) {
-      throw new Error(`Field.type is required`);
+      throw new Error(`CustomProperty.type is required`);
     }
     this.type = _type;
     let _name = options.name;
     if (_name === null) {
-      throw new Error(`Field.name is required`);
+      throw new Error(`CustomProperty.name is required`);
     }
     this.name = _name;
     let _icon = options.icon ?? null;
@@ -471,12 +474,12 @@ export class Field extends Node implements Spatial, Entity, HasName, HasIcon, Is
       _cardinality = TypeCardinality.SCALAR;
     }
     if (_cardinality === null) {
-      throw new Error(`Field.cardinality is required`);
+      throw new Error(`CustomProperty.cardinality is required`);
     }
     this.cardinality = _cardinality;
     let _scalarType = options.scalarType;
     if (_scalarType === null) {
-      throw new Error(`Field.scalarType is required`);
+      throw new Error(`CustomProperty.scalarType is required`);
     }
     this.scalarType = _scalarType;
     let _primitiveType = options.primitiveType ?? null;
@@ -583,8 +586,20 @@ export class Field extends Node implements Spatial, Entity, HasName, HasIcon, Is
       return false;
     }
     if (
+      (this.nodeDefinitionPtr == null) !== (other.nodeDefinitionPtr == null) ||
+      (this.nodeDefinitionPtr != null && !(this.nodeDefinitionPtr.id === other.nodeDefinitionPtr.id))
+    ) {
+      return false;
+    }
+    if (
       (this.structType == null) !== (other.structType == null) ||
       (this.structType != null && !(this.structType === other.structType))
+    ) {
+      return false;
+    }
+    if (
+      (this.baseTypePtr == null) !== (other.baseTypePtr == null) ||
+      (this.baseTypePtr != null && !(this.baseTypePtr.id === other.baseTypePtr.id))
     ) {
       return false;
     }
@@ -648,6 +663,12 @@ export class Field extends Node implements Spatial, Entity, HasName, HasIcon, Is
     ) {
       return false;
     }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
     if (!(this.materialization === other.materialization)) {
       return false;
     }
@@ -655,24 +676,6 @@ export class Field extends Node implements Spatial, Entity, HasName, HasIcon, Is
       return false;
     }
     if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
-      return false;
-    }
-    if (
-      (this.nodeDefinitionPtr == null) !== (other.nodeDefinitionPtr == null) ||
-      (this.nodeDefinitionPtr != null && !(this.nodeDefinitionPtr.id === other.nodeDefinitionPtr.id))
-    ) {
-      return false;
-    }
-    if (
-      (this.baseTypePtr == null) !== (other.baseTypePtr == null) ||
-      (this.baseTypePtr != null && !(this.baseTypePtr.id === other.baseTypePtr.id))
-    ) {
-      return false;
-    }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
       return false;
     }
     if (
@@ -694,7 +697,7 @@ export class Field extends Node implements Spatial, Entity, HasName, HasIcon, Is
 
   __toRef__(): NodeReference {
     return new NodeReference({
-      nodeType: NodeType.FIELD,
+      nodeType: NodeType.CUSTOM_PROPERTY,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -720,10 +723,10 @@ export class Field extends Node implements Spatial, Entity, HasName, HasIcon, Is
   }
 
   toValue(): { [key: string]: any } {
-    return Field.__packValue__(this);
+    return CustomProperty.__packValue__(this);
   }
 
-  static __packValue__(object: Field): { [key: string]: any } {
+  static __packValue__(object: CustomProperty): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 2520;
     objectValue["2"] = String(object.id);
@@ -813,15 +816,30 @@ export class Field extends Node implements Spatial, Entity, HasName, HasIcon, Is
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Field {
+  ): CustomProperty {
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const primitiveTypeValue = objectValue["42"];
     const unpackedPrimitiveType = primitiveTypeValue != undefined ? Number(primitiveTypeValue) : null;
     const enumTypeValue = objectValue["43"];
     const unpackedEnumType = enumTypeValue != undefined ? Number(enumTypeValue) : null;
     const nodeTypeValue = objectValue["44"];
     const unpackedNodeType = nodeTypeValue != undefined ? Number(nodeTypeValue) : null;
+    const nodeDefinitionPtrValue = objectValue["45"];
+    const unpackedNodeDefinitionPtr =
+      nodeDefinitionPtrValue != undefined
+        ? NodeReference.fromValue(nodeDefinitionPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const structTypeValue = objectValue["46"];
     const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : null;
+    const baseTypePtrValue = objectValue["47"];
+    const unpackedBaseTypePtr =
+      baseTypePtrValue != undefined
+        ? NodeReference.fromValue(baseTypePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const keyTypeValue = objectValue["48"];
     const unpackedKeyType =
       keyTypeValue != undefined ? Type.fromValue(keyTypeValue, _session, _supergraph, _graph, _connection) : null;
@@ -858,52 +876,42 @@ export class Field extends Node implements Spatial, Entity, HasName, HasIcon, Is
     const unpackedEdgeType = edgeTypeValue != undefined ? Number(edgeTypeValue) : null;
     const cascadeValue = objectValue["71"];
     const unpackedCascade = cascadeValue != undefined ? Number(cascadeValue) : null;
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const iconValue = objectValue["34"];
     const unpackedIcon =
       iconValue != undefined ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection) : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
-    const parentValue = objectValue["3"];
-    const unpackedParent =
-      parentValue != undefined
-        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
+    const sourcePtrValue = objectValue["210"];
+    const unpackedSourcePtr =
+      sourcePtrValue != undefined
+        ? NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const nodeDefinitionValue = objectValue["45"];
-    const unpackedNodeDefinition =
-      nodeDefinitionValue != undefined
-        ? NodeReference.fromValue(nodeDefinitionValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const baseTypeValue = objectValue["47"];
-    const unpackedBaseType =
-      baseTypeValue != undefined
-        ? NodeReference.fromValue(baseTypeValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const spaceValue = objectValue["5"];
-    const unpackedSpace =
-      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
-    const createdByValue = objectValue["16"];
-    const unpackedCreatedBy =
-      createdByValue != undefined
-        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByValue = objectValue["18"];
-    const unpackedUpdatedBy =
-      updatedByValue != undefined
-        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const sourceValue = objectValue["210"];
-    const unpackedSource =
-      sourceValue != undefined
-        ? NodeReference.fromValue(sourceValue, _session, _supergraph, _graph, _connection)
-        : null;
-    return new Field({
+    return new CustomProperty({
+      parent: unpackedParentPtr,
       type: Number(objectValue["30"]),
       cardinality: Number(objectValue["40"]),
       scalarType: Number(objectValue["41"]),
       primitiveType: unpackedPrimitiveType,
       enumType: unpackedEnumType,
       nodeType: unpackedNodeType,
+      nodeDefinition: unpackedNodeDefinitionPtr,
       structType: unpackedStructType,
+      baseType: unpackedBaseTypePtr,
       keyType: unpackedKeyType,
       isRequired: unpackedIsRequired,
       defaultValue: unpackedDefaultValue,
@@ -914,21 +922,18 @@ export class Field extends Node implements Spatial, Entity, HasName, HasIcon, Is
       nodeConstraint: unpackedNodeConstraint,
       edgeType: unpackedEdgeType,
       cascade: unpackedCascade,
+      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedBy: unpackedUpdatedByPtr,
       name: objectValue["31"],
       icon: unpackedIcon,
       deletedAt: unpackedDeletedAt,
+      source: unpackedSourcePtr,
       orderKey: objectValue["22"],
-      parent: unpackedParent,
-      nodeDefinition: unpackedNodeDefinition,
-      baseType: unpackedBaseType,
-      space: unpackedSpace,
-      createdBy: unpackedCreatedBy,
-      updatedBy: unpackedUpdatedBy,
-      source: unpackedSource,
       _session,
       _graph,
       _connection,
@@ -941,16 +946,16 @@ export class Field extends Node implements Spatial, Entity, HasName, HasIcon, Is
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Field {
-    return Field.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  ): CustomProperty {
+    return CustomProperty.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): FieldProto {
-    return Field.__packProto__(this);
+  toProto(): CustomPropertyProto {
+    return CustomProperty.__packProto__(this);
   }
 
-  static __packProto__(object: Field): FieldProto {
-    const objectProto: Partial<FieldProto> = { metatype: 2520 };
+  static __packProto__(object: CustomProperty): CustomPropertyProto {
+    const objectProto: Partial<CustomPropertyProto> = { metatype: 2520 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -971,7 +976,7 @@ export class Field extends Node implements Spatial, Entity, HasName, HasIcon, Is
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     objectProto.orderKey = object.orderKey;
-    objectProto.type = Number(object.type) as FieldTypeProto;
+    objectProto.type = Number(object.type) as CustomPropertyTypeProto;
     objectProto.name = object.name;
     if (object.icon != null) {
       objectProto.icon = object.icon.toProto();
@@ -1029,25 +1034,37 @@ export class Field extends Node implements Spatial, Entity, HasName, HasIcon, Is
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
-    return objectProto as FieldProto;
+    return objectProto as CustomPropertyProto;
   }
 
   static __unpackProto__(
-    objectProto: FieldProto,
+    objectProto: CustomPropertyProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Field {
-    return new Field({
-      type: Number(objectProto.type) as FieldType,
+  ): CustomProperty {
+    return new CustomProperty({
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      type: Number(objectProto.type) as CustomPropertyType,
       cardinality: Number(objectProto.cardinality) as TypeCardinality,
       scalarType: Number(objectProto.scalarType) as ScalarType,
       primitiveType:
         objectProto.primitiveType != undefined ? (Number(objectProto.primitiveType) as PrimitiveType) : null,
       enumType: objectProto.enumType != undefined ? (Number(objectProto.enumType) as EnumType) : null,
       nodeType: objectProto.nodeType != undefined ? (Number(objectProto.nodeType) as NodeType) : null,
+      nodeDefinition:
+        objectProto.nodeDefinitionPtr != undefined
+          ? NodeReference.fromProto(objectProto.nodeDefinitionPtr!, _session, _supergraph, _graph, _connection)
+          : null,
       structType: objectProto.structType != undefined ? (Number(objectProto.structType) as StructType) : null,
+      baseType:
+        objectProto.baseTypePtr != undefined
+          ? NodeReference.fromProto(objectProto.baseTypePtr!, _session, _supergraph, _graph, _connection)
+          : null,
       keyType:
         objectProto.keyType != undefined
           ? Type.fromProto(objectProto.keyType!, _session, _supergraph, _graph, _connection)
@@ -1083,45 +1100,33 @@ export class Field extends Node implements Spatial, Entity, HasName, HasIcon, Is
           : null,
       edgeType: objectProto.edgeType != undefined ? (Number(objectProto.edgeType) as EdgeType) : null,
       cascade: objectProto.cascade != undefined ? (Number(objectProto.cascade) as CascadeAction) : null,
+      space:
+        objectProto.spacePtr != undefined
+          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          : null,
       id: String(objectProto.id),
       materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
       name: objectProto.name,
       icon:
         objectProto.icon != undefined
           ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
       deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
-      orderKey: objectProto.orderKey,
-      parent:
-        objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
-          : null,
-      nodeDefinition:
-        objectProto.nodeDefinitionPtr != undefined
-          ? NodeReference.fromProto(objectProto.nodeDefinitionPtr!, _session, _supergraph, _graph, _connection)
-          : null,
-      baseType:
-        objectProto.baseTypePtr != undefined
-          ? NodeReference.fromProto(objectProto.baseTypePtr!, _session, _supergraph, _graph, _connection)
-          : null,
-      space:
-        objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
-          : null,
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
-          : null,
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
-          : null,
       source:
         objectProto.sourcePtr != undefined
           ? NodeReference.fromProto(objectProto.sourcePtr!, _session, _supergraph, _graph, _connection)
           : null,
+      orderKey: objectProto.orderKey,
       _session,
       _graph,
       _connection,
@@ -1129,18 +1134,18 @@ export class Field extends Node implements Spatial, Entity, HasName, HasIcon, Is
   }
 
   static fromProto(
-    objectProto: FieldProto,
+    objectProto: CustomPropertyProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Field {
-    return Field.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  ): CustomProperty {
+    return CustomProperty.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerNodeClass(NodeType.FIELD, Field);
+registerNodeClass(NodeType.CUSTOM_PROPERTY, CustomProperty);
 /* ==== DESTACK_GENERATED_END:NODE:2520 ==== */

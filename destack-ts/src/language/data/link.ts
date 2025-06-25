@@ -417,6 +417,12 @@ export class Link extends Node implements Spatial, Resource {
         return false;
       }
     }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
     if (!(this.status === other.status)) {
       return false;
     }
@@ -427,12 +433,6 @@ export class Link extends Node implements Spatial, Resource {
       return false;
     }
     if (!(this.materialization === other.materialization)) {
-      return false;
-    }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
       return false;
     }
     return true;
@@ -584,25 +584,27 @@ export class Link extends Node implements Spatial, Resource {
         unpackedImageUrls.push(item);
       }
     }
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const targetStatusValue = objectValue["41"];
     const unpackedTargetStatus = targetStatusValue != undefined ? Temporal.ZonedDateTime.from(targetStatusValue) : null;
-    const parentValue = objectValue["3"];
-    const unpackedParent =
-      parentValue != undefined
-        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const spaceValue = objectValue["5"];
-    const unpackedSpace =
-      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
-    const createdByValue = objectValue["16"];
-    const unpackedCreatedBy =
-      createdByValue != undefined
-        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByValue = objectValue["18"];
-    const unpackedUpdatedBy =
-      updatedByValue != undefined
-        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Link({
       type: Number(objectValue["30"]),
@@ -619,16 +621,16 @@ export class Link extends Node implements Spatial, Resource {
       publishedAt: unpackedPublishedAt,
       expiresAt: unpackedExpiresAt,
       imageUrls: unpackedImageUrls,
+      parent: unpackedParentPtr,
+      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       status: Number(objectValue["40"]),
       targetStatus: unpackedTargetStatus,
       materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
-      parent: unpackedParent,
-      space: unpackedSpace,
-      createdBy: unpackedCreatedBy,
-      updatedBy: unpackedUpdatedBy,
+      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -746,12 +748,6 @@ export class Link extends Node implements Spatial, Resource {
       publishedAt: objectProto.publishedAt != undefined ? unpackProtoTimestamp(objectProto.publishedAt!) : null,
       expiresAt: objectProto.expiresAt != undefined ? unpackProtoTimestamp(objectProto.expiresAt!) : null,
       imageUrls: unpackedImageUrls,
-      id: String(objectProto.id),
-      status: Number(objectProto.status) as ResourceStatus,
-      targetStatus: objectProto.targetStatus != undefined ? unpackProtoTimestamp(objectProto.targetStatus!) : null,
-      materialization: Number(objectProto.materialization) as MaterializationType,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       parent:
         objectProto.parentPtr != undefined
           ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
@@ -760,10 +756,16 @@ export class Link extends Node implements Spatial, Resource {
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
           : null,
+      id: String(objectProto.id),
+      status: Number(objectProto.status) as ResourceStatus,
+      targetStatus: objectProto.targetStatus != undefined ? unpackProtoTimestamp(objectProto.targetStatus!) : null,
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
           ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
           ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)

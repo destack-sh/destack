@@ -84,8 +84,8 @@ export class ThreadView extends Node implements NodeView {
     NodeType.LAYER,
   ];
   static __descendantTypes__: NodeType[] = [
-    NodeType.OPTION,
-    NodeType.FIELD,
+    NodeType.CUSTOM_OPTION,
+    NodeType.CUSTOM_PROPERTY,
     NodeType.TAGGING,
     NodeType.COLOR_STYLE,
     NodeType.FILL_STYLE,
@@ -404,6 +404,12 @@ export class ThreadView extends Node implements NodeView {
       return false;
     }
     if (
+      (this.draftReplyToPtr == null) !== (other.draftReplyToPtr == null) ||
+      (this.draftReplyToPtr != null && !(this.draftReplyToPtr.id === other.draftReplyToPtr.id))
+    ) {
+      return false;
+    }
+    if (
       (this.position == null) !== (other.position == null) ||
       (this.position != null && !this.position.equals(other.position))
     ) {
@@ -442,22 +448,16 @@ export class ThreadView extends Node implements NodeView {
     ) {
       return false;
     }
-    if (!(this.materialization === other.materialization)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
-    if (
-      (this.draftReplyToPtr == null) !== (other.draftReplyToPtr == null) ||
-      (this.draftReplyToPtr != null && !(this.draftReplyToPtr.id === other.draftReplyToPtr.id))
-    ) {
-      return false;
-    }
     if (
       (this.spacePtr == null) !== (other.spacePtr == null) ||
       (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
     ) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
       return false;
     }
     if (
@@ -575,6 +575,16 @@ export class ThreadView extends Node implements NodeView {
     const draftTextValue = objectValue["100"];
     const unpackedDraftText =
       draftTextValue != undefined ? Text.fromValue(draftTextValue, _session, _supergraph, _graph, _connection) : null;
+    const draftReplyToPtrValue = objectValue["102"];
+    const unpackedDraftReplyToPtr =
+      draftReplyToPtrValue != undefined
+        ? NodeReference.fromValue(draftReplyToPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const positionValue = objectValue["40"];
     const unpackedPosition =
       positionValue != undefined ? Position.fromValue(positionValue, _session, _supergraph, _graph, _connection) : null;
@@ -604,38 +614,32 @@ export class ThreadView extends Node implements NodeView {
       maxHeightValue != undefined
         ? Dimension.fromValue(maxHeightValue, _session, _supergraph, _graph, _connection)
         : null;
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const scriptPtrValue = objectValue["200"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
-    const draftReplyToValue = objectValue["102"];
-    const unpackedDraftReplyTo =
-      draftReplyToValue != undefined
-        ? NodeReference.fromValue(draftReplyToValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const parentValue = objectValue["3"];
-    const unpackedParent =
-      parentValue != undefined
-        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const spaceValue = objectValue["5"];
-    const unpackedSpace =
-      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
-    const createdByValue = objectValue["16"];
-    const unpackedCreatedBy =
-      createdByValue != undefined
-        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByValue = objectValue["18"];
-    const unpackedUpdatedBy =
-      updatedByValue != undefined
-        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const scriptValue = objectValue["200"];
-    const unpackedScript =
-      scriptValue != undefined
-        ? NodeReference.fromValue(scriptValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new ThreadView({
       draftText: unpackedDraftText,
+      draftReplyTo: unpackedDraftReplyToPtr,
+      parent: unpackedParentPtr,
       position: unpackedPosition,
       width: unpackedWidth,
       height: unpackedHeight,
@@ -643,19 +647,17 @@ export class ThreadView extends Node implements NodeView {
       minHeight: unpackedMinHeight,
       maxWidth: unpackedMaxWidth,
       maxHeight: unpackedMaxHeight,
+      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedBy: unpackedUpdatedByPtr,
       name: objectValue["31"],
       orderKey: objectValue["22"],
+      script: unpackedScriptPtr,
       deletedAt: unpackedDeletedAt,
-      draftReplyTo: unpackedDraftReplyTo,
-      parent: unpackedParent,
-      space: unpackedSpace,
-      createdBy: unpackedCreatedBy,
-      updatedBy: unpackedUpdatedBy,
-      script: unpackedScript,
       _session,
       _graph,
       _connection,
@@ -744,6 +746,14 @@ export class ThreadView extends Node implements NodeView {
         objectProto.draftText != undefined
           ? Text.fromProto(objectProto.draftText!, _session, _supergraph, _graph, _connection)
           : null,
+      draftReplyTo:
+        objectProto.draftReplyToPtr != undefined
+          ? NodeReference.fromProto(objectProto.draftReplyToPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
       position:
         objectProto.position != undefined
           ? Position.fromProto(objectProto.position!, _session, _supergraph, _graph, _connection)
@@ -772,37 +782,29 @@ export class ThreadView extends Node implements NodeView {
         objectProto.maxHeight != undefined
           ? Dimension.fromProto(objectProto.maxHeight!, _session, _supergraph, _graph, _connection)
           : null,
-      id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      name: objectProto.name,
-      orderKey: objectProto.orderKey,
-      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
-      draftReplyTo:
-        objectProto.draftReplyToPtr != undefined
-          ? NodeReference.fromProto(objectProto.draftReplyToPtr!, _session, _supergraph, _graph, _connection)
-          : null,
-      parent:
-        objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
-          : null,
       space:
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
           : null,
+      id: String(objectProto.id),
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
           ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
           ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      name: objectProto.name,
+      orderKey: objectProto.orderKey,
       script:
         objectProto.scriptPtr != undefined
           ? NodeReference.fromProto(objectProto.scriptPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       _session,
       _graph,
       _connection,

@@ -1,5 +1,7 @@
 from typing import TYPE_CHECKING, Optional
 
+from destack.language.registry import OBJECT_REF_BY_CLASS
+
 from ..builtin import (
     CascadeAction,
     EdgeType,
@@ -26,7 +28,7 @@ from .type import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import Icon, Node, NodeBase, Type, Value
+    from destack.language import Icon, Node, NodeBase, ObjectReference, Type, Value
 
 
 _type = type
@@ -40,6 +42,7 @@ class PropertyDefinition(StructFrozen):
     name: str = property_(31)
     icon: "Icon | None" = property_(34)
     description: str | None = property_(36)
+    object: "ObjectReference" = property_(37)
 
     # scalar
     cardinality: TypeCardinality = property_(40, default=TypeCardinality.SCALAR, is_repr=True)
@@ -78,15 +81,17 @@ class PropertyDefinition(StructFrozen):
     is_computed: bool = property_(86)
 
     @classmethod
-    def from_property(cls, property: PropertyDeclaration) -> "PropertyDefinition":
+    def from_property(cls, prop: PropertyDeclaration) -> "PropertyDefinition":
         """Create PropertyDefinition from a Property."""
-        assert property.id is not None, f"{property!r} has no id"
-        type = property._to_type()
+        assert prop.id is not None, f"{prop!r} has no id"
+        type = prop._to_type()
+        object = OBJECT_REF_BY_CLASS[prop.component]
 
         return cls(
-            id=property.id,
-            name=property.name,
-            description=property.description,
+            id=prop.id,
+            name=prop.name,
+            description=prop.description,
+            object=object,
             # type
             cardinality=type.cardinality,
             scalar_type=type.scalar_type,
@@ -96,7 +101,7 @@ class PropertyDefinition(StructFrozen):
             struct_type=type.struct_type,
             key_type=type.key_type,
             is_required=type.is_required,
-            is_unique=property.is_unique,
+            is_unique=prop.is_unique,
             default_value=type.default_value,
             default_factory=type.default_factory,
             collection_constraint=type.collection_constraint,
@@ -104,20 +109,20 @@ class PropertyDefinition(StructFrozen):
             number_constraint=type.number_constraint,
             node_constraint=type.node_constraint,
             # node
-            node_is_customizable=property.node_is_customizable,
-            node_has_type=property.node_has_type,
-            node_has_space=property.node_has_space,
-            node_has_definition=property.node_has_definition,
-            edge_type=property.edge_type,
-            cascade=property.cascade,
+            node_is_customizable=prop.node_is_customizable,
+            node_has_type=prop.node_has_type,
+            node_has_space=prop.node_has_space,
+            node_has_definition=prop.node_has_definition,
+            edge_type=prop.edge_type,
+            cascade=prop.cascade,
             # flags
-            is_wired=property.is_wired,
-            is_stored=property.is_stored,
-            is_repr=property.is_repr,
-            is_hash=property.is_hash,
-            is_eq=property.is_eq,
-            is_managed=property.is_managed,
-            is_computed=property.is_computed,
+            is_wired=prop.is_wired,
+            is_stored=prop.is_stored,
+            is_repr=prop.is_repr,
+            is_hash=prop.is_hash,
+            is_eq=prop.is_eq,
+            is_managed=prop.is_managed,
+            is_computed=prop.is_computed,
         )
 
 

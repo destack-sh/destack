@@ -1,8 +1,8 @@
 import { NodeClass } from "@destack/language";
 import {
   CustomEntityDefinition,
+  CustomProperty,
   EnumType,
-  Field,
   Node,
   NodeType,
   Region,
@@ -14,10 +14,10 @@ import {
 } from "@destack/language/core";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import {
-  AttributeReferenceProto,
-  AttributeTypeProto,
   NodeReferenceProto,
   NodeTypeProto,
+  ObjectReferenceProto,
+  ObjectTypeProto,
   PropertyReferenceProto,
   PropertyReferenceTypeProto,
   RegionProto,
@@ -47,17 +47,19 @@ registerEnumClass(EnumType.RELATION_TYPE, RelationType);
 
 /* ==== DESTACK_GENERATED_START:ENUM:50011 ==== */
 /**
- * AttributeType
+ * ObjectType
  */
-export enum AttributeType {
-  PROPERTY = 1,
-  FIELD = 2,
+export enum ObjectType {
+  BUILTIN_NODE = 1,
+  CUSTOM_NODE = 2,
+  TRAIT = 3,
+  BUILTIN_STRUCT = 5,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerEnumClass(EnumType.ATTRIBUTE_TYPE, AttributeType);
+registerEnumClass(EnumType.OBJECT_TYPE, ObjectType);
 /* ==== DESTACK_GENERATED_END:ENUM:50011 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:50012 ==== */
@@ -65,9 +67,8 @@ registerEnumClass(EnumType.ATTRIBUTE_TYPE, AttributeType);
  * PropertyReferenceType
  */
 export enum PropertyReferenceType {
-  NODE = 1,
-  TRAIT = 2,
-  STRUCT = 3,
+  BUILTIN = 1,
+  CUSTOM = 2,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -254,7 +255,7 @@ registerStructClass(StructType.SCOPE, Scope);
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50107 ==== */
 /**
- * Reference to a Node "type" (builtin or custom, i.e. a "relation").
+ * Reference to a Node relation (builtin, custom or trait, i.e. a "relation").
  */
 export class RelationReference extends StructFrozen {
   static metatype: StructType = StructType.RELATION_REFERENCE;
@@ -350,14 +351,14 @@ export class RelationReference extends StructFrozen {
       return false;
     }
     if (
-      (this.traitType == null) !== (other.traitType == null) ||
-      (this.traitType != null && !(this.traitType === other.traitType))
+      (this.definitionPtr == null) !== (other.definitionPtr == null) ||
+      (this.definitionPtr != null && !(this.definitionPtr.id === other.definitionPtr.id))
     ) {
       return false;
     }
     if (
-      (this.definitionPtr == null) !== (other.definitionPtr == null) ||
-      (this.definitionPtr != null && !(this.definitionPtr.id === other.definitionPtr.id))
+      (this.traitType == null) !== (other.traitType == null) ||
+      (this.traitType != null && !(this.traitType === other.traitType))
     ) {
       return false;
     }
@@ -405,18 +406,18 @@ export class RelationReference extends StructFrozen {
   ): RelationReference {
     const nodeTypeValue = objectValue["31"];
     const unpackedNodeType = nodeTypeValue != undefined ? Number(nodeTypeValue) : null;
+    const definitionPtrValue = objectValue["32"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const traitTypeValue = objectValue["33"];
     const unpackedTraitType = traitTypeValue != undefined ? Number(traitTypeValue) : null;
-    const definitionValue = objectValue["32"];
-    const unpackedDefinition =
-      definitionValue != undefined
-        ? NodeReference.fromValue(definitionValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new RelationReference({
       type: Number(objectValue["30"]),
       nodeType: unpackedNodeType,
+      definition: unpackedDefinitionPtr,
       traitType: unpackedTraitType,
-      definition: unpackedDefinition,
       _value: objectValue,
       _supergraph,
     });
@@ -465,11 +466,11 @@ export class RelationReference extends StructFrozen {
     return new RelationReference({
       type: Number(objectProto.type) as RelationType,
       nodeType: objectProto.nodeType != undefined ? (Number(objectProto.nodeType) as NodeType) : null,
-      traitType: objectProto.traitType != undefined ? (Number(objectProto.traitType) as TraitType) : null,
       definition:
         objectProto.definitionPtr != undefined
           ? NodeReference.fromProto(objectProto.definitionPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      traitType: objectProto.traitType != undefined ? (Number(objectProto.traitType) as TraitType) : null,
       _proto: objectProto,
       _supergraph,
     });
@@ -504,276 +505,53 @@ registerStructClass(StructType.RELATION_REFERENCE, RelationReference);
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50108 ==== */
 /**
- * Reference to a Field or Property.
+ * Reference to an object "type" (builtin, custom or trait).
  */
-export class AttributeReference extends StructFrozen {
-  static metatype: StructType = StructType.ATTRIBUTE_REFERENCE;
+export class ObjectReference extends StructFrozen {
+  static metatype: StructType = StructType.OBJECT_REFERENCE;
   static __isFrozen__: boolean = true;
 
   /**
-   * AttributeReference.type
+   * ObjectReference.type
    */
-  readonly type: AttributeType;
+  readonly type: ObjectType;
 
   /**
-   * AttributeReference.propPtr
-   */
-  readonly propPtr: PropertyReference | null;
-
-  /**
-   * field
-   */
-  get field(): Field | null {
-    const nodePtr: NodeReference | null = this.fieldPtr;
-    if (nodePtr !== null) {
-      if (this._supergraph === null) {
-        return null;
-      }
-      return this._supergraph.get(nodePtr.id) as Field | null;
-    }
-    return null;
-  }
-  readonly fieldPtr: NodeReference | null;
-
-  constructor(options: {
-    type: AttributeType;
-    propPtr?: PropertyReference | null;
-    field?: Field | NodeReference | null;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _proto?: any | null;
-    _value?: { [key: string]: any } | null;
-  }) {
-    super(
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-    );
-
-    // properties
-    let _type = options.type;
-    if (_type === null) {
-      throw new Error(`AttributeReference.type is required`);
-    }
-    this.type = _type;
-    let _propPtr = options.propPtr ?? null;
-    this.propPtr = _propPtr;
-    let _field = options.field ?? null;
-    if (_field != null && _field instanceof Node) {
-      _field = _field.toRef();
-    }
-    this.fieldPtr = _field;
-
-    // identity
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.type === other.type)) {
-      return false;
-    }
-    if (
-      (this.propPtr == null) !== (other.propPtr == null) ||
-      (this.propPtr != null && !this.propPtr.equals(other.propPtr))
-    ) {
-      return false;
-    }
-    if (
-      (this.fieldPtr == null) !== (other.fieldPtr == null) ||
-      (this.fieldPtr != null && !(this.fieldPtr.id === other.fieldPtr.id))
-    ) {
-      return false;
-    }
-    return true;
-  }
-
-  hash(): number {
-    throw new Error("not implemented");
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  toValue(): { [key: string]: any } {
-    if (this._value === null) {
-      // @ts-expect-error(readonly)
-      this._value = AttributeReference.__packValue__(this);
-    }
-    return this._value;
-  }
-
-  static __packValue__(object: AttributeReference): { [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50108;
-    objectValue["30"] = object.type;
-    if (object.propPtr != null) {
-      objectValue["31"] = object.propPtr.toValue();
-    }
-    if (object.fieldPtr != null) {
-      objectValue["32"] = object.fieldPtr.toValue();
-    }
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): AttributeReference {
-    const propPtrValue = objectValue["31"];
-    const unpackedPropPtr =
-      propPtrValue != undefined
-        ? PropertyReference.fromValue(propPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const fieldValue = objectValue["32"];
-    const unpackedField =
-      fieldValue != undefined ? NodeReference.fromValue(fieldValue, _session, _supergraph, _graph, _connection) : null;
-    return new AttributeReference({
-      type: Number(objectValue["30"]),
-      propPtr: unpackedPropPtr,
-      field: unpackedField,
-      _value: objectValue,
-      _supergraph,
-    });
-  }
-
-  static fromValue(
-    objectValue: { [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): AttributeReference {
-    return AttributeReference.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): AttributeReferenceProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = AttributeReference.__packProto__(this);
-    }
-    return this._proto as AttributeReferenceProto;
-  }
-
-  static __packProto__(object: AttributeReference): AttributeReferenceProto {
-    const objectProto: Partial<AttributeReferenceProto> = { metatype: 50108 };
-    objectProto.type = Number(object.type) as AttributeTypeProto;
-    if (object.propPtr != null) {
-      objectProto.propPtr = object.propPtr.toProto();
-    }
-    if (object.fieldPtr != null) {
-      objectProto.fieldPtr = object.fieldPtr.toProto();
-    }
-    return objectProto as AttributeReferenceProto;
-  }
-
-  static __unpackProto__(
-    objectProto: AttributeReferenceProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): AttributeReference {
-    return new AttributeReference({
-      type: Number(objectProto.type) as AttributeType,
-      propPtr:
-        objectProto.propPtr != undefined
-          ? PropertyReference.fromProto(objectProto.propPtr!, _session, _supergraph, _graph, _connection)
-          : null,
-      field:
-        objectProto.fieldPtr != undefined
-          ? NodeReference.fromProto(objectProto.fieldPtr!, _session, _supergraph, _graph, _connection)
-          : null,
-      _proto: objectProto,
-      _supergraph,
-    });
-  }
-
-  static fromProto(
-    objectProto: AttributeReferenceProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): AttributeReference {
-    return AttributeReference.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-
-  static of(attribute: Field | PropertyReference | AttributeReference) {
-    if (attribute instanceof PropertyReference) {
-      return new AttributeReference({ type: AttributeType.PROPERTY, propPtr: attribute });
-    } else if (attribute instanceof Field) {
-      return new AttributeReference({ type: AttributeType.FIELD, field: attribute });
-    } else if (attribute instanceof AttributeReference) {
-      return attribute;
-    } else {
-      assertNever(attribute);
-    }
-  }
-
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.ATTRIBUTE_REFERENCE, AttributeReference);
-/* ==== DESTACK_GENERATED_END:STRUCT:50108 ==== */
-
-/* ==== DESTACK_GENERATED_START:STRUCT:50003 ==== */
-/**
- * A reference to a builtin object's Property.
- * If type is unset, this refers to a base property in one of the base BuiltinObject types.
- */
-export class PropertyReference extends StructFrozen {
-  static metatype: StructType = StructType.PROPERTY_REFERENCE;
-  static __isFrozen__: boolean = true;
-
-  /**
-   * PropertyReference.type
-   */
-  readonly type: PropertyReferenceType;
-
-  /**
-   * PropertyReference.nodeType
+   * ObjectReference.nodeType
    */
   readonly nodeType: NodeType | null;
 
   /**
-   * PropertyReference.traitType
+   * ObjectReference.traitType
    */
   readonly traitType: TraitType | null;
 
   /**
-   * PropertyReference.structType
+   * ObjectReference.structType
    */
   readonly structType: StructType | null;
 
   /**
-   * PropertyReference.id
+   * definition
    */
-  readonly id: number;
+  get definition(): CustomEntityDefinition | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr !== null) {
+      if (this._supergraph === null) {
+        return null;
+      }
+      return this._supergraph.get(nodePtr.id) as CustomEntityDefinition | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
 
   constructor(options: {
-    type: PropertyReferenceType;
+    type: ObjectType;
     nodeType?: NodeType | null;
     traitType?: TraitType | null;
     structType?: StructType | null;
-    id: number;
+    definition?: CustomEntityDefinition | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -791,7 +569,7 @@ export class PropertyReference extends StructFrozen {
     // properties
     let _type = options.type;
     if (_type === null) {
-      throw new Error(`PropertyReference.type is required`);
+      throw new Error(`ObjectReference.type is required`);
     }
     this.type = _type;
     let _nodeType = options.nodeType ?? null;
@@ -800,11 +578,11 @@ export class PropertyReference extends StructFrozen {
     this.traitType = _traitType;
     let _structType = options.structType ?? null;
     this.structType = _structType;
-    let _id = options.id;
-    if (_id === null) {
-      throw new Error(`PropertyReference.id is required`);
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition instanceof Node) {
+      _definition = _definition.toRef();
     }
-    this.id = _id;
+    this.definitionPtr = _definition;
 
     // identity
     // @ts-expect-error(readonly)
@@ -842,7 +620,299 @@ export class PropertyReference extends StructFrozen {
     ) {
       return false;
     }
-    if (!(this.id === other.id)) {
+    if (
+      (this.definitionPtr == null) !== (other.definitionPtr == null) ||
+      (this.definitionPtr != null && !(this.definitionPtr.id === other.definitionPtr.id))
+    ) {
+      return false;
+    }
+    return true;
+  }
+
+  hash(): number {
+    throw new Error("not implemented");
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = ObjectReference.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: ObjectReference): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 50108;
+    objectValue["30"] = object.type;
+    if (object.nodeType != null) {
+      objectValue["31"] = object.nodeType;
+    }
+    if (object.traitType != null) {
+      objectValue["32"] = object.traitType;
+    }
+    if (object.structType != null) {
+      objectValue["33"] = object.structType;
+    }
+    if (object.definitionPtr != null) {
+      objectValue["40"] = object.definitionPtr.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ObjectReference {
+    const nodeTypeValue = objectValue["31"];
+    const unpackedNodeType = nodeTypeValue != undefined ? Number(nodeTypeValue) : null;
+    const traitTypeValue = objectValue["32"];
+    const unpackedTraitType = traitTypeValue != undefined ? Number(traitTypeValue) : null;
+    const structTypeValue = objectValue["33"];
+    const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : null;
+    const definitionPtrValue = objectValue["40"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new ObjectReference({
+      type: Number(objectValue["30"]),
+      nodeType: unpackedNodeType,
+      traitType: unpackedTraitType,
+      structType: unpackedStructType,
+      definition: unpackedDefinitionPtr,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ObjectReference {
+    return ObjectReference.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): ObjectReferenceProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = ObjectReference.__packProto__(this);
+    }
+    return this._proto as ObjectReferenceProto;
+  }
+
+  static __packProto__(object: ObjectReference): ObjectReferenceProto {
+    const objectProto: Partial<ObjectReferenceProto> = { metatype: 50108 };
+    objectProto.type = Number(object.type) as ObjectTypeProto;
+    if (object.nodeType != null) {
+      objectProto.nodeType = Number(object.nodeType) as NodeTypeProto;
+    }
+    if (object.traitType != null) {
+      objectProto.traitType = Number(object.traitType) as TraitTypeProto;
+    }
+    if (object.structType != null) {
+      objectProto.structType = Number(object.structType) as StructTypeProto;
+    }
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
+    return objectProto as ObjectReferenceProto;
+  }
+
+  static __unpackProto__(
+    objectProto: ObjectReferenceProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ObjectReference {
+    return new ObjectReference({
+      type: Number(objectProto.type) as ObjectType,
+      nodeType: objectProto.nodeType != undefined ? (Number(objectProto.nodeType) as NodeType) : null,
+      traitType: objectProto.traitType != undefined ? (Number(objectProto.traitType) as TraitType) : null,
+      structType: objectProto.structType != undefined ? (Number(objectProto.structType) as StructType) : null,
+      definition:
+        objectProto.definitionPtr != undefined
+          ? NodeReference.fromProto(objectProto.definitionPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: ObjectReferenceProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ObjectReference {
+    return ObjectReference.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+
+  static of(attribute: PropertyReference | CustomProperty) {
+    if (attribute instanceof PropertyReference) {
+      return attribute;
+    } else if (attribute instanceof CustomProperty) {
+      return new PropertyReference({
+        type: PropertyReferenceType.CUSTOM,
+        nodeType: NodeType.CUSTOM_ENTITY,
+        customProperty: attribute,
+      });
+    } else {
+      assertNever(attribute);
+    }
+  }
+
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.OBJECT_REFERENCE, ObjectReference);
+/* ==== DESTACK_GENERATED_END:STRUCT:50108 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:50003 ==== */
+/**
+ * A reference to a builtin object's Property.
+ */
+export class PropertyReference extends StructFrozen {
+  static metatype: StructType = StructType.PROPERTY_REFERENCE;
+  static __isFrozen__: boolean = true;
+
+  /**
+   * PropertyReference.type
+   */
+  readonly type: PropertyReferenceType;
+
+  /**
+   * PropertyReference.nodeType
+   */
+  readonly nodeType: NodeType | null;
+
+  /**
+   * PropertyReference.traitType
+   */
+  readonly traitType: TraitType | null;
+
+  /**
+   * PropertyReference.structType
+   */
+  readonly structType: StructType | null;
+
+  /**
+   * id of the builtin Property
+   */
+  readonly id: number | null;
+
+  /**
+   * custom Property of a custom Node or Struct
+   */
+  get customProperty(): CustomProperty | null {
+    const nodePtr: NodeReference | null = this.customPropertyPtr;
+    if (nodePtr !== null) {
+      if (this._supergraph === null) {
+        return null;
+      }
+      return this._supergraph.get(nodePtr.id) as CustomProperty | null;
+    }
+    return null;
+  }
+  readonly customPropertyPtr: NodeReference | null;
+
+  constructor(options: {
+    type: PropertyReferenceType;
+    nodeType?: NodeType | null;
+    traitType?: TraitType | null;
+    structType?: StructType | null;
+    id?: number | null;
+    customProperty?: CustomProperty | NodeReference | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
+  }) {
+    super(
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+    );
+
+    // properties
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`PropertyReference.type is required`);
+    }
+    this.type = _type;
+    let _nodeType = options.nodeType ?? null;
+    this.nodeType = _nodeType;
+    let _traitType = options.traitType ?? null;
+    this.traitType = _traitType;
+    let _structType = options.structType ?? null;
+    this.structType = _structType;
+    let _id = options.id ?? null;
+    this.id = _id;
+    let _customProperty = options.customProperty ?? null;
+    if (_customProperty != null && _customProperty instanceof Node) {
+      _customProperty = _customProperty.toRef();
+    }
+    this.customPropertyPtr = _customProperty;
+
+    // identity
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (
+      (this.nodeType == null) !== (other.nodeType == null) ||
+      (this.nodeType != null && !(this.nodeType === other.nodeType))
+    ) {
+      return false;
+    }
+    if (
+      (this.traitType == null) !== (other.traitType == null) ||
+      (this.traitType != null && !(this.traitType === other.traitType))
+    ) {
+      return false;
+    }
+    if (
+      (this.structType == null) !== (other.structType == null) ||
+      (this.structType != null && !(this.structType === other.structType))
+    ) {
+      return false;
+    }
+    if ((this.id == null) !== (other.id == null) || (this.id != null && !(this.id === other.id))) {
+      return false;
+    }
+    if (
+      (this.customPropertyPtr == null) !== (other.customPropertyPtr == null) ||
+      (this.customPropertyPtr != null && !(this.customPropertyPtr.id === other.customPropertyPtr.id))
+    ) {
       return false;
     }
     return true;
@@ -877,7 +947,12 @@ export class PropertyReference extends StructFrozen {
     if (object.structType != null) {
       objectValue["33"] = object.structType;
     }
-    objectValue["35"] = object.id;
+    if (object.id != null) {
+      objectValue["35"] = object.id;
+    }
+    if (object.customPropertyPtr != null) {
+      objectValue["36"] = object.customPropertyPtr.toValue();
+    }
     return objectValue;
   }
 
@@ -894,12 +969,20 @@ export class PropertyReference extends StructFrozen {
     const unpackedTraitType = traitTypeValue != undefined ? Number(traitTypeValue) : null;
     const structTypeValue = objectValue["33"];
     const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : null;
+    const idValue = objectValue["35"];
+    const unpackedId = idValue != undefined ? Number(idValue) : null;
+    const customPropertyPtrValue = objectValue["36"];
+    const unpackedCustomPropertyPtr =
+      customPropertyPtrValue != undefined
+        ? NodeReference.fromValue(customPropertyPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new PropertyReference({
       type: Number(objectValue["30"]),
       nodeType: unpackedNodeType,
       traitType: unpackedTraitType,
       structType: unpackedStructType,
-      id: Number(objectValue["35"]),
+      id: unpackedId,
+      customProperty: unpackedCustomPropertyPtr,
       _value: objectValue,
       _supergraph,
     });
@@ -935,7 +1018,12 @@ export class PropertyReference extends StructFrozen {
     if (object.structType != null) {
       objectProto.structType = Number(object.structType) as StructTypeProto;
     }
-    objectProto.id = object.id;
+    if (object.id != null) {
+      objectProto.id = object.id;
+    }
+    if (object.customPropertyPtr != null) {
+      objectProto.customPropertyPtr = object.customPropertyPtr.toProto();
+    }
     return objectProto as PropertyReferenceProto;
   }
 
@@ -951,7 +1039,11 @@ export class PropertyReference extends StructFrozen {
       nodeType: objectProto.nodeType != undefined ? (Number(objectProto.nodeType) as NodeType) : null,
       traitType: objectProto.traitType != undefined ? (Number(objectProto.traitType) as TraitType) : null,
       structType: objectProto.structType != undefined ? (Number(objectProto.structType) as StructType) : null,
-      id: Number(objectProto.id),
+      id: objectProto.id != undefined ? Number(objectProto.id) : null,
+      customProperty:
+        objectProto.customPropertyPtr != undefined
+          ? NodeReference.fromProto(objectProto.customPropertyPtr!, _session, _supergraph, _graph, _connection)
+          : null,
       _proto: objectProto,
       _supergraph,
     });
@@ -968,7 +1060,21 @@ export class PropertyReference extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
+
+  static of(attribute: CustomProperty | PropertyReference): PropertyReference {
+    if (attribute instanceof PropertyReference) {
+      return attribute;
+    } else if (attribute instanceof CustomProperty) {
+      return new PropertyReference({
+        type: PropertyReferenceType.CUSTOM,
+        nodeType: NodeType.CUSTOM_ENTITY,
+        customProperty: attribute,
+      });
+    } else {
+      assertNever(attribute);
+    }
+  }
+
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.PROPERTY_REFERENCE, PropertyReference);
@@ -976,7 +1082,7 @@ registerStructClass(StructType.PROPERTY_REFERENCE, PropertyReference);
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50002 ==== */
 /**
- * A reference to a Node.
+ * A reference to a Node (builtin or custom).
  */
 export class NodeReference extends StructFrozen {
   static metatype: StructType = StructType.NODE_REFERENCE;

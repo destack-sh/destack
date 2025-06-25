@@ -67,11 +67,11 @@ export class Service
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [NodeType.FIELD, NodeType.TAGGING, NodeType.ACTION, NodeType.SCRIPT];
+  static __childTypes__: NodeType[] = [NodeType.CUSTOM_PROPERTY, NodeType.TAGGING, NodeType.ACTION, NodeType.SCRIPT];
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [
-    NodeType.OPTION,
-    NodeType.FIELD,
+    NodeType.CUSTOM_OPTION,
+    NodeType.CUSTOM_PROPERTY,
     NodeType.ACTION,
     NodeType.TAGGING,
     NodeType.SCRIPT,
@@ -341,27 +341,16 @@ export class Service
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.materialization === other.materialization)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
-    if (Object.keys(this.value).length !== Object.keys(other.value).length) {
-      return false;
-    }
-    for (const key in this.value) {
-      if (!(key in other.value)) {
-        return false;
-      }
-      if (!this.value[key].equals(other.value[key])) {
-        return false;
-      }
-    }
     if (
       (this.spacePtr == null) !== (other.spacePtr == null) ||
       (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
     ) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
       return false;
     }
     if (
@@ -381,6 +370,17 @@ export class Service
       (this.sourcePtr != null && !(this.sourcePtr.id === other.sourcePtr.id))
     ) {
       return false;
+    }
+    if (Object.keys(this.value).length !== Object.keys(other.value).length) {
+      return false;
+    }
+    for (const key in this.value) {
+      if (!(key in other.value)) {
+        return false;
+      }
+      if (!this.value[key].equals(other.value[key])) {
+        return false;
+      }
     }
     return true;
   }
@@ -474,63 +474,65 @@ export class Service
     _graph?: any | null,
     _connection?: any | null,
   ): Service {
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const ownedByPtrValue = objectValue["25"];
+    const unpackedOwnedByPtr =
+      ownedByPtrValue != undefined
+        ? NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const scriptPtrValue = objectValue["200"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const sourcePtrValue = objectValue["210"];
+    const unpackedSourcePtr =
+      sourcePtrValue != undefined
+        ? NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const unpackedValue = new Map();
     if (objectValue["21"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["21"])) {
         unpackedValue.set(String(key), Value.fromValue(value as any, _session, _supergraph, _graph, _connection));
       }
     }
-    const parentValue = objectValue["3"];
-    const unpackedParent =
-      parentValue != undefined
-        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const spaceValue = objectValue["5"];
-    const unpackedSpace =
-      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
-    const createdByValue = objectValue["16"];
-    const unpackedCreatedBy =
-      createdByValue != undefined
-        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByValue = objectValue["18"];
-    const unpackedUpdatedBy =
-      updatedByValue != undefined
-        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const ownedByValue = objectValue["25"];
-    const unpackedOwnedBy =
-      ownedByValue != undefined
-        ? NodeReference.fromValue(ownedByValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const scriptValue = objectValue["200"];
-    const unpackedScript =
-      scriptValue != undefined
-        ? NodeReference.fromValue(scriptValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const sourceValue = objectValue["210"];
-    const unpackedSource =
-      sourceValue != undefined
-        ? NodeReference.fromValue(sourceValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new Service({
+      parent: unpackedParentPtr,
+      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedBy: unpackedUpdatedByPtr,
       name: objectValue["31"],
       deletedAt: unpackedDeletedAt,
+      ownedBy: unpackedOwnedByPtr,
+      script: unpackedScriptPtr,
+      source: unpackedSourcePtr,
       orderKey: objectValue["22"],
       value: unpackedValue,
-      parent: unpackedParent,
-      space: unpackedSpace,
-      createdBy: unpackedCreatedBy,
-      updatedBy: unpackedUpdatedBy,
-      ownedBy: unpackedOwnedBy,
-      script: unpackedScript,
-      source: unpackedSource,
       _session,
       _graph,
       _connection,
@@ -606,14 +608,6 @@ export class Service
       }
     }
     return new Service({
-      id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      name: objectProto.name,
-      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
-      orderKey: objectProto.orderKey,
-      value: unpackedValue,
       parent:
         objectProto.parentPtr != undefined
           ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
@@ -622,14 +616,20 @@ export class Service
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
           : null,
+      id: String(objectProto.id),
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
           ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
           ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      name: objectProto.name,
+      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       ownedBy:
         objectProto.ownedByPtr != undefined
           ? NodeReference.fromProto(objectProto.ownedByPtr!, _session, _supergraph, _graph, _connection)
@@ -642,6 +642,8 @@ export class Service
         objectProto.sourcePtr != undefined
           ? NodeReference.fromProto(objectProto.sourcePtr!, _session, _supergraph, _graph, _connection)
           : null,
+      orderKey: objectProto.orderKey,
+      value: unpackedValue,
       _session,
       _graph,
       _connection,

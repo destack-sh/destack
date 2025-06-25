@@ -76,8 +76,8 @@ export class CustomEntityDefinition
   static __childTypes__: NodeType[] = [NodeType.CUSTOM_ENTITY, NodeType.TAGGING, NodeType.ACTION, NodeType.SCRIPT];
   static __ancestorTypes__: NodeType[] = [NodeType.FOLDER, NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [
-    NodeType.OPTION,
-    NodeType.FIELD,
+    NodeType.CUSTOM_OPTION,
+    NodeType.CUSTOM_PROPERTY,
     NodeType.ACTION,
     NodeType.CUSTOM_ENTITY,
     NodeType.TAGGING,
@@ -373,6 +373,12 @@ export class CustomEntityDefinition
     if (!(this.metatype === other.metatype)) {
       return false;
     }
+    if (
+      (this.prototypePtr == null) !== (other.prototypePtr == null) ||
+      (this.prototypePtr != null && !(this.prototypePtr.id === other.prototypePtr.id))
+    ) {
+      return false;
+    }
     if (this.traits.length !== other.traits.length) {
       return false;
     }
@@ -381,22 +387,16 @@ export class CustomEntityDefinition
         return false;
       }
     }
-    if (!(this.materialization === other.materialization)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
-    if (
-      (this.prototypePtr == null) !== (other.prototypePtr == null) ||
-      (this.prototypePtr != null && !(this.prototypePtr.id === other.prototypePtr.id))
-    ) {
-      return false;
-    }
     if (
       (this.spacePtr == null) !== (other.spacePtr == null) ||
       (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
     ) {
+      return false;
+    }
+    if (!(this.materialization === other.materialization)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
       return false;
     }
     if (
@@ -512,69 +512,71 @@ export class CustomEntityDefinition
     _graph?: any | null,
     _connection?: any | null,
   ): CustomEntityDefinition {
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const prototypePtrValue = objectValue["6"];
+    const unpackedPrototypePtr =
+      prototypePtrValue != undefined
+        ? NodeReference.fromValue(prototypePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const unpackedTraits: any[] = [];
     if (objectValue["40"] != undefined) {
       for (const item of objectValue["40"]) {
         unpackedTraits.push(Number(item));
       }
     }
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const ownedByPtrValue = objectValue["25"];
+    const unpackedOwnedByPtr =
+      ownedByPtrValue != undefined
+        ? NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
-    const parentValue = objectValue["3"];
-    const unpackedParent =
-      parentValue != undefined
-        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
+    const scriptPtrValue = objectValue["200"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const prototypeValue = objectValue["6"];
-    const unpackedPrototype =
-      prototypeValue != undefined
-        ? NodeReference.fromValue(prototypeValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const spaceValue = objectValue["5"];
-    const unpackedSpace =
-      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
-    const createdByValue = objectValue["16"];
-    const unpackedCreatedBy =
-      createdByValue != undefined
-        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByValue = objectValue["18"];
-    const unpackedUpdatedBy =
-      updatedByValue != undefined
-        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const ownedByValue = objectValue["25"];
-    const unpackedOwnedBy =
-      ownedByValue != undefined
-        ? NodeReference.fromValue(ownedByValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const scriptValue = objectValue["200"];
-    const unpackedScript =
-      scriptValue != undefined
-        ? NodeReference.fromValue(scriptValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const sourceValue = objectValue["210"];
-    const unpackedSource =
-      sourceValue != undefined
-        ? NodeReference.fromValue(sourceValue, _session, _supergraph, _graph, _connection)
+    const sourcePtrValue = objectValue["210"];
+    const unpackedSourcePtr =
+      sourcePtrValue != undefined
+        ? NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new CustomEntityDefinition({
+      parent: unpackedParentPtr,
+      prototype: unpackedPrototypePtr,
       traits: unpackedTraits,
+      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedBy: unpackedUpdatedByPtr,
       name: objectValue["31"],
+      ownedBy: unpackedOwnedByPtr,
       deletedAt: unpackedDeletedAt,
+      script: unpackedScriptPtr,
+      source: unpackedSourcePtr,
       orderKey: objectValue["22"],
-      parent: unpackedParent,
-      prototype: unpackedPrototype,
-      space: unpackedSpace,
-      createdBy: unpackedCreatedBy,
-      updatedBy: unpackedUpdatedBy,
-      ownedBy: unpackedOwnedBy,
-      script: unpackedScript,
-      source: unpackedSource,
       _session,
       _graph,
       _connection,
@@ -654,14 +656,6 @@ export class CustomEntityDefinition
       }
     }
     return new CustomEntityDefinition({
-      traits: unpackedTraits,
-      id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      name: objectProto.name,
-      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
-      orderKey: objectProto.orderKey,
       parent:
         objectProto.parentPtr != undefined
           ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
@@ -670,22 +664,29 @@ export class CustomEntityDefinition
         objectProto.prototypePtr != undefined
           ? NodeReference.fromProto(objectProto.prototypePtr!, _session, _supergraph, _graph, _connection)
           : null,
+      traits: unpackedTraits,
       space:
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
           : null,
+      id: String(objectProto.id),
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
           ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
           ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      name: objectProto.name,
       ownedBy:
         objectProto.ownedByPtr != undefined
           ? NodeReference.fromProto(objectProto.ownedByPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       script:
         objectProto.scriptPtr != undefined
           ? NodeReference.fromProto(objectProto.scriptPtr!, _session, _supergraph, _graph, _connection)
@@ -694,6 +695,7 @@ export class CustomEntityDefinition
         objectProto.sourcePtr != undefined
           ? NodeReference.fromProto(objectProto.sourcePtr!, _session, _supergraph, _graph, _connection)
           : null,
+      orderKey: objectProto.orderKey,
       _session,
       _graph,
       _connection,
@@ -733,14 +735,19 @@ export class CustomEntity extends Node implements Spatial, Entity, IsExtensible,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.CUSTOM_ENTITY_DEFINITION, NodeType.CUSTOM_ENTITY];
-  static __childTypes__: NodeType[] = [NodeType.CUSTOM_ENTITY, NodeType.FIELD];
+  static __childTypes__: NodeType[] = [NodeType.CUSTOM_ENTITY, NodeType.CUSTOM_PROPERTY];
   static __ancestorTypes__: NodeType[] = [
     NodeType.CUSTOM_ENTITY_DEFINITION,
     NodeType.CUSTOM_ENTITY,
     NodeType.FOLDER,
     NodeType.SPACE,
   ];
-  static __descendantTypes__: NodeType[] = [NodeType.FIELD, NodeType.CUSTOM_ENTITY, NodeType.OPTION, NodeType.TAGGING];
+  static __descendantTypes__: NodeType[] = [
+    NodeType.CUSTOM_PROPERTY,
+    NodeType.CUSTOM_ENTITY,
+    NodeType.CUSTOM_OPTION,
+    NodeType.TAGGING,
+  ];
 
   /**
    * CustomEntity.parent
@@ -934,6 +941,15 @@ export class CustomEntity extends Node implements Spatial, Entity, IsExtensible,
     if (!(this.metatype === other.metatype)) {
       return false;
     }
+    if (!(this.definitionPtr.id === other.definitionPtr.id)) {
+      return false;
+    }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
     if (!(this.materialization === other.materialization)) {
       return false;
     }
@@ -947,15 +963,6 @@ export class CustomEntity extends Node implements Spatial, Entity, IsExtensible,
       if (!this.value[key].equals(other.value[key])) {
         return false;
       }
-    }
-    if (!(this.definitionPtr.id === other.definitionPtr.id)) {
-      return false;
-    }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
-      return false;
     }
     return true;
   }
@@ -1040,6 +1047,26 @@ export class CustomEntity extends Node implements Spatial, Entity, IsExtensible,
     _graph?: any | null,
     _connection?: any | null,
   ): CustomEntity {
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const unpackedValue = new Map();
     if (objectValue["21"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["21"])) {
@@ -1048,36 +1075,18 @@ export class CustomEntity extends Node implements Spatial, Entity, IsExtensible,
     }
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
-    const parentValue = objectValue["3"];
-    const unpackedParent =
-      parentValue != undefined
-        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const spaceValue = objectValue["5"];
-    const unpackedSpace =
-      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
-    const createdByValue = objectValue["16"];
-    const unpackedCreatedBy =
-      createdByValue != undefined
-        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByValue = objectValue["18"];
-    const unpackedUpdatedBy =
-      updatedByValue != undefined
-        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new CustomEntity({
+      parent: unpackedParentPtr,
+      definition: NodeReference.fromValue(objectValue["6"], _session, _supergraph, _graph, _connection),
+      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedBy: unpackedUpdatedByPtr,
       value: unpackedValue,
       deletedAt: unpackedDeletedAt,
-      parent: unpackedParent,
-      definition: NodeReference.fromValue(objectValue["6"], _session, _supergraph, _graph, _connection),
-      space: unpackedSpace,
-      createdBy: unpackedCreatedBy,
-      updatedBy: unpackedUpdatedBy,
       _session,
       _graph,
       _connection,
@@ -1143,12 +1152,6 @@ export class CustomEntity extends Node implements Spatial, Entity, IsExtensible,
       }
     }
     return new CustomEntity({
-      id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      value: unpackedValue,
-      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       parent:
         objectProto.parentPtr != undefined
           ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
@@ -1158,14 +1161,20 @@ export class CustomEntity extends Node implements Spatial, Entity, IsExtensible,
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
           : null,
+      id: String(objectProto.id),
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
           ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
           ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      value: unpackedValue,
+      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       _session,
       _graph,
       _connection,

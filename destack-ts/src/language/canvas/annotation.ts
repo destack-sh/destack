@@ -79,7 +79,7 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
     NodeType.LAYER,
   ];
   static __childTypes__: NodeType[] = [
-    NodeType.FIELD,
+    NodeType.CUSTOM_PROPERTY,
     NodeType.CUSTOM_VIEW,
     NodeType.FRAME_VIEW,
     NodeType.LABEL_VIEW,
@@ -136,9 +136,9 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
     NodeType.LAYER,
     NodeType.VARIANT,
     NodeType.SHADOW_STYLE,
-    NodeType.FIELD,
+    NodeType.CUSTOM_PROPERTY,
     NodeType.TEXT_VIEW,
-    NodeType.OPTION,
+    NodeType.CUSTOM_OPTION,
     NodeType.THREAD_VIEW,
     NodeType.PALETTE,
     NodeType.TAGGING,
@@ -725,10 +725,22 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
     ) {
       return false;
     }
+    if (
+      (this.spacePtr == null) !== (other.spacePtr == null) ||
+      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
+    ) {
+      return false;
+    }
     if (!(this.materialization === other.materialization)) {
       return false;
     }
     if (!(this.name === other.name)) {
+      return false;
+    }
+    if (
+      (this.scriptPtr == null) !== (other.scriptPtr == null) ||
+      (this.scriptPtr != null && !(this.scriptPtr.id === other.scriptPtr.id))
+    ) {
       return false;
     }
     if (Object.keys(this.value).length !== Object.keys(other.value).length) {
@@ -741,18 +753,6 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
       if (!this.value[key].equals(other.value[key])) {
         return false;
       }
-    }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
-      return false;
-    }
-    if (
-      (this.scriptPtr == null) !== (other.scriptPtr == null) ||
-      (this.scriptPtr != null && !(this.scriptPtr.id === other.scriptPtr.id))
-    ) {
-      return false;
     }
     return true;
   }
@@ -972,6 +972,11 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
     const radiusValue = objectValue["68"];
     const unpackedRadius =
       radiusValue != undefined ? Corners.fromValue(radiusValue, _session, _supergraph, _graph, _connection) : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const positionValue = objectValue["40"];
     const unpackedPosition =
       positionValue != undefined ? Position.fromValue(positionValue, _session, _supergraph, _graph, _connection) : null;
@@ -1001,6 +1006,26 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
       maxHeightValue != undefined
         ? Dimension.fromValue(maxHeightValue, _session, _supergraph, _graph, _connection)
         : null;
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const scriptPtrValue = objectValue["200"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
     const unpackedValue = new Map();
@@ -1009,29 +1034,6 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
         unpackedValue.set(String(key), Value.fromValue(value as any, _session, _supergraph, _graph, _connection));
       }
     }
-    const parentValue = objectValue["3"];
-    const unpackedParent =
-      parentValue != undefined
-        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const spaceValue = objectValue["5"];
-    const unpackedSpace =
-      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
-    const createdByValue = objectValue["16"];
-    const unpackedCreatedBy =
-      createdByValue != undefined
-        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByValue = objectValue["18"];
-    const unpackedUpdatedBy =
-      updatedByValue != undefined
-        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const scriptValue = objectValue["200"];
-    const unpackedScript =
-      scriptValue != undefined
-        ? NodeReference.fromValue(scriptValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new AnnotationShape({
       text: unpackedText,
       layout: unpackedLayout,
@@ -1053,6 +1055,7 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
       shadow: unpackedShadow,
       border: unpackedBorder,
       radius: unpackedRadius,
+      parent: unpackedParentPtr,
       position: unpackedPosition,
       width: unpackedWidth,
       height: unpackedHeight,
@@ -1060,19 +1063,18 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
       minHeight: unpackedMinHeight,
       maxWidth: unpackedMaxWidth,
       maxHeight: unpackedMaxHeight,
+      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedBy: unpackedUpdatedByPtr,
       name: objectValue["31"],
       orderKey: objectValue["22"],
+      script: unpackedScriptPtr,
       deletedAt: unpackedDeletedAt,
       value: unpackedValue,
-      parent: unpackedParent,
-      space: unpackedSpace,
-      createdBy: unpackedCreatedBy,
-      updatedBy: unpackedUpdatedBy,
-      script: unpackedScript,
       _session,
       _graph,
       _connection,
@@ -1276,6 +1278,10 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
         objectProto.radius != undefined
           ? Corners.fromProto(objectProto.radius!, _session, _supergraph, _graph, _connection)
           : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
       position:
         objectProto.position != undefined
           ? Position.fromProto(objectProto.position!, _session, _supergraph, _graph, _connection)
@@ -1304,34 +1310,30 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
         objectProto.maxHeight != undefined
           ? Dimension.fromProto(objectProto.maxHeight!, _session, _supergraph, _graph, _connection)
           : null,
-      id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      name: objectProto.name,
-      orderKey: objectProto.orderKey,
-      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
-      value: unpackedValue,
-      parent:
-        objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
-          : null,
       space:
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
           : null,
+      id: String(objectProto.id),
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
           ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
           ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      name: objectProto.name,
+      orderKey: objectProto.orderKey,
       script:
         objectProto.scriptPtr != undefined
           ? NodeReference.fromProto(objectProto.scriptPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      value: unpackedValue,
       _session,
       _graph,
       _connection,

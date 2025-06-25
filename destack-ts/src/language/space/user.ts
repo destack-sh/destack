@@ -361,6 +361,21 @@ export class User extends Node implements Global, Entity, HasName, HasIcon, HasS
     if (!(this.isStaff === other.isStaff)) {
       return false;
     }
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
+      return false;
+    }
+    if (
+      (this.handlePtr == null) !== (other.handlePtr == null) ||
+      (this.handlePtr != null && !(this.handlePtr.id === other.handlePtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.cursorPtr == null) !== (other.cursorPtr == null) ||
+      (this.cursorPtr != null && !(this.cursorPtr.id === other.cursorPtr.id))
+    ) {
+      return false;
+    }
     if ((this.email == null) !== (other.email == null) || (this.email != null && !(this.email === other.email))) {
       return false;
     }
@@ -380,21 +395,6 @@ export class User extends Node implements Global, Entity, HasName, HasIcon, HasS
       return false;
     }
     if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
-      return false;
-    }
-    if (!(this.spacePtr.id === other.spacePtr.id)) {
-      return false;
-    }
-    if (
-      (this.handlePtr == null) !== (other.handlePtr == null) ||
-      (this.handlePtr != null && !(this.handlePtr.id === other.handlePtr.id))
-    ) {
-      return false;
-    }
-    if (
-      (this.cursorPtr == null) !== (other.cursorPtr == null) ||
-      (this.cursorPtr != null && !(this.cursorPtr.id === other.cursorPtr.id))
-    ) {
       return false;
     }
     return true;
@@ -484,60 +484,60 @@ export class User extends Node implements Global, Entity, HasName, HasIcon, HasS
     const lastLoggedInAtValue = objectValue["41"];
     const unpackedLastLoggedInAt =
       lastLoggedInAtValue != undefined ? Temporal.ZonedDateTime.from(lastLoggedInAtValue) : null;
+    const handlePtrValue = objectValue["51"];
+    const unpackedHandlePtr =
+      handlePtrValue != undefined
+        ? NodeReference.fromValue(handlePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const cursorPtrValue = objectValue["52"];
+    const unpackedCursorPtr =
+      cursorPtrValue != undefined
+        ? NodeReference.fromValue(cursorPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const emailValue = objectValue["60"];
     const unpackedEmail = emailValue != undefined ? emailValue : null;
     const passwordSaltValue = objectValue["61"];
     const unpackedPasswordSalt = passwordSaltValue != undefined ? Buffer.from(passwordSaltValue, "base64") : null;
     const passwordHashValue = objectValue["62"];
     const unpackedPasswordHash = passwordHashValue != undefined ? Buffer.from(passwordHashValue, "base64") : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const iconValue = objectValue["34"];
     const unpackedIcon =
       iconValue != undefined ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection) : null;
-    const handleValue = objectValue["51"];
-    const unpackedHandle =
-      handleValue != undefined
-        ? NodeReference.fromValue(handleValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const cursorValue = objectValue["52"];
-    const unpackedCursor =
-      cursorValue != undefined
-        ? NodeReference.fromValue(cursorValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const parentValue = objectValue["3"];
-    const unpackedParent =
-      parentValue != undefined
-        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const createdByValue = objectValue["16"];
-    const unpackedCreatedBy =
-      createdByValue != undefined
-        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByValue = objectValue["18"];
-    const unpackedUpdatedBy =
-      updatedByValue != undefined
-        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new User({
       name: objectValue["31"],
       slug: objectValue["33"],
       status: Number(objectValue["40"]),
       lastLoggedInAt: unpackedLastLoggedInAt,
       isStaff: objectValue["45"],
+      space: NodeReference.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
+      handle: unpackedHandlePtr,
+      cursor: unpackedCursorPtr,
       email: unpackedEmail,
       passwordSalt: unpackedPasswordSalt,
       passwordHash: unpackedPasswordHash,
       id: String(objectValue["2"]),
+      parent: unpackedParentPtr,
       materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedBy: unpackedUpdatedByPtr,
       icon: unpackedIcon,
-      space: NodeReference.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
-      handle: unpackedHandle,
-      cursor: unpackedCursor,
-      parent: unpackedParent,
-      createdBy: unpackedCreatedBy,
-      updatedBy: unpackedUpdatedBy,
       _session,
       _graph,
       _connection,
@@ -616,17 +616,6 @@ export class User extends Node implements Global, Entity, HasName, HasIcon, HasS
       lastLoggedInAt:
         objectProto.lastLoggedInAt != undefined ? unpackProtoTimestamp(objectProto.lastLoggedInAt!) : null,
       isStaff: objectProto.isStaff,
-      email: objectProto.email != undefined ? objectProto.email : null,
-      passwordSalt: objectProto.passwordSalt != undefined ? objectProto.passwordSalt : null,
-      passwordHash: objectProto.passwordHash != undefined ? objectProto.passwordHash : null,
-      id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      icon:
-        objectProto.icon != undefined
-          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
       space: NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection),
       handle:
         objectProto.handlePtr != undefined
@@ -636,17 +625,28 @@ export class User extends Node implements Global, Entity, HasName, HasIcon, HasS
         objectProto.cursorPtr != undefined
           ? NodeReference.fromProto(objectProto.cursorPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      email: objectProto.email != undefined ? objectProto.email : null,
+      passwordSalt: objectProto.passwordSalt != undefined ? objectProto.passwordSalt : null,
+      passwordHash: objectProto.passwordHash != undefined ? objectProto.passwordHash : null,
+      id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
           ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      materialization: Number(objectProto.materialization) as MaterializationType,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
           ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
           ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      icon:
+        objectProto.icon != undefined
+          ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
       _session,
       _graph,

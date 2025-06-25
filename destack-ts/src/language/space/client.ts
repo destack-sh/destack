@@ -557,6 +557,18 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
       return false;
     }
     if (
+      (this.machinePtr == null) !== (other.machinePtr == null) ||
+      (this.machinePtr != null && !(this.machinePtr.id === other.machinePtr.id))
+    ) {
+      return false;
+    }
+    if (
+      (this.userPtr == null) !== (other.userPtr == null) ||
+      (this.userPtr != null && !(this.userPtr.id === other.userPtr.id))
+    ) {
+      return false;
+    }
+    if (
       (this.accessToken == null) !== (other.accessToken == null) ||
       (this.accessToken != null && !(this.accessToken === other.accessToken))
     ) {
@@ -568,6 +580,12 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
     if (
       (this.loggedInAt == null) !== (other.loggedInAt == null) ||
       (this.loggedInAt != null && !(this.loggedInAt === other.loggedInAt))
+    ) {
+      return false;
+    }
+    if (
+      (this.cursorPtr == null) !== (other.cursorPtr == null) ||
+      (this.cursorPtr != null && !(this.cursorPtr.id === other.cursorPtr.id))
     ) {
       return false;
     }
@@ -605,24 +623,6 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
       return false;
     }
     if (!(this.materialization === other.materialization)) {
-      return false;
-    }
-    if (
-      (this.machinePtr == null) !== (other.machinePtr == null) ||
-      (this.machinePtr != null && !(this.machinePtr.id === other.machinePtr.id))
-    ) {
-      return false;
-    }
-    if (
-      (this.userPtr == null) !== (other.userPtr == null) ||
-      (this.userPtr != null && !(this.userPtr.id === other.userPtr.id))
-    ) {
-      return false;
-    }
-    if (
-      (this.cursorPtr == null) !== (other.cursorPtr == null) ||
-      (this.cursorPtr != null && !(this.cursorPtr.id === other.cursorPtr.id))
-    ) {
       return false;
     }
     return true;
@@ -730,12 +730,32 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
     _graph?: any | null,
     _connection?: any | null,
   ): Client {
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const machinePtrValue = objectValue["36"];
+    const unpackedMachinePtr =
+      machinePtrValue != undefined
+        ? NodeReference.fromValue(machinePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const userPtrValue = objectValue["37"];
+    const unpackedUserPtr =
+      userPtrValue != undefined
+        ? NodeReference.fromValue(userPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const accessTokenValue = objectValue["50"];
     const unpackedAccessToken = accessTokenValue != undefined ? accessTokenValue : null;
     const seenAtValue = objectValue["51"];
     const unpackedSeenAt = seenAtValue != undefined ? Temporal.ZonedDateTime.from(seenAtValue) : null;
     const loggedInAtValue = objectValue["52"];
     const unpackedLoggedInAt = loggedInAtValue != undefined ? Temporal.ZonedDateTime.from(loggedInAtValue) : null;
+    const cursorPtrValue = objectValue["55"];
+    const unpackedCursorPtr =
+      cursorPtrValue != undefined
+        ? NodeReference.fromValue(cursorPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const deviceTypeValue = objectValue["40"];
     const unpackedDeviceType = deviceTypeValue != undefined ? deviceTypeValue : null;
     const deviceNameValue = objectValue["41"];
@@ -746,41 +766,27 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
     const unpackedBrowserName = browserNameValue != undefined ? browserNameValue : null;
     const browserVersionValue = objectValue["44"];
     const unpackedBrowserVersion = browserVersionValue != undefined ? browserVersionValue : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
-    const parentValue = objectValue["3"];
-    const unpackedParent =
-      parentValue != undefined
-        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const machineValue = objectValue["36"];
-    const unpackedMachine =
-      machineValue != undefined
-        ? NodeReference.fromValue(machineValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const userValue = objectValue["37"];
-    const unpackedUser =
-      userValue != undefined ? NodeReference.fromValue(userValue, _session, _supergraph, _graph, _connection) : null;
-    const cursorValue = objectValue["55"];
-    const unpackedCursor =
-      cursorValue != undefined
-        ? NodeReference.fromValue(cursorValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const createdByValue = objectValue["16"];
-    const unpackedCreatedBy =
-      createdByValue != undefined
-        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByValue = objectValue["18"];
-    const unpackedUpdatedBy =
-      updatedByValue != undefined
-        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new Client({
+      parent: unpackedParentPtr,
       type: Number(objectValue["30"]),
+      machine: unpackedMachinePtr,
+      user: unpackedUserPtr,
       accessToken: unpackedAccessToken,
       seenAt: unpackedSeenAt,
       loggedInAt: unpackedLoggedInAt,
+      cursor: unpackedCursorPtr,
       deviceType: unpackedDeviceType,
       deviceName: unpackedDeviceName,
       operatingSystem: unpackedOperatingSystem,
@@ -790,14 +796,10 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
       id: String(objectValue["2"]),
       materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
-      parent: unpackedParent,
-      machine: unpackedMachine,
-      user: unpackedUser,
-      cursor: unpackedCursor,
-      createdBy: unpackedCreatedBy,
-      updatedBy: unpackedUpdatedBy,
       _session,
       _graph,
       _connection,
@@ -882,10 +884,26 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
     _connection?: any | null,
   ): Client {
     return new Client({
+      parent:
+        objectProto.parentPtr != undefined
+          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          : null,
       type: Number(objectProto.type) as ClientType,
+      machine:
+        objectProto.machinePtr != undefined
+          ? NodeReference.fromProto(objectProto.machinePtr!, _session, _supergraph, _graph, _connection)
+          : null,
+      user:
+        objectProto.userPtr != undefined
+          ? NodeReference.fromProto(objectProto.userPtr!, _session, _supergraph, _graph, _connection)
+          : null,
       accessToken: objectProto.accessToken != undefined ? objectProto.accessToken : null,
       seenAt: objectProto.seenAt != undefined ? unpackProtoTimestamp(objectProto.seenAt!) : null,
       loggedInAt: objectProto.loggedInAt != undefined ? unpackProtoTimestamp(objectProto.loggedInAt!) : null,
+      cursor:
+        objectProto.cursorPtr != undefined
+          ? NodeReference.fromProto(objectProto.cursorPtr!, _session, _supergraph, _graph, _connection)
+          : null,
       deviceType: objectProto.deviceType != undefined ? objectProto.deviceType : null,
       deviceName: objectProto.deviceName != undefined ? objectProto.deviceName : null,
       operatingSystem: objectProto.operatingSystem != undefined ? objectProto.operatingSystem : null,
@@ -895,32 +913,16 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
       id: String(objectProto.id),
       materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
-      parent:
-        objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
-          : null,
-      machine:
-        objectProto.machinePtr != undefined
-          ? NodeReference.fromProto(objectProto.machinePtr!, _session, _supergraph, _graph, _connection)
-          : null,
-      user:
-        objectProto.userPtr != undefined
-          ? NodeReference.fromProto(objectProto.userPtr!, _session, _supergraph, _graph, _connection)
-          : null,
-      cursor:
-        objectProto.cursorPtr != undefined
-          ? NodeReference.fromProto(objectProto.cursorPtr!, _session, _supergraph, _graph, _connection)
-          : null,
       createdBy:
         objectProto.createdByPtr != undefined
           ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
           ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       _session,
       _graph,
       _connection,

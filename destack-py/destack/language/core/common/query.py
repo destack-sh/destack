@@ -23,7 +23,7 @@ from .relation import PropertyReference, RelationReference
 from .value import Value
 
 if TYPE_CHECKING:
-    from destack.language import CustomProperty, QueryConnection
+    from destack.language import CustomProperty, PropertyDefinition, QueryConnection
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -183,11 +183,13 @@ class Expression(StructFrozen):
 
     @classmethod
     def of(cls, thing: "ExpressionIn") -> "Expression":
+        from destack.language.core import PropertyDeclaration, PropertyDefinition
+
         if isinstance(thing, Value):
             return Expression(type=ExpressionType.LITERAL, literal=thing)
         elif isinstance(thing, PropertyReference):
             return Expression(type=ExpressionType.ATTRIBUTE, attribute=thing)
-        elif isinstance(thing, (Node, PropertyDeclaration)):
+        elif isinstance(thing, (Node, PropertyDeclaration, PropertyDefinition)):
             return Expression(type=ExpressionType.ATTRIBUTE, attribute=PropertyReference.of(thing))
         elif isinstance(thing, Condition):
             return Expression(type=ExpressionType.CONDITION, condition=thing)
@@ -204,8 +206,9 @@ class Expression(StructFrozen):
 ExpressionIn = Union[
     "Value",
     "PropertyReference",
-    "CustomProperty",
     "PropertyDeclaration",
+    "PropertyDefinition",
+    "CustomProperty",
     "Condition",
     "Function",
     "Aggregation",

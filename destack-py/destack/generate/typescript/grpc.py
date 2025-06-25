@@ -3,11 +3,11 @@ from typing import TYPE_CHECKING, assert_never
 
 from destack.language import (
     BuiltinObjectBase,
-    IntoType,
     PrimitiveType,
     PropertyDeclaration,
     ScalarType,
     TypeCardinality,
+    TypeDeclaration,
 )
 from destack.language.registry import STRUCT_CLASS_BY_TYPE, get_builtin_type
 from destack.utils.string import Casing, to_casing
@@ -104,10 +104,7 @@ def _generate_unpack_proto(cls: type["BuiltinObjectBase"]) -> str:
     for prop in cls.__wired_properties__.values():
         if prop.is_computed:
             continue  # set implicitly
-        if prop.runtime_prop is not None:
-            ts_name = to_casing(prop.runtime_prop.name, Casing.LOWER_CAMEL)
-        else:
-            ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
+        ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
         unpack_code = _generate_unpack_proto_property(prop)
         if len(unpack_code) == 1:
             assignment = unpack_code[0].split(" = ", 1)[1]
@@ -138,6 +135,8 @@ def _generate_pack_proto_property(prop: "PropertyDeclaration") -> list[str]:
     """Generate the packing code for a property value."""
     lines: list[str] = []
     ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
+    if prop.scalar_type == ScalarType.NODE_REFERENCE:
+        ts_name = ts_name + "Ptr"
     obj_value = f"object.{ts_name}"
 
     if prop.cardinality == TypeCardinality.SCALAR:
@@ -178,6 +177,8 @@ def _generate_unpack_proto_property(prop: "PropertyDeclaration") -> list[str]:
     """Generate the unpacking code for a property value."""
     lines: list[str] = []
     ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
+    if prop.scalar_type == ScalarType.NODE_REFERENCE:
+        ts_name = ts_name + "Ptr"
     proto_value = f"objectProto.{ts_name}"
     var_name = f"unpacked{_upper_first(ts_name)}"
 
@@ -212,7 +213,9 @@ def _generate_unpack_proto_property(prop: "PropertyDeclaration") -> list[str]:
     return lines
 
 
-def _generate_pack_proto_scalar(prop: "PropertyDeclaration | IntoType", value_expr: str) -> str:
+def _generate_pack_proto_scalar(
+    prop: "PropertyDeclaration | TypeDeclaration", value_expr: str
+) -> str:
     """Generate the packing code for a scalar value."""
     if prop.scalar_type == ScalarType.PRIMITIVE:
         if prop.primitive_type == PrimitiveType.UUID:
@@ -238,7 +241,9 @@ def _generate_pack_proto_scalar(prop: "PropertyDeclaration | IntoType", value_ex
         return value_expr
 
 
-def _generate_unpack_proto_scalar(prop: "PropertyDeclaration | IntoType", value_expr: str) -> str:
+def _generate_unpack_proto_scalar(
+    prop: "PropertyDeclaration | TypeDeclaration", value_expr: str
+) -> str:
     """Generate the unpacking code for a scalar value."""
     if prop.scalar_type == ScalarType.PRIMITIVE:
         if prop.primitive_type == PrimitiveType.UUID:

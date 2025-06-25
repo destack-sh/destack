@@ -238,8 +238,6 @@ def _generate_column_unpack(prop: "PropertyDeclaration") -> str:
         return "\n".join(unpack_lines)
     else:
         # regular properties
-        if prop.ptr_prop is not None:
-            prop = prop.ptr_prop
         if prop.cardinality == TypeCardinality.SCALAR:
             unpack_expr = _generate_unpack_scalar_value(prop, f"row['{prop.name}']")
             if prop.is_required:

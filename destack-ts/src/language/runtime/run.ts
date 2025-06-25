@@ -384,40 +384,42 @@ export class RunEvent extends Node implements Event {
     _graph?: any | null,
     _connection?: any | null,
   ): RunEvent {
-    const targetValue = objectValue["40"];
-    const unpackedTarget =
-      targetValue != undefined
-        ? NodeReference.fromValue(targetValue, _session, _supergraph, _graph, _connection)
+    const targetPtrValue = objectValue["40"];
+    const unpackedTargetPtr =
+      targetPtrValue != undefined
+        ? NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentValue = objectValue["3"];
-    const unpackedParent =
-      parentValue != undefined
-        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const spaceValue = objectValue["5"];
-    const unpackedSpace =
-      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
-    const createdByValue = objectValue["16"];
-    const unpackedCreatedBy =
-      createdByValue != undefined
-        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByValue = objectValue["18"];
-    const unpackedUpdatedBy =
-      updatedByValue != undefined
-        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new RunEvent({
       type: Number(objectValue["30"]),
+      node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
+      target: unpackedTargetPtr,
+      parent: unpackedParentPtr,
+      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
-      node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
-      target: unpackedTarget,
-      parent: unpackedParent,
-      space: unpackedSpace,
-      createdBy: unpackedCreatedBy,
-      updatedBy: unpackedUpdatedBy,
+      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -472,9 +474,6 @@ export class RunEvent extends Node implements Event {
   ): RunEvent {
     return new RunEvent({
       type: Number(objectProto.type) as RunEventType,
-      id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       node: NodeReference.fromProto(objectProto.nodePtr!, _session, _supergraph, _graph, _connection),
       target:
         objectProto.targetPtr != undefined
@@ -488,10 +487,13 @@ export class RunEvent extends Node implements Event {
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
           : null,
+      id: String(objectProto.id),
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
           ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
           ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
@@ -535,14 +537,14 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
-  static __childTypes__: NodeType[] = [NodeType.FIELD, NodeType.INTERRUPTION, NodeType.SPAN];
+  static __childTypes__: NodeType[] = [NodeType.CUSTOM_PROPERTY, NodeType.INTERRUPTION, NodeType.SPAN];
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [
-    NodeType.OPTION,
+    NodeType.CUSTOM_OPTION,
     NodeType.SPAN,
     NodeType.TAGGING,
     NodeType.INTERRUPTION,
-    NodeType.FIELD,
+    NodeType.CUSTOM_PROPERTY,
   ];
 
   /**
@@ -803,6 +805,12 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
     if (!(this.metatype === other.metatype)) {
       return false;
     }
+    if (
+      (this.targetPtr == null) !== (other.targetPtr == null) ||
+      (this.targetPtr != null && !(this.targetPtr.id === other.targetPtr.id))
+    ) {
+      return false;
+    }
     if (!(this.status === other.status)) {
       return false;
     }
@@ -839,23 +847,6 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
     ) {
       return false;
     }
-    if (Object.keys(this.value).length !== Object.keys(other.value).length) {
-      return false;
-    }
-    for (const key in this.value) {
-      if (!(key in other.value)) {
-        return false;
-      }
-      if (!this.value[key].equals(other.value[key])) {
-        return false;
-      }
-    }
-    if (
-      (this.targetPtr == null) !== (other.targetPtr == null) ||
-      (this.targetPtr != null && !(this.targetPtr.id === other.targetPtr.id))
-    ) {
-      return false;
-    }
     if (
       (this.interruptionPtr == null) !== (other.interruptionPtr == null) ||
       (this.interruptionPtr != null && !(this.interruptionPtr.id === other.interruptionPtr.id))
@@ -867,6 +858,17 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
       (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
     ) {
       return false;
+    }
+    if (Object.keys(this.value).length !== Object.keys(other.value).length) {
+      return false;
+    }
+    for (const key in this.value) {
+      if (!(key in other.value)) {
+        return false;
+      }
+      if (!this.value[key].equals(other.value[key])) {
+        return false;
+      }
     }
     return true;
   }
@@ -970,6 +972,16 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
     _graph?: any | null,
     _connection?: any | null,
   ): Run {
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const targetPtrValue = objectValue["40"];
+    const unpackedTargetPtr =
+      targetPtrValue != undefined
+        ? NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const durationValue = objectValue["42"];
     const unpackedDuration = durationValue != undefined ? timedeltaFromISOFormat(durationValue) : null;
     const scheduledAtValue = objectValue["45"];
@@ -983,41 +995,35 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
       interruptedAtValue != undefined ? Temporal.ZonedDateTime.from(interruptedAtValue) : null;
     const terminatedAtValue = objectValue["49"];
     const unpackedTerminatedAt = terminatedAtValue != undefined ? Temporal.ZonedDateTime.from(terminatedAtValue) : null;
+    const interruptionPtrValue = objectValue["51"];
+    const unpackedInterruptionPtr =
+      interruptionPtrValue != undefined
+        ? NodeReference.fromValue(interruptionPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const unpackedValue = new Map();
     if (objectValue["21"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["21"])) {
         unpackedValue.set(String(key), Value.fromValue(value as any, _session, _supergraph, _graph, _connection));
       }
     }
-    const parentValue = objectValue["3"];
-    const unpackedParent =
-      parentValue != undefined
-        ? NodeReference.fromValue(parentValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const targetValue = objectValue["40"];
-    const unpackedTarget =
-      targetValue != undefined
-        ? NodeReference.fromValue(targetValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const interruptionValue = objectValue["51"];
-    const unpackedInterruption =
-      interruptionValue != undefined
-        ? NodeReference.fromValue(interruptionValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const spaceValue = objectValue["5"];
-    const unpackedSpace =
-      spaceValue != undefined ? NodeReference.fromValue(spaceValue, _session, _supergraph, _graph, _connection) : null;
-    const createdByValue = objectValue["16"];
-    const unpackedCreatedBy =
-      createdByValue != undefined
-        ? NodeReference.fromValue(createdByValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByValue = objectValue["18"];
-    const unpackedUpdatedBy =
-      updatedByValue != undefined
-        ? NodeReference.fromValue(updatedByValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new Run({
+      parent: unpackedParentPtr,
+      target: unpackedTargetPtr,
       status: Number(objectValue["41"]),
       duration: unpackedDuration,
       scheduledAt: unpackedScheduledAt,
@@ -1025,16 +1031,14 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
       seenAt: unpackedSeenAt,
       interruptedAt: unpackedInterruptedAt,
       terminatedAt: unpackedTerminatedAt,
+      interruption: unpackedInterruptionPtr,
+      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedBy: unpackedUpdatedByPtr,
       value: unpackedValue,
-      parent: unpackedParent,
-      target: unpackedTarget,
-      interruption: unpackedInterruption,
-      space: unpackedSpace,
-      createdBy: unpackedCreatedBy,
-      updatedBy: unpackedUpdatedBy,
       _session,
       _graph,
       _connection,
@@ -1120,17 +1124,6 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
       }
     }
     return new Run({
-      status: Number(objectProto.status) as RunStatus,
-      duration: objectProto.duration != undefined ? unpackProtoDuration(objectProto.duration!) : null,
-      scheduledAt: objectProto.scheduledAt != undefined ? unpackProtoTimestamp(objectProto.scheduledAt!) : null,
-      startedAt: objectProto.startedAt != undefined ? unpackProtoTimestamp(objectProto.startedAt!) : null,
-      seenAt: objectProto.seenAt != undefined ? unpackProtoTimestamp(objectProto.seenAt!) : null,
-      interruptedAt: objectProto.interruptedAt != undefined ? unpackProtoTimestamp(objectProto.interruptedAt!) : null,
-      terminatedAt: objectProto.terminatedAt != undefined ? unpackProtoTimestamp(objectProto.terminatedAt!) : null,
-      id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      value: unpackedValue,
       parent:
         objectProto.parentPtr != undefined
           ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
@@ -1139,6 +1132,13 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
         objectProto.targetPtr != undefined
           ? NodeReference.fromProto(objectProto.targetPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      status: Number(objectProto.status) as RunStatus,
+      duration: objectProto.duration != undefined ? unpackProtoDuration(objectProto.duration!) : null,
+      scheduledAt: objectProto.scheduledAt != undefined ? unpackProtoTimestamp(objectProto.scheduledAt!) : null,
+      startedAt: objectProto.startedAt != undefined ? unpackProtoTimestamp(objectProto.startedAt!) : null,
+      seenAt: objectProto.seenAt != undefined ? unpackProtoTimestamp(objectProto.seenAt!) : null,
+      interruptedAt: objectProto.interruptedAt != undefined ? unpackProtoTimestamp(objectProto.interruptedAt!) : null,
+      terminatedAt: objectProto.terminatedAt != undefined ? unpackProtoTimestamp(objectProto.terminatedAt!) : null,
       interruption:
         objectProto.interruptionPtr != undefined
           ? NodeReference.fromProto(objectProto.interruptionPtr!, _session, _supergraph, _graph, _connection)
@@ -1147,14 +1147,18 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
           : null,
+      id: String(objectProto.id),
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
           ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
           ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
           : null,
+      value: unpackedValue,
       _session,
       _graph,
       _connection,
