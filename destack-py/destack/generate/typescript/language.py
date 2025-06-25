@@ -1533,13 +1533,13 @@ def generate():
         # collect all .ts files in this directory (excluding index.ts itself)
         ts_files = [f for f in module_path.glob("*.ts") if f.name != "index.ts"]
         for ts_file in sorted(ts_files):
-            module_name = ts_file.stem
-            index_lines.append(f"export * from './{module_name}';")
+            relative_path = ts_file.relative_to(GENERATION_PATH).with_suffix("")
+            index_lines.append(f"export * from '@destack/language/{relative_path}';")
         # collect all subdirectories that contain .ts files
         for subdir in sorted(module_path.iterdir()):
             if subdir.is_dir() and any(subdir.rglob("*.ts")):
-                subdir_name = subdir.name
-                index_lines.append(f"export * from './{subdir_name}';")
+                relative_path = subdir.relative_to(GENERATION_PATH).with_suffix("")
+                index_lines.append(f"export * from '@destack/language/{relative_path}';")
 
         index_content = "\n".join(index_lines) + "\n"
         index_path.write_text(index_content)

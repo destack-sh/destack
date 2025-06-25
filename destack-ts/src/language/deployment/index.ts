@@ -1,1 +1,1 @@
-export * from "./environment";
+export * from "@destack/language/deployment/environment";
