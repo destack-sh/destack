@@ -12,14 +12,15 @@ import pytz
 from destack.language import (
     EMPTY_DICT,
     EMPTY_LIST,
+    CustomProperty,
     EdgeType,
-    Field,
     Json,
     Node,
     NodeReference,
     NodeType,
     PrimitiveType,
-    Property,
+    PropertyDeclaration,
+    PropertyDefinition,
     ScalarType,
     Spatial,
     StructType,
@@ -74,7 +75,7 @@ def _unpack_{node_cls.__name__}_row(row: "asyncpg.Record") -> "Json":
     }
 
 
-def _generate_pack_scalar_value(prop: "Property", value_expr: str) -> str:
+def _generate_pack_scalar_value(prop: "PropertyDeclaration", value_expr: str) -> str:
     """Generate code to pack a scalar value for a property."""
     assert prop.scalar_type != ScalarType.NODE_REFERENCE, f"unhandled node ref: {prop!r}"
     if prop.scalar_type == ScalarType.PRIMITIVE:
@@ -100,7 +101,7 @@ def _generate_pack_scalar_value(prop: "Property", value_expr: str) -> str:
         assert_never(prop.scalar_type)
 
 
-def _generate_unpack_scalar_value(prop: "Property", value_expr: str) -> str:
+def _generate_unpack_scalar_value(prop: "PropertyDeclaration", value_expr: str) -> str:
     """Generate code to unpack a scalar value for a property."""
     assert prop.scalar_type != ScalarType.NODE_REFERENCE, f"unhandled node ref: {prop!r}"
     if prop.scalar_type == ScalarType.PRIMITIVE:
@@ -126,7 +127,7 @@ def _generate_unpack_scalar_value(prop: "Property", value_expr: str) -> str:
         assert_never(prop.scalar_type)
 
 
-def _generate_column_pack(prop: "Property") -> str:
+def _generate_column_pack(prop: "PropertyDeclaration") -> str:
     """Generate code to pack a property value into row columns."""
     assert prop.id is not None, f"no id for {prop!r}"
 
@@ -193,7 +194,7 @@ row_values.append(orjson.dumps(_value or EMPTY_DICT).decode())"""
             assert_never(prop.cardinality)
 
 
-def _generate_column_unpack(prop: "Property") -> str:
+def _generate_column_unpack(prop: "PropertyDeclaration") -> str:
     """Generate code to unpack row columns into a property value."""
     assert prop.id is not None, f"no id for {prop!r}"
 
@@ -336,7 +337,7 @@ def unpack_node_row(table: PostgresTable, row: asyncpg.Record) -> tuple[Value, N
 #
 
 
-def _pack_column_scalar(type: "Type | Field", value: Json) -> Any:
+def _pack_column_scalar(type: "PropertyDefinition | Type | CustomProperty", value: Json) -> Any:
     assert type.scalar_type != ScalarType.NODE_REFERENCE, f"unhandled node ref: {type!r}"
     if type.scalar_type == ScalarType.PRIMITIVE:
         if type.primitive_type == PrimitiveType.BYTES:
@@ -363,7 +364,7 @@ def _pack_column_scalar(type: "Type | Field", value: Json) -> Any:
         assert_never(type.scalar_type)
 
 
-def pack_column_flat(type: "Type | Field", value: Json) -> Any:
+def pack_column_flat(type: "PropertyDefinition | Type | CustomProperty", value: Json) -> Any:
     """Pack a dynamic column value into a single column value."""
     if type.cardinality == TypeCardinality.SCALAR:
         return _pack_column_scalar(type, value)
@@ -376,7 +377,7 @@ def pack_column_flat(type: "Type | Field", value: Json) -> Any:
 
 
 def pack_column_wide(
-    type: "Type | Field",
+    type: "PropertyDefinition | Type | CustomProperty",
     value: Json | None,
     table: PostgresTable,
     column_name: str,
@@ -411,7 +412,7 @@ def pack_column_wide(
         assert_never(type.cardinality)
 
 
-def _unpack_column_scalar(type: "Type | Field", value: Any) -> Json:
+def _unpack_column_scalar(type: "PropertyDefinition | Type | CustomProperty", value: Any) -> Json:
     assert type.scalar_type != ScalarType.NODE_REFERENCE, f"unhandled node ref: {type!r}"
     if type.scalar_type == ScalarType.PRIMITIVE:
         if type.primitive_type == PrimitiveType.BYTES:
@@ -438,7 +439,7 @@ def _unpack_column_scalar(type: "Type | Field", value: Any) -> Json:
         assert_never(type.scalar_type)
 
 
-def unpack_column(type: "Type | Field", value: Any) -> Json:
+def unpack_column(type: "PropertyDefinition | Type | CustomProperty", value: Any) -> Json:
     if type.cardinality == TypeCardinality.SCALAR:
         return _unpack_column_scalar(type, value)
     elif type.cardinality == TypeCardinality.LIST:

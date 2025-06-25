@@ -89,7 +89,8 @@ class PostgresStore(Store):
             for change in changes:
                 # duplicate context if we're mutating custom node definitions
                 has_custom_edits = any(
-                    edit.node_ptr.node_type in (NodeType.CUSTOM_ENTITY_DEFINITION, NodeType.FIELD)
+                    edit.node_ptr.node_type
+                    in (NodeType.CUSTOM_ENTITY_DEFINITION, NodeType.CUSTOM_PROPERTY)
                     for edit in change.edits
                 )
                 local_context = self.context.copy() if has_custom_edits else self.context
@@ -148,7 +149,10 @@ class PostgresStoreContext(PostgresContext):
     def apply(self, edits: Sequence[Edit]) -> Sequence[Edit]:
         applied_edits: list[Edit] = []
         for edit in edits:
-            if edit.node_ptr.node_type in (NodeType.CUSTOM_ENTITY_DEFINITION, NodeType.FIELD):
+            if edit.node_ptr.node_type in (
+                NodeType.CUSTOM_ENTITY_DEFINITION,
+                NodeType.CUSTOM_PROPERTY,
+            ):
                 applied_edits.append(edit)
                 # :PostgresSchemaEdits
         return applied_edits

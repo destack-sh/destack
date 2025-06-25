@@ -9,13 +9,13 @@ from typing import TYPE_CHECKING, Any, ClassVar, Self, Union, cast
 from more_itertools import first
 
 from destack.language import (
+    CustomProperty,
     Edit,
-    Field,
     IndexIn,
     NodeReference,
     NodeType,
     PrimitiveType,
-    Property,
+    PropertyDeclaration,
     RelationReference,
 )
 from destack.utils.func import hash_stable
@@ -203,8 +203,8 @@ class PostgresColumn(PostgresTableObject):
 
     name: str  # type: ignore
     type: PrimitiveType
-    prop: "Property"
-    field: Union["Field", None] = None
+    prop: "PropertyDeclaration"
+    field: Union["CustomProperty", None] = None
     is_array: bool = False
     is_primary_key: bool = False
     is_foreign_key_to: str | None = None

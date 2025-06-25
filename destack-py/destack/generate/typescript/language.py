@@ -19,7 +19,7 @@ from destack.language import (
     NodeDefinition,
     NodeType,
     PrimitiveType,
-    Property,
+    PropertyDeclaration,
     RoleType,
     ScalarType,
     StructDefinition,
@@ -82,9 +82,9 @@ def _generate_multiline_doc(description: str) -> str:
     return f"/**\n{formatted_description}\n */"
 
 
-def _get_properties(cls: type[BuiltinObjectBase]) -> list[Property]:
+def _get_properties(cls: type[BuiltinObjectBase]) -> list[PropertyDeclaration]:
     """Get the properties of a class."""
-    properties: list[Property] = []
+    properties: list[PropertyDeclaration] = []
     for prop in cls.__wired_properties__.values():
         if prop.id == 1:
             continue
@@ -95,7 +95,7 @@ def _get_properties(cls: type[BuiltinObjectBase]) -> list[Property]:
     return properties
 
 
-def _is_property_readonly(prop: Property) -> bool:
+def _is_property_readonly(prop: PropertyDeclaration) -> bool:
     """Check if a property is (effectively) readonly to the user."""
     return prop.can_write is None or prop.can_write == RoleType.SYSTEM or prop.is_managed
 
@@ -135,7 +135,7 @@ def _generate_property_scalar_type(prop: IntoType, as_ptr: bool = True) -> str:
         assert_never(prop.scalar_type)
 
 
-def _generate_property_type(prop: Property, as_ptr: bool = True) -> str:
+def _generate_property_type(prop: PropertyDeclaration, as_ptr: bool = True) -> str:
     """Generate a property Typescript type annotation."""
     type_str = _generate_property_scalar_type(prop, as_ptr=as_ptr)
     if prop.cardinality == TypeCardinality.SCALAR:
@@ -181,7 +181,7 @@ def _generate_value(type: IntoType, value: Any) -> str:
 
 
 def _generate_property(
-    prop: Property, *, is_readonly: bool, is_node: bool, is_interface: bool
+    prop: PropertyDeclaration, *, is_readonly: bool, is_node: bool, is_interface: bool
 ) -> str:
     """Generate a Property definition."""
 
@@ -291,7 +291,7 @@ set {ts_name}(value: {node_type_str}) {{
 def _generate_init(cls: type[BuiltinObjectBase]) -> str:
     """Generate a Typescript constructor with options-style parameters."""
 
-    def _is_property_required(prop: Property) -> bool:
+    def _is_property_required(prop: PropertyDeclaration) -> bool:
         return (
             prop.is_required
             and prop.default is UNSET
@@ -543,7 +543,7 @@ equals(other: any): boolean {{
     return equals_impl.strip()
 
 
-def _generate_property_cmp_impl(prop: Property) -> str:
+def _generate_property_cmp_impl(prop: PropertyDeclaration) -> str:
     """Generate equality check code for a single property."""
     prop_name = to_casing(prop.name, Casing.LOWER_CAMEL)
 
@@ -603,7 +603,7 @@ if (JSON.stringify(this.{prop_name}) !== JSON.stringify(other.{prop_name})) {{
         assert_never(prop.cardinality)
 
 
-def _generate_scalar_cmp_impl(prop: Property) -> str:
+def _generate_scalar_cmp_impl(prop: PropertyDeclaration) -> str:
     """Generate the core scalar comparison logic. Returns a format string with {self_val} and {other_val} placeholders."""
     if prop.scalar_type == ScalarType.PRIMITIVE:
         if prop.primitive_type and prop.primitive_type.is_float:

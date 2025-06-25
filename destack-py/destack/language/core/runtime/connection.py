@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 class QueryContainer[NodeT: "Trait | Node" = Node]:
     """
-    A container for some QueryResult.
+    A container for some (part of a) QueryResult.
     """
 
     __slots__ = ("connection", "discriminator", "nodes", "query", "result", "subcontainers", "type")
@@ -163,7 +163,7 @@ class QueryContainer[NodeT: "Trait | Node" = Node]:
         raise KeyError(f"no subresult for {key!r} in {self!r}")
 
 
-class QueryConnection[NodeT: "Trait | Node"](QueryContainer[NodeT]):
+class QueryConnection[NodeT: "Trait | Node"](QueryContainer[NodeT]):  # type: ignore (pyright??)
     """
     A connection to a Query and its result.
     """

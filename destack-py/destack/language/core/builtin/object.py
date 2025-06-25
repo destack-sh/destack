@@ -10,7 +10,6 @@ from typing import (
     Any,
     ClassVar,
     Self,
-    Union,
     assert_never,
     cast,
     dataclass_transform,
@@ -39,11 +38,10 @@ from .common import (
     TypeCardinality,
 )
 from .const import ACTIVE_SESSION, EMPTY_DICT, REGION, UNSET
-from .property import _PROPERTY_SPECIFIERS, IntoType, Property, property_runtime_
+from .property import _PROPERTY_SPECIFIERS, IntoType, PropertyDeclaration, property_runtime_
 
 if TYPE_CHECKING:
     from destack.language import (
-        Field,
         Graph,
         Node,
         QueryConnection,
@@ -55,11 +53,6 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
-
-FieldOrProperty = Union[
-    Field if TYPE_CHECKING else "Field", Property if TYPE_CHECKING else "Property", Any
-]
-NodeTypeOrClass = Union[NodeType, type["Node"]]
 
 
 class _SetupStage(IntEnum):
@@ -94,7 +87,7 @@ def _generate_init[ObjectT: BuiltinObjectBase](
     is_root_node: bool,
     is_frozen: bool,
     traits: tuple[TraitType, ...],
-    properties: dict[str, Property],
+    properties: dict[str, PropertyDeclaration],
 ) -> tuple[str, dict[str, Any]]:
     """Generates an __init__ for a BuiltinObject class."""
 
@@ -546,7 +539,7 @@ __eq__ = equals
     return equals_impl, {}
 
 
-def _generate_property_cmp_impl(prop: Property) -> str:
+def _generate_property_cmp_impl(prop: PropertyDeclaration) -> str:
     """Generate equality check code for a single property."""
     prop_name = prop.name
 
@@ -596,7 +589,7 @@ if self.{prop_name} != other.{prop_name}:
         assert_never(prop.cardinality)
 
 
-def _generate_scalar_cmp_impl(prop: Property) -> str:
+def _generate_scalar_cmp_impl(prop: PropertyDeclaration) -> str:
     """Generate the core scalar comparison logic. Returns a format string with {self_val} and {other_val} placeholders."""
     if prop.scalar_type == ScalarType.PRIMITIVE:
         if prop.primitive_type and prop.primitive_type.is_float:
@@ -694,7 +687,7 @@ def path(self) -> str:
     return path_impl, {}
 
 
-def _generate_node_property_impl(prop: Property) -> str:
+def _generate_node_property_impl(prop: PropertyDeclaration) -> str:
     """The computed get/set property for a node reference. Resolved against the active supergraph."""
     # NOTE :Performance: we could inline Supergraph.get into node property getters
 
@@ -757,7 +750,7 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
     is_node: bool = False,
     is_root_node: bool = False,
     traits: tuple[TraitType, ...] = (),
-) -> tuple[type[ObjectT], dict[str, "Property"]]:
+) -> tuple[type[ObjectT], dict[str, "PropertyDeclaration"]]:
     """Process a BuiltinObject base class and return the processed class and its properties."""
     assert isinstance(cls, type), f"expected type, got {cls} ({type(cls)})"
     assert cls not in _processed_classes, f"class {cls.__name__} has already been processed"
@@ -766,7 +759,7 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
     cls.__is_node__ = is_node
     cls.__is_frozen__ = is_frozen
 
-    metatype = Property(
+    metatype = PropertyDeclaration(
         id=1,
         name="metatype",
         default=None,
@@ -804,7 +797,7 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
             components.append(base_cls)
 
     # collect properties from this class definition
-    properties: dict[str, Property] = {"metatype": metatype}
+    properties: dict[str, PropertyDeclaration] = {"metatype": metatype}
     for name, prop in list(cls.__dict__.items()):
         if (
             name.startswith("__")
@@ -814,7 +807,7 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
             or isinstance(prop, (property, classmethod, staticmethod, dualmethod))
         ):
             continue  # ignore reserved names and non-fields
-        if not isinstance(prop, Property):
+        if not isinstance(prop, PropertyDeclaration):
             raise TypeError(f"{cls.__name__}.{name} is not a Property: {prop} ({type(prop)})")
         prop.name = intern(name)
         prop.component = cls
@@ -853,7 +846,7 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
 
     # index properties
     cls.__properties__ = frozendict(properties)
-    properties_by_id: dict[int, Property] = {}
+    properties_by_id: dict[int, PropertyDeclaration] = {}
     for prop in properties.values():
         if prop.id is not None and prop.runtime_prop is None:
             existing = properties_by_id.get(prop.id, None)
@@ -959,7 +952,7 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
     cls_dict.pop("__weakref__", None)
     if is_concrete:  # (only define actual slots in leaf, otherwise slots clash)
         for prop in properties.values():
-            if isinstance(cls_dict.get(prop.name), Property):
+            if isinstance(cls_dict.get(prop.name), PropertyDeclaration):
                 cls_dict.pop(prop.name, None)
         cls_dict["__slots__"] = tuple(
             p.name for p in properties.values() if p.ptr_prop is None and not p.is_computed
@@ -1019,22 +1012,22 @@ class BuiltinObjectBase[ObjectProtoT: AnyObjectProto]:
     __is_node__: ClassVar[bool] = False
     __is_trait__: ClassVar[bool] = False
 
-    __properties__: ClassVar[dict[str, Property]] = {}
-    __properties_by_id__: ClassVar[dict[int, Property]] = {}
+    __properties__: ClassVar[dict[str, PropertyDeclaration]] = {}
+    __properties_by_id__: ClassVar[dict[int, PropertyDeclaration]] = {}
 
-    __declared_properties__: ClassVar[dict[str, Property]] = {}
-    __node_properties__: ClassVar[dict[str, Property]] = {}
-    __wired_properties__: ClassVar[dict[str, Property]] = {}
-    __stored_properties__: ClassVar[dict[str, Property]] = {}
-    __tracked_properties__: ClassVar[dict[str, Property]] = {}
+    __declared_properties__: ClassVar[dict[str, PropertyDeclaration]] = {}
+    __node_properties__: ClassVar[dict[str, PropertyDeclaration]] = {}
+    __wired_properties__: ClassVar[dict[str, PropertyDeclaration]] = {}
+    __stored_properties__: ClassVar[dict[str, PropertyDeclaration]] = {}
+    __tracked_properties__: ClassVar[dict[str, PropertyDeclaration]] = {}
 
-    __properties_in_order__: ClassVar[tuple[Property, ...]]
+    __properties_in_order__: ClassVar[tuple[PropertyDeclaration, ...]]
     __properties_id_in_order__: ClassVar[tuple[int, ...]]
 
     __slots__ = ()
 
     @classmethod
-    def property(cls, name: str) -> Property:
+    def property(cls, name: str) -> PropertyDeclaration:
         """Get a Property by name."""
         prop = cls.__properties__.get(name)
         if prop is None:

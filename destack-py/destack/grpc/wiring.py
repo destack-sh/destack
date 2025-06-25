@@ -21,7 +21,7 @@ from destack.language.core import (
     IntoType,
     NodeType,
     PrimitiveType,
-    Property,
+    PropertyDeclaration,
     ScalarType,
     TypeCardinality,
 )
@@ -152,7 +152,7 @@ _PROTO_PRIMITIVE_MESSAGE_TYPES = (
 )
 
 
-def _is_proto_primitive(prop: "Property | IntoType") -> bool:
+def _is_proto_primitive(prop: "PropertyDeclaration | IntoType") -> bool:
     """Check if a property is a proto primitive type."""
     return prop.cardinality == TypeCardinality.SCALAR and (
         prop.scalar_type == ScalarType.ENUM
@@ -163,7 +163,7 @@ def _is_proto_primitive(prop: "Property | IntoType") -> bool:
     )
 
 
-def _generate_pack_property(prop: "Property") -> list[str] | None:
+def _generate_pack_property(prop: "PropertyDeclaration") -> list[str] | None:
     """Generate the packing code for a property value."""
     lines: list[str] = []
     obj_value = f"_object.{prop.name}"
@@ -219,7 +219,7 @@ if {obj_value}:
     return lines
 
 
-def _generate_unpack_property(prop: "Property") -> list[str] | None:
+def _generate_unpack_property(prop: "PropertyDeclaration") -> list[str] | None:
     """Generate the unpacking code for a property value."""
 
     def _wrap_with_null_check(code: str) -> str:
@@ -263,7 +263,7 @@ for _key, _value in {proto_value}.items():""".splitlines()
     return lines
 
 
-def _generate_pack_scalar(prop: "Property | IntoType", value_expr: str) -> str:
+def _generate_pack_scalar(prop: "PropertyDeclaration | IntoType", value_expr: str) -> str:
     """Generate the packing code for a scalar value."""
 
     if prop.scalar_type == ScalarType.PRIMITIVE:
@@ -294,7 +294,7 @@ def _generate_pack_scalar(prop: "Property | IntoType", value_expr: str) -> str:
         assert_never(prop.scalar_type)
 
 
-def _generate_unpack_scalar(prop: "Property | IntoType", value_expr: str) -> str:
+def _generate_unpack_scalar(prop: "PropertyDeclaration | IntoType", value_expr: str) -> str:
     """Generate the unpacking code for a scalar value."""
 
     if prop.scalar_type == ScalarType.PRIMITIVE:

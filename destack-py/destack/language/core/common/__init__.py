@@ -10,13 +10,12 @@ from .edit import (
 from .entity import CustomEntity, CustomEntityDefinition
 from .enum import CustomEnumDefinition
 from .event import CustomEvent, CustomEventDefinition, EditEvent
-from .field import Field, FieldType
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
 from .meta import (
     ConstantDefinition,
     EnumDefinition,
-    EnumOptionDefinition,
     NodeDefinition,
+    OptionDefinition,
     PropertyDefinition,
     StructDefinition,
     TraitDefinition,
@@ -29,7 +28,8 @@ from .metric import (
     HistogramMeasurement,
     HistogramMetric,
 )
-from .option import Option
+from .option import CustomOption
+from .property import CustomProperty, CustomPropertyType
 from .query import (
     Aggregation,
     AggregationType,
@@ -57,9 +57,6 @@ from .query import (
     SortType,
 )
 from .relation import (
-    AttributeReference,
-    AttributeReferenceIn,
-    AttributeType,
     NodeReference,
     PropertyReference,
     PropertyReferenceType,
@@ -132,9 +129,6 @@ __all__ = [
     "Aggregation",
     "AggregationType",
     "Align",
-    "AttributeReference",
-    "AttributeReferenceIn",
-    "AttributeType",
     "Axis2",
     "Axis3",
     "Branch",
@@ -154,6 +148,9 @@ __all__ = [
     "CustomEnumDefinition",
     "CustomEvent",
     "CustomEventDefinition",
+    "CustomOption",
+    "CustomProperty",
+    "CustomPropertyType",
     "CustomStructDefinition",
     "Dimension",
     "DimensionType",
@@ -164,12 +161,9 @@ __all__ = [
     "EditOperation",
     "EditType",
     "EnumDefinition",
-    "EnumOptionDefinition",
     "Expression",
     "ExpressionIn",
     "ExpressionType",
-    "Field",
-    "FieldType",
     "Format",
     "Function",
     "FunctionType",
@@ -195,7 +189,7 @@ __all__ = [
     "NodeReference",
     "NumberConstraint",
     "NumberFormat",
-    "Option",
+    "OptionDefinition",
     "Overflow",
     "Position",
     "PositionType",

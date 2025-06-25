@@ -66,7 +66,7 @@ from .object import (
 )
 from .property import (
     IntoType,
-    Property,
+    PropertyDeclaration,
     parse_type_annotation,
     property_,
     property_parent_,
@@ -208,7 +208,7 @@ __all__ = [
     "Particle",
     "PlatformType",
     "PrimitiveType",
-    "Property",
+    "PropertyDeclaration",
     "Region",
     "RegionArea",
     "RegionContinent",

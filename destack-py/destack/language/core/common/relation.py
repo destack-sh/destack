@@ -1,7 +1,6 @@
 from typing import (
     TYPE_CHECKING,
     Optional,
-    Union,
     assert_never,
 )
 
@@ -20,7 +19,7 @@ from ..builtin import (
     Node,
     NodeType,
     PrimitiveType,
-    Property,
+    PropertyDeclaration,
     Region,
     StructFrozen,
     StructType,
@@ -32,7 +31,13 @@ from ..builtin import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import CustomEntityDefinition, Field, Node, NodeBase
+    from destack.language import (
+        CustomEntityDefinition,
+        CustomProperty,
+        Node,
+        NodeBase,
+        PropertyDefinition,
+    )
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -57,7 +62,7 @@ class RelationType(Enum):
 
 @builtin_struct(StructType.RELATION_REFERENCE, frozen=True)
 class RelationReference(StructFrozen):
-    """Reference to a Node "type" (builtin or custom, i.e. a "relation")."""
+    """Reference to a Node "type" (builtin, custom or trait, i.e. a "relation")."""
 
     type: RelationType = property_(30, is_repr=True)
     node_type: Optional[NodeType] = property_(31, is_repr=True)
@@ -88,14 +93,14 @@ class RelationReference(StructFrozen):
         else:
             assert_never(self.type)
 
-    def resolve_property(self, name: str) -> "Property | None":
+    def resolve_property(self, name: str) -> "PropertyDeclaration | None":
         """Resolve a Property in this relation."""
         object_cls = self.object_cls
         if object_cls is None:
             raise ValueError(f"could not resolve {self!r}")
         return object_cls.__properties__.get(name)
 
-    def resolve_property_or_error(self, name: str) -> "Property":
+    def resolve_property_or_error(self, name: str) -> "PropertyDeclaration":
         """Resolve a Property in this relation (error if not found)."""
         resolved = self.resolve_property(name)
         if resolved is None:
@@ -123,91 +128,78 @@ class RelationReference(StructFrozen):
             assert_never(base)
 
 
-@builtin_enum(EnumType.ATTRIBUTE_TYPE)
-class AttributeType(Enum):
-    PROPERTY = 1
-    FIELD = 2
-
-
-AttributeReferenceIn = Union["Field", "Property", "AttributeReference"]
-
-
-@builtin_struct(StructType.ATTRIBUTE_REFERENCE, frozen=True)
-class AttributeReference(StructFrozen):
-    """Reference to a Field or Property."""
-
-    type: AttributeType = property_(30, is_repr=True)
-    prop_ptr: Optional["PropertyReference"] = property_(31, is_repr=True)
-    field: Optional["Field"] = property_(32, is_repr=True)
-    if TYPE_CHECKING:
-        field_ptr: Optional["NodeReference"] = None
-
-    @classmethod
-    def of(cls, attribute: AttributeReferenceIn) -> "AttributeReference":
-        if isinstance(attribute, Property):
-            return AttributeReference(type=AttributeType.PROPERTY, prop_ptr=attribute.to_ref())
-        elif isinstance(attribute, Node):
-            return AttributeReference(type=AttributeType.FIELD, field=attribute)
-        elif isinstance(attribute, AttributeReference):
-            return attribute
-        else:
-            assert_never(attribute)
-
-
 @builtin_enum(EnumType.PROPERTY_REFERENCE_TYPE)
 class PropertyReferenceType(Enum):
     """The type of a property reference."""
 
-    NODE = 1
-    TRAIT = 2
-    STRUCT = 3
+    BUILTIN = 1
+    CUSTOM = 2
 
 
 @builtin_struct(StructType.PROPERTY_REFERENCE, frozen=True)
 class PropertyReference(StructFrozen[PropertyReferenceProto]):
     """
     A reference to a builtin object's Property.
-    If type is unset, this refers to a base property in one of the base BuiltinObject types.
     """
 
     type: PropertyReferenceType = property_(30, is_repr=True)
     node_type: NodeType | None = property_(31, is_repr=True)
     trait_type: TraitType | None = property_(32, is_repr=True)
     struct_type: StructType | None = property_(33, is_repr=True)
-    id: int = property_(35, is_repr=True, primitive_type=PrimitiveType.INT32)
+    id: int | None = property_(
+        35,
+        is_repr=True,
+        primitive_type=PrimitiveType.INT32,
+        description="id of the builtin Property",
+    )
+    custom_property: "CustomProperty | None" = property_(
+        36,
+        is_repr=True,
+        description="custom Property of a custom Node or Struct",
+    )
 
-    @property
-    def object_cls(self) -> type_[BuiltinObjectBase] | None:
-        if self.type == PropertyReferenceType.NODE:
-            assert self.node_type is not None, f"no node_type for {self!r}"
-            return NODE_CLASS_BY_TYPE.get(self.node_type)
-        elif self.type == PropertyReferenceType.TRAIT:
-            assert self.trait_type is not None, f"no trait_type for {self!r}"
-            return TRAIT_CLASS_BY_TYPE.get(self.trait_type)
-        elif self.struct_type is not None:
-            assert self.struct_type is not None, f"no struct_type for {self!r}"
-            return STRUCT_CLASS_BY_TYPE.get(self.struct_type)
-        else:
-            return None
-
-    def resolve_or_error(self) -> Property:
+    def resolve_or_error(self) -> "PropertyDefinition | CustomProperty":
         """Resolves the property reference to a Property."""
         resolved = self.resolve()
         if resolved is None:
             raise ValueError(f"could not resolve {self!r}")
         return resolved
 
-    def resolve(self) -> Property | None:
+    def resolve(self) -> "PropertyDefinition | CustomProperty | None":
         """Resolves the property reference to a Property."""
-        object_cls = self.object_cls
-        prop = (object_cls or Node).__properties_by_id__.get(self.id)
-        return prop
+        if self.type == PropertyReferenceType.BUILTIN:
+            if (node_type := self.node_type) is not None:
+                object_cls = NODE_CLASS_BY_TYPE.get(node_type)
+            elif (struct_type := self.struct_type) is not None:
+                object_cls = STRUCT_CLASS_BY_TYPE.get(struct_type)
+            elif (trait_type := self.trait_type) is not None:
+                object_cls = TRAIT_CLASS_BY_TYPE.get(trait_type)
+            else:
+                raise ValueError(f"no node_type, struct_type or trait_type for {self!r}")
+            object_cls = object_cls or Node
+            assert self.id is not None, f"no id for {self!r}"
+            prop = object_cls.__properties_by_id__.get(self.id)
+            return prop.definition if prop is not None else None
+        elif self.type == PropertyReferenceType.CUSTOM:
+            prop = self.custom_property
+            return prop
+        else:
+            return None
+
+    @staticmethod
+    def of(base: "PropertyDeclaration | CustomProperty") -> "PropertyReference":
+        if isinstance(base, PropertyDeclaration):
+            return PropertyReference(type=PropertyReferenceType.BUILTIN, id=base.id)
+        elif isinstance(base, CustomProperty):
+            return PropertyReference(type=PropertyReferenceType.CUSTOM, custom_property=base)
+        else:
+            assert_never(base)
 
 
 @builtin_struct(StructType.NODE_REFERENCE, frozen=True)
 class NodeReference(StructFrozen[NodeReferenceProto]):
     """
-    A reference to a Node.
+    A reference to a Node (builtin or custom).
     """
 
     node_type: NodeType = property_(31, is_repr=True)

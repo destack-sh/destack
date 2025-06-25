@@ -5,7 +5,7 @@ from destack.language import (
     BuiltinObjectBase,
     IntoType,
     PrimitiveType,
-    Property,
+    PropertyDeclaration,
     ScalarType,
     TypeCardinality,
 )
@@ -134,7 +134,7 @@ def _generate_unpack_proto(cls: type["BuiltinObjectBase"]) -> str:
     return "\n".join(unpack_method_parts)
 
 
-def _generate_pack_proto_property(prop: "Property") -> list[str]:
+def _generate_pack_proto_property(prop: "PropertyDeclaration") -> list[str]:
     """Generate the packing code for a property value."""
     lines: list[str] = []
     ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
@@ -174,7 +174,7 @@ def _generate_pack_proto_property(prop: "Property") -> list[str]:
     return lines
 
 
-def _generate_unpack_proto_property(prop: "Property") -> list[str]:
+def _generate_unpack_proto_property(prop: "PropertyDeclaration") -> list[str]:
     """Generate the unpacking code for a property value."""
     lines: list[str] = []
     ts_name = to_casing(prop.name, Casing.LOWER_CAMEL)
@@ -212,7 +212,7 @@ def _generate_unpack_proto_property(prop: "Property") -> list[str]:
     return lines
 
 
-def _generate_pack_proto_scalar(prop: "Property | IntoType", value_expr: str) -> str:
+def _generate_pack_proto_scalar(prop: "PropertyDeclaration | IntoType", value_expr: str) -> str:
     """Generate the packing code for a scalar value."""
     if prop.scalar_type == ScalarType.PRIMITIVE:
         if prop.primitive_type == PrimitiveType.UUID:
@@ -238,7 +238,7 @@ def _generate_pack_proto_scalar(prop: "Property | IntoType", value_expr: str) ->
         return value_expr
 
 
-def _generate_unpack_proto_scalar(prop: "Property | IntoType", value_expr: str) -> str:
+def _generate_unpack_proto_scalar(prop: "PropertyDeclaration | IntoType", value_expr: str) -> str:
     """Generate the unpacking code for a scalar value."""
     if prop.scalar_type == ScalarType.PRIMITIVE:
         if prop.primitive_type == PrimitiveType.UUID:

@@ -21,7 +21,7 @@ from ..builtin import (
 from .relation import NodeReference, PropertyReference
 
 if TYPE_CHECKING:
-    from destack.language import Field, IsSubject, Origin, Value
+    from destack.language import CustomProperty, IsSubject, Origin, Value
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -88,7 +88,7 @@ class Edit(StructFrozen):
     operation: EditOperation | None = property_(31, is_repr=True)
     node: Node = property_(32, is_repr=True)
     prop_ptr: PropertyReference | None = property_(33, is_repr=True)
-    field: "Field | None" = property_(34, is_repr=True)  # for IsExtensible.value
+    field: "CustomProperty | None" = property_(34, is_repr=True)  # for IsExtensible.value
     key: "Value | None" = property_(35, is_repr=True)  # for map operations
     if TYPE_CHECKING:
         node_ptr: NodeReference = UNSET

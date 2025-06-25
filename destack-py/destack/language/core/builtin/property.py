@@ -334,7 +334,7 @@ def get_class_name(py_type: type | typing.ForwardRef | typing.TypeAliasType | st
 
 
 @dataclass(eq=False, slots=True)
-class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
+class PropertyDeclaration(IntoType, IntoQuery if TYPE_CHECKING else object):
     """A system-defined attribute of a BuiltinObject (Struct or Node)."""
 
     # meta
@@ -346,8 +346,8 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
     original_component: type["BuiltinObjectBase"] = UNSET  # original component (first in chain)
 
     # pointers
-    ptr_prop: Optional["Property"] = None  # wired representation for pointers
-    runtime_prop: Optional["Property"] = None  # for the proto property
+    ptr_prop: Optional["PropertyDeclaration"] = None  # wired representation for pointers
+    runtime_prop: Optional["PropertyDeclaration"] = None  # for the proto property
     node_space_from: Literal["self"] | None = None
     node_is_customizable: bool = False
     node_has_type: bool = False
@@ -409,15 +409,15 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
 
             if self.component.__is_trait__:
                 ref = PropertyReference(
-                    type=PropertyReferenceType.TRAIT, trait_type=metatype, id=self.id
+                    type=PropertyReferenceType.BUILTIN, trait_type=metatype, id=self.id
                 )
             elif self.component.__is_node__:
                 ref = PropertyReference(
-                    type=PropertyReferenceType.NODE, node_type=metatype, id=self.id
+                    type=PropertyReferenceType.BUILTIN, node_type=metatype, id=self.id
                 )
             else:
                 ref = PropertyReference(
-                    type=PropertyReferenceType.STRUCT, struct_type=metatype, id=self.id
+                    type=PropertyReferenceType.BUILTIN, struct_type=metatype, id=self.id
                 )
             self._ref = ref
         return self._ref
@@ -450,14 +450,14 @@ class Property(IntoType, IntoQuery if TYPE_CHECKING else object):
             self._definition = PropertyDefinition.from_property(self)
         return self._definition
 
-    def _to_ptr_prop(self) -> Optional["Property"]:
+    def _to_ptr_prop(self) -> Optional["PropertyDeclaration"]:
         """
         Contribute the wired and stored pointer properties required by this property.
         """
 
         if self.scalar_type == ScalarType.NODE_REFERENCE:
             assert self.edge_type is not None, f"no edge type for {self!r}"
-            ptr_prop = Property(
+            ptr_prop = PropertyDeclaration(
                 id=self.id,
                 name=self.name + "_ptr",
                 component=self.component,
@@ -598,7 +598,7 @@ def property_(
     can_read: RoleType = RoleType.SPECTATOR,
     can_write: RoleType | None = RoleType.SPECTATOR,
 ) -> Any:
-    return Property(
+    return PropertyDeclaration(
         id=id,
         description=description,
         default=default,
@@ -624,7 +624,7 @@ def property_(
 
 def property_parent_(*, node_is_customizable: bool) -> Any:
     """The parent of a node, must be of one of the given types."""
-    return Property(
+    return PropertyDeclaration(
         id=3,  # NOTE: never change this id!
         edge_type=EdgeType.PARENT,
         default=None,
@@ -641,7 +641,7 @@ def property_parent_(*, node_is_customizable: bool) -> Any:
 
 def property_runtime_(*, default: Any = UNSET) -> Any:
     """A property that is only used at runtime."""
-    return Property(
+    return PropertyDeclaration(
         id=None,
         is_managed=True,
         is_wired=False,

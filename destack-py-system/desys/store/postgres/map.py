@@ -7,7 +7,7 @@ from destack.language import (
     NodeReference,
     NodeType,
     PrimitiveType,
-    Property,
+    PropertyDeclaration,
     ScalarType,
     StoreType,
     TypeCardinality,
@@ -44,7 +44,7 @@ def map_builtin_node_to_database_table(node: type[Node]) -> PostgresTable:
     columns: list[PostgresColumn] = []
     constraints: list[PostgresConstraint] = []
     indexes: list[PostgresIndex] = []
-    properties: list[Property] = [
+    properties: list[PropertyDeclaration] = [
         p for p in node.__properties__.values() if p.is_stored and p.ptr_prop is None
     ]
     properties.sort(key=lambda p: p.id or -1)
