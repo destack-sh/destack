@@ -1735,17 +1735,23 @@ export class Join extends StructFrozen {
 
   /** Make a Join from a shorthand expression. */
   static of(
-    relation: NodeType | NodeClass | CustomEntityDefinition,
-    recursive?: boolean,
-    depth?: number | null,
-    on?: Condition | null,
+    joinType: JoinType | Join,
+    options?: {
+      relation?: NodeType | NodeClass | CustomEntityDefinition;
+      recursive?: boolean;
+      depth?: number | null;
+      on?: Condition | null;
+    },
   ): Join {
+    if (joinType instanceof Join) {
+      return joinType;
+    }
     return new Join({
-      type: JoinType.LEFT,
-      relation: RelationReference.of(relation),
-      recursive: recursive ?? false,
-      depth: depth ?? null,
-      on: on ?? null,
+      type: joinType,
+      relation: options?.relation ? RelationReference.of(options.relation) : null,
+      recursive: options?.recursive ?? false,
+      depth: options?.depth ?? null,
+      on: options?.on ?? null,
     });
   }
 

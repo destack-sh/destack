@@ -3,16 +3,17 @@ import {
   Change,
   ChangeResult,
   Edit,
+  EditType,
   IsSubject,
   Node,
   Oracle,
-  Origin,
   QueryConnection,
-  Space,
   Store,
   Supergraph,
+  toValue,
   WORLD_ORACLE,
-} from "@destack/language";
+} from "@destack/language/core";
+import { Origin, Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
 /**
@@ -100,7 +101,11 @@ export class Session {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
-    throw new Error("not implemented");
+    const edit = new Edit({ type: EditType.CREATE, node, value: toValue(node, null, true) });
+    this.edits.push(edit);
+    this.dirty[node.id] = node;
+    node._isNew = false;
+    node._isAttached = true;
   }
 
   /** Create or update a Node. */
@@ -108,7 +113,11 @@ export class Session {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
-    throw new Error("not implemented");
+    const edit = new Edit({ type: EditType.UPSERT, node, value: toValue(node, null, true) });
+    this.edits.push(edit);
+    this.dirty[node.id] = node;
+    node._isNew = false;
+    node._isAttached = true;
   }
 
   /** Update a Node. */
@@ -116,7 +125,9 @@ export class Session {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
-    throw new Error("not implemented");
+    this._flushNode(node);
+    this.edits.push(edit);
+    this.dirty[node.id] = node;
   }
 
   /** Move a Node to a new parent. */
@@ -124,7 +135,10 @@ export class Session {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
-    throw new Error("not implemented");
+    this._flushNode(node);
+    const edit = new Edit({ type: EditType.MOVE, node, value: toValue(parent) });
+    this.edits.push(edit);
+    this.dirty[node.id] = node;
   }
 
   /** Archive a Node. */
@@ -132,7 +146,11 @@ export class Session {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
-    throw new Error("not implemented");
+    this._flushNode(node);
+    const undoEdit = new Edit({ type: EditType.RESTORE, node, value: toValue(node, null, true) });
+    const edit = new Edit({ type: EditType.ARCHIVE, node, undo: undoEdit });
+    this.edits.push(edit);
+    this.dirty[node.id] = node;
   }
 
   /** Unarchive a Node. */
@@ -140,7 +158,10 @@ export class Session {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
-    throw new Error("not implemented");
+    this._flushNode(node);
+    const edit = new Edit({ type: EditType.UNARCHIVE, node });
+    this.edits.push(edit);
+    this.dirty[node.id] = node;
   }
 
   /** Delete a Node. */
@@ -148,7 +169,11 @@ export class Session {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
-    throw new Error("not implemented");
+    this._flushNode(node);
+    const undoEdit = new Edit({ type: EditType.RESTORE, node, value: toValue(node, null, true) });
+    const edit = new Edit({ type: EditType.DELETE, node, undo: undoEdit });
+    this.edits.push(edit);
+    this.dirty[node.id] = node;
   }
 
   /** Restore a deleted Node. */
@@ -156,7 +181,10 @@ export class Session {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
-    throw new Error("not implemented");
+    this._flushNode(node);
+    const edit = new Edit({ type: EditType.RESTORE, node });
+    this.edits.push(edit);
+    this.dirty[node.id] = node;
   }
 
   /** Erase a Node. */
@@ -164,6 +192,14 @@ export class Session {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
+    this._flushNode(node);
+    const undoEdit = new Edit({ type: EditType.CREATE, node, value: toValue(node, null, true) });
+    const edit = new Edit({ type: EditType.ERASE, node, undo: undoEdit });
+    this.edits.push(edit);
+    this.dirty[node.id] = node;
+  }
+
+  _flushNode(node: Node): void {
     throw new Error("not implemented");
   }
 

@@ -9,7 +9,10 @@ import {
   NodeConstraint,
   NumberConstraint,
   ObjectReference,
+  ObjectType,
   PrimitiveType,
+  PropertyReference,
+  PropertyReferenceType,
   ScalarType,
   Session,
   Sort,
@@ -42,6 +45,7 @@ import {
   TraitTypeProto,
   TypeCardinalityProto,
 } from "@destack/proto";
+import { assertNever } from "@destack/utils";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50004 ==== */
 /**
@@ -880,6 +884,32 @@ export class PropertyDefinition extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
+
+  toRef(): PropertyReference {
+    if (this.object.type === ObjectType.BUILTIN_NODE) {
+      return new PropertyReference({
+        type: PropertyReferenceType.BUILTIN,
+        nodeType: this.object.nodeType,
+        id: this.id,
+      });
+    } else if (this.object.type === ObjectType.BUILTIN_STRUCT) {
+      return new PropertyReference({
+        type: PropertyReferenceType.BUILTIN,
+        structType: this.object.structType,
+        id: this.id,
+      });
+    } else if (this.object.type === ObjectType.TRAIT) {
+      return new PropertyReference({
+        type: PropertyReferenceType.BUILTIN,
+        traitType: this.object.traitType,
+        id: this.id,
+      });
+    } else if (this.object.type === ObjectType.CUSTOM_NODE) {
+      throw new Error(`${this.repr()} cannot be associated with a custom node`);
+    } else {
+      assertNever(this.object.type);
+    }
+  }
 
   eq(value: any): Condition {
     if (value === null) {
