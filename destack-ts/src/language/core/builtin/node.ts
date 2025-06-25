@@ -6,6 +6,8 @@ import {
   Expression,
   ExpressionIn,
   Graph,
+  INTER_ORDER_TRAITS,
+  IsOrdered,
   Join,
   JoinType,
   NodeReference,
@@ -26,6 +28,7 @@ import { NodeTypeMapping, TraitTypeMapping } from "@destack/language/mapping";
 import { Casing, toCasing } from "@destack/utils/string";
 import { v4 as uuid4 } from "uuid";
 import { BuiltinObject, BuiltinObjectClass } from "./object";
+import { getOrderKey } from "@destack/utils";
 
 /** A Node is a collection of properties with an identity. */
 export abstract class Node extends BuiltinObject {
@@ -161,7 +164,16 @@ export abstract class Node extends BuiltinObject {
     }
 
     // assign order
-    // nocheckin: implement order assignment like in Python SDK
+    if (hasTrait(child, TraitType.ORDERED)) {
+      const orderTrait = child.__traits__.find((trait) => trait in INTER_ORDER_TRAITS);
+      const options = orderTrait ? { traitType: orderTrait } : { nodeType: child.metatype };
+      const existingNodes = this._graph.getChildren(this, options) as (Node & IsOrdered)[];
+      if (existingNodes.length > 0) {
+        const orderKey = getOrderKey(existingNodes[existingNodes.length - 1].orderKey, null);
+        // @ts-expect-error(readonly)
+        (child as unknown as Node & IsOrdered).orderKey = orderKey;
+      }
+    }
 
     // promote self to polygraph if needed
     if (newGraph instanceof SingletonGraph) {

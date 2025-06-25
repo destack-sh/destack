@@ -1,7 +1,7 @@
 import { NODE_TYPES_BY_TRAIT_TYPE } from "@destack/language/lookup";
 import { NodeTypeMapping, TraitTypeMapping } from "@destack/language/mapping";
 import { INTEGER_ZERO } from "@destack/utils/fractional";
-import { IsOrdered, Node, NodeClass, NodeType, TraitType } from "../builtin";
+import { hasTrait, IsOrdered, Node, NodeClass, NodeType, TraitType } from "../builtin";
 import { Session } from "./session";
 
 /** A Graph is a collection of Nodes. */
@@ -353,8 +353,7 @@ export class PolyGraph extends Graph {
           // collect for single node type
           const children = childrenByType.get(nodeTypes[0]) || [];
           if (children.length > 0) {
-            const nodeClass = children[0].constructor as NodeClass;
-            if (nodeClass.__traits__.includes(TraitType.ORDERED)) {
+            if (hasTrait(children[0], TraitType.ORDERED)) {
               children.sort((a, b) => {
                 const aOrderKey = (a as unknown as IsOrdered).orderKey || INTEGER_ZERO;
                 const bOrderKey = (b as unknown as IsOrdered).orderKey || INTEGER_ZERO;
@@ -370,8 +369,7 @@ export class PolyGraph extends Graph {
             children.push(...(childrenByType.get(nodeType) || []));
           }
           if (children.length > 0) {
-            const nodeClass = children[0].constructor as NodeClass;
-            if (nodeClass.__traits__.includes(TraitType.ORDERED)) {
+            if (hasTrait(children[0], TraitType.ORDERED)) {
               children.sort((a, b) => {
                 const aOrderKey = (a as unknown as IsOrdered).orderKey || INTEGER_ZERO;
                 const bOrderKey = (b as unknown as IsOrdered).orderKey || INTEGER_ZERO;

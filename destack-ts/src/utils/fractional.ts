@@ -171,7 +171,7 @@ export function validateOrderKey(key: string) {
 // `a` is an order key or null (START).
 // `b` is an order key or null (END).
 // `a < b` lexicographically if both are non-null.
-export function generateOrderKey(a: string | null, b: string | null, digits: string = BASE_95_DIGITS): string {
+export function getOrderKey(a: string | null, b: string | null, digits: string = BASE_95_DIGITS): string {
   if (a != null) validateOrderKey(a);
   if (b != null) validateOrderKey(b);
   if (a != null && b != null && a >= b) throw new Error(a + " >= " + b);
@@ -211,35 +211,35 @@ export function generateOrderKey(a: string | null, b: string | null, digits: str
 // If a and b are both null, returns [a0, a1, ...]
 // If one or the other is null, returns consecutive "integer" keys.
 // Otherwise, returns relatively short keys between a and b.
-export function generateOrderKeys(
+export function getOrderKeys(
   a: string | null,
   b: string | null,
   n: number,
   digits: string = BASE_95_DIGITS,
 ): string[] {
   if (n === 0) return [];
-  if (n === 1) return [generateOrderKey(a, b, digits)];
+  if (n === 1) return [getOrderKey(a, b, digits)];
 
   if (b === null) {
-    let c = generateOrderKey(a, b, digits);
+    let c = getOrderKey(a, b, digits);
     const result = [c];
     for (let i = 0; i < n - 1; i++) {
-      c = generateOrderKey(c, b, digits);
+      c = getOrderKey(c, b, digits);
       result.push(c);
     }
     return result;
   }
   if (a === null) {
-    let c = generateOrderKey(a, b, digits);
+    let c = getOrderKey(a, b, digits);
     const result = [c];
     for (let i = 0; i < n - 1; i++) {
-      c = generateOrderKey(a, c, digits);
+      c = getOrderKey(a, c, digits);
       result.push(c);
     }
     result.reverse();
     return result;
   }
   const mid = Math.floor(n / 2);
-  const c = generateOrderKey(a, b, digits);
-  return [...generateOrderKeys(a, c, mid, digits), c, ...generateOrderKeys(c, b, n - mid - 1, digits)];
+  const c = getOrderKey(a, b, digits);
+  return [...getOrderKeys(a, c, mid, digits), c, ...getOrderKeys(c, b, n - mid - 1, digits)];
 }

@@ -9,11 +9,7 @@ from typing import (
     dataclass_transform,
 )
 
-from destack.language.registry import (
-    NODE_CLASS_BY_TYPE,
-    NODE_TYPE_BY_CLASS,
-    ORDER_GROUP_BY_NODE_TYPE,
-)
+from destack.language.registry import NODE_CLASS_BY_TYPE, NODE_TYPE_BY_CLASS
 from destack.proto import AnyNodeProto
 from destack.utils.fractional import get_order_key
 from destack.utils.func import get_superclasses
@@ -28,7 +24,7 @@ from .property import (
     property_parent_,
     property_runtime_,
 )
-from .trait import IndexIn, NodeBase, Spatial
+from .trait import INTER_ORDER_TRAITS, IndexIn, IsOrdered, NodeBase, Spatial
 
 if TYPE_CHECKING:
     from destack.language import Graph, NodeReference, QueryConnection, Session, Supergraph
@@ -199,8 +195,11 @@ class Node[NodeProtoT: AnyNodeProto](NodeBase[NodeProtoT]):
         )
 
         # assign order
-        if (order_group := ORDER_GROUP_BY_NODE_TYPE.get(child.metatype)) is not None:
-            existing_nodes = self._graph.get_children(self, node_type=order_group)
+        if isinstance(child, IsOrdered):
+            order_trait = next(
+                (trait for trait in child.__traits__ if trait in INTER_ORDER_TRAITS), None
+            )
+            existing_nodes = self._graph.get_children(self, node_type=order_trait or child.metatype)
             if existing_nodes:
                 order_key = get_order_key(getattr(existing_nodes[-1], "order_key", None), None)
                 child._do_set("order_key", order_key)
