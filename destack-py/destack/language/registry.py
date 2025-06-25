@@ -41,8 +41,6 @@ NODE_CLASS_BY_TYPE: dict[NodeType, type["Node"]] = {}
 NODE_TYPE_BY_CLASS: dict[type["Node"], NodeType] = {}
 NODE_TYPES_BY_MAIN_STORE_TYPE: dict[StoreType, tuple[NodeType, ...]] = {}
 
-ORDER_GROUP_BY_NODE_TYPE: dict[NodeType, TraitType | NodeType] = {}
-
 TRAIT_CLASS_BY_TYPE: dict[TraitType, type["NodeBase"]] = {}
 TRAIT_TYPE_BY_CLASS: dict[type["Trait"], TraitType] = {}
 NODE_TYPES_BY_TRAIT_TYPE: dict[TraitType, tuple[NodeType, ...]] = {}
@@ -133,17 +131,6 @@ def _complete_setup():
         assert trait_type in TRAIT_CLASS_BY_TYPE, f"missing trait type: {trait_type!r}"
         if trait_type not in NODE_TYPES_BY_TRAIT_TYPE:
             NODE_TYPES_BY_TRAIT_TYPE[trait_type] = ()
-
-    # index order groups
-    from destack.language.core.builtin.trait import INTER_ORDER_TRAITS
-
-    for trait_type in INTER_ORDER_TRAITS:
-        order_group = NODE_TYPES_BY_TRAIT_TYPE[trait_type]
-        for node_type in order_group:
-            ORDER_GROUP_BY_NODE_TYPE[node_type] = trait_type
-    for node_type in NODE_TYPES_BY_TRAIT_TYPE[TraitType.ORDERED]:
-        if node_type not in ORDER_GROUP_BY_NODE_TYPE:
-            ORDER_GROUP_BY_NODE_TYPE[node_type] = node_type
 
     # index parent types
     for node_cls in NODE_CLASS_BY_TYPE.values():

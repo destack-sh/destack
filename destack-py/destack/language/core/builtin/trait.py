@@ -80,7 +80,8 @@ AT_LEAST_ONE_TRAITS = (
 AT_MOST_ONE_TRAITS = ((TraitType.ENTITY, TraitType.PARTICLE),)
 # traits where every descendant must have the trait
 INFECTIOUS_TRAITS = (TraitType.ARCHIVABLE, TraitType.DELETABLE)
-# traits where all matching nodes are ordered together
+
+# traits where all matching nodes are ordered together :InterOrderTraits :ProperConstants
 INTER_ORDER_TRAITS = (TraitType.VIEW, TraitType.STYLE)
 
 

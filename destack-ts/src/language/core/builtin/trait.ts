@@ -13,6 +13,8 @@ import { registerEnumClass, registerTraitClass } from "@destack/language/registr
 import { Space } from "@destack/language/space";
 import { Temporal } from "temporal-polyfill";
 
+export const INTER_ORDER_TRAITS = [TraitType.VIEW, TraitType.STYLE] as const; // :InterOrderTraits
+
 /* ==== DESTACK_GENERATED_START:ENUM:50101 ==== */
 /**
  * JoinablePermission

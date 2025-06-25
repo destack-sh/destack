@@ -378,6 +378,7 @@ class PermissionDefinition(StructFrozen):
     icon: "Icon | None" = property_(34)
 
 
+# TODO :Architecture: handle constants properly (generate into SDKs?) :ProperConstants
 @builtin_struct(StructType.CONSTANT_DEFINITION, frozen=True)
 class ConstantDefinition(StructFrozen):
     """Definition of a builtin Constant."""
