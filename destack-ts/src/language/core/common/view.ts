@@ -1,5 +1,5 @@
-import { EnumType, Session, StructType, Supergraph } from "@destack/language/core";
-import { StructFrozen } from "@destack/language/core/builtin";
+import { Session, Supergraph } from "@destack/language/core";
+import { EnumType, StructFrozen, StructType } from "@destack/language/core/builtin";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import {
   Axis2Proto,

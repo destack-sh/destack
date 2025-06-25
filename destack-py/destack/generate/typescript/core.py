@@ -51,7 +51,7 @@ class TypescriptDefinition:
     name: str
     cls: type[BuiltinObjectBase] | type[Enum]
     module: str  # destack.language.core.common.icon
-    submodule: str  # core
+    submodule: str  # core.builtin or space
     kind: Kind
     id: int
     definition: Definition

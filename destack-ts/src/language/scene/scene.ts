@@ -1,4 +1,18 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
+import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
+import {
+  EnumType,
+  Event,
+  HasIcon,
+  IsOwnable,
+  IsOwner,
+  IsSubject,
+  MaterializationType,
+  Node,
+  NodeType,
+  StructType,
+  TraitType,
+} from "@destack/language/core/builtin";
 import {
   Align,
   Axis2,
@@ -7,38 +21,22 @@ import {
   Dimension,
   Direction,
   Distribute,
-  EnumType,
-  Event,
-  Graph,
   Grid,
   GridSpan,
-  HasIcon,
   Icon,
   Insets,
-  IsOwnable,
-  IsOwner,
-  IsSubject,
   Layout,
-  MaterializationType,
-  NodeReference,
-  NodeType,
   Position,
-  QueryConnection,
-  Session,
-  StructType,
-  Supergraph,
-  TraitType,
   Value,
   Vector2,
-} from "@destack/language/core";
-import { Node } from "@destack/language/core/builtin";
+} from "@destack/language/core/common";
 import { Folder } from "@destack/language/folder";
 import { Script } from "@destack/language/logic";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Window } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Border, Fill, Shadow } from "@destack/language/style";
-import { ContainerView } from "@destack/language/view";
+import { ContainerView } from "@destack/language/view/container";
 import {
   AlignProto,
   DirectionProto,

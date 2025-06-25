@@ -1,16 +1,7 @@
 import { NodeClass } from "@destack/language";
-import {
-  CustomEntityDefinition,
-  CustomProperty,
-  EnumType,
-  NodeType,
-  Region,
-  Session,
-  StructType,
-  Supergraph,
-  TraitType,
-} from "@destack/language/core";
-import { Node, StructFrozen } from "@destack/language/core/builtin";
+import { Session, Supergraph } from "@destack/language/core";
+import { EnumType, Node, NodeType, Region, StructFrozen, StructType, TraitType } from "@destack/language/core/builtin";
+import { CustomEntityDefinition, CustomProperty } from "@destack/language/core/common";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import {
   NodeReferenceProto,

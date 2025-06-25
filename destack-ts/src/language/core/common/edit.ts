@@ -1,16 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import {
-  CustomProperty,
-  EnumType,
-  IsSubject,
-  NodeReference,
-  PropertyReference,
-  Session,
-  StructType,
-  Supergraph,
-  Value,
-} from "@destack/language/core";
-import { Node, StructFrozen } from "@destack/language/core/builtin";
+import { NodeReference, Session, Supergraph } from "@destack/language/core";
+import { EnumType, IsSubject, Node, StructFrozen, StructType } from "@destack/language/core/builtin";
+import { CustomProperty, PropertyReference, Value } from "@destack/language/core/common";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { Origin } from "@destack/language/space";
 import {

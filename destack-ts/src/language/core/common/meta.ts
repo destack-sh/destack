@@ -1,33 +1,34 @@
+import { Session, Supergraph } from "@destack/language/core";
 import {
   CascadeAction,
-  CollectionConstraint,
-  Condition,
-  ConditionalType,
   DefaultFactory,
   EdgeType,
   EnumType,
+  NodeType,
+  PrimitiveType,
+  ScalarType,
+  StructFrozen,
+  StructType,
+  TraitType,
+  TypeCardinality,
+} from "@destack/language/core/builtin";
+import {
+  CollectionConstraint,
+  Condition,
+  ConditionalType,
   Icon,
   NodeConstraint,
-  NodeType,
   NumberConstraint,
   ObjectReference,
   ObjectType,
-  PrimitiveType,
   PropertyReference,
   PropertyReferenceType,
-  ScalarType,
-  Session,
   Sort,
   SortType,
   StringConstraint,
-  StructType,
-  Supergraph,
-  TraitType,
   Type,
-  TypeCardinality,
   Value,
-} from "@destack/language/core";
-import { StructFrozen } from "@destack/language/core/builtin";
+} from "@destack/language/core/common";
 import { registerStructClass } from "@destack/language/registry";
 import {
   CascadeActionProto,
@@ -80,9 +81,14 @@ export class PropertyDefinition extends StructFrozen {
   readonly description: string | null;
 
   /**
-   * PropertyDefinition.object
+   * The object that this property is defined on.
    */
   readonly object: ObjectReference;
+
+  /**
+   * The original object that this property was defined on.
+   */
+  readonly originalObject: ObjectReference;
 
   /**
    * PropertyDefinition.cardinality
@@ -230,6 +236,7 @@ export class PropertyDefinition extends StructFrozen {
     icon?: Icon | null;
     description?: string | null;
     object: ObjectReference;
+    originalObject: ObjectReference;
     cardinality?: TypeCardinality;
     scalarType: ScalarType;
     primitiveType?: PrimitiveType | null;
@@ -292,6 +299,11 @@ export class PropertyDefinition extends StructFrozen {
       throw new Error(`PropertyDefinition.object is required`);
     }
     this.object = _object;
+    let _originalObject = options.originalObject;
+    if (_originalObject === null) {
+      throw new Error(`PropertyDefinition.originalObject is required`);
+    }
+    this.originalObject = _originalObject;
     let _cardinality = options.cardinality ?? null;
     if (_cardinality === null) {
       _cardinality = TypeCardinality.SCALAR;
@@ -419,6 +431,9 @@ export class PropertyDefinition extends StructFrozen {
       return false;
     }
     if (!this.object.equals(other.object)) {
+      return false;
+    }
+    if (!this.originalObject.equals(other.originalObject)) {
       return false;
     }
     if (!(this.cardinality === other.cardinality)) {
@@ -554,6 +569,7 @@ export class PropertyDefinition extends StructFrozen {
       objectValue["36"] = object.description;
     }
     objectValue["37"] = object.object.toValue();
+    objectValue["38"] = object.originalObject.toValue();
     objectValue["40"] = object.cardinality;
     objectValue["41"] = object.scalarType;
     if (object.primitiveType != null) {
@@ -679,6 +695,7 @@ export class PropertyDefinition extends StructFrozen {
       icon: unpackedIcon,
       description: unpackedDescription,
       object: ObjectReference.fromValue(objectValue["37"], _session, _supergraph, _graph, _connection),
+      originalObject: ObjectReference.fromValue(objectValue["38"], _session, _supergraph, _graph, _connection),
       cardinality: Number(objectValue["40"]),
       scalarType: Number(objectValue["41"]),
       primitiveType: unpackedPrimitiveType,
@@ -741,6 +758,7 @@ export class PropertyDefinition extends StructFrozen {
       objectProto.description = object.description;
     }
     objectProto.object = object.object.toProto();
+    objectProto.originalObject = object.originalObject.toProto();
     objectProto.cardinality = Number(object.cardinality) as TypeCardinalityProto;
     objectProto.scalarType = Number(object.scalarType) as ScalarTypeProto;
     if (object.primitiveType != null) {
@@ -818,6 +836,13 @@ export class PropertyDefinition extends StructFrozen {
           : null,
       description: objectProto.description != undefined ? objectProto.description : null,
       object: ObjectReference.fromProto(objectProto.object!, _session, _supergraph, _graph, _connection),
+      originalObject: ObjectReference.fromProto(
+        objectProto.originalObject!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       cardinality: Number(objectProto.cardinality) as TypeCardinality,
       scalarType: Number(objectProto.scalarType) as ScalarType,
       primitiveType:

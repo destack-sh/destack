@@ -1,5 +1,5 @@
-import { EnumType, NodeReference, Session, StructType, Supergraph } from "@destack/language/core";
-import { Node, StructFrozen } from "@destack/language/core/builtin";
+import { NodeReference, Session, Supergraph } from "@destack/language/core";
+import { EnumType, Node, StructFrozen, StructType } from "@destack/language/core/builtin";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { TextProto, TextSpanProto, TextSpanTypeProto } from "@destack/proto";
 

@@ -1,44 +1,42 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
+import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
   CascadeAction,
-  CollectionConstraint,
-  Condition,
-  ConditionalType,
-  CustomEntityDefinition,
   DefaultFactory,
   EdgeType,
   Entity,
   EnumType,
-  Graph,
   HasIcon,
   HasName,
-  Icon,
   IsDeletable,
   IsExtensible,
   IsSourceable,
   IsSubject,
   IsTaggable,
   MaterializationType,
-  NodeConstraint,
-  NodeReference,
+  Node,
   NodeType,
-  NumberConstraint,
   PrimitiveType,
-  QueryConnection,
   ScalarType,
-  Session,
+  Spatial,
+  StructType,
+  TraitType,
+  TypeCardinality,
+} from "@destack/language/core/builtin";
+import {
+  CollectionConstraint,
+  Condition,
+  ConditionalType,
+  CustomEntityDefinition,
+  Icon,
+  NodeConstraint,
+  NumberConstraint,
   Sort,
   SortType,
-  Spatial,
   StringConstraint,
-  StructType,
-  Supergraph,
-  TraitType,
   Type,
-  TypeCardinality,
   Value,
-} from "@destack/language/core";
-import { Node } from "@destack/language/core/builtin";
+} from "@destack/language/core/common";
 import { Script } from "@destack/language/logic";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";

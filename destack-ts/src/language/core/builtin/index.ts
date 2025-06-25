@@ -5,4 +5,3 @@ export * from "./node";
 export * from "./object";
 export * from "./struct";
 export * from "./trait";
-export * from "./trait_class";

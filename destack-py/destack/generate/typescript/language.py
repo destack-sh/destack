@@ -1022,7 +1022,7 @@ def _generate_definition(definition: Definition) -> TypescriptDefinition:
     else:
         assert_never(definition)
 
-    submodule = cls.__module__.split(".")[2]
+    submodule = ".".join(cls.__module__.split(".")[2:-1])
     source_definition = TypescriptDefinition(
         name=name,
         cls=cls,
@@ -1264,8 +1264,8 @@ def _generate_file(
         "Node",
         "ACTIVE_SESSION",
         "activeSession",
+        "TraitClass",
     }
-    language_imports_by_module["core/builtin/trait_class"].add("TraitClass")
     language_imports_by_module["registry"] = {
         "registerNodeClass",
         "registerStructClass",
@@ -1301,7 +1301,9 @@ def _generate_file(
     import_parts: list[str] = []
     for module, imports in language_imports_by_module.items():
         if imports:
-            import_path = f"@destack/language/{module}" if module else "@destack/language"
+            import_path = (
+                f"@destack/language/{module.replace('.', '/')}" if module else "@destack/language"
+            )
             import_parts.append(f"import {{ {', '.join(sorted(imports))} }} from '{import_path}';")
     # add proto imports for all definitions and dependencies
     proto_names = {

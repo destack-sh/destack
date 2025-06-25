@@ -1,16 +1,16 @@
 import { NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE, toType } from "@destack/language";
+import { NodeReference, Session, Supergraph } from "@destack/language/core";
 import {
-  NodeReference,
+  BuiltinObject,
+  Node,
   NodeType,
   PrimitiveType,
   ScalarType,
-  Session,
+  StructFrozen,
   StructType,
-  Supergraph,
-  Type,
   TypeCardinality,
-} from "@destack/language/core";
-import { BuiltinObject, Node, StructFrozen } from "@destack/language/core/builtin";
+} from "@destack/language/core/builtin";
+import { Type } from "@destack/language/core/common";
 import { registerStructClass } from "@destack/language/registry";
 import { ValueProto } from "@destack/proto";
 import { assertNever, timedeltaFromISOFormat, timedeltaToISOFormat } from "@destack/utils";
