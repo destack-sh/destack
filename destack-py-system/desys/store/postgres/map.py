@@ -26,7 +26,7 @@ from .core import PostgresTable as PostgresTable
 
 DESTACK_BUILTIN_TABLE_PREFIX = "destack_"
 DESTACK_CUSTOM_TABLE_PREFIX = "destack_custom_"
-DESTACK_CUSTOM_FIELD_PREFIX = "field_"
+DESTACK_CUSTOM_PROPERTY_PREFIX = "custom_property_"
 
 
 def get_table_name(node_ptr: NodeReference) -> str:

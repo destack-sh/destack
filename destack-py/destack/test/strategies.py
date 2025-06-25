@@ -190,15 +190,19 @@ def get_naive_object_strategy(object_cls: type[BuiltinObjectBase]):
             prop.id is None
             or prop.id == 1
             or prop.default_factory is not None
-            or prop.is_managed
+            or (prop.is_managed and prop.name != "definition")
             or prop.is_computed
-            or prop.name == "email"  # is unique (causes meaningless test errors)
+            or prop.is_unique  # is unique (causes meaningless test errors)
         ):
             continue  # ignore
-        if prop.name in STRATEGY_BY_PROPERTY:
-            object_kwargs[prop.name] = STRATEGY_BY_PROPERTY[prop.name]
+        if prop.scalar_type == ScalarType.NODE_REFERENCE:
+            prop_name = prop.name + "_ptr"
         else:
-            object_kwargs[prop.name] = get_type_strategy(prop.type)
+            prop_name = prop.name
+        if prop.name in STRATEGY_BY_PROPERTY:
+            object_kwargs[prop_name] = STRATEGY_BY_PROPERTY[prop.name]
+        else:
+            object_kwargs[prop_name] = get_type_strategy(prop.type)
 
     return object_kwargs
 

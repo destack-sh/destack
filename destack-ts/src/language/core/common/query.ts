@@ -1107,14 +1107,7 @@ export class Expression extends StructFrozen {
 registerStructClass(StructType.EXPRESSION, Expression);
 /* ==== DESTACK_GENERATED_END:STRUCT:50100 ==== */
 
-export type ExpressionIn =
-  | Value
-  | CustomProperty
-  | PropertyReference
-  | Condition
-  | Function
-  | Aggregation
-  | Expression;
+export type ExpressionIn = Value | CustomProperty | PropertyReference | Condition | Function | Aggregation | Expression;
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50105 ==== */
 /**

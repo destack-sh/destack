@@ -16,7 +16,7 @@ from .core import (
 from .edit import execute_change
 from .map import (
     DESTACK_BUILTIN_TABLE_PREFIX,
-    DESTACK_CUSTOM_FIELD_PREFIX,
+    DESTACK_CUSTOM_PROPERTY_PREFIX,
     DESTACK_CUSTOM_TABLE_PREFIX,
     EXTENSIONS,
     get_builtin_schema,
@@ -45,7 +45,7 @@ from .store import PostgresStore
 
 __all__ = [
     "DESTACK_BUILTIN_TABLE_PREFIX",
-    "DESTACK_CUSTOM_FIELD_PREFIX",
+    "DESTACK_CUSTOM_PROPERTY_PREFIX",
     "DESTACK_CUSTOM_TABLE_PREFIX",
     "EXTENSIONS",
     "MIGRATIONS",
