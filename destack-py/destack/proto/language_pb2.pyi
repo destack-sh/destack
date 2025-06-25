@@ -1373,7 +1373,6 @@ class StructTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_SELECT: _ClassVar[StructTypeProto]
     STRUCT_TYPE_RELATION_REFERENCE: _ClassVar[StructTypeProto]
     STRUCT_TYPE_OBJECT_REFERENCE: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_ATTRIBUTE_REFERENCE: _ClassVar[StructTypeProto]
     STRUCT_TYPE_QUERY: _ClassVar[StructTypeProto]
     STRUCT_TYPE_QUERY_RESULT: _ClassVar[StructTypeProto]
     STRUCT_TYPE_QUERY_RESULT_GROUP: _ClassVar[StructTypeProto]
@@ -2573,7 +2572,6 @@ STRUCT_TYPE_SORT: StructTypeProto
 STRUCT_TYPE_SELECT: StructTypeProto
 STRUCT_TYPE_RELATION_REFERENCE: StructTypeProto
 STRUCT_TYPE_OBJECT_REFERENCE: StructTypeProto
-STRUCT_TYPE_ATTRIBUTE_REFERENCE: StructTypeProto
 STRUCT_TYPE_QUERY: StructTypeProto
 STRUCT_TYPE_QUERY_RESULT: StructTypeProto
 STRUCT_TYPE_QUERY_RESULT_GROUP: StructTypeProto
@@ -6039,13 +6037,14 @@ class PositionProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., type: _Optional[_Union[PositionTypeProto, str]] = ..., top: _Optional[_Union[LengthProto, _Mapping]] = ..., left: _Optional[_Union[LengthProto, _Mapping]] = ..., width: _Optional[_Union[LengthProto, _Mapping]] = ..., height: _Optional[_Union[LengthProto, _Mapping]] = ...) -> None: ...
 
 class PropertyDefinitionProto(_message.Message):
-    __slots__ = ("metatype", "id", "name", "icon", "description", "object", "cardinality", "scalar_type", "primitive_type", "enum_type", "node_type", "struct_type", "key_type", "is_required", "is_unique", "default_value", "default_factory", "collection_constraint", "string_constraint", "number_constraint", "node_constraint", "node_is_customizable", "node_has_type", "node_has_space", "node_has_definition", "edge_type", "cascade", "is_wired", "is_stored", "is_repr", "is_hash", "is_eq", "is_managed", "is_computed")
+    __slots__ = ("metatype", "id", "name", "icon", "description", "object", "original_object", "cardinality", "scalar_type", "primitive_type", "enum_type", "node_type", "struct_type", "key_type", "is_required", "is_unique", "default_value", "default_factory", "collection_constraint", "string_constraint", "number_constraint", "node_constraint", "node_is_customizable", "node_has_type", "node_has_space", "node_has_definition", "edge_type", "cascade", "is_wired", "is_stored", "is_repr", "is_hash", "is_eq", "is_managed", "is_computed")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     ICON_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     OBJECT_FIELD_NUMBER: _ClassVar[int]
+    ORIGINAL_OBJECT_FIELD_NUMBER: _ClassVar[int]
     CARDINALITY_FIELD_NUMBER: _ClassVar[int]
     SCALAR_TYPE_FIELD_NUMBER: _ClassVar[int]
     PRIMITIVE_TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -6080,6 +6079,7 @@ class PropertyDefinitionProto(_message.Message):
     icon: IconProto
     description: str
     object: ObjectReferenceProto
+    original_object: ObjectReferenceProto
     cardinality: TypeCardinalityProto
     scalar_type: ScalarTypeProto
     primitive_type: PrimitiveTypeProto
@@ -6108,7 +6108,7 @@ class PropertyDefinitionProto(_message.Message):
     is_eq: bool
     is_managed: bool
     is_computed: bool
-    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[int] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconProto, _Mapping]] = ..., description: _Optional[str] = ..., object: _Optional[_Union[ObjectReferenceProto, _Mapping]] = ..., cardinality: _Optional[_Union[TypeCardinalityProto, str]] = ..., scalar_type: _Optional[_Union[ScalarTypeProto, str]] = ..., primitive_type: _Optional[_Union[PrimitiveTypeProto, str]] = ..., enum_type: _Optional[_Union[EnumTypeProto, str]] = ..., node_type: _Optional[_Union[NodeTypeProto, str]] = ..., struct_type: _Optional[_Union[StructTypeProto, str]] = ..., key_type: _Optional[_Union[TypeProto, _Mapping]] = ..., is_required: bool = ..., is_unique: bool = ..., default_value: _Optional[_Union[ValueProto, _Mapping]] = ..., default_factory: _Optional[_Union[DefaultFactoryProto, str]] = ..., collection_constraint: _Optional[_Union[CollectionConstraintProto, _Mapping]] = ..., string_constraint: _Optional[_Union[StringConstraintProto, _Mapping]] = ..., number_constraint: _Optional[_Union[NumberConstraintProto, _Mapping]] = ..., node_constraint: _Optional[_Union[NodeConstraintProto, _Mapping]] = ..., node_is_customizable: bool = ..., node_has_type: bool = ..., node_has_space: bool = ..., node_has_definition: bool = ..., edge_type: _Optional[_Union[EdgeTypeProto, str]] = ..., cascade: _Optional[_Union[CascadeActionProto, str]] = ..., is_wired: bool = ..., is_stored: bool = ..., is_repr: bool = ..., is_hash: bool = ..., is_eq: bool = ..., is_managed: bool = ..., is_computed: bool = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[int] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconProto, _Mapping]] = ..., description: _Optional[str] = ..., object: _Optional[_Union[ObjectReferenceProto, _Mapping]] = ..., original_object: _Optional[_Union[ObjectReferenceProto, _Mapping]] = ..., cardinality: _Optional[_Union[TypeCardinalityProto, str]] = ..., scalar_type: _Optional[_Union[ScalarTypeProto, str]] = ..., primitive_type: _Optional[_Union[PrimitiveTypeProto, str]] = ..., enum_type: _Optional[_Union[EnumTypeProto, str]] = ..., node_type: _Optional[_Union[NodeTypeProto, str]] = ..., struct_type: _Optional[_Union[StructTypeProto, str]] = ..., key_type: _Optional[_Union[TypeProto, _Mapping]] = ..., is_required: bool = ..., is_unique: bool = ..., default_value: _Optional[_Union[ValueProto, _Mapping]] = ..., default_factory: _Optional[_Union[DefaultFactoryProto, str]] = ..., collection_constraint: _Optional[_Union[CollectionConstraintProto, _Mapping]] = ..., string_constraint: _Optional[_Union[StringConstraintProto, _Mapping]] = ..., number_constraint: _Optional[_Union[NumberConstraintProto, _Mapping]] = ..., node_constraint: _Optional[_Union[NodeConstraintProto, _Mapping]] = ..., node_is_customizable: bool = ..., node_has_type: bool = ..., node_has_space: bool = ..., node_has_definition: bool = ..., edge_type: _Optional[_Union[EdgeTypeProto, str]] = ..., cascade: _Optional[_Union[CascadeActionProto, str]] = ..., is_wired: bool = ..., is_stored: bool = ..., is_repr: bool = ..., is_hash: bool = ..., is_eq: bool = ..., is_managed: bool = ..., is_computed: bool = ...) -> None: ...
 
 class PropertyReferenceProto(_message.Message):
     __slots__ = ("metatype", "type", "node_type", "trait_type", "struct_type", "id", "custom_property_ptr")

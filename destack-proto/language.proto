@@ -1409,7 +1409,6 @@ enum StructTypeProto {
   STRUCT_TYPE_SELECT = 50106;
   STRUCT_TYPE_RELATION_REFERENCE = 50107;
   STRUCT_TYPE_OBJECT_REFERENCE = 50108;
-  STRUCT_TYPE_ATTRIBUTE_REFERENCE = 50109;
   STRUCT_TYPE_QUERY = 50110;
   STRUCT_TYPE_QUERY_RESULT = 50111;
   STRUCT_TYPE_QUERY_RESULT_GROUP = 50112;
@@ -3391,6 +3390,7 @@ message PropertyDefinitionProto {
   optional IconProto icon = 34;
   optional string description = 36;
   ObjectReferenceProto object = 37;
+  ObjectReferenceProto original_object = 38;
   TypeCardinalityProto cardinality = 40;
   ScalarTypeProto scalar_type = 41;
   optional PrimitiveTypeProto primitive_type = 42;

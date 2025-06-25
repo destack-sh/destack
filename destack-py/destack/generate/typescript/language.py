@@ -25,6 +25,7 @@ from destack.language import (
     Trait,
     TraitDefinition,
     TraitType,
+    Type,
     TypeCardinality,
     TypeDeclaration,
     get_node_types,
@@ -150,7 +151,7 @@ def _generate_property_type(prop: PropertyDeclaration, as_ptr: bool = True) -> s
     return type_str
 
 
-def _generate_value(type: TypeDeclaration, value: Any) -> str:
+def _generate_value(type: Type | TypeDeclaration | PropertyDeclaration, value: Any) -> str:
     """Generate a Typescript value literal."""
     if type.scalar_type == ScalarType.PRIMITIVE:
         if type.primitive_type == PrimitiveType.BOOLEAN:
@@ -412,23 +413,9 @@ if (_{ts_name_in} === null) {{
 }}""")
 
         # init default
-        if prop.default is not UNSET:
-            default_str: str | None = None
-            if isinstance(prop.default, Enum):
-                default_str = f"{prop.default.__class__.__name__}.{prop.default.name}"
-            elif prop.default is None:
-                default_str = None
-            elif isinstance(prop.default, bool):
-                default_str = "true" if prop.default else "false"
-            elif isinstance(prop.default, (int, float, str, bytes)):
-                default_str = repr(prop.default)
-            else:
-                raise ValueError(
-                    f"unsupported default for {prop!r}: {prop.default!r} ({type(prop.default)})"
-                )
-
-            if default_str is not None:
-                body_parts.append(f"""\
+        if prop.default is not UNSET and prop.default is not None:
+            default_str = _generate_value(prop, prop.default)
+            body_parts.append(f"""\
 if (_{ts_name_in} === null) {{
     _{ts_name_in} = {default_str};
 }}""")
