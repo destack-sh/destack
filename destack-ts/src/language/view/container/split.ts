@@ -15,14 +15,17 @@ import {
   Layout,
   MaterializationType,
   NodeReference,
+  NodeType,
   Position,
   QueryConnection,
   Session,
+  StructType,
   Supergraph,
+  TraitType,
   Value,
   Vector2,
 } from "@destack/language/core";
-import { Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
+import { Node } from "@destack/language/core/builtin";
 import { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import { Layer, Scene, Window } from "@destack/language/scene";

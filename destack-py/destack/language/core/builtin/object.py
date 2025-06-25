@@ -952,6 +952,10 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
         prop.component = cls
         if prop.original_component is UNSET:
             prop.original_component = cls
+        else:
+            prop.original_component = _processed_classes.get(
+                prop.original_component, prop.original_component
+            )
 
     return cls, properties  # type: ignore
 

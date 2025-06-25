@@ -10,7 +10,6 @@ import {
   Position,
   Spatial,
 } from "@destack/language/core";
-import { TraitType } from "@destack/language/core/builtin";
 
 /* ==== DESTACK_GENERATED_START:TRAIT:9001 ==== */
 /**
@@ -56,7 +55,4 @@ export interface View extends Spatial, Entity, IsDeletable, IsOrdered, HasName, 
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class View$Type extends TraitFacade {}
-export const View = new View$Type(TraitType.VIEW);
 /* ==== DESTACK_GENERATED_END:TRAIT:9001 ==== */

@@ -8,6 +8,7 @@ import {
   DefaultFactory,
   EdgeType,
   Entity,
+  EnumType,
   Graph,
   HasIcon,
   HasName,
@@ -20,6 +21,7 @@ import {
   MaterializationType,
   NodeConstraint,
   NodeReference,
+  NodeType,
   NumberConstraint,
   PrimitiveType,
   QueryConnection,
@@ -29,12 +31,14 @@ import {
   SortType,
   Spatial,
   StringConstraint,
+  StructType,
   Supergraph,
+  TraitType,
   Type,
   TypeCardinality,
   Value,
 } from "@destack/language/core";
-import { EnumType, Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
+import { Node } from "@destack/language/core/builtin";
 import { Script } from "@destack/language/logic";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";

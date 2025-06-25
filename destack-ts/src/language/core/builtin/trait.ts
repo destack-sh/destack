@@ -1,231 +1,9 @@
-import { ExpressionIn, NodeClass, WithSubqueries, toSubqueries } from "@destack/language";
-import {
-  Aggregation,
-  AggregationType,
-  Condition,
-  Expression,
-  Icon,
-  Join,
-  MaterializationType,
-  NodeReference,
-  PropertyDefinition,
-  Query,
-  QueryType,
-  RelationReference,
-  ResourceStatus,
-  Sort,
-  Value,
-} from "@destack/language/core";
-import { EnumType, Node, NodeType, TraitType } from "@destack/language/core/builtin";
+import { EnumType, Icon, MaterializationType, NodeReference, ResourceStatus, Value } from "@destack/language/core";
+import { Node } from "@destack/language/core/builtin";
 import { Script } from "@destack/language/logic";
 import { registerEnumClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
-import { Casing, toCasing } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
-
-/** Internal base class for Trait companion objects.*/
-class TraitFacade {
-  readonly metatype: TraitType;
-  readonly __properties__: Record<string, PropertyDefinition>;
-  readonly __propertiesById__: Record<number, PropertyDefinition>;
-
-  constructor(metatype: TraitType) {
-    this.metatype = metatype;
-    this.__properties__ = {};
-    this.__propertiesById__ = {};
-  }
-
-  /** Get a PropertyDefinition or CustomProperty by name. */
-  property(name: string): PropertyDefinition {
-    const prop = this.__properties__[name];
-    if (!prop) {
-      throw new Error(`Property ${name} not found on ${this.constructor.name}`);
-    }
-    return prop;
-  }
-
-  /** Make a get Query for this Node/Trait type. */
-  get(
-    options: WithSubqueries<{
-      where?: Condition;
-      name?: string;
-      join?: Join;
-    }>,
-  ): Query {
-    const { where, name, join, ...subqueries } = options;
-    const query = new Query({
-      type: QueryType.NODE,
-      relation: RelationReference.of(this as unknown as NodeClass),
-      name: name ?? toCasing(TraitType[this.metatype], Casing.CAMEL),
-      join,
-      where,
-      subqueries: toSubqueries(subqueries),
-    });
-    return query;
-  }
-
-  /** Make a search Query for this Node/Trait type. */
-  search(
-    options: WithSubqueries<{
-      where?: Condition;
-      name?: string;
-      join?: Join;
-      having?: Condition;
-      groupBy?: ExpressionIn[];
-      sort?: Sort[];
-      limit?: number;
-      offset?: number;
-    }>,
-  ): Query {
-    const { where, name, join, having, groupBy, sort, limit, offset, ...subqueries } = options;
-    const query = new Query({
-      type: groupBy ? QueryType.GROUPED_NODE : QueryType.NODE,
-      relation: RelationReference.of(this as unknown as NodeClass),
-      name: name ?? toCasing(TraitType[this.metatype], Casing.CAMEL),
-      join,
-      where,
-      having,
-      groupBy: groupBy?.map(Expression.of),
-      sort,
-      limit,
-      offset,
-      subqueries: toSubqueries(subqueries),
-    });
-    return query;
-  }
-
-  /** Make an exists Query for this Node/Trait type. */
-  exists(
-    options: WithSubqueries<{
-      where?: Condition;
-      name?: string;
-      join?: Join;
-    }>,
-  ): Query {
-    const { where, name, join, ...subqueries } = options;
-    const query = new Query({
-      type: QueryType.SCALAR,
-      relation: RelationReference.of(this as unknown as NodeClass),
-      name: name ?? toCasing(TraitType[this.metatype], Casing.CAMEL),
-      join,
-      where,
-      aggregation: Aggregation.of(AggregationType.EXISTS),
-      subqueries: toSubqueries(subqueries),
-    });
-    return query;
-  }
-
-  /** Make a count Query for this Node/Trait type. */
-  count(
-    options: WithSubqueries<{
-      where?: Condition;
-      name?: string;
-      join?: Join;
-      groupBy?: ExpressionIn[];
-      having?: Condition;
-      sort?: Sort[];
-    }>,
-  ): Query {
-    const { where, name, join, groupBy, having, sort, ...subqueries } = options;
-    const query = new Query({
-      type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
-      relation: RelationReference.of(this as unknown as NodeClass),
-      name: name ?? toCasing(NodeType[this.metatype], Casing.CAMEL),
-      join,
-      where,
-      having,
-      groupBy: groupBy?.map(Expression.of),
-      aggregation: Aggregation.of(AggregationType.COUNT),
-      sort,
-      subqueries: toSubqueries(subqueries),
-    });
-    return query;
-  }
-
-  /** Make a min Query for this Node/Trait type. */
-  min(
-    options: WithSubqueries<{
-      expression: ExpressionIn;
-      where?: Condition;
-      name?: string;
-      join?: Join;
-      groupBy?: ExpressionIn[];
-      having?: Condition;
-      sort?: Sort[];
-    }>,
-  ): Query {
-    const { expression, where, name, join, groupBy, having, sort, ...subqueries } = options;
-    const query = new Query({
-      type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
-      relation: RelationReference.of(this as unknown as NodeClass),
-      name: name ?? toCasing(TraitType[this.metatype], Casing.CAMEL),
-      join,
-      where,
-      having,
-      groupBy: groupBy?.map(Expression.of),
-      aggregation: Aggregation.of(AggregationType.MIN, Expression.of(expression)),
-      sort,
-      subqueries: toSubqueries(subqueries),
-    });
-    return query;
-  }
-
-  /** Make a max Query for this Node/Trait type. */
-  max(
-    options: WithSubqueries<{
-      expression: ExpressionIn;
-      where?: Condition;
-      name?: string;
-      join?: Join;
-      groupBy?: ExpressionIn[];
-      having?: Condition;
-      sort?: Sort[];
-    }>,
-  ): Query {
-    const { expression, where, name, join, groupBy, having, sort, ...subqueries } = options;
-    const query = new Query({
-      type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
-      relation: RelationReference.of(this as unknown as NodeClass),
-      name: name ?? toCasing(TraitType[this.metatype], Casing.CAMEL),
-      join,
-      where,
-      having,
-      groupBy: groupBy?.map(Expression.of),
-      aggregation: Aggregation.of(AggregationType.MAX, Expression.of(expression)),
-      sort,
-      subqueries: toSubqueries(subqueries),
-    });
-    return query;
-  }
-
-  /** Make a sum Query for this Node/Trait type. */
-  sum(
-    options: WithSubqueries<{
-      expression: ExpressionIn;
-      where?: Condition;
-      name?: string;
-      join?: Join;
-      groupBy?: ExpressionIn[];
-      having?: Condition;
-      sort?: Sort[];
-    }>,
-  ): Query {
-    const { expression, where, name, join, groupBy, having, sort, ...subqueries } = options;
-    const query = new Query({
-      type: groupBy ? QueryType.GROUPED_SCALAR : QueryType.SCALAR,
-      relation: RelationReference.of(this as unknown as NodeClass),
-      name: name ?? toCasing(TraitType[this.metatype], Casing.CAMEL),
-      join,
-      where,
-      having,
-      groupBy: groupBy?.map(Expression.of),
-      aggregation: Aggregation.of(AggregationType.SUM, Expression.of(expression)),
-      sort,
-      subqueries: toSubqueries(subqueries),
-    });
-    return query;
-  }
-}
 
 /* ==== DESTACK_GENERATED_START:ENUM:50101 ==== */
 /**
@@ -258,9 +36,6 @@ export interface HasName {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class HasName$Type extends TraitFacade {}
-export const HasName = new HasName$Type(TraitType.HAS_NAME);
 /* ==== DESTACK_GENERATED_END:TRAIT:100 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:101 ==== */
@@ -277,9 +52,6 @@ export interface HasSlug {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class HasSlug$Type extends TraitFacade {}
-export const HasSlug = new HasSlug$Type(TraitType.HAS_SLUG);
 /* ==== DESTACK_GENERATED_END:TRAIT:101 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:102 ==== */
@@ -296,9 +68,6 @@ export interface HasIcon {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class HasIcon$Type extends TraitFacade {}
-export const HasIcon = new HasIcon$Type(TraitType.HAS_ICON);
 /* ==== DESTACK_GENERATED_END:TRAIT:102 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:51 ==== */
@@ -326,9 +95,6 @@ export interface IsTracked {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class IsTracked$Type extends TraitFacade {}
-export const IsTracked = new IsTracked$Type(TraitType.TRACKED);
 /* ==== DESTACK_GENERATED_END:TRAIT:51 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:9000 ==== */
@@ -340,26 +106,17 @@ export interface IsVisual extends IsTracked {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class IsVisual$Type extends TraitFacade {}
-export const IsVisual = new IsVisual$Type(TraitType.VISUAL);
 /* ==== DESTACK_GENERATED_END:TRAIT:9000 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:50 ==== */
 /**
  * A Node that is frozen (read-only).
- * TODO :Cleanup: Nodes don't set 'real' frozen=True (like StructFrozen) :PretendFrozen
- *  (because that would require two separate inheritance chains for NodeMutable and NodeFrozen,
- *   which would have to include copies of every relevant trait and .. ughh no)
  */
 export interface IsFrozen {
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class IsFrozen$Type extends TraitFacade {}
-export const IsFrozen = new IsFrozen$Type(TraitType.FROZEN);
 /* ==== DESTACK_GENERATED_END:TRAIT:50 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:52 ==== */
@@ -376,9 +133,6 @@ export interface IsArchivable {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class IsArchivable$Type extends TraitFacade {}
-export const IsArchivable = new IsArchivable$Type(TraitType.ARCHIVABLE);
 /* ==== DESTACK_GENERATED_END:TRAIT:52 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:53 ==== */
@@ -395,9 +149,6 @@ export interface IsDeletable {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class IsDeletable$Type extends TraitFacade {}
-export const IsDeletable = new IsDeletable$Type(TraitType.DELETABLE);
 /* ==== DESTACK_GENERATED_END:TRAIT:53 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:23 ==== */
@@ -413,9 +164,6 @@ export interface IsCustomNodeDefinition {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class IsCustomNodeDefinition$Type extends TraitFacade {}
-export const IsCustomNodeDefinition = new IsCustomNodeDefinition$Type(TraitType.CUSTOM_NODE_DEFINITION);
 /* ==== DESTACK_GENERATED_END:TRAIT:23 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:24 ==== */
@@ -430,9 +178,6 @@ export interface IsCustomNode {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class IsCustomNode$Type extends TraitFacade {}
-export const IsCustomNode = new IsCustomNode$Type(TraitType.CUSTOM_NODE);
 /* ==== DESTACK_GENERATED_END:TRAIT:24 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:55 ==== */
@@ -449,9 +194,6 @@ export interface IsExtensible {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class IsExtensible$Type extends TraitFacade {}
-export const IsExtensible = new IsExtensible$Type(TraitType.EXTENSIBLE);
 /* ==== DESTACK_GENERATED_END:TRAIT:55 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:56 ==== */
@@ -468,9 +210,6 @@ export interface IsOrdered {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class IsOrdered$Type extends TraitFacade {}
-export const IsOrdered = new IsOrdered$Type(TraitType.ORDERED);
 /* ==== DESTACK_GENERATED_END:TRAIT:56 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:5532 ==== */
@@ -482,9 +221,6 @@ export interface IsReactable {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class IsReactable$Type extends TraitFacade {}
-export const IsReactable = new IsReactable$Type(TraitType.REACTABLE);
 /* ==== DESTACK_GENERATED_END:TRAIT:5532 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:5530 ==== */
@@ -496,9 +232,6 @@ export interface IsStarable {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class IsStarable$Type extends TraitFacade {}
-export const IsStarable = new IsStarable$Type(TraitType.STARABLE);
 /* ==== DESTACK_GENERATED_END:TRAIT:5530 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:5534 ==== */
@@ -510,9 +243,6 @@ export interface IsFollowable {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class IsFollowable$Type extends TraitFacade {}
-export const IsFollowable = new IsFollowable$Type(TraitType.FOLLOWABLE);
 /* ==== DESTACK_GENERATED_END:TRAIT:5534 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:3003 ==== */
@@ -527,9 +257,6 @@ export interface IsSourceable extends IsOrdered {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class IsSourceable$Type extends TraitFacade {}
-export const IsSourceable = new IsSourceable$Type(TraitType.SOURCEABLE);
 /* ==== DESTACK_GENERATED_END:TRAIT:3003 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:3002 ==== */
@@ -545,9 +272,6 @@ export interface IsScriptable {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class IsScriptable$Type extends TraitFacade {}
-export const IsScriptable = new IsScriptable$Type(TraitType.SCRIPTABLE);
 /* ==== DESTACK_GENERATED_END:TRAIT:3002 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:3001 ==== */
@@ -559,9 +283,6 @@ export interface IsRunnable {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class IsRunnable$Type extends TraitFacade {}
-export const IsRunnable = new IsRunnable$Type(TraitType.RUNNABLE);
 /* ==== DESTACK_GENERATED_END:TRAIT:3001 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:3000 ==== */
@@ -573,9 +294,6 @@ export interface IsActionable {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class IsActionable$Type extends TraitFacade {}
-export const IsActionable = new IsActionable$Type(TraitType.ACTIONABLE);
 /* ==== DESTACK_GENERATED_END:TRAIT:3000 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:500 ==== */
@@ -591,9 +309,6 @@ export interface IsOwnable {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class IsOwnable$Type extends TraitFacade {}
-export const IsOwnable = new IsOwnable$Type(TraitType.OWNABLE);
 /* ==== DESTACK_GENERATED_END:TRAIT:500 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:5000 ==== */
@@ -605,9 +320,6 @@ export interface IsSettings {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class IsSettings$Type extends TraitFacade {}
-export const IsSettings = new IsSettings$Type(TraitType.SETTINGS);
 /* ==== DESTACK_GENERATED_END:TRAIT:5000 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:502 ==== */
@@ -619,9 +331,6 @@ export interface IsJoinable {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class IsJoinable$Type extends TraitFacade {}
-export const IsJoinable = new IsJoinable$Type(TraitType.JOINABLE);
 /* ==== DESTACK_GENERATED_END:TRAIT:502 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:505 ==== */
@@ -633,9 +342,6 @@ export interface IsSubject {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class IsSubject$Type extends TraitFacade {}
-export const IsSubject = new IsSubject$Type(TraitType.SUBJECT);
 /* ==== DESTACK_GENERATED_END:TRAIT:505 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:506 ==== */
@@ -647,9 +353,6 @@ export interface IsOwner {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class IsOwner$Type extends TraitFacade {}
-export const IsOwner = new IsOwner$Type(TraitType.OWNER);
 /* ==== DESTACK_GENERATED_END:TRAIT:506 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:1000 ==== */
@@ -661,9 +364,6 @@ export interface IsTaggable {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class IsTaggable$Type extends TraitFacade {}
-export const IsTaggable = new IsTaggable$Type(TraitType.TAGGABLE);
 /* ==== DESTACK_GENERATED_END:TRAIT:1000 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:510 ==== */
@@ -679,9 +379,6 @@ export interface LikeMembership {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class LikeMembership$Type extends TraitFacade {}
-export const LikeMembership = new LikeMembership$Type(TraitType.MEMBERSHIP);
 /* ==== DESTACK_GENERATED_END:TRAIT:510 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:511 ==== */
@@ -697,9 +394,6 @@ export interface LikeInvite {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class LikeInvite$Type extends TraitFacade {}
-export const LikeInvite = new LikeInvite$Type(TraitType.INVITE);
 /* ==== DESTACK_GENERATED_END:TRAIT:511 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:1001 ==== */
@@ -711,9 +405,6 @@ export interface LikeTag {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class LikeTag$Type extends TraitFacade {}
-export const LikeTag = new LikeTag$Type(TraitType.TAG);
 /* ==== DESTACK_GENERATED_END:TRAIT:1001 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:5535 ==== */
@@ -725,9 +416,6 @@ export interface LikeFollow {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class LikeFollow$Type extends TraitFacade {}
-export const LikeFollow = new LikeFollow$Type(TraitType.FOLLOW);
 /* ==== DESTACK_GENERATED_END:TRAIT:5535 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:1 ==== */
@@ -739,9 +427,6 @@ export interface Global {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class Global$Type extends TraitFacade {}
-export const Global = new Global$Type(TraitType.GLOBAL);
 /* ==== DESTACK_GENERATED_END:TRAIT:1 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:2 ==== */
@@ -756,9 +441,6 @@ export interface Spatial {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class Spatial$Type extends TraitFacade {}
-export const Spatial = new Spatial$Type(TraitType.SPATIAL);
 /* ==== DESTACK_GENERATED_END:TRAIT:2 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:10 ==== */
@@ -775,9 +457,6 @@ export interface Entity extends IsTracked {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class Entity$Type extends TraitFacade {}
-export const Entity = new Entity$Type(TraitType.ENTITY);
 /* ==== DESTACK_GENERATED_END:TRAIT:10 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:11 ==== */
@@ -789,9 +468,6 @@ export interface Particle extends IsTracked {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class Particle$Type extends TraitFacade {}
-export const Particle = new Particle$Type(TraitType.PARTICLE);
 /* ==== DESTACK_GENERATED_END:TRAIT:11 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:12 ==== */
@@ -803,9 +479,6 @@ export interface Analytic extends IsTracked {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class Analytic$Type extends TraitFacade {}
-export const Analytic = new Analytic$Type(TraitType.ANALYTIC);
 /* ==== DESTACK_GENERATED_END:TRAIT:12 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:13 ==== */
@@ -817,9 +490,6 @@ export interface Indexed extends IsTracked {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class Indexed$Type extends TraitFacade {}
-export const Indexed = new Indexed$Type(TraitType.INDEXED);
 /* ==== DESTACK_GENERATED_END:TRAIT:13 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:21 ==== */
@@ -842,9 +512,6 @@ export interface Resource extends Entity {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class Resource$Type extends TraitFacade {}
-export const Resource = new Resource$Type(TraitType.RESOURCE);
 /* ==== DESTACK_GENERATED_END:TRAIT:21 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:4010 ==== */
@@ -856,9 +523,6 @@ export interface Metric extends Entity, IsCustomNodeDefinition, IsSourceable {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class Metric$Type extends TraitFacade {}
-export const Metric = new Metric$Type(TraitType.METRIC);
 /* ==== DESTACK_GENERATED_END:TRAIT:4010 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:4011 ==== */
@@ -873,9 +537,6 @@ export interface Measurement extends Analytic, IsCustomNode {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class Measurement$Type extends TraitFacade {}
-export const Measurement = new Measurement$Type(TraitType.MEASUREMENT);
 /* ==== DESTACK_GENERATED_END:TRAIT:4011 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:22 ==== */
@@ -892,7 +553,4 @@ export interface Event extends Spatial, Particle, Analytic, Indexed, IsFrozen {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class Event$Type extends TraitFacade {}
-export const Event = new Event$Type(TraitType.EVENT);
 /* ==== DESTACK_GENERATED_END:TRAIT:22 ==== */

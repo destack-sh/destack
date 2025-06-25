@@ -13,12 +13,15 @@ import {
   IsSubject,
   MaterializationType,
   NodeReference,
+  NodeType,
   QueryConnection,
   Session,
   Spatial,
+  StructType,
   Supergraph,
+  TraitType,
 } from "@destack/language/core";
-import { Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
+import { Node } from "@destack/language/core/builtin";
 import { Folder } from "@destack/language/folder";
 import { Cursor, Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";

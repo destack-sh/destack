@@ -12,11 +12,14 @@ import {
   IsSubject,
   MaterializationType,
   NodeReference,
+  NodeType,
   QueryConnection,
   Session,
+  StructType,
   Supergraph,
+  TraitType,
 } from "@destack/language/core";
-import { Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
+import { Node } from "@destack/language/core/builtin";
 import { registerNodeClass } from "@destack/language/registry";
 import { MaterializationTypeProto, TeamProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";

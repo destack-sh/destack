@@ -1,5 +1,5 @@
-import { Region, Session, Supergraph } from "@destack/language/core";
-import { Struct, StructType } from "@destack/language/core/builtin";
+import { Region, Session, StructType, Supergraph } from "@destack/language/core";
+import { Struct } from "@destack/language/core/builtin";
 import { registerStructClass } from "@destack/language/registry";
 import { GalaxyInfoProto, RegionProto } from "@destack/proto";
 

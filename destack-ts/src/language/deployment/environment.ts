@@ -9,12 +9,15 @@ import {
   IsSubject,
   MaterializationType,
   NodeReference,
+  NodeType,
   QueryConnection,
   Session,
   Spatial,
+  StructType,
   Supergraph,
+  TraitType,
 } from "@destack/language/core";
-import { Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
+import { Node } from "@destack/language/core/builtin";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { EnvironmentProto, MaterializationTypeProto } from "@destack/proto";

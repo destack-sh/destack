@@ -10,13 +10,16 @@ import {
   IsTaggable,
   MaterializationType,
   NodeReference,
+  NodeType,
   QueryConnection,
   Session,
   Spatial,
+  StructType,
   Supergraph,
   Text,
+  TraitType,
 } from "@destack/language/core";
-import { Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
+import { Node } from "@destack/language/core/builtin";
 import { registerNodeClass } from "@destack/language/registry";
 import { Thread } from "@destack/language/social";
 import { Space } from "@destack/language/space";

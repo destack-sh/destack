@@ -1,19 +1,23 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Entity,
+  EnumType,
   Graph,
   IsOwnable,
   IsOwner,
   IsSubject,
   MaterializationType,
   NodeReference,
+  NodeType,
   QueryConnection,
   Session,
   Spatial,
+  StructType,
   Supergraph,
+  TraitType,
   Vector2i,
 } from "@destack/language/core";
-import { EnumType, Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
+import { Node } from "@destack/language/core/builtin";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import {
@@ -66,9 +70,6 @@ export interface Cursor extends Spatial, Entity {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-
-class Cursor$Type extends TraitFacade {}
-export const Cursor = new Cursor$Type(TraitType.CURSOR);
 /* ==== DESTACK_GENERATED_END:TRAIT:3012 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:3100 ==== */

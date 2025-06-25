@@ -2,15 +2,19 @@ import { PRIMITIVE_JS_TYPES, PRIMITIVE_TYPE_BY_JS_TYPE } from "@destack/language
 import {
   CustomEntityDefinition,
   DefaultFactory,
+  EnumType,
   NodeReference,
+  NodeType,
   PrimitiveType,
   ScalarType,
   Session,
+  StructType,
   Supergraph,
+  TraitType,
   TypeCardinality,
   Value,
 } from "@destack/language/core";
-import { EnumType, Node, NodeType, Struct, StructFrozen, StructType, TraitType } from "@destack/language/core/builtin";
+import { Node, Struct, StructFrozen } from "@destack/language/core/builtin";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import {
   CollectionConstraintProto,

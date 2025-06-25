@@ -1,6 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import { Session, Supergraph } from "@destack/language/core";
-import { EnumType, Struct, StructType } from "@destack/language/core/builtin";
+import { EnumType, Session, StructType, Supergraph } from "@destack/language/core";
+import { Struct } from "@destack/language/core/builtin";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { DayOfWeekProto, MonthProto, ScheduleFrequencyProto, ScheduleProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";

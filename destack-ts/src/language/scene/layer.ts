@@ -8,6 +8,7 @@ import {
   Dimension,
   Direction,
   Distribute,
+  EnumType,
   Graph,
   Grid,
   GridSpan,
@@ -20,14 +21,17 @@ import {
   Layout,
   MaterializationType,
   NodeReference,
+  NodeType,
   Position,
   QueryConnection,
   Session,
+  StructType,
   Supergraph,
+  TraitType,
   Value,
   Vector2,
 } from "@destack/language/core";
-import { EnumType, Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
+import { Node } from "@destack/language/core/builtin";
 import { Script } from "@destack/language/logic";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Scene } from "@destack/language/scene";
