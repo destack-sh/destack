@@ -1,26 +1,14 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import {
-  Dimension,
-  Graph,
-  IsSubject,
-  MaterializationType,
-  NodeReference,
-  NodeType,
-  Position,
-  QueryConnection,
-  Session,
-  StructType,
-  Supergraph,
-  Text,
-  TraitType,
-} from "@destack/language/core";
-import { Node } from "@destack/language/core/builtin";
+import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
+import { IsSubject, MaterializationType, Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
+import { Dimension, Position, Text } from "@destack/language/core/common";
 import { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import { Layer, Scene, Window } from "@destack/language/scene";
 import { Message } from "@destack/language/social";
 import { Space } from "@destack/language/space";
-import { ContainerView, NodeView } from "@destack/language/view";
+import { ContainerView } from "@destack/language/view/container";
+import { NodeView } from "@destack/language/view/node";
 import { MaterializationTypeProto, ThreadViewProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
 

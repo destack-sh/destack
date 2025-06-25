@@ -1,23 +1,19 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
+import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
   Entity,
   Global,
-  Graph,
   IsDeletable,
   IsOwnable,
   IsReactable,
   IsSubject,
   MaterializationType,
-  NodeReference,
+  Node,
   NodeType,
-  QueryConnection,
-  Session,
   Spatial,
   StructType,
-  Supergraph,
   TraitType,
-} from "@destack/language/core";
-import { Node } from "@destack/language/core/builtin";
+} from "@destack/language/core/builtin";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { MaterializationTypeProto, ReactionProto } from "@destack/proto";

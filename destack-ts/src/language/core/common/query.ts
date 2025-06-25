@@ -1,18 +1,14 @@
 import { NodeClass, toValue } from "@destack/language";
+import { Session, Supergraph } from "@destack/language/core";
+import { EnumType, NodeType, Struct, StructFrozen, StructType } from "@destack/language/core/builtin";
 import {
   CustomEntityDefinition,
   CustomProperty,
-  EnumType,
-  NodeType,
   PropertyDefinition,
   PropertyReference,
   RelationReference,
-  Session,
-  StructType,
-  Supergraph,
   Value,
-} from "@destack/language/core";
-import { Struct, StructFrozen } from "@destack/language/core/builtin";
+} from "@destack/language/core/common";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import {
   AggregationProto,

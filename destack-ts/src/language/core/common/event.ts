@@ -1,28 +1,20 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
+import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
-  CustomProperty,
-  EditOperation,
-  EditType,
   Entity,
   Event,
-  Graph,
   HasName,
   IsSourceable,
   IsSubject,
   IsTaggable,
   MaterializationType,
-  NodeReference,
+  Node,
   NodeType,
-  PropertyReference,
-  QueryConnection,
-  Session,
   Spatial,
   StructType,
-  Supergraph,
   TraitType,
-  Value,
-} from "@destack/language/core";
-import { Node } from "@destack/language/core/builtin";
+} from "@destack/language/core/builtin";
+import { CustomProperty, EditOperation, EditType, PropertyReference, Value } from "@destack/language/core/common";
 import { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";

@@ -1,20 +1,16 @@
 import { packProtoDuration, packProtoTimestamp, unpackProtoDuration, unpackProtoTimestamp } from "@destack/grpc";
+import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
-  Axis3,
   EnumType,
-  Graph,
   IsSubject,
   MaterializationType,
-  NodeReference,
+  Node,
   NodeType,
-  QueryConnection,
-  Session,
+  Struct,
   StructType,
-  Supergraph,
   TraitType,
-  Vector2,
-} from "@destack/language/core";
-import { Node, Struct } from "@destack/language/core/builtin";
+} from "@destack/language/core/builtin";
+import { Axis3, Vector2 } from "@destack/language/core/common";
 import { registerEnumClass, registerNodeClass, registerStructClass } from "@destack/language/registry";
 import { Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";

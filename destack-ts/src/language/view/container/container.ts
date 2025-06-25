@@ -1,3 +1,4 @@
+import { IsExtensible, TraitClass, TraitType } from "@destack/language/core/builtin";
 import {
   Align,
   Axis2,
@@ -8,10 +9,10 @@ import {
   Grid,
   GridSpan,
   Insets,
-  IsExtensible,
   Layout,
   Vector2,
-} from "@destack/language/core";
+} from "@destack/language/core/common";
+import { registerTraitClass } from "@destack/language/registry";
 import { Border, Fill, Shadow } from "@destack/language/style";
 import { View } from "@destack/language/view";
 
@@ -119,4 +120,12 @@ export interface ContainerView extends IsExtensible, View {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
+
+/**
+ * A container View contains other Views.
+ */
+class ContainerView$Type extends TraitClass {}
+
+export const ContainerView = new ContainerView$Type(TraitType.CONTAINER_VIEW);
+registerTraitClass(TraitType.CONTAINER_VIEW, ContainerView);
 /* ==== DESTACK_GENERATED_END:TRAIT:10000 ==== */

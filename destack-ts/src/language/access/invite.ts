@@ -1,28 +1,24 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Role } from "@destack/language/access";
+import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
   Entity,
   EnumType,
   Event,
   Global,
-  Graph,
   IsDeletable,
   IsJoinable,
   IsOwnable,
   IsOwner,
   IsSubject,
   MaterializationType,
-  NodeReference,
+  Node,
   NodeType,
-  QueryConnection,
   RoleType,
-  Session,
   Spatial,
   StructType,
-  Supergraph,
   TraitType,
-} from "@destack/language/core";
-import { Node } from "@destack/language/core/builtin";
+} from "@destack/language/core/builtin";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { InviteEventProto, InviteProto, MaterializationTypeProto, RoleTypeProto } from "@destack/proto";

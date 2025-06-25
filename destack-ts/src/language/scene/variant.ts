@@ -1,32 +1,27 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
+import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
   Entity,
   EnumType,
-  Graph,
   HasIcon,
   HasName,
   HasSlug,
-  Icon,
   IsDeletable,
   IsOwnable,
   IsOwner,
   IsSubject,
-  Length,
   MaterializationType,
-  NodeReference,
+  Node,
   NodeType,
-  QueryConnection,
-  Session,
   Spatial,
   StructType,
-  Supergraph,
   TraitType,
-} from "@destack/language/core";
-import { Node } from "@destack/language/core/builtin";
+} from "@destack/language/core/builtin";
+import { Icon, Length } from "@destack/language/core/common";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Layer, Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
-import { CustomViewDefinition } from "@destack/language/view";
+import { CustomViewDefinition } from "@destack/language/view/container";
 import { MaterializationTypeProto, VariantProto, VariantTypeProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
 

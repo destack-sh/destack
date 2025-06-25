@@ -1,5 +1,4 @@
 import {
-  Dimension,
   Entity,
   HasName,
   IsDeletable,
@@ -7,9 +6,12 @@ import {
   IsScriptable,
   IsTaggable,
   IsVisual,
-  Position,
   Spatial,
-} from "@destack/language/core";
+  TraitClass,
+  TraitType,
+} from "@destack/language/core/builtin";
+import { Dimension, Position } from "@destack/language/core/common";
+import { registerTraitClass } from "@destack/language/registry";
 
 /* ==== DESTACK_GENERATED_START:TRAIT:9001 ==== */
 /**
@@ -55,4 +57,12 @@ export interface View extends Spatial, Entity, IsDeletable, IsOrdered, HasName, 
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
+
+/**
+ * A View is a graphical interface.
+ */
+class View$Type extends TraitClass {}
+
+export const View = new View$Type(TraitType.VIEW);
+registerTraitClass(TraitType.VIEW, View);
 /* ==== DESTACK_GENERATED_END:TRAIT:9001 ==== */
