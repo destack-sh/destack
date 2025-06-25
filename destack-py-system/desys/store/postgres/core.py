@@ -487,12 +487,12 @@ class PostgresContext(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def resolve_relation(self, relation: RelationReference) -> Sequence[RelationReference]:
+    def resolve(self, relation: RelationReference) -> Sequence[RelationReference]:
         """Expand the specific Relations for a RelationReference."""
         ...
 
     @abc.abstractmethod
-    def get_relation(self, relation: RelationReference | NodeReference) -> PostgresTable:
+    def get(self, relation: RelationReference | NodeReference) -> PostgresTable:
         """Get the (single) Table for a node / relation. Doesn't work for multi-relations."""
         ...
 

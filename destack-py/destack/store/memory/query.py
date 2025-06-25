@@ -320,7 +320,7 @@ def _walk_node(
     """Get the cascaded Nodes for a query."""
 
     nodes_by_id: dict[UUID, NodeReference] = {ptr.id: ptr for ptr in roots_ptr}
-    relations = context.resolve_relation(relation)
+    relations = context.resolve(relation)
 
     # parent walk
     if direction == EdgeDirection.PARENT:
@@ -333,7 +333,7 @@ def _walk_node(
 
             next_node_ids: set[UUID] = set()
             for rel in relations:
-                table = context.get_relation(rel)
+                table = context.get(rel)
                 for node_id in current_node_ids:
                     if (
                         (row := table.rows.get(node_id)) is not None
@@ -359,7 +359,7 @@ def _walk_node(
 
             next_parent_ids: set[UUID] = set()
             for rel in relations:
-                table = context.get_relation(rel)
+                table = context.get(rel)
                 for parent_id in current_parent_ids:
                     if children := table.rows_by_parent_id.get(parent_id):
                         for row in children:
@@ -398,7 +398,7 @@ def _query_node(
         # fan out trait relations
         if limit is not None or offset is not None:
             raise NotImplementedError(f"cannot limit/offset for multi relation: {relation!r}")
-        relations = context.resolve_relation(relation)
+        relations = context.resolve(relation)
         all_values: list[Value] = []
         all_ptrs: list[NodeReference] = []
         for rel in relations:
@@ -415,7 +415,7 @@ def _query_node(
             all_ptrs.extend(ptrs)
         return all_values, all_ptrs
 
-    table = context.get_relation(relation)
+    table = context.get(relation)
 
     # filter
     if where is not None:
@@ -461,15 +461,15 @@ def _query_scalar(
     """Execute a scalar Query."""
     # handle multi-relations
     if relation.type == RelationType.TRAIT:
-        relations = context.resolve_relation(relation)
+        relations = context.resolve(relation)
         filtered_rows: list[MemoryRow] = []
         for rel in relations:
-            table = context.get_relation(rel)
+            table = context.get(rel)
             for row in table.rows.values():
                 if where is None or _evaluate_condition(context, where, row):
                     filtered_rows.append(row)
     else:
-        table = context.get_relation(relation)
+        table = context.get(relation)
         filtered_rows = []
         for row in table.rows.values():
             if where is None or _evaluate_condition(context, where, row):
@@ -503,7 +503,7 @@ def _query_grouped_node(
     if relation.type == RelationType.TRAIT:
         raise NotImplementedError("grouped node queries not supported for trait relations")
 
-    table = context.get_relation(relation)
+    table = context.get(relation)
 
     # filter
     if where is not None:
@@ -578,7 +578,7 @@ def _query_grouped_scalar(
     if relation.type == RelationType.TRAIT:
         raise NotImplementedError("grouped scalar queries not supported for trait relations")
 
-    table = context.get_relation(relation)
+    table = context.get(relation)
 
     # filter rows based on where condition
     filtered_nodes: list[MemoryRow] = []

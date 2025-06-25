@@ -52,7 +52,7 @@ class MemoryContext:
         """Apply the Edits to the context. Returns the Edits that were applied."""
         ...
 
-    def resolve_relation(self, relation: RelationReference) -> Sequence[RelationReference]:
+    def resolve(self, relation: RelationReference) -> Sequence[RelationReference]:
         """Expand the specific Relations for a RelationReference."""
         if relation.type in (RelationType.BUILTIN_NODE, RelationType.CUSTOM_NODE):
             return (relation,)
@@ -65,16 +65,22 @@ class MemoryContext:
         else:
             assert_never(relation.type)
 
-    def get_relation(self, relation: RelationReference | NodeReference) -> "MemoryTable":
+    def get(self, relation: RelationReference | NodeReference) -> "MemoryTable":
         """Get the (single) Table for a node / relation. Doesn't work for multi-relations."""
         assert relation.node_type is not None, f"no node_type for {relation!r}"
         if isinstance(relation, NodeReference):
-            table_key = (relation.node_type, relation.definition_id)
+            if relation.node_type != NodeType.CUSTOM_ENTITY:
+                table_key = (relation.node_type, None)
+            else:
+                table_key = (relation.node_type, relation.definition_id)
         else:
-            table_key = (
-                relation.node_type,
-                relation.definition_ptr.id if relation.definition_ptr else None,
-            )
+            if relation.node_type != NodeType.CUSTOM_ENTITY:
+                table_key = (relation.node_type, None)
+            else:
+                table_key = (
+                    relation.node_type,
+                    relation.definition_ptr.id if relation.definition_ptr else None,
+                )
         if table_key not in self.database.tables:
             self.database.tables[table_key] = MemoryTable(
                 database=self.database, metatype=relation.node_type, definition=None

@@ -36,11 +36,11 @@ async def execute_change(
     cascaded_edits: list[Edit] = []
     applied_edits: list[Edit] = []
 
-    current_table = context.get_relation(edits[0].node_ptr)
+    current_table = context.get(edits[0].node_ptr)
     current_edit_type = edits[0].type
     current_batch: list[Edit] = []
     for edit in edits:
-        edit_table = context.get_relation(edit.node_ptr)
+        edit_table = context.get(edit.node_ptr)
         if edit_table is not current_table or edit.type != current_edit_type:
             batch_applied_edits, batch_cascaded_edits = await _execute_data_edit(
                 conn=conn,
@@ -96,7 +96,7 @@ def _optimize_change(context: PostgresContext, edits: Sequence[Edit]) -> list[Ed
             return
         grouped: OrderedDict[tuple[str, EditType], list[Edit]] = OrderedDict()
         for e in buffer:
-            table = context.get_relation(e.node_ptr)
+            table = context.get(e.node_ptr)
             key = (table.name, e.type)
             if key not in grouped:
                 grouped[key] = []
@@ -316,7 +316,7 @@ WHERE id = ${len(update_template) + 1}
             assert_never(edit_type)
         edited_node_ptrs_by_table: dict[str, list[uuid.UUID]] = defaultdict(list)
         for node_ptr in cascaded_node_ptrs:
-            table_name = context.get_relation(node_ptr).name
+            table_name = context.get(node_ptr).name
             node_id_packed = uuid.UUID(str(node_ptr.id))
             edited_node_ptrs_by_table.setdefault(table_name, []).append(node_id_packed)
         at_packed = uuid.UUID(str(change.created_at))
@@ -354,7 +354,7 @@ WHERE id = $1
         # delete
         edited_node_ptrs_by_table: dict[str, list[uuid.UUID]] = defaultdict(list)
         for node_ptr in cascaded_node_ptrs:
-            table_name = context.get_relation(node_ptr).name
+            table_name = context.get(node_ptr).name
             node_id_packed = uuid.UUID(str(node_ptr.id))
             edited_node_ptrs_by_table.setdefault(table_name, []).append(node_id_packed)
         for table_name, table_node_ids in edited_node_ptrs_by_table.items():

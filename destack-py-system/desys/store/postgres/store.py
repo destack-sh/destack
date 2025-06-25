@@ -158,7 +158,7 @@ class PostgresStoreContext(PostgresContext):
         return applied_edits
 
     @override
-    def resolve_relation(self, relation: RelationReference) -> Sequence[RelationReference]:
+    def resolve(self, relation: RelationReference) -> Sequence[RelationReference]:
         if relation.type in (RelationType.BUILTIN_NODE, RelationType.CUSTOM_NODE):
             return (relation,)
         elif relation.type == RelationType.TRAIT:
@@ -171,7 +171,7 @@ class PostgresStoreContext(PostgresContext):
             assert_never(relation.type)
 
     @override
-    def get_relation(self, relation: RelationReference | NodeReference) -> PostgresTable:
+    def get(self, relation: RelationReference | NodeReference) -> PostgresTable:
         # map relations to table names
         if isinstance(relation, NodeReference):
             if relation.node_type != NodeType.CUSTOM_ENTITY:
