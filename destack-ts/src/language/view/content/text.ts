@@ -5,16 +5,13 @@ import {
   Graph,
   IsSubject,
   MaterializationType,
-  Node,
   NodeReference,
-  NodeType,
   Position,
   QueryConnection,
   Session,
-  StructType,
   Supergraph,
-  TraitType,
 } from "@destack/language/core";
+import { Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
 import { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import { Layer, Scene, Window } from "@destack/language/scene";
@@ -420,10 +417,7 @@ export class TextView extends Node implements ContentView {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (
-      (this.userSelect == null) !== (other.userSelect == null) ||
-      (this.userSelect != null && !(this.userSelect === other.userSelect))
-    ) {
+    if (!(this.userSelect === other.userSelect)) {
       return false;
     }
     if ((this.font == null) !== (other.font == null) || (this.font != null && !this.font.equals(other.font))) {
@@ -432,16 +426,13 @@ export class TextView extends Node implements ContentView {
     if ((this.color == null) !== (other.color == null) || (this.color != null && !this.color.equals(other.color))) {
       return false;
     }
-    if ((this.text == null) !== (other.text == null) || (this.text != null && !(this.text === other.text))) {
+    if (!(this.text === other.text)) {
       return false;
     }
-    if ((this.align == null) !== (other.align == null) || (this.align != null && !(this.align === other.align))) {
+    if (!(this.align === other.align)) {
       return false;
     }
-    if (
-      (this.isVisible == null) !== (other.isVisible == null) ||
-      (this.isVisible != null && !(this.isVisible === other.isVisible))
-    ) {
+    if (!(this.isVisible === other.isVisible)) {
       return false;
     }
     if (
@@ -489,22 +480,13 @@ export class TextView extends Node implements ContentView {
     ) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
-      return false;
-    }
-    if (!(this.materialization === other.materialization)) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     if (!(this.name === other.name)) {
       return false;
     }
-    if (
-      (this.scriptPtr == null) !== (other.scriptPtr == null) ||
-      (this.scriptPtr != null && !(this.scriptPtr.id === other.scriptPtr.id))
-    ) {
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
       return false;
     }
     return true;

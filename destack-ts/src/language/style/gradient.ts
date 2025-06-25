@@ -1,21 +1,15 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Axis2,
-  EnumType,
   Graph,
   IsSubject,
   MaterializationType,
-  Node,
   NodeReference,
-  NodeType,
   QueryConnection,
   Session,
-  Struct,
-  StructFrozen,
-  StructType,
   Supergraph,
-  TraitType,
 } from "@destack/language/core";
+import { EnumType, Node, NodeType, Struct, StructFrozen, StructType, TraitType } from "@destack/language/core/builtin";
 import { registerEnumClass, registerNodeClass, registerStructClass } from "@destack/language/registry";
 import { Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
@@ -319,10 +313,7 @@ export class Gradient extends Struct {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (
-      (this.stylePtr == null) !== (other.stylePtr == null) ||
-      (this.stylePtr != null && !(this.stylePtr.id === other.stylePtr.id))
-    ) {
+    if (!(this.stylePtr?.id === other.stylePtr?.id)) {
       return false;
     }
     if (!(this.type === other.type)) {
@@ -803,13 +794,7 @@ export class GradientStyle extends Node implements Style {
     if ((this.dark == null) !== (other.dark == null) || (this.dark != null && !this.dark.equals(other.dark))) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
-      return false;
-    }
-    if (!(this.materialization === other.materialization)) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     if (!(this.name === other.name)) {

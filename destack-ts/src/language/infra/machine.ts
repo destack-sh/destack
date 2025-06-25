@@ -1,21 +1,17 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
-  EnumType,
   Graph,
   IsSubject,
   MaterializationType,
-  Node,
   NodeReference,
-  NodeType,
   QueryConnection,
   Resource,
   ResourceStatus,
   Session,
   Spatial,
-  StructType,
   Supergraph,
-  TraitType,
 } from "@destack/language/core";
+import { EnumType, Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Client, Space } from "@destack/language/space";
 import { MachineProto, MachineTypeProto, MaterializationTypeProto, ResourceStatusProto } from "@destack/proto";
@@ -396,37 +392,22 @@ export class Machine extends Node implements Spatial, Resource {
     if (!(this.version === other.version)) {
       return false;
     }
-    if (
-      (this.externalName == null) !== (other.externalName == null) ||
-      (this.externalName != null && !(this.externalName === other.externalName))
-    ) {
+    if (!(this.externalName === other.externalName)) {
       return false;
     }
-    if (
-      (this.externalId == null) !== (other.externalId == null) ||
-      (this.externalId != null && !(this.externalId === other.externalId))
-    ) {
+    if (!(this.externalId === other.externalId)) {
       return false;
     }
-    if (
-      (this.imageId == null) !== (other.imageId == null) ||
-      (this.imageId != null && !(this.imageId === other.imageId))
-    ) {
+    if (!(this.imageId === other.imageId)) {
       return false;
     }
-    if (
-      (this.grpcUrl == null) !== (other.grpcUrl == null) ||
-      (this.grpcUrl != null && !(this.grpcUrl === other.grpcUrl))
-    ) {
+    if (!(this.grpcUrl === other.grpcUrl)) {
       return false;
     }
-    if ((this.vncUrl == null) !== (other.vncUrl == null) || (this.vncUrl != null && !(this.vncUrl === other.vncUrl))) {
+    if (!(this.vncUrl === other.vncUrl)) {
       return false;
     }
-    if (
-      (this.clientPtr == null) !== (other.clientPtr == null) ||
-      (this.clientPtr != null && !(this.clientPtr.id === other.clientPtr.id))
-    ) {
+    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
       return false;
     }
     if (!(this.cpu === other.cpu || Math.abs(this.cpu - other.cpu) < 1e-10)) {
@@ -444,22 +425,13 @@ export class Machine extends Node implements Spatial, Resource {
     if (!(this.isHeadless === other.isHeadless)) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     if (!(this.status === other.status)) {
       return false;
     }
-    if (
-      (this.targetStatus == null) !== (other.targetStatus == null) ||
-      (this.targetStatus != null && !(this.targetStatus === other.targetStatus))
-    ) {
-      return false;
-    }
-    if (!(this.materialization === other.materialization)) {
+    if (!(this.targetStatus === other.targetStatus)) {
       return false;
     }
     return true;

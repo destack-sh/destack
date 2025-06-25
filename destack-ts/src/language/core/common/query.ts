@@ -2,17 +2,13 @@ import { NodeClass, toValue } from "@destack/language";
 import {
   CustomEntityDefinition,
   CustomProperty,
-  EnumType,
-  NodeType,
   PropertyReference,
   RelationReference,
   Session,
-  Struct,
-  StructFrozen,
-  StructType,
   Supergraph,
   Value,
 } from "@destack/language/core";
+import { EnumType, NodeType, Struct, StructFrozen, StructType } from "@destack/language/core/builtin";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import {
   AggregationProto,
@@ -1185,7 +1181,7 @@ export class Sort extends StructFrozen {
     if (!this.by.equals(other.by)) {
       return false;
     }
-    if ((this.mode == null) !== (other.mode == null) || (this.mode != null && !(this.mode === other.mode))) {
+    if (!(this.mode === other.mode)) {
       return false;
     }
     return true;
@@ -1586,7 +1582,7 @@ export class Join extends StructFrozen {
     if (!(this.recursive === other.recursive)) {
       return false;
     }
-    if ((this.depth == null) !== (other.depth == null) || (this.depth != null && !(this.depth === other.depth))) {
+    if (!(this.depth === other.depth)) {
       return false;
     }
     if ((this.on == null) !== (other.on == null) || (this.on != null && !this.on.equals(other.on))) {
@@ -1983,10 +1979,10 @@ export class Query extends StructFrozen {
         return false;
       }
     }
-    if ((this.limit == null) !== (other.limit == null) || (this.limit != null && !(this.limit === other.limit))) {
+    if (!(this.limit === other.limit)) {
       return false;
     }
-    if ((this.offset == null) !== (other.offset == null) || (this.offset != null && !(this.offset === other.offset))) {
+    if (!(this.offset === other.offset)) {
       return false;
     }
     return true;
@@ -2638,10 +2634,10 @@ export class QueryResult extends Struct {
         return false;
       }
     }
-    if ((this.count == null) !== (other.count == null) || (this.count != null && !(this.count === other.count))) {
+    if (!(this.count === other.count)) {
       return false;
     }
-    if ((this.exists == null) !== (other.exists == null) || (this.exists != null && !(this.exists === other.exists))) {
+    if (!(this.exists === other.exists)) {
       return false;
     }
     if (
@@ -2957,10 +2953,10 @@ export class QueryResultGroup extends Struct {
         return false;
       }
     }
-    if ((this.count == null) !== (other.count == null) || (this.count != null && !(this.count === other.count))) {
+    if (!(this.count === other.count)) {
       return false;
     }
-    if ((this.exists == null) !== (other.exists == null) || (this.exists != null && !(this.exists === other.exists))) {
+    if (!(this.exists === other.exists)) {
       return false;
     }
     if (

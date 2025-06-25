@@ -1,5 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import { EnumType, Session, Struct, StructType, Supergraph } from "@destack/language/core";
+import { Session, Supergraph } from "@destack/language/core";
+import { EnumType, Struct, StructType } from "@destack/language/core/builtin";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { DayOfWeekProto, MonthProto, ScheduleFrequencyProto, ScheduleProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
@@ -270,19 +271,16 @@ export class Schedule extends Struct {
     if (!(this.interval === other.interval)) {
       return false;
     }
-    if ((this.start == null) !== (other.start == null) || (this.start != null && !(this.start === other.start))) {
+    if (!(this.start === other.start)) {
       return false;
     }
-    if ((this.end == null) !== (other.end == null) || (this.end != null && !(this.end === other.end))) {
+    if (!(this.end === other.end)) {
       return false;
     }
-    if ((this.count == null) !== (other.count == null) || (this.count != null && !(this.count === other.count))) {
+    if (!(this.count === other.count)) {
       return false;
     }
-    if (
-      (this.weekStart == null) !== (other.weekStart == null) ||
-      (this.weekStart != null && !(this.weekStart === other.weekStart))
-    ) {
+    if (!(this.weekStart === other.weekStart)) {
       return false;
     }
     if (this.bySetPos.length !== other.bySetPos.length) {

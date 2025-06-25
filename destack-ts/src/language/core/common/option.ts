@@ -12,16 +12,13 @@ import {
   IsSubject,
   IsTaggable,
   MaterializationType,
-  Node,
   NodeReference,
-  NodeType,
   QueryConnection,
   Session,
   Spatial,
-  StructType,
   Supergraph,
-  TraitType,
 } from "@destack/language/core";
+import { Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
 import { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
@@ -295,13 +292,7 @@ export class CustomOption
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
-      return false;
-    }
-    if (!(this.materialization === other.materialization)) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     if (!(this.name === other.name)) {
@@ -310,10 +301,7 @@ export class CustomOption
     if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
       return false;
     }
-    if (
-      (this.sourcePtr == null) !== (other.sourcePtr == null) ||
-      (this.sourcePtr != null && !(this.sourcePtr.id === other.sourcePtr.id))
-    ) {
+    if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
     return true;

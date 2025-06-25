@@ -3,24 +3,20 @@ import {
   CollectionConstraint,
   DefaultFactory,
   EdgeType,
-  EnumType,
   Icon,
   NodeConstraint,
-  NodeType,
   NumberConstraint,
   ObjectReference,
   PrimitiveType,
   ScalarType,
   Session,
   StringConstraint,
-  StructFrozen,
-  StructType,
   Supergraph,
-  TraitType,
   Type,
   TypeCardinality,
   Value,
 } from "@destack/language/core";
+import { EnumType, NodeType, StructFrozen, StructType, TraitType } from "@destack/language/core/builtin";
 import { registerStructClass } from "@destack/language/registry";
 import {
   CascadeActionProto,
@@ -407,10 +403,7 @@ export class PropertyDefinition extends StructFrozen {
     if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
       return false;
     }
-    if (
-      (this.description == null) !== (other.description == null) ||
-      (this.description != null && !(this.description === other.description))
-    ) {
+    if (!(this.description === other.description)) {
       return false;
     }
     if (!this.object.equals(other.object)) {
@@ -422,28 +415,16 @@ export class PropertyDefinition extends StructFrozen {
     if (!(this.scalarType === other.scalarType)) {
       return false;
     }
-    if (
-      (this.primitiveType == null) !== (other.primitiveType == null) ||
-      (this.primitiveType != null && !(this.primitiveType === other.primitiveType))
-    ) {
+    if (!(this.primitiveType === other.primitiveType)) {
       return false;
     }
-    if (
-      (this.enumType == null) !== (other.enumType == null) ||
-      (this.enumType != null && !(this.enumType === other.enumType))
-    ) {
+    if (!(this.enumType === other.enumType)) {
       return false;
     }
-    if (
-      (this.nodeType == null) !== (other.nodeType == null) ||
-      (this.nodeType != null && !(this.nodeType === other.nodeType))
-    ) {
+    if (!(this.nodeType === other.nodeType)) {
       return false;
     }
-    if (
-      (this.structType == null) !== (other.structType == null) ||
-      (this.structType != null && !(this.structType === other.structType))
-    ) {
+    if (!(this.structType === other.structType)) {
       return false;
     }
     if (
@@ -452,16 +433,10 @@ export class PropertyDefinition extends StructFrozen {
     ) {
       return false;
     }
-    if (
-      (this.isRequired == null) !== (other.isRequired == null) ||
-      (this.isRequired != null && !(this.isRequired === other.isRequired))
-    ) {
+    if (!(this.isRequired === other.isRequired)) {
       return false;
     }
-    if (
-      (this.isUnique == null) !== (other.isUnique == null) ||
-      (this.isUnique != null && !(this.isUnique === other.isUnique))
-    ) {
+    if (!(this.isUnique === other.isUnique)) {
       return false;
     }
     if (
@@ -470,10 +445,7 @@ export class PropertyDefinition extends StructFrozen {
     ) {
       return false;
     }
-    if (
-      (this.defaultFactory == null) !== (other.defaultFactory == null) ||
-      (this.defaultFactory != null && !(this.defaultFactory === other.defaultFactory))
-    ) {
+    if (!(this.defaultFactory === other.defaultFactory)) {
       return false;
     }
     if (
@@ -512,16 +484,10 @@ export class PropertyDefinition extends StructFrozen {
     if (!(this.nodeHasDefinition === other.nodeHasDefinition)) {
       return false;
     }
-    if (
-      (this.edgeType == null) !== (other.edgeType == null) ||
-      (this.edgeType != null && !(this.edgeType === other.edgeType))
-    ) {
+    if (!(this.edgeType === other.edgeType)) {
       return false;
     }
-    if (
-      (this.cascade == null) !== (other.cascade == null) ||
-      (this.cascade != null && !(this.cascade === other.cascade))
-    ) {
+    if (!(this.cascade === other.cascade)) {
       return false;
     }
     if (!(this.isWired === other.isWired)) {
@@ -1053,10 +1019,7 @@ export class TraitDefinition extends StructFrozen {
     if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
       return false;
     }
-    if (
-      (this.description == null) !== (other.description == null) ||
-      (this.description != null && !(this.description === other.description))
-    ) {
+    if (!(this.description === other.description)) {
       return false;
     }
     if (this.properties.length !== other.properties.length) {
@@ -1437,10 +1400,7 @@ export class NodeDefinition extends StructFrozen {
     if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
       return false;
     }
-    if (
-      (this.description == null) !== (other.description == null) ||
-      (this.description != null && !(this.description === other.description))
-    ) {
+    if (!(this.description === other.description)) {
       return false;
     }
     if (this.properties.length !== other.properties.length) {
@@ -1459,10 +1419,7 @@ export class NodeDefinition extends StructFrozen {
         return false;
       }
     }
-    if (
-      (this.rootType == null) !== (other.rootType == null) ||
-      (this.rootType != null && !(this.rootType === other.rootType))
-    ) {
+    if (!(this.rootType === other.rootType)) {
       return false;
     }
     if (this.parentTypes.length !== other.parentTypes.length) {
@@ -1925,10 +1882,7 @@ export class StructDefinition extends StructFrozen {
     if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
       return false;
     }
-    if (
-      (this.description == null) !== (other.description == null) ||
-      (this.description != null && !(this.description === other.description))
-    ) {
+    if (!(this.description === other.description)) {
       return false;
     }
     if (this.properties.length !== other.properties.length) {
@@ -2213,10 +2167,7 @@ export class EnumDefinition extends StructFrozen {
     if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
       return false;
     }
-    if (
-      (this.description == null) !== (other.description == null) ||
-      (this.description != null && !(this.description === other.description))
-    ) {
+    if (!(this.description === other.description)) {
       return false;
     }
     if (this.options.length !== other.options.length) {
@@ -2483,10 +2434,7 @@ export class OptionDefinition extends StructFrozen {
     if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
       return false;
     }
-    if (
-      (this.description == null) !== (other.description == null) ||
-      (this.description != null && !(this.description === other.description))
-    ) {
+    if (!(this.description === other.description)) {
       return false;
     }
     return true;

@@ -4,16 +4,13 @@ import {
   Graph,
   IsSubject,
   MaterializationType,
-  Node,
   NodeReference,
-  NodeType,
   Position,
   QueryConnection,
   Session,
-  StructType,
   Supergraph,
-  TraitType,
 } from "@destack/language/core";
+import { Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
 import { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import { Layer, Scene, Window } from "@destack/language/scene";
@@ -401,22 +398,13 @@ export class WizardView extends Node implements InternalView {
     ) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
-      return false;
-    }
-    if (!(this.materialization === other.materialization)) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     if (!(this.name === other.name)) {
       return false;
     }
-    if (
-      (this.scriptPtr == null) !== (other.scriptPtr == null) ||
-      (this.scriptPtr != null && !(this.scriptPtr.id === other.scriptPtr.id))
-    ) {
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
       return false;
     }
     return true;

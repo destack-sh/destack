@@ -77,10 +77,10 @@ class User(
         is_unique=True,
     )
     password_salt: Optional[bytes] = property_(
-        61, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM
+        61, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM, is_eq=False
     )
     password_hash: Optional[bytes] = property_(
-        62, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM
+        62, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM, is_eq=False
     )
     # challenges?
     # password_reset_token, email_confirmation_token, ...

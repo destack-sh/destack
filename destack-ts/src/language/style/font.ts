@@ -1,20 +1,15 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
-  EnumType,
   Graph,
   IsSubject,
   Length,
   MaterializationType,
-  Node,
   NodeReference,
-  NodeType,
   QueryConnection,
   Session,
-  Struct,
-  StructType,
   Supergraph,
-  TraitType,
 } from "@destack/language/core";
+import { EnumType, Node, NodeType, Struct, StructType, TraitType } from "@destack/language/core/builtin";
 import { registerEnumClass, registerNodeClass, registerStructClass } from "@destack/language/registry";
 import { Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
@@ -296,25 +291,22 @@ export class Font extends Struct {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (
-      (this.stylePtr == null) !== (other.stylePtr == null) ||
-      (this.stylePtr != null && !(this.stylePtr.id === other.stylePtr.id))
-    ) {
+    if (!(this.stylePtr?.id === other.stylePtr?.id)) {
       return false;
     }
     if (!(this.type === other.type)) {
       return false;
     }
-    if ((this.weight == null) !== (other.weight == null) || (this.weight != null && !(this.weight === other.weight))) {
+    if (!(this.weight === other.weight)) {
       return false;
     }
     if ((this.color == null) !== (other.color == null) || (this.color != null && !this.color.equals(other.color))) {
       return false;
     }
-    if ((this.size == null) !== (other.size == null) || (this.size != null && !(this.size === other.size))) {
+    if (!(this.size === other.size)) {
       return false;
     }
-    if ((this.align == null) !== (other.align == null) || (this.align != null && !(this.align === other.align))) {
+    if (!(this.align === other.align)) {
       return false;
     }
     if (
@@ -329,16 +321,10 @@ export class Font extends Struct {
     ) {
       return false;
     }
-    if (
-      (this.decoration == null) !== (other.decoration == null) ||
-      (this.decoration != null && !(this.decoration === other.decoration))
-    ) {
+    if (!(this.decoration === other.decoration)) {
       return false;
     }
-    if (
-      (this.transform == null) !== (other.transform == null) ||
-      (this.transform != null && !(this.transform === other.transform))
-    ) {
+    if (!(this.transform === other.transform)) {
       return false;
     }
     return true;
@@ -879,13 +865,7 @@ export class FontStyle extends Node implements Style {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
-      return false;
-    }
-    if (!(this.materialization === other.materialization)) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     if (!(this.name === other.name)) {
@@ -894,16 +874,16 @@ export class FontStyle extends Node implements Style {
     if (!(this.type === other.type)) {
       return false;
     }
-    if ((this.weight == null) !== (other.weight == null) || (this.weight != null && !(this.weight === other.weight))) {
+    if (!(this.weight === other.weight)) {
       return false;
     }
     if ((this.color == null) !== (other.color == null) || (this.color != null && !this.color.equals(other.color))) {
       return false;
     }
-    if ((this.size == null) !== (other.size == null) || (this.size != null && !(this.size === other.size))) {
+    if (!(this.size === other.size)) {
       return false;
     }
-    if ((this.align == null) !== (other.align == null) || (this.align != null && !(this.align === other.align))) {
+    if (!(this.align === other.align)) {
       return false;
     }
     if (
@@ -918,16 +898,10 @@ export class FontStyle extends Node implements Style {
     ) {
       return false;
     }
-    if (
-      (this.decoration == null) !== (other.decoration == null) ||
-      (this.decoration != null && !(this.decoration === other.decoration))
-    ) {
+    if (!(this.decoration === other.decoration)) {
       return false;
     }
-    if (
-      (this.transform == null) !== (other.transform == null) ||
-      (this.transform != null && !(this.transform === other.transform))
-    ) {
+    if (!(this.transform === other.transform)) {
       return false;
     }
     return true;

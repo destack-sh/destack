@@ -1,24 +1,20 @@
 import { packProtoDuration, packProtoTimestamp, unpackProtoDuration, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Analytic,
-  EnumType,
   Graph,
   Indexed,
   IsExtensible,
   IsRunnable,
   IsSubject,
-  Node,
   NodeReference,
-  NodeType,
   Particle,
   QueryConnection,
   Session,
   Spatial,
-  StructType,
   Supergraph,
-  TraitType,
   Value,
 } from "@destack/language/core";
+import { EnumType, Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Run, Span } from "@destack/language/runtime";
 import { Message } from "@destack/language/social";
@@ -375,49 +371,28 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
     if (!(this.type === other.type)) {
       return false;
     }
-    if (
-      (this.runnablePtr == null) !== (other.runnablePtr == null) ||
-      (this.runnablePtr != null && !(this.runnablePtr.id === other.runnablePtr.id))
-    ) {
+    if (!(this.runnablePtr?.id === other.runnablePtr?.id)) {
       return false;
     }
-    if (
-      (this.spanPtr == null) !== (other.spanPtr == null) ||
-      (this.spanPtr != null && !(this.spanPtr.id === other.spanPtr.id))
-    ) {
+    if (!(this.spanPtr?.id === other.spanPtr?.id)) {
       return false;
     }
     if (!(this.status === other.status)) {
       return false;
     }
-    if (
-      (this.duration == null) !== (other.duration == null) ||
-      (this.duration != null && !(this.duration === other.duration))
-    ) {
+    if (!(this.duration === other.duration)) {
       return false;
     }
-    if (
-      (this.closedAt == null) !== (other.closedAt == null) ||
-      (this.closedAt != null && !(this.closedAt === other.closedAt))
-    ) {
+    if (!(this.closedAt === other.closedAt)) {
       return false;
     }
-    if (
-      (this.response == null) !== (other.response == null) ||
-      (this.response != null && !(this.response === other.response))
-    ) {
+    if (!(this.response === other.response)) {
       return false;
     }
-    if (
-      (this.messagePtr == null) !== (other.messagePtr == null) ||
-      (this.messagePtr != null && !(this.messagePtr.id === other.messagePtr.id))
-    ) {
+    if (!(this.messagePtr?.id === other.messagePtr?.id)) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     if (Object.keys(this.value).length !== Object.keys(other.value).length) {
@@ -427,7 +402,7 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
       if (!(key in other.value)) {
         return false;
       }
-      if (!this.value[key].equals(other.value[key])) {
+      if (!this.value.get(key)!.equals(other.value.get(key)!)) {
         return false;
       }
     }

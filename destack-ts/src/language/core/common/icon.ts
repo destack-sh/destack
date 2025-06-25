@@ -1,4 +1,5 @@
-import { EnumType, Node, NodeReference, Session, StructFrozen, StructType, Supergraph } from "@destack/language/core";
+import { NodeReference, Session, Supergraph } from "@destack/language/core";
+import { EnumType, Node, StructFrozen, StructType } from "@destack/language/core/builtin";
 import { File } from "@destack/language/data";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { Color } from "@destack/language/style";
@@ -137,28 +138,19 @@ export class Icon extends StructFrozen {
     if (!(this.type === other.type)) {
       return false;
     }
-    if ((this.emoji == null) !== (other.emoji == null) || (this.emoji != null && !(this.emoji === other.emoji))) {
+    if (!(this.emoji === other.emoji)) {
       return false;
     }
-    if ((this.faName == null) !== (other.faName == null) || (this.faName != null && !(this.faName === other.faName))) {
+    if (!(this.faName === other.faName)) {
       return false;
     }
-    if (
-      (this.vscName == null) !== (other.vscName == null) ||
-      (this.vscName != null && !(this.vscName === other.vscName))
-    ) {
+    if (!(this.vscName === other.vscName)) {
       return false;
     }
-    if (
-      (this.filePtr == null) !== (other.filePtr == null) ||
-      (this.filePtr != null && !(this.filePtr.id === other.filePtr.id))
-    ) {
+    if (!(this.filePtr?.id === other.filePtr?.id)) {
       return false;
     }
-    if (
-      (this.fileUrl == null) !== (other.fileUrl == null) ||
-      (this.fileUrl != null && !(this.fileUrl === other.fileUrl))
-    ) {
+    if (!(this.fileUrl === other.fileUrl)) {
       return false;
     }
     if ((this.color == null) !== (other.color == null) || (this.color != null && !this.color.equals(other.color))) {

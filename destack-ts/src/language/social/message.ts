@@ -9,17 +9,14 @@ import {
   IsSubject,
   IsTaggable,
   MaterializationType,
-  Node,
   NodeReference,
-  NodeType,
   QueryConnection,
   Session,
   Spatial,
-  StructType,
   Supergraph,
   Text,
-  TraitType,
 } from "@destack/language/core";
+import { Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
 import { registerNodeClass } from "@destack/language/registry";
 import { Thread } from "@destack/language/social";
 import { Space } from "@destack/language/space";
@@ -348,52 +345,28 @@ export class Message extends Node implements Spatial, Entity, IsOwnable, IsDelet
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (
-      (this.threadPtr == null) !== (other.threadPtr == null) ||
-      (this.threadPtr != null && !(this.threadPtr.id === other.threadPtr.id))
-    ) {
+    if (!(this.threadPtr?.id === other.threadPtr?.id)) {
       return false;
     }
-    if (
-      (this.editedAt == null) !== (other.editedAt == null) ||
-      (this.editedAt != null && !(this.editedAt === other.editedAt))
-    ) {
+    if (!(this.editedAt === other.editedAt)) {
       return false;
     }
-    if (
-      (this.replyToPtr == null) !== (other.replyToPtr == null) ||
-      (this.replyToPtr != null && !(this.replyToPtr.id === other.replyToPtr.id))
-    ) {
+    if (!(this.replyToPtr?.id === other.replyToPtr?.id)) {
       return false;
     }
-    if (
-      (this.forwardedFromPtr == null) !== (other.forwardedFromPtr == null) ||
-      (this.forwardedFromPtr != null && !(this.forwardedFromPtr.id === other.forwardedFromPtr.id))
-    ) {
+    if (!(this.forwardedFromPtr?.id === other.forwardedFromPtr?.id)) {
       return false;
     }
     if ((this.text == null) !== (other.text == null) || (this.text != null && !this.text.equals(other.text))) {
       return false;
     }
-    if (
-      (this.nodePtr == null) !== (other.nodePtr == null) ||
-      (this.nodePtr != null && !(this.nodePtr.id === other.nodePtr.id))
-    ) {
+    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.materialization === other.materialization)) {
-      return false;
-    }
-    if (
-      (this.ownedByPtr == null) !== (other.ownedByPtr == null) ||
-      (this.ownedByPtr != null && !(this.ownedByPtr.id === other.ownedByPtr.id))
-    ) {
+    if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
       return false;
     }
     return true;

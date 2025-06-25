@@ -716,7 +716,12 @@ class Entity(IsTracked):
     # when merging: time before space (id+snapshot_id over template)
     # snapshot and template properties must be READ ONLY (no write)
     materialization: MaterializationType = property_(
-        7, is_managed=True, default=MaterializationType.FULL_GRAPH
+        7,
+        is_managed=True,
+        is_eq=False,
+        is_hash=False,
+        is_repr=False,
+        default=MaterializationType.FULL_GRAPH,
     )
     # snapshot: Optional["Snapshot"] = property_(
     #     8,

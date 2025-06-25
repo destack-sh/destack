@@ -11,15 +11,12 @@ import {
   IsOwner,
   IsSubject,
   MaterializationType,
-  Node,
   NodeReference,
-  NodeType,
   QueryConnection,
   Session,
-  StructType,
   Supergraph,
-  TraitType,
 } from "@destack/language/core";
+import { Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
 import { registerNodeClass } from "@destack/language/registry";
 import { MaterializationTypeProto, TeamProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
@@ -218,10 +215,7 @@ export class Team extends Node implements Global, Entity, HasSlug, HasIcon, HasN
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.materialization === other.materialization)) {
-      return false;
-    }
-    if ((this.slug == null) !== (other.slug == null) || (this.slug != null && !(this.slug === other.slug))) {
+    if (!(this.slug === other.slug)) {
       return false;
     }
     if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {

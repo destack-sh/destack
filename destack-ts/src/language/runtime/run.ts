@@ -1,25 +1,21 @@
 import { packProtoDuration, packProtoTimestamp, unpackProtoDuration, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Analytic,
-  EnumType,
   Event,
   Graph,
   Indexed,
   IsExtensible,
   IsRunnable,
   IsSubject,
-  Node,
   NodeReference,
-  NodeType,
   Particle,
   QueryConnection,
   Session,
   Spatial,
-  StructType,
   Supergraph,
-  TraitType,
   Value,
 } from "@destack/language/core";
+import { EnumType, Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Interruption } from "@destack/language/runtime";
 import { Space } from "@destack/language/space";
@@ -297,16 +293,10 @@ export class RunEvent extends Node implements Event {
     if (!(this.nodePtr.id === other.nodePtr.id)) {
       return false;
     }
-    if (
-      (this.targetPtr == null) !== (other.targetPtr == null) ||
-      (this.targetPtr != null && !(this.targetPtr.id === other.targetPtr.id))
-    ) {
+    if (!(this.targetPtr?.id === other.targetPtr?.id)) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     return true;
@@ -805,58 +795,34 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (
-      (this.targetPtr == null) !== (other.targetPtr == null) ||
-      (this.targetPtr != null && !(this.targetPtr.id === other.targetPtr.id))
-    ) {
+    if (!(this.targetPtr?.id === other.targetPtr?.id)) {
       return false;
     }
     if (!(this.status === other.status)) {
       return false;
     }
-    if (
-      (this.duration == null) !== (other.duration == null) ||
-      (this.duration != null && !(this.duration === other.duration))
-    ) {
+    if (!(this.duration === other.duration)) {
       return false;
     }
-    if (
-      (this.scheduledAt == null) !== (other.scheduledAt == null) ||
-      (this.scheduledAt != null && !(this.scheduledAt === other.scheduledAt))
-    ) {
+    if (!(this.scheduledAt === other.scheduledAt)) {
       return false;
     }
-    if (
-      (this.startedAt == null) !== (other.startedAt == null) ||
-      (this.startedAt != null && !(this.startedAt === other.startedAt))
-    ) {
+    if (!(this.startedAt === other.startedAt)) {
       return false;
     }
-    if ((this.seenAt == null) !== (other.seenAt == null) || (this.seenAt != null && !(this.seenAt === other.seenAt))) {
+    if (!(this.seenAt === other.seenAt)) {
       return false;
     }
-    if (
-      (this.interruptedAt == null) !== (other.interruptedAt == null) ||
-      (this.interruptedAt != null && !(this.interruptedAt === other.interruptedAt))
-    ) {
+    if (!(this.interruptedAt === other.interruptedAt)) {
       return false;
     }
-    if (
-      (this.terminatedAt == null) !== (other.terminatedAt == null) ||
-      (this.terminatedAt != null && !(this.terminatedAt === other.terminatedAt))
-    ) {
+    if (!(this.terminatedAt === other.terminatedAt)) {
       return false;
     }
-    if (
-      (this.interruptionPtr == null) !== (other.interruptionPtr == null) ||
-      (this.interruptionPtr != null && !(this.interruptionPtr.id === other.interruptionPtr.id))
-    ) {
+    if (!(this.interruptionPtr?.id === other.interruptionPtr?.id)) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     if (Object.keys(this.value).length !== Object.keys(other.value).length) {
@@ -866,7 +832,7 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
       if (!(key in other.value)) {
         return false;
       }
-      if (!this.value[key].equals(other.value[key])) {
+      if (!this.value.get(key)!.equals(other.value.get(key)!)) {
         return false;
       }
     }

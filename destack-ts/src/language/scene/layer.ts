@@ -8,7 +8,6 @@ import {
   Dimension,
   Direction,
   Distribute,
-  EnumType,
   Graph,
   Grid,
   GridSpan,
@@ -20,18 +19,15 @@ import {
   IsSubject,
   Layout,
   MaterializationType,
-  Node,
   NodeReference,
-  NodeType,
   Position,
   QueryConnection,
   Session,
-  StructType,
   Supergraph,
-  TraitType,
   Value,
   Vector2,
 } from "@destack/language/core";
+import { EnumType, Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
 import { Script } from "@destack/language/logic";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Scene } from "@destack/language/scene";
@@ -640,22 +636,16 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
     if (!(this.type === other.type)) {
       return false;
     }
-    if ((this.layout == null) !== (other.layout == null) || (this.layout != null && !(this.layout === other.layout))) {
+    if (!(this.layout === other.layout)) {
       return false;
     }
-    if (
-      (this.direction == null) !== (other.direction == null) ||
-      (this.direction != null && !(this.direction === other.direction))
-    ) {
+    if (!(this.direction === other.direction)) {
       return false;
     }
-    if (
-      (this.distribute == null) !== (other.distribute == null) ||
-      (this.distribute != null && !(this.distribute === other.distribute))
-    ) {
+    if (!(this.distribute === other.distribute)) {
       return false;
     }
-    if ((this.align == null) !== (other.align == null) || (this.align != null && !(this.align === other.align))) {
+    if (!(this.align === other.align)) {
       return false;
     }
     if ((this.gap == null) !== (other.gap == null) || (this.gap != null && !this.gap.equals(other.gap))) {
@@ -683,13 +673,10 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
     ) {
       return false;
     }
-    if ((this.isWrap == null) !== (other.isWrap == null) || (this.isWrap != null && !(this.isWrap === other.isWrap))) {
+    if (!(this.isWrap === other.isWrap)) {
       return false;
     }
-    if (
-      (this.isVisible == null) !== (other.isVisible == null) ||
-      (this.isVisible != null && !(this.isVisible === other.isVisible))
-    ) {
+    if (!(this.isVisible === other.isVisible)) {
       return false;
     }
     if (
@@ -773,22 +760,13 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
     ) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
-      return false;
-    }
-    if (!(this.materialization === other.materialization)) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     if (!(this.name === other.name)) {
       return false;
     }
-    if (
-      (this.scriptPtr == null) !== (other.scriptPtr == null) ||
-      (this.scriptPtr != null && !(this.scriptPtr.id === other.scriptPtr.id))
-    ) {
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
       return false;
     }
     if (Object.keys(this.value).length !== Object.keys(other.value).length) {
@@ -798,17 +776,14 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
       if (!(key in other.value)) {
         return false;
       }
-      if (!this.value[key].equals(other.value[key])) {
+      if (!this.value.get(key)!.equals(other.value.get(key)!)) {
         return false;
       }
     }
     if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
       return false;
     }
-    if (
-      (this.ownedByPtr == null) !== (other.ownedByPtr == null) ||
-      (this.ownedByPtr != null && !(this.ownedByPtr.id === other.ownedByPtr.id))
-    ) {
+    if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
       return false;
     }
     return true;

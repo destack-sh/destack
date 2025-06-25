@@ -1,24 +1,20 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Entity,
-  EnumType,
   Event,
   Graph,
   IsOwnable,
   IsOwner,
   IsSubject,
   MaterializationType,
-  Node,
   NodeReference,
-  NodeType,
   QueryConnection,
   Session,
   Spatial,
-  StructType,
   Supergraph,
   Text,
-  TraitType,
 } from "@destack/language/core";
+import { EnumType, Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import {
@@ -266,10 +262,7 @@ export class NotificationEvent extends Node implements Event {
     if (!(this.nodePtr.id === other.nodePtr.id)) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     return true;
@@ -697,19 +690,10 @@ export class Notification extends Node implements Spatial, Entity, IsOwnable {
     if ((this.text == null) !== (other.text == null) || (this.text != null && !this.text.equals(other.text))) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.materialization === other.materialization)) {
-      return false;
-    }
-    if (
-      (this.ownedByPtr == null) !== (other.ownedByPtr == null) ||
-      (this.ownedByPtr != null && !(this.ownedByPtr.id === other.ownedByPtr.id))
-    ) {
+    if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
       return false;
     }
     return true;

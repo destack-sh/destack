@@ -1,7 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Entity,
-  EnumType,
   Event,
   Global,
   Graph,
@@ -9,15 +8,12 @@ import {
   IsSubject,
   LikeInvite,
   MaterializationType,
-  Node,
   NodeReference,
-  NodeType,
   QueryConnection,
   Session,
-  StructType,
   Supergraph,
-  TraitType,
 } from "@destack/language/core";
+import { EnumType, Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space, User } from "@destack/language/space";
 import {
@@ -239,9 +235,6 @@ export class Friendship extends Node implements Global, Entity {
       return false;
     }
     if (!(this.userBPtr.id === other.userBPtr.id)) {
-      return false;
-    }
-    if (!(this.materialization === other.materialization)) {
       return false;
     }
     return true;
@@ -618,10 +611,7 @@ export class FriendshipInviteEvent extends Node implements Event {
     if (!(this.nodePtr.id === other.nodePtr.id)) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     return true;
@@ -1022,9 +1012,6 @@ export class FriendshipInvite extends Node implements Global, Entity, LikeInvite
       return false;
     }
     if (!(this.ownedByPtr.id === other.ownedByPtr.id)) {
-      return false;
-    }
-    if (!(this.materialization === other.materialization)) {
       return false;
     }
     if (!(this.memberPtr.id === other.memberPtr.id)) {

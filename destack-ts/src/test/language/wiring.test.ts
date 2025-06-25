@@ -53,11 +53,11 @@ sessionTest("roundtrip query", ({ session }) => {
   // pack and unpack a Query as value
   const query = Thread.search({
 		// nocheckin: IntoQuery and that stuff
-    // sort: [Thread.property("createdAt").asc()],
-    // limit: 25,
-    // cursor: ThreadCursor.get({
-    //   join: Join.of(JoinType.LEFT, { on: ThreadCursor.property("ownedBy").eq(5) }),
-    // }),
+    sort: [Thread.property("createdAt").asc()],
+    limit: 25,
+    cursor: ThreadCursor.get({
+      join: Join.of(JoinType.LEFT, { on: ThreadCursor.property("ownedBy").eq(5) }),
+    }),
   });
 
   // value

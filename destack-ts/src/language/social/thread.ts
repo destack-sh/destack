@@ -1,7 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Entity,
-  EnumType,
   Graph,
   HasName,
   IsDeletable,
@@ -11,16 +10,13 @@ import {
   IsSubject,
   IsTaggable,
   MaterializationType,
-  Node,
   NodeReference,
-  NodeType,
   QueryConnection,
   Session,
   Spatial,
-  StructType,
   Supergraph,
-  TraitType,
 } from "@destack/language/core";
+import { EnumType, Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
 import { Folder } from "@destack/language/folder";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
@@ -285,19 +281,10 @@ export class Thread extends Node implements Spatial, Entity, HasName, IsTaggable
     if (!(this.name === other.name)) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.materialization === other.materialization)) {
-      return false;
-    }
-    if (
-      (this.ownedByPtr == null) !== (other.ownedByPtr == null) ||
-      (this.ownedByPtr != null && !(this.ownedByPtr.id === other.ownedByPtr.id))
-    ) {
+    if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
       return false;
     }
     return true;

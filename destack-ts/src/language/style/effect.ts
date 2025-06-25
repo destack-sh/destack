@@ -1,21 +1,16 @@
 import { packProtoDuration, packProtoTimestamp, unpackProtoDuration, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Axis3,
-  EnumType,
   Graph,
   IsSubject,
   MaterializationType,
-  Node,
   NodeReference,
-  NodeType,
   QueryConnection,
   Session,
-  Struct,
-  StructType,
   Supergraph,
-  TraitType,
   Vector2,
 } from "@destack/language/core";
+import { EnumType, Node, NodeType, Struct, StructType, TraitType } from "@destack/language/core/builtin";
 import { registerEnumClass, registerNodeClass, registerStructClass } from "@destack/language/registry";
 import { Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
@@ -282,10 +277,7 @@ export class Effect extends Struct {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (
-      (this.stylePtr == null) !== (other.stylePtr == null) ||
-      (this.stylePtr != null && !(this.stylePtr.id === other.stylePtr.id))
-    ) {
+    if (!(this.stylePtr?.id === other.stylePtr?.id)) {
       return false;
     }
     if (!(this.type === other.type)) {
@@ -325,7 +317,7 @@ export class Effect extends Struct {
     ) {
       return false;
     }
-    if ((this.delay == null) !== (other.delay == null) || (this.delay != null && !(this.delay === other.delay))) {
+    if (!(this.delay === other.delay)) {
       return false;
     }
     if (
@@ -341,19 +333,16 @@ export class Effect extends Struct {
     ) {
       return false;
     }
-    if ((this.once == null) !== (other.once == null) || (this.once != null && !(this.once === other.once))) {
+    if (!(this.once === other.once)) {
       return false;
     }
-    if ((this.repeat == null) !== (other.repeat == null) || (this.repeat != null && !(this.repeat === other.repeat))) {
+    if (!(this.repeat === other.repeat)) {
       return false;
     }
-    if ((this.split == null) !== (other.split == null) || (this.split != null && !(this.split === other.split))) {
+    if (!(this.split === other.split)) {
       return false;
     }
-    if (
-      (this.offscreen == null) !== (other.offscreen == null) ||
-      (this.offscreen != null && !(this.offscreen === other.offscreen))
-    ) {
+    if (!(this.offscreen === other.offscreen)) {
       return false;
     }
     if (
@@ -992,13 +981,7 @@ export class EffectStyle extends Node implements Style {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
-      return false;
-    }
-    if (!(this.materialization === other.materialization)) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     if (!(this.name === other.name)) {
@@ -1041,7 +1024,7 @@ export class EffectStyle extends Node implements Style {
     ) {
       return false;
     }
-    if ((this.delay == null) !== (other.delay == null) || (this.delay != null && !(this.delay === other.delay))) {
+    if (!(this.delay === other.delay)) {
       return false;
     }
     if (
@@ -1057,19 +1040,16 @@ export class EffectStyle extends Node implements Style {
     ) {
       return false;
     }
-    if ((this.once == null) !== (other.once == null) || (this.once != null && !(this.once === other.once))) {
+    if (!(this.once === other.once)) {
       return false;
     }
-    if ((this.repeat == null) !== (other.repeat == null) || (this.repeat != null && !(this.repeat === other.repeat))) {
+    if (!(this.repeat === other.repeat)) {
       return false;
     }
-    if ((this.split == null) !== (other.split == null) || (this.split != null && !(this.split === other.split))) {
+    if (!(this.split === other.split)) {
       return false;
     }
-    if (
-      (this.offscreen == null) !== (other.offscreen == null) ||
-      (this.offscreen != null && !(this.offscreen === other.offscreen))
-    ) {
+    if (!(this.offscreen === other.offscreen)) {
       return false;
     }
     if (

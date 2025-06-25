@@ -3,21 +3,17 @@ import { IsShape } from "@destack/language/canvas";
 import {
   Align,
   Dimension,
-  EnumType,
   Graph,
   IsSubject,
   MaterializationType,
-  Node,
   NodeReference,
-  NodeType,
   Position,
   QueryConnection,
   Session,
-  StructType,
   Supergraph,
-  TraitType,
   Vector2,
 } from "@destack/language/core";
+import { EnumType, Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
 import { Script } from "@destack/language/logic";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Layer, Scene, Window } from "@destack/language/scene";
@@ -452,13 +448,10 @@ export class LineShape extends Node implements ContentView, IsShape {
     if ((this.color == null) !== (other.color == null) || (this.color != null && !this.color.equals(other.color))) {
       return false;
     }
-    if ((this.align == null) !== (other.align == null) || (this.align != null && !(this.align === other.align))) {
+    if (!(this.align === other.align)) {
       return false;
     }
-    if (
-      (this.isVisible == null) !== (other.isVisible == null) ||
-      (this.isVisible != null && !(this.isVisible === other.isVisible))
-    ) {
+    if (!(this.isVisible === other.isVisible)) {
       return false;
     }
     if (
@@ -506,22 +499,13 @@ export class LineShape extends Node implements ContentView, IsShape {
     ) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
-      return false;
-    }
-    if (!(this.materialization === other.materialization)) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     if (!(this.name === other.name)) {
       return false;
     }
-    if (
-      (this.scriptPtr == null) !== (other.scriptPtr == null) ||
-      (this.scriptPtr != null && !(this.scriptPtr.id === other.scriptPtr.id))
-    ) {
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
       return false;
     }
     return true;

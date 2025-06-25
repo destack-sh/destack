@@ -12,16 +12,13 @@ import {
   IsScriptable,
   IsSubject,
   MaterializationType,
-  Node,
   NodeReference,
-  NodeType,
   QueryConnection,
   Session,
   Spatial,
-  StructType,
   Supergraph,
-  TraitType,
 } from "@destack/language/core";
+import { Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
 import { Folder } from "@destack/language/folder";
 import { Cursor, Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
@@ -315,28 +312,16 @@ export class Agent
     if (!(this.slug === other.slug)) {
       return false;
     }
-    if (
-      (this.cursorPtr == null) !== (other.cursorPtr == null) ||
-      (this.cursorPtr != null && !(this.cursorPtr.id === other.cursorPtr.id))
-    ) {
+    if (!(this.cursorPtr?.id === other.cursorPtr?.id)) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
-      return false;
-    }
-    if (!(this.materialization === other.materialization)) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
       return false;
     }
-    if (
-      (this.scriptPtr == null) !== (other.scriptPtr == null) ||
-      (this.scriptPtr != null && !(this.scriptPtr.id === other.scriptPtr.id))
-    ) {
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
       return false;
     }
     return true;

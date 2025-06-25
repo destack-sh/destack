@@ -11,18 +11,15 @@ import {
   IsSubject,
   IsTaggable,
   MaterializationType,
-  Node,
   NodeReference,
-  NodeType,
   PropertyReference,
   QueryConnection,
   Session,
   Spatial,
-  StructType,
   Supergraph,
-  TraitType,
   Value,
 } from "@destack/language/core";
+import { Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
 import { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
@@ -291,10 +288,7 @@ export class EditEvent extends Node implements Event, IsTaggable {
     if (!(this.type === other.type)) {
       return false;
     }
-    if (
-      (this.operation == null) !== (other.operation == null) ||
-      (this.operation != null && !(this.operation === other.operation))
-    ) {
+    if (!(this.operation === other.operation)) {
       return false;
     }
     if (!(this.nodePtr.id === other.nodePtr.id)) {
@@ -306,10 +300,7 @@ export class EditEvent extends Node implements Event, IsTaggable {
     ) {
       return false;
     }
-    if (
-      (this.fieldPtr == null) !== (other.fieldPtr == null) ||
-      (this.fieldPtr != null && !(this.fieldPtr.id === other.fieldPtr.id))
-    ) {
+    if (!(this.fieldPtr?.id === other.fieldPtr?.id)) {
       return false;
     }
     if ((this.key == null) !== (other.key == null) || (this.key != null && !this.key.equals(other.key))) {
@@ -318,10 +309,7 @@ export class EditEvent extends Node implements Event, IsTaggable {
     if ((this.value == null) !== (other.value == null) || (this.value != null && !this.value.equals(other.value))) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     return true;
@@ -804,22 +792,13 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, HasN
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
-      return false;
-    }
-    if (!(this.materialization === other.materialization)) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     if (!(this.name === other.name)) {
       return false;
     }
-    if (
-      (this.sourcePtr == null) !== (other.sourcePtr == null) ||
-      (this.sourcePtr != null && !(this.sourcePtr.id === other.sourcePtr.id))
-    ) {
+    if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
     return true;
@@ -1249,16 +1228,10 @@ export class CustomEvent extends Node implements Event {
     if (!(this.definitionPtr.id === other.definitionPtr.id)) {
       return false;
     }
-    if (
-      (this.nodePtr == null) !== (other.nodePtr == null) ||
-      (this.nodePtr != null && !(this.nodePtr.id === other.nodePtr.id))
-    ) {
+    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     return true;

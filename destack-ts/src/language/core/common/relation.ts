@@ -1,17 +1,6 @@
 import { NodeClass } from "@destack/language";
-import {
-  CustomEntityDefinition,
-  CustomProperty,
-  EnumType,
-  Node,
-  NodeType,
-  Region,
-  Session,
-  StructFrozen,
-  StructType,
-  Supergraph,
-  TraitType,
-} from "@destack/language/core";
+import { CustomEntityDefinition, CustomProperty, Region, Session, Supergraph } from "@destack/language/core";
+import { EnumType, Node, NodeType, StructFrozen, StructType, TraitType } from "@destack/language/core/builtin";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import {
   NodeReferenceProto,
@@ -133,13 +122,10 @@ export class Scope extends StructFrozen {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if ((this.region == null) !== (other.region == null) || (this.region != null && !(this.region === other.region))) {
+    if (!(this.region === other.region)) {
       return false;
     }
-    if (
-      (this.spaceId == null) !== (other.spaceId == null) ||
-      (this.spaceId != null && !(this.spaceId === other.spaceId))
-    ) {
+    if (!(this.spaceId === other.spaceId)) {
       return false;
     }
     return true;
@@ -344,22 +330,13 @@ export class RelationReference extends StructFrozen {
     if (!(this.type === other.type)) {
       return false;
     }
-    if (
-      (this.nodeType == null) !== (other.nodeType == null) ||
-      (this.nodeType != null && !(this.nodeType === other.nodeType))
-    ) {
+    if (!(this.nodeType === other.nodeType)) {
       return false;
     }
-    if (
-      (this.definitionPtr == null) !== (other.definitionPtr == null) ||
-      (this.definitionPtr != null && !(this.definitionPtr.id === other.definitionPtr.id))
-    ) {
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
     }
-    if (
-      (this.traitType == null) !== (other.traitType == null) ||
-      (this.traitType != null && !(this.traitType === other.traitType))
-    ) {
+    if (!(this.traitType === other.traitType)) {
       return false;
     }
     return true;
@@ -602,28 +579,16 @@ export class ObjectReference extends StructFrozen {
     if (!(this.type === other.type)) {
       return false;
     }
-    if (
-      (this.nodeType == null) !== (other.nodeType == null) ||
-      (this.nodeType != null && !(this.nodeType === other.nodeType))
-    ) {
+    if (!(this.nodeType === other.nodeType)) {
       return false;
     }
-    if (
-      (this.traitType == null) !== (other.traitType == null) ||
-      (this.traitType != null && !(this.traitType === other.traitType))
-    ) {
+    if (!(this.traitType === other.traitType)) {
       return false;
     }
-    if (
-      (this.structType == null) !== (other.structType == null) ||
-      (this.structType != null && !(this.structType === other.structType))
-    ) {
+    if (!(this.structType === other.structType)) {
       return false;
     }
-    if (
-      (this.definitionPtr == null) !== (other.definitionPtr == null) ||
-      (this.definitionPtr != null && !(this.definitionPtr.id === other.definitionPtr.id))
-    ) {
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
     }
     return true;
@@ -888,31 +853,19 @@ export class PropertyReference extends StructFrozen {
     if (!(this.type === other.type)) {
       return false;
     }
-    if (
-      (this.nodeType == null) !== (other.nodeType == null) ||
-      (this.nodeType != null && !(this.nodeType === other.nodeType))
-    ) {
+    if (!(this.nodeType === other.nodeType)) {
       return false;
     }
-    if (
-      (this.traitType == null) !== (other.traitType == null) ||
-      (this.traitType != null && !(this.traitType === other.traitType))
-    ) {
+    if (!(this.traitType === other.traitType)) {
       return false;
     }
-    if (
-      (this.structType == null) !== (other.structType == null) ||
-      (this.structType != null && !(this.structType === other.structType))
-    ) {
+    if (!(this.structType === other.structType)) {
       return false;
     }
-    if ((this.id == null) !== (other.id == null) || (this.id != null && !(this.id === other.id))) {
+    if (!(this.id === other.id)) {
       return false;
     }
-    if (
-      (this.customPropertyPtr == null) !== (other.customPropertyPtr == null) ||
-      (this.customPropertyPtr != null && !(this.customPropertyPtr.id === other.customPropertyPtr.id))
-    ) {
+    if (!(this.customPropertyPtr?.id === other.customPropertyPtr?.id)) {
       return false;
     }
     return true;
@@ -1164,16 +1117,10 @@ export class NodeReference extends StructFrozen {
     if (!(this.id === other.id)) {
       return false;
     }
-    if (
-      (this.spaceId == null) !== (other.spaceId == null) ||
-      (this.spaceId != null && !(this.spaceId === other.spaceId))
-    ) {
+    if (!(this.spaceId === other.spaceId)) {
       return false;
     }
-    if (
-      (this.definitionId == null) !== (other.definitionId == null) ||
-      (this.definitionId != null && !(this.definitionId === other.definitionId))
-    ) {
+    if (!(this.definitionId === other.definitionId)) {
       return false;
     }
     return true;

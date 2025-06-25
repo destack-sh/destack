@@ -1,7 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Entity,
-  EnumType,
   Graph,
   HasName,
   IsActionable,
@@ -12,18 +11,15 @@ import {
   IsSubject,
   IsTaggable,
   MaterializationType,
-  Node,
   NodeReference,
-  NodeType,
   QueryConnection,
   Session,
   Spatial,
-  StructType,
   Supergraph,
   Text,
-  TraitType,
   Value,
 } from "@destack/language/core";
+import { EnumType, Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
 import { Script } from "@destack/language/logic";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
@@ -318,22 +314,13 @@ export class Action
     if ((this.text == null) !== (other.text == null) || (this.text != null && !this.text.equals(other.text))) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
-      return false;
-    }
-    if (!(this.materialization === other.materialization)) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     if (!(this.name === other.name)) {
       return false;
     }
-    if (
-      (this.sourcePtr == null) !== (other.sourcePtr == null) ||
-      (this.sourcePtr != null && !(this.sourcePtr.id === other.sourcePtr.id))
-    ) {
+    if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
     if (Object.keys(this.value).length !== Object.keys(other.value).length) {
@@ -343,7 +330,7 @@ export class Action
       if (!(key in other.value)) {
         return false;
       }
-      if (!this.value[key].equals(other.value[key])) {
+      if (!this.value.get(key)!.equals(other.value.get(key)!)) {
         return false;
       }
     }
