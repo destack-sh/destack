@@ -436,8 +436,8 @@ export function isNodeWithTrait<T extends TraitType>(value: any, traitType: T): 
   return value instanceof Node && value.__traits__.includes(traitType);
 }
 
-export type WithSubqueries<T, Subquery = Query> = T & {
-  [K in Exclude<string, keyof T>]?: Subquery;
+export type WithSubqueries<T, Q = Query> = T & {
+  [K: string]: Q | T[keyof T] | undefined;
 };
 
 function toSubqueries(subqueries: WithSubqueries<Record<string, any>>): Query[] {

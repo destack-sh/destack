@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, assert_never
 
 from destack.language.registry import OBJECT_REF_BY_CLASS
 
@@ -17,6 +17,7 @@ from ..builtin import (
     property_,
 )
 from .query import Condition, ConditionalType, Sort, SortType
+from .relation import ObjectReference, ObjectType, PropertyReference, PropertyReferenceType
 from .type import (
     CollectionConstraint,
     DefaultFactory,
@@ -125,6 +126,30 @@ class PropertyDefinition(StructFrozen):
             is_managed=prop.is_managed,
             is_computed=prop.is_computed,
         )
+
+    def to_ref(self) -> PropertyReference:
+        if self.object.type == ObjectType.BUILTIN_NODE:
+            return PropertyReference(
+                type=PropertyReferenceType.BUILTIN,
+                node_type=self.object.node_type,
+                id=self.id,
+            )
+        elif self.object.type == ObjectType.BUILTIN_STRUCT:
+            return PropertyReference(
+                type=PropertyReferenceType.BUILTIN,
+                struct_type=self.object.struct_type,
+                id=self.id,
+            )
+        elif self.object.type == ObjectType.TRAIT:
+            return PropertyReference(
+                type=PropertyReferenceType.BUILTIN,
+                trait_type=self.object.trait_type,
+                id=self.id,
+            )
+        elif self.object.type == ObjectType.CUSTOM_NODE:
+            raise RuntimeError(f"{self!r} cannot be associated with a custom node")
+        else:
+            assert_never(self.object.type)
 
     def eq(self, value: Any) -> Condition:
         if value is None:

@@ -132,13 +132,18 @@ class Session:
 
     def update(self, node: Node, edit: Edit):
         """Updates a Node."""
+        assert self.closed_at is None, f"{self!r} is closed"
         self._flush_node(node)
         self.edits.append(edit)
         self.dirty[node.id] = node
 
     def move(self, node: Node, parent: Node):
         """Moves a Node to a new parent."""
-        raise NotImplementedError
+        assert self.closed_at is None, f"{self!r} is closed"
+        self._flush_node(node)
+        edit = Edit(type=EditType.MOVE, node=node, value=to_value(parent))
+        self.edits.append(edit)
+        self.dirty[node.id] = node
 
     def archive(self, node: Node):
         """Archives a Node."""
