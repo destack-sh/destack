@@ -33,11 +33,11 @@ def execute_change(
     cascaded_edits: list[Edit] = []
     applied_edits: list[Edit] = []
 
-    current_table = context.get_relation(change.edits[0].node_ptr)
+    current_table = context.get(change.edits[0].node_ptr)
     current_edit_type = change.edits[0].type
     current_batch: list[Edit] = []
     for edit in edits:
-        edit_table = context.get_relation(edit.node_ptr)
+        edit_table = context.get(edit.node_ptr)
         if edit_table is not current_table or edit.type != current_edit_type:
             batch_applied_edits, batch_cascaded_edits = _execute_data_edit(
                 database, context, change, current_table, current_edit_type, current_batch
@@ -74,7 +74,7 @@ def _optimize_change(context: MemoryContext, edits: Sequence[Edit]) -> list[Edit
             return
         grouped: OrderedDict[tuple[NodeType, UUID | None, EditType], list[Edit]] = OrderedDict()
         for e in buffer:
-            table = context.get_relation(e.node_ptr)
+            table = context.get(e.node_ptr)
             key = (table.node_type, table.definition_id, e.type)
             if key not in grouped:
                 grouped[key] = []
@@ -145,7 +145,7 @@ def _execute_data_edit(
                 row = pack_node_row(table, edit.value)
                 table.rows[node_id] = row
                 if row.parent_ptr is not None:
-                    parent_table = context.get_relation(row.parent_ptr)
+                    parent_table = context.get(row.parent_ptr)
                     parent_table.rows_by_parent_id[row.parent_ptr.id].append(row)
 
         logger.trace(
@@ -194,12 +194,12 @@ def _execute_data_edit(
             if node_id in table.rows:
                 row = table.rows[node_id]
                 if row.parent_ptr is not None:
-                    parent_table = context.get_relation(row.parent_ptr)
+                    parent_table = context.get(row.parent_ptr)
                     parent_table.rows_by_parent_id[row.parent_ptr.id].remove(row)
                 row.parent_ptr = edit.value.value
                 row.value[str(parent_prop.id)] = edit.value.value
                 if row.parent_ptr is not None:
-                    parent_table = context.get_relation(row.parent_ptr)
+                    parent_table = context.get(row.parent_ptr)
                     parent_table.rows_by_parent_id[row.parent_ptr.id].append(row)
 
         logger.trace(
@@ -230,7 +230,7 @@ def _execute_data_edit(
 
         # update timestamps
         for node_ptr in cascaded_node_ptrs:
-            node_table = context.get_relation(node_ptr)
+            node_table = context.get(node_ptr)
             if node_ptr.id in node_table.rows:
                 row = node_table.rows[node_ptr.id]
                 if edit_type == EditType.ARCHIVE:
@@ -265,10 +265,10 @@ def _execute_data_edit(
 
         # delete rows
         for node_ptr in cascaded_node_ptrs:
-            node_table = context.get_relation(node_ptr)
+            node_table = context.get(node_ptr)
             row = node_table.rows.pop(node_ptr.id, None)
             if row is not None and row.parent_ptr is not None:
-                parent_table = context.get_relation(row.parent_ptr)
+                parent_table = context.get(row.parent_ptr)
                 parent_table.rows_by_parent_id[row.parent_ptr.id].remove(row)
 
         logger.trace(

@@ -275,7 +275,7 @@ async def _walk_node(
     if direction == EdgeDirection.PARENT:
         if relation.is_multi:
             # fan out relation
-            tables = [context.get_relation(r) for r in context.resolve_relation(relation)]
+            tables = [context.get(r) for r in context.resolve(relation)]
 
             # build a single UNION of all node tables
             union_parts = [
@@ -327,7 +327,7 @@ FROM tree;
                 result_nodes_ptr.append(node_ptr)
             return result_nodes_ptr
         else:
-            table = context.get_relation(relation)
+            table = context.get(relation)
             stmt = f"""
 WITH RECURSIVE tree AS (
     SELECT  id,
@@ -360,7 +360,7 @@ FROM    tree;
     # child walk
     elif direction == EdgeDirection.CHILD:
         # fan out relation
-        tables = [context.get_relation(r) for r in context.resolve_relation(relation)]
+        tables = [context.get(r) for r in context.resolve(relation)]
 
         # build a single UNION of all node tables
         union_parts = [
@@ -436,7 +436,7 @@ async def _query_node(
         # fan out multi relations
         if limit is not None or offset is not None:
             raise NotImplementedError(f"cannot limit/offset for multi relation: {relation!r}")
-        subrelations = context.resolve_relation(relation)
+        subrelations = context.resolve(relation)
         nodes_value: list[Value] = []
         nodes_ptr: list[NodeReference] = []
         for subrelation in subrelations:
@@ -456,7 +456,7 @@ async def _query_node(
 
     else:
         # build statement
-        table = context.get_relation(relation)
+        table = context.get(relation)
         arguments: list[Any] = []
         stmt_parts: list[str] = ["SELECT"]
         if select:
@@ -500,7 +500,7 @@ async def _query_scalar(
         raise NotImplementedError(f"cannot query scalar on multi relation: {relation!r}")
 
     # build statement
-    table = context.get_relation(relation)
+    table = context.get(relation)
     arguments: list[Any] = []
     stmt_parts: list[str] = [
         "SELECT",
@@ -549,7 +549,7 @@ async def _query_grouped_node(
         raise NotImplementedError(f"cannot query grouped node on multi relation: {relation!r}")
 
     # build statement to get groups
-    table = context.get_relation(relation)
+    table = context.get(relation)
     group_arguments: list[Any] = []
     group_by_parts = [_compile_expression(context, group_arguments, expr) for expr in group_by]
     group_by_clause = ", ".join(group_by_parts)
@@ -641,7 +641,7 @@ async def _query_grouped_scalar(
         raise NotImplementedError(f"cannot query grouped scalar on multi relation: {relation!r}")
 
     # build statement
-    table = context.get_relation(relation)
+    table = context.get(relation)
     arguments: list[Any] = []
     # build GROUP BY clause
     group_by_parts = [_compile_expression(context, arguments, expr) for expr in group_by]
