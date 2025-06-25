@@ -1,25 +1,20 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
-  EnumType,
   Graph,
   HasName,
   IsSubject,
   MaterializationType,
-  Node,
   NodeReference,
-  NodeType,
   QueryConnection,
   Region,
   Resource,
   ResourceStatus,
   Session,
   Spatial,
-  Struct,
-  StructType,
   Supergraph,
   Tenancy,
-  TraitType,
 } from "@destack/language/core";
+import { EnumType, Node, NodeType, Struct, StructType, TraitType } from "@destack/language/core/builtin";
 import { registerEnumClass, registerNodeClass, registerStructClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import {
@@ -153,28 +148,19 @@ export class DatabaseInfo extends Struct {
     if (!(this.region === other.region)) {
       return false;
     }
-    if (
-      (this.galaxyName == null) !== (other.galaxyName == null) ||
-      (this.galaxyName != null && !(this.galaxyName === other.galaxyName))
-    ) {
+    if (!(this.galaxyName === other.galaxyName)) {
       return false;
     }
     if (!(this.externalName === other.externalName)) {
       return false;
     }
-    if (
-      (this.customSchemaName == null) !== (other.customSchemaName == null) ||
-      (this.customSchemaName != null && !(this.customSchemaName === other.customSchemaName))
-    ) {
+    if (!(this.customSchemaName === other.customSchemaName)) {
       return false;
     }
     if (!(this.tenancy === other.tenancy)) {
       return false;
     }
-    if (
-      (this.connectionUrl == null) !== (other.connectionUrl == null) ||
-      (this.connectionUrl != null && !(this.connectionUrl === other.connectionUrl))
-    ) {
+    if (!(this.connectionUrl === other.connectionUrl)) {
       return false;
     }
     return true;
@@ -573,22 +559,13 @@ export class Database extends Node implements Spatial, Resource, HasName {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     if (!(this.status === other.status)) {
       return false;
     }
-    if (
-      (this.targetStatus == null) !== (other.targetStatus == null) ||
-      (this.targetStatus != null && !(this.targetStatus === other.targetStatus))
-    ) {
-      return false;
-    }
-    if (!(this.materialization === other.materialization)) {
+    if (!(this.targetStatus === other.targetStatus)) {
       return false;
     }
     if (!(this.name === other.name)) {
@@ -600,28 +577,19 @@ export class Database extends Node implements Spatial, Resource, HasName {
     if (!(this.region === other.region)) {
       return false;
     }
-    if (
-      (this.galaxyName == null) !== (other.galaxyName == null) ||
-      (this.galaxyName != null && !(this.galaxyName === other.galaxyName))
-    ) {
+    if (!(this.galaxyName === other.galaxyName)) {
       return false;
     }
     if (!(this.externalName === other.externalName)) {
       return false;
     }
-    if (
-      (this.customSchemaName == null) !== (other.customSchemaName == null) ||
-      (this.customSchemaName != null && !(this.customSchemaName === other.customSchemaName))
-    ) {
+    if (!(this.customSchemaName === other.customSchemaName)) {
       return false;
     }
     if (!(this.tenancy === other.tenancy)) {
       return false;
     }
-    if (
-      (this.connectionUrl == null) !== (other.connectionUrl == null) ||
-      (this.connectionUrl != null && !(this.connectionUrl === other.connectionUrl))
-    ) {
+    if (!(this.connectionUrl === other.connectionUrl)) {
       return false;
     }
     return true;

@@ -1,4 +1,4 @@
-import { EnumType } from "@destack/language/core";
+import { EnumType } from "@destack/language/core/builtin";
 import { registerEnumClass } from "@destack/language/registry";
 
 /* ==== DESTACK_GENERATED_START:ENUM:8000 ==== */

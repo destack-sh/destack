@@ -6,15 +6,12 @@ import {
   HasSlug,
   IsSubject,
   MaterializationType,
-  Node,
   NodeReference,
-  NodeType,
   QueryConnection,
   Session,
-  StructType,
   Supergraph,
-  TraitType,
 } from "@destack/language/core";
+import { Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { HandleProto, MaterializationTypeProto } from "@destack/proto";
@@ -179,9 +176,6 @@ export class Handle extends Node implements Global, Entity, HasSlug {
       return false;
     }
     if (!(this.slug === other.slug)) {
-      return false;
-    }
-    if (!(this.materialization === other.materialization)) {
       return false;
     }
     return true;

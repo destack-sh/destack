@@ -1,7 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Entity,
-  EnumType,
   Global,
   Graph,
   HasIcon,
@@ -12,15 +11,12 @@ import {
   IsOwner,
   IsSubject,
   MaterializationType,
-  Node,
   NodeReference,
-  NodeType,
   QueryConnection,
   Session,
-  StructType,
   Supergraph,
-  TraitType,
 } from "@destack/language/core";
+import { EnumType, Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
 import { Cursor } from "@destack/language/logic";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Handle, Space } from "@destack/language/space";
@@ -352,10 +348,7 @@ export class User extends Node implements Global, Entity, HasName, HasIcon, HasS
     if (!(this.status === other.status)) {
       return false;
     }
-    if (
-      (this.lastLoggedInAt == null) !== (other.lastLoggedInAt == null) ||
-      (this.lastLoggedInAt != null && !(this.lastLoggedInAt === other.lastLoggedInAt))
-    ) {
+    if (!(this.lastLoggedInAt === other.lastLoggedInAt)) {
       return false;
     }
     if (!(this.isStaff === other.isStaff)) {
@@ -364,34 +357,13 @@ export class User extends Node implements Global, Entity, HasName, HasIcon, HasS
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
-    if (
-      (this.handlePtr == null) !== (other.handlePtr == null) ||
-      (this.handlePtr != null && !(this.handlePtr.id === other.handlePtr.id))
-    ) {
+    if (!(this.handlePtr?.id === other.handlePtr?.id)) {
       return false;
     }
-    if (
-      (this.cursorPtr == null) !== (other.cursorPtr == null) ||
-      (this.cursorPtr != null && !(this.cursorPtr.id === other.cursorPtr.id))
-    ) {
+    if (!(this.cursorPtr?.id === other.cursorPtr?.id)) {
       return false;
     }
-    if ((this.email == null) !== (other.email == null) || (this.email != null && !(this.email === other.email))) {
-      return false;
-    }
-    if (
-      (this.passwordSalt == null) !== (other.passwordSalt == null) ||
-      (this.passwordSalt != null && !(this.passwordSalt === other.passwordSalt))
-    ) {
-      return false;
-    }
-    if (
-      (this.passwordHash == null) !== (other.passwordHash == null) ||
-      (this.passwordHash != null && !(this.passwordHash === other.passwordHash))
-    ) {
-      return false;
-    }
-    if (!(this.materialization === other.materialization)) {
+    if (!(this.email === other.email)) {
       return false;
     }
     if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {

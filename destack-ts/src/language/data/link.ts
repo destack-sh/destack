@@ -1,21 +1,17 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
-  EnumType,
   Graph,
   IsSubject,
   MaterializationType,
-  Node,
   NodeReference,
-  NodeType,
   QueryConnection,
   Resource,
   ResourceStatus,
   Session,
   Spatial,
-  StructType,
   Supergraph,
-  TraitType,
 } from "@destack/language/core";
+import { EnumType, Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { LinkProto, LinkTypeProto, MaterializationTypeProto, ResourceStatusProto } from "@destack/proto";
@@ -343,70 +339,40 @@ export class Link extends Node implements Spatial, Resource {
     if (!(this.type === other.type)) {
       return false;
     }
-    if ((this.url == null) !== (other.url == null) || (this.url != null && !(this.url === other.url))) {
+    if (!(this.url === other.url)) {
       return false;
     }
-    if ((this.domain == null) !== (other.domain == null) || (this.domain != null && !(this.domain === other.domain))) {
+    if (!(this.domain === other.domain)) {
       return false;
     }
-    if (
-      (this.contentUrl == null) !== (other.contentUrl == null) ||
-      (this.contentUrl != null && !(this.contentUrl === other.contentUrl))
-    ) {
+    if (!(this.contentUrl === other.contentUrl)) {
       return false;
     }
-    if (
-      (this.thumbnailUrl == null) !== (other.thumbnailUrl == null) ||
-      (this.thumbnailUrl != null && !(this.thumbnailUrl === other.thumbnailUrl))
-    ) {
+    if (!(this.thumbnailUrl === other.thumbnailUrl)) {
       return false;
     }
-    if (
-      (this.faviconUrl == null) !== (other.faviconUrl == null) ||
-      (this.faviconUrl != null && !(this.faviconUrl === other.faviconUrl))
-    ) {
+    if (!(this.faviconUrl === other.faviconUrl)) {
       return false;
     }
-    if (
-      (this.thumbnailWidth == null) !== (other.thumbnailWidth == null) ||
-      (this.thumbnailWidth != null && !(this.thumbnailWidth === other.thumbnailWidth))
-    ) {
+    if (!(this.thumbnailWidth === other.thumbnailWidth)) {
       return false;
     }
-    if (
-      (this.thumbnailHeight == null) !== (other.thumbnailHeight == null) ||
-      (this.thumbnailHeight != null && !(this.thumbnailHeight === other.thumbnailHeight))
-    ) {
+    if (!(this.thumbnailHeight === other.thumbnailHeight)) {
       return false;
     }
-    if (
-      (this.content == null) !== (other.content == null) ||
-      (this.content != null && !(this.content === other.content))
-    ) {
+    if (!(this.content === other.content)) {
       return false;
     }
-    if (
-      (this.attribution == null) !== (other.attribution == null) ||
-      (this.attribution != null && !(this.attribution === other.attribution))
-    ) {
+    if (!(this.attribution === other.attribution)) {
       return false;
     }
-    if (
-      (this.attributionTag == null) !== (other.attributionTag == null) ||
-      (this.attributionTag != null && !(this.attributionTag === other.attributionTag))
-    ) {
+    if (!(this.attributionTag === other.attributionTag)) {
       return false;
     }
-    if (
-      (this.publishedAt == null) !== (other.publishedAt == null) ||
-      (this.publishedAt != null && !(this.publishedAt === other.publishedAt))
-    ) {
+    if (!(this.publishedAt === other.publishedAt)) {
       return false;
     }
-    if (
-      (this.expiresAt == null) !== (other.expiresAt == null) ||
-      (this.expiresAt != null && !(this.expiresAt === other.expiresAt))
-    ) {
+    if (!(this.expiresAt === other.expiresAt)) {
       return false;
     }
     if (this.imageUrls.length !== other.imageUrls.length) {
@@ -417,22 +383,13 @@ export class Link extends Node implements Spatial, Resource {
         return false;
       }
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     if (!(this.status === other.status)) {
       return false;
     }
-    if (
-      (this.targetStatus == null) !== (other.targetStatus == null) ||
-      (this.targetStatus != null && !(this.targetStatus === other.targetStatus))
-    ) {
-      return false;
-    }
-    if (!(this.materialization === other.materialization)) {
+    if (!(this.targetStatus === other.targetStatus)) {
       return false;
     }
     return true;

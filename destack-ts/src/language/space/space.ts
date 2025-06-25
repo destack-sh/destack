@@ -1,7 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Entity,
-  EnumType,
   Global,
   Graph,
   HasIcon,
@@ -15,17 +14,14 @@ import {
   IsStarable,
   IsSubject,
   MaterializationType,
-  Node,
   NodeReference,
-  NodeType,
   QueryConnection,
   Region,
   Session,
   Spatial,
-  StructType,
   Supergraph,
-  TraitType,
 } from "@destack/language/core";
+import { EnumType, Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
 import { Folder } from "@destack/language/folder";
 import { Database } from "@destack/language/infra";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
@@ -538,55 +534,31 @@ export class Space
     if (!(this.status === other.status)) {
       return false;
     }
-    if (
-      (this.handlePtr == null) !== (other.handlePtr == null) ||
-      (this.handlePtr != null && !(this.handlePtr.id === other.handlePtr.id))
-    ) {
+    if (!(this.handlePtr?.id === other.handlePtr?.id)) {
       return false;
     }
-    if (
-      (this.systemFolderPtr == null) !== (other.systemFolderPtr == null) ||
-      (this.systemFolderPtr != null && !(this.systemFolderPtr.id === other.systemFolderPtr.id))
-    ) {
+    if (!(this.systemFolderPtr?.id === other.systemFolderPtr?.id)) {
       return false;
     }
-    if (
-      (this.homeFolderPtr == null) !== (other.homeFolderPtr == null) ||
-      (this.homeFolderPtr != null && !(this.homeFolderPtr.id === other.homeFolderPtr.id))
-    ) {
+    if (!(this.homeFolderPtr?.id === other.homeFolderPtr?.id)) {
       return false;
     }
     if (!(this.region === other.region)) {
       return false;
     }
-    if (
-      (this.galaxyName == null) !== (other.galaxyName == null) ||
-      (this.galaxyName != null && !(this.galaxyName === other.galaxyName))
-    ) {
+    if (!(this.galaxyName === other.galaxyName)) {
       return false;
     }
-    if (
-      (this.databasePtr == null) !== (other.databasePtr == null) ||
-      (this.databasePtr != null && !(this.databasePtr.id === other.databasePtr.id))
-    ) {
-      return false;
-    }
-    if (!(this.materialization === other.materialization)) {
+    if (!(this.databasePtr?.id === other.databasePtr?.id)) {
       return false;
     }
     if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
       return false;
     }
-    if (
-      (this.ownedByPtr == null) !== (other.ownedByPtr == null) ||
-      (this.ownedByPtr != null && !(this.ownedByPtr.id === other.ownedByPtr.id))
-    ) {
+    if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     return true;

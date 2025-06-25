@@ -1,23 +1,19 @@
 import { packProtoDuration, packProtoTimestamp, unpackProtoDuration, unpackProtoTimestamp } from "@destack/grpc";
 import {
-  EnumType,
   Global,
   Graph,
   HasName,
   IsSubject,
   MaterializationType,
-  Node,
   NodeReference,
-  NodeType,
   QueryConnection,
   Resource,
   ResourceStatus,
   Session,
   Spatial,
-  StructType,
   Supergraph,
-  TraitType,
 } from "@destack/language/core";
+import { EnumType, Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import {
@@ -545,25 +541,22 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
     if (!(this.source === other.source)) {
       return false;
     }
-    if (
-      (this.mimeType == null) !== (other.mimeType == null) ||
-      (this.mimeType != null && !(this.mimeType === other.mimeType))
-    ) {
+    if (!(this.mimeType === other.mimeType)) {
       return false;
     }
-    if ((this.format == null) !== (other.format == null) || (this.format != null && !(this.format === other.format))) {
+    if (!(this.format === other.format)) {
       return false;
     }
-    if ((this.size == null) !== (other.size == null) || (this.size != null && !(this.size === other.size))) {
+    if (!(this.size === other.size)) {
       return false;
     }
-    if ((this.sha256 == null) !== (other.sha256 == null) || (this.sha256 != null && !(this.sha256 === other.sha256))) {
+    if (!(this.sha256 === other.sha256)) {
       return false;
     }
-    if ((this.width == null) !== (other.width == null) || (this.width != null && !(this.width === other.width))) {
+    if (!(this.width === other.width)) {
       return false;
     }
-    if ((this.height == null) !== (other.height == null) || (this.height != null && !(this.height === other.height))) {
+    if (!(this.height === other.height)) {
       return false;
     }
     if (
@@ -573,70 +566,40 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
     ) {
       return false;
     }
-    if ((this.codec == null) !== (other.codec == null) || (this.codec != null && !(this.codec === other.codec))) {
+    if (!(this.codec === other.codec)) {
       return false;
     }
-    if (
-      (this.duration == null) !== (other.duration == null) ||
-      (this.duration != null && !(this.duration === other.duration))
-    ) {
+    if (!(this.duration === other.duration)) {
       return false;
     }
-    if ((this.url == null) !== (other.url == null) || (this.url != null && !(this.url === other.url))) {
+    if (!(this.url === other.url)) {
       return false;
     }
-    if (
-      (this.contentUrl == null) !== (other.contentUrl == null) ||
-      (this.contentUrl != null && !(this.contentUrl === other.contentUrl))
-    ) {
+    if (!(this.contentUrl === other.contentUrl)) {
       return false;
     }
-    if (
-      (this.thumbnailUrl == null) !== (other.thumbnailUrl == null) ||
-      (this.thumbnailUrl != null && !(this.thumbnailUrl === other.thumbnailUrl))
-    ) {
+    if (!(this.thumbnailUrl === other.thumbnailUrl)) {
       return false;
     }
-    if (
-      (this.faviconUrl == null) !== (other.faviconUrl == null) ||
-      (this.faviconUrl != null && !(this.faviconUrl === other.faviconUrl))
-    ) {
+    if (!(this.faviconUrl === other.faviconUrl)) {
       return false;
     }
-    if (
-      (this.thumbnailWidth == null) !== (other.thumbnailWidth == null) ||
-      (this.thumbnailWidth != null && !(this.thumbnailWidth === other.thumbnailWidth))
-    ) {
+    if (!(this.thumbnailWidth === other.thumbnailWidth)) {
       return false;
     }
-    if (
-      (this.thumbnailHeight == null) !== (other.thumbnailHeight == null) ||
-      (this.thumbnailHeight != null && !(this.thumbnailHeight === other.thumbnailHeight))
-    ) {
+    if (!(this.thumbnailHeight === other.thumbnailHeight)) {
       return false;
     }
-    if (
-      (this.content == null) !== (other.content == null) ||
-      (this.content != null && !(this.content === other.content))
-    ) {
+    if (!(this.content === other.content)) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     if (!(this.status === other.status)) {
       return false;
     }
-    if (
-      (this.targetStatus == null) !== (other.targetStatus == null) ||
-      (this.targetStatus != null && !(this.targetStatus === other.targetStatus))
-    ) {
-      return false;
-    }
-    if (!(this.materialization === other.materialization)) {
+    if (!(this.targetStatus === other.targetStatus)) {
       return false;
     }
     if (!(this.name === other.name)) {

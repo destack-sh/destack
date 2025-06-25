@@ -544,10 +544,10 @@ def _generate_property_cmp_impl(prop: PropertyDeclaration) -> str:
     if prop.scalar_type == ScalarType.NODE_REFERENCE:
         prop_name = f"{prop_name}_ptr"
 
-    scalar_cmps_str = _generate_scalar_cmp_impl(prop)
+    scalar_cmps_str, is_simple = _generate_scalar_cmp_impl(prop)
     if prop.cardinality == TypeCardinality.SCALAR:
         # scalar
-        if prop.is_required:
+        if prop.is_required or is_simple:
             # required scalar
             return f"""\
 if not ({scalar_cmps_str.format(self_val=f"self.{prop_name}", other_val=f"other.{prop_name}")}):
@@ -590,19 +590,19 @@ if self.{prop_name} != other.{prop_name}:
         assert_never(prop.cardinality)
 
 
-def _generate_scalar_cmp_impl(prop: PropertyDeclaration) -> str:
+def _generate_scalar_cmp_impl(prop: PropertyDeclaration) -> tuple[str, bool]:
     """Generate the core scalar comparison logic. Returns a format string with {self_val} and {other_val} placeholders."""
     if prop.scalar_type == ScalarType.PRIMITIVE:
         if prop.primitive_type and prop.primitive_type.is_float:
-            return "{self_val} == {other_val} or abs({self_val} - {other_val}) < 1e-10"
+            return "{self_val} == {other_val} or abs({self_val} - {other_val}) < 1e-10", False
         else:
-            return "{self_val} == {other_val}"
+            return "{self_val} == {other_val}", True
     elif prop.scalar_type == ScalarType.ENUM:
-        return "{self_val} == {other_val}"
+        return "{self_val} == {other_val}", True
     elif prop.scalar_type == ScalarType.NODE_REFERENCE or prop.scalar_type == ScalarType.NODE_VALUE:
-        return "{self_val}.id == {other_val}.id"
+        return "{self_val}.id == {other_val}.id", False
     elif prop.scalar_type == ScalarType.STRUCT:
-        return "{self_val}.equals({other_val})"
+        return "{self_val}.equals({other_val})", False
     else:
         assert_never(prop.scalar_type)
 

@@ -1,23 +1,19 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Entity,
-  EnumType,
   Event,
   Graph,
   IsDeletable,
   IsJoinable,
   IsSubject,
   MaterializationType,
-  Node,
   NodeReference,
-  NodeType,
   QueryConnection,
   Session,
   Spatial,
-  StructType,
   Supergraph,
-  TraitType,
 } from "@destack/language/core";
+import { EnumType, Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { MaterializationTypeProto, SanctionEventProto, SanctionProto, SanctionTypeProto } from "@destack/proto";
@@ -241,10 +237,7 @@ export class SanctionEvent extends Node implements Event {
     if (!(this.nodePtr.id === other.nodePtr.id)) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     return true;
@@ -674,22 +667,13 @@ export class Sanction extends Node implements Spatial, Entity, IsDeletable {
     if (!(this.type === other.type)) {
       return false;
     }
-    if (
-      (this.expiresAt == null) !== (other.expiresAt == null) ||
-      (this.expiresAt != null && !(this.expiresAt === other.expiresAt))
-    ) {
+    if (!(this.expiresAt === other.expiresAt)) {
       return false;
     }
     if (!(this.targetPtr.id === other.targetPtr.id)) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
-      return false;
-    }
-    if (!(this.materialization === other.materialization)) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     return true;

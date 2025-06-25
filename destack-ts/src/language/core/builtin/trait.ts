@@ -1,12 +1,5 @@
-import {
-  EnumType,
-  Icon,
-  MaterializationType,
-  Node,
-  NodeReference,
-  ResourceStatus,
-  Value,
-} from "@destack/language/core";
+import { Icon, MaterializationType, NodeReference, ResourceStatus, Value } from "@destack/language/core";
+import { EnumType, Node } from "@destack/language/core/builtin";
 import { Script } from "@destack/language/logic";
 import { registerEnumClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";

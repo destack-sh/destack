@@ -6,7 +6,6 @@ import {
   DefaultFactory,
   EdgeType,
   Entity,
-  EnumType,
   Graph,
   HasIcon,
   HasName,
@@ -17,10 +16,8 @@ import {
   IsSubject,
   IsTaggable,
   MaterializationType,
-  Node,
   NodeConstraint,
   NodeReference,
-  NodeType,
   NumberConstraint,
   PrimitiveType,
   QueryConnection,
@@ -28,13 +25,12 @@ import {
   Session,
   Spatial,
   StringConstraint,
-  StructType,
   Supergraph,
-  TraitType,
   Type,
   TypeCardinality,
   Value,
 } from "@destack/language/core";
+import { EnumType, Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
 import { Script } from "@destack/language/logic";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
@@ -567,40 +563,22 @@ export class CustomProperty
     if (!(this.scalarType === other.scalarType)) {
       return false;
     }
-    if (
-      (this.primitiveType == null) !== (other.primitiveType == null) ||
-      (this.primitiveType != null && !(this.primitiveType === other.primitiveType))
-    ) {
+    if (!(this.primitiveType === other.primitiveType)) {
       return false;
     }
-    if (
-      (this.enumType == null) !== (other.enumType == null) ||
-      (this.enumType != null && !(this.enumType === other.enumType))
-    ) {
+    if (!(this.enumType === other.enumType)) {
       return false;
     }
-    if (
-      (this.nodeType == null) !== (other.nodeType == null) ||
-      (this.nodeType != null && !(this.nodeType === other.nodeType))
-    ) {
+    if (!(this.nodeType === other.nodeType)) {
       return false;
     }
-    if (
-      (this.nodeDefinitionPtr == null) !== (other.nodeDefinitionPtr == null) ||
-      (this.nodeDefinitionPtr != null && !(this.nodeDefinitionPtr.id === other.nodeDefinitionPtr.id))
-    ) {
+    if (!(this.nodeDefinitionPtr?.id === other.nodeDefinitionPtr?.id)) {
       return false;
     }
-    if (
-      (this.structType == null) !== (other.structType == null) ||
-      (this.structType != null && !(this.structType === other.structType))
-    ) {
+    if (!(this.structType === other.structType)) {
       return false;
     }
-    if (
-      (this.baseTypePtr == null) !== (other.baseTypePtr == null) ||
-      (this.baseTypePtr != null && !(this.baseTypePtr.id === other.baseTypePtr.id))
-    ) {
+    if (!(this.baseTypePtr?.id === other.baseTypePtr?.id)) {
       return false;
     }
     if (
@@ -609,10 +587,7 @@ export class CustomProperty
     ) {
       return false;
     }
-    if (
-      (this.isRequired == null) !== (other.isRequired == null) ||
-      (this.isRequired != null && !(this.isRequired === other.isRequired))
-    ) {
+    if (!(this.isRequired === other.isRequired)) {
       return false;
     }
     if (
@@ -621,10 +596,7 @@ export class CustomProperty
     ) {
       return false;
     }
-    if (
-      (this.defaultFactory == null) !== (other.defaultFactory == null) ||
-      (this.defaultFactory != null && !(this.defaultFactory === other.defaultFactory))
-    ) {
+    if (!(this.defaultFactory === other.defaultFactory)) {
       return false;
     }
     if (
@@ -651,25 +623,13 @@ export class CustomProperty
     ) {
       return false;
     }
-    if (
-      (this.edgeType == null) !== (other.edgeType == null) ||
-      (this.edgeType != null && !(this.edgeType === other.edgeType))
-    ) {
+    if (!(this.edgeType === other.edgeType)) {
       return false;
     }
-    if (
-      (this.cascade == null) !== (other.cascade == null) ||
-      (this.cascade != null && !(this.cascade === other.cascade))
-    ) {
+    if (!(this.cascade === other.cascade)) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
-      return false;
-    }
-    if (!(this.materialization === other.materialization)) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     if (!(this.name === other.name)) {
@@ -678,10 +638,7 @@ export class CustomProperty
     if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
       return false;
     }
-    if (
-      (this.sourcePtr == null) !== (other.sourcePtr == null) ||
-      (this.sourcePtr != null && !(this.sourcePtr.id === other.sourcePtr.id))
-    ) {
+    if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
     return true;

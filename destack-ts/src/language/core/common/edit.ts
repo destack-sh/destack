@@ -1,17 +1,14 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   CustomProperty,
-  EnumType,
   IsSubject,
-  Node,
   NodeReference,
   PropertyReference,
   Session,
-  StructFrozen,
-  StructType,
   Supergraph,
   Value,
 } from "@destack/language/core";
+import { EnumType, Node, StructFrozen, StructType } from "@destack/language/core/builtin";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { Origin } from "@destack/language/space";
 import {
@@ -249,10 +246,7 @@ export class Edit extends StructFrozen {
     if (!(this.type === other.type)) {
       return false;
     }
-    if (
-      (this.operation == null) !== (other.operation == null) ||
-      (this.operation != null && !(this.operation === other.operation))
-    ) {
+    if (!(this.operation === other.operation)) {
       return false;
     }
     if (!(this.nodePtr.id === other.nodePtr.id)) {
@@ -264,10 +258,7 @@ export class Edit extends StructFrozen {
     ) {
       return false;
     }
-    if (
-      (this.fieldPtr == null) !== (other.fieldPtr == null) ||
-      (this.fieldPtr != null && !(this.fieldPtr.id === other.fieldPtr.id))
-    ) {
+    if (!(this.fieldPtr?.id === other.fieldPtr?.id)) {
       return false;
     }
     if ((this.key == null) !== (other.key == null) || (this.key != null && !this.key.equals(other.key))) {
@@ -593,16 +584,13 @@ export class Change extends StructFrozen {
     if (!(this.id === other.id)) {
       return false;
     }
-    if ((this.name == null) !== (other.name == null) || (this.name != null && !(this.name === other.name))) {
+    if (!(this.name === other.name)) {
       return false;
     }
     if (!(this.createdAt === other.createdAt)) {
       return false;
     }
-    if (
-      (this.createdByPtr == null) !== (other.createdByPtr == null) ||
-      (this.createdByPtr != null && !(this.createdByPtr.id === other.createdByPtr.id))
-    ) {
+    if (!(this.createdByPtr?.id === other.createdByPtr?.id)) {
       return false;
     }
     if (
@@ -611,10 +599,7 @@ export class Change extends StructFrozen {
     ) {
       return false;
     }
-    if (
-      (this.debounce == null) !== (other.debounce == null) ||
-      (this.debounce != null && !(this.debounce === other.debounce))
-    ) {
+    if (!(this.debounce === other.debounce)) {
       return false;
     }
     if (this.edits.length !== other.edits.length) {
@@ -917,10 +902,7 @@ export class ChangeResult extends StructFrozen {
     if (!(this.createdAt === other.createdAt)) {
       return false;
     }
-    if (
-      (this.debounce == null) !== (other.debounce == null) ||
-      (this.debounce != null && !(this.debounce === other.debounce))
-    ) {
+    if (!(this.debounce === other.debounce)) {
       return false;
     }
     if (!(this.status === other.status)) {

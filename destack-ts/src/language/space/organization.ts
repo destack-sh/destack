@@ -1,7 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Entity,
-  EnumType,
   Global,
   Graph,
   HasIcon,
@@ -12,15 +11,12 @@ import {
   IsOwner,
   IsSubject,
   MaterializationType,
-  Node,
   NodeReference,
-  NodeType,
   QueryConnection,
   Session,
-  StructType,
   Supergraph,
-  TraitType,
 } from "@destack/language/core";
+import { EnumType, Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Handle, Space } from "@destack/language/space";
 import { MaterializationTypeProto, OrganizationProto, OrganizationStatusProto } from "@destack/proto";
@@ -300,13 +296,7 @@ export class Organization extends Node implements Global, Entity, HasSlug, HasIc
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
-    if (
-      (this.handlePtr == null) !== (other.handlePtr == null) ||
-      (this.handlePtr != null && !(this.handlePtr.id === other.handlePtr.id))
-    ) {
-      return false;
-    }
-    if (!(this.materialization === other.materialization)) {
+    if (!(this.handlePtr?.id === other.handlePtr?.id)) {
       return false;
     }
     if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {

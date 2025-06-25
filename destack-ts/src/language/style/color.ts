@@ -1,19 +1,14 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
-  EnumType,
   Graph,
   IsSubject,
   MaterializationType,
-  Node,
   NodeReference,
-  NodeType,
   QueryConnection,
   Session,
-  Struct,
-  StructType,
   Supergraph,
-  TraitType,
 } from "@destack/language/core";
+import { EnumType, Node, NodeType, Struct, StructType, TraitType } from "@destack/language/core/builtin";
 import { registerEnumClass, registerNodeClass, registerStructClass } from "@destack/language/registry";
 import { Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
@@ -249,22 +244,19 @@ export class Color extends Struct {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (
-      (this.stylePtr == null) !== (other.stylePtr == null) ||
-      (this.stylePtr != null && !(this.stylePtr.id === other.stylePtr.id))
-    ) {
+    if (!(this.stylePtr?.id === other.stylePtr?.id)) {
       return false;
     }
     if (!(this.type === other.type)) {
       return false;
     }
-    if ((this.hue == null) !== (other.hue == null) || (this.hue != null && !(this.hue === other.hue))) {
+    if (!(this.hue === other.hue)) {
       return false;
     }
-    if ((this.shade == null) !== (other.shade == null) || (this.shade != null && !(this.shade === other.shade))) {
+    if (!(this.shade === other.shade)) {
       return false;
     }
-    if ((this.intent == null) !== (other.intent == null) || (this.intent != null && !(this.intent === other.intent))) {
+    if (!(this.intent === other.intent)) {
       return false;
     }
     if (
@@ -790,13 +782,7 @@ export class ColorStyle extends Node implements Style {
     if ((this.dark == null) !== (other.dark == null) || (this.dark != null && !this.dark.equals(other.dark))) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
-      return false;
-    }
-    if (!(this.materialization === other.materialization)) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     if (!(this.name === other.name)) {
@@ -805,13 +791,13 @@ export class ColorStyle extends Node implements Style {
     if (!(this.type === other.type)) {
       return false;
     }
-    if ((this.hue == null) !== (other.hue == null) || (this.hue != null && !(this.hue === other.hue))) {
+    if (!(this.hue === other.hue)) {
       return false;
     }
-    if ((this.shade == null) !== (other.shade == null) || (this.shade != null && !(this.shade === other.shade))) {
+    if (!(this.shade === other.shade)) {
       return false;
     }
-    if ((this.intent == null) !== (other.intent == null) || (this.intent != null && !(this.intent === other.intent))) {
+    if (!(this.intent === other.intent)) {
       return false;
     }
     if (

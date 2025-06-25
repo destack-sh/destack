@@ -1,23 +1,19 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Entity,
-  EnumType,
   Graph,
   IsOwnable,
   IsOwner,
   IsSubject,
   MaterializationType,
-  Node,
   NodeReference,
-  NodeType,
   QueryConnection,
   Session,
   Spatial,
-  StructType,
   Supergraph,
-  TraitType,
   Vector2i,
 } from "@destack/language/core";
+import { EnumType, Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import {
@@ -293,25 +289,13 @@ export class EventCursor extends Node implements Cursor, IsOwnable {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (
-      (this.activeAt == null) !== (other.activeAt == null) ||
-      (this.activeAt != null && !(this.activeAt === other.activeAt))
-    ) {
+    if (!(this.activeAt === other.activeAt)) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.materialization === other.materialization)) {
-      return false;
-    }
-    if (
-      (this.ownedByPtr == null) !== (other.ownedByPtr == null) ||
-      (this.ownedByPtr != null && !(this.ownedByPtr.id === other.ownedByPtr.id))
-    ) {
+    if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
       return false;
     }
     return true;
@@ -771,25 +755,13 @@ export class ScreenCursor extends Node implements Cursor, IsOwnable {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (
-      (this.activeAt == null) !== (other.activeAt == null) ||
-      (this.activeAt != null && !(this.activeAt === other.activeAt))
-    ) {
+    if (!(this.activeAt === other.activeAt)) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.materialization === other.materialization)) {
-      return false;
-    }
-    if (
-      (this.ownedByPtr == null) !== (other.ownedByPtr == null) ||
-      (this.ownedByPtr != null && !(this.ownedByPtr.id === other.ownedByPtr.id))
-    ) {
+    if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
       return false;
     }
     return true;
@@ -1249,25 +1221,13 @@ export class ThreadCursor extends Node implements Cursor, IsOwnable {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (
-      (this.activeAt == null) !== (other.activeAt == null) ||
-      (this.activeAt != null && !(this.activeAt === other.activeAt))
-    ) {
+    if (!(this.activeAt === other.activeAt)) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.materialization === other.materialization)) {
-      return false;
-    }
-    if (
-      (this.ownedByPtr == null) !== (other.ownedByPtr == null) ||
-      (this.ownedByPtr != null && !(this.ownedByPtr.id === other.ownedByPtr.id))
-    ) {
+    if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
       return false;
     }
     return true;

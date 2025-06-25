@@ -543,10 +543,10 @@ def _generate_property_cmp_impl(prop: PropertyDeclaration) -> str:
     if prop.scalar_type == ScalarType.NODE_REFERENCE:
         prop_name = f"{prop_name}Ptr"
 
-    scalar_cmps_str = _generate_scalar_cmp_impl(prop)
+    scalar_cmps_str, is_simple = _generate_scalar_cmp_impl(prop)
     if prop.cardinality == TypeCardinality.SCALAR:
         # scalar
-        if prop.is_required:
+        if prop.is_required or is_simple:
             # required scalar
             return f"""\
 if (!({scalar_cmps_str.format(self_val=f"this.{prop_name}", other_val=f"other.{prop_name}")})) {{
@@ -585,7 +585,7 @@ for (const key in this.{prop_name}) {{
   if (!(key in other.{prop_name})) {{
     return false;
   }}
-  if (!({scalar_cmps_str.format(self_val=f"this.{prop_name}[key]", other_val=f"other.{prop_name}[key]")})) {{
+  if (!({scalar_cmps_str.format(self_val=f"this.{prop_name}.get(key)!", other_val=f"other.{prop_name}.get(key)!")})) {{
     return false;
   }}
 }}"""
@@ -599,19 +599,22 @@ if (JSON.stringify(this.{prop_name}) !== JSON.stringify(other.{prop_name})) {{
         assert_never(prop.cardinality)
 
 
-def _generate_scalar_cmp_impl(prop: PropertyDeclaration) -> str:
+def _generate_scalar_cmp_impl(prop: PropertyDeclaration) -> tuple[str, bool]:
     """Generate the core scalar comparison logic. Returns a format string with {self_val} and {other_val} placeholders."""
     if prop.scalar_type == ScalarType.PRIMITIVE:
         if prop.primitive_type and prop.primitive_type.is_float:
-            return "{self_val} === {other_val} || Math.abs({self_val} - {other_val}) < 1e-10"
+            return "{self_val} === {other_val} || Math.abs({self_val} - {other_val}) < 1e-10", False
         else:
-            return "{self_val} === {other_val}"
+            return "{self_val} === {other_val}", True
     elif prop.scalar_type == ScalarType.ENUM:
-        return "{self_val} === {other_val}"
+        return "{self_val} === {other_val}", True
     elif prop.scalar_type == ScalarType.NODE_REFERENCE or prop.scalar_type == ScalarType.NODE_VALUE:
-        return "{self_val}.id === {other_val}.id"
+        if prop.is_required:
+            return "{self_val}.id === {other_val}.id", True
+        else:
+            return "{self_val}?.id === {other_val}?.id", True
     elif prop.scalar_type == ScalarType.STRUCT:
-        return "{self_val}.equals({other_val})"
+        return "{self_val}.equals({other_val})", False
     else:
         assert_never(prop.scalar_type)
 
@@ -1229,7 +1232,7 @@ def _generate_file(
 
     # add imports to the top (will be auto-merged by linter)
     language_imports_by_module: dict[str, set[str]] = defaultdict(set)
-    language_imports_by_module["core"] = {
+    language_imports_by_module["core/builtin"] = {
         "NodeType",
         "TraitType",
         "StructType",
@@ -1238,13 +1241,15 @@ def _generate_file(
         "Struct",
         "StructFrozen",
         "Node",
+        "ACTIVE_SESSION",
+        "activeSession",
+    }
+    language_imports_by_module["core"] = {
         "NodeReference",
         "Graph",
         "Supergraph",
         "Session",
         "QueryConnection",
-        "ACTIVE_SESSION",
-        "activeSession",
     }
     language_imports_by_module["registry"] = {
         "registerNodeClass",
@@ -1375,25 +1380,16 @@ import { NodeClass, NodeType, EnumType, EnumClass, StructClass, StructType, Trai
 
 export const NODE_CLASS_BY_TYPE: Record<NodeType, NodeClass> = {} as any;
 export function registerNodeClass(nodeType: NodeType, nodeClass: NodeClass): void {
-  if (NODE_CLASS_BY_TYPE[nodeType]) {
-    throw new Error(`duplicate node class for ${nodeType}`);
-  }
   NODE_CLASS_BY_TYPE[nodeType] = nodeClass;
 }
 
 export const STRUCT_CLASS_BY_TYPE: Record<StructType, StructClass> = {} as any;
 export function registerStructClass(structType: StructType, structClass: StructClass): void {
-  if (STRUCT_CLASS_BY_TYPE[structType]) {
-    throw new Error(`duplicate struct class for ${structType}`);
-  }
   STRUCT_CLASS_BY_TYPE[structType] = structClass;
 }
 
 export const ENUM_CLASS_BY_TYPE: Record<EnumType, EnumClass> = {} as any;
 export function registerEnumClass(enumType: EnumType, enumClass: EnumClass): void {
-  if (ENUM_CLASS_BY_TYPE[enumType]) {
-    throw new Error(`duplicate enum class for ${enumType}`);
-  }
   ENUM_CLASS_BY_TYPE[enumType] = enumClass;
 }"""
     ]

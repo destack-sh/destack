@@ -8,16 +8,12 @@ import {
   IsDeletable,
   IsSubject,
   MaterializationType,
-  Node,
   NodeReference,
-  NodeType,
   QueryConnection,
   Session,
-  StructFrozen,
-  StructType,
   Supergraph,
-  TraitType,
 } from "@destack/language/core";
+import { Node, NodeType, StructFrozen, StructType, TraitType } from "@destack/language/core/builtin";
 import { Machine } from "@destack/language/infra";
 import { Cursor } from "@destack/language/logic";
 import { registerNodeClass, registerStructClass } from "@destack/language/registry";
@@ -103,13 +99,13 @@ export class Origin extends StructFrozen {
     if (!(this.type === other.type)) {
       return false;
     }
-    if ((this.id == null) !== (other.id == null) || (this.id != null && !(this.id === other.id))) {
+    if (!(this.id === other.id)) {
       return false;
     }
-    if ((this.ck == null) !== (other.ck == null) || (this.ck != null && !(this.ck === other.ck))) {
+    if (!(this.ck === other.ck)) {
       return false;
     }
-    if ((this.nonce == null) !== (other.nonce == null) || (this.nonce != null && !(this.nonce === other.nonce))) {
+    if (!(this.nonce === other.nonce)) {
       return false;
     }
     return true;
@@ -556,73 +552,40 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
     if (!(this.type === other.type)) {
       return false;
     }
-    if (
-      (this.machinePtr == null) !== (other.machinePtr == null) ||
-      (this.machinePtr != null && !(this.machinePtr.id === other.machinePtr.id))
-    ) {
+    if (!(this.machinePtr?.id === other.machinePtr?.id)) {
       return false;
     }
-    if (
-      (this.userPtr == null) !== (other.userPtr == null) ||
-      (this.userPtr != null && !(this.userPtr.id === other.userPtr.id))
-    ) {
+    if (!(this.userPtr?.id === other.userPtr?.id)) {
       return false;
     }
-    if (
-      (this.accessToken == null) !== (other.accessToken == null) ||
-      (this.accessToken != null && !(this.accessToken === other.accessToken))
-    ) {
+    if (!(this.accessToken === other.accessToken)) {
       return false;
     }
-    if ((this.seenAt == null) !== (other.seenAt == null) || (this.seenAt != null && !(this.seenAt === other.seenAt))) {
+    if (!(this.seenAt === other.seenAt)) {
       return false;
     }
-    if (
-      (this.loggedInAt == null) !== (other.loggedInAt == null) ||
-      (this.loggedInAt != null && !(this.loggedInAt === other.loggedInAt))
-    ) {
+    if (!(this.loggedInAt === other.loggedInAt)) {
       return false;
     }
-    if (
-      (this.cursorPtr == null) !== (other.cursorPtr == null) ||
-      (this.cursorPtr != null && !(this.cursorPtr.id === other.cursorPtr.id))
-    ) {
+    if (!(this.cursorPtr?.id === other.cursorPtr?.id)) {
       return false;
     }
-    if (
-      (this.deviceType == null) !== (other.deviceType == null) ||
-      (this.deviceType != null && !(this.deviceType === other.deviceType))
-    ) {
+    if (!(this.deviceType === other.deviceType)) {
       return false;
     }
-    if (
-      (this.deviceName == null) !== (other.deviceName == null) ||
-      (this.deviceName != null && !(this.deviceName === other.deviceName))
-    ) {
+    if (!(this.deviceName === other.deviceName)) {
       return false;
     }
-    if (
-      (this.operatingSystem == null) !== (other.operatingSystem == null) ||
-      (this.operatingSystem != null && !(this.operatingSystem === other.operatingSystem))
-    ) {
+    if (!(this.operatingSystem === other.operatingSystem)) {
       return false;
     }
-    if (
-      (this.browserName == null) !== (other.browserName == null) ||
-      (this.browserName != null && !(this.browserName === other.browserName))
-    ) {
+    if (!(this.browserName === other.browserName)) {
       return false;
     }
-    if (
-      (this.browserVersion == null) !== (other.browserVersion == null) ||
-      (this.browserVersion != null && !(this.browserVersion === other.browserVersion))
-    ) {
+    if (!(this.browserVersion === other.browserVersion)) {
       return false;
     }
     if (!(this.name === other.name)) {
-      return false;
-    }
-    if (!(this.materialization === other.materialization)) {
       return false;
     }
     return true;

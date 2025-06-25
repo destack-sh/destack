@@ -2,25 +2,21 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
   Condition,
   Entity,
-  EnumType,
   Event,
   Graph,
   HasName,
   IsRunnable,
   IsSubject,
   MaterializationType,
-  Node,
   NodeReference,
-  NodeType,
   QueryConnection,
   RelationReference,
   Session,
   Spatial,
-  StructType,
   Supergraph,
-  TraitType,
   Value,
 } from "@destack/language/core";
+import { EnumType, Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import {
@@ -262,10 +258,7 @@ export class TriggerEvent extends Node implements Event {
     if (!(this.nodePtr.id === other.nodePtr.id)) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     return true;
@@ -721,17 +714,11 @@ export class Trigger extends Node implements Spatial, Entity, HasName {
       if (!(key in other.arguments)) {
         return false;
       }
-      if (!this.arguments[key].equals(other.arguments[key])) {
+      if (!this.arguments.get(key)!.equals(other.arguments.get(key)!)) {
         return false;
       }
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
-      return false;
-    }
-    if (!(this.materialization === other.materialization)) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     if (!(this.name === other.name)) {

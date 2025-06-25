@@ -1,4 +1,5 @@
-import { EnumType, Session, StructFrozen, StructType, Supergraph } from "@destack/language/core";
+import { Session, Supergraph } from "@destack/language/core";
+import { EnumType, StructFrozen, StructType } from "@destack/language/core/builtin";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import {
   Axis2Proto,
@@ -836,19 +837,19 @@ export class Insets extends StructFrozen {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if ((this.base == null) !== (other.base == null) || (this.base != null && !(this.base === other.base))) {
+    if (!(this.base === other.base)) {
       return false;
     }
-    if ((this.top == null) !== (other.top == null) || (this.top != null && !(this.top === other.top))) {
+    if (!(this.top === other.top)) {
       return false;
     }
-    if ((this.left == null) !== (other.left == null) || (this.left != null && !(this.left === other.left))) {
+    if (!(this.left === other.left)) {
       return false;
     }
-    if ((this.right == null) !== (other.right == null) || (this.right != null && !(this.right === other.right))) {
+    if (!(this.right === other.right)) {
       return false;
     }
-    if ((this.bottom == null) !== (other.bottom == null) || (this.bottom != null && !(this.bottom === other.bottom))) {
+    if (!(this.bottom === other.bottom)) {
       return false;
     }
     return true;
@@ -1072,31 +1073,19 @@ export class Corners extends StructFrozen {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if ((this.base == null) !== (other.base == null) || (this.base != null && !(this.base === other.base))) {
+    if (!(this.base === other.base)) {
       return false;
     }
-    if (
-      (this.topLeft == null) !== (other.topLeft == null) ||
-      (this.topLeft != null && !(this.topLeft === other.topLeft))
-    ) {
+    if (!(this.topLeft === other.topLeft)) {
       return false;
     }
-    if (
-      (this.topRight == null) !== (other.topRight == null) ||
-      (this.topRight != null && !(this.topRight === other.topRight))
-    ) {
+    if (!(this.topRight === other.topRight)) {
       return false;
     }
-    if (
-      (this.bottomLeft == null) !== (other.bottomLeft == null) ||
-      (this.bottomLeft != null && !(this.bottomLeft === other.bottomLeft))
-    ) {
+    if (!(this.bottomLeft === other.bottomLeft)) {
       return false;
     }
-    if (
-      (this.bottomRight == null) !== (other.bottomRight == null) ||
-      (this.bottomRight != null && !(this.bottomRight === other.bottomRight))
-    ) {
+    if (!(this.bottomRight === other.bottomRight)) {
       return false;
     }
     return true;

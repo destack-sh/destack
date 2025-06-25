@@ -1,19 +1,14 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import {
-  EnumType,
   Graph,
   IsSubject,
   MaterializationType,
-  Node,
   NodeReference,
-  NodeType,
   QueryConnection,
   Session,
-  Struct,
-  StructType,
   Supergraph,
-  TraitType,
 } from "@destack/language/core";
+import { EnumType, Node, NodeType, Struct, StructType, TraitType } from "@destack/language/core/builtin";
 import { File } from "@destack/language/data";
 import { registerEnumClass, registerNodeClass, registerStructClass } from "@destack/language/registry";
 import { Scene } from "@destack/language/scene";
@@ -214,10 +209,7 @@ export class Fill extends Struct {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (
-      (this.stylePtr == null) !== (other.stylePtr == null) ||
-      (this.stylePtr != null && !(this.stylePtr.id === other.stylePtr.id))
-    ) {
+    if (!(this.stylePtr?.id === other.stylePtr?.id)) {
       return false;
     }
     if (!(this.type === other.type)) {
@@ -232,19 +224,13 @@ export class Fill extends Struct {
     ) {
       return false;
     }
-    if (
-      (this.imagePtr == null) !== (other.imagePtr == null) ||
-      (this.imagePtr != null && !(this.imagePtr.id === other.imagePtr.id))
-    ) {
+    if (!(this.imagePtr?.id === other.imagePtr?.id)) {
       return false;
     }
-    if (
-      (this.position == null) !== (other.position == null) ||
-      (this.position != null && !(this.position === other.position))
-    ) {
+    if (!(this.position === other.position)) {
       return false;
     }
-    if ((this.size == null) !== (other.size == null) || (this.size != null && !(this.size === other.size))) {
+    if (!(this.size === other.size)) {
       return false;
     }
     return true;
@@ -728,13 +714,7 @@ export class FillStyle extends Node implements Style {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
-      return false;
-    }
-    if (!(this.materialization === other.materialization)) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     if (!(this.name === other.name)) {
@@ -752,19 +732,13 @@ export class FillStyle extends Node implements Style {
     ) {
       return false;
     }
-    if (
-      (this.imagePtr == null) !== (other.imagePtr == null) ||
-      (this.imagePtr != null && !(this.imagePtr.id === other.imagePtr.id))
-    ) {
+    if (!(this.imagePtr?.id === other.imagePtr?.id)) {
       return false;
     }
-    if (
-      (this.position == null) !== (other.position == null) ||
-      (this.position != null && !(this.position === other.position))
-    ) {
+    if (!(this.position === other.position)) {
       return false;
     }
-    if ((this.size == null) !== (other.size == null) || (this.size != null && !(this.size === other.size))) {
+    if (!(this.size === other.size)) {
       return false;
     }
     return true;

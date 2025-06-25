@@ -11,16 +11,13 @@ import {
   IsTaggable,
   LikeTag,
   MaterializationType,
-  Node,
   NodeReference,
-  NodeType,
   QueryConnection,
   Session,
   Spatial,
-  StructType,
   Supergraph,
-  TraitType,
 } from "@destack/language/core";
+import { Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
 import { Folder } from "@destack/language/folder";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
@@ -240,13 +237,7 @@ export class Tag extends Node implements Spatial, Entity, LikeTag, HasName, HasI
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
-      return false;
-    }
-    if (!(this.materialization === other.materialization)) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     if (!(this.name === other.name)) {
@@ -787,19 +778,10 @@ export class Tagging extends Node implements Spatial, Entity, IsTaggable, IsOrde
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (
-      (this.tagPtr == null) !== (other.tagPtr == null) ||
-      (this.tagPtr != null && !(this.tagPtr.id === other.tagPtr.id))
-    ) {
+    if (!(this.tagPtr?.id === other.tagPtr?.id)) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
-      return false;
-    }
-    if (!(this.materialization === other.materialization)) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     return true;

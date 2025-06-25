@@ -1,8 +1,10 @@
-import { ACTIVE_SESSION, Canvas, NodeType, Session } from "destack";
+import { ACTIVE_SESSION, activeSession, Canvas, NodeType, Session } from "destack";
 
 const session = new Session({});
 ACTIVE_SESSION.set(session);
 
+console.log(ACTIVE_SESSION.get());
+console.log(activeSession());
 const canvas = new Canvas({
   name: "My Canvas",
 });

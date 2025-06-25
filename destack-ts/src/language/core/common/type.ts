@@ -2,21 +2,15 @@ import { PRIMITIVE_JS_TYPES, PRIMITIVE_TYPE_BY_JS_TYPE } from "@destack/language
 import {
   CustomEntityDefinition,
   DefaultFactory,
-  EnumType,
-  Node,
   NodeReference,
-  NodeType,
   PrimitiveType,
   ScalarType,
   Session,
-  Struct,
-  StructFrozen,
-  StructType,
   Supergraph,
-  TraitType,
   TypeCardinality,
   Value,
 } from "@destack/language/core";
+import { EnumType, Node, NodeType, Struct, StructFrozen, StructType, TraitType } from "@destack/language/core/builtin";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import {
   CollectionConstraintProto,
@@ -145,22 +139,16 @@ export class StringConstraint extends StructFrozen {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if ((this.format == null) !== (other.format == null) || (this.format != null && !(this.format === other.format))) {
+    if (!(this.format === other.format)) {
       return false;
     }
-    if ((this.regex == null) !== (other.regex == null) || (this.regex != null && !(this.regex === other.regex))) {
+    if (!(this.regex === other.regex)) {
       return false;
     }
-    if (
-      (this.startsWith == null) !== (other.startsWith == null) ||
-      (this.startsWith != null && !(this.startsWith === other.startsWith))
-    ) {
+    if (!(this.startsWith === other.startsWith)) {
       return false;
     }
-    if (
-      (this.endsWith == null) !== (other.endsWith == null) ||
-      (this.endsWith != null && !(this.endsWith === other.endsWith))
-    ) {
+    if (!(this.endsWith === other.endsWith)) {
       return false;
     }
     return true;
@@ -382,7 +370,7 @@ export class NumberConstraint extends StructFrozen {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if ((this.format == null) !== (other.format == null) || (this.format != null && !(this.format === other.format))) {
+    if (!(this.format === other.format)) {
       return false;
     }
     if (
@@ -404,13 +392,10 @@ export class NumberConstraint extends StructFrozen {
     ) {
       return false;
     }
-    if (
-      (this.precision == null) !== (other.precision == null) ||
-      (this.precision != null && !(this.precision === other.precision))
-    ) {
+    if (!(this.precision === other.precision)) {
       return false;
     }
-    if ((this.scale == null) !== (other.scale == null) || (this.scale != null && !(this.scale === other.scale))) {
+    if (!(this.scale === other.scale)) {
       return false;
     }
     return true;
@@ -620,16 +605,10 @@ export class CollectionConstraint extends StructFrozen {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (
-      (this.minLength == null) !== (other.minLength == null) ||
-      (this.minLength != null && !(this.minLength === other.minLength))
-    ) {
+    if (!(this.minLength === other.minLength)) {
       return false;
     }
-    if (
-      (this.maxLength == null) !== (other.maxLength == null) ||
-      (this.maxLength != null && !(this.maxLength === other.maxLength))
-    ) {
+    if (!(this.maxLength === other.maxLength)) {
       return false;
     }
     return true;
@@ -1185,40 +1164,22 @@ export class Type extends StructFrozen {
     if (!(this.scalarType === other.scalarType)) {
       return false;
     }
-    if (
-      (this.primitiveType == null) !== (other.primitiveType == null) ||
-      (this.primitiveType != null && !(this.primitiveType === other.primitiveType))
-    ) {
+    if (!(this.primitiveType === other.primitiveType)) {
       return false;
     }
-    if (
-      (this.enumType == null) !== (other.enumType == null) ||
-      (this.enumType != null && !(this.enumType === other.enumType))
-    ) {
+    if (!(this.enumType === other.enumType)) {
       return false;
     }
-    if (
-      (this.nodeType == null) !== (other.nodeType == null) ||
-      (this.nodeType != null && !(this.nodeType === other.nodeType))
-    ) {
+    if (!(this.nodeType === other.nodeType)) {
       return false;
     }
-    if (
-      (this.nodeDefinitionPtr == null) !== (other.nodeDefinitionPtr == null) ||
-      (this.nodeDefinitionPtr != null && !(this.nodeDefinitionPtr.id === other.nodeDefinitionPtr.id))
-    ) {
+    if (!(this.nodeDefinitionPtr?.id === other.nodeDefinitionPtr?.id)) {
       return false;
     }
-    if (
-      (this.structType == null) !== (other.structType == null) ||
-      (this.structType != null && !(this.structType === other.structType))
-    ) {
+    if (!(this.structType === other.structType)) {
       return false;
     }
-    if (
-      (this.baseTypePtr == null) !== (other.baseTypePtr == null) ||
-      (this.baseTypePtr != null && !(this.baseTypePtr.id === other.baseTypePtr.id))
-    ) {
+    if (!(this.baseTypePtr?.id === other.baseTypePtr?.id)) {
       return false;
     }
     if (
@@ -1227,16 +1188,10 @@ export class Type extends StructFrozen {
     ) {
       return false;
     }
-    if (
-      (this.isRequired == null) !== (other.isRequired == null) ||
-      (this.isRequired != null && !(this.isRequired === other.isRequired))
-    ) {
+    if (!(this.isRequired === other.isRequired)) {
       return false;
     }
-    if (
-      (this.isVariable == null) !== (other.isVariable == null) ||
-      (this.isVariable != null && !(this.isVariable === other.isVariable))
-    ) {
+    if (!(this.isVariable === other.isVariable)) {
       return false;
     }
     if (
@@ -1245,10 +1200,7 @@ export class Type extends StructFrozen {
     ) {
       return false;
     }
-    if (
-      (this.defaultFactory == null) !== (other.defaultFactory == null) ||
-      (this.defaultFactory != null && !(this.defaultFactory === other.defaultFactory))
-    ) {
+    if (!(this.defaultFactory === other.defaultFactory)) {
       return false;
     }
     if (

@@ -1,4 +1,5 @@
-import { EnumType, Node, NodeReference, Session, StructFrozen, StructType, Supergraph } from "@destack/language/core";
+import { NodeReference, Session, Supergraph } from "@destack/language/core";
+import { EnumType, Node, StructFrozen, StructType } from "@destack/language/core/builtin";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { TextProto, TextSpanProto, TextSpanTypeProto } from "@destack/proto";
 
@@ -155,43 +156,28 @@ export class TextSpan extends StructFrozen {
     if (!(this.type === other.type)) {
       return false;
     }
-    if (
-      (this.content == null) !== (other.content == null) ||
-      (this.content != null && !(this.content === other.content))
-    ) {
+    if (!(this.content === other.content)) {
       return false;
     }
-    if (
-      (this.nodePtr == null) !== (other.nodePtr == null) ||
-      (this.nodePtr != null && !(this.nodePtr.id === other.nodePtr.id))
-    ) {
+    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
-    if ((this.url == null) !== (other.url == null) || (this.url != null && !(this.url === other.url))) {
+    if (!(this.url === other.url)) {
       return false;
     }
-    if ((this.isBold == null) !== (other.isBold == null) || (this.isBold != null && !(this.isBold === other.isBold))) {
+    if (!(this.isBold === other.isBold)) {
       return false;
     }
-    if (
-      (this.isItalic == null) !== (other.isItalic == null) ||
-      (this.isItalic != null && !(this.isItalic === other.isItalic))
-    ) {
+    if (!(this.isItalic === other.isItalic)) {
       return false;
     }
-    if (
-      (this.isStrikethrough == null) !== (other.isStrikethrough == null) ||
-      (this.isStrikethrough != null && !(this.isStrikethrough === other.isStrikethrough))
-    ) {
+    if (!(this.isStrikethrough === other.isStrikethrough)) {
       return false;
     }
-    if (
-      (this.isUnderline == null) !== (other.isUnderline == null) ||
-      (this.isUnderline != null && !(this.isUnderline === other.isUnderline))
-    ) {
+    if (!(this.isUnderline === other.isUnderline)) {
       return false;
     }
-    if ((this.isCode == null) !== (other.isCode == null) || (this.isCode != null && !(this.isCode === other.isCode))) {
+    if (!(this.isCode === other.isCode)) {
       return false;
     }
     return true;
@@ -474,28 +460,19 @@ export class Text extends StructFrozen {
         return false;
       }
     }
-    if ((this.isBold == null) !== (other.isBold == null) || (this.isBold != null && !(this.isBold === other.isBold))) {
+    if (!(this.isBold === other.isBold)) {
       return false;
     }
-    if (
-      (this.isItalic == null) !== (other.isItalic == null) ||
-      (this.isItalic != null && !(this.isItalic === other.isItalic))
-    ) {
+    if (!(this.isItalic === other.isItalic)) {
       return false;
     }
-    if (
-      (this.isStrikethrough == null) !== (other.isStrikethrough == null) ||
-      (this.isStrikethrough != null && !(this.isStrikethrough === other.isStrikethrough))
-    ) {
+    if (!(this.isStrikethrough === other.isStrikethrough)) {
       return false;
     }
-    if (
-      (this.isUnderline == null) !== (other.isUnderline == null) ||
-      (this.isUnderline != null && !(this.isUnderline === other.isUnderline))
-    ) {
+    if (!(this.isUnderline === other.isUnderline)) {
       return false;
     }
-    if ((this.isCode == null) !== (other.isCode == null) || (this.isCode != null && !(this.isCode === other.isCode))) {
+    if (!(this.isCode === other.isCode)) {
       return false;
     }
     return true;

@@ -2,7 +2,6 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Role } from "@destack/language/access";
 import {
   Entity,
-  EnumType,
   Event,
   Global,
   Graph,
@@ -12,17 +11,14 @@ import {
   IsOwner,
   IsSubject,
   MaterializationType,
-  Node,
   NodeReference,
-  NodeType,
   QueryConnection,
   RoleType,
   Session,
   Spatial,
-  StructType,
   Supergraph,
-  TraitType,
 } from "@destack/language/core";
+import { EnumType, Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { InviteEventProto, InviteProto, MaterializationTypeProto, RoleTypeProto } from "@destack/proto";
@@ -321,19 +317,13 @@ export class InviteEvent extends Node implements Event {
     if (!(this.memberPtr.id === other.memberPtr.id)) {
       return false;
     }
-    if (
-      (this.rolePtr == null) !== (other.rolePtr == null) ||
-      (this.rolePtr != null && !(this.rolePtr.id === other.rolePtr.id))
-    ) {
+    if (!(this.rolePtr?.id === other.rolePtr?.id)) {
       return false;
     }
     if (!(this.roleType === other.roleType)) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
     return true;
@@ -834,31 +824,16 @@ export class Invite extends Node implements Global, Spatial, Entity, IsOwnable, 
     if (!(this.memberPtr.id === other.memberPtr.id)) {
       return false;
     }
-    if (
-      (this.rolePtr == null) !== (other.rolePtr == null) ||
-      (this.rolePtr != null && !(this.rolePtr.id === other.rolePtr.id))
-    ) {
+    if (!(this.rolePtr?.id === other.rolePtr?.id)) {
       return false;
     }
-    if (
-      (this.roleType == null) !== (other.roleType == null) ||
-      (this.roleType != null && !(this.roleType === other.roleType))
-    ) {
+    if (!(this.roleType === other.roleType)) {
       return false;
     }
-    if (
-      (this.spacePtr == null) !== (other.spacePtr == null) ||
-      (this.spacePtr != null && !(this.spacePtr.id === other.spacePtr.id))
-    ) {
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.materialization === other.materialization)) {
-      return false;
-    }
-    if (
-      (this.ownedByPtr == null) !== (other.ownedByPtr == null) ||
-      (this.ownedByPtr != null && !(this.ownedByPtr.id === other.ownedByPtr.id))
-    ) {
+    if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
       return false;
     }
     return true;
