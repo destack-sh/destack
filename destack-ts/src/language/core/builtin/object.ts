@@ -43,7 +43,7 @@ export abstract class BuiltinObject {
     throw new Error(`clone not implemented for ${this.constructor.name}`);
   }
 
-  /** Get a property definition by name. */
+  /** Get a PropertyDefinition or CustomProperty by name. */
   static property(name: string): PropertyDefinition {
     const prop = this.__properties__[name];
     if (!prop) {

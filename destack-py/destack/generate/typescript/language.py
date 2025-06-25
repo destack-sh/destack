@@ -819,7 +819,7 @@ def _generate_trait(definition: TraitDefinition) -> str:
     trait_cls = TRAIT_CLASS_BY_TYPE[definition.type]
     trait_parts: list[str] = []
 
-    # properties
+    # interface properties
     prop_parts: list[str] = []
     for prop in _get_properties(trait_cls):
         if (
@@ -848,6 +848,11 @@ def _generate_trait(definition: TraitDefinition) -> str:
         if super_trait_classes
         else ""
     )
+
+    # instance
+    instance_parts: list[str] = []
+    instance_str = "\n".join(instance_parts)
+
     trait_str = f"""\
 {_generate_multiline_doc(definition.description or definition.name)}
 export interface {definition.alias}{extends_str} {{
@@ -857,6 +862,12 @@ export interface {definition.alias}{extends_str} {{
   // ...
   {MARKER_CUSTOM_END}
 }}
+
+class {definition.alias}$Type extends TraitFacade {{
+{textwrap.indent(instance_str, "  ")}
+}}
+export const {definition.alias} = new {definition.alias}$Type(TraitType.{definition.type.name});
+
 """
     return trait_str.strip()
 

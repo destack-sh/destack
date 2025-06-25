@@ -440,7 +440,7 @@ export type WithSubqueries<T, Q = Query> = T & {
   [K: string]: Q | T[keyof T] | undefined;
 };
 
-function toSubqueries(subqueries: WithSubqueries<Record<string, any>>): Query[] {
+export function toSubqueries(subqueries: WithSubqueries<Record<string, any>>): Query[] {
   const queries: Query[] = [];
   for (const [name, subquery] of Object.entries(subqueries)) {
     if (!(subquery instanceof Query)) {

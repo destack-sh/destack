@@ -66,6 +66,9 @@ export interface Cursor extends Spatial, Entity {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
+
+class Cursor$Type extends TraitFacade {}
+export const Cursor = new Cursor$Type(TraitType.CURSOR);
 /* ==== DESTACK_GENERATED_END:TRAIT:3012 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:3100 ==== */
