@@ -1,4 +1,4 @@
-import { ACTIVE_SESSION, activeSession, Canvas, NodeType, Session } from "destack";
+import { ACTIVE_SESSION, activeSession, Canvas, LineShape, NodeType, Session } from "destack";
 import { signal } from "@preact/signals-react";
 
 const session = new Session({});
@@ -8,7 +8,7 @@ const count = signal(0);
 const canvas = new Canvas({
   name: "My Canvas",
 });
-const lines = canvas.getChildren({ nodeType: NodeType.LINE_SHAPE });
+const lines = canvas.getChildren(LineShape);
 const Space: React.FC = () => {
   return (
     <div>

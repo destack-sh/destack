@@ -31,6 +31,8 @@ if TYPE_CHECKING:
 
 # pyright: reportIncompatibleVariableOverride=false
 
+type_ = type
+
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def builtin_node(
@@ -199,7 +201,7 @@ class Node[NodeProtoT: AnyNodeProto](NodeBase[NodeProtoT]):
             order_trait = next(
                 (trait for trait in child.__traits__ if trait in INTER_ORDER_TRAITS), None
             )
-            existing_nodes = self._graph.get_children(self, node_type=order_trait or child.metatype)
+            existing_nodes = self._graph.get_children(self, type=order_trait or child.metatype)
             if existing_nodes:
                 order_key = get_order_key(getattr(existing_nodes[-1], "order_key", None), None)
                 child._do_set("order_key", order_key)
@@ -259,38 +261,59 @@ class Node[NodeProtoT: AnyNodeProto](NodeBase[NodeProtoT]):
         raise NotImplementedError
 
     def get_children[N: Node = Node](
-        self, node_type: NodeType | TraitType | type[N] | None = None
+        self,
+        type: NodeType | TraitType | type[N] | None = None,
+        include_deleted: bool = False,
+        include_archived: bool = False,
     ) -> Sequence[N]:
         """Gets the children of this Node."""
-        return self._graph.get_children(self, node_type=node_type)
+        return self._graph.get_children(self, type=type)
 
-    def get_child[N: Node = Node](self, node_type: NodeType | type[N], name: str) -> N | None:
+    def get_child[N: Node = Node](
+        self,
+        type: NodeType | type[N] | TraitType,
+        name: str,
+        include_deleted: bool = False,
+        include_archived: bool = False,
+    ) -> N | None:
         """Gets a specific child of this Node by name."""
-        if isinstance(node_type, type):
-            node_type = node_type.metatype
-        for child in self._graph.get_children(self, node_type=node_type):
+        if isinstance(type, type_):
+            type = type.metatype
+        for child in self._graph.get_children(self, type=type):
             if getattr(child, "name", None) == name:
                 return cast(N, child)
         return None
 
-    def child[N: Node = Node](self, node_type: NodeType | type[N], name: str) -> N:
+    def child[N: Node = Node](
+        self,
+        type: NodeType | type[N] | TraitType,
+        name: str,
+        include_deleted: bool = False,
+        include_archived: bool = False,
+    ) -> N:
         """Gets a specific child of this Node by name, or raises an error if not found."""
-        child = self.get_child(node_type, name)
+        child = self.get_child(type, name)
         if child is None:
             raise LookupError(f"no child {name} of {self!r}")
         return cast(N, child)
 
     def get_ancestors[N: Node = Node](
-        self, node_type: NodeType | TraitType | type[N] | None = None
+        self,
+        type: NodeType | TraitType | type[N] | None = None,
+        include_deleted: bool = False,
+        include_archived: bool = False,
     ) -> Sequence[N]:
         """Gets the ancestors of this Node."""
-        return self._graph.get_ancestors(self, node_type=node_type)
+        return self._graph.get_ancestors(self, type=type)
 
     def get_descendants[N: Node = Node](
-        self, node_type: NodeType | TraitType | type[N] | None = None
+        self,
+        type: NodeType | TraitType | type[N] | None = None,
+        include_deleted: bool = False,
+        include_archived: bool = False,
     ) -> Sequence[N]:
         """Gets the descendants of this Node."""
-        return self._graph.get_descendants(self, node_type=node_type)
+        return self._graph.get_descendants(self, type=type)
 
     @classmethod
     def from_value(

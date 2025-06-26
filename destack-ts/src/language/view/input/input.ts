@@ -25,7 +25,7 @@ export interface InputView extends View {
 /**
  * An input View.
  */
-class InputView$Type extends TraitClass {}
+class InputView$Type extends TraitClass<InputView, TraitType.INPUT_VIEW> {}
 
 export const InputView = new InputView$Type(TraitType.INPUT_VIEW);
 registerTraitClass(TraitType.INPUT_VIEW, InputView);

@@ -27,6 +27,7 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
+type_ = type
 
 
 class Graph(abc.ABC):
@@ -108,7 +109,7 @@ class Graph(abc.ABC):
     def get_children[N: Node = Node](
         self,
         node: "Node",
-        node_type: NodeType | TraitType | type[N] | None = None,
+        type: NodeType | TraitType | type[N] | None = None,
     ) -> Sequence[N]:
         """
         Collect child Nodes (one level down).
@@ -118,7 +119,7 @@ class Graph(abc.ABC):
 
     @abc.abstractmethod
     def get_ancestors[N: Node = Node](
-        self, node: "Node", node_type: NodeType | TraitType | type[N] | None = None
+        self, node: "Node", type: NodeType | TraitType | type[N] | None = None
     ) -> Sequence[N]:
         """Gets the ancestors of this Node (recursively up)."""
         raise NotImplementedError
@@ -127,7 +128,7 @@ class Graph(abc.ABC):
     def get_descendants[N: Node = Node](
         self,
         node: "Node",
-        node_type: NodeType | TraitType | type[N] | None = None,
+        type: NodeType | TraitType | type[N] | None = None,
     ) -> Sequence[N]:
         """
         Collect descendant Nodes (recursively down).
@@ -199,13 +200,13 @@ class SingletonGraph(Graph):
     def get_children[N: Node = Node](
         self,
         node: "Node",
-        node_type: NodeType | TraitType | type[N] | None = None,
+        type: NodeType | TraitType | type[N] | None = None,
     ) -> Sequence[N]:
         return ()
 
     @override
     def get_ancestors[N: Node = Node](
-        self, node: "Node", node_type: NodeType | TraitType | type[N] | None = None
+        self, node: "Node", type: NodeType | TraitType | type[N] | None = None
     ) -> Sequence[N]:
         return ()
 
@@ -213,7 +214,7 @@ class SingletonGraph(Graph):
     def get_descendants[N: Node = Node](
         self,
         node: "Node",
-        node_type: NodeType | TraitType | type[N] | None = None,
+        type: NodeType | TraitType | type[N] | None = None,
     ) -> Sequence[N]:
         return ()
 
@@ -338,7 +339,7 @@ class PolyGraph(Graph):
     def get_children[N: Node = Node](
         self,
         node: "Node",
-        node_type: NodeType | TraitType | type[N] | None = None,
+        type: NodeType | TraitType | type[N] | None = None,
     ) -> Sequence[N]:
         # bail if no children
         if not self.nodes_by_parent:
@@ -347,12 +348,12 @@ class PolyGraph(Graph):
         if not children_by_type:
             return ()
 
-        if node_type is None:
+        if type is None:
             # collect children across all types
             children: list = []
             is_ordered = False
             for children_of_type in children_by_type.values():
-                node_cls = type(children_of_type[0])
+                node_cls = type_(children_of_type[0])
                 if TraitType.ORDERED in node_cls.__traits__:
                     is_ordered = True
                 children.extend(children_of_type)
@@ -361,22 +362,22 @@ class PolyGraph(Graph):
             return children
         else:
             # turn into type
-            node_cls: type[Node]
+            node_cls: type_[Node]
             node_types: tuple[NodeType, ...]
-            if isinstance(node_type, type):
-                if node_t := NODE_TYPE_BY_CLASS.get(node_type):
-                    node_cls = node_type
+            if isinstance(type, type_):
+                if node_t := NODE_TYPE_BY_CLASS.get(type):
+                    node_cls = type
                     node_types = (node_t,)
                 else:
-                    node_cls = node_type
-                    node_types = NODE_TYPES_BY_TRAIT_TYPE[TRAIT_TYPE_BY_CLASS[node_type]]  # type: ignore
+                    node_cls = type
+                    node_types = NODE_TYPES_BY_TRAIT_TYPE[TRAIT_TYPE_BY_CLASS[type]]  # type: ignore
             else:
-                if isinstance(node_type, NodeType):
-                    node_cls = NODE_CLASS_BY_TYPE[node_type]
-                    node_types = (node_type,)
+                if isinstance(type, NodeType):
+                    node_cls = NODE_CLASS_BY_TYPE[type]
+                    node_types = (type,)
                 else:
-                    node_cls = TRAIT_CLASS_BY_TYPE[node_type]  # type: ignore
-                    node_types = NODE_TYPES_BY_TRAIT_TYPE[node_type]
+                    node_cls = TRAIT_CLASS_BY_TYPE[type]  # type: ignore
+                    node_types = NODE_TYPES_BY_TRAIT_TYPE[type]
 
             # collect
             if len(node_types) == 1:
@@ -396,13 +397,13 @@ class PolyGraph(Graph):
 
     @override
     def get_ancestors[N: Node = Node](
-        self, node: "Node", node_type: NodeType | TraitType | type[N] | None = None
+        self, node: "Node", type: NodeType | TraitType | type[N] | None = None
     ) -> Sequence[N]:
         ancestors: list[Node] = []
         current = node.parent_ptr
 
         # collect node types to filter by
-        node_types = get_node_types(node_type)
+        node_types = get_node_types(type)
 
         # traverse up the parent chain
         while current is not None:
@@ -419,7 +420,7 @@ class PolyGraph(Graph):
     def get_descendants[N: Node = Node](
         self,
         node: "Node",
-        node_type: NodeType | TraitType | type[N] | None = None,
+        type: NodeType | TraitType | type[N] | None = None,
     ) -> Sequence[N]:
         if not self.nodes_by_parent:
             return ()
@@ -428,7 +429,7 @@ class PolyGraph(Graph):
         descendants: list[Node] = []
 
         # collect
-        node_types = get_node_types(node_type)
+        node_types = get_node_types(type)
         while queue:
             current = queue.pop(0)
             children_by_type = self.nodes_by_parent.get(current.id)

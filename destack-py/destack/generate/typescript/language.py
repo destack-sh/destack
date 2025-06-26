@@ -852,7 +852,7 @@ export interface {definition.alias}{extends_str} {{
 }}
 
 {_generate_multiline_doc(doc_str)}
-class {definition.alias}$Type extends TraitClass {{
+class {definition.alias}$Type extends TraitClass<{definition.alias}, TraitType.{definition.type.name}> {{
 {textwrap.indent(instance_str, "  ")}
 }}
 

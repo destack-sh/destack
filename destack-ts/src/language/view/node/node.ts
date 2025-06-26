@@ -15,7 +15,7 @@ export interface NodeView extends View {
 /**
  * A node View.
  */
-class NodeView$Type extends TraitClass {}
+class NodeView$Type extends TraitClass<NodeView, TraitType.NODE_VIEW> {}
 
 export const NodeView = new NodeView$Type(TraitType.NODE_VIEW);
 registerTraitClass(TraitType.NODE_VIEW, NodeView);

@@ -71,7 +71,7 @@ export interface Cursor extends Spatial, Entity {
 /**
  * A Node that is a Cursor.
  */
-class Cursor$Type extends TraitClass {}
+class Cursor$Type extends TraitClass<Cursor, TraitType.CURSOR> {}
 
 export const Cursor = new Cursor$Type(TraitType.CURSOR);
 registerTraitClass(TraitType.CURSOR, Cursor);

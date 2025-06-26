@@ -15,7 +15,7 @@ export interface InternalView extends View {
 /**
  * A content View.
  */
-class InternalView$Type extends TraitClass {}
+class InternalView$Type extends TraitClass<InternalView, TraitType.INTERNAL_VIEW> {}
 
 export const InternalView = new InternalView$Type(TraitType.INTERNAL_VIEW);
 registerTraitClass(TraitType.INTERNAL_VIEW, InternalView);

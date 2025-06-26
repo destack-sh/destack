@@ -24,7 +24,7 @@ export interface Style extends Spatial, Entity, IsDeletable, IsOrdered, HasName,
 /**
  * A Style is a style definition.
  */
-class Style$Type extends TraitClass {}
+class Style$Type extends TraitClass<Style, TraitType.STYLE> {}
 
 export const Style = new Style$Type(TraitType.STYLE);
 registerTraitClass(TraitType.STYLE, Style);
