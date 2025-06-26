@@ -1,6 +1,13 @@
 from typing import TYPE_CHECKING, Any, Optional, assert_never
 
-from destack.language.registry import OBJECT_REF_BY_CLASS
+from destack.language.registry import (
+    ENUM_DEFINITION_BY_TYPE,
+    NODE_DEFINITION_BY_TYPE,
+    OBJECT_REF_BY_CLASS,
+    STRUCT_DEFINITION_BY_TYPE,
+    TRAIT_DEFINITION_BY_TYPE,
+    register_constant,
+)
 
 from ..builtin import (
     CascadeAction,
@@ -378,7 +385,6 @@ class PermissionDefinition(StructFrozen):
     icon: "Icon | None" = property_(34)
 
 
-# TODO :Architecture: handle constants properly (generate into SDKs?) :ProperConstants
 @builtin_struct(StructType.CONSTANT_DEFINITION, frozen=True)
 class ConstantDefinition(StructFrozen):
     """Definition of a builtin Constant."""
@@ -386,3 +392,9 @@ class ConstantDefinition(StructFrozen):
     name: str = property_(31)
     path: str = property_(35)
     value: "Value" = property_(40)
+
+
+register_constant("NODE_DEFINITIONS", lambda: list(NODE_DEFINITION_BY_TYPE.values()))
+register_constant("TRAIT_DEFINITIONS", lambda: list(TRAIT_DEFINITION_BY_TYPE.values()))
+register_constant("STRUCT_DEFINITIONS", lambda: list(STRUCT_DEFINITION_BY_TYPE.values()))
+register_constant("ENUM_DEFINITIONS", lambda: list(ENUM_DEFINITION_BY_TYPE.values()))

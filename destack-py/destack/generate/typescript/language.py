@@ -4,7 +4,7 @@ import textwrap
 from collections import defaultdict
 from itertools import chain
 from pathlib import Path
-from typing import Any, assert_never, cast
+from typing import assert_never, cast
 
 from destack.language import (
     EMPTY_DICT,
@@ -17,20 +17,18 @@ from destack.language import (
     NodeBase,
     NodeDefinition,
     NodeType,
-    PrimitiveType,
     PropertyDeclaration,
     RoleType,
     ScalarType,
     StructDefinition,
+    StructFrozen,
     Trait,
     TraitDefinition,
     TraitType,
-    Type,
     TypeCardinality,
     TypeDeclaration,
     get_node_types,
 )
-from destack.language.core.builtin.struct import StructFrozen
 from destack.language.registry import (
     ENUM_CLASS_BY_TYPE,
     ENUM_DEFINITION_BY_TYPE,
@@ -64,7 +62,7 @@ from .core import (
 )
 from .grpc import generate_object_proto
 from .map import TYPESCRIPT_TYPE_BY_PRIMITIVE_TYPE
-from .value import generate_object_value
+from .value import generate_object_value, generate_value
 
 # ruff: noqa: FURB113
 
@@ -149,34 +147,6 @@ def _generate_property_type(prop: PropertyDeclaration, as_ptr: bool = True) -> s
     else:
         assert_never(prop.cardinality)
     return type_str
-
-
-def _generate_value(type: Type | TypeDeclaration | PropertyDeclaration, value: Any) -> str:
-    """Generate a Typescript value literal."""
-    if type.scalar_type == ScalarType.PRIMITIVE:
-        if type.primitive_type == PrimitiveType.BOOLEAN:
-            return "true" if value else "false"
-        elif type.primitive_type in (
-            PrimitiveType.INT16,
-            PrimitiveType.INT32,
-            PrimitiveType.INT64,
-            PrimitiveType.FLOAT32,
-            PrimitiveType.FLOAT64,
-        ):
-            return str(value)
-        elif type.primitive_type == PrimitiveType.STRING:
-            return f'"{value}"'
-        else:
-            raise ValueError(f"unsupported primitive type: {type.primitive_type!r}")
-    elif type.scalar_type == ScalarType.ENUM:
-        if type.cardinality == TypeCardinality.SCALAR:
-            assert type.enum_type is not None, f"no enum_type for {type!r}"
-            enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
-            return f"{enum_cls.__name__}.{value.name}"
-        else:
-            raise ValueError(f"unsupported enum cardinality: {type.cardinality!r}")
-    else:
-        raise ValueError(f"unsupported value type: {type.scalar_type!r}")
 
 
 def _generate_property(
@@ -414,7 +384,7 @@ if (_{ts_name_in} === null) {{
 
         # init default
         if prop.default is not UNSET and prop.default is not None:
-            default_str = _generate_value(prop, prop.default)
+            default_str = generate_value(prop, prop.default)
             body_parts.append(f"""\
 if (_{ts_name_in} === null) {{
     _{ts_name_in} = {default_str};
@@ -1168,7 +1138,7 @@ def _generate_file(
 
     # build file by updating existing definition blocks and adding new ones
     file_parts: list[str] = []
-    seen_definitions: set[tuple[Kind, int]] = set()
+    seen_definitions: set[tuple[Kind, int | str]] = set()
     for block in blocks:
         if isinstance(block, TypescriptCodeBlock):
             file_parts.append(block.content)

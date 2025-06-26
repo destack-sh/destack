@@ -1,15 +1,18 @@
+import json
 import textwrap
-from typing import TYPE_CHECKING, assert_never
+from typing import TYPE_CHECKING, Any, assert_never
 
 from destack.language import (
     BuiltinObjectBase,
     PrimitiveType,
     PropertyDeclaration,
     ScalarType,
+    StructBase,
+    Type,
     TypeCardinality,
     TypeDeclaration,
 )
-from destack.language.registry import STRUCT_CLASS_BY_TYPE
+from destack.language.registry import ENUM_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 from destack.utils.string import Casing, to_casing
 
 if TYPE_CHECKING:
@@ -283,3 +286,48 @@ def _generate_unpack_value_scalar(
         return f"Node.fromValue({value_expr}, _session, _supergraph, _graph, _connection)"
     else:
         return value_expr
+
+
+def generate_value(type: Type | TypeDeclaration | PropertyDeclaration, value: Any) -> str:
+    """Generate a Typescript value literal."""
+    if type.cardinality == TypeCardinality.SCALAR:
+        return _generate_value_scalar(type, value)
+    elif type.cardinality == TypeCardinality.LIST:
+        elements_str = [_generate_value_scalar(type, element) for element in value]
+        return f"[{', '.join(elements_str)}]"
+    else:
+        raise ValueError(f"unsupported value type: {type.cardinality!r}")
+
+
+def _generate_value_scalar(type: Type | TypeDeclaration | PropertyDeclaration, value: Any) -> str:
+    """Generate a Typescript scalar value literal."""
+    if type.scalar_type == ScalarType.PRIMITIVE:
+        if type.primitive_type == PrimitiveType.BOOLEAN:
+            return "true" if value else "false"
+        elif type.primitive_type in (
+            PrimitiveType.INT16,
+            PrimitiveType.INT32,
+            PrimitiveType.INT64,
+            PrimitiveType.FLOAT32,
+            PrimitiveType.FLOAT64,
+        ):
+            return str(value)
+        elif type.primitive_type == PrimitiveType.STRING:
+            return f'"{value}"'
+        else:
+            raise ValueError(f"unsupported primitive type: {type.primitive_type!r}")
+    elif type.scalar_type == ScalarType.ENUM:
+        if type.cardinality == TypeCardinality.SCALAR:
+            assert type.enum_type is not None, f"no enum_type for {type!r}"
+            enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
+            return f"{enum_cls.__name__}.{value.name}"
+        else:
+            raise ValueError(f"unsupported enum cardinality: {type.cardinality!r}")
+    elif type.scalar_type in (ScalarType.STRUCT, ScalarType.NODE_REFERENCE):
+        assert type.struct_type is not None, f"no struct_type for {type!r}"
+        assert isinstance(value, StructBase), f"value is not a Struct for {type!r}: {value!r}"
+        value_packed: dict = value.to_value()
+        value_str = json.dumps(value_packed, indent=0, separators=(",", ":"))
+        return f"{value.__class__.__name__}.fromValue({value_str})"
+    else:
+        raise ValueError(f"unsupported value type: {type.scalar_type!r}")

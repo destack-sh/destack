@@ -24,7 +24,7 @@ class TypescriptFile:
     existing_str: str | None = None
     new_str: str | None = None
 
-    def get_definition(self, kind: Kind, id: int) -> "TypescriptDefinition | None":
+    def get_definition(self, kind: Kind, id: int | str) -> "TypescriptDefinition | None":
         """Resolve a definition by kind and id."""
         if kind == "ENUM":
             metatype = EnumType(id)
@@ -53,7 +53,7 @@ class TypescriptDefinition:
     module: str  # destack.language.core.common.icon
     submodule: str  # core.builtin or space
     kind: Kind
-    id: int
+    id: int | str
     definition: Definition
     definition_str: str
     dependencies: Mapping[str, Definition]
@@ -64,7 +64,7 @@ class TypescriptDefinitionBlock:
     """A generated definition block with optional custom content."""
 
     kind: Kind
-    id: int
+    id: int | str
     custom_content: str = ""
 
 
