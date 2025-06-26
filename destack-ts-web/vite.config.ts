@@ -24,6 +24,10 @@ const ReactCompilerConfig = {
   /* ... */
 };
 
+const PreactSignalsReactTransformConfig = {
+  mode: "all",
+};
+
 // https://vitejs.dev/config/
 const defaultConfig = defineConfig(() => ({
   logLevel: "info",
@@ -31,7 +35,11 @@ const defaultConfig = defineConfig(() => ({
   plugins: [
     react({
       babel: {
-        plugins: [["babel-plugin-react-compiler", ReactCompilerConfig], ["module:@preact/signals-react-transform"]],
+        plugins: [
+          ["module:@preact/signals-react-transform", PreactSignalsReactTransformConfig],
+          // TODO :Performance: enable react compiler when it plays nicely with signals
+          // ["babel-plugin-react-compiler", ReactCompilerConfig],
+        ],
         generatorOpts: {
           compact: false,
           retainLines: true,
