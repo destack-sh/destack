@@ -2166,3 +2166,7 @@ export class Vector4i extends StructFrozen {
 }
 registerStructClass(StructType.VECTOR4I, Vector4i);
 /* ==== DESTACK_GENERATED_END:STRUCT:50205 ==== */
+
+export type Vectorf = Vector2 | Vector3 | Vector4;
+export type Vectori = Vector2i | Vector3i | Vector4i;
+export type Vector = Vectorf | Vectori;

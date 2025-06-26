@@ -1,49 +1,63 @@
-import { Vector3 } from 'destack'
+import { Vector3 } from "destack";
 
-/**
- * The options object for `getStroke` or `getStrokePoints`.
- *
- * @public
- */
-export interface StrokeOptions {
-	/** The base size (diameter) of the stroke. */
-	size?: number
-	/** The effect of pressure on the stroke's size. */
-	thinning?: number
-	/** How much to soften the stroke's edges. */
-	smoothing?: number
-	streamline?: number
-	/** An easing function to apply to each point's pressure. */
-	easing?(pressure: number): number
-	/** Whether to simulate pressure based on velocity. */
-	simulatePressure?: boolean
-	/** Cap, taper and easing for the start of the line. */
-	start?: {
-		cap?: boolean
-		taper?: number | boolean
-		easing?(distance: number): number
-	}
-	/** Cap, taper and easing for the end of the line. */
-	end?: {
-		cap?: boolean
-		taper?: number | boolean
-		easing?(distance: number): number
-	}
-	/** Whether to handle the points as a completed stroke. */
-	last?: boolean
+/** A point along a stroke path with computed properties. */
+export interface StrokePoint {
+  /** The adjusted point position. */
+  point: Vector3;
+  
+  /** The original input point. */
+  input: Vector3;
+  
+  /** The pressure value at this point (0-1). */
+  pressure: number;
+  
+  /** The normalized direction vector from previous point. */
+  direction: Vector3;
+  
+  /** Distance from the previous point. */
+  distance: number;
+  
+  /** Total distance from stroke start. */
+  runningLength: number;
+  
+  /** The computed radius at this point. */
+  radius: number;
 }
 
-/**
- * The points returned by `getStrokePoints`, and the input for `getStrokeOutlinePoints`
- *
- * @public
- */
-export interface StrokePoint {
-	point: Vector3
-	input: Vector3
-	vector: Vector3
-	pressure: number
-	distance: number
-	runningLength: number
-	radius: number
+/** Configuration options for stroke generation. */
+export interface StrokeOptions {
+  /** Base stroke size/width. */
+  size?: number;
+  
+  /** Amount of pressure-based thinning (0-1). */
+  thinning?: number;
+  
+  /** Amount of path smoothing (0-1). */
+  smoothing?: number;
+  
+  /** Amount of streamlining applied to path (0-1). */
+  streamline?: number;
+  
+  /** Whether to simulate pressure if not provided. */
+  simulatePressure?: boolean;
+  
+  /** Easing function for pressure mapping. */
+  easing?: (t: number) => number;
+  
+  /** Whether this is the final stroke. */
+  last?: boolean;
+  
+  /** Start cap configuration. */
+  start?: {
+    cap?: boolean;
+    taper?: number | boolean;
+    easing?: (t: number) => number;
+  };
+  
+  /** End cap configuration. */
+  end?: {
+    cap?: boolean;
+    taper?: number | boolean;
+    easing?: (t: number) => number;
+  };
 }
