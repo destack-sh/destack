@@ -10,14 +10,14 @@ export function finalize(): void {
   }
   __isFinalized__ = true;
 
-	// hookup all the property definitions
-	for (const nodeDefinition of NODE_DEFINITIONS) {
-		const nodeClass = NODE_CLASS_BY_TYPE[nodeDefinition.type];
-		nodeClass.__properties__ = {};
-		nodeClass.__propertiesById__ = {};
-		for (const propertyDefinition of nodeDefinition.properties) {
-			nodeClass.__properties__[propertyDefinition.name] = propertyDefinition;
-			nodeClass.__propertiesById__[propertyDefinition.id] = propertyDefinition;
-		}
-	}
+  // hookup all the property definitions
+  for (const nodeDefinition of NODE_DEFINITIONS) {
+    const nodeClass = NODE_CLASS_BY_TYPE[nodeDefinition.type];
+    nodeClass.__properties__ = {};
+    nodeClass.__propertiesById__ = {};
+    for (const propertyDefinition of nodeDefinition.properties) {
+      nodeClass.__properties__[propertyDefinition.name] = propertyDefinition;
+      nodeClass.__propertiesById__[propertyDefinition.id] = propertyDefinition;
+    }
+  }
 }

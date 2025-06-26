@@ -1319,7 +1319,7 @@ def _generate_file(
     }
     import_parts.append(f"import {{ {', '.join(sorted(proto_names))} }} from '@destack/proto';")
     import_parts.append(
-        "import { packProtoDuration, packProtoTimestamp, unpackProtoDuration, unpackProtoTimestamp } from '@destack/grpc';"
+        "import { packProtoDuration, packProtoTimestamp, packProtoJson, unpackProtoDuration, unpackProtoTimestamp, unpackProtoJson } from '@destack/grpc';"
     )
     import_parts.append(
         "import { timedeltaToISOFormat, timedeltaFromISOFormat, base64Encode, base64Decode } from '@destack/utils';"

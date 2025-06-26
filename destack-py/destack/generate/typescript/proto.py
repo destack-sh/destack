@@ -3,8 +3,6 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-import regex
-
 from destack.language import Enum
 from destack.language.registry import NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 
@@ -57,53 +55,6 @@ def generate():
         f"bun x protoc --ts_out {TEMP_TS_DIR} --proto_path . {LANGUAGE_PROTO} "
         f"{' '.join(EXTRA_PROTO_TS_FILES)}",
     )
-
-    # magic replace code so that Value is transparently encoded/decoded :MagicJsValuePacking
-    #  (like in ts-proto, but protobuf-ts doesn't have an option for this unfortunately)
-    generated_ts_files = list(Path(TEMP_TS_DIR).rglob("*.ts"))
-    for path in generated_ts_files:
-        wire_ts = path.read_text()
-        original_wire_ts = wire_ts
-        # replace valuePacked?: Value with valuePacked?: JsonValue
-        wire_ts = regex.sub(
-            r"(\w+)Packed\?: Value", r"\1Packed?: JsonValue", wire_ts, flags=regex.MULTILINE
-        )
-        if len(wire_ts) == len(original_wire_ts):
-            continue  # nothing to do
-        # replace guard with undefined check
-        # if (message.valuePacked)
-        # -> if (message.valuePacked !== undefined)
-        wire_ts = regex.sub(
-            r"if \(message\.(\w+)Packed\)",
-            r"if (message.\1Packed !== undefined)",
-            wire_ts,
-        )
-        # replace write with wrapped write
-        # Value.internalBinaryWrite(message.valuePacked, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        # -> Value.internalBinaryWrite(Value.fromJson(message.valuePacked), writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        wire_ts = regex.sub(
-            r"Value\.internalBinaryWrite\(message\.(\w+)Packed, writer\.tag\((\d+), WireType\.LengthDelimited\)\.fork\(\), options\)\.join\(\);",
-            r"Value.internalBinaryWrite(Value.fromJson(message.\1Packed), writer.tag(\2, WireType.LengthDelimited).fork(), options).join();",
-            wire_ts,
-        )
-        # replace read with wrapped read
-        # message.valuePacked = Value.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
-        # -> message.valuePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
-        wire_ts = regex.sub(
-            r"message\.(\w+)Packed = Value\.internalBinaryRead\(reader, reader\.uint32\(\), options, message\.\1Packed\);",
-            r"message.\1Packed = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));",
-            wire_ts,
-        )
-
-        wire_ts = (
-            wire_ts
-            + """
-
-export type JsonPrimitive = string | number | boolean | null;
-export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue[];
-"""
-        )
-        path.write_text(wire_ts)
 
     patch_postfix_code = f"""
 //

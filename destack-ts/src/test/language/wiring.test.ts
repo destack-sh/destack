@@ -52,7 +52,7 @@ sessionTest("roundtrip node reference", ({ session }) => {
 sessionTest("roundtrip query", ({ session }) => {
   // pack and unpack a Query as value
   const query = Thread.search({
-    sort: [Thread.property("createdAt").asc()],
+    sort: [Thread.property("created_at").asc()],
     limit: 25,
     cursor: ThreadCursor.get({
       join: Join.of(JoinType.LEFT, { on: ThreadCursor.property("ownedBy").eq(5) }),

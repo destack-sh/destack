@@ -1,5 +1,6 @@
 import { Graph, PropertyDefinition, QueryConnection, Session } from "@destack/language/core";
 import { AnyNodeProto, AnyStructProto } from "@destack/proto";
+import { Casing, toCasing } from "@destack/utils";
 import { Supergraph } from "../runtime/graph";
 
 /** The base for all BuiltinObjects like Structs and Nodes and all their derivatives. */
@@ -42,9 +43,10 @@ export abstract class BuiltinObject {
 
   /** Get a PropertyDefinition or CustomProperty by name. */
   static property(name: string): PropertyDefinition {
-    const prop = this.__properties__[name];
+    const snakeName = toCasing(name, Casing.SNAKE);
+    const prop = this.__properties__[name] ?? this.__properties__[snakeName];
     if (!prop) {
-      throw new Error(`Property ${name} not found on ${this.constructor.name}`);
+      throw new Error(`property ${name} not found on ${this.constructor.name}`);
     }
     return prop;
   }
