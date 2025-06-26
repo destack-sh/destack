@@ -24,6 +24,7 @@ import {
   ColorTypeProto,
   MaterializationTypeProto,
 } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12020 ==== */
@@ -127,6 +128,7 @@ registerEnumClass(EnumType.COLOR_INTENT, ColorIntent);
  */
 export class Color extends Struct {
   static metatype: StructType = StructType.COLOR;
+  static __protoClass__ = ColorProto as IMessageType<any>;
   static __isFrozen__: boolean = false;
 
   /**
@@ -461,6 +463,7 @@ registerStructClass(StructType.COLOR, Color);
  */
 export class ColorStyle extends Node implements Style {
   static metatype: NodeType = NodeType.COLOR_STYLE;
+  static __protoClass__ = ColorStyleProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.STYLE,
     TraitType.SPATIAL,

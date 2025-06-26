@@ -20,6 +20,7 @@ import { Icon } from "@destack/language/core/common";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { MaterializationTypeProto, ThemeProto } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:12000 ==== */
@@ -31,6 +32,7 @@ export class Theme
   implements Spatial, Entity, HasName, HasIcon, IsVisual, IsOrdered, IsTaggable, IsDeletable
 {
   static metatype: NodeType = NodeType.THEME;
+  static __protoClass__ = ThemeProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.VISUAL,

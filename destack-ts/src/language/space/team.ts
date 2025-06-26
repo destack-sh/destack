@@ -18,6 +18,7 @@ import {
 import { Icon } from "@destack/language/core/common";
 import { registerNodeClass } from "@destack/language/registry";
 import { MaterializationTypeProto, TeamProto } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:50 ==== */
@@ -26,6 +27,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Team extends Node implements Global, Entity, HasSlug, HasIcon, HasName, IsOwner, IsJoinable {
   static metatype: NodeType = NodeType.TEAM;
+  static __protoClass__ = TeamProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
     TraitType.ENTITY,

@@ -31,6 +31,7 @@ import {
   MaterializationTypeProto,
   SplitViewProto,
 } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:10040 ==== */
@@ -39,6 +40,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export class SplitView extends Node implements ContainerView {
   static metatype: NodeType = NodeType.SPLIT_VIEW;
+  static __protoClass__ = SplitViewProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.VISUAL,

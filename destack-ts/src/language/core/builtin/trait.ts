@@ -876,3 +876,15 @@ class Event$Type extends TraitClass<Event, TraitType.EVENT> {}
 export const Event = new Event$Type(TraitType.EVENT);
 registerTraitClass(TraitType.EVENT, Event);
 /* ==== DESTACK_GENERATED_END:TRAIT:22 ==== */
+
+/* ==== DESTACK_GENERATED_START:CONSTANT:INTER_ORDER_TRAITS ==== */
+/**
+ * INTER_ORDER_TRAITS
+ */
+// prettier-ignore
+export const INTER_ORDER_TRAITS = [
+  TraitType.VIEW,
+  TraitType.STYLE
+];
+
+/* ==== DESTACK_GENERATED_END:CONSTANT:INTER_ORDER_TRAITS ==== */

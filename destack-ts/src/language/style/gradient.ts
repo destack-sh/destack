@@ -24,6 +24,7 @@ import {
   GradientTypeProto,
   MaterializationTypeProto,
 } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12033 ==== */
@@ -49,6 +50,7 @@ registerEnumClass(EnumType.GRADIENT_TYPE, GradientType);
  */
 export class GradientStop extends StructFrozen {
   static metatype: StructType = StructType.GRADIENT_STOP;
+  static __protoClass__ = GradientStopProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -223,6 +225,7 @@ registerStructClass(StructType.GRADIENT_STOP, GradientStop);
  */
 export class Gradient extends Struct {
   static metatype: StructType = StructType.GRADIENT;
+  static __protoClass__ = GradientProto as IMessageType<any>;
   static __isFrozen__: boolean = false;
 
   /**
@@ -502,6 +505,7 @@ registerStructClass(StructType.GRADIENT, Gradient);
  */
 export class GradientStyle extends Node implements Style {
   static metatype: NodeType = NodeType.GRADIENT_STYLE;
+  static __protoClass__ = GradientStyleProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.STYLE,
     TraitType.SPATIAL,

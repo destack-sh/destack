@@ -20,6 +20,7 @@ import { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { CustomOptionProto, MaterializationTypeProto } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:2530 ==== */
@@ -31,6 +32,7 @@ export class CustomOption
   implements Spatial, Entity, HasName, HasIcon, IsTaggable, IsDeletable, IsSourceable
 {
   static metatype: NodeType = NodeType.CUSTOM_OPTION;
+  static __protoClass__ = CustomOptionProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.TAGGABLE,

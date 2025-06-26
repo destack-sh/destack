@@ -1,6 +1,6 @@
 from collections import defaultdict
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Callable, assert_never
+from typing import TYPE_CHECKING, Any, assert_never
 
 from destack import proto
 from destack.utils.code import exec_
@@ -59,18 +59,6 @@ CONSTANT_DEFINITIONS: dict[str, "ConstantDefinition"] = {}
 
 DESCENDANT_NODE_TYPES_BY_TYPE: dict[NodeType, tuple[NodeType, ...]] = {}
 ANCESTOR_NODE_TYPES_BY_TYPE: dict[NodeType, tuple[NodeType, ...]] = {}
-
-
-def register_constant(name: str, value: Any | Callable[[], Any]):
-    """Register a constant value for the current module."""
-    # get caller module
-    import inspect
-
-    frame = inspect.currentframe()
-    assert frame is not None
-    module = inspect.getmodule(frame)
-    assert module is not None
-    print(name, value)  # nocheckin
 
 
 def get_builtin_object_cls(object_type: NodeType | StructType) -> type["BuiltinObjectBase"]:
@@ -254,6 +242,8 @@ def _complete_setup():
 
     # generate meta info
     from destack.language.core import (
+        CONSTANT_DECLARATIONS,
+        ConstantDefinition,
         EnumDefinition,
         NodeDefinition,
         StructDefinition,
@@ -274,6 +264,9 @@ def _complete_setup():
     for enum_type in ENUM_TYPES:
         enum_definition = EnumDefinition.from_enum(enum_type, ENUM_CLASS_BY_TYPE[enum_type])
         ENUM_DEFINITION_BY_TYPE[enum_type] = enum_definition
+    for constant_declaration in CONSTANT_DECLARATIONS.values():
+        constant_definition = ConstantDefinition.from_constant(constant_declaration)
+        CONSTANT_DEFINITIONS[constant_declaration.name] = constant_definition
 
     # sanity check stuff
     if IS_DEV or IS_TEST:

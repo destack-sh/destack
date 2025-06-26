@@ -22,6 +22,7 @@ import {
   EntitlementTypeProto,
   MaterializationTypeProto,
 } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:551 ==== */
@@ -62,6 +63,7 @@ registerEnumClass(EnumType.ENTITLEMENT_TYPE, EntitlementType);
  */
 export class EntitlementEvent extends Node implements Event {
   static metatype: NodeType = NodeType.ENTITLEMENT_EVENT;
+  static __protoClass__ = EntitlementEventProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.PARTICLE,
@@ -443,6 +445,7 @@ registerNodeClass(NodeType.ENTITLEMENT_EVENT, EntitlementEvent);
  */
 export class Entitlement extends Node implements Spatial, Entity, IsDeletable {
   static metatype: NodeType = NodeType.ENTITLEMENT;
+  static __protoClass__ = EntitlementProto as IMessageType<any>;
   static __traits__: TraitType[] = [TraitType.TRACKED, TraitType.SPATIAL, TraitType.ENTITY, TraitType.DELETABLE];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [

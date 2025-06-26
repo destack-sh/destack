@@ -40,6 +40,7 @@ import {
   LayoutProto,
   MaterializationTypeProto,
 } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:11000 ==== */
@@ -62,6 +63,7 @@ registerEnumClass(EnumType.CANVAS_TYPE, CanvasType);
  */
 export class Canvas extends Node implements ContainerView {
   static metatype: NodeType = NodeType.CANVAS;
+  static __protoClass__ = CanvasProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.VISUAL,

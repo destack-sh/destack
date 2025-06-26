@@ -21,6 +21,7 @@ import { Folder } from "@destack/language/folder";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { MaterializationTypeProto, PermissionProto, PermissionTypeProto } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:530 ==== */
@@ -43,6 +44,7 @@ registerEnumClass(EnumType.PERMISSION_TYPE, PermissionType);
  */
 export class Permission extends Node implements Spatial, Entity, HasName, HasSlug, HasIcon, IsDeletable {
   static metatype: NodeType = NodeType.PERMISSION;
+  static __protoClass__ = PermissionProto as IMessageType<any>;
   static __traits__: TraitType[] = [TraitType.TRACKED, TraitType.SPATIAL, TraitType.ENTITY, TraitType.DELETABLE];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [

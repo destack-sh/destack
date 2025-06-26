@@ -10,6 +10,7 @@ import { Space } from "@destack/language/space";
 import { ContainerView } from "@destack/language/view/container";
 import { NodeView } from "@destack/language/view/node";
 import { MaterializationTypeProto, ThreadViewProto } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:10600 ==== */
@@ -18,6 +19,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export class ThreadView extends Node implements NodeView {
   static metatype: NodeType = NodeType.THREAD_VIEW;
+  static __protoClass__ = ThreadViewProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.NODE_VIEW,

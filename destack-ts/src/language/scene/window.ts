@@ -20,6 +20,7 @@ import {
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { MaterializationTypeProto, WindowProto, WindowTypeProto } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:9000 ==== */
@@ -44,6 +45,7 @@ registerEnumClass(EnumType.WINDOW_TYPE, WindowType);
  */
 export class Window extends Node implements Spatial, Entity, HasName, IsVisual, IsOwnable, IsOrdered, IsDeletable {
   static metatype: NodeType = NodeType.WINDOW;
+  static __protoClass__ = WindowProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.VISUAL,

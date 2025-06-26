@@ -47,6 +47,7 @@ import {
   SceneEventTypeProto,
   SceneProto,
 } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:9011 ==== */
@@ -70,6 +71,7 @@ registerEnumClass(EnumType.SCENE_EVENT_TYPE, SceneEventType);
  */
 export class SceneEvent extends Node implements Event {
   static metatype: NodeType = NodeType.SCENE_EVENT;
+  static __protoClass__ = SceneEventProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.PARTICLE,
@@ -469,6 +471,7 @@ registerNodeClass(NodeType.SCENE_EVENT, SceneEvent);
  */
 export class Scene extends Node implements ContainerView, HasIcon, IsOwnable {
   static metatype: NodeType = NodeType.SCENE;
+  static __protoClass__ = SceneProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.VISUAL,

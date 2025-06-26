@@ -31,6 +31,7 @@ import {
   LayoutProto,
   MaterializationTypeProto,
 } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:10030 ==== */
@@ -39,6 +40,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export class LabelView extends Node implements ContainerView {
   static metatype: NodeType = NodeType.LABEL_VIEW;
+  static __protoClass__ = LabelViewProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.VISUAL,

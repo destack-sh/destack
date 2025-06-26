@@ -10,8 +10,8 @@ from destack.language import (
     EMPTY_DICT,
     UNSET,
     BuiltinObjectBase,
+    ConstantDefinition,
     DefaultFactory,
-    Enum,
     EnumDefinition,
     Node,
     NodeBase,
@@ -30,6 +30,7 @@ from destack.language import (
     get_node_types,
 )
 from destack.language.registry import (
+    CONSTANT_DEFINITIONS,
     ENUM_CLASS_BY_TYPE,
     ENUM_DEFINITION_BY_TYPE,
     NODE_CLASS_BY_TYPE,
@@ -726,6 +727,7 @@ def _generate_struct(definition: StructDefinition) -> str:
     # meta
     struct_meta_parts: list[str] = [
         f"static metatype: StructType = StructType.{definition.type.name};",
+        f"static __protoClass__ = {definition.name}Proto as IMessageType<any>;",
         f"static __isFrozen__: boolean = {'true' if definition.is_frozen else 'false'};",
     ]
     struct_parts.append("\n".join(struct_meta_parts))
@@ -841,6 +843,7 @@ def _generate_node(definition: NodeDefinition) -> str:
     # meta
     node_meta_parts: list[str] = [
         f"static metatype: NodeType = NodeType.{definition.type.name};",
+        f"static __protoClass__ = {definition.name}Proto as IMessageType<any>;",
         f"static __traits__: TraitType[] = [{', '.join(f'TraitType.{trait_type.name}' for trait_type in definition.traits)}];",
         f"static __rootType__: NodeType | null = {f'NodeType.{definition.root_type.name}' if definition.root_type else 'null'};",
         f"static __parentTypes__: NodeType[] = [{', '.join(f'NodeType.{parent_type.name}' for parent_type in definition.parent_types)}];",
@@ -911,6 +914,15 @@ registerNodeClass(NodeType.{definition.type.name}, {definition.name});
     return node_str.strip()
 
 
+def _generate_constant(definition: ConstantDefinition) -> str:
+    """Generate a Typescript Constant definition."""
+    return f"""\
+{_generate_multiline_doc(definition.description or definition.name)}
+// prettier-ignore
+export const {definition.name} = {generate_value(definition.value.type, definition.value.unpack())};
+"""
+
+
 def _get_definition_dependencies(cls: type[BuiltinObjectBase]) -> dict[str, Definition]:
     """Get the dependencies of a definition."""
     dependencies: dict[str, Definition] = {}
@@ -955,38 +967,54 @@ def _generate_definition(definition: Definition) -> TypescriptDefinition:
     if isinstance(definition, EnumDefinition):
         kind = "ENUM"
         cls = ENUM_CLASS_BY_TYPE[definition.type]
+        alias = cls.__name__
+        module = cls.__module__
         definition_str = _generate_enum(definition)
         name = definition.name
         dependencies = EMPTY_DICT
     elif isinstance(definition, StructDefinition):
         kind = "STRUCT"
         cls = STRUCT_CLASS_BY_TYPE[definition.type]
+        alias = cls.__name__
+        module = cls.__module__
         definition_str = _generate_struct(definition)
         name = definition.name
         dependencies = _get_definition_dependencies(cast(type[BuiltinObjectBase], cls))
     elif isinstance(definition, TraitDefinition):
         kind = "TRAIT"
         cls = TRAIT_CLASS_BY_TYPE[definition.type]
+        alias = cls.__name__
+        module = cls.__module__
         definition_str = _generate_trait(definition)
         name = definition.alias
         dependencies = _get_definition_dependencies(cast(type[BuiltinObjectBase], cls))
     elif isinstance(definition, NodeDefinition):
         kind = "NODE"
         cls = NODE_CLASS_BY_TYPE[definition.type]
+        alias = cls.__name__
+        module = cls.__module__
         definition_str = _generate_node(definition)
         name = definition.name
         dependencies = _get_definition_dependencies(cast(type[BuiltinObjectBase], cls))
+    elif isinstance(definition, ConstantDefinition):
+        kind = "CONSTANT"
+        alias = definition.name
+        assert definition._declaration is not None, f"missing declaration for {definition.name}"
+        module = definition._declaration.module
+        definition_str = _generate_constant(definition)
+        name = definition.name
+        dependencies = EMPTY_DICT
     else:
         assert_never(definition)
 
-    submodule = ".".join(cls.__module__.split(".")[2:-1])
+    submodule = ".".join(module.split(".")[2:-1])
     source_definition = TypescriptDefinition(
         name=name,
-        cls=cls,
-        module=cls.__module__,
+        alias=alias,
+        module=module,
         submodule=submodule,
         kind=kind,
-        id=definition.id,
+        id=definition.name if isinstance(definition, ConstantDefinition) else definition.id,
         definition=definition,
         definition_str=definition_str,
         dependencies=dependencies,
@@ -1108,10 +1136,12 @@ def _generate_file(
 
         # parse the definition block
         kind = start_match.group(1)
-        assert kind in ("ENUM", "STRUCT", "TRAIT", "NODE"), f"invalid kind: {kind} in {file.path}"
+        assert kind in ("ENUM", "STRUCT", "TRAIT", "NODE", "CONSTANT"), (
+            f"invalid kind: {kind} in {file.path}"
+        )
         kind = cast(Kind, kind)
         id_str = start_match.group(2).strip()
-        id = int(id_str)
+        id = int(id_str) if kind != "CONSTANT" else id_str
 
         # find the corresponding end marker
         end_match = MARKER_END_PATTERN.search(existing_content, start_match.end())
@@ -1236,8 +1266,8 @@ def _generate_file(
             if dependency_name not in definitions_by_name:
                 raise RuntimeError(f"missing dependency: {dependency_name}")
             definition = definitions_by_name[dependency_name]
-            language_imports_by_module[definition.submodule].add(definition.cls.__name__)
-            seen_language_imports.add(definition.cls.__name__)
+            language_imports_by_module[definition.submodule].add(definition.alias)
+            seen_language_imports.add(definition.alias)
     # add any previous language imports
     for import_ in import_block.imports:
         if not import_.path.startswith("@destack/language"):
@@ -1264,7 +1294,7 @@ def _generate_file(
             import_parts.append(f"import {{ {', '.join(sorted(imports))} }} from '{import_path}';")
     # add proto imports for all definitions and dependencies
     proto_names = {
-        f"{definition.cls.__name__}Proto"
+        f"{definition.alias}Proto"
         for definition in chain(file.definitions.values(), file.dependencies.values())
     }
     import_parts.append(f"import {{ {', '.join(sorted(proto_names))} }} from '@destack/proto';")
@@ -1274,6 +1304,7 @@ def _generate_file(
     import_parts.append(
         "import { timedeltaToISOFormat, timedeltaFromISOFormat } from '@destack/utils';"
     )
+    import_parts.append("import type { IMessageType } from '@protobuf-ts/runtime';")
     import_parts.extend(
         [
             "import { Temporal } from 'temporal-polyfill';",
@@ -1304,7 +1335,7 @@ def _generate_global(definitions_by_name: dict[str, TypescriptDefinition]) -> tu
     imports_by_module["core"].add("Node")
     imports_by_module["core"].add("Struct")
     for definition in definitions_by_name.values():
-        imports_by_module[definition.submodule].add(definition.cls.__name__)
+        imports_by_module[definition.submodule].add(definition.alias)
 
     # mapping imports - add all as type imports
     for module, imports in imports_by_module.items():
@@ -1405,34 +1436,38 @@ def generate():
     """Generate the Typescript language code."""
 
     # collect definitions
-    definition_by_cls: dict[type[BuiltinObjectBase] | type[Enum], TypescriptDefinition] = {}
+    definitions_by_module: dict[str, list[TypescriptDefinition]] = defaultdict(list)
     for enum_type, enum_cls in ENUM_CLASS_BY_TYPE.items():
         definition = _generate_definition(ENUM_DEFINITION_BY_TYPE[enum_type])
-        definition_by_cls[enum_cls] = definition
+        definitions_by_module[enum_cls.__module__].append(definition)
     for struct_type, struct_cls in STRUCT_CLASS_BY_TYPE.items():
         definition = _generate_definition(STRUCT_DEFINITION_BY_TYPE[struct_type])
-        definition_by_cls[struct_cls] = definition
+        definitions_by_module[struct_cls.__module__].append(definition)
     for trait_type, trait_cls in TRAIT_CLASS_BY_TYPE.items():
         definition = _generate_definition(TRAIT_DEFINITION_BY_TYPE[trait_type])
-        definition_by_cls[trait_cls] = definition
+        definitions_by_module[trait_cls.__module__].append(definition)
     for node_type, node_cls in NODE_CLASS_BY_TYPE.items():
         definition = _generate_definition(NODE_DEFINITION_BY_TYPE[node_type])
-        definition_by_cls[node_cls] = definition
+        definitions_by_module[node_cls.__module__].append(definition)
+    for constant_definition in CONSTANT_DEFINITIONS.values():
+        definition = _generate_definition(constant_definition)
+        assert constant_definition._declaration is not None, (
+            f"missing declaration for {constant_definition.name}"
+        )
+        definitions_by_module[constant_definition._declaration.module].append(definition)
 
     # organize definitions into files
     definitions_by_name: dict[str, TypescriptDefinition] = {}
-    definitions_by_module: dict[str, list[TypescriptDefinition]] = defaultdict(list)
-    for cls, definition in definition_by_cls.items():
-        module = cls.__module__
-        definitions_by_module[module].append(definition)
-        existing_definition = definitions_by_name.get(definition.name)
-        if existing_definition is not None:
-            raise RuntimeError(
-                f"duplicate definition name: {definition.name} "
-                f"({existing_definition.module}.{existing_definition.cls.__name__} vs "
-                f"{definition.module}.{definition.cls.__name__})"
-            )
-        definitions_by_name[definition.name] = definition
+    for _, definitions in definitions_by_module.items():
+        for definition in definitions:
+            existing_definition = definitions_by_name.get(definition.name)
+            if existing_definition is not None:
+                raise RuntimeError(
+                    f"duplicate definition name: {definition.name} "
+                    f"({existing_definition.module}.{existing_definition.alias} vs "
+                    f"{definition.module}.{definition.alias})"
+                )
+            definitions_by_name[definition.name] = definition
 
     # generate files
     files_by_module: dict[str, TypescriptFile] = {}

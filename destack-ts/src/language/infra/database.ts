@@ -27,6 +27,7 @@ import {
   ResourceStatusProto,
   TenancyProto,
 } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:7505 ==== */
@@ -49,6 +50,7 @@ registerEnumClass(EnumType.DATABASE_TYPE, DatabaseType);
  */
 export class DatabaseInfo extends Struct {
   static metatype: StructType = StructType.DATABASE_INFO;
+  static __protoClass__ = DatabaseInfoProto as IMessageType<any>;
   static __isFrozen__: boolean = false;
 
   /**
@@ -297,6 +299,7 @@ registerStructClass(StructType.DATABASE_INFO, DatabaseInfo);
  */
 export class Database extends Node implements Spatial, Resource, HasName {
   static metatype: NodeType = NodeType.DATABASE;
+  static __protoClass__ = DatabaseProto as IMessageType<any>;
   static __traits__: TraitType[] = [TraitType.TRACKED, TraitType.SPATIAL, TraitType.ENTITY, TraitType.RESOURCE];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];

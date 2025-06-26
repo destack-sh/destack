@@ -16,7 +16,6 @@ from destack.language.registry import (
     RELATION_REF_BY_CLASS,
     TRAIT_CLASS_BY_TYPE,
     TRAIT_TYPE_BY_CLASS,
-    register_constant,
 )
 from destack.proto import AnyObjectProto
 from destack.utils.fractional import INTEGER_ZERO
@@ -34,6 +33,7 @@ from .common import (
     builtin_enum,
 )
 from .const import UNSET
+from .constant import register_constant
 from .object import BuiltinObjectMutable, _process_object_cls
 from .property import (
     _PROPERTY_SPECIFIERS,

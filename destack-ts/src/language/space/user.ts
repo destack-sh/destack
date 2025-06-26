@@ -21,6 +21,7 @@ import { Cursor } from "@destack/language/logic";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Handle, Space } from "@destack/language/space";
 import { MaterializationTypeProto, UserProto, UserStatusProto } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:20 ==== */
@@ -44,6 +45,7 @@ registerEnumClass(EnumType.USER_STATUS, UserStatus);
  */
 export class User extends Node implements Global, Entity, HasName, HasIcon, HasSlug, IsOwner, IsFollowable, IsSubject {
   static metatype: NodeType = NodeType.USER;
+  static __protoClass__ = UserProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
     TraitType.ENTITY,

@@ -42,6 +42,7 @@ import {
   LayoutProto,
   MaterializationTypeProto,
 } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:10000 ==== */
@@ -50,6 +51,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export class CustomViewDefinition extends Node implements ContainerView, IsCustomNodeDefinition {
   static metatype: NodeType = NodeType.CUSTOM_VIEW_DEFINITION;
+  static __protoClass__ = CustomViewDefinitionProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.VISUAL,
@@ -1339,6 +1341,7 @@ registerNodeClass(NodeType.CUSTOM_VIEW_DEFINITION, CustomViewDefinition);
  */
 export class CustomView extends Node implements ContainerView, IsCustomNode {
   static metatype: NodeType = NodeType.CUSTOM_VIEW;
+  static __protoClass__ = CustomViewProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.VISUAL,

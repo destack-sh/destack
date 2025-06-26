@@ -26,6 +26,7 @@ import {
   EditTypeProto,
   MaterializationTypeProto,
 } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:4202 ==== */
@@ -34,6 +35,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export class EditEvent extends Node implements Event, IsTaggable {
   static metatype: NodeType = NodeType.EDIT_EVENT;
+  static __protoClass__ = EditEventProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.TAGGABLE,
@@ -579,6 +581,7 @@ registerNodeClass(NodeType.EDIT_EVENT, EditEvent);
  */
 export class CustomEventDefinition extends Node implements Spatial, Entity, HasName, IsSourceable {
   static metatype: NodeType = NodeType.CUSTOM_EVENT_DEFINITION;
+  static __protoClass__ = CustomEventDefinitionProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.ENTITY,
@@ -1018,6 +1021,7 @@ registerNodeClass(NodeType.CUSTOM_EVENT_DEFINITION, CustomEventDefinition);
  */
 export class CustomEvent extends Node implements Event {
   static metatype: NodeType = NodeType.CUSTOM_EVENT;
+  static __protoClass__ = CustomEventProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.PARTICLE,

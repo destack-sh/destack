@@ -259,10 +259,7 @@ export class PolyGraph extends Graph {
     return this.nodes.filter((node) => !this.nodesByParent.has(node.id) && nodeTypes.includes(node.metatype));
   }
 
-  override getChildren(
-    node: Node,
-    classOrTrait?: NodeClass | TraitClass,
-  ): Node[] {
+  override getChildren(node: Node, classOrTrait?: NodeClass | TraitClass): Node[] {
     // bail if no children
     if (this.nodesByParent.size === 0) {
       return [];
@@ -348,10 +345,7 @@ export class PolyGraph extends Graph {
     }
   }
 
-  override getDescendants(
-    node: Node,
-    classOrTrait?: NodeClass | TraitClass,
-  ): Node[] {
+  override getDescendants(node: Node, classOrTrait?: NodeClass | TraitClass): Node[] {
     if (this.nodesByParent.size === 0) {
       return [];
     }

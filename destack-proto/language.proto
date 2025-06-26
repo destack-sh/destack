@@ -1933,7 +1933,7 @@ message ConditionProto {
 message ConstantDefinitionProto {
   StructTypeProto metatype = 1;
   string name = 31;
-  string path = 35;
+  optional string description = 36;
   ValueProto value = 40;
 }
 

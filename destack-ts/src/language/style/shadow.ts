@@ -23,6 +23,7 @@ import {
   ShadowStyleProto,
   ShadowTypeProto,
 } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12030 ==== */
@@ -62,6 +63,7 @@ registerEnumClass(EnumType.SHADOW_POSITION, ShadowPosition);
  */
 export class Shadow extends Struct {
   static metatype: StructType = StructType.SHADOW;
+  static __protoClass__ = ShadowProto as IMessageType<any>;
   static __isFrozen__: boolean = false;
 
   /**
@@ -381,6 +383,7 @@ registerStructClass(StructType.SHADOW, Shadow);
  */
 export class ShadowStyle extends Node implements Style {
   static metatype: NodeType = NodeType.SHADOW_STYLE;
+  static __protoClass__ = ShadowStyleProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.STYLE,
     TraitType.SPATIAL,

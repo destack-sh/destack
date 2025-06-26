@@ -22,6 +22,7 @@ import {
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { InviteEventProto, InviteProto, MaterializationTypeProto, RoleTypeProto } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:510 ==== */
@@ -47,6 +48,7 @@ registerEnumClass(EnumType.INVITE_EVENT_TYPE, InviteEventType);
  */
 export class InviteEvent extends Node implements Event {
   static metatype: NodeType = NodeType.INVITE_EVENT;
+  static __protoClass__ = InviteEventProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.PARTICLE,
@@ -552,6 +554,7 @@ registerNodeClass(NodeType.INVITE_EVENT, InviteEvent);
  */
 export class Invite extends Node implements Global, Spatial, Entity, IsOwnable, IsDeletable {
   static metatype: NodeType = NodeType.INVITE;
+  static __protoClass__ = InviteProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
     TraitType.SPATIAL,

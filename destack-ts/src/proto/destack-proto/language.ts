@@ -1186,9 +1186,9 @@ export interface ConstantDefinitionProto {
      */
     name: string;
     /**
-     * @generated from protobuf field: string path = 35
+     * @generated from protobuf field: optional string description = 36
      */
-    path: string;
+    description?: string;
     /**
      * @generated from protobuf field: symbol.destack.ValueProto value = 40
      */
@@ -18581,7 +18581,7 @@ class ConstantDefinitionProto$Type extends MessageType<ConstantDefinitionProto> 
         super("symbol.destack.ConstantDefinitionProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "path", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 36, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "value", kind: "message", T: () => ValueProto }
         ]);
     }
@@ -18589,7 +18589,6 @@ class ConstantDefinitionProto$Type extends MessageType<ConstantDefinitionProto> 
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.name = "";
-        message.path = "";
         if (value !== undefined)
             reflectionMergePartial<ConstantDefinitionProto>(this, message, value);
         return message;
@@ -18605,8 +18604,8 @@ class ConstantDefinitionProto$Type extends MessageType<ConstantDefinitionProto> 
                 case /* string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* string path */ 35:
-                    message.path = reader.string();
+                case /* optional string description */ 36:
+                    message.description = reader.string();
                     break;
                 case /* symbol.destack.ValueProto value */ 40:
                     message.value = ValueProto.internalBinaryRead(reader, reader.uint32(), options, message.value);
@@ -18629,9 +18628,9 @@ class ConstantDefinitionProto$Type extends MessageType<ConstantDefinitionProto> 
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* string path = 35; */
-        if (message.path !== "")
-            writer.tag(35, WireType.LengthDelimited).string(message.path);
+        /* optional string description = 36; */
+        if (message.description !== undefined)
+            writer.tag(36, WireType.LengthDelimited).string(message.description);
         /* symbol.destack.ValueProto value = 40; */
         if (message.value)
             ValueProto.internalBinaryWrite(message.value, writer.tag(40, WireType.LengthDelimited).fork(), options).join();

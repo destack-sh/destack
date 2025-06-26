@@ -4,6 +4,7 @@ import { File } from "@destack/language/data";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { Color } from "@destack/language/style";
 import { IconProto, IconTypeProto } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2531 ==== */
 /**
@@ -29,6 +30,7 @@ registerEnumClass(EnumType.ICON_TYPE, IconType);
  */
 export class Icon extends StructFrozen {
   static metatype: StructType = StructType.ICON;
+  static __protoClass__ = IconProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**

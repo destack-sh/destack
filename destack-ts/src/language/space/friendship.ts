@@ -23,6 +23,7 @@ import {
   FriendshipProto,
   MaterializationTypeProto,
 } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:31 ==== */
@@ -48,6 +49,7 @@ registerEnumClass(EnumType.FRIENDSHIP_INVITE_EVENT_TYPE, FriendshipInviteEventTy
  */
 export class Friendship extends Node implements Global, Entity {
   static metatype: NodeType = NodeType.FRIENDSHIP;
+  static __protoClass__ = FriendshipProto as IMessageType<any>;
   static __traits__: TraitType[] = [TraitType.GLOBAL, TraitType.ENTITY, TraitType.TRACKED];
   static __rootType__: NodeType | null = null;
   static __parentTypes__: NodeType[] = [];
@@ -417,6 +419,7 @@ registerNodeClass(NodeType.FRIENDSHIP, Friendship);
  */
 export class FriendshipInviteEvent extends Node implements Event {
   static metatype: NodeType = NodeType.FRIENDSHIP_INVITE_EVENT;
+  static __protoClass__ = FriendshipInviteEventProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.PARTICLE,
@@ -816,6 +819,7 @@ registerNodeClass(NodeType.FRIENDSHIP_INVITE_EVENT, FriendshipInviteEvent);
  */
 export class FriendshipInvite extends Node implements Global, Entity, LikeInvite, IsOwnable {
   static metatype: NodeType = NodeType.FRIENDSHIP_INVITE;
+  static __protoClass__ = FriendshipInviteProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
     TraitType.ENTITY,

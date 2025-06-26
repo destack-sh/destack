@@ -14,6 +14,7 @@ import {
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { HandleProto, MaterializationTypeProto } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:10 ==== */
@@ -22,6 +23,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Handle extends Node implements Global, Entity, HasSlug {
   static metatype: NodeType = NodeType.HANDLE;
+  static __protoClass__ = HandleProto as IMessageType<any>;
   static __traits__: TraitType[] = [TraitType.GLOBAL, TraitType.ENTITY, TraitType.TRACKED];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];

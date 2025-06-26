@@ -32,6 +32,7 @@ import {
   TypeCardinalityProto,
   TypeProto,
 } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2570 ==== */
 /**
@@ -76,6 +77,7 @@ registerEnumClass(EnumType.NUMBER_FORMAT, NumberFormat);
  */
 export class StringConstraint extends StructFrozen {
   static metatype: StructType = StructType.STRING_CONSTRAINT;
+  static __protoClass__ = StringConstraintProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -291,6 +293,7 @@ registerStructClass(StructType.STRING_CONSTRAINT, StringConstraint);
  */
 export class NumberConstraint extends StructFrozen {
   static metatype: StructType = StructType.NUMBER_CONSTRAINT;
+  static __protoClass__ = NumberConstraintProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -558,6 +561,7 @@ registerStructClass(StructType.NUMBER_CONSTRAINT, NumberConstraint);
  */
 export class CollectionConstraint extends StructFrozen {
   static metatype: StructType = StructType.COLLECTION_CONSTRAINT;
+  static __protoClass__ = CollectionConstraintProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -731,6 +735,7 @@ registerStructClass(StructType.COLLECTION_CONSTRAINT, CollectionConstraint);
  */
 export class NodeConstraint extends StructFrozen {
   static metatype: StructType = StructType.NODE_CONSTRAINT;
+  static __protoClass__ = NodeConstraintProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -956,6 +961,7 @@ registerStructClass(StructType.NODE_CONSTRAINT, NodeConstraint);
  */
 export class Type extends StructFrozen {
   static metatype: StructType = StructType.TYPE;
+  static __protoClass__ = TypeProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**

@@ -21,6 +21,7 @@ import {
   Vector4Proto,
   Vector4iProto,
 } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12038 ==== */
 /**
@@ -159,6 +160,7 @@ registerEnumClass(EnumType.DIMENSION_TYPE, DimensionType);
  */
 export class Length extends StructFrozen {
   static metatype: StructType = StructType.LENGTH;
+  static __protoClass__ = LengthProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -326,6 +328,7 @@ registerStructClass(StructType.LENGTH, Length);
  */
 export class Position extends StructFrozen {
   static metatype: StructType = StructType.POSITION;
+  static __protoClass__ = PositionProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -578,6 +581,7 @@ registerStructClass(StructType.POSITION, Position);
  */
 export class Dimension extends StructFrozen {
   static metatype: StructType = StructType.DIMENSION;
+  static __protoClass__ = DimensionProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -763,6 +767,7 @@ registerStructClass(StructType.DIMENSION, Dimension);
  */
 export class Insets extends StructFrozen {
   static metatype: StructType = StructType.INSETS;
+  static __protoClass__ = InsetsProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -999,6 +1004,7 @@ registerStructClass(StructType.INSETS, Insets);
  */
 export class Corners extends StructFrozen {
   static metatype: StructType = StructType.CORNERS;
+  static __protoClass__ = CornersProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -1235,6 +1241,7 @@ registerStructClass(StructType.CORNERS, Corners);
  */
 export class Axis2 extends StructFrozen {
   static metatype: StructType = StructType.AXIS2;
+  static __protoClass__ = Axis2Proto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -1438,6 +1445,7 @@ registerStructClass(StructType.AXIS2, Axis2);
  */
 export class Axis3 extends StructFrozen {
   static metatype: StructType = StructType.AXIS3;
+  static __protoClass__ = Axis3Proto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -1665,6 +1673,7 @@ registerStructClass(StructType.AXIS3, Axis3);
  */
 export class Vector2 extends StructFrozen {
   static metatype: StructType = StructType.VECTOR2;
+  static __protoClass__ = Vector2Proto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -1832,6 +1841,7 @@ registerStructClass(StructType.VECTOR2, Vector2);
  */
 export class Vector3 extends StructFrozen {
   static metatype: StructType = StructType.VECTOR3;
+  static __protoClass__ = Vector3Proto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -2017,6 +2027,7 @@ registerStructClass(StructType.VECTOR3, Vector3);
  */
 export class Vector4 extends StructFrozen {
   static metatype: StructType = StructType.VECTOR4;
+  static __protoClass__ = Vector4Proto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -2220,6 +2231,7 @@ registerStructClass(StructType.VECTOR4, Vector4);
  */
 export class Vector2i extends StructFrozen {
   static metatype: StructType = StructType.VECTOR2I;
+  static __protoClass__ = Vector2iProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -2387,6 +2399,7 @@ registerStructClass(StructType.VECTOR2I, Vector2i);
  */
 export class Vector3i extends StructFrozen {
   static metatype: StructType = StructType.VECTOR3I;
+  static __protoClass__ = Vector3iProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -2572,6 +2585,7 @@ registerStructClass(StructType.VECTOR3I, Vector3i);
  */
 export class Vector4i extends StructFrozen {
   static metatype: StructType = StructType.VECTOR4I;
+  static __protoClass__ = Vector4iProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -2775,6 +2789,7 @@ registerStructClass(StructType.VECTOR4I, Vector4i);
  */
 export class Grid extends StructFrozen {
   static metatype: StructType = StructType.GRID;
+  static __protoClass__ = GridProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -3032,6 +3047,7 @@ registerStructClass(StructType.GRID, Grid);
  */
 export class GridSpan extends StructFrozen {
   static metatype: StructType = StructType.GRID_SPAN;
+  static __protoClass__ = GridSpanProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**

@@ -1,6 +1,6 @@
-import json
+import base64
 import textwrap
-from typing import TYPE_CHECKING, Any, assert_never
+from typing import TYPE_CHECKING, Any, assert_never, cast
 
 from destack.language import (
     BuiltinObjectBase,
@@ -13,6 +13,7 @@ from destack.language import (
     TypeDeclaration,
 )
 from destack.language.registry import ENUM_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
+from destack.proto import AnyStructProto
 from destack.utils.string import Casing, to_casing
 
 if TYPE_CHECKING:
@@ -293,8 +294,10 @@ def generate_value(type: Type | TypeDeclaration | PropertyDeclaration, value: An
     if type.cardinality == TypeCardinality.SCALAR:
         return _generate_value_scalar(type, value)
     elif type.cardinality == TypeCardinality.LIST:
-        elements_str = [_generate_value_scalar(type, element) for element in value]
-        return f"[{', '.join(elements_str)}]"
+        elements_str = [
+            textwrap.indent(_generate_value_scalar(type, element), "  ") for element in value
+        ]
+        return f"[\n{',\n'.join(elements_str)}\n]"
     else:
         raise ValueError(f"unsupported value type: {type.cardinality!r}")
 
@@ -317,17 +320,14 @@ def _generate_value_scalar(type: Type | TypeDeclaration | PropertyDeclaration, v
         else:
             raise ValueError(f"unsupported primitive type: {type.primitive_type!r}")
     elif type.scalar_type == ScalarType.ENUM:
-        if type.cardinality == TypeCardinality.SCALAR:
-            assert type.enum_type is not None, f"no enum_type for {type!r}"
-            enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
-            return f"{enum_cls.__name__}.{value.name}"
-        else:
-            raise ValueError(f"unsupported enum cardinality: {type.cardinality!r}")
+        assert type.enum_type is not None, f"no enum_type for {type!r}"
+        enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
+        return f"{enum_cls.__name__}.{value.name}"
     elif type.scalar_type in (ScalarType.STRUCT, ScalarType.NODE_REFERENCE):
         assert type.struct_type is not None, f"no struct_type for {type!r}"
         assert isinstance(value, StructBase), f"value is not a Struct for {type!r}: {value!r}"
-        value_packed: dict = value.to_value()
-        value_str = json.dumps(value_packed, indent=0, separators=(",", ":"))
-        return f"{value.__class__.__name__}.fromValue({value_str})"
+        value_bytes = cast(AnyStructProto, value.to_proto()).SerializeToString()
+        value_bytes_str = base64.b64encode(value_bytes).decode("ascii")
+        return f"{value.__class__.__name__}.fromProtoString({value_bytes_str!r})"
     else:
         raise ValueError(f"unsupported value type: {type.scalar_type!r}")

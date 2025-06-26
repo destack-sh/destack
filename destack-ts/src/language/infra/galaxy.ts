@@ -2,6 +2,7 @@ import { Session, Supergraph } from "@destack/language/core";
 import { Region, Struct, StructType } from "@destack/language/core/builtin";
 import { registerStructClass } from "@destack/language/registry";
 import { GalaxyInfoProto, RegionProto } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:7601 ==== */
 /**
@@ -9,6 +10,7 @@ import { GalaxyInfoProto, RegionProto } from "@destack/proto";
  */
 export class GalaxyInfo extends Struct {
   static metatype: StructType = StructType.GALAXY_INFO;
+  static __protoClass__ = GalaxyInfoProto as IMessageType<any>;
   static __isFrozen__: boolean = false;
 
   /**

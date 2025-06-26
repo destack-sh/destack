@@ -18,6 +18,7 @@ import {
   TraitTypeProto,
 } from "@destack/proto";
 import { assertNever } from "@destack/utils/functools";
+import type { IMessageType } from "@protobuf-ts/runtime";
 
 /* ==== DESTACK_GENERATED_START:ENUM:50010 ==== */
 /**
@@ -73,6 +74,7 @@ registerEnumClass(EnumType.PROPERTY_REFERENCE_TYPE, PropertyReferenceType);
  */
 export class Scope extends StructFrozen {
   static metatype: StructType = StructType.SCOPE;
+  static __protoClass__ = ScopeProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -246,6 +248,7 @@ registerStructClass(StructType.SCOPE, Scope);
  */
 export class RelationReference extends StructFrozen {
   static metatype: StructType = StructType.RELATION_REFERENCE;
+  static __protoClass__ = RelationReferenceProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -487,6 +490,7 @@ registerStructClass(StructType.RELATION_REFERENCE, RelationReference);
  */
 export class ObjectReference extends StructFrozen {
   static metatype: StructType = StructType.OBJECT_REFERENCE;
+  static __protoClass__ = ObjectReferenceProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -753,6 +757,7 @@ registerStructClass(StructType.OBJECT_REFERENCE, ObjectReference);
  */
 export class PropertyReference extends StructFrozen {
   static metatype: StructType = StructType.PROPERTY_REFERENCE;
+  static __protoClass__ = PropertyReferenceProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -1040,6 +1045,7 @@ registerStructClass(StructType.PROPERTY_REFERENCE, PropertyReference);
  */
 export class NodeReference extends StructFrozen {
   static metatype: StructType = StructType.NODE_REFERENCE;
+  static __protoClass__ = NodeReferenceProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**

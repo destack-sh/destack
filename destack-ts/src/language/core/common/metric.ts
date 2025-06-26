@@ -25,6 +25,7 @@ import {
   HistogramMetricProto,
   MaterializationTypeProto,
 } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:4110 ==== */
@@ -33,6 +34,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export class GaugeMetric extends Node implements Spatial, Metric, HasName {
   static metatype: NodeType = NodeType.GAUGE_METRIC;
+  static __protoClass__ = GaugeMetricProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.METRIC,
@@ -518,6 +520,7 @@ registerNodeClass(NodeType.GAUGE_METRIC, GaugeMetric);
  */
 export class GaugeMeasurement extends Node implements Spatial, Measurement {
   static metatype: NodeType = NodeType.GAUGE_MEASUREMENT;
+  static __protoClass__ = GaugeMeasurementProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.MEASUREMENT,
@@ -898,6 +901,7 @@ registerNodeClass(NodeType.GAUGE_MEASUREMENT, GaugeMeasurement);
  */
 export class CounterMetric extends Node implements Spatial, Metric, HasName {
   static metatype: NodeType = NodeType.COUNTER_METRIC;
+  static __protoClass__ = CounterMetricProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.METRIC,
@@ -1383,6 +1387,7 @@ registerNodeClass(NodeType.COUNTER_METRIC, CounterMetric);
  */
 export class CounterMeasurement extends Node implements Spatial, Measurement {
   static metatype: NodeType = NodeType.COUNTER_MEASUREMENT;
+  static __protoClass__ = CounterMeasurementProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.MEASUREMENT,
@@ -1763,6 +1768,7 @@ registerNodeClass(NodeType.COUNTER_MEASUREMENT, CounterMeasurement);
  */
 export class HistogramMetric extends Node implements Spatial, Metric, HasName {
   static metatype: NodeType = NodeType.HISTOGRAM_METRIC;
+  static __protoClass__ = HistogramMetricProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.METRIC,
@@ -2248,6 +2254,7 @@ registerNodeClass(NodeType.HISTOGRAM_METRIC, HistogramMetric);
  */
 export class HistogramMeasurement extends Node implements Spatial, Measurement {
   static metatype: NodeType = NodeType.HISTOGRAM_MEASUREMENT;
+  static __protoClass__ = HistogramMeasurementProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.MEASUREMENT,

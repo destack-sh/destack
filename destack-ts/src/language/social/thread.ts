@@ -21,6 +21,7 @@ import { Folder } from "@destack/language/folder";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { MaterializationTypeProto, ThreadProto } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:5500 ==== */
@@ -46,6 +47,7 @@ registerEnumClass(EnumType.THREAD_STATUS, ThreadStatus);
  */
 export class Thread extends Node implements Spatial, Entity, HasName, IsTaggable, IsDeletable, IsJoinable, IsOwnable {
   static metatype: NodeType = NodeType.THREAD;
+  static __protoClass__ = ThreadProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.TAGGABLE,

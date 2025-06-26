@@ -40,6 +40,7 @@ import {
   MaterializationTypeProto,
   PlaneShapeProto,
 } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:11011 ==== */
@@ -66,6 +67,7 @@ registerEnumClass(EnumType.PLANE_SHAPE_TYPE, PlaneShapeType);
  */
 export class PlaneShape extends Node implements ContainerView, IsShape {
   static metatype: NodeType = NodeType.PLANE_SHAPE;
+  static __protoClass__ = PlaneShapeProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.VISUAL,

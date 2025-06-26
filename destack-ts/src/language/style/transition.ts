@@ -22,6 +22,7 @@ import {
   TransitionStyleProto,
   TransitionTypeProto,
 } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12043 ==== */
@@ -61,6 +62,7 @@ registerEnumClass(EnumType.SPRING_TYPE, SpringType);
  */
 export class Transition extends Struct {
   static metatype: StructType = StructType.TRANSITION;
+  static __protoClass__ = TransitionProto as IMessageType<any>;
   static __isFrozen__: boolean = false;
 
   /**
@@ -452,6 +454,7 @@ registerStructClass(StructType.TRANSITION, Transition);
  */
 export class TransitionStyle extends Node implements Style {
   static metatype: NodeType = NodeType.TRANSITION_STYLE;
+  static __protoClass__ = TransitionStyleProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.STYLE,
     TraitType.SPATIAL,

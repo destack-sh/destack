@@ -21,6 +21,7 @@ import { Folder } from "@destack/language/folder";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { MaterializationTypeProto, TagProto, TaggingProto } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:1010 ==== */
@@ -29,6 +30,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Tag extends Node implements Spatial, Entity, LikeTag, HasName, HasIcon, IsOrdered, IsDeletable {
   static metatype: NodeType = NodeType.TAG;
+  static __protoClass__ = TagProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.TAG,
@@ -475,6 +477,7 @@ registerNodeClass(NodeType.TAG, Tag);
  */
 export class Tagging extends Node implements Spatial, Entity, IsTaggable, IsOrdered, IsDeletable {
   static metatype: NodeType = NodeType.TAGGING;
+  static __protoClass__ = TaggingProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.TAGGABLE,

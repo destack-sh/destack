@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import assert_never
 
-from destack.language import BuiltinObjectBase, Enum, EnumType, NodeType, StructType, TraitType
+from destack.language import EnumType, NodeType, StructType, TraitType
 from destack.language.registry import (
     ENUM_CLASS_BY_TYPE,
     NODE_CLASS_BY_TYPE,
@@ -27,29 +27,31 @@ class TypescriptFile:
     def get_definition(self, kind: Kind, id: int | str) -> "TypescriptDefinition | None":
         """Resolve a definition by kind and id."""
         if kind == "ENUM":
-            metatype = EnumType(id)
-            cls = ENUM_CLASS_BY_TYPE[metatype]
+            enum_cls = ENUM_CLASS_BY_TYPE[EnumType(id)]
+            return self.definitions.get(enum_cls.__name__)
         elif kind == "STRUCT":
-            metatype = StructType(id)
-            cls = STRUCT_CLASS_BY_TYPE[StructType(id)]
+            struct_cls = STRUCT_CLASS_BY_TYPE[StructType(id)]
+            return self.definitions.get(struct_cls.__name__)
         elif kind == "TRAIT":
-            metatype = TraitType(id)
-            cls = TRAIT_CLASS_BY_TYPE[metatype]
+            trait_type = TraitType(id)
+            trait_cls = TRAIT_CLASS_BY_TYPE[trait_type]
+            return self.definitions.get(trait_cls.__name__) or self.definitions.get(
+                trait_type.camel_name
+            )
         elif kind == "NODE":
-            metatype = NodeType(id)
-            cls = NODE_CLASS_BY_TYPE[metatype]
+            node_cls = NODE_CLASS_BY_TYPE[NodeType(id)]
+            return self.definitions.get(node_cls.__name__)
+        elif kind == "CONSTANT":
+            assert isinstance(id, str), f"invalid constant id: {id}"
+            return self.definitions.get(id)
         else:
             assert_never(kind)
-        definition = self.definitions.get(cls.__name__)
-        if definition is None and kind == "TRAIT":
-            definition = self.definitions.get(metatype.camel_name)
-        return definition
 
 
 @dataclass(slots=True)
 class TypescriptDefinition:
     name: str
-    cls: type[BuiltinObjectBase] | type[Enum]
+    alias: str
     module: str  # destack.language.core.common.icon
     submodule: str  # core.builtin or space
     kind: Kind
