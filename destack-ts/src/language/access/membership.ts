@@ -22,7 +22,12 @@ import {
 } from "@destack/language/core/builtin";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
-import { MaterializationTypeProto, MembershipEventProto, MembershipProto, RoleTypeProto } from "@destack/proto";
+import {
+  MaterializationTypeProto,
+  MembershipEventProto,
+  MembershipProto,
+  RoleTypeProto,
+} from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
@@ -302,7 +307,9 @@ export class MembershipEvent extends Node implements Event {
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -447,8 +454,20 @@ export class MembershipEvent extends Node implements Event {
         : null;
     return new MembershipEvent({
       node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
-      joinable: NodeReference.fromValue(objectValue["40"], _session, _supergraph, _graph, _connection),
-      member: NodeReference.fromValue(objectValue["41"], _session, _supergraph, _graph, _connection),
+      joinable: NodeReference.fromValue(
+        objectValue["40"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      member: NodeReference.fromValue(
+        objectValue["41"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       role: unpackedRolePtr,
       roleType: Number(objectValue["43"]),
       parent: unpackedParentPtr,
@@ -513,32 +532,80 @@ export class MembershipEvent extends Node implements Event {
     _connection?: any | null,
   ): MembershipEvent {
     return new MembershipEvent({
-      node: NodeReference.fromProto(objectProto.nodePtr!, _session, _supergraph, _graph, _connection),
-      joinable: NodeReference.fromProto(objectProto.joinablePtr!, _session, _supergraph, _graph, _connection),
-      member: NodeReference.fromProto(objectProto.memberPtr!, _session, _supergraph, _graph, _connection),
+      node: NodeReference.fromProto(
+        objectProto.nodePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      joinable: NodeReference.fromProto(
+        objectProto.joinablePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      member: NodeReference.fromProto(
+        objectProto.memberPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       role:
         objectProto.rolePtr != undefined
-          ? NodeReference.fromProto(objectProto.rolePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.rolePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       roleType: Number(objectProto.roleType) as RoleType,
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       id: String(objectProto.id),
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       _session,
       _graph,
@@ -573,7 +640,10 @@ registerNodeClass(NodeType.MEMBERSHIP_EVENT, MembershipEvent);
 /**
  * A Membership of a Subject in a Joinable.
  */
-export class Membership extends Node implements Global, Spatial, Entity, LikeMembership, IsOwnable, IsDeletable {
+export class Membership
+  extends Node
+  implements Global, Spatial, Entity, LikeMembership, IsOwnable, IsDeletable
+{
   static metatype: NodeType = NodeType.MEMBERSHIP;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
@@ -821,7 +891,9 @@ export class Membership extends Node implements Global, Spatial, Entity, LikeMem
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -976,10 +1048,17 @@ export class Membership extends Node implements Global, Spatial, Entity, LikeMem
         ? NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
-    const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const unpackedDeletedAt =
+      deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
     return new Membership({
       parent: unpackedParentPtr,
-      member: NodeReference.fromValue(objectValue["40"], _session, _supergraph, _graph, _connection),
+      member: NodeReference.fromValue(
+        objectValue["40"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       role: unpackedRolePtr,
       roleType: unpackedRoleType,
       id: String(objectValue["2"]),
@@ -1055,35 +1134,79 @@ export class Membership extends Node implements Global, Spatial, Entity, LikeMem
     return new Membership({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
-      member: NodeReference.fromProto(objectProto.memberPtr!, _session, _supergraph, _graph, _connection),
+      member: NodeReference.fromProto(
+        objectProto.memberPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       role:
         objectProto.rolePtr != undefined
-          ? NodeReference.fromProto(objectProto.rolePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.rolePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
-      roleType: objectProto.roleType != undefined ? (Number(objectProto.roleType) as RoleType) : null,
+      roleType:
+        objectProto.roleType != undefined ? (Number(objectProto.roleType) as RoleType) : null,
       id: String(objectProto.id),
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       ownedBy:
         objectProto.ownedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.ownedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.ownedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
-      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       _session,
       _graph,
       _connection,

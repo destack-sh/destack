@@ -1,6 +1,14 @@
 import { NodeClass } from "@destack/language";
 import { Session, Supergraph } from "@destack/language/core";
-import { EnumType, Node, NodeType, Region, StructFrozen, StructType, TraitType } from "@destack/language/core/builtin";
+import {
+  EnumType,
+  Node,
+  NodeType,
+  Region,
+  StructFrozen,
+  StructType,
+  TraitType,
+} from "@destack/language/core/builtin";
 import { CustomEntityDefinition, CustomProperty } from "@destack/language/core/common";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import {
@@ -415,7 +423,13 @@ export class RelationReference extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): RelationReference {
-    return RelationReference.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return RelationReference.__unpackValue__(
+      objectValue,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
   }
 
   toProto(): RelationReferenceProto {
@@ -450,12 +464,20 @@ export class RelationReference extends StructFrozen {
   ): RelationReference {
     return new RelationReference({
       type: Number(objectProto.type) as RelationType,
-      nodeType: objectProto.nodeType != undefined ? (Number(objectProto.nodeType) as NodeType) : null,
+      nodeType:
+        objectProto.nodeType != undefined ? (Number(objectProto.nodeType) as NodeType) : null,
       definition:
         objectProto.definitionPtr != undefined
-          ? NodeReference.fromProto(objectProto.definitionPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
-      traitType: objectProto.traitType != undefined ? (Number(objectProto.traitType) as TraitType) : null,
+      traitType:
+        objectProto.traitType != undefined ? (Number(objectProto.traitType) as TraitType) : null,
       _proto: objectProto,
       _supergraph,
     });
@@ -468,7 +490,13 @@ export class RelationReference extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): RelationReference {
-    return RelationReference.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return RelationReference.__unpackProto__(
+      objectProto,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
   }
 
   static fromProtoString(packedProtoString: string): RelationReference {
@@ -717,12 +745,21 @@ export class ObjectReference extends StructFrozen {
   ): ObjectReference {
     return new ObjectReference({
       type: Number(objectProto.type) as ObjectType,
-      nodeType: objectProto.nodeType != undefined ? (Number(objectProto.nodeType) as NodeType) : null,
-      traitType: objectProto.traitType != undefined ? (Number(objectProto.traitType) as TraitType) : null,
-      structType: objectProto.structType != undefined ? (Number(objectProto.structType) as StructType) : null,
+      nodeType:
+        objectProto.nodeType != undefined ? (Number(objectProto.nodeType) as NodeType) : null,
+      traitType:
+        objectProto.traitType != undefined ? (Number(objectProto.traitType) as TraitType) : null,
+      structType:
+        objectProto.structType != undefined ? (Number(objectProto.structType) as StructType) : null,
       definition:
         objectProto.definitionPtr != undefined
-          ? NodeReference.fromProto(objectProto.definitionPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       _proto: objectProto,
       _supergraph,
@@ -947,7 +984,13 @@ export class PropertyReference extends StructFrozen {
     const customPropertyPtrValue = objectValue["36"];
     const unpackedCustomPropertyPtr =
       customPropertyPtrValue != undefined
-        ? NodeReference.fromValue(customPropertyPtrValue, _session, _supergraph, _graph, _connection)
+        ? NodeReference.fromValue(
+            customPropertyPtrValue,
+            _session,
+            _supergraph,
+            _graph,
+            _connection,
+          )
         : null;
     return new PropertyReference({
       type: Number(objectValue["30"]),
@@ -968,7 +1011,13 @@ export class PropertyReference extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): PropertyReference {
-    return PropertyReference.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return PropertyReference.__unpackValue__(
+      objectValue,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
   }
 
   toProto(): PropertyReferenceProto {
@@ -1009,13 +1058,22 @@ export class PropertyReference extends StructFrozen {
   ): PropertyReference {
     return new PropertyReference({
       type: Number(objectProto.type) as PropertyReferenceType,
-      nodeType: objectProto.nodeType != undefined ? (Number(objectProto.nodeType) as NodeType) : null,
-      traitType: objectProto.traitType != undefined ? (Number(objectProto.traitType) as TraitType) : null,
-      structType: objectProto.structType != undefined ? (Number(objectProto.structType) as StructType) : null,
+      nodeType:
+        objectProto.nodeType != undefined ? (Number(objectProto.nodeType) as NodeType) : null,
+      traitType:
+        objectProto.traitType != undefined ? (Number(objectProto.traitType) as TraitType) : null,
+      structType:
+        objectProto.structType != undefined ? (Number(objectProto.structType) as StructType) : null,
       id: objectProto.id != undefined ? Number(objectProto.id) : null,
       customProperty:
         objectProto.customPropertyPtr != undefined
-          ? NodeReference.fromProto(objectProto.customPropertyPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.customPropertyPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       _proto: objectProto,
       _supergraph,
@@ -1029,7 +1087,13 @@ export class PropertyReference extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): PropertyReference {
-    return PropertyReference.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return PropertyReference.__unpackProto__(
+      objectProto,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
   }
 
   static fromProtoString(packedProtoString: string): PropertyReference {

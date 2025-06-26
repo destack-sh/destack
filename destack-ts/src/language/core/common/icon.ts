@@ -154,7 +154,10 @@ export class Icon extends StructFrozen {
     if (!(this.fileUrl === other.fileUrl)) {
       return false;
     }
-    if ((this.color == null) !== (other.color == null) || (this.color != null && !this.color.equals(other.color))) {
+    if (
+      (this.color == null) !== (other.color == null) ||
+      (this.color != null && !this.color.equals(other.color))
+    ) {
       return false;
     }
     return true;
@@ -223,7 +226,9 @@ export class Icon extends StructFrozen {
     const unpackedFileUrl = fileUrlValue != undefined ? fileUrlValue : null;
     const colorValue = objectValue["40"];
     const unpackedColor =
-      colorValue != undefined ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection) : null;
+      colorValue != undefined
+        ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new Icon({
       type: Number(objectValue["30"]),
       emoji: unpackedEmoji,
@@ -293,7 +298,13 @@ export class Icon extends StructFrozen {
       vscName: objectProto.vscName != undefined ? objectProto.vscName : null,
       file:
         objectProto.filePtr != undefined
-          ? NodeReference.fromProto(objectProto.filePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.filePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       fileUrl: objectProto.fileUrl != undefined ? objectProto.fileUrl : null,
       color:

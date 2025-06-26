@@ -17,7 +17,15 @@ import { registerTraitClass } from "@destack/language/registry";
 /**
  * A View is a graphical interface.
  */
-export interface View extends Spatial, Entity, IsDeletable, IsOrdered, HasName, IsTaggable, IsScriptable, IsVisual {
+export interface View
+  extends Spatial,
+    Entity,
+    IsDeletable,
+    IsOrdered,
+    HasName,
+    IsTaggable,
+    IsScriptable,
+    IsVisual {
   /**
    * View.position
    */

@@ -126,7 +126,10 @@ export abstract class BuiltinObject {
 }
 
 /** A BuiltinObject constructor/class. */
-export type BuiltinObjectClass<ObjectT extends BuiltinObject, ProtoT extends AnyStructProto | AnyNodeProto> = {
+export type BuiltinObjectClass<
+  ObjectT extends BuiltinObject,
+  ProtoT extends AnyStructProto | AnyNodeProto,
+> = {
   new (...args: any[]): ObjectT;
 } & {
   __properties__: Record<string, PropertyDefinition>;

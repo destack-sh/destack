@@ -360,9 +360,21 @@ export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {
     NodeType.SPACE,
   ],
   [TraitType.SETTINGS]: [],
-  [TraitType.JOINABLE]: [NodeType.FOLDER, NodeType.THREAD, NodeType.ORGANIZATION, NodeType.SPACE, NodeType.TEAM],
+  [TraitType.JOINABLE]: [
+    NodeType.FOLDER,
+    NodeType.THREAD,
+    NodeType.ORGANIZATION,
+    NodeType.SPACE,
+    NodeType.TEAM,
+  ],
   [TraitType.SUBJECT]: [NodeType.AGENT, NodeType.USER],
-  [TraitType.OWNER]: [NodeType.ROLE, NodeType.AGENT, NodeType.ORGANIZATION, NodeType.TEAM, NodeType.USER],
+  [TraitType.OWNER]: [
+    NodeType.ROLE,
+    NodeType.AGENT,
+    NodeType.ORGANIZATION,
+    NodeType.TEAM,
+    NodeType.USER,
+  ],
   [TraitType.TAGGABLE]: [
     NodeType.CUSTOM_ENTITY_DEFINITION,
     NodeType.CUSTOM_ENUM_DEFINITION,
@@ -659,7 +671,11 @@ export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {
   ],
   [TraitType.RESOURCE]: [NodeType.FILE, NodeType.LINK, NodeType.DATABASE, NodeType.MACHINE],
   [TraitType.METRIC]: [NodeType.GAUGE_METRIC, NodeType.COUNTER_METRIC, NodeType.HISTOGRAM_METRIC],
-  [TraitType.MEASUREMENT]: [NodeType.GAUGE_MEASUREMENT, NodeType.COUNTER_MEASUREMENT, NodeType.HISTOGRAM_MEASUREMENT],
+  [TraitType.MEASUREMENT]: [
+    NodeType.GAUGE_MEASUREMENT,
+    NodeType.COUNTER_MEASUREMENT,
+    NodeType.HISTOGRAM_MEASUREMENT,
+  ],
   [TraitType.EVENT]: [
     NodeType.EDIT_EVENT,
     NodeType.CUSTOM_EVENT,
@@ -710,7 +726,12 @@ export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {
   [TraitType.INPUT_VIEW]: [NodeType.NUMBER_INPUT_VIEW, NodeType.SLIDER_INPUT_VIEW],
   [TraitType.INTERNAL_VIEW]: [NodeType.WIZARD_VIEW],
   [TraitType.NODE_VIEW]: [NodeType.THREAD_VIEW],
-  [TraitType.SHAPE]: [NodeType.ANNOTATION_SHAPE, NodeType.ARROW_SHAPE, NodeType.LINE_SHAPE, NodeType.PLANE_SHAPE],
+  [TraitType.SHAPE]: [
+    NodeType.ANNOTATION_SHAPE,
+    NodeType.ARROW_SHAPE,
+    NodeType.LINE_SHAPE,
+    NodeType.PLANE_SHAPE,
+  ],
   [TraitType.CURSOR]: [NodeType.EVENT_CURSOR, NodeType.SCREEN_CURSOR, NodeType.THREAD_CURSOR],
   [TraitType.STYLE]: [
     NodeType.COLOR_STYLE,

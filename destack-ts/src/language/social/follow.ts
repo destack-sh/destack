@@ -25,7 +25,10 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A Follow is a relationship between a Subject and a Followred Node.
  */
-export class Follow extends Node implements Global, Spatial, Entity, LikeFollow, IsDeletable, IsOwnable {
+export class Follow
+  extends Node
+  implements Global, Spatial, Entity, LikeFollow, IsDeletable, IsOwnable
+{
   static metatype: NodeType = NodeType.FOLLOW;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
@@ -37,9 +40,19 @@ export class Follow extends Node implements Global, Spatial, Entity, LikeFollow,
     TraitType.FOLLOW,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.FOLDER, NodeType.SPACE, NodeType.AGENT, NodeType.USER];
+  static __parentTypes__: NodeType[] = [
+    NodeType.FOLDER,
+    NodeType.SPACE,
+    NodeType.AGENT,
+    NodeType.USER,
+  ];
   static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.AGENT, NodeType.FOLDER, NodeType.USER, NodeType.SPACE];
+  static __ancestorTypes__: NodeType[] = [
+    NodeType.AGENT,
+    NodeType.FOLDER,
+    NodeType.USER,
+    NodeType.SPACE,
+  ];
   static __descendantTypes__: NodeType[] = [];
 
   /**
@@ -203,7 +216,9 @@ export class Follow extends Node implements Global, Spatial, Entity, LikeFollow,
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -328,10 +343,17 @@ export class Follow extends Node implements Global, Spatial, Entity, LikeFollow,
         ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
-    const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const unpackedDeletedAt =
+      deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
     return new Follow({
       parent: unpackedParentPtr,
-      ownedBy: NodeReference.fromValue(objectValue["25"], _session, _supergraph, _graph, _connection),
+      ownedBy: NodeReference.fromValue(
+        objectValue["25"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       id: String(objectValue["2"]),
       space: unpackedSpacePtr,
       materialization: Number(objectValue["7"]),
@@ -395,26 +417,57 @@ export class Follow extends Node implements Global, Spatial, Entity, LikeFollow,
     return new Follow({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
-      ownedBy: NodeReference.fromProto(objectProto.ownedByPtr!, _session, _supergraph, _graph, _connection),
+      ownedBy: NodeReference.fromProto(
+        objectProto.ownedByPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       id: String(objectProto.id),
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
-      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       _session,
       _graph,
       _connection,

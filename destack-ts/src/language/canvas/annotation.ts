@@ -1,7 +1,14 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { IsShape } from "@destack/language/canvas";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
-import { IsSubject, MaterializationType, Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
+import {
+  IsSubject,
+  MaterializationType,
+  Node,
+  NodeType,
+  StructType,
+  TraitType,
+} from "@destack/language/core/builtin";
 import {
   Align,
   Axis2,
@@ -150,7 +157,12 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
   get parent(): Window | Scene | Layer | (Node & ContainerView) | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Window | Scene | Layer | (Node & ContainerView) | null;
+      return this._supergraph.get(nodePtr.id) as
+        | Window
+        | Scene
+        | Layer
+        | (Node & ContainerView)
+        | null;
     }
     return null;
   }
@@ -558,7 +570,9 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -581,7 +595,10 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if ((this.text == null) !== (other.text == null) || (this.text != null && !this.text.equals(other.text))) {
+    if (
+      (this.text == null) !== (other.text == null) ||
+      (this.text != null && !this.text.equals(other.text))
+    ) {
       return false;
     }
     if (!(this.layout === other.layout)) {
@@ -596,7 +613,10 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
     if (!(this.align === other.align)) {
       return false;
     }
-    if ((this.gap == null) !== (other.gap == null) || (this.gap != null && !this.gap.equals(other.gap))) {
+    if (
+      (this.gap == null) !== (other.gap == null) ||
+      (this.gap != null && !this.gap.equals(other.gap))
+    ) {
       return false;
     }
     if (
@@ -605,7 +625,10 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
     ) {
       return false;
     }
-    if ((this.grid == null) !== (other.grid == null) || (this.grid != null && !this.grid.equals(other.grid))) {
+    if (
+      (this.grid == null) !== (other.grid == null) ||
+      (this.grid != null && !this.grid.equals(other.grid))
+    ) {
       return false;
     }
     if (
@@ -617,7 +640,10 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
     if (
       (this.aspectRatio == null) !== (other.aspectRatio == null) ||
       (this.aspectRatio != null &&
-        !(this.aspectRatio === other.aspectRatio || Math.abs(this.aspectRatio - other.aspectRatio) < 1e-10))
+        !(
+          this.aspectRatio === other.aspectRatio ||
+          Math.abs(this.aspectRatio - other.aspectRatio) < 1e-10
+        ))
     ) {
       return false;
     }
@@ -629,11 +655,15 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
     }
     if (
       (this.opacity == null) !== (other.opacity == null) ||
-      (this.opacity != null && !(this.opacity === other.opacity || Math.abs(this.opacity - other.opacity) < 1e-10))
+      (this.opacity != null &&
+        !(this.opacity === other.opacity || Math.abs(this.opacity - other.opacity) < 1e-10))
     ) {
       return false;
     }
-    if ((this.fill == null) !== (other.fill == null) || (this.fill != null && !this.fill.equals(other.fill))) {
+    if (
+      (this.fill == null) !== (other.fill == null) ||
+      (this.fill != null && !this.fill.equals(other.fill))
+    ) {
       return false;
     }
     if (
@@ -642,12 +672,16 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
     ) {
       return false;
     }
-    if ((this.skew == null) !== (other.skew == null) || (this.skew != null && !this.skew.equals(other.skew))) {
+    if (
+      (this.skew == null) !== (other.skew == null) ||
+      (this.skew != null && !this.skew.equals(other.skew))
+    ) {
       return false;
     }
     if (
       (this.scale == null) !== (other.scale == null) ||
-      (this.scale != null && !(this.scale === other.scale || Math.abs(this.scale - other.scale) < 1e-10))
+      (this.scale != null &&
+        !(this.scale === other.scale || Math.abs(this.scale - other.scale) < 1e-10))
     ) {
       return false;
     }
@@ -675,7 +709,10 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
     ) {
       return false;
     }
-    if ((this.width == null) !== (other.width == null) || (this.width != null && !this.width.equals(other.width))) {
+    if (
+      (this.width == null) !== (other.width == null) ||
+      (this.width != null && !this.width.equals(other.width))
+    ) {
       return false;
     }
     if (
@@ -897,7 +934,9 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
   ): AnnotationShape {
     const textValue = objectValue["100"];
     const unpackedText =
-      textValue != undefined ? Text.fromValue(textValue, _session, _supergraph, _graph, _connection) : null;
+      textValue != undefined
+        ? Text.fromValue(textValue, _session, _supergraph, _graph, _connection)
+        : null;
     const layoutValue = objectValue["50"];
     const unpackedLayout = layoutValue != undefined ? Number(layoutValue) : null;
     const directionValue = objectValue["51"];
@@ -908,16 +947,24 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
     const unpackedAlign = alignValue != undefined ? Number(alignValue) : null;
     const gapValue = objectValue["54"];
     const unpackedGap =
-      gapValue != undefined ? Axis2.fromValue(gapValue, _session, _supergraph, _graph, _connection) : null;
+      gapValue != undefined
+        ? Axis2.fromValue(gapValue, _session, _supergraph, _graph, _connection)
+        : null;
     const paddingValue = objectValue["55"];
     const unpackedPadding =
-      paddingValue != undefined ? Insets.fromValue(paddingValue, _session, _supergraph, _graph, _connection) : null;
+      paddingValue != undefined
+        ? Insets.fromValue(paddingValue, _session, _supergraph, _graph, _connection)
+        : null;
     const gridValue = objectValue["56"];
     const unpackedGrid =
-      gridValue != undefined ? Grid.fromValue(gridValue, _session, _supergraph, _graph, _connection) : null;
+      gridValue != undefined
+        ? Grid.fromValue(gridValue, _session, _supergraph, _graph, _connection)
+        : null;
     const gridSpanValue = objectValue["57"];
     const unpackedGridSpan =
-      gridSpanValue != undefined ? GridSpan.fromValue(gridSpanValue, _session, _supergraph, _graph, _connection) : null;
+      gridSpanValue != undefined
+        ? GridSpan.fromValue(gridSpanValue, _session, _supergraph, _graph, _connection)
+        : null;
     const aspectRatioValue = objectValue["58"];
     const unpackedAspectRatio = aspectRatioValue != undefined ? aspectRatioValue : null;
     const isWrapValue = objectValue["59"];
@@ -928,24 +975,36 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
     const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
     const fillValue = objectValue["62"];
     const unpackedFill =
-      fillValue != undefined ? Fill.fromValue(fillValue, _session, _supergraph, _graph, _connection) : null;
+      fillValue != undefined
+        ? Fill.fromValue(fillValue, _session, _supergraph, _graph, _connection)
+        : null;
     const rotationValue = objectValue["63"];
     const unpackedRotation =
-      rotationValue != undefined ? Axis3.fromValue(rotationValue, _session, _supergraph, _graph, _connection) : null;
+      rotationValue != undefined
+        ? Axis3.fromValue(rotationValue, _session, _supergraph, _graph, _connection)
+        : null;
     const skewValue = objectValue["64"];
     const unpackedSkew =
-      skewValue != undefined ? Vector2.fromValue(skewValue, _session, _supergraph, _graph, _connection) : null;
+      skewValue != undefined
+        ? Vector2.fromValue(skewValue, _session, _supergraph, _graph, _connection)
+        : null;
     const scaleValue = objectValue["65"];
     const unpackedScale = scaleValue != undefined ? scaleValue : null;
     const shadowValue = objectValue["66"];
     const unpackedShadow =
-      shadowValue != undefined ? Shadow.fromValue(shadowValue, _session, _supergraph, _graph, _connection) : null;
+      shadowValue != undefined
+        ? Shadow.fromValue(shadowValue, _session, _supergraph, _graph, _connection)
+        : null;
     const borderValue = objectValue["67"];
     const unpackedBorder =
-      borderValue != undefined ? Border.fromValue(borderValue, _session, _supergraph, _graph, _connection) : null;
+      borderValue != undefined
+        ? Border.fromValue(borderValue, _session, _supergraph, _graph, _connection)
+        : null;
     const radiusValue = objectValue["68"];
     const unpackedRadius =
-      radiusValue != undefined ? Corners.fromValue(radiusValue, _session, _supergraph, _graph, _connection) : null;
+      radiusValue != undefined
+        ? Corners.fromValue(radiusValue, _session, _supergraph, _graph, _connection)
+        : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -953,13 +1012,19 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
         : null;
     const positionValue = objectValue["40"];
     const unpackedPosition =
-      positionValue != undefined ? Position.fromValue(positionValue, _session, _supergraph, _graph, _connection) : null;
+      positionValue != undefined
+        ? Position.fromValue(positionValue, _session, _supergraph, _graph, _connection)
+        : null;
     const widthValue = objectValue["41"];
     const unpackedWidth =
-      widthValue != undefined ? Dimension.fromValue(widthValue, _session, _supergraph, _graph, _connection) : null;
+      widthValue != undefined
+        ? Dimension.fromValue(widthValue, _session, _supergraph, _graph, _connection)
+        : null;
     const heightValue = objectValue["42"];
     const unpackedHeight =
-      heightValue != undefined ? Dimension.fromValue(heightValue, _session, _supergraph, _graph, _connection) : null;
+      heightValue != undefined
+        ? Dimension.fromValue(heightValue, _session, _supergraph, _graph, _connection)
+        : null;
     const minWidthValue = objectValue["43"];
     const unpackedMinWidth =
       minWidthValue != undefined
@@ -1001,11 +1066,15 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
         ? NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
-    const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const unpackedDeletedAt =
+      deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
     const unpackedValue = new Map();
     if (objectValue["21"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["21"])) {
-        unpackedValue.set(String(key), Value.fromValue(value as any, _session, _supergraph, _graph, _connection));
+        unpackedValue.set(
+          String(key),
+          Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+        );
       }
     }
     return new AnnotationShape({
@@ -1195,7 +1264,10 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
     const unpackedValue = new Map();
     if (objectProto.value) {
       for (const [key, value] of Object.entries(objectProto.value)) {
-        unpackedValue.set(String(key), Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection));
+        unpackedValue.set(
+          String(key),
+          Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
       }
     }
     return new AnnotationShape({
@@ -1204,8 +1276,10 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
           ? Text.fromProto(objectProto.text!, _session, _supergraph, _graph, _connection)
           : null,
       layout: objectProto.layout != undefined ? (Number(objectProto.layout) as Layout) : null,
-      direction: objectProto.direction != undefined ? (Number(objectProto.direction) as Direction) : null,
-      distribute: objectProto.distribute != undefined ? (Number(objectProto.distribute) as Distribute) : null,
+      direction:
+        objectProto.direction != undefined ? (Number(objectProto.direction) as Direction) : null,
+      distribute:
+        objectProto.distribute != undefined ? (Number(objectProto.distribute) as Distribute) : null,
       align: objectProto.align != undefined ? (Number(objectProto.align) as Align) : null,
       gap:
         objectProto.gap != undefined
@@ -1254,7 +1328,13 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
           : null,
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       position:
         objectProto.position != undefined
@@ -1286,27 +1366,52 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       id: String(objectProto.id),
       materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       name: objectProto.name,
       orderKey: objectProto.orderKey,
       script:
         objectProto.scriptPtr != undefined
-          ? NodeReference.fromProto(objectProto.scriptPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.scriptPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
-      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       value: unpackedValue,
       _session,
       _graph,

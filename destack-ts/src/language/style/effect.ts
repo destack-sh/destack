@@ -1,4 +1,9 @@
-import { packProtoDuration, packProtoTimestamp, unpackProtoDuration, unpackProtoTimestamp } from "@destack/grpc";
+import {
+  packProtoDuration,
+  packProtoTimestamp,
+  unpackProtoDuration,
+  unpackProtoTimestamp,
+} from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
   EnumType,
@@ -11,7 +16,11 @@ import {
   TraitType,
 } from "@destack/language/core/builtin";
 import { Axis3, Vector2 } from "@destack/language/core/common";
-import { registerEnumClass, registerNodeClass, registerStructClass } from "@destack/language/registry";
+import {
+  registerEnumClass,
+  registerNodeClass,
+  registerStructClass,
+} from "@destack/language/registry";
 import { Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Style, Theme, Transition } from "@destack/language/style";
@@ -285,7 +294,8 @@ export class Effect extends Struct {
     }
     if (
       (this.opacity == null) !== (other.opacity == null) ||
-      (this.opacity != null && !(this.opacity === other.opacity || Math.abs(this.opacity - other.opacity) < 1e-10))
+      (this.opacity != null &&
+        !(this.opacity === other.opacity || Math.abs(this.opacity - other.opacity) < 1e-10))
     ) {
       return false;
     }
@@ -297,7 +307,8 @@ export class Effect extends Struct {
     }
     if (
       (this.scale == null) !== (other.scale == null) ||
-      (this.scale != null && !(this.scale === other.scale || Math.abs(this.scale - other.scale) < 1e-10))
+      (this.scale != null &&
+        !(this.scale === other.scale || Math.abs(this.scale - other.scale) < 1e-10))
     ) {
       return false;
     }
@@ -307,13 +318,19 @@ export class Effect extends Struct {
     ) {
       return false;
     }
-    if ((this.skew == null) !== (other.skew == null) || (this.skew != null && !this.skew.equals(other.skew))) {
+    if (
+      (this.skew == null) !== (other.skew == null) ||
+      (this.skew != null && !this.skew.equals(other.skew))
+    ) {
       return false;
     }
     if (
       (this.perspective == null) !== (other.perspective == null) ||
       (this.perspective != null &&
-        !(this.perspective === other.perspective || Math.abs(this.perspective - other.perspective) < 1e-10))
+        !(
+          this.perspective === other.perspective ||
+          Math.abs(this.perspective - other.perspective) < 1e-10
+        ))
     ) {
       return false;
     }
@@ -322,7 +339,8 @@ export class Effect extends Struct {
     }
     if (
       (this.duration == null) !== (other.duration == null) ||
-      (this.duration != null && !(this.duration === other.duration || Math.abs(this.duration - other.duration) < 1e-10))
+      (this.duration != null &&
+        !(this.duration === other.duration || Math.abs(this.duration - other.duration) < 1e-10))
     ) {
       return false;
     }
@@ -434,15 +452,21 @@ export class Effect extends Struct {
     const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
     const offsetValue = objectValue["51"];
     const unpackedOffset =
-      offsetValue != undefined ? Vector2.fromValue(offsetValue, _session, _supergraph, _graph, _connection) : null;
+      offsetValue != undefined
+        ? Vector2.fromValue(offsetValue, _session, _supergraph, _graph, _connection)
+        : null;
     const scaleValue = objectValue["52"];
     const unpackedScale = scaleValue != undefined ? scaleValue : null;
     const rotateValue = objectValue["53"];
     const unpackedRotate =
-      rotateValue != undefined ? Axis3.fromValue(rotateValue, _session, _supergraph, _graph, _connection) : null;
+      rotateValue != undefined
+        ? Axis3.fromValue(rotateValue, _session, _supergraph, _graph, _connection)
+        : null;
     const skewValue = objectValue["54"];
     const unpackedSkew =
-      skewValue != undefined ? Vector2.fromValue(skewValue, _session, _supergraph, _graph, _connection) : null;
+      skewValue != undefined
+        ? Vector2.fromValue(skewValue, _session, _supergraph, _graph, _connection)
+        : null;
     const perspectiveValue = objectValue["55"];
     const unpackedPerspective = perspectiveValue != undefined ? perspectiveValue : null;
     const delayValue = objectValue["56"];
@@ -560,7 +584,13 @@ export class Effect extends Struct {
     return new Effect({
       style:
         objectProto.stylePtr != undefined
-          ? NodeReference.fromProto(objectProto.stylePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.stylePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       type: Number(objectProto.type) as EffectType,
       opacity: objectProto.opacity != undefined ? objectProto.opacity : null,
@@ -584,10 +614,19 @@ export class Effect extends Struct {
       once: objectProto.once != undefined ? objectProto.once : null,
       repeat: objectProto.repeat != undefined ? (Number(objectProto.repeat) as RepeatType) : null,
       split: objectProto.split != undefined ? (Number(objectProto.split) as TextSplitType) : null,
-      offscreen: objectProto.offscreen != undefined ? (Number(objectProto.offscreen) as OffscreenBehavior) : null,
+      offscreen:
+        objectProto.offscreen != undefined
+          ? (Number(objectProto.offscreen) as OffscreenBehavior)
+          : null,
       transition:
         objectProto.transition != undefined
-          ? Transition.fromProto(objectProto.transition!, _session, _supergraph, _graph, _connection)
+          ? Transition.fromProto(
+              objectProto.transition!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       _supergraph,
     });
@@ -964,7 +1003,9 @@ export class EffectStyle extends Node implements Style {
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -998,7 +1039,8 @@ export class EffectStyle extends Node implements Style {
     }
     if (
       (this.opacity == null) !== (other.opacity == null) ||
-      (this.opacity != null && !(this.opacity === other.opacity || Math.abs(this.opacity - other.opacity) < 1e-10))
+      (this.opacity != null &&
+        !(this.opacity === other.opacity || Math.abs(this.opacity - other.opacity) < 1e-10))
     ) {
       return false;
     }
@@ -1010,7 +1052,8 @@ export class EffectStyle extends Node implements Style {
     }
     if (
       (this.scale == null) !== (other.scale == null) ||
-      (this.scale != null && !(this.scale === other.scale || Math.abs(this.scale - other.scale) < 1e-10))
+      (this.scale != null &&
+        !(this.scale === other.scale || Math.abs(this.scale - other.scale) < 1e-10))
     ) {
       return false;
     }
@@ -1020,13 +1063,19 @@ export class EffectStyle extends Node implements Style {
     ) {
       return false;
     }
-    if ((this.skew == null) !== (other.skew == null) || (this.skew != null && !this.skew.equals(other.skew))) {
+    if (
+      (this.skew == null) !== (other.skew == null) ||
+      (this.skew != null && !this.skew.equals(other.skew))
+    ) {
       return false;
     }
     if (
       (this.perspective == null) !== (other.perspective == null) ||
       (this.perspective != null &&
-        !(this.perspective === other.perspective || Math.abs(this.perspective - other.perspective) < 1e-10))
+        !(
+          this.perspective === other.perspective ||
+          Math.abs(this.perspective - other.perspective) < 1e-10
+        ))
     ) {
       return false;
     }
@@ -1035,7 +1084,8 @@ export class EffectStyle extends Node implements Style {
     }
     if (
       (this.duration == null) !== (other.duration == null) ||
-      (this.duration != null && !(this.duration === other.duration || Math.abs(this.duration - other.duration) < 1e-10))
+      (this.duration != null &&
+        !(this.duration === other.duration || Math.abs(this.duration - other.duration) < 1e-10))
     ) {
       return false;
     }
@@ -1204,20 +1254,27 @@ export class EffectStyle extends Node implements Style {
         ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
-    const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const unpackedDeletedAt =
+      deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
     const opacityValue = objectValue["50"];
     const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
     const offsetValue = objectValue["51"];
     const unpackedOffset =
-      offsetValue != undefined ? Vector2.fromValue(offsetValue, _session, _supergraph, _graph, _connection) : null;
+      offsetValue != undefined
+        ? Vector2.fromValue(offsetValue, _session, _supergraph, _graph, _connection)
+        : null;
     const scaleValue = objectValue["52"];
     const unpackedScale = scaleValue != undefined ? scaleValue : null;
     const rotateValue = objectValue["53"];
     const unpackedRotate =
-      rotateValue != undefined ? Axis3.fromValue(rotateValue, _session, _supergraph, _graph, _connection) : null;
+      rotateValue != undefined
+        ? Axis3.fromValue(rotateValue, _session, _supergraph, _graph, _connection)
+        : null;
     const skewValue = objectValue["54"];
     const unpackedSkew =
-      skewValue != undefined ? Vector2.fromValue(skewValue, _session, _supergraph, _graph, _connection) : null;
+      skewValue != undefined
+        ? Vector2.fromValue(skewValue, _session, _supergraph, _graph, _connection)
+        : null;
     const perspectiveValue = objectValue["55"];
     const unpackedPerspective = perspectiveValue != undefined ? perspectiveValue : null;
     const delayValue = objectValue["56"];
@@ -1365,27 +1422,52 @@ export class EffectStyle extends Node implements Style {
     return new EffectStyle({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       id: String(objectProto.id),
       materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       name: objectProto.name,
       orderKey: objectProto.orderKey,
-      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       type: Number(objectProto.type) as EffectType,
       opacity: objectProto.opacity != undefined ? objectProto.opacity : null,
       offset:
@@ -1408,10 +1490,19 @@ export class EffectStyle extends Node implements Style {
       once: objectProto.once != undefined ? objectProto.once : null,
       repeat: objectProto.repeat != undefined ? (Number(objectProto.repeat) as RepeatType) : null,
       split: objectProto.split != undefined ? (Number(objectProto.split) as TextSplitType) : null,
-      offscreen: objectProto.offscreen != undefined ? (Number(objectProto.offscreen) as OffscreenBehavior) : null,
+      offscreen:
+        objectProto.offscreen != undefined
+          ? (Number(objectProto.offscreen) as OffscreenBehavior)
+          : null,
       transition:
         objectProto.transition != undefined
-          ? Transition.fromProto(objectProto.transition!, _session, _supergraph, _graph, _connection)
+          ? Transition.fromProto(
+              objectProto.transition!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       _session,
       _graph,

@@ -217,7 +217,9 @@ export class EntitlementEvent extends Node implements Event {
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -359,7 +361,13 @@ export class EntitlementEvent extends Node implements Event {
     _graph?: any | null,
     _connection?: any | null,
   ): EntitlementEvent {
-    return EntitlementEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return EntitlementEvent.__unpackValue__(
+      objectValue,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
   }
 
   toProto(): EntitlementEventProto {
@@ -395,25 +403,55 @@ export class EntitlementEvent extends Node implements Event {
     _connection?: any | null,
   ): EntitlementEvent {
     return new EntitlementEvent({
-      node: NodeReference.fromProto(objectProto.nodePtr!, _session, _supergraph, _graph, _connection),
+      node: NodeReference.fromProto(
+        objectProto.nodePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       id: String(objectProto.id),
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       _session,
       _graph,
@@ -428,7 +466,13 @@ export class EntitlementEvent extends Node implements Event {
     _graph?: any | null,
     _connection?: any | null,
   ): EntitlementEvent {
-    return EntitlementEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return EntitlementEvent.__unpackProto__(
+      objectProto,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
   }
 
   static fromProtoString(packedProtoString: string): EntitlementEvent {
@@ -450,7 +494,12 @@ registerNodeClass(NodeType.ENTITLEMENT_EVENT, EntitlementEvent);
  */
 export class Entitlement extends Node implements Spatial, Entity, IsDeletable {
   static metatype: NodeType = NodeType.ENTITLEMENT;
-  static __traits__: TraitType[] = [TraitType.TRACKED, TraitType.SPATIAL, TraitType.ENTITY, TraitType.DELETABLE];
+  static __traits__: TraitType[] = [
+    TraitType.TRACKED,
+    TraitType.SPATIAL,
+    TraitType.ENTITY,
+    TraitType.DELETABLE,
+  ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [
     NodeType.SPACE,
@@ -653,7 +702,9 @@ export class Entitlement extends Node implements Spatial, Entity, IsDeletable {
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -773,7 +824,8 @@ export class Entitlement extends Node implements Spatial, Entity, IsDeletable {
         ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const expiresAtValue = objectValue["40"];
-    const unpackedExpiresAt = expiresAtValue != undefined ? Temporal.ZonedDateTime.from(expiresAtValue) : null;
+    const unpackedExpiresAt =
+      expiresAtValue != undefined ? Temporal.ZonedDateTime.from(expiresAtValue) : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
@@ -790,12 +842,19 @@ export class Entitlement extends Node implements Spatial, Entity, IsDeletable {
         ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
-    const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const unpackedDeletedAt =
+      deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
     return new Entitlement({
       parent: unpackedParentPtr,
       type: Number(objectValue["30"]),
       expiresAt: unpackedExpiresAt,
-      target: NodeReference.fromValue(objectValue["41"], _session, _supergraph, _graph, _connection),
+      target: NodeReference.fromValue(
+        objectValue["41"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       materialization: Number(objectValue["7"]),
@@ -863,28 +922,60 @@ export class Entitlement extends Node implements Spatial, Entity, IsDeletable {
     return new Entitlement({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       type: Number(objectProto.type) as EntitlementType,
-      expiresAt: objectProto.expiresAt != undefined ? unpackProtoTimestamp(objectProto.expiresAt!) : null,
-      target: NodeReference.fromProto(objectProto.targetPtr!, _session, _supergraph, _graph, _connection),
+      expiresAt:
+        objectProto.expiresAt != undefined ? unpackProtoTimestamp(objectProto.expiresAt!) : null,
+      target: NodeReference.fromProto(
+        objectProto.targetPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       id: String(objectProto.id),
       materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
-      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       _session,
       _graph,
       _connection,

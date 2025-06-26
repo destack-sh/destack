@@ -26,7 +26,12 @@ import { Folder } from "@destack/language/folder";
 import { Database } from "@destack/language/infra";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Handle } from "@destack/language/space";
-import { MaterializationTypeProto, RegionProto, SpaceProto, SpaceStatusProto } from "@destack/proto";
+import {
+  MaterializationTypeProto,
+  RegionProto,
+  SpaceProto,
+  SpaceStatusProto,
+} from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
@@ -53,7 +58,17 @@ registerEnumClass(EnumType.SPACE_STATUS, SpaceStatus);
  */
 export class Space
   extends Node
-  implements Global, Entity, HasName, HasSlug, HasIcon, IsFollowable, IsJoinable, IsOwnable, IsStarable, Spatial
+  implements
+    Global,
+    Entity,
+    HasName,
+    HasSlug,
+    HasIcon,
+    IsFollowable,
+    IsJoinable,
+    IsOwnable,
+    IsStarable,
+    Spatial
 {
   static metatype: NodeType = NodeType.SPACE;
   static __traits__: TraitType[] = [
@@ -503,7 +518,9 @@ export class Space
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -553,7 +570,10 @@ export class Space
     if (!(this.databasePtr?.id === other.databasePtr?.id)) {
       return false;
     }
-    if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
       return false;
     }
     if (!(this.ownedByPtr?.id === other.ownedByPtr?.id)) {
@@ -688,7 +708,9 @@ export class Space
         : null;
     const iconValue = objectValue["34"];
     const unpackedIcon =
-      iconValue != undefined ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection) : null;
+      iconValue != undefined
+        ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
     const ownedByPtrValue = objectValue["25"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
@@ -798,37 +820,79 @@ export class Space
       status: Number(objectProto.status) as SpaceStatus,
       handle:
         objectProto.handlePtr != undefined
-          ? NodeReference.fromProto(objectProto.handlePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.handlePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       systemFolder:
         objectProto.systemFolderPtr != undefined
-          ? NodeReference.fromProto(objectProto.systemFolderPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.systemFolderPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       homeFolder:
         objectProto.homeFolderPtr != undefined
-          ? NodeReference.fromProto(objectProto.homeFolderPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.homeFolderPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       region: Number(objectProto.region) as Region,
       galaxyName: objectProto.galaxyName != undefined ? objectProto.galaxyName : null,
       database:
         objectProto.databasePtr != undefined
-          ? NodeReference.fromProto(objectProto.databasePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.databasePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       icon:
         objectProto.icon != undefined
@@ -836,11 +900,23 @@ export class Space
           : null,
       ownedBy:
         objectProto.ownedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.ownedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.ownedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       _session,
       _graph,

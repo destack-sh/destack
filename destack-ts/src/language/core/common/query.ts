@@ -1,6 +1,12 @@
 import { NodeClass, toValue } from "@destack/language";
 import { Session, Supergraph } from "@destack/language/core";
-import { EnumType, NodeType, Struct, StructFrozen, StructType } from "@destack/language/core/builtin";
+import {
+  EnumType,
+  NodeType,
+  Struct,
+  StructFrozen,
+  StructType,
+} from "@destack/language/core/builtin";
 import {
   CustomEntityDefinition,
   CustomProperty,
@@ -280,7 +286,10 @@ export class Function extends StructFrozen {
     if (!this.left.equals(other.left)) {
       return false;
     }
-    if ((this.right == null) !== (other.right == null) || (this.right != null && !this.right.equals(other.right))) {
+    if (
+      (this.right == null) !== (other.right == null) ||
+      (this.right != null && !this.right.equals(other.right))
+    ) {
       return false;
     }
     return true;
@@ -322,7 +331,9 @@ export class Function extends StructFrozen {
   ): Function {
     const rightValue = objectValue["32"];
     const unpackedRight =
-      rightValue != undefined ? Expression.fromValue(rightValue, _session, _supergraph, _graph, _connection) : null;
+      rightValue != undefined
+        ? Expression.fromValue(rightValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new Function({
       type: Number(objectValue["30"]),
       left: Expression.fromValue(objectValue["31"], _session, _supergraph, _graph, _connection),
@@ -483,7 +494,10 @@ export class Condition extends StructFrozen {
     if (!this.left.equals(other.left)) {
       return false;
     }
-    if ((this.right == null) !== (other.right == null) || (this.right != null && !this.right.equals(other.right))) {
+    if (
+      (this.right == null) !== (other.right == null) ||
+      (this.right != null && !this.right.equals(other.right))
+    ) {
       return false;
     }
     return true;
@@ -525,7 +539,9 @@ export class Condition extends StructFrozen {
   ): Condition {
     const rightValue = objectValue["32"];
     const unpackedRight =
-      rightValue != undefined ? Expression.fromValue(rightValue, _session, _supergraph, _graph, _connection) : null;
+      rightValue != undefined
+        ? Expression.fromValue(rightValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new Condition({
       type: Number(objectValue["30"]),
       left: Expression.fromValue(objectValue["31"], _session, _supergraph, _graph, _connection),
@@ -771,7 +787,13 @@ export class Aggregation extends StructFrozen {
       type: Number(objectProto.type) as AggregationType,
       expression:
         objectProto.expression != undefined
-          ? Expression.fromProto(objectProto.expression!, _session, _supergraph, _graph, _connection)
+          ? Expression.fromProto(
+              objectProto.expression!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       _proto: objectProto,
       _supergraph,
@@ -980,7 +1002,9 @@ export class Expression extends StructFrozen {
   ): Expression {
     const literalValue = objectValue["31"];
     const unpackedLiteral =
-      literalValue != undefined ? Value.fromValue(literalValue, _session, _supergraph, _graph, _connection) : null;
+      literalValue != undefined
+        ? Value.fromValue(literalValue, _session, _supergraph, _graph, _connection)
+        : null;
     const attributeValue = objectValue["32"];
     const unpackedAttribute =
       attributeValue != undefined
@@ -993,7 +1017,9 @@ export class Expression extends StructFrozen {
         : null;
     const functionValue = objectValue["34"];
     const unpackedFunction =
-      functionValue != undefined ? Function.fromValue(functionValue, _session, _supergraph, _graph, _connection) : null;
+      functionValue != undefined
+        ? Function.fromValue(functionValue, _session, _supergraph, _graph, _connection)
+        : null;
     const aggregationValue = objectValue["35"];
     const unpackedAggregation =
       aggregationValue != undefined
@@ -1065,7 +1091,13 @@ export class Expression extends StructFrozen {
           : null,
       attribute:
         objectProto.attribute != undefined
-          ? PropertyReference.fromProto(objectProto.attribute!, _session, _supergraph, _graph, _connection)
+          ? PropertyReference.fromProto(
+              objectProto.attribute!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       condition:
         objectProto.condition != undefined
@@ -1077,7 +1109,13 @@ export class Expression extends StructFrozen {
           : null,
       aggregation:
         objectProto.aggregation != undefined
-          ? Aggregation.fromProto(objectProto.aggregation!, _session, _supergraph, _graph, _connection)
+          ? Aggregation.fromProto(
+              objectProto.aggregation!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       _proto: objectProto,
       _supergraph,
@@ -1119,7 +1157,10 @@ export class Expression extends StructFrozen {
     } else if (thing instanceof Expression) {
       return thing;
     } else if (thing instanceof CustomProperty) {
-      return new Expression({ type: ExpressionType.ATTRIBUTE, attribute: PropertyReference.of(thing) });
+      return new Expression({
+        type: ExpressionType.ATTRIBUTE,
+        attribute: PropertyReference.of(thing),
+      });
     } else {
       assertNever(thing);
     }
@@ -1440,7 +1481,9 @@ export class Select extends StructFrozen {
     const unpackedAttributes: any[] = [];
     if (objectValue["31"] != undefined) {
       for (const item of objectValue["31"]) {
-        unpackedAttributes.push(PropertyReference.fromValue(item, _session, _supergraph, _graph, _connection));
+        unpackedAttributes.push(
+          PropertyReference.fromValue(item, _session, _supergraph, _graph, _connection),
+        );
       }
     }
     return new Select({
@@ -1490,7 +1533,9 @@ export class Select extends StructFrozen {
     const unpackedAttributes: any[] = [];
     if (objectProto.attributes) {
       for (const item of objectProto.attributes) {
-        unpackedAttributes.push(PropertyReference.fromProto(item!, _session, _supergraph, _graph, _connection));
+        unpackedAttributes.push(
+          PropertyReference.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
       }
     }
     return new Select({
@@ -1632,7 +1677,10 @@ export class Join extends StructFrozen {
     if (!(this.depth === other.depth)) {
       return false;
     }
-    if ((this.on == null) !== (other.on == null) || (this.on != null && !this.on.equals(other.on))) {
+    if (
+      (this.on == null) !== (other.on == null) ||
+      (this.on != null && !this.on.equals(other.on))
+    ) {
       return false;
     }
     return true;
@@ -1687,7 +1735,9 @@ export class Join extends StructFrozen {
     const unpackedDepth = depthValue != undefined ? Number(depthValue) : null;
     const onValue = objectValue["35"];
     const unpackedOn =
-      onValue != undefined ? Condition.fromValue(onValue, _session, _supergraph, _graph, _connection) : null;
+      onValue != undefined
+        ? Condition.fromValue(onValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new Join({
       type: Number(objectValue["30"]),
       relation: unpackedRelation,
@@ -1744,7 +1794,13 @@ export class Join extends StructFrozen {
       type: Number(objectProto.type) as JoinType,
       relation:
         objectProto.relation != undefined
-          ? RelationReference.fromProto(objectProto.relation!, _session, _supergraph, _graph, _connection)
+          ? RelationReference.fromProto(
+              objectProto.relation!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       recursive: objectProto.recursive,
       depth: objectProto.depth != undefined ? Number(objectProto.depth) : null,
@@ -1990,7 +2046,10 @@ export class Query extends StructFrozen {
     if (!this.relation.equals(other.relation)) {
       return false;
     }
-    if ((this.join == null) !== (other.join == null) || (this.join != null && !this.join.equals(other.join))) {
+    if (
+      (this.join == null) !== (other.join == null) ||
+      (this.join != null && !this.join.equals(other.join))
+    ) {
       return false;
     }
     if (
@@ -2007,7 +2066,10 @@ export class Query extends StructFrozen {
         return false;
       }
     }
-    if ((this.where == null) !== (other.where == null) || (this.where != null && !this.where.equals(other.where))) {
+    if (
+      (this.where == null) !== (other.where == null) ||
+      (this.where != null && !this.where.equals(other.where))
+    ) {
       return false;
     }
     if (
@@ -2124,10 +2186,14 @@ export class Query extends StructFrozen {
   ): Query {
     const joinValue = objectValue["33"];
     const unpackedJoin =
-      joinValue != undefined ? Join.fromValue(joinValue, _session, _supergraph, _graph, _connection) : null;
+      joinValue != undefined
+        ? Join.fromValue(joinValue, _session, _supergraph, _graph, _connection)
+        : null;
     const selectValue = objectValue["34"];
     const unpackedSelect =
-      selectValue != undefined ? Select.fromValue(selectValue, _session, _supergraph, _graph, _connection) : null;
+      selectValue != undefined
+        ? Select.fromValue(selectValue, _session, _supergraph, _graph, _connection)
+        : null;
     const unpackedSubqueries: any[] = [];
     if (objectValue["35"] != undefined) {
       for (const item of objectValue["35"]) {
@@ -2136,14 +2202,20 @@ export class Query extends StructFrozen {
     }
     const whereValue = objectValue["40"];
     const unpackedWhere =
-      whereValue != undefined ? Condition.fromValue(whereValue, _session, _supergraph, _graph, _connection) : null;
+      whereValue != undefined
+        ? Condition.fromValue(whereValue, _session, _supergraph, _graph, _connection)
+        : null;
     const havingValue = objectValue["41"];
     const unpackedHaving =
-      havingValue != undefined ? Condition.fromValue(havingValue, _session, _supergraph, _graph, _connection) : null;
+      havingValue != undefined
+        ? Condition.fromValue(havingValue, _session, _supergraph, _graph, _connection)
+        : null;
     const unpackedGroupBy: any[] = [];
     if (objectValue["42"] != undefined) {
       for (const item of objectValue["42"]) {
-        unpackedGroupBy.push(Expression.fromValue(item, _session, _supergraph, _graph, _connection));
+        unpackedGroupBy.push(
+          Expression.fromValue(item, _session, _supergraph, _graph, _connection),
+        );
       }
     }
     const aggregationValue = objectValue["43"];
@@ -2165,7 +2237,13 @@ export class Query extends StructFrozen {
       id: String(objectValue["2"]),
       type: Number(objectValue["30"]),
       name: objectValue["31"],
-      relation: RelationReference.fromValue(objectValue["32"], _session, _supergraph, _graph, _connection),
+      relation: RelationReference.fromValue(
+        objectValue["32"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       join: unpackedJoin,
       select: unpackedSelect,
       subqueries: unpackedSubqueries,
@@ -2266,7 +2344,9 @@ export class Query extends StructFrozen {
     const unpackedGroupBy: any[] = [];
     if (objectProto.groupBy) {
       for (const item of objectProto.groupBy) {
-        unpackedGroupBy.push(Expression.fromProto(item!, _session, _supergraph, _graph, _connection));
+        unpackedGroupBy.push(
+          Expression.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
       }
     }
     const unpackedSort: any[] = [];
@@ -2279,7 +2359,13 @@ export class Query extends StructFrozen {
       id: String(objectProto.id),
       type: Number(objectProto.type) as QueryType,
       name: objectProto.name,
-      relation: RelationReference.fromProto(objectProto.relation!, _session, _supergraph, _graph, _connection),
+      relation: RelationReference.fromProto(
+        objectProto.relation!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       join:
         objectProto.join != undefined
           ? Join.fromProto(objectProto.join!, _session, _supergraph, _graph, _connection)
@@ -2300,7 +2386,13 @@ export class Query extends StructFrozen {
       groupBy: unpackedGroupBy,
       aggregation:
         objectProto.aggregation != undefined
-          ? Aggregation.fromProto(objectProto.aggregation!, _session, _supergraph, _graph, _connection)
+          ? Aggregation.fromProto(
+              objectProto.aggregation!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       sort: unpackedSort,
       limit: objectProto.limit != undefined ? Number(objectProto.limit) : null,
@@ -2780,13 +2872,17 @@ export class QueryResult extends Struct {
     const unpackedGroups: any[] = [];
     if (objectValue["35"] != undefined) {
       for (const item of objectValue["35"]) {
-        unpackedGroups.push(QueryResultGroup.fromValue(item, _session, _supergraph, _graph, _connection));
+        unpackedGroups.push(
+          QueryResultGroup.fromValue(item, _session, _supergraph, _graph, _connection),
+        );
       }
     }
     const unpackedSubresults: any[] = [];
     if (objectValue["36"] != undefined) {
       for (const item of objectValue["36"]) {
-        unpackedSubresults.push(QueryResult.fromValue(item, _session, _supergraph, _graph, _connection));
+        unpackedSubresults.push(
+          QueryResult.fromValue(item, _session, _supergraph, _graph, _connection),
+        );
       }
     }
     const unpackedNodes: any[] = [];
@@ -2801,7 +2897,9 @@ export class QueryResult extends Struct {
     const unpackedExists = existsValue != undefined ? existsValue : null;
     const scalarValue = objectValue["43"];
     const unpackedScalar =
-      scalarValue != undefined ? Value.fromValue(scalarValue, _session, _supergraph, _graph, _connection) : null;
+      scalarValue != undefined
+        ? Value.fromValue(scalarValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new QueryResult({
       id: String(objectValue["2"]),
       groups: unpackedGroups,
@@ -2876,13 +2974,17 @@ export class QueryResult extends Struct {
     const unpackedGroups: any[] = [];
     if (objectProto.groups) {
       for (const item of objectProto.groups) {
-        unpackedGroups.push(QueryResultGroup.fromProto(item!, _session, _supergraph, _graph, _connection));
+        unpackedGroups.push(
+          QueryResultGroup.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
       }
     }
     const unpackedSubresults: any[] = [];
     if (objectProto.subresults) {
       for (const item of objectProto.subresults) {
-        unpackedSubresults.push(QueryResult.fromProto(item!, _session, _supergraph, _graph, _connection));
+        unpackedSubresults.push(
+          QueryResult.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
       }
     }
     const unpackedNodes: any[] = [];
@@ -3100,7 +3202,9 @@ export class QueryResultGroup extends Struct {
     const unpackedExists = existsValue != undefined ? existsValue : null;
     const scalarValue = objectValue["43"];
     const unpackedScalar =
-      scalarValue != undefined ? Value.fromValue(scalarValue, _session, _supergraph, _graph, _connection) : null;
+      scalarValue != undefined
+        ? Value.fromValue(scalarValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new QueryResultGroup({
       discriminator: Value.fromValue(objectValue["31"], _session, _supergraph, _graph, _connection),
       type: Number(objectValue["30"]),
@@ -3119,7 +3223,13 @@ export class QueryResultGroup extends Struct {
     _graph?: any | null,
     _connection?: any | null,
   ): QueryResultGroup {
-    return QueryResultGroup.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return QueryResultGroup.__unpackValue__(
+      objectValue,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
   }
 
   toProto(): QueryResultGroupProto {
@@ -3163,7 +3273,13 @@ export class QueryResultGroup extends Struct {
       }
     }
     return new QueryResultGroup({
-      discriminator: Value.fromProto(objectProto.discriminator!, _session, _supergraph, _graph, _connection),
+      discriminator: Value.fromProto(
+        objectProto.discriminator!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       type: Number(objectProto.type) as QueryType,
       nodes: unpackedNodes,
       count: objectProto.count != undefined ? Number(objectProto.count) : null,
@@ -3183,7 +3299,13 @@ export class QueryResultGroup extends Struct {
     _graph?: any | null,
     _connection?: any | null,
   ): QueryResultGroup {
-    return QueryResultGroup.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return QueryResultGroup.__unpackProto__(
+      objectProto,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
   }
 
   static fromProtoString(packedProtoString: string): QueryResultGroup {
@@ -3305,7 +3427,9 @@ export class QueryUpdate extends StructFrozen {
   ): QueryUpdate {
     const resultValue = objectValue["40"];
     const unpackedResult =
-      resultValue != undefined ? QueryResult.fromValue(resultValue, _session, _supergraph, _graph, _connection) : null;
+      resultValue != undefined
+        ? QueryResult.fromValue(resultValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new QueryUpdate({
       type: Number(objectValue["30"]),
       result: unpackedResult,

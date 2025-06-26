@@ -15,7 +15,11 @@ import {
   TraitType,
 } from "@destack/language/core/builtin";
 import { Vector2i } from "@destack/language/core/common";
-import { registerEnumClass, registerNodeClass, registerTraitClass } from "@destack/language/registry";
+import {
+  registerEnumClass,
+  registerNodeClass,
+  registerTraitClass,
+} from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import {
   CursorStatusProto,
@@ -273,7 +277,9 @@ export class EventCursor extends Node implements Cursor, IsOwnable {
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -387,7 +393,8 @@ export class EventCursor extends Node implements Cursor, IsOwnable {
     _connection?: any | null,
   ): EventCursor {
     const activeAtValue = objectValue["41"];
-    const unpackedActiveAt = activeAtValue != undefined ? Temporal.ZonedDateTime.from(activeAtValue) : null;
+    const unpackedActiveAt =
+      activeAtValue != undefined ? Temporal.ZonedDateTime.from(activeAtValue) : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -482,30 +489,61 @@ export class EventCursor extends Node implements Cursor, IsOwnable {
   ): EventCursor {
     return new EventCursor({
       status: Number(objectProto.status) as CursorStatus,
-      activeAt: objectProto.activeAt != undefined ? unpackProtoTimestamp(objectProto.activeAt!) : null,
+      activeAt:
+        objectProto.activeAt != undefined ? unpackProtoTimestamp(objectProto.activeAt!) : null,
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       id: String(objectProto.id),
       materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       ownedBy:
         objectProto.ownedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.ownedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.ownedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       _session,
       _graph,
@@ -739,7 +777,9 @@ export class ScreenCursor extends Node implements Cursor, IsOwnable {
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -863,9 +903,12 @@ export class ScreenCursor extends Node implements Cursor, IsOwnable {
   ): ScreenCursor {
     const positionValue = objectValue["50"];
     const unpackedPosition =
-      positionValue != undefined ? Vector2i.fromValue(positionValue, _session, _supergraph, _graph, _connection) : null;
+      positionValue != undefined
+        ? Vector2i.fromValue(positionValue, _session, _supergraph, _graph, _connection)
+        : null;
     const activeAtValue = objectValue["41"];
-    const unpackedActiveAt = activeAtValue != undefined ? Temporal.ZonedDateTime.from(activeAtValue) : null;
+    const unpackedActiveAt =
+      activeAtValue != undefined ? Temporal.ZonedDateTime.from(activeAtValue) : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -968,30 +1011,61 @@ export class ScreenCursor extends Node implements Cursor, IsOwnable {
           ? Vector2i.fromProto(objectProto.position!, _session, _supergraph, _graph, _connection)
           : null,
       status: Number(objectProto.status) as CursorStatus,
-      activeAt: objectProto.activeAt != undefined ? unpackProtoTimestamp(objectProto.activeAt!) : null,
+      activeAt:
+        objectProto.activeAt != undefined ? unpackProtoTimestamp(objectProto.activeAt!) : null,
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       id: String(objectProto.id),
       materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       ownedBy:
         objectProto.ownedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.ownedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.ownedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       _session,
       _graph,
@@ -1217,7 +1291,9 @@ export class ThreadCursor extends Node implements Cursor, IsOwnable {
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -1331,7 +1407,8 @@ export class ThreadCursor extends Node implements Cursor, IsOwnable {
     _connection?: any | null,
   ): ThreadCursor {
     const activeAtValue = objectValue["41"];
-    const unpackedActiveAt = activeAtValue != undefined ? Temporal.ZonedDateTime.from(activeAtValue) : null;
+    const unpackedActiveAt =
+      activeAtValue != undefined ? Temporal.ZonedDateTime.from(activeAtValue) : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -1426,30 +1503,61 @@ export class ThreadCursor extends Node implements Cursor, IsOwnable {
   ): ThreadCursor {
     return new ThreadCursor({
       status: Number(objectProto.status) as CursorStatus,
-      activeAt: objectProto.activeAt != undefined ? unpackProtoTimestamp(objectProto.activeAt!) : null,
+      activeAt:
+        objectProto.activeAt != undefined ? unpackProtoTimestamp(objectProto.activeAt!) : null,
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       id: String(objectProto.id),
       materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       ownedBy:
         objectProto.ownedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.ownedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.ownedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       _session,
       _graph,

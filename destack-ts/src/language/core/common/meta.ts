@@ -424,7 +424,10 @@ export class PropertyDefinition extends StructFrozen {
     if (!(this.name === other.name)) {
       return false;
     }
-    if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
       return false;
     }
     if (!(this.description === other.description)) {
@@ -477,7 +480,8 @@ export class PropertyDefinition extends StructFrozen {
     }
     if (
       (this.collectionConstraint == null) !== (other.collectionConstraint == null) ||
-      (this.collectionConstraint != null && !this.collectionConstraint.equals(other.collectionConstraint))
+      (this.collectionConstraint != null &&
+        !this.collectionConstraint.equals(other.collectionConstraint))
     ) {
       return false;
     }
@@ -640,11 +644,14 @@ export class PropertyDefinition extends StructFrozen {
   ): PropertyDefinition {
     const iconValue = objectValue["34"];
     const unpackedIcon =
-      iconValue != undefined ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection) : null;
+      iconValue != undefined
+        ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
     const descriptionValue = objectValue["36"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     const primitiveTypeValue = objectValue["42"];
-    const unpackedPrimitiveType = primitiveTypeValue != undefined ? Number(primitiveTypeValue) : null;
+    const unpackedPrimitiveType =
+      primitiveTypeValue != undefined ? Number(primitiveTypeValue) : null;
     const enumTypeValue = objectValue["43"];
     const unpackedEnumType = enumTypeValue != undefined ? Number(enumTypeValue) : null;
     const nodeTypeValue = objectValue["44"];
@@ -653,7 +660,9 @@ export class PropertyDefinition extends StructFrozen {
     const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : null;
     const keyTypeValue = objectValue["48"];
     const unpackedKeyType =
-      keyTypeValue != undefined ? Type.fromValue(keyTypeValue, _session, _supergraph, _graph, _connection) : null;
+      keyTypeValue != undefined
+        ? Type.fromValue(keyTypeValue, _session, _supergraph, _graph, _connection)
+        : null;
     const isRequiredValue = objectValue["50"];
     const unpackedIsRequired = isRequiredValue != undefined ? isRequiredValue : null;
     const isUniqueValue = objectValue["51"];
@@ -664,21 +673,40 @@ export class PropertyDefinition extends StructFrozen {
         ? Value.fromValue(defaultValueValue, _session, _supergraph, _graph, _connection)
         : null;
     const defaultFactoryValue = objectValue["56"];
-    const unpackedDefaultFactory = defaultFactoryValue != undefined ? Number(defaultFactoryValue) : null;
+    const unpackedDefaultFactory =
+      defaultFactoryValue != undefined ? Number(defaultFactoryValue) : null;
     const collectionConstraintValue = objectValue["60"];
     const unpackedCollectionConstraint =
       collectionConstraintValue != undefined
-        ? CollectionConstraint.fromValue(collectionConstraintValue, _session, _supergraph, _graph, _connection)
+        ? CollectionConstraint.fromValue(
+            collectionConstraintValue,
+            _session,
+            _supergraph,
+            _graph,
+            _connection,
+          )
         : null;
     const stringConstraintValue = objectValue["61"];
     const unpackedStringConstraint =
       stringConstraintValue != undefined
-        ? StringConstraint.fromValue(stringConstraintValue, _session, _supergraph, _graph, _connection)
+        ? StringConstraint.fromValue(
+            stringConstraintValue,
+            _session,
+            _supergraph,
+            _graph,
+            _connection,
+          )
         : null;
     const numberConstraintValue = objectValue["62"];
     const unpackedNumberConstraint =
       numberConstraintValue != undefined
-        ? NumberConstraint.fromValue(numberConstraintValue, _session, _supergraph, _graph, _connection)
+        ? NumberConstraint.fromValue(
+            numberConstraintValue,
+            _session,
+            _supergraph,
+            _graph,
+            _connection,
+          )
         : null;
     const nodeConstraintValue = objectValue["63"];
     const unpackedNodeConstraint =
@@ -694,8 +722,20 @@ export class PropertyDefinition extends StructFrozen {
       name: objectValue["31"],
       icon: unpackedIcon,
       description: unpackedDescription,
-      object: ObjectReference.fromValue(objectValue["37"], _session, _supergraph, _graph, _connection),
-      originalObject: ObjectReference.fromValue(objectValue["38"], _session, _supergraph, _graph, _connection),
+      object: ObjectReference.fromValue(
+        objectValue["37"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      originalObject: ObjectReference.fromValue(
+        objectValue["38"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       cardinality: Number(objectValue["40"]),
       scalarType: Number(objectValue["41"]),
       primitiveType: unpackedPrimitiveType,
@@ -736,7 +776,13 @@ export class PropertyDefinition extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): PropertyDefinition {
-    return PropertyDefinition.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return PropertyDefinition.__unpackValue__(
+      objectValue,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
   }
 
   toProto(): PropertyDefinitionProto {
@@ -835,7 +881,13 @@ export class PropertyDefinition extends StructFrozen {
           ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
       description: objectProto.description != undefined ? objectProto.description : null,
-      object: ObjectReference.fromProto(objectProto.object!, _session, _supergraph, _graph, _connection),
+      object: ObjectReference.fromProto(
+        objectProto.object!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       originalObject: ObjectReference.fromProto(
         objectProto.originalObject!,
         _session,
@@ -846,10 +898,15 @@ export class PropertyDefinition extends StructFrozen {
       cardinality: Number(objectProto.cardinality) as TypeCardinality,
       scalarType: Number(objectProto.scalarType) as ScalarType,
       primitiveType:
-        objectProto.primitiveType != undefined ? (Number(objectProto.primitiveType) as PrimitiveType) : null,
-      enumType: objectProto.enumType != undefined ? (Number(objectProto.enumType) as EnumType) : null,
-      nodeType: objectProto.nodeType != undefined ? (Number(objectProto.nodeType) as NodeType) : null,
-      structType: objectProto.structType != undefined ? (Number(objectProto.structType) as StructType) : null,
+        objectProto.primitiveType != undefined
+          ? (Number(objectProto.primitiveType) as PrimitiveType)
+          : null,
+      enumType:
+        objectProto.enumType != undefined ? (Number(objectProto.enumType) as EnumType) : null,
+      nodeType:
+        objectProto.nodeType != undefined ? (Number(objectProto.nodeType) as NodeType) : null,
+      structType:
+        objectProto.structType != undefined ? (Number(objectProto.structType) as StructType) : null,
       keyType:
         objectProto.keyType != undefined
           ? Type.fromProto(objectProto.keyType!, _session, _supergraph, _graph, _connection)
@@ -861,7 +918,9 @@ export class PropertyDefinition extends StructFrozen {
           ? Value.fromProto(objectProto.defaultValue!, _session, _supergraph, _graph, _connection)
           : null,
       defaultFactory:
-        objectProto.defaultFactory != undefined ? (Number(objectProto.defaultFactory) as DefaultFactory) : null,
+        objectProto.defaultFactory != undefined
+          ? (Number(objectProto.defaultFactory) as DefaultFactory)
+          : null,
       collectionConstraint:
         objectProto.collectionConstraint != undefined
           ? CollectionConstraint.fromProto(
@@ -874,22 +933,42 @@ export class PropertyDefinition extends StructFrozen {
           : null,
       stringConstraint:
         objectProto.stringConstraint != undefined
-          ? StringConstraint.fromProto(objectProto.stringConstraint!, _session, _supergraph, _graph, _connection)
+          ? StringConstraint.fromProto(
+              objectProto.stringConstraint!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       numberConstraint:
         objectProto.numberConstraint != undefined
-          ? NumberConstraint.fromProto(objectProto.numberConstraint!, _session, _supergraph, _graph, _connection)
+          ? NumberConstraint.fromProto(
+              objectProto.numberConstraint!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       nodeConstraint:
         objectProto.nodeConstraint != undefined
-          ? NodeConstraint.fromProto(objectProto.nodeConstraint!, _session, _supergraph, _graph, _connection)
+          ? NodeConstraint.fromProto(
+              objectProto.nodeConstraint!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       nodeIsCustomizable: objectProto.nodeIsCustomizable,
       nodeHasType: objectProto.nodeHasType,
       nodeHasSpace: objectProto.nodeHasSpace,
       nodeHasDefinition: objectProto.nodeHasDefinition,
-      edgeType: objectProto.edgeType != undefined ? (Number(objectProto.edgeType) as EdgeType) : null,
-      cascade: objectProto.cascade != undefined ? (Number(objectProto.cascade) as CascadeAction) : null,
+      edgeType:
+        objectProto.edgeType != undefined ? (Number(objectProto.edgeType) as EdgeType) : null,
+      cascade:
+        objectProto.cascade != undefined ? (Number(objectProto.cascade) as CascadeAction) : null,
       isWired: objectProto.isWired,
       isStored: objectProto.isStored,
       isRepr: objectProto.isRepr,
@@ -909,7 +988,13 @@ export class PropertyDefinition extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): PropertyDefinition {
-    return PropertyDefinition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return PropertyDefinition.__unpackProto__(
+      objectProto,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
   }
 
   static fromProtoString(packedProtoString: string): PropertyDefinition {
@@ -1155,7 +1240,10 @@ export class TraitDefinition extends StructFrozen {
     if (!(this.alias === other.alias)) {
       return false;
     }
-    if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
       return false;
     }
     if (!(this.description === other.description)) {
@@ -1235,13 +1323,17 @@ export class TraitDefinition extends StructFrozen {
   ): TraitDefinition {
     const iconValue = objectValue["34"];
     const unpackedIcon =
-      iconValue != undefined ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection) : null;
+      iconValue != undefined
+        ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
     const descriptionValue = objectValue["36"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     const unpackedProperties: any[] = [];
     if (objectValue["50"] != undefined) {
       for (const item of objectValue["50"]) {
-        unpackedProperties.push(PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection));
+        unpackedProperties.push(
+          PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
+        );
       }
     }
     const unpackedTraits: any[] = [];
@@ -1321,7 +1413,9 @@ export class TraitDefinition extends StructFrozen {
     const unpackedProperties: any[] = [];
     if (objectProto.properties) {
       for (const item of objectProto.properties) {
-        unpackedProperties.push(PropertyDefinition.fromProto(item!, _session, _supergraph, _graph, _connection));
+        unpackedProperties.push(
+          PropertyDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
       }
     }
     const unpackedTraits: any[] = [];
@@ -1542,7 +1636,10 @@ export class NodeDefinition extends StructFrozen {
     if (!(this.name === other.name)) {
       return false;
     }
-    if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
       return false;
     }
     if (!(this.description === other.description)) {
@@ -1687,13 +1784,17 @@ export class NodeDefinition extends StructFrozen {
   ): NodeDefinition {
     const iconValue = objectValue["34"];
     const unpackedIcon =
-      iconValue != undefined ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection) : null;
+      iconValue != undefined
+        ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
     const descriptionValue = objectValue["36"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     const unpackedProperties: any[] = [];
     if (objectValue["50"] != undefined) {
       for (const item of objectValue["50"]) {
-        unpackedProperties.push(PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection));
+        unpackedProperties.push(
+          PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
+        );
       }
     }
     const unpackedTraits: any[] = [];
@@ -1833,7 +1934,9 @@ export class NodeDefinition extends StructFrozen {
     const unpackedProperties: any[] = [];
     if (objectProto.properties) {
       for (const item of objectProto.properties) {
-        unpackedProperties.push(PropertyDefinition.fromProto(item!, _session, _supergraph, _graph, _connection));
+        unpackedProperties.push(
+          PropertyDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
       }
     }
     const unpackedTraits: any[] = [];
@@ -1877,7 +1980,8 @@ export class NodeDefinition extends StructFrozen {
       description: objectProto.description != undefined ? objectProto.description : null,
       properties: unpackedProperties,
       traits: unpackedTraits,
-      rootType: objectProto.rootType != undefined ? (Number(objectProto.rootType) as NodeType) : null,
+      rootType:
+        objectProto.rootType != undefined ? (Number(objectProto.rootType) as NodeType) : null,
       parentTypes: unpackedParentTypes,
       childTypes: unpackedChildTypes,
       ancestorTypes: unpackedAncestorTypes,
@@ -2030,7 +2134,10 @@ export class StructDefinition extends StructFrozen {
     if (!(this.name === other.name)) {
       return false;
     }
-    if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
       return false;
     }
     if (!(this.description === other.description)) {
@@ -2098,13 +2205,17 @@ export class StructDefinition extends StructFrozen {
   ): StructDefinition {
     const iconValue = objectValue["34"];
     const unpackedIcon =
-      iconValue != undefined ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection) : null;
+      iconValue != undefined
+        ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
     const descriptionValue = objectValue["36"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     const unpackedProperties: any[] = [];
     if (objectValue["50"] != undefined) {
       for (const item of objectValue["50"]) {
-        unpackedProperties.push(PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection));
+        unpackedProperties.push(
+          PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
+        );
       }
     }
     return new StructDefinition({
@@ -2127,7 +2238,13 @@ export class StructDefinition extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): StructDefinition {
-    return StructDefinition.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return StructDefinition.__unpackValue__(
+      objectValue,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
   }
 
   toProto(): StructDefinitionProto {
@@ -2170,7 +2287,9 @@ export class StructDefinition extends StructFrozen {
     const unpackedProperties: any[] = [];
     if (objectProto.properties) {
       for (const item of objectProto.properties) {
-        unpackedProperties.push(PropertyDefinition.fromProto(item!, _session, _supergraph, _graph, _connection));
+        unpackedProperties.push(
+          PropertyDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
       }
     }
     return new StructDefinition({
@@ -2196,7 +2315,13 @@ export class StructDefinition extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): StructDefinition {
-    return StructDefinition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return StructDefinition.__unpackProto__(
+      objectProto,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
   }
 
   static fromProtoString(packedProtoString: string): StructDefinition {
@@ -2321,7 +2446,10 @@ export class EnumDefinition extends StructFrozen {
     if (!(this.name === other.name)) {
       return false;
     }
-    if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
       return false;
     }
     if (!(this.description === other.description)) {
@@ -2385,13 +2513,17 @@ export class EnumDefinition extends StructFrozen {
   ): EnumDefinition {
     const iconValue = objectValue["34"];
     const unpackedIcon =
-      iconValue != undefined ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection) : null;
+      iconValue != undefined
+        ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
     const descriptionValue = objectValue["36"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     const unpackedOptions: any[] = [];
     if (objectValue["50"] != undefined) {
       for (const item of objectValue["50"]) {
-        unpackedOptions.push(OptionDefinition.fromValue(item, _session, _supergraph, _graph, _connection));
+        unpackedOptions.push(
+          OptionDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
+        );
       }
     }
     return new EnumDefinition({
@@ -2455,7 +2587,9 @@ export class EnumDefinition extends StructFrozen {
     const unpackedOptions: any[] = [];
     if (objectProto.options) {
       for (const item of objectProto.options) {
-        unpackedOptions.push(OptionDefinition.fromProto(item!, _session, _supergraph, _graph, _connection));
+        unpackedOptions.push(
+          OptionDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
       }
     }
     return new EnumDefinition({
@@ -2594,7 +2728,10 @@ export class OptionDefinition extends StructFrozen {
     if (!(this.name === other.name)) {
       return false;
     }
-    if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
       return false;
     }
     if (!(this.description === other.description)) {
@@ -2643,7 +2780,9 @@ export class OptionDefinition extends StructFrozen {
   ): OptionDefinition {
     const iconValue = objectValue["34"];
     const unpackedIcon =
-      iconValue != undefined ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection) : null;
+      iconValue != undefined
+        ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
     const descriptionValue = objectValue["36"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     return new OptionDefinition({
@@ -2664,7 +2803,13 @@ export class OptionDefinition extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): OptionDefinition {
-    return OptionDefinition.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return OptionDefinition.__unpackValue__(
+      objectValue,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
   }
 
   toProto(): OptionDefinitionProto {
@@ -2717,7 +2862,13 @@ export class OptionDefinition extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): OptionDefinition {
-    return OptionDefinition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return OptionDefinition.__unpackProto__(
+      objectProto,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
   }
 
   static fromProtoString(packedProtoString: string): OptionDefinition {
@@ -2837,7 +2988,10 @@ export class PermissionDefinition extends StructFrozen {
     if (!(this.nodeType === other.nodeType)) {
       return false;
     }
-    if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
       return false;
     }
     return true;
@@ -2881,7 +3035,9 @@ export class PermissionDefinition extends StructFrozen {
   ): PermissionDefinition {
     const iconValue = objectValue["34"];
     const unpackedIcon =
-      iconValue != undefined ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection) : null;
+      iconValue != undefined
+        ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new PermissionDefinition({
       id: Number(objectValue["2"]),
       type: Number(objectValue["30"]),
@@ -2900,7 +3056,13 @@ export class PermissionDefinition extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): PermissionDefinition {
-    return PermissionDefinition.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return PermissionDefinition.__unpackValue__(
+      objectValue,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
   }
 
   toProto(): PermissionDefinitionProto {
@@ -2951,7 +3113,13 @@ export class PermissionDefinition extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): PermissionDefinition {
-    return PermissionDefinition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return PermissionDefinition.__unpackProto__(
+      objectProto,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
   }
 
   static fromProtoString(packedProtoString: string): PermissionDefinition {
@@ -3117,7 +3285,13 @@ export class ConstantDefinition extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): ConstantDefinition {
-    return ConstantDefinition.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return ConstantDefinition.__unpackValue__(
+      objectValue,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
   }
 
   toProto(): ConstantDefinitionProto {
@@ -3163,7 +3337,13 @@ export class ConstantDefinition extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): ConstantDefinition {
-    return ConstantDefinition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return ConstantDefinition.__unpackProto__(
+      objectProto,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
   }
 
   static fromProtoString(packedProtoString: string): ConstantDefinition {

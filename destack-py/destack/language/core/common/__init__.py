@@ -93,6 +93,20 @@ from .type import (
 )
 from .validation import ValidationError
 from .value import Value, pack_value, to_value, unpack_value
+from .vector import (
+    Vector2,
+    Vector2i,
+    Vector3,
+    Vector3i,
+    Vector4,
+    Vector4i,
+    vector2,
+    vector2i,
+    vector3,
+    vector3i,
+    vector4,
+    vector4i,
+)
 from .view import (
     Align,
     Axis2,
@@ -111,18 +125,6 @@ from .view import (
     Overflow,
     Position,
     PositionType,
-    Vector2,
-    Vector2i,
-    Vector3,
-    Vector3i,
-    Vector4,
-    Vector4i,
-    vector2,
-    vector2i,
-    vector3,
-    vector3i,
-    vector4,
-    vector4i,
 )
 
 __all__ = [

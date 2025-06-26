@@ -172,7 +172,9 @@ export abstract class Node extends BuiltinObject {
     // assign order
     if (hasTrait(child, TraitType.ORDERED)) {
       const orderTrait = child.__traits__.find((trait) => trait in INTER_ORDER_TRAITS);
-      const peerClass = orderTrait ? TRAIT_CLASS_BY_TYPE[orderTrait] : (child.constructor as NodeClass);
+      const peerClass = orderTrait
+        ? TRAIT_CLASS_BY_TYPE[orderTrait]
+        : (child.constructor as NodeClass);
       const existingNodes = this._graph.getChildren(this, peerClass) as (Node & IsOrdered)[];
       if (existingNodes.length > 0) {
         const orderKey = getOrderKey(existingNodes[existingNodes.length - 1].orderKey, null);
@@ -207,7 +209,10 @@ export abstract class Node extends BuiltinObject {
     // assign space for spatial nodes
     if (hasTrait(child, TraitType.SPATIAL)) {
       let spacePtr: NodeReference | null = null;
-      if (hasTrait(this, TraitType.SPATIAL) && (this as unknown as Node & Spatial).spacePtr != null) {
+      if (
+        hasTrait(this, TraitType.SPATIAL) &&
+        (this as unknown as Node & Spatial).spacePtr != null
+      ) {
         spacePtr = (this as unknown as Node & Spatial).spacePtr;
       } else if (this.metatype === NodeType.SPACE) {
         spacePtr = this.toRef();
@@ -260,7 +265,10 @@ export abstract class Node extends BuiltinObject {
 
   /** Get a specific child of this Node by name. */
   getChild<N extends Node>(classOrTrait: NodeClass<N>, name: string): N | null;
-  getChild<T extends TraitType>(classOrTrait: TraitClass<any, T>, name: string): (Node & TraitTypeMapping[T]) | null;
+  getChild<T extends TraitType>(
+    classOrTrait: TraitClass<any, T>,
+    name: string,
+  ): (Node & TraitTypeMapping[T]) | null;
   getChild(classOrTrait: NodeClass | TraitClass, name: string): Node | null;
   getChild(classOrTrait: NodeClass | TraitClass, name: string, options?: NodeFilter): Node | null {
     const children = this._graph.getChildren(this, classOrTrait);
@@ -274,7 +282,10 @@ export abstract class Node extends BuiltinObject {
 
   /** Get a specific child of this Node by name, or raises an error if not found. */
   child<N extends Node>(classOrTrait: NodeClass<N>, name: string): N;
-  child<T extends TraitType>(classOrTrait: TraitClass<any, T>, name: string): Node & TraitTypeMapping[T];
+  child<T extends TraitType>(
+    classOrTrait: TraitClass<any, T>,
+    name: string,
+  ): Node & TraitTypeMapping[T];
   child(classOrTrait: NodeClass | TraitClass, name: string): Node;
   child(classOrTrait: NodeClass | TraitClass, name: string): Node {
     const child = this.getChild(classOrTrait, name);
@@ -287,7 +298,9 @@ export abstract class Node extends BuiltinObject {
   /** Get the descendants of this Node. */
   getDescendants(): Node[];
   getDescendants<N extends Node>(classOrTrait: NodeClass<N>): N[];
-  getDescendants<T extends TraitType>(classOrTrait: TraitClass<any, T>): (Node & TraitTypeMapping[T])[];
+  getDescendants<T extends TraitType>(
+    classOrTrait: TraitClass<any, T>,
+  ): (Node & TraitTypeMapping[T])[];
   getDescendants(classOrTrait?: NodeClass | TraitClass): Node[];
   getDescendants(classOrTrait?: NodeClass | TraitClass): Node[] {
     return this._graph.getDescendants(this, classOrTrait);
@@ -477,7 +490,10 @@ export abstract class Node extends BuiltinObject {
 }
 
 /** A Node class. */
-export type NodeClass<N extends Node = Node> = { new (...args: any[]): N } & BuiltinObjectClass<any, any> & {
+export type NodeClass<N extends Node = Node> = { new (...args: any[]): N } & BuiltinObjectClass<
+  any,
+  any
+> & {
     metatype: NodeType;
     __traits__: TraitType[];
     __rootType__: NodeType | null;
@@ -699,7 +715,10 @@ export function isNode<T extends NodeType>(value: any, nodeType?: T): value is N
 }
 
 /** Check if a value is a Node with a specific trait. */
-export function hasTrait<T extends TraitType>(value: any, traitType: T): value is Node & TraitTypeMapping[T] {
+export function hasTrait<T extends TraitType>(
+  value: any,
+  traitType: T,
+): value is Node & TraitTypeMapping[T] {
   return value instanceof Node && value.__traits__.includes(traitType);
 }
 

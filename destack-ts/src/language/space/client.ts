@@ -18,7 +18,12 @@ import { Machine } from "@destack/language/infra";
 import { Cursor } from "@destack/language/logic";
 import { registerNodeClass, registerStructClass } from "@destack/language/registry";
 import { User } from "@destack/language/space";
-import { ClientProto, ClientTypeProto, MaterializationTypeProto, OriginProto } from "@destack/proto";
+import {
+  ClientProto,
+  ClientTypeProto,
+  MaterializationTypeProto,
+  OriginProto,
+} from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
@@ -246,11 +251,21 @@ registerStructClass(StructType.ORIGIN, Origin);
  */
 export class Client extends Node implements HasName, Global, Entity, IsDeletable {
   static metatype: NodeType = NodeType.CLIENT;
-  static __traits__: TraitType[] = [TraitType.GLOBAL, TraitType.ENTITY, TraitType.TRACKED, TraitType.DELETABLE];
+  static __traits__: TraitType[] = [
+    TraitType.GLOBAL,
+    TraitType.ENTITY,
+    TraitType.TRACKED,
+    TraitType.DELETABLE,
+  ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.AGENT, NodeType.USER];
   static __childTypes__: NodeType[] = [];
-  static __ancestorTypes__: NodeType[] = [NodeType.AGENT, NodeType.FOLDER, NodeType.USER, NodeType.SPACE];
+  static __ancestorTypes__: NodeType[] = [
+    NodeType.AGENT,
+    NodeType.FOLDER,
+    NodeType.USER,
+    NodeType.SPACE,
+  ];
   static __descendantTypes__: NodeType[] = [];
 
   /**
@@ -533,7 +548,9 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -718,9 +735,11 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
     const accessTokenValue = objectValue["50"];
     const unpackedAccessToken = accessTokenValue != undefined ? accessTokenValue : null;
     const seenAtValue = objectValue["51"];
-    const unpackedSeenAt = seenAtValue != undefined ? Temporal.ZonedDateTime.from(seenAtValue) : null;
+    const unpackedSeenAt =
+      seenAtValue != undefined ? Temporal.ZonedDateTime.from(seenAtValue) : null;
     const loggedInAtValue = objectValue["52"];
-    const unpackedLoggedInAt = loggedInAtValue != undefined ? Temporal.ZonedDateTime.from(loggedInAtValue) : null;
+    const unpackedLoggedInAt =
+      loggedInAtValue != undefined ? Temporal.ZonedDateTime.from(loggedInAtValue) : null;
     const cursorPtrValue = objectValue["55"];
     const unpackedCursorPtr =
       cursorPtrValue != undefined
@@ -747,7 +766,8 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
         ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
-    const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const unpackedDeletedAt =
+      deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
     return new Client({
       parent: unpackedParentPtr,
       type: Number(objectValue["30"]),
@@ -856,27 +876,53 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
     return new Client({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       type: Number(objectProto.type) as ClientType,
       machine:
         objectProto.machinePtr != undefined
-          ? NodeReference.fromProto(objectProto.machinePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.machinePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       user:
         objectProto.userPtr != undefined
-          ? NodeReference.fromProto(objectProto.userPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.userPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       accessToken: objectProto.accessToken != undefined ? objectProto.accessToken : null,
       seenAt: objectProto.seenAt != undefined ? unpackProtoTimestamp(objectProto.seenAt!) : null,
-      loggedInAt: objectProto.loggedInAt != undefined ? unpackProtoTimestamp(objectProto.loggedInAt!) : null,
+      loggedInAt:
+        objectProto.loggedInAt != undefined ? unpackProtoTimestamp(objectProto.loggedInAt!) : null,
       cursor:
         objectProto.cursorPtr != undefined
-          ? NodeReference.fromProto(objectProto.cursorPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.cursorPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       deviceType: objectProto.deviceType != undefined ? objectProto.deviceType : null,
       deviceName: objectProto.deviceName != undefined ? objectProto.deviceName : null,
-      operatingSystem: objectProto.operatingSystem != undefined ? objectProto.operatingSystem : null,
+      operatingSystem:
+        objectProto.operatingSystem != undefined ? objectProto.operatingSystem : null,
       browserName: objectProto.browserName != undefined ? objectProto.browserName : null,
       browserVersion: objectProto.browserVersion != undefined ? objectProto.browserVersion : null,
       name: objectProto.name,
@@ -885,14 +931,27 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
-      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       _session,
       _graph,
       _connection,

@@ -14,7 +14,13 @@ import {
 import { Type } from "@destack/language/core/common";
 import { registerStructClass } from "@destack/language/registry";
 import { ValueProto } from "@destack/proto";
-import { assertNever, base64Decode, base64Encode, timedeltaFromISOFormat, timedeltaToISOFormat } from "@destack/utils";
+import {
+  assertNever,
+  base64Decode,
+  base64Encode,
+  timedeltaFromISOFormat,
+  timedeltaToISOFormat,
+} from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2500 ==== */
@@ -194,7 +200,11 @@ registerStructClass(StructType.VALUE, Value);
  * Convert an arbitrary (legal) value to a Value.
  * If Type isn't provided, it will be inferred from the value.
  */
-export function toValue(valueUnpacked: any, type: Type | null = null, nodeAsValue: boolean = false): Value {
+export function toValue(
+  valueUnpacked: any,
+  type: Type | null = null,
+  nodeAsValue: boolean = false,
+): Value {
   // infer type
   if (type === null) {
     if (valueUnpacked === null) {
@@ -207,7 +217,9 @@ export function toValue(valueUnpacked: any, type: Type | null = null, nodeAsValu
     if (type.cardinality == TypeCardinality.SCALAR && valueUnpacked instanceof Node) {
       valueUnpacked = valueUnpacked.toRef();
     } else if (type.cardinality == TypeCardinality.LIST) {
-      valueUnpacked = valueUnpacked.map((item: any) => (item instanceof Node ? item.toRef() : item));
+      valueUnpacked = valueUnpacked.map((item: any) =>
+        item instanceof Node ? item.toRef() : item,
+      );
     }
   }
   // pack value

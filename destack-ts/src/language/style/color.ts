@@ -10,7 +10,11 @@ import {
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
-import { registerEnumClass, registerNodeClass, registerStructClass } from "@destack/language/registry";
+import {
+  registerEnumClass,
+  registerNodeClass,
+  registerStructClass,
+} from "@destack/language/registry";
 import { Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Palette, Style, Theme } from "@destack/language/style";
@@ -281,7 +285,8 @@ export class Color extends Struct {
     }
     if (
       (this.alpha == null) !== (other.alpha == null) ||
-      (this.alpha != null && !(this.alpha === other.alpha || Math.abs(this.alpha - other.alpha) < 1e-10))
+      (this.alpha != null &&
+        !(this.alpha === other.alpha || Math.abs(this.alpha - other.alpha) < 1e-10))
     ) {
       return false;
     }
@@ -425,7 +430,13 @@ export class Color extends Struct {
     return new Color({
       style:
         objectProto.stylePtr != undefined
-          ? NodeReference.fromProto(objectProto.stylePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.stylePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       type: Number(objectProto.type) as ColorType,
       hue: objectProto.hue != undefined ? (Number(objectProto.hue) as ColorHue) : null,
@@ -764,7 +775,9 @@ export class ColorStyle extends Node implements Style {
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -787,7 +800,10 @@ export class ColorStyle extends Node implements Style {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if ((this.dark == null) !== (other.dark == null) || (this.dark != null && !this.dark.equals(other.dark))) {
+    if (
+      (this.dark == null) !== (other.dark == null) ||
+      (this.dark != null && !this.dark.equals(other.dark))
+    ) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -828,7 +844,8 @@ export class ColorStyle extends Node implements Style {
     }
     if (
       (this.alpha == null) !== (other.alpha == null) ||
-      (this.alpha != null && !(this.alpha === other.alpha || Math.abs(this.alpha - other.alpha) < 1e-10))
+      (this.alpha != null &&
+        !(this.alpha === other.alpha || Math.abs(this.alpha - other.alpha) < 1e-10))
     ) {
       return false;
     }
@@ -940,7 +957,9 @@ export class ColorStyle extends Node implements Style {
         : null;
     const darkValue = objectValue["60"];
     const unpackedDark =
-      darkValue != undefined ? Color.fromValue(darkValue, _session, _supergraph, _graph, _connection) : null;
+      darkValue != undefined
+        ? Color.fromValue(darkValue, _session, _supergraph, _graph, _connection)
+        : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
@@ -957,7 +976,8 @@ export class ColorStyle extends Node implements Style {
         ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
-    const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const unpackedDeletedAt =
+      deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
     const hueValue = objectValue["50"];
     const unpackedHue = hueValue != undefined ? Number(hueValue) : null;
     const shadeValue = objectValue["51"];
@@ -1074,7 +1094,13 @@ export class ColorStyle extends Node implements Style {
     return new ColorStyle({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       dark:
         objectProto.dark != undefined
@@ -1082,23 +1108,42 @@ export class ColorStyle extends Node implements Style {
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       id: String(objectProto.id),
       materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       name: objectProto.name,
       orderKey: objectProto.orderKey,
-      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       type: Number(objectProto.type) as ColorType,
       hue: objectProto.hue != undefined ? (Number(objectProto.hue) as ColorHue) : null,
       shade: objectProto.shade != undefined ? (Number(objectProto.shade) as ColorShade) : null,

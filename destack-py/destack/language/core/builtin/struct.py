@@ -80,7 +80,7 @@ class StructMutable[StructProtoT: AnyStructProto](
 class StructFrozen[StructProtoT: AnyStructProto](
     StructBase[StructProtoT], BuiltinObjectFrozen[StructProtoT]
 ):
-    """A frozen Struct."""
+    """An immutable Struct."""
 
     # cached for frozen Structs
     _hash: "int | None" = property_runtime_()

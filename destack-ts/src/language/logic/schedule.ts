@@ -741,7 +741,8 @@ export class Schedule extends Struct {
       start: objectProto.start != undefined ? unpackProtoTimestamp(objectProto.start!) : null,
       end: objectProto.end != undefined ? unpackProtoTimestamp(objectProto.end!) : null,
       count: objectProto.count != undefined ? Number(objectProto.count) : null,
-      weekStart: objectProto.weekStart != undefined ? (Number(objectProto.weekStart) as DayOfWeek) : null,
+      weekStart:
+        objectProto.weekStart != undefined ? (Number(objectProto.weekStart) as DayOfWeek) : null,
       bySetPos: unpackedBySetPos,
       byMonth: unpackedByMonth,
       byMonthDay: unpackedByMonthDay,

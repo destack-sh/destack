@@ -11,7 +11,11 @@ import {
   TraitType,
 } from "@destack/language/core/builtin";
 import { Length } from "@destack/language/core/common";
-import { registerEnumClass, registerNodeClass, registerStructClass } from "@destack/language/registry";
+import {
+  registerEnumClass,
+  registerNodeClass,
+  registerStructClass,
+} from "@destack/language/registry";
 import { Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Fill, Style, Theme } from "@destack/language/style";
@@ -302,7 +306,10 @@ export class Font extends Struct {
     if (!(this.weight === other.weight)) {
       return false;
     }
-    if ((this.color == null) !== (other.color == null) || (this.color != null && !this.color.equals(other.color))) {
+    if (
+      (this.color == null) !== (other.color == null) ||
+      (this.color != null && !this.color.equals(other.color))
+    ) {
       return false;
     }
     if (!(this.size === other.size)) {
@@ -394,7 +401,9 @@ export class Font extends Struct {
     const unpackedWeight = weightValue != undefined ? Number(weightValue) : null;
     const colorValue = objectValue["51"];
     const unpackedColor =
-      colorValue != undefined ? Fill.fromValue(colorValue, _session, _supergraph, _graph, _connection) : null;
+      colorValue != undefined
+        ? Fill.fromValue(colorValue, _session, _supergraph, _graph, _connection)
+        : null;
     const sizeValue = objectValue["52"];
     const unpackedSize = sizeValue != undefined ? Number(sizeValue) : null;
     const alignValue = objectValue["53"];
@@ -485,7 +494,13 @@ export class Font extends Struct {
     return new Font({
       style:
         objectProto.stylePtr != undefined
-          ? NodeReference.fromProto(objectProto.stylePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.stylePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       type: Number(objectProto.type) as FontType,
       weight: objectProto.weight != undefined ? (Number(objectProto.weight) as FontWeight) : null,
@@ -503,8 +518,14 @@ export class Font extends Struct {
         objectProto.letterSpacing != undefined
           ? Length.fromProto(objectProto.letterSpacing!, _session, _supergraph, _graph, _connection)
           : null,
-      decoration: objectProto.decoration != undefined ? (Number(objectProto.decoration) as TextDecoration) : null,
-      transform: objectProto.transform != undefined ? (Number(objectProto.transform) as TextTransform) : null,
+      decoration:
+        objectProto.decoration != undefined
+          ? (Number(objectProto.decoration) as TextDecoration)
+          : null,
+      transform:
+        objectProto.transform != undefined
+          ? (Number(objectProto.transform) as TextTransform)
+          : null,
       _supergraph,
     });
   }
@@ -850,7 +871,9 @@ export class FontStyle extends Node implements Style {
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -885,7 +908,10 @@ export class FontStyle extends Node implements Style {
     if (!(this.weight === other.weight)) {
       return false;
     }
-    if ((this.color == null) !== (other.color == null) || (this.color != null && !this.color.equals(other.color))) {
+    if (
+      (this.color == null) !== (other.color == null) ||
+      (this.color != null && !this.color.equals(other.color))
+    ) {
       return false;
     }
     if (!(this.size === other.size)) {
@@ -1034,12 +1060,15 @@ export class FontStyle extends Node implements Style {
         ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
-    const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const unpackedDeletedAt =
+      deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
     const weightValue = objectValue["50"];
     const unpackedWeight = weightValue != undefined ? Number(weightValue) : null;
     const colorValue = objectValue["51"];
     const unpackedColor =
-      colorValue != undefined ? Fill.fromValue(colorValue, _session, _supergraph, _graph, _connection) : null;
+      colorValue != undefined
+        ? Fill.fromValue(colorValue, _session, _supergraph, _graph, _connection)
+        : null;
     const sizeValue = objectValue["52"];
     const unpackedSize = sizeValue != undefined ? Number(sizeValue) : null;
     const alignValue = objectValue["53"];
@@ -1160,27 +1189,52 @@ export class FontStyle extends Node implements Style {
     return new FontStyle({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       id: String(objectProto.id),
       materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       name: objectProto.name,
       orderKey: objectProto.orderKey,
-      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       type: Number(objectProto.type) as FontType,
       weight: objectProto.weight != undefined ? (Number(objectProto.weight) as FontWeight) : null,
       color:
@@ -1197,8 +1251,14 @@ export class FontStyle extends Node implements Style {
         objectProto.letterSpacing != undefined
           ? Length.fromProto(objectProto.letterSpacing!, _session, _supergraph, _graph, _connection)
           : null,
-      decoration: objectProto.decoration != undefined ? (Number(objectProto.decoration) as TextDecoration) : null,
-      transform: objectProto.transform != undefined ? (Number(objectProto.transform) as TextTransform) : null,
+      decoration:
+        objectProto.decoration != undefined
+          ? (Number(objectProto.decoration) as TextDecoration)
+          : null,
+      transform:
+        objectProto.transform != undefined
+          ? (Number(objectProto.transform) as TextTransform)
+          : null,
       _session,
       _graph,
       _connection,

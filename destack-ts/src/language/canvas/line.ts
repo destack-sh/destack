@@ -18,7 +18,12 @@ import { Space } from "@destack/language/space";
 import { Color } from "@destack/language/style";
 import { ContainerView } from "@destack/language/view/container";
 import { ContentView } from "@destack/language/view/content";
-import { AlignProto, LineShapeProto, LineTypeProto, MaterializationTypeProto } from "@destack/proto";
+import {
+  AlignProto,
+  LineShapeProto,
+  LineTypeProto,
+  MaterializationTypeProto,
+} from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
@@ -119,7 +124,12 @@ export class LineShape extends Node implements ContentView, IsShape {
   get parent(): Window | Scene | Layer | (Node & ContainerView) | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Window | Scene | Layer | (Node & ContainerView) | null;
+      return this._supergraph.get(nodePtr.id) as
+        | Window
+        | Scene
+        | Layer
+        | (Node & ContainerView)
+        | null;
     }
     return null;
   }
@@ -410,7 +420,9 @@ export class LineShape extends Node implements ContentView, IsShape {
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -444,7 +456,10 @@ export class LineShape extends Node implements ContentView, IsShape {
         return false;
       }
     }
-    if ((this.color == null) !== (other.color == null) || (this.color != null && !this.color.equals(other.color))) {
+    if (
+      (this.color == null) !== (other.color == null) ||
+      (this.color != null && !this.color.equals(other.color))
+    ) {
       return false;
     }
     if (!(this.align === other.align)) {
@@ -455,7 +470,8 @@ export class LineShape extends Node implements ContentView, IsShape {
     }
     if (
       (this.opacity == null) !== (other.opacity == null) ||
-      (this.opacity != null && !(this.opacity === other.opacity || Math.abs(this.opacity - other.opacity) < 1e-10))
+      (this.opacity != null &&
+        !(this.opacity === other.opacity || Math.abs(this.opacity - other.opacity) < 1e-10))
     ) {
       return false;
     }
@@ -465,7 +481,10 @@ export class LineShape extends Node implements ContentView, IsShape {
     ) {
       return false;
     }
-    if ((this.width == null) !== (other.width == null) || (this.width != null && !this.width.equals(other.width))) {
+    if (
+      (this.width == null) !== (other.width == null) ||
+      (this.width != null && !this.width.equals(other.width))
+    ) {
       return false;
     }
     if (
@@ -635,7 +654,9 @@ export class LineShape extends Node implements ContentView, IsShape {
     }
     const colorValue = objectValue["101"];
     const unpackedColor =
-      colorValue != undefined ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection) : null;
+      colorValue != undefined
+        ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
+        : null;
     const alignValue = objectValue["53"];
     const unpackedAlign = alignValue != undefined ? Number(alignValue) : null;
     const isVisibleValue = objectValue["60"];
@@ -649,13 +670,19 @@ export class LineShape extends Node implements ContentView, IsShape {
         : null;
     const positionValue = objectValue["40"];
     const unpackedPosition =
-      positionValue != undefined ? Position.fromValue(positionValue, _session, _supergraph, _graph, _connection) : null;
+      positionValue != undefined
+        ? Position.fromValue(positionValue, _session, _supergraph, _graph, _connection)
+        : null;
     const widthValue = objectValue["41"];
     const unpackedWidth =
-      widthValue != undefined ? Dimension.fromValue(widthValue, _session, _supergraph, _graph, _connection) : null;
+      widthValue != undefined
+        ? Dimension.fromValue(widthValue, _session, _supergraph, _graph, _connection)
+        : null;
     const heightValue = objectValue["42"];
     const unpackedHeight =
-      heightValue != undefined ? Dimension.fromValue(heightValue, _session, _supergraph, _graph, _connection) : null;
+      heightValue != undefined
+        ? Dimension.fromValue(heightValue, _session, _supergraph, _graph, _connection)
+        : null;
     const minWidthValue = objectValue["43"];
     const unpackedMinWidth =
       minWidthValue != undefined
@@ -697,7 +724,8 @@ export class LineShape extends Node implements ContentView, IsShape {
         ? NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
-    const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const unpackedDeletedAt =
+      deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
     return new LineShape({
       type: Number(objectValue["30"]),
       points: unpackedPoints,
@@ -839,7 +867,13 @@ export class LineShape extends Node implements ContentView, IsShape {
       opacity: objectProto.opacity != undefined ? objectProto.opacity : null,
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       position:
         objectProto.position != undefined
@@ -871,27 +905,52 @@ export class LineShape extends Node implements ContentView, IsShape {
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       id: String(objectProto.id),
       materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       name: objectProto.name,
       orderKey: objectProto.orderKey,
       script:
         objectProto.scriptPtr != undefined
-          ? NodeReference.fromProto(objectProto.scriptPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.scriptPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
-      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       _session,
       _graph,
       _connection,
