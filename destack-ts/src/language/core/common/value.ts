@@ -1,3 +1,4 @@
+import { packProtoJson, unpackProtoJson } from "@destack/grpc";
 import { NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE, toType } from "@destack/language";
 import { NodeReference, Session, Supergraph } from "@destack/language/core";
 import {
@@ -147,7 +148,7 @@ export class Value extends StructFrozen {
   static __packProto__(object: Value): ValueProto {
     const objectProto: Partial<ValueProto> = { metatype: 2500 };
     objectProto.type = object.type.toProto();
-    objectProto.value = object.value;
+    objectProto.value = packProtoJson(object.value);
     return objectProto as ValueProto;
   }
 
@@ -160,7 +161,7 @@ export class Value extends StructFrozen {
   ): Value {
     return new Value({
       type: Type.fromProto(objectProto.type!, _session, _supergraph, _graph, _connection),
-      value: objectProto.value,
+      value: unpackProtoJson(objectProto.value),
       _proto: objectProto,
       _supergraph,
     });

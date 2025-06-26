@@ -228,7 +228,7 @@ def _generate_pack_proto_scalar(
         if prop.primitive_type == PrimitiveType.UUID:
             return f"String({value_expr})"
         elif prop.primitive_type == PrimitiveType.JSON:
-            return value_expr
+            return f"packProtoJson({value_expr})"
         elif prop.primitive_type == PrimitiveType.DATETIME:
             return f"packProtoTimestamp({value_expr})"
         elif prop.primitive_type == PrimitiveType.DURATION:
@@ -256,7 +256,7 @@ def _generate_unpack_proto_scalar(
         if prop.primitive_type == PrimitiveType.UUID:
             return f"String({value_expr})"
         elif prop.primitive_type == PrimitiveType.JSON:
-            return value_expr
+            return f"unpackProtoJson({value_expr})"
         elif prop.primitive_type == PrimitiveType.DATETIME:
             return f"unpackProtoTimestamp({value_expr}!)"
         elif prop.primitive_type == PrimitiveType.DURATION:

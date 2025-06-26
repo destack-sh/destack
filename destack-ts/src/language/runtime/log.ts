@@ -1,4 +1,4 @@
-import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
+import { packProtoJson, packProtoTimestamp, unpackProtoJson, unpackProtoTimestamp } from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
   Analytic,
@@ -389,7 +389,7 @@ export class Log extends Node implements Spatial, Analytic, IsFrozen {
     if (object.attributes) {
       objectProto.attributes = {};
       for (const [key, value] of object.attributes) {
-        objectProto.attributes![key] = value;
+        objectProto.attributes![key] = packProtoJson(value);
       }
     }
     objectProto.level = Number(object.level) as LogLevelProto;
@@ -406,7 +406,7 @@ export class Log extends Node implements Spatial, Analytic, IsFrozen {
     const unpackedAttributes = new Map();
     if (objectProto.attributes) {
       for (const [key, value] of Object.entries(objectProto.attributes)) {
-        unpackedAttributes.set(key, value as any);
+        unpackedAttributes.set(key, unpackProtoJson(value as any));
       }
     }
     return new Log({
