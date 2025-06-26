@@ -16,6 +16,7 @@ from destack.language.registry import (
     RELATION_REF_BY_CLASS,
     TRAIT_CLASS_BY_TYPE,
     TRAIT_TYPE_BY_CLASS,
+    register_constant,
 )
 from destack.proto import AnyObjectProto
 from destack.utils.fractional import INTEGER_ZERO
@@ -81,8 +82,9 @@ AT_MOST_ONE_TRAITS = ((TraitType.ENTITY, TraitType.PARTICLE),)
 # traits where every descendant must have the trait
 INFECTIOUS_TRAITS = (TraitType.ARCHIVABLE, TraitType.DELETABLE)
 
-# traits where all matching nodes are ordered together :InterOrderTraits :ProperConstants
+# traits where all matching nodes are ordered together
 INTER_ORDER_TRAITS = (TraitType.VIEW, TraitType.STYLE)
+register_constant("INTER_ORDER_TRAITS", INTER_ORDER_TRAITS)
 
 
 @dataclass(slots=True, frozen=True)

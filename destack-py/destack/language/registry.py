@@ -1,6 +1,6 @@
 from collections import defaultdict
 from itertools import chain
-from typing import TYPE_CHECKING, Any, assert_never
+from typing import TYPE_CHECKING, Any, Callable, assert_never
 
 from destack import proto
 from destack.utils.code import exec_
@@ -21,6 +21,7 @@ from .core.builtin.enum import _ENUM_CLASS_BY_TYPE, _ENUM_TYPE_BY_CLASS
 if TYPE_CHECKING:
     from destack.language import (
         BuiltinObjectBase,
+        ConstantDefinition,
         Enum,
         EnumDefinition,
         Node,
@@ -54,9 +55,22 @@ ENUM_DEFINITION_BY_TYPE: dict[EnumType, "EnumDefinition"] = {}
 STRUCT_DEFINITION_BY_TYPE: dict[StructType, "StructDefinition"] = {}
 TRAIT_DEFINITION_BY_TYPE: dict[TraitType, "TraitDefinition"] = {}
 NODE_DEFINITION_BY_TYPE: dict[NodeType, "NodeDefinition"] = {}
+CONSTANT_DEFINITIONS: dict[str, "ConstantDefinition"] = {}
 
 DESCENDANT_NODE_TYPES_BY_TYPE: dict[NodeType, tuple[NodeType, ...]] = {}
 ANCESTOR_NODE_TYPES_BY_TYPE: dict[NodeType, tuple[NodeType, ...]] = {}
+
+
+def register_constant(name: str, value: Any | Callable[[], Any]):
+    """Register a constant value for the current module."""
+    # get caller module
+    import inspect
+
+    frame = inspect.currentframe()
+    assert frame is not None
+    module = inspect.getmodule(frame)
+    assert module is not None
+    print(name, value)  # nocheckin
 
 
 def get_builtin_object_cls(object_type: NodeType | StructType) -> type["BuiltinObjectBase"]:
