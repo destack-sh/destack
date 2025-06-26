@@ -33,7 +33,7 @@ import {
   LayoutProto,
   MaterializationTypeProto,
 } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:11013 ==== */
@@ -42,7 +42,6 @@ import { Temporal } from "temporal-polyfill";
  */
 export class AnnotationShape extends Node implements ContainerView, IsShape {
   static metatype: NodeType = NodeType.ANNOTATION_SHAPE;
-  static __protoClass__ = AnnotationShapeProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.VISUAL,
@@ -1323,6 +1322,12 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
     _connection?: any | null,
   ): AnnotationShape {
     return AnnotationShape.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): AnnotationShape {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = AnnotationShapeProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

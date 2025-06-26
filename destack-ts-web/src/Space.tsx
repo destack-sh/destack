@@ -1,4 +1,4 @@
-import { ACTIVE_SESSION, activeSession, Canvas, LineShape, NodeType, Session } from "destack";
+import { ACTIVE_SESSION, activeSession, Canvas, LineShape, NODE_DEFINITIONS, NodeType, Session } from "destack";
 import { signal } from "@preact/signals-react";
 
 const session = new Session({});
@@ -15,6 +15,7 @@ const Space: React.FC = () => {
       <h1>Hello World!</h1>
       <button onClick={() => count.value++}>Click me</button>
       <p>Count: {count}</p>
+      <p>{NODE_DEFINITIONS.length}</p>
     </div>
   );
 };

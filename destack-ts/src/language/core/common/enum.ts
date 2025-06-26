@@ -21,7 +21,7 @@ import { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { CustomEnumDefinitionProto, MaterializationTypeProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:2510 ==== */
@@ -33,7 +33,6 @@ export class CustomEnumDefinition
   implements Spatial, Entity, HasName, HasIcon, IsTaggable, IsDeletable, IsSourceable, IsExtensible
 {
   static metatype: NodeType = NodeType.CUSTOM_ENUM_DEFINITION;
-  static __protoClass__ = CustomEnumDefinitionProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.TAGGABLE,
@@ -553,6 +552,12 @@ export class CustomEnumDefinition
     _connection?: any | null,
   ): CustomEnumDefinition {
     return CustomEnumDefinition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): CustomEnumDefinition {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = CustomEnumDefinitionProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

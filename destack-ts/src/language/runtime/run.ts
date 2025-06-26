@@ -20,8 +20,7 @@ import { registerEnumClass, registerNodeClass } from "@destack/language/registry
 import { Interruption } from "@destack/language/runtime";
 import { Space } from "@destack/language/space";
 import { RunEventProto, RunEventTypeProto, RunProto, RunStatusProto } from "@destack/proto";
-import { timedeltaFromISOFormat, timedeltaToISOFormat } from "@destack/utils";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode, timedeltaFromISOFormat, timedeltaToISOFormat } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:4000 ==== */
@@ -75,7 +74,6 @@ registerEnumClass(EnumType.RUN_EVENT_TYPE, RunEventType);
  */
 export class RunEvent extends Node implements Event {
   static metatype: NodeType = NodeType.RUN_EVENT;
-  static __protoClass__ = RunEventProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.PARTICLE,
@@ -506,6 +504,12 @@ export class RunEvent extends Node implements Event {
     return RunEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): RunEvent {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = RunEventProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -519,7 +523,6 @@ registerNodeClass(NodeType.RUN_EVENT, RunEvent);
  */
 export class Run extends Node implements Spatial, Particle, Analytic, Indexed, IsExtensible {
   static metatype: NodeType = NodeType.RUN;
-  static __protoClass__ = RunProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.PARTICLE,
@@ -1142,6 +1145,12 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
     _connection?: any | null,
   ): Run {
     return Run.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Run {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = RunProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

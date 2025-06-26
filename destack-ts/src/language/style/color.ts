@@ -24,7 +24,7 @@ import {
   ColorTypeProto,
   MaterializationTypeProto,
 } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12020 ==== */
@@ -128,7 +128,6 @@ registerEnumClass(EnumType.COLOR_INTENT, ColorIntent);
  */
 export class Color extends Struct {
   static metatype: StructType = StructType.COLOR;
-  static __protoClass__ = ColorProto as IMessageType<any>;
   static __isFrozen__: boolean = false;
 
   /**
@@ -450,6 +449,12 @@ export class Color extends Struct {
     return Color.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): Color {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = ColorProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -463,7 +468,6 @@ registerStructClass(StructType.COLOR, Color);
  */
 export class ColorStyle extends Node implements Style {
   static metatype: NodeType = NodeType.COLOR_STYLE;
-  static __protoClass__ = ColorStyleProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.STYLE,
     TraitType.SPATIAL,
@@ -1117,6 +1121,12 @@ export class ColorStyle extends Node implements Style {
     _connection?: any | null,
   ): ColorStyle {
     return ColorStyle.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): ColorStyle {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = ColorStyleProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

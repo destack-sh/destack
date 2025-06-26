@@ -34,8 +34,8 @@ import {
   SortProto,
   SortTypeProto,
 } from "@destack/proto";
+import { base64Decode } from "@destack/utils";
 import { assertNever } from "@destack/utils/functools";
-import type { IMessageType } from "@protobuf-ts/runtime";
 import { v4 as uuid4 } from "uuid";
 
 /* ==== DESTACK_GENERATED_START:ENUM:108 ==== */
@@ -210,7 +210,6 @@ registerEnumClass(EnumType.QUERY_UPDATE_TYPE, QueryUpdateType);
  */
 export class Function extends StructFrozen {
   static metatype: StructType = StructType.FUNCTION;
-  static __protoClass__ = FunctionProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -390,6 +389,12 @@ export class Function extends StructFrozen {
     return Function.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): Function {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = FunctionProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
 
   /** Make a Function from a shorthand expression. */
@@ -408,7 +413,6 @@ registerStructClass(StructType.FUNCTION, Function);
  */
 export class Condition extends StructFrozen {
   static metatype: StructType = StructType.CONDITION;
-  static __protoClass__ = ConditionProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -588,6 +592,12 @@ export class Condition extends StructFrozen {
     return Condition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): Condition {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = ConditionProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
 
   /** Make a Condition from a shorthand expression. */
@@ -612,7 +622,6 @@ registerStructClass(StructType.CONDITION, Condition);
  */
 export class Aggregation extends StructFrozen {
   static metatype: StructType = StructType.AGGREGATION;
-  static __protoClass__ = AggregationProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -779,6 +788,12 @@ export class Aggregation extends StructFrozen {
     return Aggregation.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): Aggregation {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = AggregationProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
 
   /** Make an Aggregation from a shorthand expression. */
@@ -797,7 +812,6 @@ registerStructClass(StructType.AGGREGATION, Aggregation);
  */
 export class Expression extends StructFrozen {
   static metatype: StructType = StructType.EXPRESSION;
-  static __protoClass__ = ExpressionProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -1080,6 +1094,12 @@ export class Expression extends StructFrozen {
     return Expression.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): Expression {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = ExpressionProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
 
   /** Make an Expression from a shorthand expression. */
@@ -1126,7 +1146,6 @@ export type ExpressionIn =
  */
 export class Sort extends StructFrozen {
   static metatype: StructType = StructType.SORT;
-  static __protoClass__ = SortProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -1302,6 +1321,12 @@ export class Sort extends StructFrozen {
     return Sort.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): Sort {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = SortProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
 
   /** Make a Sort from a shorthand expression. */
@@ -1320,7 +1345,6 @@ registerStructClass(StructType.SORT, Sort);
  */
 export class Select extends StructFrozen {
   static metatype: StructType = StructType.SELECT;
-  static __protoClass__ = SelectProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -1486,6 +1510,12 @@ export class Select extends StructFrozen {
     return Select.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): Select {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = SelectProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
 
   /** Make a Select from a shorthand expression. */
@@ -1504,7 +1534,6 @@ registerStructClass(StructType.SELECT, Select);
  */
 export class Join extends StructFrozen {
   static metatype: StructType = StructType.JOIN;
-  static __protoClass__ = JoinProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -1738,6 +1767,12 @@ export class Join extends StructFrozen {
     return Join.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): Join {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = JoinProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
 
   /** Make a Join from a shorthand expression. */
@@ -1773,7 +1808,6 @@ registerStructClass(StructType.JOIN, Join);
  */
 export class Query extends StructFrozen {
   static metatype: StructType = StructType.QUERY;
-  static __protoClass__ = QueryProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -2286,6 +2320,12 @@ export class Query extends StructFrozen {
     return Query.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): Query {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = QueryProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -2299,7 +2339,6 @@ registerStructClass(StructType.QUERY, Query);
  */
 export class Histogram extends StructFrozen {
   static metatype: StructType = StructType.HISTOGRAM;
-  static __protoClass__ = HistogramProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -2512,6 +2551,12 @@ export class Histogram extends StructFrozen {
     return Histogram.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): Histogram {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = HistogramProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -2528,7 +2573,6 @@ registerStructClass(StructType.HISTOGRAM, Histogram);
  */
 export class QueryResult extends Struct {
   static metatype: StructType = StructType.QUERY_RESULT;
-  static __protoClass__ = QueryResultProto as IMessageType<any>;
   static __isFrozen__: boolean = false;
 
   /**
@@ -2873,6 +2917,12 @@ export class QueryResult extends Struct {
     return QueryResult.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): QueryResult {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = QueryResultProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -2886,7 +2936,6 @@ registerStructClass(StructType.QUERY_RESULT, QueryResult);
  */
 export class QueryResultGroup extends Struct {
   static metatype: StructType = StructType.QUERY_RESULT_GROUP;
-  static __protoClass__ = QueryResultGroupProto as IMessageType<any>;
   static __isFrozen__: boolean = false;
 
   /**
@@ -3137,6 +3186,12 @@ export class QueryResultGroup extends Struct {
     return QueryResultGroup.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): QueryResultGroup {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = QueryResultGroupProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -3150,7 +3205,6 @@ registerStructClass(StructType.QUERY_RESULT_GROUP, QueryResultGroup);
  */
 export class QueryUpdate extends StructFrozen {
   static metatype: StructType = StructType.QUERY_UPDATE;
-  static __protoClass__ = QueryUpdateProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -3315,6 +3369,12 @@ export class QueryUpdate extends StructFrozen {
     return QueryUpdate.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): QueryUpdate {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = QueryUpdateProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -3328,7 +3388,6 @@ registerStructClass(StructType.QUERY_UPDATE, QueryUpdate);
  */
 export class Selection extends StructFrozen {
   static metatype: StructType = StructType.SELECTION;
-  static __protoClass__ = SelectionProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   constructor(options: {
@@ -3445,6 +3504,12 @@ export class Selection extends StructFrozen {
     _connection?: any | null,
   ): Selection {
     return Selection.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Selection {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = SelectionProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

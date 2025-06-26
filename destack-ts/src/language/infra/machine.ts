@@ -15,7 +15,7 @@ import {
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Client, Space } from "@destack/language/space";
 import { MachineProto, MachineTypeProto, MaterializationTypeProto, ResourceStatusProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:7600 ==== */
@@ -43,7 +43,6 @@ registerEnumClass(EnumType.MACHINE_TYPE, MachineType);
  */
 export class Machine extends Node implements Spatial, Resource {
   static metatype: NodeType = NodeType.MACHINE;
-  static __protoClass__ = MachineProto as IMessageType<any>;
   static __traits__: TraitType[] = [TraitType.TRACKED, TraitType.SPATIAL, TraitType.ENTITY, TraitType.RESOURCE];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -294,7 +293,7 @@ export class Machine extends Node implements Spatial, Resource {
     this.targetStatus = _targetStatus;
     let _version = options.version ?? null;
     if (_version === null) {
-      _version = "2025.06.26.0";
+      _version = "2025.06.26.1";
     }
     if (_version === null) {
       throw new Error(`Machine.version is required`);
@@ -727,6 +726,12 @@ export class Machine extends Node implements Spatial, Resource {
     _connection?: any | null,
   ): Machine {
     return Machine.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Machine {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = MachineProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

@@ -21,7 +21,7 @@ import { registerNodeClass } from "@destack/language/registry";
 import { Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { MaterializationTypeProto, RouteProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:3030 ==== */
@@ -30,7 +30,6 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Route extends Node implements Spatial, Entity, HasName, IsDeletable, IsOrdered, IsOwnable, IsTaggable {
   static metatype: NodeType = NodeType.ROUTE;
-  static __protoClass__ = RouteProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.TAGGABLE,
@@ -526,6 +525,12 @@ export class Route extends Node implements Spatial, Entity, HasName, IsDeletable
     _connection?: any | null,
   ): Route {
     return Route.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Route {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = RouteProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

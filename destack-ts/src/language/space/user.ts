@@ -22,7 +22,6 @@ import { registerEnumClass, registerNodeClass } from "@destack/language/registry
 import { Handle, Space } from "@destack/language/space";
 import { MaterializationTypeProto, UserProto, UserStatusProto } from "@destack/proto";
 import { base64Decode, base64Encode } from "@destack/utils";
-import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:20 ==== */
@@ -46,7 +45,6 @@ registerEnumClass(EnumType.USER_STATUS, UserStatus);
  */
 export class User extends Node implements Global, Entity, HasName, HasIcon, HasSlug, IsOwner, IsFollowable, IsSubject {
   static metatype: NodeType = NodeType.USER;
-  static __protoClass__ = UserProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
     TraitType.ENTITY,
@@ -637,6 +635,12 @@ export class User extends Node implements Global, Entity, HasName, HasIcon, HasS
     _connection?: any | null,
   ): User {
     return User.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): User {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = UserProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

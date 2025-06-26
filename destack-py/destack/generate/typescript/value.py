@@ -289,7 +289,6 @@ def _generate_unpack_value_scalar(
         return value_expr
 
 
-# nocheckin: maybe put all the constants in a single constants file at the language root?
 def generate_value(type: Type | TypeDeclaration | PropertyDeclaration, value: Any) -> str:
     """Generate a Typescript value literal."""
     if type.cardinality == TypeCardinality.SCALAR:

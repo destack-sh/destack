@@ -47,7 +47,7 @@ import {
   SceneEventTypeProto,
   SceneProto,
 } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:9011 ==== */
@@ -71,7 +71,6 @@ registerEnumClass(EnumType.SCENE_EVENT_TYPE, SceneEventType);
  */
 export class SceneEvent extends Node implements Event {
   static metatype: NodeType = NodeType.SCENE_EVENT;
-  static __protoClass__ = SceneEventProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.PARTICLE,
@@ -458,6 +457,12 @@ export class SceneEvent extends Node implements Event {
     return SceneEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): SceneEvent {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = SceneEventProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -471,7 +476,6 @@ registerNodeClass(NodeType.SCENE_EVENT, SceneEvent);
  */
 export class Scene extends Node implements ContainerView, HasIcon, IsOwnable {
   static metatype: NodeType = NodeType.SCENE;
-  static __protoClass__ = SceneProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.VISUAL,
@@ -1821,6 +1825,12 @@ export class Scene extends Node implements ContainerView, HasIcon, IsOwnable {
     _connection?: any | null,
   ): Scene {
     return Scene.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Scene {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = SceneProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

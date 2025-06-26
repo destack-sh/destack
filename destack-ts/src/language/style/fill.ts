@@ -24,7 +24,7 @@ import {
   FillTypeProto,
   MaterializationTypeProto,
 } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12034 ==== */
@@ -89,7 +89,6 @@ registerEnumClass(EnumType.FILL_SIZE, FillSize);
  */
 export class Fill extends Struct {
   static metatype: StructType = StructType.FILL;
-  static __protoClass__ = FillProto as IMessageType<any>;
   static __isFrozen__: boolean = false;
 
   /**
@@ -394,6 +393,12 @@ export class Fill extends Struct {
     return Fill.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): Fill {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = FillProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -407,7 +412,6 @@ registerStructClass(StructType.FILL, Fill);
  */
 export class FillStyle extends Node implements Style {
   static metatype: NodeType = NodeType.FILL_STYLE;
-  static __protoClass__ = FillStyleProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.STYLE,
     TraitType.SPATIAL,
@@ -1014,6 +1018,12 @@ export class FillStyle extends Node implements Style {
     _connection?: any | null,
   ): FillStyle {
     return FillStyle.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): FillStyle {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = FillStyleProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

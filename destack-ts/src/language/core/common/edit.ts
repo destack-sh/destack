@@ -13,7 +13,7 @@ import {
   EditProto,
   EditTypeProto,
 } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 import { v4 as uuid4 } from "uuid";
 
@@ -90,7 +90,6 @@ registerEnumClass(EnumType.CHANGE_DEBOUNCE, ChangeDebounce);
  */
 export class Edit extends StructFrozen {
   static metatype: StructType = StructType.EDIT;
-  static __protoClass__ = EditProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -445,6 +444,12 @@ export class Edit extends StructFrozen {
     return Edit.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): Edit {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = EditProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -458,7 +463,6 @@ registerStructClass(StructType.EDIT, Edit);
  */
 export class Change extends StructFrozen {
   static metatype: StructType = StructType.CHANGE;
-  static __protoClass__ = ChangeProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -776,6 +780,12 @@ export class Change extends StructFrozen {
     return Change.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): Change {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = ChangeProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -789,7 +799,6 @@ registerStructClass(StructType.CHANGE, Change);
  */
 export class ChangeResult extends StructFrozen {
   static metatype: StructType = StructType.CHANGE_RESULT;
-  static __protoClass__ = ChangeResultProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -1081,6 +1090,12 @@ export class ChangeResult extends StructFrozen {
     _connection?: any | null,
   ): ChangeResult {
     return ChangeResult.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): ChangeResult {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = ChangeResultProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

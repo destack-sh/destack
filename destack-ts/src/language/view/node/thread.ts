@@ -10,7 +10,7 @@ import { Space } from "@destack/language/space";
 import { ContainerView } from "@destack/language/view/container";
 import { NodeView } from "@destack/language/view/node";
 import { MaterializationTypeProto, ThreadViewProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:10600 ==== */
@@ -19,7 +19,6 @@ import { Temporal } from "temporal-polyfill";
  */
 export class ThreadView extends Node implements NodeView {
   static metatype: NodeType = NodeType.THREAD_VIEW;
-  static __protoClass__ = ThreadViewProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.NODE_VIEW,
@@ -797,6 +796,12 @@ export class ThreadView extends Node implements NodeView {
     _connection?: any | null,
   ): ThreadView {
     return ThreadView.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): ThreadView {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = ThreadViewProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

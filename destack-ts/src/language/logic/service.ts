@@ -25,7 +25,7 @@ import { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { MaterializationTypeProto, ServiceProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:3010 ==== */
@@ -48,7 +48,6 @@ export class Service
     IsExtensible
 {
   static metatype: NodeType = NodeType.SERVICE;
-  static __protoClass__ = ServiceProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.ORDERED,
@@ -641,6 +640,12 @@ export class Service
     _connection?: any | null,
   ): Service {
     return Service.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Service {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = ServiceProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

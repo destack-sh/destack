@@ -17,7 +17,7 @@ import { Space } from "@destack/language/space";
 import { Color, Style, Theme } from "@destack/language/style";
 import { View } from "@destack/language/view";
 import { BorderProto, BorderStyleProto, BorderTypeProto, MaterializationTypeProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12032 ==== */
@@ -44,7 +44,6 @@ registerEnumClass(EnumType.BORDER_TYPE, BorderType);
  */
 export class Border extends Struct {
   static metatype: StructType = StructType.BORDER;
-  static __protoClass__ = BorderProto as IMessageType<any>;
   static __isFrozen__: boolean = false;
 
   /**
@@ -260,6 +259,12 @@ export class Border extends Struct {
     return Border.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): Border {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = BorderProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -273,7 +278,6 @@ registerStructClass(StructType.BORDER, Border);
  */
 export class BorderStyle extends Node implements Style {
   static metatype: NodeType = NodeType.BORDER_STYLE;
-  static __protoClass__ = BorderStyleProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.STYLE,
     TraitType.SPATIAL,
@@ -794,6 +798,12 @@ export class BorderStyle extends Node implements Style {
     _connection?: any | null,
   ): BorderStyle {
     return BorderStyle.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): BorderStyle {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = BorderStyleProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

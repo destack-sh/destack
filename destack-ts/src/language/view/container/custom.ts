@@ -42,7 +42,7 @@ import {
   LayoutProto,
   MaterializationTypeProto,
 } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:10000 ==== */
@@ -51,7 +51,6 @@ import { Temporal } from "temporal-polyfill";
  */
 export class CustomViewDefinition extends Node implements ContainerView, IsCustomNodeDefinition {
   static metatype: NodeType = NodeType.CUSTOM_VIEW_DEFINITION;
-  static __protoClass__ = CustomViewDefinitionProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.VISUAL,
@@ -1328,6 +1327,12 @@ export class CustomViewDefinition extends Node implements ContainerView, IsCusto
     return CustomViewDefinition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): CustomViewDefinition {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = CustomViewDefinitionProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -1341,7 +1346,6 @@ registerNodeClass(NodeType.CUSTOM_VIEW_DEFINITION, CustomViewDefinition);
  */
 export class CustomView extends Node implements ContainerView, IsCustomNode {
   static metatype: NodeType = NodeType.CUSTOM_VIEW;
-  static __protoClass__ = CustomViewProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.VISUAL,
@@ -2626,6 +2630,12 @@ export class CustomView extends Node implements ContainerView, IsCustomNode {
     _connection?: any | null,
   ): CustomView {
     return CustomView.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): CustomView {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = CustomViewProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

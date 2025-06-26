@@ -25,7 +25,7 @@ import { Icon } from "@destack/language/core/common";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { MaterializationTypeProto, RoleEventProto, RoleEventTypeProto, RoleProto, RoleTypeProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:521 ==== */
@@ -49,7 +49,6 @@ registerEnumClass(EnumType.ROLE_EVENT_TYPE, RoleEventType);
  */
 export class RoleEvent extends Node implements Event {
   static metatype: NodeType = NodeType.ROLE_EVENT;
-  static __protoClass__ = RoleEventProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.PARTICLE,
@@ -436,6 +435,12 @@ export class RoleEvent extends Node implements Event {
     return RoleEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): RoleEvent {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = RoleEventProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -452,7 +457,6 @@ export class Role
   implements Global, Spatial, Entity, HasSlug, HasIcon, HasName, IsOwner, IsOrdered, IsDeletable
 {
   static metatype: NodeType = NodeType.ROLE;
-  static __protoClass__ = RoleProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
     TraitType.SPATIAL,
@@ -936,6 +940,12 @@ export class Role
     _connection?: any | null,
   ): Role {
     return Role.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Role {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = RoleProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

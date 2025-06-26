@@ -23,7 +23,7 @@ import {
   FriendshipProto,
   MaterializationTypeProto,
 } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:31 ==== */
@@ -49,7 +49,6 @@ registerEnumClass(EnumType.FRIENDSHIP_INVITE_EVENT_TYPE, FriendshipInviteEventTy
  */
 export class Friendship extends Node implements Global, Entity {
   static metatype: NodeType = NodeType.FRIENDSHIP;
-  static __protoClass__ = FriendshipProto as IMessageType<any>;
   static __traits__: TraitType[] = [TraitType.GLOBAL, TraitType.ENTITY, TraitType.TRACKED];
   static __rootType__: NodeType | null = null;
   static __parentTypes__: NodeType[] = [];
@@ -406,6 +405,12 @@ export class Friendship extends Node implements Global, Entity {
     return Friendship.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): Friendship {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = FriendshipProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -419,7 +424,6 @@ registerNodeClass(NodeType.FRIENDSHIP, Friendship);
  */
 export class FriendshipInviteEvent extends Node implements Event {
   static metatype: NodeType = NodeType.FRIENDSHIP_INVITE_EVENT;
-  static __protoClass__ = FriendshipInviteEventProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.PARTICLE,
@@ -806,6 +810,12 @@ export class FriendshipInviteEvent extends Node implements Event {
     return FriendshipInviteEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): FriendshipInviteEvent {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = FriendshipInviteEventProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -819,7 +829,6 @@ registerNodeClass(NodeType.FRIENDSHIP_INVITE_EVENT, FriendshipInviteEvent);
  */
 export class FriendshipInvite extends Node implements Global, Entity, LikeInvite, IsOwnable {
   static metatype: NodeType = NodeType.FRIENDSHIP_INVITE;
-  static __protoClass__ = FriendshipInviteProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
     TraitType.ENTITY,
@@ -1186,6 +1195,12 @@ export class FriendshipInvite extends Node implements Global, Entity, LikeInvite
     _connection?: any | null,
   ): FriendshipInvite {
     return FriendshipInvite.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): FriendshipInvite {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = FriendshipInviteProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

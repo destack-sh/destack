@@ -17,7 +17,7 @@ import {
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { MaterializationTypeProto, SanctionEventProto, SanctionProto, SanctionTypeProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:541 ==== */
@@ -58,7 +58,6 @@ registerEnumClass(EnumType.SANCTION_TYPE, SanctionType);
  */
 export class SanctionEvent extends Node implements Event {
   static metatype: NodeType = NodeType.SANCTION_EVENT;
-  static __protoClass__ = SanctionEventProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.PARTICLE,
@@ -427,6 +426,12 @@ export class SanctionEvent extends Node implements Event {
     return SanctionEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): SanctionEvent {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = SanctionEventProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -440,7 +445,6 @@ registerNodeClass(NodeType.SANCTION_EVENT, SanctionEvent);
  */
 export class Sanction extends Node implements Spatial, Entity, IsDeletable {
   static metatype: NodeType = NodeType.SANCTION;
-  static __protoClass__ = SanctionProto as IMessageType<any>;
   static __traits__: TraitType[] = [TraitType.TRACKED, TraitType.SPATIAL, TraitType.ENTITY, TraitType.DELETABLE];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [
@@ -890,6 +894,12 @@ export class Sanction extends Node implements Spatial, Entity, IsDeletable {
     _connection?: any | null,
   ): Sanction {
     return Sanction.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Sanction {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = SanctionProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

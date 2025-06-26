@@ -23,7 +23,7 @@ import { Cursor, Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { AgentProto, MaterializationTypeProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:600 ==== */
@@ -35,7 +35,6 @@ export class Agent
   implements Spatial, Entity, HasName, HasIcon, HasSlug, IsOwner, IsFollowable, IsScriptable, IsDeletable, IsSubject
 {
   static metatype: NodeType = NodeType.AGENT;
-  static __protoClass__ = AgentProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SCRIPTABLE,
     TraitType.SPATIAL,
@@ -572,6 +571,12 @@ export class Agent
     _connection?: any | null,
   ): Agent {
     return Agent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Agent {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = AgentProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

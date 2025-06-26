@@ -23,7 +23,7 @@ import { Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Theme } from "@destack/language/style";
 import { MaterializationTypeProto, PaletteProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:12010 ==== */
@@ -35,7 +35,6 @@ export class Palette
   implements Spatial, Entity, HasName, HasIcon, IsVisual, IsOrdered, IsTaggable, IsDeletable
 {
   static metatype: NodeType = NodeType.PALETTE;
-  static __protoClass__ = PaletteProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.VISUAL,
@@ -483,6 +482,12 @@ export class Palette
     _connection?: any | null,
   ): Palette {
     return Palette.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Palette {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = PaletteProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

@@ -17,8 +17,8 @@ import {
   StructTypeProto,
   TraitTypeProto,
 } from "@destack/proto";
+import { base64Decode } from "@destack/utils";
 import { assertNever } from "@destack/utils/functools";
-import type { IMessageType } from "@protobuf-ts/runtime";
 
 /* ==== DESTACK_GENERATED_START:ENUM:50010 ==== */
 /**
@@ -74,7 +74,6 @@ registerEnumClass(EnumType.PROPERTY_REFERENCE_TYPE, PropertyReferenceType);
  */
 export class Scope extends StructFrozen {
   static metatype: StructType = StructType.SCOPE;
-  static __protoClass__ = ScopeProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -235,6 +234,12 @@ export class Scope extends StructFrozen {
     return Scope.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): Scope {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = ScopeProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -248,7 +253,6 @@ registerStructClass(StructType.SCOPE, Scope);
  */
 export class RelationReference extends StructFrozen {
   static metatype: StructType = StructType.RELATION_REFERENCE;
-  static __protoClass__ = RelationReferenceProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -467,6 +471,12 @@ export class RelationReference extends StructFrozen {
     return RelationReference.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): RelationReference {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = RelationReferenceProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
 
   static of(base: NodeType | NodeClass | CustomEntityDefinition) {
@@ -490,7 +500,6 @@ registerStructClass(StructType.RELATION_REFERENCE, RelationReference);
  */
 export class ObjectReference extends StructFrozen {
   static metatype: StructType = StructType.OBJECT_REFERENCE;
-  static __protoClass__ = ObjectReferenceProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -730,6 +739,12 @@ export class ObjectReference extends StructFrozen {
     return ObjectReference.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): ObjectReference {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = ObjectReferenceProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
 
   static of(attribute: PropertyReference | CustomProperty) {
@@ -757,7 +772,6 @@ registerStructClass(StructType.OBJECT_REFERENCE, ObjectReference);
  */
 export class PropertyReference extends StructFrozen {
   static metatype: StructType = StructType.PROPERTY_REFERENCE;
-  static __protoClass__ = PropertyReferenceProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -1018,6 +1032,12 @@ export class PropertyReference extends StructFrozen {
     return PropertyReference.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): PropertyReference {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = PropertyReferenceProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
 
   static of(attribute: CustomProperty | PropertyReference): PropertyReference {
@@ -1045,7 +1065,6 @@ registerStructClass(StructType.PROPERTY_REFERENCE, PropertyReference);
  */
 export class NodeReference extends StructFrozen {
   static metatype: StructType = StructType.NODE_REFERENCE;
-  static __protoClass__ = NodeReferenceProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -1240,6 +1259,12 @@ export class NodeReference extends StructFrozen {
     _connection?: any | null,
   ): NodeReference {
     return NodeReference.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): NodeReference {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = NodeReferenceProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

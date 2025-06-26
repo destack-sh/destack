@@ -394,6 +394,7 @@ class ConstantDefinition(StructFrozen):
     name: str = property_(31, is_repr=True)
     description: str | None = property_(36, is_repr=True)
     value: "Value" = property_(40)
+    is_deferred: bool = property_(50)
 
     _declaration: "ConstantDeclaration | None" = property_runtime_()
 
@@ -407,13 +408,17 @@ class ConstantDefinition(StructFrozen):
                 f"missing getter for {constant_declaration.name}"
             )
             value_raw = constant_declaration.getter()
+            is_deferred = True
         else:
             value_raw = constant_declaration.value
+            is_deferred = False
         value = to_value(value_raw)
+
         return cls(
             name=constant_declaration.name,
             description=constant_declaration.description,
             value=value,
+            is_deferred=is_deferred,
             _declaration=constant_declaration,
         )
 

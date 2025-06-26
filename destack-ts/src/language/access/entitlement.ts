@@ -22,7 +22,7 @@ import {
   EntitlementTypeProto,
   MaterializationTypeProto,
 } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:551 ==== */
@@ -63,7 +63,6 @@ registerEnumClass(EnumType.ENTITLEMENT_TYPE, EntitlementType);
  */
 export class EntitlementEvent extends Node implements Event {
   static metatype: NodeType = NodeType.ENTITLEMENT_EVENT;
-  static __protoClass__ = EntitlementEventProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.PARTICLE,
@@ -432,6 +431,12 @@ export class EntitlementEvent extends Node implements Event {
     return EntitlementEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): EntitlementEvent {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = EntitlementEventProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -445,7 +450,6 @@ registerNodeClass(NodeType.ENTITLEMENT_EVENT, EntitlementEvent);
  */
 export class Entitlement extends Node implements Spatial, Entity, IsDeletable {
   static metatype: NodeType = NodeType.ENTITLEMENT;
-  static __protoClass__ = EntitlementProto as IMessageType<any>;
   static __traits__: TraitType[] = [TraitType.TRACKED, TraitType.SPATIAL, TraitType.ENTITY, TraitType.DELETABLE];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [
@@ -895,6 +899,12 @@ export class Entitlement extends Node implements Spatial, Entity, IsDeletable {
     _connection?: any | null,
   ): Entitlement {
     return Entitlement.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Entitlement {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = EntitlementProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

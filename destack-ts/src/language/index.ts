@@ -1,5 +1,6 @@
 export * from "@destack/language/access";
 export * from "@destack/language/canvas";
+export * from "@destack/language/constants";
 export * from "@destack/language/core";
 export * from "@destack/language/data";
 export * from "@destack/language/deployment";

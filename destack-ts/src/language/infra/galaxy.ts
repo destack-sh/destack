@@ -2,7 +2,7 @@ import { Session, Supergraph } from "@destack/language/core";
 import { Region, Struct, StructType } from "@destack/language/core/builtin";
 import { registerStructClass } from "@destack/language/registry";
 import { GalaxyInfoProto, RegionProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:7601 ==== */
 /**
@@ -10,7 +10,6 @@ import type { IMessageType } from "@protobuf-ts/runtime";
  */
 export class GalaxyInfo extends Struct {
   static metatype: StructType = StructType.GALAXY_INFO;
-  static __protoClass__ = GalaxyInfoProto as IMessageType<any>;
   static __isFrozen__: boolean = false;
 
   /**
@@ -160,6 +159,12 @@ export class GalaxyInfo extends Struct {
     _connection?: any | null,
   ): GalaxyInfo {
     return GalaxyInfo.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): GalaxyInfo {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = GalaxyInfoProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

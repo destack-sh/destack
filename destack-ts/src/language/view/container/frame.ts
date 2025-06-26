@@ -31,7 +31,7 @@ import {
   LayoutProto,
   MaterializationTypeProto,
 } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:10020 ==== */
@@ -40,7 +40,6 @@ import { Temporal } from "temporal-polyfill";
  */
 export class FrameView extends Node implements ContainerView {
   static metatype: NodeType = NodeType.FRAME_VIEW;
-  static __protoClass__ = FrameViewProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.VISUAL,
@@ -1295,6 +1294,12 @@ export class FrameView extends Node implements ContainerView {
     _connection?: any | null,
   ): FrameView {
     return FrameView.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): FrameView {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = FrameViewProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

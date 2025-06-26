@@ -18,6 +18,7 @@ from destack.language import (
     NodeDefinition,
     NodeType,
     PropertyDeclaration,
+    PropertyDefinition,
     RoleType,
     ScalarType,
     StructDefinition,
@@ -25,8 +26,10 @@ from destack.language import (
     Trait,
     TraitDefinition,
     TraitType,
+    Type,
     TypeCardinality,
     TypeDeclaration,
+    Value,
     get_node_types,
 )
 from destack.language.registry import (
@@ -727,7 +730,6 @@ def _generate_struct(definition: StructDefinition) -> str:
     # meta
     struct_meta_parts: list[str] = [
         f"static metatype: StructType = StructType.{definition.type.name};",
-        f"static __protoClass__ = {definition.name}Proto as IMessageType<any>;",
         f"static __isFrozen__: boolean = {'true' if definition.is_frozen else 'false'};",
     ]
     struct_parts.append("\n".join(struct_meta_parts))
@@ -843,7 +845,6 @@ def _generate_node(definition: NodeDefinition) -> str:
     # meta
     node_meta_parts: list[str] = [
         f"static metatype: NodeType = NodeType.{definition.type.name};",
-        f"static __protoClass__ = {definition.name}Proto as IMessageType<any>;",
         f"static __traits__: TraitType[] = [{', '.join(f'TraitType.{trait_type.name}' for trait_type in definition.traits)}];",
         f"static __rootType__: NodeType | null = {f'NodeType.{definition.root_type.name}' if definition.root_type else 'null'};",
         f"static __parentTypes__: NodeType[] = [{', '.join(f'NodeType.{parent_type.name}' for parent_type in definition.parent_types)}];",
@@ -923,7 +924,38 @@ export const {definition.name} = {generate_value(definition.value.type, definiti
 """
 
 
-def _get_definition_dependencies(cls: type[BuiltinObjectBase]) -> dict[str, Definition]:
+def _get_type_dependencies(
+    type: Type | TypeDeclaration | PropertyDeclaration | PropertyDefinition,
+) -> dict[str, Definition]:
+    """Get the dependencies of a type."""
+    dependencies: dict[str, Definition] = {}
+    if type.scalar_type == ScalarType.NODE_REFERENCE:
+        if isinstance(type, (TypeDeclaration, PropertyDeclaration)):
+            for node_type in type.node_types or ():
+                if isinstance(node_type, NodeType):
+                    node_cls = NODE_CLASS_BY_TYPE[node_type]
+                    dependencies[node_cls.__name__] = NODE_DEFINITION_BY_TYPE[node_type]
+                elif isinstance(node_type, TraitType):
+                    trait_cls = TRAIT_CLASS_BY_TYPE[node_type]
+                    dependencies[trait_cls.__name__] = TRAIT_DEFINITION_BY_TYPE[node_type]
+                else:
+                    assert_never(node_type)
+        else:
+            if type.node_type is not None:
+                node_cls = NODE_CLASS_BY_TYPE[type.node_type]
+                dependencies[node_cls.__name__] = NODE_DEFINITION_BY_TYPE[type.node_type]
+    elif type.scalar_type == ScalarType.STRUCT:
+        assert type.struct_type is not None, f"no struct_type for {type!r}"
+        struct_cls = STRUCT_CLASS_BY_TYPE[type.struct_type]
+        dependencies[struct_cls.__name__] = STRUCT_DEFINITION_BY_TYPE[type.struct_type]
+    elif type.scalar_type == ScalarType.ENUM:
+        assert type.enum_type is not None, f"no enum_type for {type!r}"
+        enum_cls = ENUM_CLASS_BY_TYPE[type.enum_type]
+        dependencies[enum_cls.__name__] = ENUM_DEFINITION_BY_TYPE[type.enum_type]
+    return dependencies
+
+
+def _get_builtin_object_dependencies(cls: type[BuiltinObjectBase]) -> dict[str, Definition]:
     """Get the dependencies of a definition."""
     dependencies: dict[str, Definition] = {}
 
@@ -940,26 +972,14 @@ def _get_definition_dependencies(cls: type[BuiltinObjectBase]) -> dict[str, Defi
 
     # properties
     for prop in _get_properties(cls):
-        if prop.scalar_type == ScalarType.NODE_REFERENCE:
-            for node_type in prop.node_types or ():
-                if isinstance(node_type, NodeType):
-                    node_cls = NODE_CLASS_BY_TYPE[node_type]
-                    dependencies[node_cls.__name__] = NODE_DEFINITION_BY_TYPE[node_type]
-                elif isinstance(node_type, TraitType):
-                    trait_cls = TRAIT_CLASS_BY_TYPE[node_type]
-                    dependencies[trait_cls.__name__] = TRAIT_DEFINITION_BY_TYPE[node_type]
-                else:
-                    assert_never(node_type)
-        elif prop.scalar_type == ScalarType.STRUCT:
-            assert prop.struct_type is not None, f"no struct_type for {prop!r}"
-            struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
-            dependencies[struct_cls.__name__] = STRUCT_DEFINITION_BY_TYPE[prop.struct_type]
-        elif prop.scalar_type == ScalarType.ENUM:
-            assert prop.enum_type is not None, f"no enum_type for {prop!r}"
-            enum_cls = ENUM_CLASS_BY_TYPE[prop.enum_type]
-            dependencies[enum_cls.__name__] = ENUM_DEFINITION_BY_TYPE[prop.enum_type]
+        dependencies.update(_get_type_dependencies(prop))
 
     return dependencies
+
+
+def _get_value_dependencies(value: Value) -> dict[str, Definition]:
+    """Get the dependencies of a value."""
+    return _get_type_dependencies(value.type)
 
 
 def _generate_definition(definition: Definition) -> TypescriptDefinition:
@@ -979,7 +999,7 @@ def _generate_definition(definition: Definition) -> TypescriptDefinition:
         module = cls.__module__
         definition_str = _generate_struct(definition)
         name = definition.name
-        dependencies = _get_definition_dependencies(cast(type[BuiltinObjectBase], cls))
+        dependencies = _get_builtin_object_dependencies(cast(type[BuiltinObjectBase], cls))
     elif isinstance(definition, TraitDefinition):
         kind = "TRAIT"
         cls = TRAIT_CLASS_BY_TYPE[definition.type]
@@ -987,7 +1007,7 @@ def _generate_definition(definition: Definition) -> TypescriptDefinition:
         module = cls.__module__
         definition_str = _generate_trait(definition)
         name = definition.alias
-        dependencies = _get_definition_dependencies(cast(type[BuiltinObjectBase], cls))
+        dependencies = _get_builtin_object_dependencies(cast(type[BuiltinObjectBase], cls))
     elif isinstance(definition, NodeDefinition):
         kind = "NODE"
         cls = NODE_CLASS_BY_TYPE[definition.type]
@@ -995,7 +1015,7 @@ def _generate_definition(definition: Definition) -> TypescriptDefinition:
         module = cls.__module__
         definition_str = _generate_node(definition)
         name = definition.name
-        dependencies = _get_definition_dependencies(cast(type[BuiltinObjectBase], cls))
+        dependencies = _get_builtin_object_dependencies(cast(type[BuiltinObjectBase], cls))
     elif isinstance(definition, ConstantDefinition):
         kind = "CONSTANT"
         alias = definition.name
@@ -1003,7 +1023,7 @@ def _generate_definition(definition: Definition) -> TypescriptDefinition:
         module = definition._declaration.module
         definition_str = _generate_constant(definition)
         name = definition.name
-        dependencies = EMPTY_DICT
+        dependencies = _get_value_dependencies(definition.value)
     else:
         assert_never(definition)
 
@@ -1456,9 +1476,11 @@ def generate():
         assert constant_definition._declaration is not None, (
             f"missing declaration for {constant_definition.name}"
         )
-        definitions_by_module[constant_definition._declaration.module].append(definition)
-
-    # organize definitions into files
+        if constant_definition.is_deferred:
+            # put deferred constants in separate top-level file (to avoid circular dependencies)
+            definitions_by_module["constants"].append(definition)
+        else:
+            definitions_by_module[constant_definition._declaration.module].append(definition)
     definitions_by_name: dict[str, TypescriptDefinition] = {}
     for _, definitions in definitions_by_module.items():
         for definition in definitions:

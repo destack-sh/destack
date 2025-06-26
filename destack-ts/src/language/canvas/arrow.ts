@@ -18,7 +18,7 @@ import { Space } from "@destack/language/space";
 import { ContainerView } from "@destack/language/view/container";
 import { ContentView } from "@destack/language/view/content";
 import { AlignProto, ArrowHeadTypeProto, ArrowShapeProto, MaterializationTypeProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:11012 ==== */
@@ -43,7 +43,6 @@ registerEnumClass(EnumType.ARROW_HEAD_TYPE, ArrowHeadType);
  */
 export class ArrowShape extends Node implements ContentView, IsShape {
   static metatype: NodeType = NodeType.ARROW_SHAPE;
-  static __protoClass__ = ArrowShapeProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SCRIPTABLE,
     TraitType.SPATIAL,
@@ -888,6 +887,12 @@ export class ArrowShape extends Node implements ContentView, IsShape {
     _connection?: any | null,
   ): ArrowShape {
     return ArrowShape.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): ArrowShape {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = ArrowShapeProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

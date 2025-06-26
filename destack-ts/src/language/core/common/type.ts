@@ -32,7 +32,7 @@ import {
   TypeCardinalityProto,
   TypeProto,
 } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2570 ==== */
 /**
@@ -77,7 +77,6 @@ registerEnumClass(EnumType.NUMBER_FORMAT, NumberFormat);
  */
 export class StringConstraint extends StructFrozen {
   static metatype: StructType = StructType.STRING_CONSTRAINT;
-  static __protoClass__ = StringConstraintProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -280,6 +279,12 @@ export class StringConstraint extends StructFrozen {
     return StringConstraint.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): StringConstraint {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = StringConstraintProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -293,7 +298,6 @@ registerStructClass(StructType.STRING_CONSTRAINT, StringConstraint);
  */
 export class NumberConstraint extends StructFrozen {
   static metatype: StructType = StructType.NUMBER_CONSTRAINT;
-  static __protoClass__ = NumberConstraintProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -548,6 +552,12 @@ export class NumberConstraint extends StructFrozen {
     return NumberConstraint.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): NumberConstraint {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = NumberConstraintProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -561,7 +571,6 @@ registerStructClass(StructType.NUMBER_CONSTRAINT, NumberConstraint);
  */
 export class CollectionConstraint extends StructFrozen {
   static metatype: StructType = StructType.COLLECTION_CONSTRAINT;
-  static __protoClass__ = CollectionConstraintProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -722,6 +731,12 @@ export class CollectionConstraint extends StructFrozen {
     return CollectionConstraint.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): CollectionConstraint {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = CollectionConstraintProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -735,7 +750,6 @@ registerStructClass(StructType.COLLECTION_CONSTRAINT, CollectionConstraint);
  */
 export class NodeConstraint extends StructFrozen {
   static metatype: StructType = StructType.NODE_CONSTRAINT;
-  static __protoClass__ = NodeConstraintProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -948,6 +962,12 @@ export class NodeConstraint extends StructFrozen {
     return NodeConstraint.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): NodeConstraint {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = NodeConstraintProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -961,7 +981,6 @@ registerStructClass(StructType.NODE_CONSTRAINT, NodeConstraint);
  */
 export class Type extends StructFrozen {
   static metatype: StructType = StructType.TYPE;
-  static __protoClass__ = TypeProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -1530,6 +1549,12 @@ export class Type extends StructFrozen {
     _connection?: any | null,
   ): Type {
     return Type.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Type {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = TypeProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

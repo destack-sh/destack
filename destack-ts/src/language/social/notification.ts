@@ -24,7 +24,7 @@ import {
   NotificationProto,
   NotificationStatusProto,
 } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:5600 ==== */
@@ -69,7 +69,6 @@ registerEnumClass(EnumType.NOTIFICATION_EVENT_TYPE, NotificationEventType);
  */
 export class NotificationEvent extends Node implements Event {
   static metatype: NodeType = NodeType.NOTIFICATION_EVENT;
-  static __protoClass__ = NotificationEventProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.PARTICLE,
@@ -456,6 +455,12 @@ export class NotificationEvent extends Node implements Event {
     return NotificationEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): NotificationEvent {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = NotificationEventProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -469,7 +474,6 @@ registerNodeClass(NodeType.NOTIFICATION_EVENT, NotificationEvent);
  */
 export class Notification extends Node implements Spatial, Entity, IsOwnable {
   static metatype: NodeType = NodeType.NOTIFICATION;
-  static __protoClass__ = NotificationProto as IMessageType<any>;
   static __traits__: TraitType[] = [TraitType.TRACKED, TraitType.SPATIAL, TraitType.ENTITY, TraitType.OWNABLE];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -920,6 +924,12 @@ export class Notification extends Node implements Spatial, Entity, IsOwnable {
     _connection?: any | null,
   ): Notification {
     return Notification.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Notification {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = NotificationProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

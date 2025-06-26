@@ -18,7 +18,7 @@ import {
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { BranchProto, MaterializationTypeProto, SnapshotProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:1500 ==== */
@@ -27,7 +27,6 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Snapshot extends Node implements Spatial, Entity, HasName, HasSlug, IsOwnable, IsDeletable {
   static metatype: NodeType = NodeType.SNAPSHOT;
-  static __protoClass__ = SnapshotProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.ENTITY,
@@ -482,6 +481,12 @@ export class Snapshot extends Node implements Spatial, Entity, HasName, HasSlug,
     return Snapshot.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): Snapshot {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = SnapshotProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -495,7 +500,6 @@ registerNodeClass(NodeType.SNAPSHOT, Snapshot);
  */
 export class Branch extends Node implements Spatial, Entity, HasName, HasSlug, IsOwnable, IsDeletable {
   static metatype: NodeType = NodeType.BRANCH;
-  static __protoClass__ = BranchProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.ENTITY,
@@ -992,6 +996,12 @@ export class Branch extends Node implements Spatial, Entity, HasName, HasSlug, I
     _connection?: any | null,
   ): Branch {
     return Branch.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Branch {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = BranchProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

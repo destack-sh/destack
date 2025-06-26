@@ -23,7 +23,7 @@ import {
   ShadowStyleProto,
   ShadowTypeProto,
 } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12030 ==== */
@@ -63,7 +63,6 @@ registerEnumClass(EnumType.SHADOW_POSITION, ShadowPosition);
  */
 export class Shadow extends Struct {
   static metatype: StructType = StructType.SHADOW;
-  static __protoClass__ = ShadowProto as IMessageType<any>;
   static __isFrozen__: boolean = false;
 
   /**
@@ -370,6 +369,12 @@ export class Shadow extends Struct {
     return Shadow.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): Shadow {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = ShadowProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -383,7 +388,6 @@ registerStructClass(StructType.SHADOW, Shadow);
  */
 export class ShadowStyle extends Node implements Style {
   static metatype: NodeType = NodeType.SHADOW_STYLE;
-  static __protoClass__ = ShadowStyleProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.STYLE,
     TraitType.SPATIAL,
@@ -995,6 +999,12 @@ export class ShadowStyle extends Node implements Style {
     _connection?: any | null,
   ): ShadowStyle {
     return ShadowStyle.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): ShadowStyle {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = ShadowStyleProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

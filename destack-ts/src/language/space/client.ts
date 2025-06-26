@@ -19,7 +19,7 @@ import { Cursor } from "@destack/language/logic";
 import { registerNodeClass, registerStructClass } from "@destack/language/registry";
 import { User } from "@destack/language/space";
 import { ClientProto, ClientTypeProto, MaterializationTypeProto, OriginProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50001 ==== */
@@ -28,7 +28,6 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Origin extends StructFrozen {
   static metatype: StructType = StructType.ORIGIN;
-  static __protoClass__ = OriginProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -228,6 +227,12 @@ export class Origin extends StructFrozen {
     return Origin.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): Origin {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = OriginProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -241,7 +246,6 @@ registerStructClass(StructType.ORIGIN, Origin);
  */
 export class Client extends Node implements HasName, Global, Entity, IsDeletable {
   static metatype: NodeType = NodeType.CLIENT;
-  static __protoClass__ = ClientProto as IMessageType<any>;
   static __traits__: TraitType[] = [TraitType.GLOBAL, TraitType.ENTITY, TraitType.TRACKED, TraitType.DELETABLE];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.AGENT, NodeType.USER];
@@ -903,6 +907,12 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
     _connection?: any | null,
   ): Client {
     return Client.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Client {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = ClientProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

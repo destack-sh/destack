@@ -24,7 +24,7 @@ import {
   ScreenCursorProto,
   ThreadCursorProto,
 } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:3100 ==== */
@@ -84,7 +84,6 @@ registerTraitClass(TraitType.CURSOR, Cursor);
  */
 export class EventCursor extends Node implements Cursor, IsOwnable {
   static metatype: NodeType = NodeType.EVENT_CURSOR;
-  static __protoClass__ = EventCursorProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.CURSOR,
@@ -524,6 +523,12 @@ export class EventCursor extends Node implements Cursor, IsOwnable {
     return EventCursor.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): EventCursor {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = EventCursorProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -537,7 +542,6 @@ registerNodeClass(NodeType.EVENT_CURSOR, EventCursor);
  */
 export class ScreenCursor extends Node implements Cursor, IsOwnable {
   static metatype: NodeType = NodeType.SCREEN_CURSOR;
-  static __protoClass__ = ScreenCursorProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.CURSOR,
@@ -1005,6 +1009,12 @@ export class ScreenCursor extends Node implements Cursor, IsOwnable {
     return ScreenCursor.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): ScreenCursor {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = ScreenCursorProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -1018,7 +1028,6 @@ registerNodeClass(NodeType.SCREEN_CURSOR, ScreenCursor);
  */
 export class ThreadCursor extends Node implements Cursor, IsOwnable {
   static metatype: NodeType = NodeType.THREAD_CURSOR;
-  static __protoClass__ = ThreadCursorProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.CURSOR,
@@ -1456,6 +1465,12 @@ export class ThreadCursor extends Node implements Cursor, IsOwnable {
     _connection?: any | null,
   ): ThreadCursor {
     return ThreadCursor.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): ThreadCursor {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = ThreadCursorProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
