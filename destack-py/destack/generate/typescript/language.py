@@ -1325,12 +1325,8 @@ def _generate_file(
         "import { timedeltaToISOFormat, timedeltaFromISOFormat, base64Encode, base64Decode } from '@destack/utils';"
     )
     import_parts.append("import type { IMessageType } from '@protobuf-ts/runtime';")
-    import_parts.extend(
-        [
-            "import { Temporal } from 'temporal-polyfill';",
-            "import { v4 as uuid4 } from 'uuid';",
-        ]
-    )
+    import_parts.append("import { Temporal } from 'temporal-polyfill';")
+    import_parts.append("import { v4 as uuid4 } from 'uuid';")
     for import_ in import_block.imports:
         if not import_.path.startswith("@destack/language"):
             import_parts.append(import_.content)
