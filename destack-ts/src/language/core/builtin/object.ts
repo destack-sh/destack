@@ -1,5 +1,6 @@
 import { Graph, PropertyDefinition, QueryConnection, Session } from "@destack/language/core";
 import { AnyNodeProto, AnyStructProto } from "@destack/proto";
+import { base64Decode } from "@destack/utils/base64";
 import { IMessageType } from "@protobuf-ts/runtime";
 import { Supergraph } from "../runtime/graph";
 
@@ -87,7 +88,7 @@ export abstract class BuiltinObject {
 
   /** Convert a binary proto string to an instance of this BuiltinObject. */
   static fromProtoString(packedProtoString: string): BuiltinObject {
-    const packedProtoBytes = Buffer.from(packedProtoString, "base64");
+    const packedProtoBytes = base64Decode(packedProtoString);
     const proto = this.__protoClass__.fromBinary(packedProtoBytes);
     return this.fromProto(proto);
   }

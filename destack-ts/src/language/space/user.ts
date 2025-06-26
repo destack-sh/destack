@@ -21,6 +21,7 @@ import { Cursor } from "@destack/language/logic";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Handle, Space } from "@destack/language/space";
 import { MaterializationTypeProto, UserProto, UserStatusProto } from "@destack/proto";
+import { base64Decode, base64Encode } from "@destack/utils";
 import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
@@ -440,10 +441,10 @@ export class User extends Node implements Global, Entity, HasName, HasIcon, HasS
       objectValue["60"] = object.email;
     }
     if (object.passwordSalt != null) {
-      objectValue["61"] = Buffer.from(object.passwordSalt).toString("base64");
+      objectValue["61"] = base64Encode(object.passwordSalt);
     }
     if (object.passwordHash != null) {
-      objectValue["62"] = Buffer.from(object.passwordHash).toString("base64");
+      objectValue["62"] = base64Encode(object.passwordHash);
     }
     return objectValue;
   }
@@ -471,9 +472,9 @@ export class User extends Node implements Global, Entity, HasName, HasIcon, HasS
     const emailValue = objectValue["60"];
     const unpackedEmail = emailValue != undefined ? emailValue : null;
     const passwordSaltValue = objectValue["61"];
-    const unpackedPasswordSalt = passwordSaltValue != undefined ? Buffer.from(passwordSaltValue, "base64") : null;
+    const unpackedPasswordSalt = passwordSaltValue != undefined ? base64Decode(passwordSaltValue) : null;
     const passwordHashValue = objectValue["62"];
-    const unpackedPasswordHash = passwordHashValue != undefined ? Buffer.from(passwordHashValue, "base64") : null;
+    const unpackedPasswordHash = passwordHashValue != undefined ? base64Decode(passwordHashValue) : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined

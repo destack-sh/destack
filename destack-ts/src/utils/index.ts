@@ -3,3 +3,4 @@ export * from "./fractional";
 export * from "./functools";
 export * from "./string";
 export * from "./time";
+export * from "./base64";

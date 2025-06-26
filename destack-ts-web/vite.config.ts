@@ -32,6 +32,10 @@ const defaultConfig = defineConfig(() => ({
     react({
       babel: {
         plugins: [["babel-plugin-react-compiler", ReactCompilerConfig], ["module:@preact/signals-react-transform"]],
+        generatorOpts: {
+          compact: false,
+          retainLines: true,
+        },
       },
     }),
     viteStaticCopyPyodide(),
