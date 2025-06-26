@@ -20,6 +20,10 @@ export function viteStaticCopyPyodide() {
   });
 }
 
+const ReactCompilerConfig = {
+  /* ... */
+};
+
 // https://vitejs.dev/config/
 const defaultConfig = defineConfig(() => ({
   logLevel: "info",
@@ -27,7 +31,7 @@ const defaultConfig = defineConfig(() => ({
   plugins: [
     react({
       babel: {
-        plugins: [["module:@preact/signals-react-transform"]],
+        plugins: [["babel-plugin-react-compiler", ReactCompilerConfig], ["module:@preact/signals-react-transform"]],
       },
     }),
     viteStaticCopyPyodide(),
