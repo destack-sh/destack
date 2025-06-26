@@ -24,7 +24,7 @@ import {
   MaterializationTypeProto,
   ResourceStatusProto,
 } from "@destack/proto";
-import { timedeltaFromISOFormat, timedeltaToISOFormat } from "@destack/utils";
+import { base64Decode, base64Encode, timedeltaFromISOFormat, timedeltaToISOFormat } from "@destack/utils";
 import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
@@ -721,7 +721,7 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
       objectValue["75"] = object.thumbnailHeight;
     }
     if (object.content != null) {
-      objectValue["76"] = Buffer.from(object.content).toString("base64");
+      objectValue["76"] = base64Encode(object.content);
     }
     return objectValue;
   }
@@ -764,7 +764,7 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
     const thumbnailHeightValue = objectValue["75"];
     const unpackedThumbnailHeight = thumbnailHeightValue != undefined ? Number(thumbnailHeightValue) : null;
     const contentValue = objectValue["76"];
-    const unpackedContent = contentValue != undefined ? Buffer.from(contentValue, "base64") : null;
+    const unpackedContent = contentValue != undefined ? base64Decode(contentValue) : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined

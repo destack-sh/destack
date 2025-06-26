@@ -1302,7 +1302,7 @@ def _generate_file(
         "import { packProtoDuration, packProtoTimestamp, unpackProtoDuration, unpackProtoTimestamp } from '@destack/grpc';"
     )
     import_parts.append(
-        "import { timedeltaToISOFormat, timedeltaFromISOFormat } from '@destack/utils';"
+        "import { timedeltaToISOFormat, timedeltaFromISOFormat, base64Encode, base64Decode } from '@destack/utils';"
     )
     import_parts.append("import type { IMessageType } from '@protobuf-ts/runtime';")
     import_parts.extend(

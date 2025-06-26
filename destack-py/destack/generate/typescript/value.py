@@ -229,7 +229,7 @@ def _generate_pack_value_scalar(
     """Generate the packing code for a scalar value."""
     if prop.scalar_type == ScalarType.PRIMITIVE:
         if prop.primitive_type == PrimitiveType.BYTES:
-            return f"Buffer.from({value_expr}).toString('base64')"
+            return f"base64Encode({value_expr})"
         elif prop.primitive_type == PrimitiveType.UUID:
             return f"String({value_expr})"
         elif prop.primitive_type == PrimitiveType.JSON:
@@ -258,7 +258,7 @@ def _generate_unpack_value_scalar(
     """Generate the unpacking code for a scalar value."""
     if prop.scalar_type == ScalarType.PRIMITIVE:
         if prop.primitive_type == PrimitiveType.BYTES:
-            return f"Buffer.from({value_expr}, 'base64')"
+            return f"base64Decode({value_expr})"
         elif prop.primitive_type == PrimitiveType.UUID:
             return f"String({value_expr})"
         elif prop.primitive_type == PrimitiveType.JSON:
@@ -289,6 +289,7 @@ def _generate_unpack_value_scalar(
         return value_expr
 
 
+# nocheckin: maybe put all the constants in a single constants file at the language root?
 def generate_value(type: Type | TypeDeclaration | PropertyDeclaration, value: Any) -> str:
     """Generate a Typescript value literal."""
     if type.cardinality == TypeCardinality.SCALAR:

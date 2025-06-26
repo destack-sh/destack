@@ -13,7 +13,7 @@ import {
 import { Type } from "@destack/language/core/common";
 import { registerStructClass } from "@destack/language/registry";
 import { ValueProto } from "@destack/proto";
-import { assertNever, timedeltaFromISOFormat, timedeltaToISOFormat } from "@destack/utils";
+import { assertNever, base64Decode, base64Encode, timedeltaFromISOFormat, timedeltaToISOFormat } from "@destack/utils";
 import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
@@ -287,7 +287,7 @@ export function unpackValue(
 function _packScalarValue(value: any, type: Type): any {
   if (type.scalarType == ScalarType.PRIMITIVE) {
     if (type.primitiveType == PrimitiveType.BYTES) {
-      return Buffer.from(value as Uint8Array).toString("base64");
+      return base64Encode(value as Uint8Array);
     } else if (type.primitiveType == PrimitiveType.DATETIME) {
       return (value as Temporal.ZonedDateTime).toString();
     } else if (type.primitiveType == PrimitiveType.DATE) {
@@ -323,7 +323,7 @@ function _unpackScalarValue(
 ): any {
   if (type.scalarType == ScalarType.PRIMITIVE) {
     if (type.primitiveType == PrimitiveType.BYTES) {
-      return Buffer.from(value, "base64");
+      return base64Decode(value);
     } else if (type.primitiveType == PrimitiveType.DATETIME) {
       return Temporal.ZonedDateTime.from(value);
     } else if (type.primitiveType == PrimitiveType.DATE) {

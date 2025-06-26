@@ -1,11 +1,12 @@
 /* eslint-disable no-console */
-import "./assets/index.css";
+import "./polyfills";
 
-import { ENV, IS_DEV, SUPERVISOR_URL, TELEMETRY, VERSION } from "./utils/globals";
+import "./assets/index.css";
 import posthog from "posthog-js";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import Space from "./Space";
+import { ENV, IS_DEV, SUPERVISOR_URL, TELEMETRY, VERSION } from "./utils/globals";
 
 async function init() {
   // telemetry
@@ -46,7 +47,7 @@ async function init() {
   root.render(
     <React.StrictMode>
       <Space />
-    </React.StrictMode>
+    </React.StrictMode>,
   );
 }
 
