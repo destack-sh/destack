@@ -1341,7 +1341,9 @@ def _generate_global(definitions_by_name: dict[str, TypescriptDefinition]) -> tu
     for module, imports in imports_by_module.items():
         if not imports:
             continue
-        import_path = f"@destack/language/{module}" if module else "@destack/language"
+        import_path = (
+            f"@destack/language/{module.replace('.', '/')}" if module else "@destack/language"
+        )
         mapping_import_parts.append(
             f"import type {{ {', '.join(sorted(imports))} }} from '{import_path}';"
         )

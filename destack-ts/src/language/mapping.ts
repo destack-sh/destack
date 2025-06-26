@@ -103,7 +103,7 @@ import type {
   ToolType,
   TraitType,
   TypeCardinality,
-} from "@destack/language/core.builtin";
+} from "@destack/language/core/builtin";
 import type {
   Aggregation,
   AggregationType,
@@ -204,7 +204,7 @@ import type {
   Vector3i,
   Vector4,
   Vector4i,
-} from "@destack/language/core.common";
+} from "@destack/language/core/common";
 import type { File, FileFormat, FileRetentionMode, FileSource, FileType, Link, LinkType } from "@destack/language/data";
 import type { Environment } from "@destack/language/deployment";
 import type { Folder, FolderType, Tag, Tagging } from "@destack/language/folder";
@@ -341,11 +341,11 @@ import type {
   FrameView,
   LabelView,
   SplitView,
-} from "@destack/language/view.container";
-import type { ContentView, TextView } from "@destack/language/view.content";
-import type { InputView, NumberInputView, SliderInputView } from "@destack/language/view.input";
-import type { InternalView, WizardView } from "@destack/language/view.internal";
-import type { NodeView, ThreadView } from "@destack/language/view.node";
+} from "@destack/language/view/container";
+import type { ContentView, TextView } from "@destack/language/view/content";
+import type { InputView, NumberInputView, SliderInputView } from "@destack/language/view/input";
+import type { InternalView, WizardView } from "@destack/language/view/internal";
+import type { NodeView, ThreadView } from "@destack/language/view/node";
 
 export type NodeTypeMapping = {
   [NodeType.CUSTOM_ENTITY_DEFINITION]: CustomEntityDefinition;
