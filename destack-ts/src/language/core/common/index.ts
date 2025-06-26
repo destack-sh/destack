@@ -14,4 +14,5 @@ export * from "@destack/language/core/common/struct";
 export * from "@destack/language/core/common/text";
 export * from "@destack/language/core/common/type";
 export * from "@destack/language/core/common/value";
+export * from "@destack/language/core/common/vector";
 export * from "@destack/language/core/common/view";

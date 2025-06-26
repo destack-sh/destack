@@ -14,7 +14,13 @@ import {
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
-import { CustomProperty, EditOperation, EditType, PropertyReference, Value } from "@destack/language/core/common";
+import {
+  CustomProperty,
+  EditOperation,
+  EditType,
+  PropertyReference,
+  Value,
+} from "@destack/language/core/common";
 import { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
@@ -258,7 +264,9 @@ export class EditEvent extends Node implements Event, IsTaggable {
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -299,10 +307,16 @@ export class EditEvent extends Node implements Event, IsTaggable {
     if (!(this.fieldPtr?.id === other.fieldPtr?.id)) {
       return false;
     }
-    if ((this.key == null) !== (other.key == null) || (this.key != null && !this.key.equals(other.key))) {
+    if (
+      (this.key == null) !== (other.key == null) ||
+      (this.key != null && !this.key.equals(other.key))
+    ) {
       return false;
     }
-    if ((this.value == null) !== (other.value == null) || (this.value != null && !this.value.equals(other.value))) {
+    if (
+      (this.value == null) !== (other.value == null) ||
+      (this.value != null && !this.value.equals(other.value))
+    ) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -409,10 +423,14 @@ export class EditEvent extends Node implements Event, IsTaggable {
         : null;
     const keyValue = objectValue["38"];
     const unpackedKey =
-      keyValue != undefined ? Value.fromValue(keyValue, _session, _supergraph, _graph, _connection) : null;
+      keyValue != undefined
+        ? Value.fromValue(keyValue, _session, _supergraph, _graph, _connection)
+        : null;
     const valueValue = objectValue["40"];
     const unpackedValue =
-      valueValue != undefined ? Value.fromValue(valueValue, _session, _supergraph, _graph, _connection) : null;
+      valueValue != undefined
+        ? Value.fromValue(valueValue, _session, _supergraph, _graph, _connection)
+        : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -514,15 +532,36 @@ export class EditEvent extends Node implements Event, IsTaggable {
   ): EditEvent {
     return new EditEvent({
       type: Number(objectProto.type) as EditType,
-      operation: objectProto.operation != undefined ? (Number(objectProto.operation) as EditOperation) : null,
-      node: NodeReference.fromProto(objectProto.nodePtr!, _session, _supergraph, _graph, _connection),
+      operation:
+        objectProto.operation != undefined
+          ? (Number(objectProto.operation) as EditOperation)
+          : null,
+      node: NodeReference.fromProto(
+        objectProto.nodePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       propPtr:
         objectProto.propPtr != undefined
-          ? PropertyReference.fromProto(objectProto.propPtr!, _session, _supergraph, _graph, _connection)
+          ? PropertyReference.fromProto(
+              objectProto.propPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       field:
         objectProto.fieldPtr != undefined
-          ? NodeReference.fromProto(objectProto.fieldPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.fieldPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       key:
         objectProto.key != undefined
@@ -534,22 +573,46 @@ export class EditEvent extends Node implements Event, IsTaggable {
           : null,
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       id: String(objectProto.id),
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       _session,
       _graph,
@@ -771,7 +834,9 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, HasN
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -929,7 +994,13 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, HasN
     _graph?: any | null,
     _connection?: any | null,
   ): CustomEventDefinition {
-    return CustomEventDefinition.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return CustomEventDefinition.__unpackValue__(
+      objectValue,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
   }
 
   toProto(): CustomEventDefinitionProto {
@@ -972,28 +1043,58 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, HasN
     return new CustomEventDefinition({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       id: String(objectProto.id),
       materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       name: objectProto.name,
       source:
         objectProto.sourcePtr != undefined
-          ? NodeReference.fromProto(objectProto.sourcePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.sourcePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       orderKey: objectProto.orderKey,
       _session,
@@ -1009,7 +1110,13 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, HasN
     _graph?: any | null,
     _connection?: any | null,
   ): CustomEventDefinition {
-    return CustomEventDefinition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return CustomEventDefinition.__unpackProto__(
+      objectProto,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
   }
 
   static fromProtoString(packedProtoString: string): CustomEventDefinition {
@@ -1210,7 +1317,9 @@ export class CustomEvent extends Node implements Event {
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -1342,7 +1451,13 @@ export class CustomEvent extends Node implements Event {
         ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new CustomEvent({
-      definition: NodeReference.fromValue(objectValue["40"], _session, _supergraph, _graph, _connection),
+      definition: NodeReference.fromValue(
+        objectValue["40"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
@@ -1403,29 +1518,65 @@ export class CustomEvent extends Node implements Event {
     _connection?: any | null,
   ): CustomEvent {
     return new CustomEvent({
-      definition: NodeReference.fromProto(objectProto.definitionPtr!, _session, _supergraph, _graph, _connection),
+      definition: NodeReference.fromProto(
+        objectProto.definitionPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       node:
         objectProto.nodePtr != undefined
-          ? NodeReference.fromProto(objectProto.nodePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.nodePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       id: String(objectProto.id),
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       _session,
       _graph,

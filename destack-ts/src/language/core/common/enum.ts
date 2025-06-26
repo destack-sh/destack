@@ -47,7 +47,11 @@ export class CustomEnumDefinition
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [NodeType.CUSTOM_PROPERTY, NodeType.TAGGING];
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
-  static __descendantTypes__: NodeType[] = [NodeType.CUSTOM_PROPERTY, NodeType.CUSTOM_OPTION, NodeType.TAGGING];
+  static __descendantTypes__: NodeType[] = [
+    NodeType.CUSTOM_PROPERTY,
+    NodeType.CUSTOM_OPTION,
+    NodeType.TAGGING,
+  ];
 
   /**
    * Spatial.parent
@@ -248,7 +252,9 @@ export class CustomEnumDefinition
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -277,7 +283,10 @@ export class CustomEnumDefinition
     if (!(this.name === other.name)) {
       return false;
     }
-    if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
       return false;
     }
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
@@ -405,9 +414,12 @@ export class CustomEnumDefinition
         : null;
     const iconValue = objectValue["34"];
     const unpackedIcon =
-      iconValue != undefined ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection) : null;
+      iconValue != undefined
+        ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
     const deletedAtValue = objectValue["20"];
-    const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const unpackedDeletedAt =
+      deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
     const sourcePtrValue = objectValue["210"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
@@ -416,7 +428,10 @@ export class CustomEnumDefinition
     const unpackedValue = new Map();
     if (objectValue["21"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["21"])) {
-        unpackedValue.set(String(key), Value.fromValue(value as any, _session, _supergraph, _graph, _connection));
+        unpackedValue.set(
+          String(key),
+          Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+        );
       }
     }
     return new CustomEnumDefinition({
@@ -447,7 +462,13 @@ export class CustomEnumDefinition
     _graph?: any | null,
     _connection?: any | null,
   ): CustomEnumDefinition {
-    return CustomEnumDefinition.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return CustomEnumDefinition.__unpackValue__(
+      objectValue,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
   }
 
   toProto(): CustomEnumDefinitionProto {
@@ -502,39 +523,73 @@ export class CustomEnumDefinition
     const unpackedValue = new Map();
     if (objectProto.value) {
       for (const [key, value] of Object.entries(objectProto.value)) {
-        unpackedValue.set(String(key), Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection));
+        unpackedValue.set(
+          String(key),
+          Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
       }
     }
     return new CustomEnumDefinition({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       id: String(objectProto.id),
       materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       name: objectProto.name,
       icon:
         objectProto.icon != undefined
           ? Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
-      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       source:
         objectProto.sourcePtr != undefined
-          ? NodeReference.fromProto(objectProto.sourcePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.sourcePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       orderKey: objectProto.orderKey,
       value: unpackedValue,
@@ -551,7 +606,13 @@ export class CustomEnumDefinition
     _graph?: any | null,
     _connection?: any | null,
   ): CustomEnumDefinition {
-    return CustomEnumDefinition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return CustomEnumDefinition.__unpackProto__(
+      objectProto,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
   }
 
   static fromProtoString(packedProtoString: string): CustomEnumDefinition {

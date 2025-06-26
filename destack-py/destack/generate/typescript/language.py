@@ -1199,7 +1199,7 @@ def _generate_file(
             definition = file.get_definition(block.kind, block.id)
             if definition is None:
                 raise RuntimeError(
-                    f"unknown definition: {key} in {file.path} (defines: {list(file.definitions.keys())})"
+                    f"unexpected definition: {key} in {file.path} (defines: {list(file.definitions.keys())})"
                 )
 
             # merge custom content

@@ -1,6 +1,12 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { NodeReference, Session, Supergraph } from "@destack/language/core";
-import { EnumType, IsSubject, Node, StructFrozen, StructType } from "@destack/language/core/builtin";
+import {
+  EnumType,
+  IsSubject,
+  Node,
+  StructFrozen,
+  StructType,
+} from "@destack/language/core/builtin";
 import { CustomProperty, PropertyReference, Value } from "@destack/language/core/common";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { Origin } from "@destack/language/space";
@@ -255,13 +261,22 @@ export class Edit extends StructFrozen {
     if (!(this.fieldPtr?.id === other.fieldPtr?.id)) {
       return false;
     }
-    if ((this.key == null) !== (other.key == null) || (this.key != null && !this.key.equals(other.key))) {
+    if (
+      (this.key == null) !== (other.key == null) ||
+      (this.key != null && !this.key.equals(other.key))
+    ) {
       return false;
     }
-    if ((this.value == null) !== (other.value == null) || (this.value != null && !this.value.equals(other.value))) {
+    if (
+      (this.value == null) !== (other.value == null) ||
+      (this.value != null && !this.value.equals(other.value))
+    ) {
       return false;
     }
-    if ((this.undo == null) !== (other.undo == null) || (this.undo != null && !this.undo.equals(other.undo))) {
+    if (
+      (this.undo == null) !== (other.undo == null) ||
+      (this.undo != null && !this.undo.equals(other.undo))
+    ) {
       return false;
     }
     return true;
@@ -331,13 +346,19 @@ export class Edit extends StructFrozen {
         : null;
     const keyValue = objectValue["35"];
     const unpackedKey =
-      keyValue != undefined ? Value.fromValue(keyValue, _session, _supergraph, _graph, _connection) : null;
+      keyValue != undefined
+        ? Value.fromValue(keyValue, _session, _supergraph, _graph, _connection)
+        : null;
     const valueValue = objectValue["40"];
     const unpackedValue =
-      valueValue != undefined ? Value.fromValue(valueValue, _session, _supergraph, _graph, _connection) : null;
+      valueValue != undefined
+        ? Value.fromValue(valueValue, _session, _supergraph, _graph, _connection)
+        : null;
     const undoValue = objectValue["50"];
     const unpackedUndo =
-      undoValue != undefined ? Edit.fromValue(undoValue, _session, _supergraph, _graph, _connection) : null;
+      undoValue != undefined
+        ? Edit.fromValue(undoValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new Edit({
       id: String(objectValue["2"]),
       type: Number(objectValue["30"]),
@@ -407,15 +428,36 @@ export class Edit extends StructFrozen {
     return new Edit({
       id: String(objectProto.id),
       type: Number(objectProto.type) as EditType,
-      operation: objectProto.operation != undefined ? (Number(objectProto.operation) as EditOperation) : null,
-      node: NodeReference.fromProto(objectProto.nodePtr!, _session, _supergraph, _graph, _connection),
+      operation:
+        objectProto.operation != undefined
+          ? (Number(objectProto.operation) as EditOperation)
+          : null,
+      node: NodeReference.fromProto(
+        objectProto.nodePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       propPtr:
         objectProto.propPtr != undefined
-          ? PropertyReference.fromProto(objectProto.propPtr!, _session, _supergraph, _graph, _connection)
+          ? PropertyReference.fromProto(
+              objectProto.propPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       field:
         objectProto.fieldPtr != undefined
-          ? NodeReference.fromProto(objectProto.fieldPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.fieldPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       key:
         objectProto.key != undefined
@@ -672,7 +714,9 @@ export class Change extends StructFrozen {
         : null;
     const originValue = objectValue["34"];
     const unpackedOrigin =
-      originValue != undefined ? Origin.fromValue(originValue, _session, _supergraph, _graph, _connection) : null;
+      originValue != undefined
+        ? Origin.fromValue(originValue, _session, _supergraph, _graph, _connection)
+        : null;
     const debounceValue = objectValue["35"];
     const unpackedDebounce = debounceValue != undefined ? Number(debounceValue) : null;
     const unpackedEdits: any[] = [];
@@ -757,13 +801,20 @@ export class Change extends StructFrozen {
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       origin:
         objectProto.origin != undefined
           ? Origin.fromProto(objectProto.origin!, _session, _supergraph, _graph, _connection)
           : null,
-      debounce: objectProto.debounce != undefined ? (Number(objectProto.debounce) as ChangeDebounce) : null,
+      debounce:
+        objectProto.debounce != undefined ? (Number(objectProto.debounce) as ChangeDebounce) : null,
       edits: unpackedEdits,
       _proto: objectProto,
       _supergraph,
@@ -993,7 +1044,9 @@ export class ChangeResult extends StructFrozen {
     const unpackedCascadedEdits: any[] = [];
     if (objectValue["42"] != undefined) {
       for (const item of objectValue["42"]) {
-        unpackedCascadedEdits.push(Edit.fromValue(item, _session, _supergraph, _graph, _connection));
+        unpackedCascadedEdits.push(
+          Edit.fromValue(item, _session, _supergraph, _graph, _connection),
+        );
       }
     }
     return new ChangeResult({
@@ -1067,13 +1120,16 @@ export class ChangeResult extends StructFrozen {
     const unpackedCascadedEdits: any[] = [];
     if (objectProto.cascadedEdits) {
       for (const item of objectProto.cascadedEdits) {
-        unpackedCascadedEdits.push(Edit.fromProto(item!, _session, _supergraph, _graph, _connection));
+        unpackedCascadedEdits.push(
+          Edit.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
       }
     }
     return new ChangeResult({
       id: String(objectProto.id),
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      debounce: objectProto.debounce != undefined ? (Number(objectProto.debounce) as ChangeDebounce) : null,
+      debounce:
+        objectProto.debounce != undefined ? (Number(objectProto.debounce) as ChangeDebounce) : null,
       status: Number(objectProto.status) as ChangeStatus,
       edits: unpackedEdits,
       cascadedEdits: unpackedCascadedEdits,

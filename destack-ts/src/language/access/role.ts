@@ -24,7 +24,13 @@ import {
 import { Icon } from "@destack/language/core/common";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
-import { MaterializationTypeProto, RoleEventProto, RoleEventTypeProto, RoleProto, RoleTypeProto } from "@destack/proto";
+import {
+  MaterializationTypeProto,
+  RoleEventProto,
+  RoleEventTypeProto,
+  RoleProto,
+  RoleTypeProto,
+} from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
@@ -214,7 +220,9 @@ export class RoleEvent extends Node implements Event {
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -399,25 +407,55 @@ export class RoleEvent extends Node implements Event {
   ): RoleEvent {
     return new RoleEvent({
       type: Number(objectProto.type) as RoleEventType,
-      node: NodeReference.fromProto(objectProto.nodePtr!, _session, _supergraph, _graph, _connection),
+      node: NodeReference.fromProto(
+        objectProto.nodePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       id: String(objectProto.id),
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       _session,
       _graph,
@@ -673,7 +711,9 @@ export class Role
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -705,7 +745,10 @@ export class Role
     if (!(this.slug === other.slug)) {
       return false;
     }
-    if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
       return false;
     }
     if (!(this.name === other.name)) {
@@ -818,9 +861,12 @@ export class Role
     const unpackedSlug = slugValue != undefined ? slugValue : null;
     const iconValue = objectValue["34"];
     const unpackedIcon =
-      iconValue != undefined ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection) : null;
+      iconValue != undefined
+        ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
     const deletedAtValue = objectValue["20"];
-    const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const unpackedDeletedAt =
+      deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
     return new Role({
       parent: unpackedParentPtr,
       type: Number(objectValue["30"]),
@@ -899,24 +945,48 @@ export class Role
     return new Role({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       type: Number(objectProto.type) as RoleType,
       id: String(objectProto.id),
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       slug: objectProto.slug != undefined ? objectProto.slug : null,
       icon:
@@ -925,7 +995,8 @@ export class Role
           : null,
       name: objectProto.name,
       orderKey: objectProto.orderKey,
-      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       _session,
       _graph,
       _connection,

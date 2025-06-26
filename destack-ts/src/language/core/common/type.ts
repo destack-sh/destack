@@ -224,7 +224,13 @@ export class StringConstraint extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): StringConstraint {
-    return StringConstraint.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return StringConstraint.__unpackValue__(
+      objectValue,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
   }
 
   toProto(): StringConstraintProto {
@@ -276,7 +282,13 @@ export class StringConstraint extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): StringConstraint {
-    return StringConstraint.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return StringConstraint.__unpackProto__(
+      objectProto,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
   }
 
   static fromProtoString(packedProtoString: string): StringConstraint {
@@ -385,13 +397,15 @@ export class NumberConstraint extends StructFrozen {
     }
     if (
       (this.minValue == null) !== (other.minValue == null) ||
-      (this.minValue != null && !(this.minValue === other.minValue || Math.abs(this.minValue - other.minValue) < 1e-10))
+      (this.minValue != null &&
+        !(this.minValue === other.minValue || Math.abs(this.minValue - other.minValue) < 1e-10))
     ) {
       return false;
     }
     if (
       (this.maxValue == null) !== (other.maxValue == null) ||
-      (this.maxValue != null && !(this.maxValue === other.maxValue || Math.abs(this.maxValue - other.maxValue) < 1e-10))
+      (this.maxValue != null &&
+        !(this.maxValue === other.maxValue || Math.abs(this.maxValue - other.maxValue) < 1e-10))
     ) {
       return false;
     }
@@ -489,7 +503,13 @@ export class NumberConstraint extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): NumberConstraint {
-    return NumberConstraint.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return NumberConstraint.__unpackValue__(
+      objectValue,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
   }
 
   toProto(): NumberConstraintProto {
@@ -549,7 +569,13 @@ export class NumberConstraint extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): NumberConstraint {
-    return NumberConstraint.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return NumberConstraint.__unpackProto__(
+      objectProto,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
   }
 
   static fromProtoString(packedProtoString: string): NumberConstraint {
@@ -684,7 +710,13 @@ export class CollectionConstraint extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): CollectionConstraint {
-    return CollectionConstraint.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return CollectionConstraint.__unpackValue__(
+      objectValue,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
   }
 
   toProto(): CollectionConstraintProto {
@@ -728,7 +760,13 @@ export class CollectionConstraint extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): CollectionConstraint {
-    return CollectionConstraint.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return CollectionConstraint.__unpackProto__(
+      objectProto,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
   }
 
   static fromProtoString(packedProtoString: string): CollectionConstraint {
@@ -1233,7 +1271,8 @@ export class Type extends StructFrozen {
     }
     if (
       (this.collectionConstraint == null) !== (other.collectionConstraint == null) ||
-      (this.collectionConstraint != null && !this.collectionConstraint.equals(other.collectionConstraint))
+      (this.collectionConstraint != null &&
+        !this.collectionConstraint.equals(other.collectionConstraint))
     ) {
       return false;
     }
@@ -1335,7 +1374,8 @@ export class Type extends StructFrozen {
     _connection?: any | null,
   ): Type {
     const primitiveTypeValue = objectValue["42"];
-    const unpackedPrimitiveType = primitiveTypeValue != undefined ? Number(primitiveTypeValue) : null;
+    const unpackedPrimitiveType =
+      primitiveTypeValue != undefined ? Number(primitiveTypeValue) : null;
     const enumTypeValue = objectValue["43"];
     const unpackedEnumType = enumTypeValue != undefined ? Number(enumTypeValue) : null;
     const nodeTypeValue = objectValue["44"];
@@ -1343,7 +1383,13 @@ export class Type extends StructFrozen {
     const nodeDefinitionPtrValue = objectValue["45"];
     const unpackedNodeDefinitionPtr =
       nodeDefinitionPtrValue != undefined
-        ? NodeReference.fromValue(nodeDefinitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? NodeReference.fromValue(
+            nodeDefinitionPtrValue,
+            _session,
+            _supergraph,
+            _graph,
+            _connection,
+          )
         : null;
     const structTypeValue = objectValue["46"];
     const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : null;
@@ -1354,7 +1400,9 @@ export class Type extends StructFrozen {
         : null;
     const keyTypeValue = objectValue["48"];
     const unpackedKeyType =
-      keyTypeValue != undefined ? Type.fromValue(keyTypeValue, _session, _supergraph, _graph, _connection) : null;
+      keyTypeValue != undefined
+        ? Type.fromValue(keyTypeValue, _session, _supergraph, _graph, _connection)
+        : null;
     const isRequiredValue = objectValue["50"];
     const unpackedIsRequired = isRequiredValue != undefined ? isRequiredValue : null;
     const isVariableValue = objectValue["51"];
@@ -1365,21 +1413,40 @@ export class Type extends StructFrozen {
         ? Value.fromValue(defaultValueValue, _session, _supergraph, _graph, _connection)
         : null;
     const defaultFactoryValue = objectValue["56"];
-    const unpackedDefaultFactory = defaultFactoryValue != undefined ? Number(defaultFactoryValue) : null;
+    const unpackedDefaultFactory =
+      defaultFactoryValue != undefined ? Number(defaultFactoryValue) : null;
     const collectionConstraintValue = objectValue["60"];
     const unpackedCollectionConstraint =
       collectionConstraintValue != undefined
-        ? CollectionConstraint.fromValue(collectionConstraintValue, _session, _supergraph, _graph, _connection)
+        ? CollectionConstraint.fromValue(
+            collectionConstraintValue,
+            _session,
+            _supergraph,
+            _graph,
+            _connection,
+          )
         : null;
     const stringConstraintValue = objectValue["61"];
     const unpackedStringConstraint =
       stringConstraintValue != undefined
-        ? StringConstraint.fromValue(stringConstraintValue, _session, _supergraph, _graph, _connection)
+        ? StringConstraint.fromValue(
+            stringConstraintValue,
+            _session,
+            _supergraph,
+            _graph,
+            _connection,
+          )
         : null;
     const numberConstraintValue = objectValue["62"];
     const unpackedNumberConstraint =
       numberConstraintValue != undefined
-        ? NumberConstraint.fromValue(numberConstraintValue, _session, _supergraph, _graph, _connection)
+        ? NumberConstraint.fromValue(
+            numberConstraintValue,
+            _session,
+            _supergraph,
+            _graph,
+            _connection,
+          )
         : null;
     const nodeConstraintValue = objectValue["63"];
     const unpackedNodeConstraint =
@@ -1490,17 +1557,34 @@ export class Type extends StructFrozen {
       cardinality: Number(objectProto.cardinality) as TypeCardinality,
       scalarType: Number(objectProto.scalarType) as ScalarType,
       primitiveType:
-        objectProto.primitiveType != undefined ? (Number(objectProto.primitiveType) as PrimitiveType) : null,
-      enumType: objectProto.enumType != undefined ? (Number(objectProto.enumType) as EnumType) : null,
-      nodeType: objectProto.nodeType != undefined ? (Number(objectProto.nodeType) as NodeType) : null,
+        objectProto.primitiveType != undefined
+          ? (Number(objectProto.primitiveType) as PrimitiveType)
+          : null,
+      enumType:
+        objectProto.enumType != undefined ? (Number(objectProto.enumType) as EnumType) : null,
+      nodeType:
+        objectProto.nodeType != undefined ? (Number(objectProto.nodeType) as NodeType) : null,
       nodeDefinition:
         objectProto.nodeDefinitionPtr != undefined
-          ? NodeReference.fromProto(objectProto.nodeDefinitionPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.nodeDefinitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
-      structType: objectProto.structType != undefined ? (Number(objectProto.structType) as StructType) : null,
+      structType:
+        objectProto.structType != undefined ? (Number(objectProto.structType) as StructType) : null,
       baseType:
         objectProto.baseTypePtr != undefined
-          ? NodeReference.fromProto(objectProto.baseTypePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.baseTypePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       keyType:
         objectProto.keyType != undefined
@@ -1513,7 +1597,9 @@ export class Type extends StructFrozen {
           ? Value.fromProto(objectProto.defaultValue!, _session, _supergraph, _graph, _connection)
           : null,
       defaultFactory:
-        objectProto.defaultFactory != undefined ? (Number(objectProto.defaultFactory) as DefaultFactory) : null,
+        objectProto.defaultFactory != undefined
+          ? (Number(objectProto.defaultFactory) as DefaultFactory)
+          : null,
       collectionConstraint:
         objectProto.collectionConstraint != undefined
           ? CollectionConstraint.fromProto(
@@ -1526,15 +1612,33 @@ export class Type extends StructFrozen {
           : null,
       stringConstraint:
         objectProto.stringConstraint != undefined
-          ? StringConstraint.fromProto(objectProto.stringConstraint!, _session, _supergraph, _graph, _connection)
+          ? StringConstraint.fromProto(
+              objectProto.stringConstraint!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       numberConstraint:
         objectProto.numberConstraint != undefined
-          ? NumberConstraint.fromProto(objectProto.numberConstraint!, _session, _supergraph, _graph, _connection)
+          ? NumberConstraint.fromProto(
+              objectProto.numberConstraint!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       nodeConstraint:
         objectProto.nodeConstraint != undefined
-          ? NodeConstraint.fromProto(objectProto.nodeConstraint!, _session, _supergraph, _graph, _connection)
+          ? NodeConstraint.fromProto(
+              objectProto.nodeConstraint!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       _proto: objectProto,
       _supergraph,
@@ -1591,7 +1695,10 @@ export function toType(valueOrType: any, nodeAsValue: boolean = false): Type {
       scalarType: ScalarType.STRUCT,
       structType: valueOrType.metatype,
     });
-  } else if (PRIMITIVE_JS_TYPES.has(valueOrType.constructor) && valueOrType.constructor !== Object) {
+  } else if (
+    PRIMITIVE_JS_TYPES.has(valueOrType.constructor) &&
+    valueOrType.constructor !== Object
+  ) {
     return new Type({
       cardinality: TypeCardinality.SCALAR,
       scalarType: ScalarType.PRIMITIVE,
@@ -1606,7 +1713,9 @@ export function toType(valueOrType: any, nodeAsValue: boolean = false): Type {
     }
     const elementType = toType(valueOrType[0]);
     if (elementType.cardinality !== TypeCardinality.SCALAR) {
-      throw new Error(`expected scalar inside array, got ${elementType.cardinality} for ${valueOrType}`);
+      throw new Error(
+        `expected scalar inside array, got ${elementType.cardinality} for ${valueOrType}`,
+      );
     }
     return new Type({
       cardinality: TypeCardinality.LIST,
@@ -1627,8 +1736,13 @@ export function toType(valueOrType: any, nodeAsValue: boolean = false): Type {
       throw new Error(`expected scalar key in Map, got ${keyType.cardinality} for ${valueOrType}`);
     }
     const valueType = toType(sampleValue);
-    if (valueType.cardinality !== TypeCardinality.SCALAR && valueType.cardinality !== TypeCardinality.LIST) {
-      throw new Error(`expected scalar or list value in Map, got ${valueType.cardinality} for ${valueOrType}`);
+    if (
+      valueType.cardinality !== TypeCardinality.SCALAR &&
+      valueType.cardinality !== TypeCardinality.LIST
+    ) {
+      throw new Error(
+        `expected scalar or list value in Map, got ${valueType.cardinality} for ${valueOrType}`,
+      );
     }
     return new Type({
       cardinality: TypeCardinality.MAP,
@@ -1649,11 +1763,18 @@ export function toType(valueOrType: any, nodeAsValue: boolean = false): Type {
     const sampleValue = valueOrType[sampleKey];
     const keyType = toType(sampleKey);
     if (keyType.cardinality !== TypeCardinality.SCALAR) {
-      throw new Error(`expected scalar key in object, got ${keyType.cardinality} for ${valueOrType}`);
+      throw new Error(
+        `expected scalar key in object, got ${keyType.cardinality} for ${valueOrType}`,
+      );
     }
     const valueType = toType(sampleValue);
-    if (valueType.cardinality !== TypeCardinality.SCALAR && valueType.cardinality !== TypeCardinality.LIST) {
-      throw new Error(`expected scalar or list value in object, got ${valueType.cardinality} for ${valueOrType}`);
+    if (
+      valueType.cardinality !== TypeCardinality.SCALAR &&
+      valueType.cardinality !== TypeCardinality.LIST
+    ) {
+      throw new Error(
+        `expected scalar or list value in object, got ${valueType.cardinality} for ${valueOrType}`,
+      );
     }
     return new Type({
       cardinality: TypeCardinality.MAP,

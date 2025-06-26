@@ -43,7 +43,10 @@ registerEnumClass(EnumType.USER_STATUS, UserStatus);
 /**
  * A User is a human using Destack.
  */
-export class User extends Node implements Global, Entity, HasName, HasIcon, HasSlug, IsOwner, IsFollowable, IsSubject {
+export class User
+  extends Node
+  implements Global, Entity, HasName, HasIcon, HasSlug, IsOwner, IsFollowable, IsSubject
+{
   static metatype: NodeType = NodeType.USER;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
@@ -55,9 +58,19 @@ export class User extends Node implements Global, Entity, HasName, HasIcon, HasS
   ];
   static __rootType__: NodeType | null = null;
   static __parentTypes__: NodeType[] = [];
-  static __childTypes__: NodeType[] = [NodeType.ENTITLEMENT, NodeType.SANCTION, NodeType.FOLLOW, NodeType.CLIENT];
+  static __childTypes__: NodeType[] = [
+    NodeType.ENTITLEMENT,
+    NodeType.SANCTION,
+    NodeType.FOLLOW,
+    NodeType.CLIENT,
+  ];
   static __ancestorTypes__: NodeType[] = [];
-  static __descendantTypes__: NodeType[] = [NodeType.FOLLOW, NodeType.CLIENT, NodeType.SANCTION, NodeType.ENTITLEMENT];
+  static __descendantTypes__: NodeType[] = [
+    NodeType.FOLLOW,
+    NodeType.CLIENT,
+    NodeType.SANCTION,
+    NodeType.ENTITLEMENT,
+  ];
 
   /**
    * Trait.parent
@@ -317,7 +330,9 @@ export class User extends Node implements Global, Entity, HasName, HasIcon, HasS
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -367,7 +382,10 @@ export class User extends Node implements Global, Entity, HasName, HasIcon, HasS
     if (!(this.email === other.email)) {
       return false;
     }
-    if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
       return false;
     }
     return true;
@@ -470,9 +488,11 @@ export class User extends Node implements Global, Entity, HasName, HasIcon, HasS
     const emailValue = objectValue["60"];
     const unpackedEmail = emailValue != undefined ? emailValue : null;
     const passwordSaltValue = objectValue["61"];
-    const unpackedPasswordSalt = passwordSaltValue != undefined ? base64Decode(passwordSaltValue) : null;
+    const unpackedPasswordSalt =
+      passwordSaltValue != undefined ? base64Decode(passwordSaltValue) : null;
     const passwordHashValue = objectValue["62"];
-    const unpackedPasswordHash = passwordHashValue != undefined ? base64Decode(passwordHashValue) : null;
+    const unpackedPasswordHash =
+      passwordHashValue != undefined ? base64Decode(passwordHashValue) : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -490,7 +510,9 @@ export class User extends Node implements Global, Entity, HasName, HasIcon, HasS
         : null;
     const iconValue = objectValue["34"];
     const unpackedIcon =
-      iconValue != undefined ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection) : null;
+      iconValue != undefined
+        ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new User({
       name: objectValue["31"],
       slug: objectValue["33"],
@@ -587,16 +609,36 @@ export class User extends Node implements Global, Entity, HasName, HasIcon, HasS
       slug: objectProto.slug,
       status: Number(objectProto.status) as UserStatus,
       lastLoggedInAt:
-        objectProto.lastLoggedInAt != undefined ? unpackProtoTimestamp(objectProto.lastLoggedInAt!) : null,
+        objectProto.lastLoggedInAt != undefined
+          ? unpackProtoTimestamp(objectProto.lastLoggedInAt!)
+          : null,
       isStaff: objectProto.isStaff,
-      space: NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection),
+      space: NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       handle:
         objectProto.handlePtr != undefined
-          ? NodeReference.fromProto(objectProto.handlePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.handlePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       cursor:
         objectProto.cursorPtr != undefined
-          ? NodeReference.fromProto(objectProto.cursorPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.cursorPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       email: objectProto.email != undefined ? objectProto.email : null,
       passwordSalt: objectProto.passwordSalt != undefined ? objectProto.passwordSalt : null,
@@ -604,18 +646,36 @@ export class User extends Node implements Global, Entity, HasName, HasIcon, HasS
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       icon:
         objectProto.icon != undefined

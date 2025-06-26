@@ -14,7 +14,12 @@ import {
 } from "@destack/language/core/builtin";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
-import { LinkProto, LinkTypeProto, MaterializationTypeProto, ResourceStatusProto } from "@destack/proto";
+import {
+  LinkProto,
+  LinkTypeProto,
+  MaterializationTypeProto,
+  ResourceStatusProto,
+} from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
@@ -38,7 +43,12 @@ registerEnumClass(EnumType.LINK_TYPE, LinkType);
  */
 export class Link extends Node implements Spatial, Resource {
   static metatype: NodeType = NodeType.LINK;
-  static __traits__: TraitType[] = [TraitType.TRACKED, TraitType.SPATIAL, TraitType.ENTITY, TraitType.RESOURCE];
+  static __traits__: TraitType[] = [
+    TraitType.TRACKED,
+    TraitType.SPATIAL,
+    TraitType.ENTITY,
+    TraitType.RESOURCE,
+  ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -314,7 +324,9 @@ export class Link extends Node implements Spatial, Resource {
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -523,9 +535,11 @@ export class Link extends Node implements Spatial, Resource {
     const faviconUrlValue = objectValue["54"];
     const unpackedFaviconUrl = faviconUrlValue != undefined ? faviconUrlValue : null;
     const thumbnailWidthValue = objectValue["55"];
-    const unpackedThumbnailWidth = thumbnailWidthValue != undefined ? Number(thumbnailWidthValue) : null;
+    const unpackedThumbnailWidth =
+      thumbnailWidthValue != undefined ? Number(thumbnailWidthValue) : null;
     const thumbnailHeightValue = objectValue["56"];
-    const unpackedThumbnailHeight = thumbnailHeightValue != undefined ? Number(thumbnailHeightValue) : null;
+    const unpackedThumbnailHeight =
+      thumbnailHeightValue != undefined ? Number(thumbnailHeightValue) : null;
     const contentValue = objectValue["60"];
     const unpackedContent = contentValue != undefined ? contentValue : null;
     const attributionValue = objectValue["62"];
@@ -533,9 +547,11 @@ export class Link extends Node implements Spatial, Resource {
     const attributionTagValue = objectValue["63"];
     const unpackedAttributionTag = attributionTagValue != undefined ? attributionTagValue : null;
     const publishedAtValue = objectValue["64"];
-    const unpackedPublishedAt = publishedAtValue != undefined ? Temporal.ZonedDateTime.from(publishedAtValue) : null;
+    const unpackedPublishedAt =
+      publishedAtValue != undefined ? Temporal.ZonedDateTime.from(publishedAtValue) : null;
     const expiresAtValue = objectValue["65"];
-    const unpackedExpiresAt = expiresAtValue != undefined ? Temporal.ZonedDateTime.from(expiresAtValue) : null;
+    const unpackedExpiresAt =
+      expiresAtValue != undefined ? Temporal.ZonedDateTime.from(expiresAtValue) : null;
     const unpackedImageUrls: any[] = [];
     if (objectValue["70"] != undefined) {
       for (const item of objectValue["70"]) {
@@ -553,7 +569,8 @@ export class Link extends Node implements Spatial, Resource {
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const targetStatusValue = objectValue["41"];
-    const unpackedTargetStatus = targetStatusValue != undefined ? Temporal.ZonedDateTime.from(targetStatusValue) : null;
+    const unpackedTargetStatus =
+      targetStatusValue != undefined ? Temporal.ZonedDateTime.from(targetStatusValue) : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -698,35 +715,68 @@ export class Link extends Node implements Spatial, Resource {
       contentUrl: objectProto.contentUrl != undefined ? objectProto.contentUrl : null,
       thumbnailUrl: objectProto.thumbnailUrl != undefined ? objectProto.thumbnailUrl : null,
       faviconUrl: objectProto.faviconUrl != undefined ? objectProto.faviconUrl : null,
-      thumbnailWidth: objectProto.thumbnailWidth != undefined ? Number(objectProto.thumbnailWidth) : null,
-      thumbnailHeight: objectProto.thumbnailHeight != undefined ? Number(objectProto.thumbnailHeight) : null,
+      thumbnailWidth:
+        objectProto.thumbnailWidth != undefined ? Number(objectProto.thumbnailWidth) : null,
+      thumbnailHeight:
+        objectProto.thumbnailHeight != undefined ? Number(objectProto.thumbnailHeight) : null,
       content: objectProto.content != undefined ? objectProto.content : null,
       attribution: objectProto.attribution != undefined ? objectProto.attribution : null,
       attributionTag: objectProto.attributionTag != undefined ? objectProto.attributionTag : null,
-      publishedAt: objectProto.publishedAt != undefined ? unpackProtoTimestamp(objectProto.publishedAt!) : null,
-      expiresAt: objectProto.expiresAt != undefined ? unpackProtoTimestamp(objectProto.expiresAt!) : null,
+      publishedAt:
+        objectProto.publishedAt != undefined
+          ? unpackProtoTimestamp(objectProto.publishedAt!)
+          : null,
+      expiresAt:
+        objectProto.expiresAt != undefined ? unpackProtoTimestamp(objectProto.expiresAt!) : null,
       imageUrls: unpackedImageUrls,
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       id: String(objectProto.id),
       status: Number(objectProto.status) as ResourceStatus,
-      targetStatus: objectProto.targetStatus != undefined ? unpackProtoTimestamp(objectProto.targetStatus!) : null,
+      targetStatus:
+        objectProto.targetStatus != undefined
+          ? unpackProtoTimestamp(objectProto.targetStatus!)
+          : null,
       materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       _session,
       _graph,

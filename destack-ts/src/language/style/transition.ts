@@ -10,7 +10,11 @@ import {
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
-import { registerEnumClass, registerNodeClass, registerStructClass } from "@destack/language/registry";
+import {
+  registerEnumClass,
+  registerNodeClass,
+  registerStructClass,
+} from "@destack/language/registry";
 import { Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Style, Theme } from "@destack/language/style";
@@ -202,13 +206,15 @@ export class Transition extends Struct {
     }
     if (
       (this.delay == null) !== (other.delay == null) ||
-      (this.delay != null && !(this.delay === other.delay || Math.abs(this.delay - other.delay) < 1e-10))
+      (this.delay != null &&
+        !(this.delay === other.delay || Math.abs(this.delay - other.delay) < 1e-10))
     ) {
       return false;
     }
     if (
       (this.duration == null) !== (other.duration == null) ||
-      (this.duration != null && !(this.duration === other.duration || Math.abs(this.duration - other.duration) < 1e-10))
+      (this.duration != null &&
+        !(this.duration === other.duration || Math.abs(this.duration - other.duration) < 1e-10))
     ) {
       return false;
     }
@@ -229,7 +235,8 @@ export class Transition extends Struct {
     }
     if (
       (this.damping == null) !== (other.damping == null) ||
-      (this.damping != null && !(this.damping === other.damping || Math.abs(this.damping - other.damping) < 1e-10))
+      (this.damping != null &&
+        !(this.damping === other.damping || Math.abs(this.damping - other.damping) < 1e-10))
     ) {
       return false;
     }
@@ -241,7 +248,8 @@ export class Transition extends Struct {
     }
     if (
       (this.bounce == null) !== (other.bounce == null) ||
-      (this.bounce != null && !(this.bounce === other.bounce || Math.abs(this.bounce - other.bounce) < 1e-10))
+      (this.bounce != null &&
+        !(this.bounce === other.bounce || Math.abs(this.bounce - other.bounce) < 1e-10))
     ) {
       return false;
     }
@@ -415,7 +423,13 @@ export class Transition extends Struct {
     return new Transition({
       style:
         objectProto.stylePtr != undefined
-          ? NodeReference.fromProto(objectProto.stylePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.stylePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       type: Number(objectProto.type) as TransitionType,
       delay: objectProto.delay != undefined ? objectProto.delay : null,
@@ -425,7 +439,8 @@ export class Transition extends Struct {
       damping: objectProto.damping != undefined ? objectProto.damping : null,
       mass: objectProto.mass != undefined ? objectProto.mass : null,
       bounce: objectProto.bounce != undefined ? objectProto.bounce : null,
-      springType: objectProto.springType != undefined ? (Number(objectProto.springType) as SpringType) : null,
+      springType:
+        objectProto.springType != undefined ? (Number(objectProto.springType) as SpringType) : null,
       _supergraph,
     });
   }
@@ -759,7 +774,9 @@ export class TransitionStyle extends Node implements Style {
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -793,13 +810,15 @@ export class TransitionStyle extends Node implements Style {
     }
     if (
       (this.delay == null) !== (other.delay == null) ||
-      (this.delay != null && !(this.delay === other.delay || Math.abs(this.delay - other.delay) < 1e-10))
+      (this.delay != null &&
+        !(this.delay === other.delay || Math.abs(this.delay - other.delay) < 1e-10))
     ) {
       return false;
     }
     if (
       (this.duration == null) !== (other.duration == null) ||
-      (this.duration != null && !(this.duration === other.duration || Math.abs(this.duration - other.duration) < 1e-10))
+      (this.duration != null &&
+        !(this.duration === other.duration || Math.abs(this.duration - other.duration) < 1e-10))
     ) {
       return false;
     }
@@ -820,7 +839,8 @@ export class TransitionStyle extends Node implements Style {
     }
     if (
       (this.damping == null) !== (other.damping == null) ||
-      (this.damping != null && !(this.damping === other.damping || Math.abs(this.damping - other.damping) < 1e-10))
+      (this.damping != null &&
+        !(this.damping === other.damping || Math.abs(this.damping - other.damping) < 1e-10))
     ) {
       return false;
     }
@@ -832,7 +852,8 @@ export class TransitionStyle extends Node implements Style {
     }
     if (
       (this.bounce == null) !== (other.bounce == null) ||
-      (this.bounce != null && !(this.bounce === other.bounce || Math.abs(this.bounce - other.bounce) < 1e-10))
+      (this.bounce != null &&
+        !(this.bounce === other.bounce || Math.abs(this.bounce - other.bounce) < 1e-10))
     ) {
       return false;
     }
@@ -965,7 +986,8 @@ export class TransitionStyle extends Node implements Style {
         ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
-    const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const unpackedDeletedAt =
+      deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
     const delayValue = objectValue["50"];
     const unpackedDelay = delayValue != undefined ? delayValue : null;
     const durationValue = objectValue["51"];
@@ -1098,27 +1120,52 @@ export class TransitionStyle extends Node implements Style {
     return new TransitionStyle({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       id: String(objectProto.id),
       materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       name: objectProto.name,
       orderKey: objectProto.orderKey,
-      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       type: Number(objectProto.type) as TransitionType,
       delay: objectProto.delay != undefined ? objectProto.delay : null,
       duration: objectProto.duration != undefined ? objectProto.duration : null,
@@ -1127,7 +1174,8 @@ export class TransitionStyle extends Node implements Style {
       damping: objectProto.damping != undefined ? objectProto.damping : null,
       mass: objectProto.mass != undefined ? objectProto.mass : null,
       bounce: objectProto.bounce != undefined ? objectProto.bounce : null,
-      springType: objectProto.springType != undefined ? (Number(objectProto.springType) as SpringType) : null,
+      springType:
+        objectProto.springType != undefined ? (Number(objectProto.springType) as SpringType) : null,
       _session,
       _graph,
       _connection,

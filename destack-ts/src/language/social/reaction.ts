@@ -24,7 +24,10 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A Reaction is a relationship between a Subject and a Reaction Node.
  */
-export class Reaction extends Node implements Global, Spatial, Entity, IsReactable, IsDeletable, IsOwnable {
+export class Reaction
+  extends Node
+  implements Global, Spatial, Entity, IsReactable, IsDeletable, IsOwnable
+{
   static metatype: NodeType = NodeType.REACTION;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
@@ -219,7 +222,9 @@ export class Reaction extends Node implements Global, Spatial, Entity, IsReactab
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -348,10 +353,17 @@ export class Reaction extends Node implements Global, Spatial, Entity, IsReactab
         ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["20"];
-    const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const unpackedDeletedAt =
+      deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
     return new Reaction({
       parent: unpackedParentPtr,
-      ownedBy: NodeReference.fromValue(objectValue["25"], _session, _supergraph, _graph, _connection),
+      ownedBy: NodeReference.fromValue(
+        objectValue["25"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       content: objectValue["40"],
       id: String(objectValue["2"]),
       space: unpackedSpacePtr,
@@ -417,27 +429,58 @@ export class Reaction extends Node implements Global, Spatial, Entity, IsReactab
     return new Reaction({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
-      ownedBy: NodeReference.fromProto(objectProto.ownedByPtr!, _session, _supergraph, _graph, _connection),
+      ownedBy: NodeReference.fromProto(
+        objectProto.ownedByPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       content: objectProto.content,
       id: String(objectProto.id),
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
-      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       _session,
       _graph,
       _connection,

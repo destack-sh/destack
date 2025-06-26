@@ -332,12 +332,19 @@ export class TextSpan extends StructFrozen {
       content: objectProto.content != undefined ? objectProto.content : null,
       node:
         objectProto.nodePtr != undefined
-          ? NodeReference.fromProto(objectProto.nodePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.nodePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       url: objectProto.url != undefined ? objectProto.url : null,
       isBold: objectProto.isBold != undefined ? objectProto.isBold : null,
       isItalic: objectProto.isItalic != undefined ? objectProto.isItalic : null,
-      isStrikethrough: objectProto.isStrikethrough != undefined ? objectProto.isStrikethrough : null,
+      isStrikethrough:
+        objectProto.isStrikethrough != undefined ? objectProto.isStrikethrough : null,
       isUnderline: objectProto.isUnderline != undefined ? objectProto.isUnderline : null,
       isCode: objectProto.isCode != undefined ? objectProto.isCode : null,
       _proto: objectProto,
@@ -626,7 +633,8 @@ export class Text extends StructFrozen {
       spans: unpackedSpans,
       isBold: objectProto.isBold != undefined ? objectProto.isBold : null,
       isItalic: objectProto.isItalic != undefined ? objectProto.isItalic : null,
-      isStrikethrough: objectProto.isStrikethrough != undefined ? objectProto.isStrikethrough : null,
+      isStrikethrough:
+        objectProto.isStrikethrough != undefined ? objectProto.isStrikethrough : null,
       isUnderline: objectProto.isUnderline != undefined ? objectProto.isUnderline : null,
       isCode: objectProto.isCode != undefined ? objectProto.isCode : null,
       _proto: objectProto,

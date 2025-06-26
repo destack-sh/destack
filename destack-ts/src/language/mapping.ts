@@ -205,10 +205,25 @@ import type {
   Vector4,
   Vector4i,
 } from "@destack/language/core/common";
-import type { File, FileFormat, FileRetentionMode, FileSource, FileType, Link, LinkType } from "@destack/language/data";
+import type {
+  File,
+  FileFormat,
+  FileRetentionMode,
+  FileSource,
+  FileType,
+  Link,
+  LinkType,
+} from "@destack/language/data";
 import type { Environment } from "@destack/language/deployment";
 import type { Folder, FolderType, Tag, Tagging } from "@destack/language/folder";
-import type { Database, DatabaseInfo, DatabaseType, GalaxyInfo, Machine, MachineType } from "@destack/language/infra";
+import type {
+  Database,
+  DatabaseInfo,
+  DatabaseType,
+  GalaxyInfo,
+  Machine,
+  MachineType,
+} from "@destack/language/infra";
 import type { ModelDeveloper, ModelProvider } from "@destack/language/intelligence";
 import type {
   Action,
@@ -539,6 +554,12 @@ export type StructTypeMapping = {
   [StructType.CONSTANT_DEFINITION]: ConstantDefinition;
   [StructType.TEXT_SPAN]: TextSpan;
   [StructType.TEXT]: Text;
+  [StructType.VECTOR2]: Vector2;
+  [StructType.VECTOR3]: Vector3;
+  [StructType.VECTOR4]: Vector4;
+  [StructType.VECTOR2I]: Vector2i;
+  [StructType.VECTOR3I]: Vector3i;
+  [StructType.VECTOR4I]: Vector4i;
   [StructType.LENGTH]: Length;
   [StructType.POSITION]: Position;
   [StructType.DIMENSION]: Dimension;
@@ -546,12 +567,6 @@ export type StructTypeMapping = {
   [StructType.CORNERS]: Corners;
   [StructType.AXIS2]: Axis2;
   [StructType.AXIS3]: Axis3;
-  [StructType.VECTOR2]: Vector2;
-  [StructType.VECTOR3]: Vector3;
-  [StructType.VECTOR4]: Vector4;
-  [StructType.VECTOR2I]: Vector2i;
-  [StructType.VECTOR3I]: Vector3i;
-  [StructType.VECTOR4I]: Vector4i;
   [StructType.GRID]: Grid;
   [StructType.GRID_SPAN]: GridSpan;
   [StructType.DATABASE_INFO]: DatabaseInfo;

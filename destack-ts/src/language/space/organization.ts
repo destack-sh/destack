@@ -19,7 +19,11 @@ import {
 import { Icon } from "@destack/language/core/common";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Handle, Space } from "@destack/language/space";
-import { MaterializationTypeProto, OrganizationProto, OrganizationStatusProto } from "@destack/proto";
+import {
+  MaterializationTypeProto,
+  OrganizationProto,
+  OrganizationStatusProto,
+} from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
@@ -42,7 +46,10 @@ registerEnumClass(EnumType.ORGANIZATION_STATUS, OrganizationStatus);
 /**
  * An Organization with Users and Teams.
  */
-export class Organization extends Node implements Global, Entity, HasSlug, HasIcon, HasName, IsOwner, IsJoinable {
+export class Organization
+  extends Node
+  implements Global, Entity, HasSlug, HasIcon, HasName, IsOwner, IsJoinable
+{
   static metatype: NodeType = NodeType.ORGANIZATION;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
@@ -265,7 +272,9 @@ export class Organization extends Node implements Global, Entity, HasSlug, HasIc
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -300,7 +309,10 @@ export class Organization extends Node implements Global, Entity, HasSlug, HasIc
     if (!(this.handlePtr?.id === other.handlePtr?.id)) {
       return false;
     }
-    if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
       return false;
     }
     if (!(this.name === other.name)) {
@@ -396,7 +408,9 @@ export class Organization extends Node implements Global, Entity, HasSlug, HasIc
         : null;
     const iconValue = objectValue["34"];
     const unpackedIcon =
-      iconValue != undefined ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection) : null;
+      iconValue != undefined
+        ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new Organization({
       slug: objectValue["33"],
       status: Number(objectValue["40"]),
@@ -469,26 +483,56 @@ export class Organization extends Node implements Global, Entity, HasSlug, HasIc
     return new Organization({
       slug: objectProto.slug,
       status: Number(objectProto.status) as OrganizationStatus,
-      space: NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection),
+      space: NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       handle:
         objectProto.handlePtr != undefined
-          ? NodeReference.fromProto(objectProto.handlePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.handlePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       icon:
         objectProto.icon != undefined

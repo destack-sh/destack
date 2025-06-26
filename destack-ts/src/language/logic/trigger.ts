@@ -228,7 +228,9 @@ export class TriggerEvent extends Node implements Event {
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -413,25 +415,55 @@ export class TriggerEvent extends Node implements Event {
   ): TriggerEvent {
     return new TriggerEvent({
       type: Number(objectProto.type) as TriggerEventType,
-      node: NodeReference.fromProto(objectProto.nodePtr!, _session, _supergraph, _graph, _connection),
+      node: NodeReference.fromProto(
+        objectProto.nodePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       id: String(objectProto.id),
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       _session,
       _graph,
@@ -677,7 +709,9 @@ export class Trigger extends Node implements Spatial, Entity, HasName {
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -703,10 +737,16 @@ export class Trigger extends Node implements Spatial, Entity, HasName {
     if (!(this.type === other.type)) {
       return false;
     }
-    if ((this.event == null) !== (other.event == null) || (this.event != null && !this.event.equals(other.event))) {
+    if (
+      (this.event == null) !== (other.event == null) ||
+      (this.event != null && !this.event.equals(other.event))
+    ) {
       return false;
     }
-    if ((this.where == null) !== (other.where == null) || (this.where != null && !this.where.equals(other.where))) {
+    if (
+      (this.where == null) !== (other.where == null) ||
+      (this.where != null && !this.where.equals(other.where))
+    ) {
       return false;
     }
     if (!(this.targetPtr.id === other.targetPtr.id)) {
@@ -823,11 +863,16 @@ export class Trigger extends Node implements Spatial, Entity, HasName {
         : null;
     const whereValue = objectValue["41"];
     const unpackedWhere =
-      whereValue != undefined ? Condition.fromValue(whereValue, _session, _supergraph, _graph, _connection) : null;
+      whereValue != undefined
+        ? Condition.fromValue(whereValue, _session, _supergraph, _graph, _connection)
+        : null;
     const unpackedArguments = new Map();
     if (objectValue["51"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["51"])) {
-        unpackedArguments.set(String(key), Value.fromValue(value as any, _session, _supergraph, _graph, _connection));
+        unpackedArguments.set(
+          String(key),
+          Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+        );
       }
     }
     const parentPtrValue = objectValue["3"];
@@ -854,7 +899,13 @@ export class Trigger extends Node implements Spatial, Entity, HasName {
       type: Number(objectValue["30"]),
       event: unpackedEvent,
       where: unpackedWhere,
-      target: NodeReference.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
+      target: NodeReference.fromValue(
+        objectValue["50"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       arguments: unpackedArguments,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
@@ -941,33 +992,69 @@ export class Trigger extends Node implements Spatial, Entity, HasName {
       type: Number(objectProto.type) as TriggerType,
       event:
         objectProto.event != undefined
-          ? RelationReference.fromProto(objectProto.event!, _session, _supergraph, _graph, _connection)
+          ? RelationReference.fromProto(
+              objectProto.event!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       where:
         objectProto.where != undefined
           ? Condition.fromProto(objectProto.where!, _session, _supergraph, _graph, _connection)
           : null,
-      target: NodeReference.fromProto(objectProto.targetPtr!, _session, _supergraph, _graph, _connection),
+      target: NodeReference.fromProto(
+        objectProto.targetPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       arguments: unpackedArguments,
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       id: String(objectProto.id),
       materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       name: objectProto.name,
       _session,

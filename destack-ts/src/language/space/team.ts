@@ -25,7 +25,10 @@ import { Temporal } from "temporal-polyfill";
 /**
  * An Team with Users and Teams.
  */
-export class Team extends Node implements Global, Entity, HasSlug, HasIcon, HasName, IsOwner, IsJoinable {
+export class Team
+  extends Node
+  implements Global, Entity, HasSlug, HasIcon, HasName, IsOwner, IsJoinable
+{
   static metatype: NodeType = NodeType.TEAM;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
@@ -192,7 +195,9 @@ export class Team extends Node implements Global, Entity, HasSlug, HasIcon, HasN
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -218,7 +223,10 @@ export class Team extends Node implements Global, Entity, HasSlug, HasIcon, HasN
     if (!(this.slug === other.slug)) {
       return false;
     }
-    if ((this.icon == null) !== (other.icon == null) || (this.icon != null && !this.icon.equals(other.icon))) {
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
       return false;
     }
     if (!(this.name === other.name)) {
@@ -308,7 +316,9 @@ export class Team extends Node implements Global, Entity, HasSlug, HasIcon, HasN
     const unpackedSlug = slugValue != undefined ? slugValue : null;
     const iconValue = objectValue["34"];
     const unpackedIcon =
-      iconValue != undefined ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection) : null;
+      iconValue != undefined
+        ? Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new Team({
       parent: unpackedParentPtr,
       id: String(objectValue["2"]),
@@ -375,19 +385,37 @@ export class Team extends Node implements Global, Entity, HasSlug, HasIcon, HasN
     return new Team({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       id: String(objectProto.id),
       materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       slug: objectProto.slug != undefined ? objectProto.slug : null,
       icon:

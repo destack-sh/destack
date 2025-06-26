@@ -47,7 +47,15 @@ registerEnumClass(EnumType.ACTION_CARDINALITY, ActionCardinality);
  */
 export class Action
   extends Node
-  implements Spatial, Entity, HasName, IsTaggable, IsSourceable, IsExtensible, IsDeletable, IsRunnable
+  implements
+    Spatial,
+    Entity,
+    HasName,
+    IsTaggable,
+    IsSourceable,
+    IsExtensible,
+    IsDeletable,
+    IsRunnable
 {
   static metatype: NodeType = NodeType.ACTION;
   static __traits__: TraitType[] = [
@@ -70,7 +78,11 @@ export class Action
     NodeType.SERVICE,
     NodeType.FOLDER,
   ];
-  static __descendantTypes__: NodeType[] = [NodeType.CUSTOM_PROPERTY, NodeType.CUSTOM_OPTION, NodeType.TAGGING];
+  static __descendantTypes__: NodeType[] = [
+    NodeType.CUSTOM_PROPERTY,
+    NodeType.CUSTOM_OPTION,
+    NodeType.TAGGING,
+  ];
 
   /**
    * Action.parent
@@ -285,7 +297,9 @@ export class Action
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -311,7 +325,10 @@ export class Action
     if (!(this.cardinality === other.cardinality)) {
       return false;
     }
-    if ((this.text == null) !== (other.text == null) || (this.text != null && !this.text.equals(other.text))) {
+    if (
+      (this.text == null) !== (other.text == null) ||
+      (this.text != null && !this.text.equals(other.text))
+    ) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -431,7 +448,9 @@ export class Action
         : null;
     const textValue = objectValue["41"];
     const unpackedText =
-      textValue != undefined ? Text.fromValue(textValue, _session, _supergraph, _graph, _connection) : null;
+      textValue != undefined
+        ? Text.fromValue(textValue, _session, _supergraph, _graph, _connection)
+        : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
@@ -455,11 +474,15 @@ export class Action
     const unpackedValue = new Map();
     if (objectValue["21"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["21"])) {
-        unpackedValue.set(String(key), Value.fromValue(value as any, _session, _supergraph, _graph, _connection));
+        unpackedValue.set(
+          String(key),
+          Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+        );
       }
     }
     const deletedAtValue = objectValue["20"];
-    const unpackedDeletedAt = deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+    const unpackedDeletedAt =
+      deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
     return new Action({
       parent: unpackedParentPtr,
       cardinality: Number(objectValue["40"]),
@@ -545,13 +568,22 @@ export class Action
     const unpackedValue = new Map();
     if (objectProto.value) {
       for (const [key, value] of Object.entries(objectProto.value)) {
-        unpackedValue.set(String(key), Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection));
+        unpackedValue.set(
+          String(key),
+          Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
       }
     }
     return new Action({
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       cardinality: Number(objectProto.cardinality) as ActionCardinality,
       text:
@@ -560,28 +592,53 @@ export class Action
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       id: String(objectProto.id),
       materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       name: objectProto.name,
       source:
         objectProto.sourcePtr != undefined
-          ? NodeReference.fromProto(objectProto.sourcePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.sourcePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       orderKey: objectProto.orderKey,
       value: unpackedValue,
-      deletedAt: objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       _session,
       _graph,
       _connection,

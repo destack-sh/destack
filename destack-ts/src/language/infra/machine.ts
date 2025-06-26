@@ -14,7 +14,12 @@ import {
 } from "@destack/language/core/builtin";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Client, Space } from "@destack/language/space";
-import { MachineProto, MachineTypeProto, MaterializationTypeProto, ResourceStatusProto } from "@destack/proto";
+import {
+  MachineProto,
+  MachineTypeProto,
+  MaterializationTypeProto,
+  ResourceStatusProto,
+} from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
@@ -43,7 +48,12 @@ registerEnumClass(EnumType.MACHINE_TYPE, MachineType);
  */
 export class Machine extends Node implements Spatial, Resource {
   static metatype: NodeType = NodeType.MACHINE;
-  static __traits__: TraitType[] = [TraitType.TRACKED, TraitType.SPATIAL, TraitType.ENTITY, TraitType.RESOURCE];
+  static __traits__: TraitType[] = [
+    TraitType.TRACKED,
+    TraitType.SPATIAL,
+    TraitType.ENTITY,
+    TraitType.RESOURCE,
+  ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -364,7 +374,9 @@ export class Machine extends Node implements Spatial, Resource {
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -561,7 +573,8 @@ export class Machine extends Node implements Spatial, Resource {
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const targetStatusValue = objectValue["41"];
-    const unpackedTargetStatus = targetStatusValue != undefined ? Temporal.ZonedDateTime.from(targetStatusValue) : null;
+    const unpackedTargetStatus =
+      targetStatusValue != undefined ? Temporal.ZonedDateTime.from(targetStatusValue) : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -683,7 +696,13 @@ export class Machine extends Node implements Spatial, Resource {
       vncUrl: objectProto.vncUrl != undefined ? objectProto.vncUrl : null,
       client:
         objectProto.clientPtr != undefined
-          ? NodeReference.fromProto(objectProto.clientPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.clientPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       cpu: objectProto.cpu,
       ram: objectProto.ram,
@@ -692,25 +711,52 @@ export class Machine extends Node implements Spatial, Resource {
       isHeadless: objectProto.isHeadless,
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       id: String(objectProto.id),
       status: Number(objectProto.status) as ResourceStatus,
-      targetStatus: objectProto.targetStatus != undefined ? unpackProtoTimestamp(objectProto.targetStatus!) : null,
+      targetStatus:
+        objectProto.targetStatus != undefined
+          ? unpackProtoTimestamp(objectProto.targetStatus!)
+          : null,
       materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       _session,
       _graph,

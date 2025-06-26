@@ -240,9 +240,14 @@ export interface IsCustomNodeDefinition {
 /**
  * A Node that defines a Custom Node type.
  */
-class IsCustomNodeDefinition$Type extends TraitClass<IsCustomNodeDefinition, TraitType.CUSTOM_NODE_DEFINITION> {}
+class IsCustomNodeDefinition$Type extends TraitClass<
+  IsCustomNodeDefinition,
+  TraitType.CUSTOM_NODE_DEFINITION
+> {}
 
-export const IsCustomNodeDefinition = new IsCustomNodeDefinition$Type(TraitType.CUSTOM_NODE_DEFINITION);
+export const IsCustomNodeDefinition = new IsCustomNodeDefinition$Type(
+  TraitType.CUSTOM_NODE_DEFINITION,
+);
 registerTraitClass(TraitType.CUSTOM_NODE_DEFINITION, IsCustomNodeDefinition);
 /* ==== DESTACK_GENERATED_END:TRAIT:23 ==== */
 

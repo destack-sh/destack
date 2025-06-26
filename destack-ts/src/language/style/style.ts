@@ -15,7 +15,14 @@ import { registerTraitClass } from "@destack/language/registry";
 /**
  * A Style is a style definition.
  */
-export interface Style extends Spatial, Entity, IsDeletable, IsOrdered, HasName, IsTaggable, IsVisual {
+export interface Style
+  extends Spatial,
+    Entity,
+    IsDeletable,
+    IsOrdered,
+    HasName,
+    IsTaggable,
+    IsVisual {
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */

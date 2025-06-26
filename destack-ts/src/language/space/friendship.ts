@@ -209,7 +209,9 @@ export class Friendship extends Node implements Global, Entity {
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -371,23 +373,53 @@ export class Friendship extends Node implements Global, Entity {
     _connection?: any | null,
   ): Friendship {
     return new Friendship({
-      userA: NodeReference.fromProto(objectProto.userAPtr!, _session, _supergraph, _graph, _connection),
-      userB: NodeReference.fromProto(objectProto.userBPtr!, _session, _supergraph, _graph, _connection),
+      userA: NodeReference.fromProto(
+        objectProto.userAPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      userB: NodeReference.fromProto(
+        objectProto.userBPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       _session,
       _graph,
@@ -589,7 +621,9 @@ export class FriendshipInviteEvent extends Node implements Event {
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -736,7 +770,13 @@ export class FriendshipInviteEvent extends Node implements Event {
     _graph?: any | null,
     _connection?: any | null,
   ): FriendshipInviteEvent {
-    return FriendshipInviteEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return FriendshipInviteEvent.__unpackValue__(
+      objectValue,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
   }
 
   toProto(): FriendshipInviteEventProto {
@@ -774,25 +814,55 @@ export class FriendshipInviteEvent extends Node implements Event {
   ): FriendshipInviteEvent {
     return new FriendshipInviteEvent({
       type: Number(objectProto.type) as FriendshipInviteEventType,
-      node: NodeReference.fromProto(objectProto.nodePtr!, _session, _supergraph, _graph, _connection),
+      node: NodeReference.fromProto(
+        objectProto.nodePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       space:
         objectProto.spacePtr != undefined
-          ? NodeReference.fromProto(objectProto.spacePtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       id: String(objectProto.id),
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       _session,
       _graph,
@@ -807,7 +877,13 @@ export class FriendshipInviteEvent extends Node implements Event {
     _graph?: any | null,
     _connection?: any | null,
   ): FriendshipInviteEvent {
-    return FriendshipInviteEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return FriendshipInviteEvent.__unpackProto__(
+      objectProto,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
   }
 
   static fromProtoString(packedProtoString: string): FriendshipInviteEvent {
@@ -1001,7 +1077,9 @@ export class FriendshipInvite extends Node implements Global, Entity, LikeInvite
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
+        throw new Error(
+          `{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`,
+        );
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -1106,7 +1184,13 @@ export class FriendshipInvite extends Node implements Global, Entity, LikeInvite
         ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new FriendshipInvite({
-      ownedBy: NodeReference.fromValue(objectValue["25"], _session, _supergraph, _graph, _connection),
+      ownedBy: NodeReference.fromValue(
+        objectValue["25"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
       materialization: Number(objectValue["7"]),
@@ -1114,7 +1198,13 @@ export class FriendshipInvite extends Node implements Global, Entity, LikeInvite
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
       updatedBy: unpackedUpdatedByPtr,
-      member: NodeReference.fromValue(objectValue["40"], _session, _supergraph, _graph, _connection),
+      member: NodeReference.fromValue(
+        objectValue["40"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,
@@ -1128,7 +1218,13 @@ export class FriendshipInvite extends Node implements Global, Entity, LikeInvite
     _graph?: any | null,
     _connection?: any | null,
   ): FriendshipInvite {
-    return FriendshipInvite.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return FriendshipInvite.__unpackValue__(
+      objectValue,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
   }
 
   toProto(): FriendshipInviteProto {
@@ -1163,24 +1259,54 @@ export class FriendshipInvite extends Node implements Global, Entity, LikeInvite
     _connection?: any | null,
   ): FriendshipInvite {
     return new FriendshipInvite({
-      ownedBy: NodeReference.fromProto(objectProto.ownedByPtr!, _session, _supergraph, _graph, _connection),
+      ownedBy: NodeReference.fromProto(
+        objectProto.ownedByPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       id: String(objectProto.id),
       parent:
         objectProto.parentPtr != undefined
-          ? NodeReference.fromProto(objectProto.parentPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(objectProto.createdByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
       updatedBy:
         objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(objectProto.updatedByPtr!, _session, _supergraph, _graph, _connection)
+          ? NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
-      member: NodeReference.fromProto(objectProto.memberPtr!, _session, _supergraph, _graph, _connection),
+      member: NodeReference.fromProto(
+        objectProto.memberPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,
@@ -1194,7 +1320,13 @@ export class FriendshipInvite extends Node implements Global, Entity, LikeInvite
     _graph?: any | null,
     _connection?: any | null,
   ): FriendshipInvite {
-    return FriendshipInvite.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+    return FriendshipInvite.__unpackProto__(
+      objectProto,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
   }
 
   static fromProtoString(packedProtoString: string): FriendshipInvite {
