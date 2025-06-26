@@ -17,6 +17,7 @@ import { Icon } from "@destack/language/core/common";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { EnvironmentProto, MaterializationTypeProto } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:4500 ==== */
@@ -25,6 +26,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Environment extends Node implements Spatial, Entity, HasName, HasIcon, IsDeletable {
   static metatype: NodeType = NodeType.ENVIRONMENT;
+  static __protoClass__ = EnvironmentProto as IMessageType<any>;
   static __traits__: TraitType[] = [TraitType.TRACKED, TraitType.SPATIAL, TraitType.ENTITY, TraitType.DELETABLE];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];

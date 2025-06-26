@@ -27,6 +27,7 @@ import { registerEnumClass, registerNodeClass } from "@destack/language/registry
 import { Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { FolderProto, FolderTypeProto, MaterializationTypeProto } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:1000 ==== */
@@ -68,6 +69,7 @@ export class Folder
     IsFollowable
 {
   static metatype: NodeType = NodeType.FOLDER;
+  static __protoClass__ = FolderProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.TAGGABLE,

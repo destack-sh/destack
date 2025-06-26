@@ -13,6 +13,7 @@ import {
   EditProto,
   EditTypeProto,
 } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 import { v4 as uuid4 } from "uuid";
 
@@ -89,6 +90,7 @@ registerEnumClass(EnumType.CHANGE_DEBOUNCE, ChangeDebounce);
  */
 export class Edit extends StructFrozen {
   static metatype: StructType = StructType.EDIT;
+  static __protoClass__ = EditProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -456,6 +458,7 @@ registerStructClass(StructType.EDIT, Edit);
  */
 export class Change extends StructFrozen {
   static metatype: StructType = StructType.CHANGE;
+  static __protoClass__ = ChangeProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -786,6 +789,7 @@ registerStructClass(StructType.CHANGE, Change);
  */
 export class ChangeResult extends StructFrozen {
   static metatype: StructType = StructType.CHANGE_RESULT;
+  static __protoClass__ = ChangeResultProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**

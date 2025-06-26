@@ -24,6 +24,7 @@ import {
   FillTypeProto,
   MaterializationTypeProto,
 } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12034 ==== */
@@ -88,6 +89,7 @@ registerEnumClass(EnumType.FILL_SIZE, FillSize);
  */
 export class Fill extends Struct {
   static metatype: StructType = StructType.FILL;
+  static __protoClass__ = FillProto as IMessageType<any>;
   static __isFrozen__: boolean = false;
 
   /**
@@ -405,6 +407,7 @@ registerStructClass(StructType.FILL, Fill);
  */
 export class FillStyle extends Node implements Style {
   static metatype: NodeType = NodeType.FILL_STYLE;
+  static __protoClass__ = FillStyleProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.STYLE,
     TraitType.SPATIAL,

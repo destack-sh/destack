@@ -45,6 +45,7 @@ import {
   LayoutProto,
   MaterializationTypeProto,
 } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:9020 ==== */
@@ -68,6 +69,7 @@ registerEnumClass(EnumType.LAYER_TYPE, LayerType);
  */
 export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
   static metatype: NodeType = NodeType.LAYER;
+  static __protoClass__ = LayerProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.VISUAL,

@@ -23,6 +23,7 @@ import {
   TimerProto,
   TimerTypeProto,
 } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:3054 ==== */
@@ -62,6 +63,7 @@ registerEnumClass(EnumType.TIMER_TYPE, TimerType);
  */
 export class TimerEvent extends Node implements Event {
   static metatype: NodeType = NodeType.TIMER_EVENT;
+  static __protoClass__ = TimerEventProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.PARTICLE,
@@ -461,6 +463,7 @@ registerNodeClass(NodeType.TIMER_EVENT, TimerEvent);
  */
 export class Timer extends Node implements Spatial, Entity, HasName {
   static metatype: NodeType = NodeType.TIMER;
+  static __protoClass__ = TimerProto as IMessageType<any>;
   static __traits__: TraitType[] = [TraitType.TRACKED, TraitType.SPATIAL, TraitType.ENTITY];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];

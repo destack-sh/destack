@@ -20,6 +20,7 @@ import { registerNodeClass } from "@destack/language/registry";
 import { Thread } from "@destack/language/social";
 import { Space } from "@destack/language/space";
 import { MaterializationTypeProto, MessageProto } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:5510 ==== */
@@ -28,6 +29,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Message extends Node implements Spatial, Entity, IsOwnable, IsDeletable, IsTaggable, IsReactable {
   static metatype: NodeType = NodeType.MESSAGE;
+  static __protoClass__ = MessageProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.TAGGABLE,

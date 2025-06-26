@@ -10,6 +10,7 @@ import { Fill, Font } from "@destack/language/style";
 import { ContainerView } from "@destack/language/view/container";
 import { ContentView } from "@destack/language/view/content";
 import { AlignProto, MaterializationTypeProto, TextViewProto } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:10200 ==== */
@@ -18,6 +19,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export class TextView extends Node implements ContentView {
   static metatype: NodeType = NodeType.TEXT_VIEW;
+  static __protoClass__ = TextViewProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SCRIPTABLE,
     TraitType.SPATIAL,

@@ -6,11 +6,11 @@ from destack.language.registry import (
     OBJECT_REF_BY_CLASS,
     STRUCT_DEFINITION_BY_TYPE,
     TRAIT_DEFINITION_BY_TYPE,
-    register_constant,
 )
 
 from ..builtin import (
     CascadeAction,
+    ConstantDeclaration,
     EdgeType,
     Enum,
     EnumType,
@@ -22,6 +22,8 @@ from ..builtin import (
     TraitType,
     builtin_struct,
     property_,
+    property_runtime_,
+    register_constant,
 )
 from .query import Condition, ConditionalType, Sort, SortType
 from .relation import ObjectReference, ObjectType, PropertyReference, PropertyReferenceType
@@ -47,10 +49,10 @@ _type = type
 class PropertyDefinition(StructFrozen):
     """Definition of a builtin Property."""
 
-    id: int = property_(2)
-    name: str = property_(31)
+    id: int = property_(2, is_repr=True)
+    name: str = property_(31, is_repr=True)
     icon: "Icon | None" = property_(34)
-    description: str | None = property_(36)
+    description: str | None = property_(36, is_repr=True)
     object: "ObjectReference" = property_(
         37, description="The object that this property is defined on."
     )
@@ -68,10 +70,10 @@ class PropertyDefinition(StructFrozen):
     key_type: Optional["Type"] = property_(48, is_repr=True)  # for maps
 
     # meta
-    is_required: bool | None = property_(50)
-    is_unique: bool | None = property_(51)
-    default_value: Optional["Value"] = property_(55)
-    default_factory: Optional[DefaultFactory] = property_(56)
+    is_required: bool | None = property_(50, is_repr=True)
+    is_unique: bool | None = property_(51, is_repr=True)
+    default_value: Optional["Value"] = property_(55, is_repr=True)
+    default_factory: Optional[DefaultFactory] = property_(56, is_repr=True)
 
     # constraints
     collection_constraint: Optional["CollectionConstraint"] = property_(60)
@@ -222,12 +224,12 @@ class PropertyDefinition(StructFrozen):
 class TraitDefinition(StructFrozen):
     """Definition of a builtin Trait."""
 
-    id: int = property_(2)
-    type: TraitType = property_(30)
-    name: str = property_(31)
-    alias: str = property_(32)
+    id: int = property_(2, is_repr=True)
+    type: TraitType = property_(30, is_repr=True)
+    name: str = property_(31, is_repr=True)
+    alias: str = property_(32, is_repr=True)
     icon: "Icon | None" = property_(34)
-    description: str | None = property_(36)
+    description: str | None = property_(36, is_repr=True)
     properties: list["PropertyDefinition"] = property_(50)
     traits: list[TraitType] = property_(51)
 
@@ -255,11 +257,11 @@ class TraitDefinition(StructFrozen):
 class NodeDefinition(StructFrozen):
     """Definition of a builtin Node."""
 
-    id: int = property_(2)
-    type: NodeType = property_(30)
-    name: str = property_(31)
+    id: int = property_(2, is_repr=True)
+    type: NodeType = property_(30, is_repr=True)
+    name: str = property_(31, is_repr=True)
     icon: "Icon | None" = property_(34)
-    description: str | None = property_(36)
+    description: str | None = property_(36, is_repr=True)
     properties: list["PropertyDefinition"] = property_(50)
     traits: list[TraitType] = property_(51)
     root_type: NodeType | None = property_(52)
@@ -295,11 +297,11 @@ class NodeDefinition(StructFrozen):
 class StructDefinition(StructFrozen):
     """Definition of a builtin Struct."""
 
-    id: int = property_(2)
-    type: StructType = property_(30)
-    name: str = property_(31)
+    id: int = property_(2, is_repr=True)
+    type: StructType = property_(30, is_repr=True)
+    name: str = property_(31, is_repr=True)
     icon: "Icon | None" = property_(34)
-    description: str | None = property_(36)
+    description: str | None = property_(36, is_repr=True)
     properties: list["PropertyDefinition"] = property_(50)
     is_frozen: bool = property_(60)
 
@@ -325,11 +327,11 @@ class StructDefinition(StructFrozen):
 class EnumDefinition(StructFrozen):
     """Definition of a builtin Enum."""
 
-    id: int = property_(2)
-    type: EnumType = property_(30)
-    name: str = property_(31)
+    id: int = property_(2, is_repr=True)
+    type: EnumType = property_(30, is_repr=True)
+    name: str = property_(31, is_repr=True)
     icon: "Icon | None" = property_(34)
-    description: str | None = property_(36)
+    description: str | None = property_(36, is_repr=True)
     options: list["OptionDefinition"] = property_(50)
 
     @classmethod
@@ -354,11 +356,11 @@ class EnumDefinition(StructFrozen):
 class OptionDefinition(StructFrozen):
     """Definition of a builtin Enum Option."""
 
-    id: int = property_(2)
-    type: EnumType = property_(30)
-    name: str = property_(31)
+    id: int = property_(2, is_repr=True)
+    type: EnumType = property_(30, is_repr=True)
+    name: str = property_(31, is_repr=True)
     icon: "Icon | None" = property_(34)
-    description: str | None = property_(36)
+    description: str | None = property_(36, is_repr=True)
 
     @classmethod
     def from_enum_option(cls, enum_type: EnumType, option: Enum) -> "OptionDefinition":
@@ -378,10 +380,10 @@ class OptionDefinition(StructFrozen):
 class PermissionDefinition(StructFrozen):
     """Definition of a builtin Permission for a builtin Node."""
 
-    id: int = property_(2)
-    type: EnumType = property_(30)
-    name: str = property_(31)
-    node_type: NodeType = property_(32)
+    id: int = property_(2, is_repr=True)
+    type: EnumType = property_(30, is_repr=True)
+    name: str = property_(31, is_repr=True)
+    node_type: NodeType = property_(32, is_repr=True)
     icon: "Icon | None" = property_(34)
 
 
@@ -389,9 +391,31 @@ class PermissionDefinition(StructFrozen):
 class ConstantDefinition(StructFrozen):
     """Definition of a builtin Constant."""
 
-    name: str = property_(31)
-    path: str = property_(35)
+    name: str = property_(31, is_repr=True)
+    description: str | None = property_(36, is_repr=True)
     value: "Value" = property_(40)
+
+    _declaration: "ConstantDeclaration | None" = property_runtime_()
+
+    @classmethod
+    def from_constant(cls, constant_declaration: ConstantDeclaration) -> "ConstantDefinition":
+        """Create ConstantDefinition from a ConstantDeclaration."""
+        from .value import to_value
+
+        if constant_declaration.value is None:
+            assert constant_declaration.getter is not None, (
+                f"missing getter for {constant_declaration.name}"
+            )
+            value_raw = constant_declaration.getter()
+        else:
+            value_raw = constant_declaration.value
+        value = to_value(value_raw)
+        return cls(
+            name=constant_declaration.name,
+            description=constant_declaration.description,
+            value=value,
+            _declaration=constant_declaration,
+        )
 
 
 register_constant("NODE_DEFINITIONS", lambda: list(NODE_DEFINITION_BY_TYPE.values()))

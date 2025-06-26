@@ -19,6 +19,7 @@ import { Cursor } from "@destack/language/logic";
 import { registerNodeClass, registerStructClass } from "@destack/language/registry";
 import { User } from "@destack/language/space";
 import { ClientProto, ClientTypeProto, MaterializationTypeProto, OriginProto } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50001 ==== */
@@ -27,6 +28,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Origin extends StructFrozen {
   static metatype: StructType = StructType.ORIGIN;
+  static __protoClass__ = OriginProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -239,6 +241,7 @@ registerStructClass(StructType.ORIGIN, Origin);
  */
 export class Client extends Node implements HasName, Global, Entity, IsDeletable {
   static metatype: NodeType = NodeType.CLIENT;
+  static __protoClass__ = ClientProto as IMessageType<any>;
   static __traits__: TraitType[] = [TraitType.GLOBAL, TraitType.ENTITY, TraitType.TRACKED, TraitType.DELETABLE];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.AGENT, NodeType.USER];

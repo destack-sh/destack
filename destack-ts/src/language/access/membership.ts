@@ -23,6 +23,7 @@ import {
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { MaterializationTypeProto, MembershipEventProto, MembershipProto, RoleTypeProto } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:500 ==== */
@@ -63,6 +64,7 @@ registerEnumClass(EnumType.MEMBERSHIP_PERMISSION, MembershipPermission);
  */
 export class MembershipEvent extends Node implements Event {
   static metatype: NodeType = NodeType.MEMBERSHIP_EVENT;
+  static __protoClass__ = MembershipEventProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.PARTICLE,
@@ -568,6 +570,7 @@ registerNodeClass(NodeType.MEMBERSHIP_EVENT, MembershipEvent);
  */
 export class Membership extends Node implements Global, Spatial, Entity, LikeMembership, IsOwnable, IsDeletable {
   static metatype: NodeType = NodeType.MEMBERSHIP;
+  static __protoClass__ = MembershipProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
     TraitType.SPATIAL,

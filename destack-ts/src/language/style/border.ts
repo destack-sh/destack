@@ -17,6 +17,7 @@ import { Space } from "@destack/language/space";
 import { Color, Style, Theme } from "@destack/language/style";
 import { View } from "@destack/language/view";
 import { BorderProto, BorderStyleProto, BorderTypeProto, MaterializationTypeProto } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12032 ==== */
@@ -43,6 +44,7 @@ registerEnumClass(EnumType.BORDER_TYPE, BorderType);
  */
 export class Border extends Struct {
   static metatype: StructType = StructType.BORDER;
+  static __protoClass__ = BorderProto as IMessageType<any>;
   static __isFrozen__: boolean = false;
 
   /**
@@ -271,6 +273,7 @@ registerStructClass(StructType.BORDER, Border);
  */
 export class BorderStyle extends Node implements Style {
   static metatype: NodeType = NodeType.BORDER_STYLE;
+  static __protoClass__ = BorderStyleProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.STYLE,
     TraitType.SPATIAL,

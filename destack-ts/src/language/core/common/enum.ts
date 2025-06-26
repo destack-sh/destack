@@ -21,6 +21,7 @@ import { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { CustomEnumDefinitionProto, MaterializationTypeProto } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:2510 ==== */
@@ -32,6 +33,7 @@ export class CustomEnumDefinition
   implements Spatial, Entity, HasName, HasIcon, IsTaggable, IsDeletable, IsSourceable, IsExtensible
 {
   static metatype: NodeType = NodeType.CUSTOM_ENUM_DEFINITION;
+  static __protoClass__ = CustomEnumDefinitionProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.TAGGABLE,

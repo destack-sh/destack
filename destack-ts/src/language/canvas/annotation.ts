@@ -33,6 +33,7 @@ import {
   LayoutProto,
   MaterializationTypeProto,
 } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:11013 ==== */
@@ -41,6 +42,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export class AnnotationShape extends Node implements ContainerView, IsShape {
   static metatype: NodeType = NodeType.ANNOTATION_SHAPE;
+  static __protoClass__ = AnnotationShapeProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.VISUAL,

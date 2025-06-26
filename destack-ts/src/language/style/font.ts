@@ -27,6 +27,7 @@ import {
   TextDecorationProto,
   TextTransformProto,
 } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12026 ==== */
@@ -148,6 +149,7 @@ registerEnumClass(EnumType.TEXT_TRANSFORM, TextTransform);
  */
 export class Font extends Struct {
   static metatype: StructType = StructType.FONT;
+  static __protoClass__ = FontProto as IMessageType<any>;
   static __isFrozen__: boolean = false;
 
   /**
@@ -531,6 +533,7 @@ registerStructClass(StructType.FONT, Font);
  */
 export class FontStyle extends Node implements Style {
   static metatype: NodeType = NodeType.FONT_STYLE;
+  static __protoClass__ = FontStyleProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.STYLE,
     TraitType.SPATIAL,

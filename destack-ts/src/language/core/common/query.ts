@@ -35,6 +35,7 @@ import {
   SortTypeProto,
 } from "@destack/proto";
 import { assertNever } from "@destack/utils/functools";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { v4 as uuid4 } from "uuid";
 
 /* ==== DESTACK_GENERATED_START:ENUM:108 ==== */
@@ -209,6 +210,7 @@ registerEnumClass(EnumType.QUERY_UPDATE_TYPE, QueryUpdateType);
  */
 export class Function extends StructFrozen {
   static metatype: StructType = StructType.FUNCTION;
+  static __protoClass__ = FunctionProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -406,6 +408,7 @@ registerStructClass(StructType.FUNCTION, Function);
  */
 export class Condition extends StructFrozen {
   static metatype: StructType = StructType.CONDITION;
+  static __protoClass__ = ConditionProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -609,6 +612,7 @@ registerStructClass(StructType.CONDITION, Condition);
  */
 export class Aggregation extends StructFrozen {
   static metatype: StructType = StructType.AGGREGATION;
+  static __protoClass__ = AggregationProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -793,6 +797,7 @@ registerStructClass(StructType.AGGREGATION, Aggregation);
  */
 export class Expression extends StructFrozen {
   static metatype: StructType = StructType.EXPRESSION;
+  static __protoClass__ = ExpressionProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -1121,6 +1126,7 @@ export type ExpressionIn =
  */
 export class Sort extends StructFrozen {
   static metatype: StructType = StructType.SORT;
+  static __protoClass__ = SortProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -1314,6 +1320,7 @@ registerStructClass(StructType.SORT, Sort);
  */
 export class Select extends StructFrozen {
   static metatype: StructType = StructType.SELECT;
+  static __protoClass__ = SelectProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -1497,6 +1504,7 @@ registerStructClass(StructType.SELECT, Select);
  */
 export class Join extends StructFrozen {
   static metatype: StructType = StructType.JOIN;
+  static __protoClass__ = JoinProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -1765,6 +1773,7 @@ registerStructClass(StructType.JOIN, Join);
  */
 export class Query extends StructFrozen {
   static metatype: StructType = StructType.QUERY;
+  static __protoClass__ = QueryProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -2290,6 +2299,7 @@ registerStructClass(StructType.QUERY, Query);
  */
 export class Histogram extends StructFrozen {
   static metatype: StructType = StructType.HISTOGRAM;
+  static __protoClass__ = HistogramProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -2518,6 +2528,7 @@ registerStructClass(StructType.HISTOGRAM, Histogram);
  */
 export class QueryResult extends Struct {
   static metatype: StructType = StructType.QUERY_RESULT;
+  static __protoClass__ = QueryResultProto as IMessageType<any>;
   static __isFrozen__: boolean = false;
 
   /**
@@ -2875,6 +2886,7 @@ registerStructClass(StructType.QUERY_RESULT, QueryResult);
  */
 export class QueryResultGroup extends Struct {
   static metatype: StructType = StructType.QUERY_RESULT_GROUP;
+  static __protoClass__ = QueryResultGroupProto as IMessageType<any>;
   static __isFrozen__: boolean = false;
 
   /**
@@ -3138,6 +3150,7 @@ registerStructClass(StructType.QUERY_RESULT_GROUP, QueryResultGroup);
  */
 export class QueryUpdate extends StructFrozen {
   static metatype: StructType = StructType.QUERY_UPDATE;
+  static __protoClass__ = QueryUpdateProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -3315,6 +3328,7 @@ registerStructClass(StructType.QUERY_UPDATE, QueryUpdate);
  */
 export class Selection extends StructFrozen {
   static metatype: StructType = StructType.SELECTION;
+  static __protoClass__ = SelectionProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   constructor(options: {

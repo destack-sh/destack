@@ -17,6 +17,7 @@ import {
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { MaterializationTypeProto, SanctionEventProto, SanctionProto, SanctionTypeProto } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:541 ==== */
@@ -57,6 +58,7 @@ registerEnumClass(EnumType.SANCTION_TYPE, SanctionType);
  */
 export class SanctionEvent extends Node implements Event {
   static metatype: NodeType = NodeType.SANCTION_EVENT;
+  static __protoClass__ = SanctionEventProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.PARTICLE,
@@ -438,6 +440,7 @@ registerNodeClass(NodeType.SANCTION_EVENT, SanctionEvent);
  */
 export class Sanction extends Node implements Spatial, Entity, IsDeletable {
   static metatype: NodeType = NodeType.SANCTION;
+  static __protoClass__ = SanctionProto as IMessageType<any>;
   static __traits__: TraitType[] = [TraitType.TRACKED, TraitType.SPATIAL, TraitType.ENTITY, TraitType.DELETABLE];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [

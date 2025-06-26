@@ -25,6 +25,7 @@ import { Icon } from "@destack/language/core/common";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { MaterializationTypeProto, RoleEventProto, RoleEventTypeProto, RoleProto, RoleTypeProto } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:521 ==== */
@@ -48,6 +49,7 @@ registerEnumClass(EnumType.ROLE_EVENT_TYPE, RoleEventType);
  */
 export class RoleEvent extends Node implements Event {
   static metatype: NodeType = NodeType.ROLE_EVENT;
+  static __protoClass__ = RoleEventProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.PARTICLE,
@@ -450,6 +452,7 @@ export class Role
   implements Global, Spatial, Entity, HasSlug, HasIcon, HasName, IsOwner, IsOrdered, IsDeletable
 {
   static metatype: NodeType = NodeType.ROLE;
+  static __protoClass__ = RoleProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
     TraitType.SPATIAL,

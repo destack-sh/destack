@@ -2,6 +2,7 @@ import { NodeReference, Session, Supergraph } from "@destack/language/core";
 import { EnumType, Node, StructFrozen, StructType } from "@destack/language/core/builtin";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { TextProto, TextSpanProto, TextSpanTypeProto } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2521 ==== */
 /**
@@ -28,6 +29,7 @@ registerEnumClass(EnumType.TEXT_SPAN_TYPE, TextSpanType);
  */
 export class TextSpan extends StructFrozen {
   static metatype: StructType = StructType.TEXT_SPAN;
+  static __protoClass__ = TextSpanProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -367,6 +369,7 @@ registerStructClass(StructType.TEXT_SPAN, TextSpan);
  */
 export class Text extends StructFrozen {
   static metatype: StructType = StructType.TEXT;
+  static __protoClass__ = TextProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**

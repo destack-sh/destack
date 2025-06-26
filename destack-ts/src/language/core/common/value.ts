@@ -14,6 +14,7 @@ import { Type } from "@destack/language/core/common";
 import { registerStructClass } from "@destack/language/registry";
 import { ValueProto } from "@destack/proto";
 import { assertNever, timedeltaFromISOFormat, timedeltaToISOFormat } from "@destack/utils";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2500 ==== */
@@ -22,6 +23,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Value extends StructFrozen {
   static metatype: StructType = StructType.VALUE;
+  static __protoClass__ = ValueProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**

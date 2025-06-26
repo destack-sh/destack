@@ -17,6 +17,7 @@ import {
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { MaterializationTypeProto, ReactionProto } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:5520 ==== */
@@ -25,6 +26,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Reaction extends Node implements Global, Spatial, Entity, IsReactable, IsDeletable, IsOwnable {
   static metatype: NodeType = NodeType.REACTION;
+  static __protoClass__ = ReactionProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
     TraitType.SPATIAL,

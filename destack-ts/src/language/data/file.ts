@@ -25,6 +25,7 @@ import {
   ResourceStatusProto,
 } from "@destack/proto";
 import { timedeltaFromISOFormat, timedeltaToISOFormat } from "@destack/utils";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2541 ==== */
@@ -187,6 +188,7 @@ registerEnumClass(EnumType.FILE_FORMAT, FileFormat);
  */
 export class File extends Node implements Spatial, Global, Resource, HasName {
   static metatype: NodeType = NodeType.FILE;
+  static __protoClass__ = FileProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
     TraitType.SPATIAL,

@@ -26,6 +26,7 @@ import {
   InterruptionTypeProto,
 } from "@destack/proto";
 import { timedeltaFromISOFormat, timedeltaToISOFormat } from "@destack/utils";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:4020 ==== */
@@ -81,6 +82,7 @@ registerEnumClass(EnumType.INTERRUPTION_RESPONSE, InterruptionResponse);
  */
 export class Interruption extends Node implements Spatial, Particle, Analytic, Indexed, IsExtensible {
   static metatype: NodeType = NodeType.INTERRUPTION;
+  static __protoClass__ = InterruptionProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.PARTICLE,

@@ -55,6 +55,7 @@ from .const import (
     active_session,
     get_active_session,
 )
+from .constant import CONSTANT_DECLARATIONS, ConstantDeclaration, register_constant
 from .enum import Enum, builtin_enum
 from .node import IndexIn, Node, builtin_node
 from .object import (
@@ -125,6 +126,7 @@ __all__ = [
     "ACTIVE_SESSION",
     "BEGINNING_OF_TIME",
     "CLOUD",
+    "CONSTANT_DECLARATIONS",
     "DESTACK_ID",
     "DESTACK_SLUG",
     "EMPTY_DICT",
@@ -152,6 +154,7 @@ __all__ = [
     "CascadeAction",
     "ClientType",
     "Cloud",
+    "ConstantDeclaration",
     "DefaultFactory",
     "DestackError",
     "EdgeDirection",
@@ -242,4 +245,5 @@ __all__ = [
     "property_",
     "property_parent_",
     "property_runtime_",
+    "register_constant",
 ]

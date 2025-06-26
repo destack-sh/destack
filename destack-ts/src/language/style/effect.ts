@@ -26,6 +26,7 @@ import {
   TextSplitTypeProto,
 } from "@destack/proto";
 import { timedeltaFromISOFormat, timedeltaToISOFormat } from "@destack/utils";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12046 ==== */
@@ -103,6 +104,7 @@ registerEnumClass(EnumType.OFFSCREEN_BEHAVIOR, OffscreenBehavior);
  */
 export class Effect extends Struct {
   static metatype: StructType = StructType.EFFECT;
+  static __protoClass__ = EffectProto as IMessageType<any>;
   static __isFrozen__: boolean = false;
 
   /**
@@ -616,6 +618,7 @@ registerStructClass(StructType.EFFECT, Effect);
  */
 export class EffectStyle extends Node implements Style {
   static metatype: NodeType = NodeType.EFFECT_STYLE;
+  static __protoClass__ = EffectStyleProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.STYLE,
     TraitType.SPATIAL,

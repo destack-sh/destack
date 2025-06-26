@@ -32,6 +32,7 @@ import {
   MaterializationTypeProto,
   TraitTypeProto,
 } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:2000 ==== */
@@ -54,6 +55,7 @@ export class CustomEntityDefinition
     IsActionable
 {
   static metatype: NodeType = NodeType.CUSTOM_ENTITY_DEFINITION;
+  static __protoClass__ = CustomEntityDefinitionProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.TAGGABLE,
@@ -703,6 +705,7 @@ registerNodeClass(NodeType.CUSTOM_ENTITY_DEFINITION, CustomEntityDefinition);
  */
 export class CustomEntity extends Node implements Spatial, Entity, IsExtensible, IsDeletable, IsCustomNode {
   static metatype: NodeType = NodeType.CUSTOM_ENTITY;
+  static __protoClass__ = CustomEntityProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.ENTITY,

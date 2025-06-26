@@ -24,6 +24,7 @@ import {
   TriggerProto,
   TriggerTypeProto,
 } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:3041 ==== */
@@ -62,6 +63,7 @@ registerEnumClass(EnumType.TRIGGER_TYPE, TriggerType);
  */
 export class TriggerEvent extends Node implements Event {
   static metatype: NodeType = NodeType.TRIGGER_EVENT;
+  static __protoClass__ = TriggerEventProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.PARTICLE,
@@ -461,6 +463,7 @@ registerNodeClass(NodeType.TRIGGER_EVENT, TriggerEvent);
  */
 export class Trigger extends Node implements Spatial, Entity, HasName {
   static metatype: NodeType = NodeType.TRIGGER;
+  static __protoClass__ = TriggerProto as IMessageType<any>;
   static __traits__: TraitType[] = [TraitType.TRACKED, TraitType.SPATIAL, TraitType.ENTITY];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];

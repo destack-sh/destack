@@ -1,16 +1,15 @@
 import { Graph, PropertyDefinition, QueryConnection, Session } from "@destack/language/core";
 import { AnyNodeProto, AnyStructProto } from "@destack/proto";
+import { IMessageType } from "@protobuf-ts/runtime";
 import { Supergraph } from "../runtime/graph";
 
 /** The base for all BuiltinObjects like Structs and Nodes and all their derivatives. */
 export abstract class BuiltinObject {
-  // flags
+  static readonly __protoClass__: IMessageType<any>;
   static readonly __isFrozen__: boolean;
   static readonly __isStruct__: boolean;
   static readonly __isNode__: boolean;
   static readonly __isTrait__: boolean;
-
-  // properties
   static readonly __properties__: Record<string, PropertyDefinition>;
   static readonly __propertiesById__: Record<number, PropertyDefinition>;
 
@@ -84,6 +83,13 @@ export abstract class BuiltinObject {
     _connection?: QueryConnection | null,
   ): BuiltinObject {
     throw new Error(`fromProto not implemented for ${this.constructor.name}`);
+  }
+
+  /** Convert a binary proto string to an instance of this BuiltinObject. */
+  static fromProtoString(packedProtoString: string): BuiltinObject {
+    const packedProtoBytes = Buffer.from(packedProtoString, "base64");
+    const proto = this.__protoClass__.fromBinary(packedProtoBytes);
+    return this.fromProto(proto);
   }
 
   // value

@@ -18,6 +18,7 @@ import {
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { BranchProto, MaterializationTypeProto, SnapshotProto } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:1500 ==== */
@@ -26,6 +27,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Snapshot extends Node implements Spatial, Entity, HasName, HasSlug, IsOwnable, IsDeletable {
   static metatype: NodeType = NodeType.SNAPSHOT;
+  static __protoClass__ = SnapshotProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.ENTITY,
@@ -493,6 +495,7 @@ registerNodeClass(NodeType.SNAPSHOT, Snapshot);
  */
 export class Branch extends Node implements Spatial, Entity, HasName, HasSlug, IsOwnable, IsDeletable {
   static metatype: NodeType = NodeType.BRANCH;
+  static __protoClass__ = BranchProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.ENTITY,

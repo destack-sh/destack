@@ -31,6 +31,7 @@ import {
   LayoutProto,
   MaterializationTypeProto,
 } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:10020 ==== */
@@ -39,6 +40,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export class FrameView extends Node implements ContainerView {
   static metatype: NodeType = NodeType.FRAME_VIEW;
+  static __protoClass__ = FrameViewProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.VISUAL,

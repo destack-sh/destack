@@ -54,6 +54,7 @@ import {
   StructTypeProto,
   TypeCardinalityProto,
 } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2580 ==== */
@@ -81,6 +82,7 @@ export class CustomProperty
   implements Spatial, Entity, HasName, HasIcon, IsTaggable, IsDeletable, IsSourceable
 {
   static metatype: NodeType = NodeType.CUSTOM_PROPERTY;
+  static __protoClass__ = CustomPropertyProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.TAGGABLE,

@@ -14,6 +14,7 @@ import { registerNodeClass } from "@destack/language/registry";
 import { Run } from "@destack/language/runtime";
 import { Space } from "@destack/language/space";
 import { SpanProto } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:4010 ==== */
@@ -22,6 +23,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Span extends Node implements Spatial, Analytic, IsFrozen {
   static metatype: NodeType = NodeType.SPAN;
+  static __protoClass__ = SpanProto as IMessageType<any>;
   static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.TRACKED, TraitType.ANALYTIC, TraitType.FROZEN];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.RUN];

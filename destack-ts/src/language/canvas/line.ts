@@ -19,6 +19,7 @@ import { Color } from "@destack/language/style";
 import { ContainerView } from "@destack/language/view/container";
 import { ContentView } from "@destack/language/view/content";
 import { AlignProto, LineShapeProto, LineTypeProto, MaterializationTypeProto } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:11010 ==== */
@@ -43,6 +44,7 @@ registerEnumClass(EnumType.LINE_TYPE, LineType);
  */
 export class LineShape extends Node implements ContentView, IsShape {
   static metatype: NodeType = NodeType.LINE_SHAPE;
+  static __protoClass__ = LineShapeProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SCRIPTABLE,
     TraitType.SPATIAL,

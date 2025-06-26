@@ -21,6 +21,7 @@ import { Interruption } from "@destack/language/runtime";
 import { Space } from "@destack/language/space";
 import { RunEventProto, RunEventTypeProto, RunProto, RunStatusProto } from "@destack/proto";
 import { timedeltaFromISOFormat, timedeltaToISOFormat } from "@destack/utils";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:4000 ==== */
@@ -74,6 +75,7 @@ registerEnumClass(EnumType.RUN_EVENT_TYPE, RunEventType);
  */
 export class RunEvent extends Node implements Event {
   static metatype: NodeType = NodeType.RUN_EVENT;
+  static __protoClass__ = RunEventProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.PARTICLE,
@@ -517,6 +519,7 @@ registerNodeClass(NodeType.RUN_EVENT, RunEvent);
  */
 export class Run extends Node implements Spatial, Particle, Analytic, Indexed, IsExtensible {
   static metatype: NodeType = NodeType.RUN;
+  static __protoClass__ = RunProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.PARTICLE,

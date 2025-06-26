@@ -9,6 +9,7 @@ import { Space } from "@destack/language/space";
 import { ContainerView } from "@destack/language/view/container";
 import { InternalView } from "@destack/language/view/internal";
 import { MaterializationTypeProto, WizardViewProto } from "@destack/proto";
+import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:10650 ==== */
@@ -17,6 +18,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export class WizardView extends Node implements InternalView {
   static metatype: NodeType = NodeType.WIZARD_VIEW;
+  static __protoClass__ = WizardViewProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SCRIPTABLE,
     TraitType.SPATIAL,
