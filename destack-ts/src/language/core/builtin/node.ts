@@ -25,10 +25,16 @@ import {
   TraitType,
 } from "@destack/language/core";
 import { NodeTypeMapping, TraitTypeMapping } from "@destack/language/mapping";
+import { TRAIT_CLASS_BY_TYPE } from "@destack/language/registry";
+import { getOrderKey } from "@destack/utils";
 import { Casing, toCasing } from "@destack/utils/string";
 import { v4 as uuid4 } from "uuid";
 import { BuiltinObject, BuiltinObjectClass } from "./object";
-import { getOrderKey } from "@destack/utils";
+
+export type NodeFilter = {
+  includeDeleted?: boolean;
+  includeArchived?: boolean;
+};
 
 /** A Node is a collection of properties with an identity. */
 export abstract class Node extends BuiltinObject {
@@ -166,8 +172,8 @@ export abstract class Node extends BuiltinObject {
     // assign order
     if (hasTrait(child, TraitType.ORDERED)) {
       const orderTrait = child.__traits__.find((trait) => trait in INTER_ORDER_TRAITS);
-      const options = orderTrait ? { traitType: orderTrait } : { nodeType: child.metatype };
-      const existingNodes = this._graph.getChildren(this, options) as (Node & IsOrdered)[];
+      const peerClass = orderTrait ? TRAIT_CLASS_BY_TYPE[orderTrait] : (child.constructor as NodeClass);
+      const existingNodes = this._graph.getChildren(this, peerClass) as (Node & IsOrdered)[];
       if (existingNodes.length > 0) {
         const orderKey = getOrderKey(existingNodes[existingNodes.length - 1].orderKey, null);
         // @ts-expect-error(readonly)
@@ -242,79 +248,49 @@ export abstract class Node extends BuiltinObject {
 
   /** Get the children of this Node. */
   getChildren(): Node[];
-  getChildren<T extends NodeType>(options: { nodeType: T }): NodeTypeMapping[T][];
-  getChildren<T extends TraitType>(options: { traitType: T }): (Node & TraitTypeMapping[T])[];
-  getChildren<N extends Node>(options: { nodeClass: NodeClass }): N[];
-  getChildren<N extends Node = Node>(options?: {
-    nodeType?: NodeType;
-    traitType?: TraitType;
-    nodeClass?: NodeClass;
-  }): N[] {
-    return this._graph.getChildren(this, options);
+  getChildren<N extends Node>(classOrTrait: NodeClass<N>, options?: NodeFilter): N[];
+  getChildren<T extends TraitType>(
+    classOrTrait: TraitClass<any, T>,
+    options?: NodeFilter,
+  ): (Node & TraitTypeMapping[T])[];
+  getChildren(classOrTrait?: NodeClass | TraitClass, options?: NodeFilter): Node[];
+  getChildren(classOrTrait?: NodeClass | TraitClass, options?: NodeFilter): Node[] {
+    return this._graph.getChildren(this, classOrTrait);
   }
 
   /** Get a specific child of this Node by name. */
-  getChild<T extends NodeType>(options: { nodeType: T; name: string }): NodeTypeMapping[T] | null;
-  getChild<T extends TraitType>(options: { traitType: T; name: string }): (Node & TraitTypeMapping[T]) | null;
-  getChild<N extends Node>(options: { nodeClass: NodeClass; name: string }): N | null;
-  getChild<N extends Node>(options: {
-    nodeType?: NodeType;
-    traitType?: TraitType;
-    nodeClass?: NodeClass;
-    name?: string;
-  }): N | null;
-  getChild<N extends Node = Node>(options: {
-    nodeType?: NodeType;
-    traitType?: TraitType;
-    nodeClass?: NodeClass;
-    name?: string;
-  }): N | null {
-    const children = this._graph.getChildren(this, options);
-    if (options.name === undefined) {
-      return children[0] as N | null;
-    }
+  getChild<N extends Node>(classOrTrait: NodeClass<N>, name: string): N | null;
+  getChild<T extends TraitType>(classOrTrait: TraitClass<any, T>, name: string): (Node & TraitTypeMapping[T]) | null;
+  getChild(classOrTrait: NodeClass | TraitClass, name: string): Node | null;
+  getChild(classOrTrait: NodeClass | TraitClass, name: string, options?: NodeFilter): Node | null {
+    const children = this._graph.getChildren(this, classOrTrait);
     for (const child of children) {
-      if ((child as any).name === options.name) {
-        return child as N;
+      if ((child as any).name === name) {
+        return child;
       }
     }
     return null;
   }
 
   /** Get a specific child of this Node by name, or raises an error if not found. */
-  child<T extends NodeType>(options: { nodeType: T; name: string }): NodeTypeMapping[T];
-  child<T extends TraitType>(options: { traitType: T; name: string }): Node & TraitTypeMapping[T];
-  child<N extends Node>(options: { nodeClass: NodeClass; name: string }): N;
-  child<N extends Node>(options: {
-    nodeType?: NodeType;
-    traitType?: TraitType;
-    nodeClass?: NodeClass;
-    name?: string;
-  }): N;
-  child<N extends Node = Node>(options: {
-    nodeType?: NodeType;
-    traitType?: TraitType;
-    nodeClass?: NodeClass;
-    name?: string;
-  }): N {
-    const child = this.getChild(options);
+  child<N extends Node>(classOrTrait: NodeClass<N>, name: string): N;
+  child<T extends TraitType>(classOrTrait: TraitClass<any, T>, name: string): Node & TraitTypeMapping[T];
+  child(classOrTrait: NodeClass | TraitClass, name: string): Node;
+  child(classOrTrait: NodeClass | TraitClass, name: string): Node {
+    const child = this.getChild(classOrTrait, name);
     if (child === null) {
-      throw new Error(`no child ${options.name} of ${this}`);
+      throw new Error(`no child ${name} of ${this}`);
     }
-    return child as N;
+    return child;
   }
 
   /** Get the descendants of this Node. */
   getDescendants(): Node[];
-  getDescendants<T extends NodeType>(options: { nodeType: T }): NodeTypeMapping[T][];
-  getDescendants<T extends TraitType>(options: { traitType: T }): (Node & TraitTypeMapping[T])[];
-  getDescendants<N extends Node>(options: { nodeClass: NodeClass }): N[];
-  getDescendants<N extends Node = Node>(options?: {
-    nodeType?: NodeType;
-    traitType?: TraitType;
-    nodeClass?: NodeClass;
-  }): N[] {
-    return this._graph.getDescendants(this, options);
+  getDescendants<N extends Node>(classOrTrait: NodeClass<N>): N[];
+  getDescendants<T extends TraitType>(classOrTrait: TraitClass<any, T>): (Node & TraitTypeMapping[T])[];
+  getDescendants(classOrTrait?: NodeClass | TraitClass): Node[];
+  getDescendants(classOrTrait?: NodeClass | TraitClass): Node[] {
+    return this._graph.getDescendants(this, classOrTrait);
   }
 
   /** Make a get Query for this Node/Trait type. */
@@ -500,8 +476,8 @@ export abstract class Node extends BuiltinObject {
   }
 }
 
-/** A Node constructor/class. */
-export type NodeClass = { new (...args: any[]): Node } & BuiltinObjectClass<any, any> & {
+/** A Node class. */
+export type NodeClass<N extends Node = Node> = { new (...args: any[]): N } & BuiltinObjectClass<any, any> & {
     metatype: NodeType;
     __traits__: TraitType[];
     __rootType__: NodeType | null;
@@ -512,8 +488,8 @@ export type NodeClass = { new (...args: any[]): Node } & BuiltinObjectClass<any,
   };
 
 /** Internal base class for Trait companion objects.*/
-export class TraitClass {
-  readonly metatype: TraitType;
+export class TraitClass<N = any, T extends TraitType = TraitType> {
+  readonly metatype: T;
   readonly __traits__: TraitType[];
   readonly __properties__: Record<string, PropertyDefinition>;
   readonly __propertiesById__: Record<number, PropertyDefinition>;

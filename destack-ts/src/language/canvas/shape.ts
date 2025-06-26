@@ -14,7 +14,7 @@ export interface IsShape {
 /**
  * A Node that is a Shape.
  */
-class IsShape$Type extends TraitClass {}
+class IsShape$Type extends TraitClass<IsShape, TraitType.SHAPE> {}
 
 export const IsShape = new IsShape$Type(TraitType.SHAPE);
 registerTraitClass(TraitType.SHAPE, IsShape);

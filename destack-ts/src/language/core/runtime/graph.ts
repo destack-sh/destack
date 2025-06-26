@@ -1,7 +1,7 @@
 import { NODE_TYPES_BY_TRAIT_TYPE } from "@destack/language/lookup";
-import { NodeTypeMapping, TraitTypeMapping } from "@destack/language/mapping";
+import { TraitTypeMapping } from "@destack/language/mapping";
 import { INTEGER_ZERO } from "@destack/utils/fractional";
-import { hasTrait, IsOrdered, Node, NodeClass, NodeType, TraitType } from "../builtin";
+import { hasTrait, IsOrdered, Node, NodeClass, NodeType, TraitClass, TraitType } from "../builtin";
 import { Session } from "./session";
 
 /** A Graph is a collection of Nodes. */
@@ -48,43 +48,27 @@ export abstract class Graph {
 
   /** Find root Nodes in the graph. */
   abstract getRoots(): Node[];
-  abstract getRoots<T extends NodeType>(options: { nodeType: T }): NodeTypeMapping[T][];
-  abstract getRoots<T extends TraitType>(options: { traitType: T }): (Node & TraitTypeMapping[T])[];
-  abstract getRoots<N extends Node>(options: { nodeClass: NodeClass }): N[];
-  abstract getRoots<N extends Node = Node>(options?: {
-    nodeType?: NodeType;
-    traitType?: TraitType;
-    nodeClass?: NodeClass;
-  }): N[];
+  abstract getRoots<N extends Node>(classOrTrait: NodeClass<N>): N[];
+  abstract getRoots<T extends TraitType>(clasOrTrait: TraitClass<any, T>): (Node & TraitTypeMapping[T])[];
+  abstract getRoots(classOrTrait?: NodeClass | TraitClass): Node[];
 
   /** Find leaf Nodes in the graph. */
-  abstract getLeaves(options?: { node?: Node }): Node[];
-  abstract getLeaves<T extends NodeType>(options: { nodeType: T; node?: Node }): NodeTypeMapping[T][];
-  abstract getLeaves<T extends TraitType>(options: { traitType: T; node?: Node }): (Node & TraitTypeMapping[T])[];
-  abstract getLeaves<N extends Node>(options: { nodeClass: NodeClass; node?: Node }): N[];
-  abstract getLeaves<N extends Node = Node>(options?: {
-    nodeType?: NodeType;
-    traitType?: TraitType;
-    nodeClass?: NodeClass;
-    node?: Node;
-  }): N[];
+  abstract getLeaves(): Node[];
+  abstract getLeaves<N extends Node>(classOrTrait: NodeClass<N>): N[];
+  abstract getLeaves<T extends TraitType>(classOrTrait: TraitClass<any, T>): (Node & TraitTypeMapping[T])[];
+  abstract getLeaves(classOrTrait?: NodeClass | TraitClass): Node[];
 
   /**
    * Collect child Nodes (one level down).
    * If the Nodes are IsOrdered, their order is preserved.
    */
   abstract getChildren(node: Node): Node[];
-  abstract getChildren<T extends NodeType>(node: Node, options: { nodeType: T }): NodeTypeMapping[T][];
-  abstract getChildren<T extends TraitType>(node: Node, options: { traitType: T }): (Node & TraitTypeMapping[T])[];
-  abstract getChildren<N extends Node>(node: Node, options: { nodeClass: NodeClass }): N[];
-  abstract getChildren<N extends Node = Node>(
+  abstract getChildren<N extends Node>(node: Node, classOrTrait: NodeClass<N>): N[];
+  abstract getChildren<T extends TraitType>(
     node: Node,
-    options?: {
-      nodeType?: NodeType;
-      traitType?: TraitType;
-      nodeClass?: NodeClass;
-    },
-  ): N[];
+    classOrTrait: TraitClass<any, T>,
+  ): (Node & TraitTypeMapping[T])[];
+  abstract getChildren(node: Node, classOrTrait?: NodeClass | TraitClass): Node[];
 
   /**
    * Collect descendant Nodes (recursively down).
@@ -93,17 +77,12 @@ export abstract class Graph {
    * Nodes are BFS but IsOrdered is ignored.
    */
   abstract getDescendants(node: Node): Node[];
-  abstract getDescendants<T extends NodeType>(node: Node, options: { nodeType: T }): NodeTypeMapping[T][];
-  abstract getDescendants<T extends TraitType>(node: Node, options: { traitType: T }): (Node & TraitTypeMapping[T])[];
-  abstract getDescendants<N extends Node>(node: Node, options: { nodeClass: NodeClass }): N[];
-  abstract getDescendants<N extends Node = Node>(
+  abstract getDescendants<N extends Node>(node: Node, classOrTrait: NodeClass<N>): N[];
+  abstract getDescendants<T extends TraitType>(
     node: Node,
-    options?: {
-      nodeType?: NodeType;
-      traitType?: TraitType;
-      nodeClass?: NodeClass;
-    },
-  ): N[];
+    classOrTrait: TraitClass<any, T>,
+  ): (Node & TraitTypeMapping[T])[];
+  abstract getDescendants(node: Node, classOrTrait?: NodeClass | TraitClass): Node[];
 }
 
 /** A Graph that contains only a single Node. */
@@ -264,39 +243,25 @@ export class PolyGraph extends Graph {
     this.nodesById.delete(node.id);
   }
 
-  override getRoots(options?: { nodeType?: NodeType; traitType?: TraitType; nodeClass?: NodeClass }): Node[] {
-    const nodeTypes = getNodeTypes(options);
+  override getRoots(classOrTrait?: NodeClass | TraitClass): Node[] {
+    const nodeTypes = getNodeTypes(classOrTrait);
     if (nodeTypes === null) {
       return this.nodes.filter((node) => node.parentPtr === null);
     }
     return this.nodes.filter((node) => node.parentPtr === null && nodeTypes.includes(node.metatype));
   }
 
-  override getLeaves(options?: {
-    node?: Node;
-    nodeType?: NodeType;
-    traitType?: TraitType;
-    nodeClass?: NodeClass;
-  }): Node[] {
-    if (options?.node === undefined) {
-      const nodeTypes = getNodeTypes(options);
-      if (nodeTypes === null) {
-        return this.nodes.filter((node) => !this.nodesByParent.has(node.id));
-      }
-      return this.nodes.filter((node) => !this.nodesByParent.has(node.id) && nodeTypes.includes(node.metatype));
-    } else {
-      const descendants = this.getDescendants(options.node, options);
-      return descendants.filter((node) => !this.nodesByParent.has(node.id));
+  override getLeaves(classOrTrait?: NodeClass | TraitClass): Node[] {
+    const nodeTypes = getNodeTypes(classOrTrait);
+    if (nodeTypes === null) {
+      return this.nodes.filter((node) => !this.nodesByParent.has(node.id));
     }
+    return this.nodes.filter((node) => !this.nodesByParent.has(node.id) && nodeTypes.includes(node.metatype));
   }
 
   override getChildren(
     node: Node,
-    options?: {
-      nodeType?: NodeType;
-      traitType?: TraitType;
-      nodeClass?: NodeClass;
-    },
+    classOrTrait?: NodeClass | TraitClass,
   ): Node[] {
     // bail if no children
     if (this.nodesByParent.size === 0) {
@@ -307,7 +272,7 @@ export class PolyGraph extends Graph {
       return [];
     }
 
-    if (options === undefined) {
+    if (classOrTrait === undefined) {
       // collect children across all types
       const children: Node[] = [];
       let isOrdered = false;
@@ -328,7 +293,7 @@ export class PolyGraph extends Graph {
       return children;
     } else {
       // turn into type
-      const nodeTypes = getNodeTypes(options);
+      const nodeTypes = getNodeTypes(classOrTrait);
       if (nodeTypes === null) {
         // collect children across all types
         const children: Node[] = [];
@@ -385,11 +350,7 @@ export class PolyGraph extends Graph {
 
   override getDescendants(
     node: Node,
-    options?: {
-      nodeType?: NodeType;
-      traitType?: TraitType;
-      nodeClass?: NodeClass;
-    },
+    classOrTrait?: NodeClass | TraitClass,
   ): Node[] {
     if (this.nodesByParent.size === 0) {
       return [];
@@ -399,7 +360,7 @@ export class PolyGraph extends Graph {
     const descendants: Node[] = [];
 
     // collect
-    const nodeTypes = getNodeTypes(options);
+    const nodeTypes = getNodeTypes(classOrTrait);
     while (queue.length > 0) {
       const current = queue.shift()!;
       const childrenByType = this.nodesByParent.get(current.id);
@@ -505,23 +466,16 @@ export class Supergraph {
 }
 
 /** Resolve the NodeTypes for a NodeType, TraitType, or Node class. */
-export function getNodeTypes(options?: {
-  nodeType?: NodeType;
-  traitType?: TraitType;
-  nodeClass?: NodeClass;
-}): NodeType[] | null {
-  if (options == null) {
+export function getNodeTypes(classOrTrait?: NodeClass | TraitClass): NodeType[] | null {
+  if (classOrTrait == null) {
     return null;
   }
   const nodeTypes: NodeType[] = [];
-  if (options?.nodeType) {
-    nodeTypes.push(options.nodeType);
-  }
-  if (options?.traitType) {
-    nodeTypes.push(...NODE_TYPES_BY_TRAIT_TYPE[options.traitType]);
-  }
-  if (options?.nodeClass) {
-    nodeTypes.push(options.nodeClass.metatype);
+  if (classOrTrait instanceof TraitClass) {
+    const traitType = classOrTrait.metatype;
+    nodeTypes.push(...NODE_TYPES_BY_TRAIT_TYPE[traitType]);
+  } else {
+    nodeTypes.push(classOrTrait.metatype);
   }
   return nodeTypes;
 }

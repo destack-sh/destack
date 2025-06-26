@@ -124,7 +124,7 @@ export interface ContainerView extends IsExtensible, View {
 /**
  * A container View contains other Views.
  */
-class ContainerView$Type extends TraitClass {}
+class ContainerView$Type extends TraitClass<ContainerView, TraitType.CONTAINER_VIEW> {}
 
 export const ContainerView = new ContainerView$Type(TraitType.CONTAINER_VIEW);
 registerTraitClass(TraitType.CONTAINER_VIEW, ContainerView);

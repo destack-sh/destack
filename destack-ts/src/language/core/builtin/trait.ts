@@ -50,7 +50,7 @@ export interface HasName {
 /**
  * A Node with a plain name.
  */
-class HasName$Type extends TraitClass {}
+class HasName$Type extends TraitClass<HasName, TraitType.HAS_NAME> {}
 
 export const HasName = new HasName$Type(TraitType.HAS_NAME);
 registerTraitClass(TraitType.HAS_NAME, HasName);
@@ -74,7 +74,7 @@ export interface HasSlug {
 /**
  * A Node with a slug.
  */
-class HasSlug$Type extends TraitClass {}
+class HasSlug$Type extends TraitClass<HasSlug, TraitType.HAS_SLUG> {}
 
 export const HasSlug = new HasSlug$Type(TraitType.HAS_SLUG);
 registerTraitClass(TraitType.HAS_SLUG, HasSlug);
@@ -98,7 +98,7 @@ export interface HasIcon {
 /**
  * A Node with an icon.
  */
-class HasIcon$Type extends TraitClass {}
+class HasIcon$Type extends TraitClass<HasIcon, TraitType.HAS_ICON> {}
 
 export const HasIcon = new HasIcon$Type(TraitType.HAS_ICON);
 registerTraitClass(TraitType.HAS_ICON, HasIcon);
@@ -133,7 +133,7 @@ export interface IsTracked {
 /**
  * A Node that is "tracked" on create/update.
  */
-class IsTracked$Type extends TraitClass {}
+class IsTracked$Type extends TraitClass<IsTracked, TraitType.TRACKED> {}
 
 export const IsTracked = new IsTracked$Type(TraitType.TRACKED);
 registerTraitClass(TraitType.TRACKED, IsTracked);
@@ -152,7 +152,7 @@ export interface IsVisual extends IsTracked {
 /**
  * A Node that is a visual in some sense (views, styles, drawings, ...).
  */
-class IsVisual$Type extends TraitClass {}
+class IsVisual$Type extends TraitClass<IsVisual, TraitType.VISUAL> {}
 
 export const IsVisual = new IsVisual$Type(TraitType.VISUAL);
 registerTraitClass(TraitType.VISUAL, IsVisual);
@@ -171,7 +171,7 @@ export interface IsFrozen {
 /**
  * A Node that is frozen (read-only).
  */
-class IsFrozen$Type extends TraitClass {}
+class IsFrozen$Type extends TraitClass<IsFrozen, TraitType.FROZEN> {}
 
 export const IsFrozen = new IsFrozen$Type(TraitType.FROZEN);
 registerTraitClass(TraitType.FROZEN, IsFrozen);
@@ -195,7 +195,7 @@ export interface IsArchivable {
 /**
  * A Node that can be archived.
  */
-class IsArchivable$Type extends TraitClass {}
+class IsArchivable$Type extends TraitClass<IsArchivable, TraitType.ARCHIVABLE> {}
 
 export const IsArchivable = new IsArchivable$Type(TraitType.ARCHIVABLE);
 registerTraitClass(TraitType.ARCHIVABLE, IsArchivable);
@@ -219,7 +219,7 @@ export interface IsDeletable {
 /**
  * A Node that can be deleted.
  */
-class IsDeletable$Type extends TraitClass {}
+class IsDeletable$Type extends TraitClass<IsDeletable, TraitType.DELETABLE> {}
 
 export const IsDeletable = new IsDeletable$Type(TraitType.DELETABLE);
 registerTraitClass(TraitType.DELETABLE, IsDeletable);
@@ -242,7 +242,7 @@ export interface IsCustomNodeDefinition {
 /**
  * A Node that defines a Custom Node type.
  */
-class IsCustomNodeDefinition$Type extends TraitClass {}
+class IsCustomNodeDefinition$Type extends TraitClass<IsCustomNodeDefinition, TraitType.CUSTOM_NODE_DEFINITION> {}
 
 export const IsCustomNodeDefinition = new IsCustomNodeDefinition$Type(TraitType.CUSTOM_NODE_DEFINITION);
 registerTraitClass(TraitType.CUSTOM_NODE_DEFINITION, IsCustomNodeDefinition);
@@ -264,7 +264,7 @@ export interface IsCustomNode {
 /**
  * A Node that is asome Custom Node.
  */
-class IsCustomNode$Type extends TraitClass {}
+class IsCustomNode$Type extends TraitClass<IsCustomNode, TraitType.CUSTOM_NODE> {}
 
 export const IsCustomNode = new IsCustomNode$Type(TraitType.CUSTOM_NODE);
 registerTraitClass(TraitType.CUSTOM_NODE, IsCustomNode);
@@ -288,7 +288,7 @@ export interface IsExtensible {
 /**
  * A Node that can be extended with custom Values (one Value per Field).
  */
-class IsExtensible$Type extends TraitClass {}
+class IsExtensible$Type extends TraitClass<IsExtensible, TraitType.EXTENSIBLE> {}
 
 export const IsExtensible = new IsExtensible$Type(TraitType.EXTENSIBLE);
 registerTraitClass(TraitType.EXTENSIBLE, IsExtensible);
@@ -312,7 +312,7 @@ export interface IsOrdered {
 /**
  * A Node that can be ordered.
  */
-class IsOrdered$Type extends TraitClass {}
+class IsOrdered$Type extends TraitClass<IsOrdered, TraitType.ORDERED> {}
 
 export const IsOrdered = new IsOrdered$Type(TraitType.ORDERED);
 registerTraitClass(TraitType.ORDERED, IsOrdered);
@@ -331,7 +331,7 @@ export interface IsReactable {
 /**
  * A Node that can be reacted to (with Reactions).
  */
-class IsReactable$Type extends TraitClass {}
+class IsReactable$Type extends TraitClass<IsReactable, TraitType.REACTABLE> {}
 
 export const IsReactable = new IsReactable$Type(TraitType.REACTABLE);
 registerTraitClass(TraitType.REACTABLE, IsReactable);
@@ -350,7 +350,7 @@ export interface IsStarable {
 /**
  * A Node that can be starred (with Stars).
  */
-class IsStarable$Type extends TraitClass {}
+class IsStarable$Type extends TraitClass<IsStarable, TraitType.STARABLE> {}
 
 export const IsStarable = new IsStarable$Type(TraitType.STARABLE);
 registerTraitClass(TraitType.STARABLE, IsStarable);
@@ -369,7 +369,7 @@ export interface IsFollowable {
 /**
  * A Node that can be followed (with Follows).
  */
-class IsFollowable$Type extends TraitClass {}
+class IsFollowable$Type extends TraitClass<IsFollowable, TraitType.FOLLOWABLE> {}
 
 export const IsFollowable = new IsFollowable$Type(TraitType.FOLLOWABLE);
 registerTraitClass(TraitType.FOLLOWABLE, IsFollowable);
@@ -391,7 +391,7 @@ export interface IsSourceable extends IsOrdered {
 /**
  * A Node that can be sourced from / defined by a Script.
  */
-class IsSourceable$Type extends TraitClass {}
+class IsSourceable$Type extends TraitClass<IsSourceable, TraitType.SOURCEABLE> {}
 
 export const IsSourceable = new IsSourceable$Type(TraitType.SOURCEABLE);
 registerTraitClass(TraitType.SOURCEABLE, IsSourceable);
@@ -414,7 +414,7 @@ export interface IsScriptable {
 /**
  * A Node that can be scripted.
  */
-class IsScriptable$Type extends TraitClass {}
+class IsScriptable$Type extends TraitClass<IsScriptable, TraitType.SCRIPTABLE> {}
 
 export const IsScriptable = new IsScriptable$Type(TraitType.SCRIPTABLE);
 registerTraitClass(TraitType.SCRIPTABLE, IsScriptable);
@@ -433,7 +433,7 @@ export interface IsRunnable {
 /**
  * A Node that can be run (with Runs).
  */
-class IsRunnable$Type extends TraitClass {}
+class IsRunnable$Type extends TraitClass<IsRunnable, TraitType.RUNNABLE> {}
 
 export const IsRunnable = new IsRunnable$Type(TraitType.RUNNABLE);
 registerTraitClass(TraitType.RUNNABLE, IsRunnable);
@@ -452,7 +452,7 @@ export interface IsActionable {
 /**
  * A Node that can define an Action.
  */
-class IsActionable$Type extends TraitClass {}
+class IsActionable$Type extends TraitClass<IsActionable, TraitType.ACTIONABLE> {}
 
 export const IsActionable = new IsActionable$Type(TraitType.ACTIONABLE);
 registerTraitClass(TraitType.ACTIONABLE, IsActionable);
@@ -475,7 +475,7 @@ export interface IsOwnable {
 /**
  * A Node that can be owned by another Node.
  */
-class IsOwnable$Type extends TraitClass {}
+class IsOwnable$Type extends TraitClass<IsOwnable, TraitType.OWNABLE> {}
 
 export const IsOwnable = new IsOwnable$Type(TraitType.OWNABLE);
 registerTraitClass(TraitType.OWNABLE, IsOwnable);
@@ -494,7 +494,7 @@ export interface IsSettings {
 /**
  * A Node that defines Settings.
  */
-class IsSettings$Type extends TraitClass {}
+class IsSettings$Type extends TraitClass<IsSettings, TraitType.SETTINGS> {}
 
 export const IsSettings = new IsSettings$Type(TraitType.SETTINGS);
 registerTraitClass(TraitType.SETTINGS, IsSettings);
@@ -513,7 +513,7 @@ export interface IsJoinable {
 /**
  * A Node that can be joined by Subjects.
  */
-class IsJoinable$Type extends TraitClass {}
+class IsJoinable$Type extends TraitClass<IsJoinable, TraitType.JOINABLE> {}
 
 export const IsJoinable = new IsJoinable$Type(TraitType.JOINABLE);
 registerTraitClass(TraitType.JOINABLE, IsJoinable);
@@ -532,7 +532,7 @@ export interface IsSubject {
 /**
  * A Node that can be a Subject.
  */
-class IsSubject$Type extends TraitClass {}
+class IsSubject$Type extends TraitClass<IsSubject, TraitType.SUBJECT> {}
 
 export const IsSubject = new IsSubject$Type(TraitType.SUBJECT);
 registerTraitClass(TraitType.SUBJECT, IsSubject);
@@ -551,7 +551,7 @@ export interface IsOwner {
 /**
  * A Node that can be an Owner.
  */
-class IsOwner$Type extends TraitClass {}
+class IsOwner$Type extends TraitClass<IsOwner, TraitType.OWNER> {}
 
 export const IsOwner = new IsOwner$Type(TraitType.OWNER);
 registerTraitClass(TraitType.OWNER, IsOwner);
@@ -570,7 +570,7 @@ export interface IsTaggable {
 /**
  * A Node that can be tagged (with a Tag).
  */
-class IsTaggable$Type extends TraitClass {}
+class IsTaggable$Type extends TraitClass<IsTaggable, TraitType.TAGGABLE> {}
 
 export const IsTaggable = new IsTaggable$Type(TraitType.TAGGABLE);
 registerTraitClass(TraitType.TAGGABLE, IsTaggable);
@@ -593,7 +593,7 @@ export interface LikeMembership {
 /**
  * A Node that represents a Membership.
  */
-class LikeMembership$Type extends TraitClass {}
+class LikeMembership$Type extends TraitClass<LikeMembership, TraitType.MEMBERSHIP> {}
 
 export const LikeMembership = new LikeMembership$Type(TraitType.MEMBERSHIP);
 registerTraitClass(TraitType.MEMBERSHIP, LikeMembership);
@@ -616,7 +616,7 @@ export interface LikeInvite {
 /**
  * A Node that represents an Invite.
  */
-class LikeInvite$Type extends TraitClass {}
+class LikeInvite$Type extends TraitClass<LikeInvite, TraitType.INVITE> {}
 
 export const LikeInvite = new LikeInvite$Type(TraitType.INVITE);
 registerTraitClass(TraitType.INVITE, LikeInvite);
@@ -635,7 +635,7 @@ export interface LikeTag {
 /**
  * A Node that represents a Tag.
  */
-class LikeTag$Type extends TraitClass {}
+class LikeTag$Type extends TraitClass<LikeTag, TraitType.TAG> {}
 
 export const LikeTag = new LikeTag$Type(TraitType.TAG);
 registerTraitClass(TraitType.TAG, LikeTag);
@@ -654,7 +654,7 @@ export interface LikeFollow {
 /**
  * A Node that represents a Follow.
  */
-class LikeFollow$Type extends TraitClass {}
+class LikeFollow$Type extends TraitClass<LikeFollow, TraitType.FOLLOW> {}
 
 export const LikeFollow = new LikeFollow$Type(TraitType.FOLLOW);
 registerTraitClass(TraitType.FOLLOW, LikeFollow);
@@ -673,7 +673,7 @@ export interface Global {
 /**
  * A Node that is global.
  */
-class Global$Type extends TraitClass {}
+class Global$Type extends TraitClass<Global, TraitType.GLOBAL> {}
 
 export const Global = new Global$Type(TraitType.GLOBAL);
 registerTraitClass(TraitType.GLOBAL, Global);
@@ -695,7 +695,7 @@ export interface Spatial {
 /**
  * A Node in a Space.
  */
-class Spatial$Type extends TraitClass {}
+class Spatial$Type extends TraitClass<Spatial, TraitType.SPATIAL> {}
 
 export const Spatial = new Spatial$Type(TraitType.SPATIAL);
 registerTraitClass(TraitType.SPATIAL, Spatial);
@@ -719,7 +719,7 @@ export interface Entity extends IsTracked {
 /**
  * An Entity is a versioned Node in primary relational storage (OLTP).
  */
-class Entity$Type extends TraitClass {}
+class Entity$Type extends TraitClass<Entity, TraitType.ENTITY> {}
 
 export const Entity = new Entity$Type(TraitType.ENTITY);
 registerTraitClass(TraitType.ENTITY, Entity);
@@ -738,7 +738,7 @@ export interface Particle extends IsTracked {
 /**
  * A Particle is a forward-only Node in primary document storage (OLTP, high volume).
  */
-class Particle$Type extends TraitClass {}
+class Particle$Type extends TraitClass<Particle, TraitType.PARTICLE> {}
 
 export const Particle = new Particle$Type(TraitType.PARTICLE);
 registerTraitClass(TraitType.PARTICLE, Particle);
@@ -757,7 +757,7 @@ export interface Analytic extends IsTracked {
 /**
  * An Analytic is a read-only Node in primary or secondary warehouse storage (OLAP, bulk).
  */
-class Analytic$Type extends TraitClass {}
+class Analytic$Type extends TraitClass<Analytic, TraitType.ANALYTIC> {}
 
 export const Analytic = new Analytic$Type(TraitType.ANALYTIC);
 registerTraitClass(TraitType.ANALYTIC, Analytic);
@@ -776,7 +776,7 @@ export interface Indexed extends IsTracked {
 /**
  * A Node that is indexed in secondary search storage (OLTP).
  */
-class Indexed$Type extends TraitClass {}
+class Indexed$Type extends TraitClass<Indexed, TraitType.INDEXED> {}
 
 export const Indexed = new Indexed$Type(TraitType.INDEXED);
 registerTraitClass(TraitType.INDEXED, Indexed);
@@ -807,7 +807,7 @@ export interface Resource extends Entity {
  * A Resource represents an external asset.
  * The lifecycle of a Resource may be managed by some provisioner.
  */
-class Resource$Type extends TraitClass {}
+class Resource$Type extends TraitClass<Resource, TraitType.RESOURCE> {}
 
 export const Resource = new Resource$Type(TraitType.RESOURCE);
 registerTraitClass(TraitType.RESOURCE, Resource);
@@ -826,7 +826,7 @@ export interface Metric extends Entity, IsCustomNodeDefinition, IsSourceable {
 /**
  * An Entity that represents a Metric.
  */
-class Metric$Type extends TraitClass {}
+class Metric$Type extends TraitClass<Metric, TraitType.METRIC> {}
 
 export const Metric = new Metric$Type(TraitType.METRIC);
 registerTraitClass(TraitType.METRIC, Metric);
@@ -848,7 +848,7 @@ export interface Measurement extends Analytic, IsCustomNode {
 /**
  * An Analytic that represents a Measurement.
  */
-class Measurement$Type extends TraitClass {}
+class Measurement$Type extends TraitClass<Measurement, TraitType.MEASUREMENT> {}
 
 export const Measurement = new Measurement$Type(TraitType.MEASUREMENT);
 registerTraitClass(TraitType.MEASUREMENT, Measurement);
@@ -873,7 +873,7 @@ export interface Event extends Spatial, Particle, Analytic, Indexed, IsFrozen {
  * An Event is a Node that represents an Event.
  * Events always belong to a specific Space.
  */
-class Event$Type extends TraitClass {}
+class Event$Type extends TraitClass<Event, TraitType.EVENT> {}
 
 export const Event = new Event$Type(TraitType.EVENT);
 registerTraitClass(TraitType.EVENT, Event);

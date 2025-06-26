@@ -31,7 +31,7 @@ export interface ContentView extends View {
 /**
  * A content View.
  */
-class ContentView$Type extends TraitClass {}
+class ContentView$Type extends TraitClass<ContentView, TraitType.CONTENT_VIEW> {}
 
 export const ContentView = new ContentView$Type(TraitType.CONTENT_VIEW);
 registerTraitClass(TraitType.CONTENT_VIEW, ContentView);

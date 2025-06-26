@@ -61,7 +61,7 @@ export interface View extends Spatial, Entity, IsDeletable, IsOrdered, HasName, 
 /**
  * A View is a graphical interface.
  */
-class View$Type extends TraitClass {}
+class View$Type extends TraitClass<View, TraitType.VIEW> {}
 
 export const View = new View$Type(TraitType.VIEW);
 registerTraitClass(TraitType.VIEW, View);

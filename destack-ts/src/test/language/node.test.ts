@@ -46,6 +46,6 @@ sessionTest("node ordering", async ({ session }) => {
   const tags = [new Tag({ name: "A" }), new Tag({ name: "B" }), new Tag({ name: "C" })];
   folder.addChildren(tags);
 
-  expect(folder.getChildren({ nodeClass: Tag })).toEqual(tags);
+  expect(folder.getChildren(Tag)).toEqual(tags);
   expect(tags.map((t) => t.orderKey)).toEqual(["a0", "a1", "a2"]);
 });

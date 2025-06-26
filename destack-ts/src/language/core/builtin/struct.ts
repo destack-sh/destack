@@ -38,5 +38,7 @@ export abstract class StructFrozen extends Struct {
   }
 }
 
-/** A Struct constructor/class. */
-export type StructClass = { new (...args: any[]): Struct } & BuiltinObjectClass<any, any> & { metatype: StructType };
+/** A Struct class. */
+export type StructClass<S extends Struct = Struct> = { new (...args: any[]): S } & BuiltinObjectClass<any, any> & {
+    metatype: StructType;
+  };
