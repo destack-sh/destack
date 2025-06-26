@@ -29,5 +29,7 @@ export const EASINGS = {
           : (2 - Math.pow(2, -20 * t + 10)) / 2,
 } as const;
 
+export const penEasing = (t: number) => t * 0.65 + Math.sin((t * Math.PI) / 2) * 0.35;
+
 /** @public */
 export type EasingType = keyof typeof EASINGS;
