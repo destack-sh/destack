@@ -45,9 +45,9 @@ def _setup_test_env():
     setup_logging()
     setup_telemetry()
 
-    from destack.language import _complete_setup
+    from destack.language import finalize
 
-    _complete_setup()
+    finalize()
 
     _is_test_setup = True
 

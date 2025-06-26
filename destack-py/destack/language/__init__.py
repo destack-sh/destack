@@ -18,7 +18,7 @@ from .registry import (
     ENUM_TYPE_BY_CLASS,  # noqa: F401
     NODE_CLASS_BY_TYPE,  # noqa: F401
     STRUCT_CLASS_BY_TYPE,  # noqa: F401
-    _complete_setup,
+    finalize,
 )
 from .runtime import *  # noqa: F403
 from .scene import *  # noqa: F403
@@ -29,7 +29,7 @@ from .style import *  # noqa: F403
 from .view import *  # noqa: F403
 
 # after all the imports, we can finalize
-_complete_setup()
+finalize()
 
 # builtin destackes (pointers) :Builtins
 DESTACK_PTR = NodeReference(node_type=NodeType.SPACE, id=DESTACK_ID, space_id=DESTACK_ID)

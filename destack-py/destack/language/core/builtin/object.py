@@ -3,7 +3,7 @@ import contextvars
 import inspect
 import textwrap
 from collections.abc import Mapping
-from enum import Enum, IntEnum
+from enum import Enum
 from sys import intern
 from typing import (
     TYPE_CHECKING,
@@ -54,23 +54,16 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-
-class _SetupStage(IntEnum):
-    INITIALIZING = 1
-    FINALIZING = 2
-    COMPLETED = 3
+__is_finalized__ = False
 
 
-_SETUP_STAGE = _SetupStage.INITIALIZING
+def _is_finalized() -> bool:
+    return __is_finalized__
 
 
-def _is_setup_complete() -> bool:
-    return _SETUP_STAGE == _SetupStage.COMPLETED
-
-
-def _set_setup_complete():
-    global _SETUP_STAGE
-    _SETUP_STAGE = _SetupStage.COMPLETED
+def _set_finalized():
+    global __is_finalized__
+    __is_finalized__ = True
 
 
 def get_tk_b64_from_ck(ck: UUID) -> str:

@@ -1560,5 +1560,16 @@ def generate():
         index_content = "\n".join(index_lines) + "\n"
         index_path.write_text(index_content)
 
+    # append finalize call to root index.ts
+    root_index_path = Path(GENERATION_PATH) / "index.ts"
+    root_index_content = (
+        root_index_path.read_text()
+        + """
+import { finalize } from "@destack/language/finalize";
+finalize();
+"""
+    )
+    root_index_path.write_text(root_index_content)
+
     # format it all
     subprocess.run("cd destack-ts && bun run format-language", shell=True, check=True)
