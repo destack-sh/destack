@@ -4,6 +4,7 @@ export * from "@destack/language/constants";
 export * from "@destack/language/core";
 export * from "@destack/language/data";
 export * from "@destack/language/deployment";
+export * from "@destack/language/finalize";
 export * from "@destack/language/folder";
 export * from "@destack/language/infra";
 export * from "@destack/language/intelligence";
@@ -17,3 +18,6 @@ export * from "@destack/language/social";
 export * from "@destack/language/space";
 export * from "@destack/language/style";
 export * from "@destack/language/view";
+
+import { finalize } from "@destack/language/finalize";
+finalize();

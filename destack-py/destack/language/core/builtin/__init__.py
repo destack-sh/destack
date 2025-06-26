@@ -62,7 +62,7 @@ from .object import (
     BuiltinObjectBase,
     BuiltinObjectFrozen,
     BuiltinObjectMutable,
-    _is_setup_complete,
+    _is_finalized,
     object_,
 )
 from .property import (
@@ -232,7 +232,7 @@ __all__ = [
     "TraitType",
     "TypeCardinality",
     "TypeDeclaration",
-    "_is_setup_complete",
+    "_is_finalized",
     "active_session",
     "builtin_enum",
     "builtin_node",

@@ -96,15 +96,12 @@ def get_builtin_type(
         raise ValueError(f"invalid destack type: {cls!r}")
 
 
-def _complete_setup():
-    """Finalize setup of all language constructs after everything is imported."""
-    from destack.language.core.builtin.object import (
-        _is_setup_complete,
-        _set_setup_complete,
-    )
-    from destack.language.core.builtin.trait import expand_node_types
+def finalize():
+    """Finalize the Destack language SDK."""
 
-    if _is_setup_complete():
+    from destack.language.core.builtin.object import _is_finalized, _set_finalized
+
+    if _is_finalized():
         return
 
     # index node types by store type
@@ -133,6 +130,8 @@ def _complete_setup():
         assert trait_type in TRAIT_CLASS_BY_TYPE, f"missing trait type: {trait_type!r}"
         if trait_type not in NODE_TYPES_BY_TRAIT_TYPE:
             NODE_TYPES_BY_TRAIT_TYPE[trait_type] = ()
+
+    from destack.language.core.builtin.trait import expand_node_types
 
     # index parent types
     for node_cls in NODE_CLASS_BY_TYPE.values():
@@ -299,4 +298,4 @@ def _complete_setup():
                             f"{descendant_type.name} must inherit {trait_type.name} trait from {node_type.name} (has {[t.name for t in descendant_cls.__traits__]}, parents: {[t.name for t in ANCESTOR_NODE_TYPES_BY_TYPE[descendant_type]]})"
                         )
 
-    _set_setup_complete()
+    _set_finalized()
