@@ -3322,16 +3322,18 @@ class ConditionProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., type: _Optional[_Union[ConditionalTypeProto, str]] = ..., left: _Optional[_Union[ExpressionProto, _Mapping]] = ..., right: _Optional[_Union[ExpressionProto, _Mapping]] = ...) -> None: ...
 
 class ConstantDefinitionProto(_message.Message):
-    __slots__ = ("metatype", "name", "description", "value")
+    __slots__ = ("metatype", "name", "description", "value", "is_deferred")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     VALUE_FIELD_NUMBER: _ClassVar[int]
+    IS_DEFERRED_FIELD_NUMBER: _ClassVar[int]
     metatype: StructTypeProto
     name: str
     description: str
     value: ValueProto
-    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., value: _Optional[_Union[ValueProto, _Mapping]] = ...) -> None: ...
+    is_deferred: bool
+    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., value: _Optional[_Union[ValueProto, _Mapping]] = ..., is_deferred: bool = ...) -> None: ...
 
 class CornersProto(_message.Message):
     __slots__ = ("metatype", "base", "top_left", "top_right", "bottom_left", "bottom_right")

@@ -1,2 +1,2 @@
-export * from "./language";
-export * from "./utils";
+export * from "@destack/language";
+export * from "@destack/utils";

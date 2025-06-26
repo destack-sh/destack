@@ -25,7 +25,6 @@ import {
   ResourceStatusProto,
 } from "@destack/proto";
 import { base64Decode, base64Encode, timedeltaFromISOFormat, timedeltaToISOFormat } from "@destack/utils";
-import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2541 ==== */
@@ -188,7 +187,6 @@ registerEnumClass(EnumType.FILE_FORMAT, FileFormat);
  */
 export class File extends Node implements Spatial, Global, Resource, HasName {
   static metatype: NodeType = NodeType.FILE;
-  static __protoClass__ = FileProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
     TraitType.SPATIAL,
@@ -976,6 +974,12 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
     _connection?: any | null,
   ): File {
     return File.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): File {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = FileProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

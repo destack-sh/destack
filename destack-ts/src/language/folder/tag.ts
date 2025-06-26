@@ -21,7 +21,7 @@ import { Folder } from "@destack/language/folder";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { MaterializationTypeProto, TagProto, TaggingProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:1010 ==== */
@@ -30,7 +30,6 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Tag extends Node implements Spatial, Entity, LikeTag, HasName, HasIcon, IsOrdered, IsDeletable {
   static metatype: NodeType = NodeType.TAG;
-  static __protoClass__ = TagProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.TAG,
@@ -464,6 +463,12 @@ export class Tag extends Node implements Spatial, Entity, LikeTag, HasName, HasI
     return Tag.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): Tag {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = TagProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -477,7 +482,6 @@ registerNodeClass(NodeType.TAG, Tag);
  */
 export class Tagging extends Node implements Spatial, Entity, IsTaggable, IsOrdered, IsDeletable {
   static metatype: NodeType = NodeType.TAGGING;
-  static __protoClass__ = TaggingProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.TAGGABLE,
@@ -999,6 +1003,12 @@ export class Tagging extends Node implements Spatial, Entity, IsTaggable, IsOrde
     _connection?: any | null,
   ): Tagging {
     return Tagging.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Tagging {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = TaggingProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

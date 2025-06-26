@@ -14,7 +14,7 @@ import { registerNodeClass } from "@destack/language/registry";
 import { Run } from "@destack/language/runtime";
 import { Space } from "@destack/language/space";
 import { SpanProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:4010 ==== */
@@ -23,7 +23,6 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Span extends Node implements Spatial, Analytic, IsFrozen {
   static metatype: NodeType = NodeType.SPAN;
-  static __protoClass__ = SpanProto as IMessageType<any>;
   static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.TRACKED, TraitType.ANALYTIC, TraitType.FROZEN];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.RUN];
@@ -351,6 +350,12 @@ export class Span extends Node implements Spatial, Analytic, IsFrozen {
     _connection?: any | null,
   ): Span {
     return Span.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Span {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = SpanProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

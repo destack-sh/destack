@@ -1,1 +1,1 @@
-export * from "./store";
+export * from "@destack/store";

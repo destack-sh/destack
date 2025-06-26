@@ -23,7 +23,7 @@ import { Script } from "@destack/language/logic";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { ActionCardinalityProto, ActionProto, MaterializationTypeProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:3020 ==== */
@@ -50,7 +50,6 @@ export class Action
   implements Spatial, Entity, HasName, IsTaggable, IsSourceable, IsExtensible, IsDeletable, IsRunnable
 {
   static metatype: NodeType = NodeType.ACTION;
-  static __protoClass__ = ActionProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.TAGGABLE,
@@ -597,6 +596,12 @@ export class Action
     _connection?: any | null,
   ): Action {
     return Action.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Action {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = ActionProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

@@ -14,7 +14,7 @@ import {
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { LogLevelProto, LogProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:4100 ==== */
@@ -42,7 +42,6 @@ registerEnumClass(EnumType.LOG_LEVEL, LogLevel);
  */
 export class Log extends Node implements Spatial, Analytic, IsFrozen {
   static metatype: NodeType = NodeType.LOG;
-  static __protoClass__ = LogProto as IMessageType<any>;
   static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.TRACKED, TraitType.ANALYTIC, TraitType.FROZEN];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -447,6 +446,12 @@ export class Log extends Node implements Spatial, Analytic, IsFrozen {
     _connection?: any | null,
   ): Log {
     return Log.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Log {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = LogProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

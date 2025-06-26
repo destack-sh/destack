@@ -25,8 +25,7 @@ import {
   InterruptionStatusProto,
   InterruptionTypeProto,
 } from "@destack/proto";
-import { timedeltaFromISOFormat, timedeltaToISOFormat } from "@destack/utils";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode, timedeltaFromISOFormat, timedeltaToISOFormat } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:4020 ==== */
@@ -82,7 +81,6 @@ registerEnumClass(EnumType.INTERRUPTION_RESPONSE, InterruptionResponse);
  */
 export class Interruption extends Node implements Spatial, Particle, Analytic, Indexed, IsExtensible {
   static metatype: NodeType = NodeType.INTERRUPTION;
-  static __protoClass__ = InterruptionProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.PARTICLE,
@@ -700,6 +698,12 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
     _connection?: any | null,
   ): Interruption {
     return Interruption.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Interruption {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = InterruptionProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

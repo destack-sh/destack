@@ -2,7 +2,7 @@ import { NodeReference, Session, Supergraph } from "@destack/language/core";
 import { EnumType, Node, StructFrozen, StructType } from "@destack/language/core/builtin";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { TextProto, TextSpanProto, TextSpanTypeProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2521 ==== */
 /**
@@ -29,7 +29,6 @@ registerEnumClass(EnumType.TEXT_SPAN_TYPE, TextSpanType);
  */
 export class TextSpan extends StructFrozen {
   static metatype: StructType = StructType.TEXT_SPAN;
-  static __protoClass__ = TextSpanProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -356,6 +355,12 @@ export class TextSpan extends StructFrozen {
     return TextSpan.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): TextSpan {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = TextSpanProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -369,7 +374,6 @@ registerStructClass(StructType.TEXT_SPAN, TextSpan);
  */
 export class Text extends StructFrozen {
   static metatype: StructType = StructType.TEXT;
-  static __protoClass__ = TextProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -638,6 +642,12 @@ export class Text extends StructFrozen {
     _connection?: any | null,
   ): Text {
     return Text.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Text {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = TextProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

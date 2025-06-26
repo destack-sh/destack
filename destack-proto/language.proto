@@ -1935,6 +1935,7 @@ message ConstantDefinitionProto {
   string name = 31;
   optional string description = 36;
   ValueProto value = 40;
+  bool is_deferred = 50;
 }
 
 message CornersProto {

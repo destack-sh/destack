@@ -1193,6 +1193,10 @@ export interface ConstantDefinitionProto {
      * @generated from protobuf field: symbol.destack.ValueProto value = 40
      */
     value?: ValueProto;
+    /**
+     * @generated from protobuf field: bool is_deferred = 50
+     */
+    isDeferred: boolean;
 }
 /**
  * @generated from protobuf message symbol.destack.CornersProto
@@ -18582,13 +18586,15 @@ class ConstantDefinitionProto$Type extends MessageType<ConstantDefinitionProto> 
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 36, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 40, name: "value", kind: "message", T: () => ValueProto }
+            { no: 40, name: "value", kind: "message", T: () => ValueProto },
+            { no: 50, name: "is_deferred", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<ConstantDefinitionProto>): ConstantDefinitionProto {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.name = "";
+        message.isDeferred = false;
         if (value !== undefined)
             reflectionMergePartial<ConstantDefinitionProto>(this, message, value);
         return message;
@@ -18609,6 +18615,9 @@ class ConstantDefinitionProto$Type extends MessageType<ConstantDefinitionProto> 
                     break;
                 case /* symbol.destack.ValueProto value */ 40:
                     message.value = ValueProto.internalBinaryRead(reader, reader.uint32(), options, message.value);
+                    break;
+                case /* bool is_deferred */ 50:
+                    message.isDeferred = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -18634,6 +18643,9 @@ class ConstantDefinitionProto$Type extends MessageType<ConstantDefinitionProto> 
         /* symbol.destack.ValueProto value = 40; */
         if (message.value)
             ValueProto.internalBinaryWrite(message.value, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* bool is_deferred = 50; */
+        if (message.isDeferred !== false)
+            writer.tag(50, WireType.Varint).bool(message.isDeferred);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

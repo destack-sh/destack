@@ -25,7 +25,7 @@ import {
   HistogramMetricProto,
   MaterializationTypeProto,
 } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:4110 ==== */
@@ -34,7 +34,6 @@ import { Temporal } from "temporal-polyfill";
  */
 export class GaugeMetric extends Node implements Spatial, Metric, HasName {
   static metatype: NodeType = NodeType.GAUGE_METRIC;
-  static __protoClass__ = GaugeMetricProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.METRIC,
@@ -507,6 +506,12 @@ export class GaugeMetric extends Node implements Spatial, Metric, HasName {
     return GaugeMetric.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): GaugeMetric {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = GaugeMetricProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -520,7 +525,6 @@ registerNodeClass(NodeType.GAUGE_METRIC, GaugeMetric);
  */
 export class GaugeMeasurement extends Node implements Spatial, Measurement {
   static metatype: NodeType = NodeType.GAUGE_MEASUREMENT;
-  static __protoClass__ = GaugeMeasurementProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.MEASUREMENT,
@@ -888,6 +892,12 @@ export class GaugeMeasurement extends Node implements Spatial, Measurement {
     return GaugeMeasurement.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): GaugeMeasurement {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = GaugeMeasurementProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -901,7 +911,6 @@ registerNodeClass(NodeType.GAUGE_MEASUREMENT, GaugeMeasurement);
  */
 export class CounterMetric extends Node implements Spatial, Metric, HasName {
   static metatype: NodeType = NodeType.COUNTER_METRIC;
-  static __protoClass__ = CounterMetricProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.METRIC,
@@ -1374,6 +1383,12 @@ export class CounterMetric extends Node implements Spatial, Metric, HasName {
     return CounterMetric.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): CounterMetric {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = CounterMetricProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -1387,7 +1402,6 @@ registerNodeClass(NodeType.COUNTER_METRIC, CounterMetric);
  */
 export class CounterMeasurement extends Node implements Spatial, Measurement {
   static metatype: NodeType = NodeType.COUNTER_MEASUREMENT;
-  static __protoClass__ = CounterMeasurementProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.MEASUREMENT,
@@ -1755,6 +1769,12 @@ export class CounterMeasurement extends Node implements Spatial, Measurement {
     return CounterMeasurement.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): CounterMeasurement {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = CounterMeasurementProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -1768,7 +1788,6 @@ registerNodeClass(NodeType.COUNTER_MEASUREMENT, CounterMeasurement);
  */
 export class HistogramMetric extends Node implements Spatial, Metric, HasName {
   static metatype: NodeType = NodeType.HISTOGRAM_METRIC;
-  static __protoClass__ = HistogramMetricProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.METRIC,
@@ -2241,6 +2260,12 @@ export class HistogramMetric extends Node implements Spatial, Metric, HasName {
     return HistogramMetric.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): HistogramMetric {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = HistogramMetricProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -2254,7 +2279,6 @@ registerNodeClass(NodeType.HISTOGRAM_METRIC, HistogramMetric);
  */
 export class HistogramMeasurement extends Node implements Spatial, Measurement {
   static metatype: NodeType = NodeType.HISTOGRAM_MEASUREMENT;
-  static __protoClass__ = HistogramMeasurementProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.MEASUREMENT,
@@ -2620,6 +2644,12 @@ export class HistogramMeasurement extends Node implements Spatial, Measurement {
     _connection?: any | null,
   ): HistogramMeasurement {
     return HistogramMeasurement.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): HistogramMeasurement {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = HistogramMeasurementProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

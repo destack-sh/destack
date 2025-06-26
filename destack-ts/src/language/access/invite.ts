@@ -22,7 +22,7 @@ import {
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { InviteEventProto, InviteProto, MaterializationTypeProto, RoleTypeProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:510 ==== */
@@ -48,7 +48,6 @@ registerEnumClass(EnumType.INVITE_EVENT_TYPE, InviteEventType);
  */
 export class InviteEvent extends Node implements Event {
   static metatype: NodeType = NodeType.INVITE_EVENT;
-  static __protoClass__ = InviteEventProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.PARTICLE,
@@ -541,6 +540,12 @@ export class InviteEvent extends Node implements Event {
     return InviteEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): InviteEvent {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = InviteEventProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -554,7 +559,6 @@ registerNodeClass(NodeType.INVITE_EVENT, InviteEvent);
  */
 export class Invite extends Node implements Global, Spatial, Entity, IsOwnable, IsDeletable {
   static metatype: NodeType = NodeType.INVITE;
-  static __protoClass__ = InviteProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
     TraitType.SPATIAL,
@@ -1078,6 +1082,12 @@ export class Invite extends Node implements Global, Spatial, Entity, IsOwnable, 
     _connection?: any | null,
   ): Invite {
     return Invite.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Invite {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = InviteProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

@@ -20,7 +20,7 @@ import {
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { MaterializationTypeProto, WindowProto, WindowTypeProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:9000 ==== */
@@ -45,7 +45,6 @@ registerEnumClass(EnumType.WINDOW_TYPE, WindowType);
  */
 export class Window extends Node implements Spatial, Entity, HasName, IsVisual, IsOwnable, IsOrdered, IsDeletable {
   static metatype: NodeType = NodeType.WINDOW;
-  static __protoClass__ = WindowProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.VISUAL,
@@ -563,6 +562,12 @@ export class Window extends Node implements Spatial, Entity, HasName, IsVisual, 
     _connection?: any | null,
   ): Window {
     return Window.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Window {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = WindowProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

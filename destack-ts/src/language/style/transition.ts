@@ -22,7 +22,7 @@ import {
   TransitionStyleProto,
   TransitionTypeProto,
 } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12043 ==== */
@@ -62,7 +62,6 @@ registerEnumClass(EnumType.SPRING_TYPE, SpringType);
  */
 export class Transition extends Struct {
   static metatype: StructType = StructType.TRANSITION;
-  static __protoClass__ = TransitionProto as IMessageType<any>;
   static __isFrozen__: boolean = false;
 
   /**
@@ -441,6 +440,12 @@ export class Transition extends Struct {
     return Transition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): Transition {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = TransitionProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -454,7 +459,6 @@ registerStructClass(StructType.TRANSITION, Transition);
  */
 export class TransitionStyle extends Node implements Style {
   static metatype: NodeType = NodeType.TRANSITION_STYLE;
-  static __protoClass__ = TransitionStyleProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.STYLE,
     TraitType.SPATIAL,
@@ -1138,6 +1142,12 @@ export class TransitionStyle extends Node implements Style {
     _connection?: any | null,
   ): TransitionStyle {
     return TransitionStyle.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): TransitionStyle {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = TransitionStyleProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

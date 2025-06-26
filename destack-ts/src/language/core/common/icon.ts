@@ -4,7 +4,7 @@ import { File } from "@destack/language/data";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { Color } from "@destack/language/style";
 import { IconProto, IconTypeProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2531 ==== */
 /**
@@ -30,7 +30,6 @@ registerEnumClass(EnumType.ICON_TYPE, IconType);
  */
 export class Icon extends StructFrozen {
   static metatype: StructType = StructType.ICON;
-  static __protoClass__ = IconProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -314,6 +313,12 @@ export class Icon extends StructFrozen {
     _connection?: any | null,
   ): Icon {
     return Icon.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Icon {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = IconProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

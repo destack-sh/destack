@@ -21,7 +21,7 @@ import { Folder } from "@destack/language/folder";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { MaterializationTypeProto, ScriptProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:3000 ==== */
@@ -30,7 +30,6 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Script extends Node implements Spatial, Entity, HasName, IsOrdered, IsDeletable, IsRunnable, IsExtensible {
   static metatype: NodeType = NodeType.SCRIPT;
-  static __protoClass__ = ScriptProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.ENTITY,
@@ -561,6 +560,12 @@ export class Script extends Node implements Spatial, Entity, HasName, IsOrdered,
     _connection?: any | null,
   ): Script {
     return Script.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Script {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = ScriptProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

@@ -40,7 +40,7 @@ import {
   LayoutProto,
   MaterializationTypeProto,
 } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:11000 ==== */
@@ -63,7 +63,6 @@ registerEnumClass(EnumType.CANVAS_TYPE, CanvasType);
  */
 export class Canvas extends Node implements ContainerView {
   static metatype: NodeType = NodeType.CANVAS;
-  static __protoClass__ = CanvasProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.VISUAL,
@@ -1341,6 +1340,12 @@ export class Canvas extends Node implements ContainerView {
     _connection?: any | null,
   ): Canvas {
     return Canvas.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Canvas {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = CanvasProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

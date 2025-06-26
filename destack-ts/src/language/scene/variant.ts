@@ -23,7 +23,7 @@ import { Layer, Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { CustomViewDefinition } from "@destack/language/view/container";
 import { MaterializationTypeProto, VariantProto, VariantTypeProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:9030 ==== */
@@ -63,7 +63,6 @@ registerEnumClass(EnumType.VARIANT_STATE_TYPE, VariantStateType);
  */
 export class Variant extends Node implements Spatial, Entity, HasName, HasSlug, HasIcon, IsOwnable, IsDeletable {
   static metatype: NodeType = NodeType.VARIANT;
-  static __protoClass__ = VariantProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.ENTITY,
@@ -685,6 +684,12 @@ export class Variant extends Node implements Spatial, Entity, HasName, HasSlug, 
     _connection?: any | null,
   ): Variant {
     return Variant.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Variant {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = VariantProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

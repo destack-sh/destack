@@ -45,7 +45,7 @@ import {
   LayoutProto,
   MaterializationTypeProto,
 } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:9020 ==== */
@@ -69,7 +69,6 @@ registerEnumClass(EnumType.LAYER_TYPE, LayerType);
  */
 export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
   static metatype: NodeType = NodeType.LAYER;
-  static __protoClass__ = LayerProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.VISUAL,
@@ -1404,6 +1403,12 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
     _connection?: any | null,
   ): Layer {
     return Layer.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Layer {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = LayerProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

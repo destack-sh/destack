@@ -17,7 +17,7 @@ import {
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { MaterializationTypeProto, StarProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:5521 ==== */
@@ -26,7 +26,6 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Star extends Node implements Global, Spatial, Entity, IsDeletable, IsOwnable {
   static metatype: NodeType = NodeType.STAR;
-  static __protoClass__ = StarProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
     TraitType.SPATIAL,
@@ -428,6 +427,12 @@ export class Star extends Node implements Global, Spatial, Entity, IsDeletable, 
     _connection?: any | null,
   ): Star {
     return Star.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Star {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = StarProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

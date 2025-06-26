@@ -17,7 +17,7 @@ import { Icon } from "@destack/language/core/common";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { EnvironmentProto, MaterializationTypeProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:4500 ==== */
@@ -26,7 +26,6 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Environment extends Node implements Spatial, Entity, HasName, HasIcon, IsDeletable {
   static metatype: NodeType = NodeType.ENVIRONMENT;
-  static __protoClass__ = EnvironmentProto as IMessageType<any>;
   static __traits__: TraitType[] = [TraitType.TRACKED, TraitType.SPATIAL, TraitType.ENTITY, TraitType.DELETABLE];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -433,6 +432,12 @@ export class Environment extends Node implements Spatial, Entity, HasName, HasIc
     _connection?: any | null,
   ): Environment {
     return Environment.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Environment {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = EnvironmentProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

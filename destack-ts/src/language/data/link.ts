@@ -15,7 +15,7 @@ import {
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { LinkProto, LinkTypeProto, MaterializationTypeProto, ResourceStatusProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2550 ==== */
@@ -38,7 +38,6 @@ registerEnumClass(EnumType.LINK_TYPE, LinkType);
  */
 export class Link extends Node implements Spatial, Resource {
   static metatype: NodeType = NodeType.LINK;
-  static __protoClass__ = LinkProto as IMessageType<any>;
   static __traits__: TraitType[] = [TraitType.TRACKED, TraitType.SPATIAL, TraitType.ENTITY, TraitType.RESOURCE];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -743,6 +742,12 @@ export class Link extends Node implements Spatial, Resource {
     _connection?: any | null,
   ): Link {
     return Link.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Link {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = LinkProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

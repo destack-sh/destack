@@ -27,7 +27,7 @@ import {
   ResourceStatusProto,
   TenancyProto,
 } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:7505 ==== */
@@ -50,7 +50,6 @@ registerEnumClass(EnumType.DATABASE_TYPE, DatabaseType);
  */
 export class DatabaseInfo extends Struct {
   static metatype: StructType = StructType.DATABASE_INFO;
-  static __protoClass__ = DatabaseInfoProto as IMessageType<any>;
   static __isFrozen__: boolean = false;
 
   /**
@@ -286,6 +285,12 @@ export class DatabaseInfo extends Struct {
     return DatabaseInfo.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): DatabaseInfo {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = DatabaseInfoProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -299,7 +304,6 @@ registerStructClass(StructType.DATABASE_INFO, DatabaseInfo);
  */
 export class Database extends Node implements Spatial, Resource, HasName {
   static metatype: NodeType = NodeType.DATABASE;
-  static __protoClass__ = DatabaseProto as IMessageType<any>;
   static __traits__: TraitType[] = [TraitType.TRACKED, TraitType.SPATIAL, TraitType.ENTITY, TraitType.RESOURCE];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -843,6 +847,12 @@ export class Database extends Node implements Spatial, Resource, HasName {
     _connection?: any | null,
   ): Database {
     return Database.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Database {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = DatabaseProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

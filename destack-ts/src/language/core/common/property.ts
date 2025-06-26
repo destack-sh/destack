@@ -54,7 +54,7 @@ import {
   StructTypeProto,
   TypeCardinalityProto,
 } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2580 ==== */
@@ -82,7 +82,6 @@ export class CustomProperty
   implements Spatial, Entity, HasName, HasIcon, IsTaggable, IsDeletable, IsSourceable
 {
   static metatype: NodeType = NodeType.CUSTOM_PROPERTY;
-  static __protoClass__ = CustomPropertyProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.TAGGABLE,
@@ -1106,6 +1105,12 @@ export class CustomProperty
     _connection?: any | null,
   ): CustomProperty {
     return CustomProperty.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): CustomProperty {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = CustomPropertyProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

@@ -9,7 +9,7 @@ import { Space } from "@destack/language/space";
 import { ContainerView } from "@destack/language/view/container";
 import { InternalView } from "@destack/language/view/internal";
 import { MaterializationTypeProto, WizardViewProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:10650 ==== */
@@ -18,7 +18,6 @@ import { Temporal } from "temporal-polyfill";
  */
 export class WizardView extends Node implements InternalView {
   static metatype: NodeType = NodeType.WIZARD_VIEW;
-  static __protoClass__ = WizardViewProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SCRIPTABLE,
     TraitType.SPATIAL,
@@ -724,6 +723,12 @@ export class WizardView extends Node implements InternalView {
     _connection?: any | null,
   ): WizardView {
     return WizardView.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): WizardView {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = WizardViewProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

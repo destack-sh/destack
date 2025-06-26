@@ -3,7 +3,7 @@ import { Session, Supergraph } from "@destack/language/core";
 import { EnumType, Struct, StructType } from "@destack/language/core/builtin";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { DayOfWeekProto, MonthProto, ScheduleFrequencyProto, ScheduleProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:3051 ==== */
@@ -76,7 +76,6 @@ registerEnumClass(EnumType.SCHEDULE_FREQUENCY, ScheduleFrequency);
  */
 export class Schedule extends Struct {
   static metatype: StructType = StructType.SCHEDULE;
-  static __protoClass__ = ScheduleProto as IMessageType<any>;
   static __isFrozen__: boolean = false;
 
   /**
@@ -765,6 +764,12 @@ export class Schedule extends Struct {
     _connection?: any | null,
   ): Schedule {
     return Schedule.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Schedule {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = ScheduleProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

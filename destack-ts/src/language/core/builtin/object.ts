@@ -1,12 +1,9 @@
 import { Graph, PropertyDefinition, QueryConnection, Session } from "@destack/language/core";
 import { AnyNodeProto, AnyStructProto } from "@destack/proto";
-import { base64Decode } from "@destack/utils/base64";
-import { IMessageType } from "@protobuf-ts/runtime";
 import { Supergraph } from "../runtime/graph";
 
 /** The base for all BuiltinObjects like Structs and Nodes and all their derivatives. */
 export abstract class BuiltinObject {
-  static readonly __protoClass__: IMessageType<any>;
   static readonly __isFrozen__: boolean;
   static readonly __isStruct__: boolean;
   static readonly __isNode__: boolean;
@@ -88,9 +85,7 @@ export abstract class BuiltinObject {
 
   /** Convert a binary proto string to an instance of this BuiltinObject. */
   static fromProtoString(packedProtoString: string): BuiltinObject {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const proto = this.__protoClass__.fromBinary(packedProtoBytes);
-    return this.fromProto(proto);
+    throw new Error(`fromProtoString not implemented for ${this.constructor.name}`);
   }
 
   // value
@@ -132,6 +127,9 @@ export abstract class BuiltinObject {
 export type BuiltinObjectClass<ObjectT extends BuiltinObject, ProtoT extends AnyStructProto | AnyNodeProto> = {
   new (...args: any[]): ObjectT;
 } & {
+  __properties__: Record<string, PropertyDefinition>;
+  __propertiesById__: Record<number, PropertyDefinition>;
+
   /** Convert an instance of this BuiltinObject to a proto. */
   __packProto__: (object: ObjectT) => ProtoT;
 

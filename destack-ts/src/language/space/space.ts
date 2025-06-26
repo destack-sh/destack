@@ -27,7 +27,7 @@ import { Database } from "@destack/language/infra";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Handle } from "@destack/language/space";
 import { MaterializationTypeProto, RegionProto, SpaceProto, SpaceStatusProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:1 ==== */
@@ -56,7 +56,6 @@ export class Space
   implements Global, Entity, HasName, HasSlug, HasIcon, IsFollowable, IsJoinable, IsOwnable, IsStarable, Spatial
 {
   static metatype: NodeType = NodeType.SPACE;
-  static __protoClass__ = SpaceProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
     TraitType.SPATIAL,
@@ -857,6 +856,12 @@ export class Space
     _connection?: any | null,
   ): Space {
     return Space.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Space {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = SpaceProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

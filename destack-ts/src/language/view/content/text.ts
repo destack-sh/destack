@@ -10,7 +10,7 @@ import { Fill, Font } from "@destack/language/style";
 import { ContainerView } from "@destack/language/view/container";
 import { ContentView } from "@destack/language/view/content";
 import { AlignProto, MaterializationTypeProto, TextViewProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:10200 ==== */
@@ -19,7 +19,6 @@ import { Temporal } from "temporal-polyfill";
  */
 export class TextView extends Node implements ContentView {
   static metatype: NodeType = NodeType.TEXT_VIEW;
-  static __protoClass__ = TextViewProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SCRIPTABLE,
     TraitType.SPATIAL,
@@ -883,6 +882,12 @@ export class TextView extends Node implements ContentView {
     _connection?: any | null,
   ): TextView {
     return TextView.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): TextView {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = TextViewProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

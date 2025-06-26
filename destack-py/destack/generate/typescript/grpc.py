@@ -69,7 +69,14 @@ def generate_object_proto(cls: type["BuiltinObjectBase"]) -> str:
     _connection?: any | null,
   ): {cls.__name__} {{
     return {cls.__name__}.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }}"""
+  }}
+
+  static fromProtoString(packedProtoString: string): {cls.__name__} {{
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = {cls.__name__}Proto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }}
+  """
 
 
 def _generate_pack_proto(cls: type["BuiltinObjectBase"]) -> str:

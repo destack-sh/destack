@@ -24,7 +24,7 @@ import {
   GradientTypeProto,
   MaterializationTypeProto,
 } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12033 ==== */
@@ -50,7 +50,6 @@ registerEnumClass(EnumType.GRADIENT_TYPE, GradientType);
  */
 export class GradientStop extends StructFrozen {
   static metatype: StructType = StructType.GRADIENT_STOP;
-  static __protoClass__ = GradientStopProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -212,6 +211,12 @@ export class GradientStop extends StructFrozen {
     return GradientStop.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): GradientStop {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = GradientStopProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -225,7 +230,6 @@ registerStructClass(StructType.GRADIENT_STOP, GradientStop);
  */
 export class Gradient extends Struct {
   static metatype: StructType = StructType.GRADIENT;
-  static __protoClass__ = GradientProto as IMessageType<any>;
   static __isFrozen__: boolean = false;
 
   /**
@@ -492,6 +496,12 @@ export class Gradient extends Struct {
     return Gradient.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): Gradient {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = GradientProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -505,7 +515,6 @@ registerStructClass(StructType.GRADIENT, Gradient);
  */
 export class GradientStyle extends Node implements Style {
   static metatype: NodeType = NodeType.GRADIENT_STYLE;
-  static __protoClass__ = GradientStyleProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.STYLE,
     TraitType.SPATIAL,
@@ -1102,6 +1111,12 @@ export class GradientStyle extends Node implements Style {
     _connection?: any | null,
   ): GradientStyle {
     return GradientStyle.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): GradientStyle {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = GradientStyleProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

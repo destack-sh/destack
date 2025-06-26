@@ -18,7 +18,7 @@ import {
 import { Icon } from "@destack/language/core/common";
 import { registerNodeClass } from "@destack/language/registry";
 import { MaterializationTypeProto, TeamProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:50 ==== */
@@ -27,7 +27,6 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Team extends Node implements Global, Entity, HasSlug, HasIcon, HasName, IsOwner, IsJoinable {
   static metatype: NodeType = NodeType.TEAM;
-  static __protoClass__ = TeamProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
     TraitType.ENTITY,
@@ -410,6 +409,12 @@ export class Team extends Node implements Global, Entity, HasSlug, HasIcon, HasN
     _connection?: any | null,
   ): Team {
     return Team.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Team {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = TeamProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

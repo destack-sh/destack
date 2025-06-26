@@ -9,7 +9,7 @@ import { Space } from "@destack/language/space";
 import { ContainerView } from "@destack/language/view/container";
 import { InputView } from "@destack/language/view/input";
 import { MaterializationTypeProto, NumberInputViewProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:10400 ==== */
@@ -18,7 +18,6 @@ import { Temporal } from "temporal-polyfill";
  */
 export class NumberInputView extends Node implements InputView {
   static metatype: NodeType = NodeType.NUMBER_INPUT_VIEW;
-  static __protoClass__ = NumberInputViewProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.INPUT_VIEW,
     TraitType.SPATIAL,
@@ -811,6 +810,12 @@ export class NumberInputView extends Node implements InputView {
     _connection?: any | null,
   ): NumberInputView {
     return NumberInputView.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): NumberInputView {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = NumberInputViewProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

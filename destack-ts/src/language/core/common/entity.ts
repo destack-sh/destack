@@ -32,7 +32,7 @@ import {
   MaterializationTypeProto,
   TraitTypeProto,
 } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:2000 ==== */
@@ -55,7 +55,6 @@ export class CustomEntityDefinition
     IsActionable
 {
   static metatype: NodeType = NodeType.CUSTOM_ENTITY_DEFINITION;
-  static __protoClass__ = CustomEntityDefinitionProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.TAGGABLE,
@@ -692,6 +691,12 @@ export class CustomEntityDefinition
     return CustomEntityDefinition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): CustomEntityDefinition {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = CustomEntityDefinitionProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -705,7 +710,6 @@ registerNodeClass(NodeType.CUSTOM_ENTITY_DEFINITION, CustomEntityDefinition);
  */
 export class CustomEntity extends Node implements Spatial, Entity, IsExtensible, IsDeletable, IsCustomNode {
   static metatype: NodeType = NodeType.CUSTOM_ENTITY;
-  static __protoClass__ = CustomEntityProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.ENTITY,
@@ -1164,6 +1168,12 @@ export class CustomEntity extends Node implements Spatial, Entity, IsExtensible,
     _connection?: any | null,
   ): CustomEntity {
     return CustomEntity.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): CustomEntity {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = CustomEntityProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

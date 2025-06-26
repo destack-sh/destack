@@ -20,7 +20,7 @@ import { Icon } from "@destack/language/core/common";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Handle, Space } from "@destack/language/space";
 import { MaterializationTypeProto, OrganizationProto, OrganizationStatusProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:40 ==== */
@@ -44,7 +44,6 @@ registerEnumClass(EnumType.ORGANIZATION_STATUS, OrganizationStatus);
  */
 export class Organization extends Node implements Global, Entity, HasSlug, HasIcon, HasName, IsOwner, IsJoinable {
   static metatype: NodeType = NodeType.ORGANIZATION;
-  static __protoClass__ = OrganizationProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
     TraitType.ENTITY,
@@ -510,6 +509,12 @@ export class Organization extends Node implements Global, Entity, HasSlug, HasIc
     _connection?: any | null,
   ): Organization {
     return Organization.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Organization {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = OrganizationProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

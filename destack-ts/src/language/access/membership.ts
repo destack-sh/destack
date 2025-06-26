@@ -23,7 +23,7 @@ import {
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { MaterializationTypeProto, MembershipEventProto, MembershipProto, RoleTypeProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:500 ==== */
@@ -64,7 +64,6 @@ registerEnumClass(EnumType.MEMBERSHIP_PERMISSION, MembershipPermission);
  */
 export class MembershipEvent extends Node implements Event {
   static metatype: NodeType = NodeType.MEMBERSHIP_EVENT;
-  static __protoClass__ = MembershipEventProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.PARTICLE,
@@ -557,6 +556,12 @@ export class MembershipEvent extends Node implements Event {
     return MembershipEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): MembershipEvent {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = MembershipEventProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -570,7 +575,6 @@ registerNodeClass(NodeType.MEMBERSHIP_EVENT, MembershipEvent);
  */
 export class Membership extends Node implements Global, Spatial, Entity, LikeMembership, IsOwnable, IsDeletable {
   static metatype: NodeType = NodeType.MEMBERSHIP;
-  static __protoClass__ = MembershipProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
     TraitType.SPATIAL,
@@ -1094,6 +1098,12 @@ export class Membership extends Node implements Global, Spatial, Entity, LikeMem
     _connection?: any | null,
   ): Membership {
     return Membership.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Membership {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = MembershipProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

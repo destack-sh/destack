@@ -27,7 +27,7 @@ import {
   TextDecorationProto,
   TextTransformProto,
 } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12026 ==== */
@@ -149,7 +149,6 @@ registerEnumClass(EnumType.TEXT_TRANSFORM, TextTransform);
  */
 export class Font extends Struct {
   static metatype: StructType = StructType.FONT;
-  static __protoClass__ = FontProto as IMessageType<any>;
   static __isFrozen__: boolean = false;
 
   /**
@@ -520,6 +519,12 @@ export class Font extends Struct {
     return Font.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): Font {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = FontProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -533,7 +538,6 @@ registerStructClass(StructType.FONT, Font);
  */
 export class FontStyle extends Node implements Style {
   static metatype: NodeType = NodeType.FONT_STYLE;
-  static __protoClass__ = FontStyleProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.STYLE,
     TraitType.SPATIAL,
@@ -1209,6 +1213,12 @@ export class FontStyle extends Node implements Style {
     _connection?: any | null,
   ): FontStyle {
     return FontStyle.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): FontStyle {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = FontStyleProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

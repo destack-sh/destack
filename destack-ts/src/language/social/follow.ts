@@ -18,7 +18,7 @@ import {
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { FollowProto, MaterializationTypeProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:5530 ==== */
@@ -27,7 +27,6 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Follow extends Node implements Global, Spatial, Entity, LikeFollow, IsDeletable, IsOwnable {
   static metatype: NodeType = NodeType.FOLLOW;
-  static __protoClass__ = FollowProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
     TraitType.SPATIAL,
@@ -430,6 +429,12 @@ export class Follow extends Node implements Global, Spatial, Entity, LikeFollow,
     _connection?: any | null,
   ): Follow {
     return Follow.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Follow {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = FollowProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

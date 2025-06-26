@@ -1,1 +1,1 @@
-export * from "./wiring";
+export * from "@destack/grpc/wiring";

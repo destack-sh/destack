@@ -21,7 +21,7 @@ import { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { CustomStructDefinitionProto, MaterializationTypeProto } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:2500 ==== */
@@ -33,7 +33,6 @@ export class CustomStructDefinition
   implements Spatial, Entity, HasName, HasIcon, IsTaggable, IsDeletable, IsSourceable, IsExtensible
 {
   static metatype: NodeType = NodeType.CUSTOM_STRUCT_DEFINITION;
-  static __protoClass__ = CustomStructDefinitionProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.TAGGABLE,
@@ -553,6 +552,12 @@ export class CustomStructDefinition
     _connection?: any | null,
   ): CustomStructDefinition {
     return CustomStructDefinition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): CustomStructDefinition {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = CustomStructDefinitionProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

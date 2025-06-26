@@ -24,7 +24,7 @@ import {
   TriggerProto,
   TriggerTypeProto,
 } from "@destack/proto";
-import type { IMessageType } from "@protobuf-ts/runtime";
+import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:3041 ==== */
@@ -63,7 +63,6 @@ registerEnumClass(EnumType.TRIGGER_TYPE, TriggerType);
  */
 export class TriggerEvent extends Node implements Event {
   static metatype: NodeType = NodeType.TRIGGER_EVENT;
-  static __protoClass__ = TriggerEventProto as IMessageType<any>;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.PARTICLE,
@@ -450,6 +449,12 @@ export class TriggerEvent extends Node implements Event {
     return TriggerEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
+  static fromProtoString(packedProtoString: string): TriggerEvent {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = TriggerEventProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
@@ -463,7 +468,6 @@ registerNodeClass(NodeType.TRIGGER_EVENT, TriggerEvent);
  */
 export class Trigger extends Node implements Spatial, Entity, HasName {
   static metatype: NodeType = NodeType.TRIGGER;
-  static __protoClass__ = TriggerProto as IMessageType<any>;
   static __traits__: TraitType[] = [TraitType.TRACKED, TraitType.SPATIAL, TraitType.ENTITY];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -980,6 +984,12 @@ export class Trigger extends Node implements Spatial, Entity, HasName {
     _connection?: any | null,
   ): Trigger {
     return Trigger.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Trigger {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = TriggerProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */

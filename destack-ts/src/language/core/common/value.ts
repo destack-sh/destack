@@ -14,7 +14,6 @@ import { Type } from "@destack/language/core/common";
 import { registerStructClass } from "@destack/language/registry";
 import { ValueProto } from "@destack/proto";
 import { assertNever, base64Decode, base64Encode, timedeltaFromISOFormat, timedeltaToISOFormat } from "@destack/utils";
-import type { IMessageType } from "@protobuf-ts/runtime";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2500 ==== */
@@ -23,7 +22,6 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Value extends StructFrozen {
   static metatype: StructType = StructType.VALUE;
-  static __protoClass__ = ValueProto as IMessageType<any>;
   static __isFrozen__: boolean = true;
 
   /**
@@ -176,6 +174,12 @@ export class Value extends StructFrozen {
     _connection?: any | null,
   ): Value {
     return Value.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Value {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = ValueProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
