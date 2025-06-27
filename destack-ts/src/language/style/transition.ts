@@ -271,7 +271,7 @@ export class Transition extends Struct {
       propertyReprs.push(`duration=${this.duration}`);
     }
     if (this.ease.length > 0) {
-      propertyReprs.push(`ease=${JSON.stringify(this.ease)}`);
+      propertyReprs.push(`ease=${this.ease.map((_item) => _item).join(", ")}`);
     }
     if (this.stiffness !== null) {
       propertyReprs.push(`stiffness=${this.stiffness}`);
@@ -1008,7 +1008,7 @@ export class TransitionStyle extends Node implements Style {
       propertyReprs.push(`duration=${this.duration}`);
     }
     if (this.ease.length > 0) {
-      propertyReprs.push(`ease=${JSON.stringify(this.ease)}`);
+      propertyReprs.push(`ease=${this.ease.map((_item) => _item).join(", ")}`);
     }
     if (this.stiffness !== null) {
       propertyReprs.push(`stiffness=${this.stiffness}`);

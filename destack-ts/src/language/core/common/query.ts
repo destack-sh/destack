@@ -1612,7 +1612,7 @@ export class Select extends StructFrozen {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       if (this.attributes.length > 0) {
-        propertyReprs.push(`attributes=${JSON.stringify(this.attributes)}`);
+        propertyReprs.push(`attributes=${this.attributes.map((_item) => _item.repr()).join(", ")}`);
       }
       if (propertyReprs.length > 0) {
         // @ts-expect-error(readonly)
@@ -2361,7 +2361,7 @@ export class Query extends StructFrozen {
         propertyReprs.push(`select=${this.select.repr()}`);
       }
       if (this.subqueries.length > 0) {
-        propertyReprs.push(`subqueries=${JSON.stringify(this.subqueries)}`);
+        propertyReprs.push(`subqueries=${this.subqueries.map((_item) => _item.repr()).join(", ")}`);
       }
       if (this.where !== null) {
         propertyReprs.push(`where=${this.where.repr()}`);
@@ -2370,13 +2370,13 @@ export class Query extends StructFrozen {
         propertyReprs.push(`having=${this.having.repr()}`);
       }
       if (this.groupBy.length > 0) {
-        propertyReprs.push(`groupBy=${JSON.stringify(this.groupBy)}`);
+        propertyReprs.push(`groupBy=${this.groupBy.map((_item) => _item.repr()).join(", ")}`);
       }
       if (this.aggregation !== null) {
         propertyReprs.push(`aggregation=${this.aggregation.repr()}`);
       }
       if (this.sort.length > 0) {
-        propertyReprs.push(`sort=${JSON.stringify(this.sort)}`);
+        propertyReprs.push(`sort=${this.sort.map((_item) => _item.repr()).join(", ")}`);
       }
       if (this.limit !== null) {
         propertyReprs.push(`limit=${this.limit}`);
@@ -2841,10 +2841,10 @@ export class Histogram extends StructFrozen {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       if (this.buckets.length > 0) {
-        propertyReprs.push(`buckets=${JSON.stringify(this.buckets)}`);
+        propertyReprs.push(`buckets=${this.buckets.map((_item) => _item.repr()).join(", ")}`);
       }
       if (this.counts.length > 0) {
-        propertyReprs.push(`counts=${JSON.stringify(this.counts)}`);
+        propertyReprs.push(`counts=${this.counts.map((_item) => _item).join(", ")}`);
       }
       if (propertyReprs.length > 0) {
         // @ts-expect-error(readonly)
@@ -3187,10 +3187,10 @@ export class QueryResult extends Struct {
     const propertyReprs: string[] = [];
     propertyReprs.push(`id=${this.id}`);
     if (this.groups.length > 0) {
-      propertyReprs.push(`groups=${JSON.stringify(this.groups)}`);
+      propertyReprs.push(`groups=${this.groups.map((_item) => _item.repr()).join(", ")}`);
     }
     if (this.subresults.length > 0) {
-      propertyReprs.push(`subresults=${JSON.stringify(this.subresults)}`);
+      propertyReprs.push(`subresults=${this.subresults.map((_item) => _item.repr()).join(", ")}`);
     }
     propertyReprs.push(`type=${QueryType[this.type]}`);
     if (this.count !== null) {

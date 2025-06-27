@@ -616,6 +616,7 @@ export class LineShape extends Node implements ContentView, IsShape {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`type=${LineType[this.type]}`);
     if (this.color !== null) {
       propertyReprs.push(`color=${this.color.repr()}`);
     }
@@ -1130,16 +1131,12 @@ export class Line extends StructFrozen {
   repr(): string {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
+      propertyReprs.push(`type=${LineType[this.type]}`);
       if (this.color !== null) {
         propertyReprs.push(`color=${this.color.repr()}`);
       }
-      if (propertyReprs.length > 0) {
-        // @ts-expect-error(readonly)
-        this._repr = `<Line ${propertyReprs.join(" ")}>`;
-      } else {
-        // @ts-expect-error(readonly)
-        this._repr = `<Line>`;
-      }
+      // @ts-expect-error(readonly)
+      this._repr = `<Line ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
   }

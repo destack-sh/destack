@@ -533,21 +533,16 @@ repr(): string {{
                 )
                 repr_parts_lines.append("}")
         elif prop.cardinality == TypeCardinality.LIST:
-            if prop.scalar_type == ScalarType.ENUM:
-                list_expr = f"'[' + this.{prop_name}.map(x => {_get_scalar_repr(prop, 'x')}).join(', ') + ']'"
-            else:
-                list_expr = f"JSON.stringify(this.{prop_name})"
+            scalar_repr = _get_scalar_repr(prop, "_item")
+            list_expr = f"this.{prop_name}.map(_item => {scalar_repr}).join(', ')"
             repr_parts_lines.append(f"if (this.{prop_name}.length > 0) {{")
             repr_parts_lines.append(f"    propertyReprs.push(`{prop_name}=${{{list_expr}}}`);")
             repr_parts_lines.append("}")
         elif prop.cardinality == TypeCardinality.MAP:
             assert prop.key_type is not None, f"{prop!r} has no key type"
-            if prop.key_type.scalar_type == ScalarType.ENUM:
-                key_repr = _get_scalar_repr(prop.key_type, "k")
-                value_repr = _get_scalar_repr(prop, "v")
-                map_expr = f"'{{' + Object.entries(this.{prop_name}).map(([k, v]) => `${{{key_repr}}}: ${{{value_repr}}}`).join(', ') + '}}'"
-            else:
-                map_expr = f"JSON.stringify(this.{prop_name})"
+            key_repr = _get_scalar_repr(prop.key_type, "k")
+            value_repr = _get_scalar_repr(prop, "v")
+            map_expr = f"'{{' + Object.entries(this.{prop_name}).map(([k, v]) => `${{{key_repr}}}: ${{{value_repr}}}`).join(', ') + '}}'"
             repr_parts_lines.append(f"if (Object.keys(this.{prop_name}).length > 0) {{")
             repr_parts_lines.append(f"    propertyReprs.push(`{prop_name}=${{{map_expr}}}`);")
             repr_parts_lines.append("}")

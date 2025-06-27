@@ -32,7 +32,7 @@ class PolygonShapeType(Enum):
 class Polygon(StructFrozen[PolygonProto]):
     """A Polygon is a list of points."""
 
-    type: PolygonShapeType = property_(30)
+    type: PolygonShapeType = property_(30, is_repr=True)
     points: list[Vector3] = property_(100)
 
 
@@ -40,5 +40,5 @@ class Polygon(StructFrozen[PolygonProto]):
 class PolygonShape(ContainerView, IsShape, Node[PolygonShapeProto]):
     """A PolygonShape is a shape that represents a polygon."""
 
-    type: PolygonShapeType = property_(30)
+    type: PolygonShapeType = property_(30, is_repr=True)
     points: list[Vector3] = property_(100)
