@@ -145,7 +145,13 @@ export class Polygon extends StructFrozen {
   }
 
   repr(): string {
-    return `<Polygon>`;
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`type=${PolygonShapeType[this.type]}`);
+      // @ts-expect-error(readonly)
+      this._repr = `<Polygon ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
   }
 
   hash(): number {
@@ -1172,6 +1178,7 @@ export class PolygonShape extends Node implements ContainerView, IsShape {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`type=${PolygonShapeType[this.type]}`);
     propertyReprs.push(`name=${this.name}`);
     return `<PolygonShape '${this.path}' ${propertyReprs.join(" ")}>`;
   }

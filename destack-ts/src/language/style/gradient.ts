@@ -397,7 +397,7 @@ export class Gradient extends Struct {
       propertyReprs.push(`angle=${this.angle}`);
     }
     if (this.stops.length > 0) {
-      propertyReprs.push(`stops=${JSON.stringify(this.stops)}`);
+      propertyReprs.push(`stops=${this.stops.map((_item) => _item.repr()).join(", ")}`);
     }
     if (this.centerAnchor !== null) {
       propertyReprs.push(`centerAnchor=${this.centerAnchor.repr()}`);
@@ -994,7 +994,7 @@ export class GradientStyle extends Node implements Style {
       propertyReprs.push(`angle=${this.angle}`);
     }
     if (this.stops.length > 0) {
-      propertyReprs.push(`stops=${JSON.stringify(this.stops)}`);
+      propertyReprs.push(`stops=${this.stops.map((_item) => _item.repr()).join(", ")}`);
     }
     if (this.centerAnchor !== null) {
       propertyReprs.push(`centerAnchor=${this.centerAnchor.repr()}`);

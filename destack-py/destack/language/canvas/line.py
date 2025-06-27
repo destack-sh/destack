@@ -35,7 +35,7 @@ class LineType(Enum):
 class Line(StructFrozen[LineProto]):
     """A Line is a list of points."""
 
-    type: LineType = property_(30)
+    type: LineType = property_(30, is_repr=True)
     points: list[Vector3] = property_(100)
     color: Optional["Color"] = property_(101, is_repr=True)
 
@@ -44,6 +44,6 @@ class Line(StructFrozen[LineProto]):
 class LineShape(ContentView, IsShape, Node[LineShapeProto]):
     """A LineShape is a shape that represents a line."""
 
-    type: LineType = property_(30)
+    type: LineType = property_(30, is_repr=True)
     points: list[Vector3] = property_(100)
     color: Optional["Color"] = property_(101, is_repr=True)

@@ -52,14 +52,12 @@ export const Canvas: React.FC = () => {
     return new Vector3({ x, y, z: pressure });
   };
 
-  // high-frequency sampling using requestAnimationFrame
-  console.log("render");
-
   const handleMouseDown = (event: React.MouseEvent<SVGSVGElement>) => {
     isDrawing.value = true;
     const point = getMousePosition(event);
     lastMousePosition.value = point;
     currentLine.value = new Line({ type: LineType.SOLID, points: [point] });
+    console.log("mouse down", currentLine.value.points.length);
   };
 
   const handleMouseMove = (event: React.MouseEvent<SVGSVGElement>) => {
@@ -72,6 +70,7 @@ export const Canvas: React.FC = () => {
         type: LineType.SOLID,
         points: [...currentLine.value.points, currentPoint],
       });
+      console.log("mouse move", currentLine.value.points.length);
     }
   };
 
@@ -83,6 +82,7 @@ export const Canvas: React.FC = () => {
     lines.value = [...lines.value, currentLine.value];
     currentLine.value = null;
     lastMousePosition.value = null;
+    console.log("mouse up", lines.value[lines.value.length - 1].repr());
   };
 
   return (
