@@ -219,7 +219,7 @@ export class EntitlementRequestedEvent extends Node implements Event {
 
     // identity
     if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO();
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
       this.updatedAt = now;
@@ -335,11 +335,11 @@ export class EntitlementRequestedEvent extends Node implements Event {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString();
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString();
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
@@ -387,9 +387,9 @@ export class EntitlementRequestedEvent extends Node implements Event {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
@@ -716,7 +716,7 @@ export class EntitlementGrantedEvent extends Node implements Event {
 
     // identity
     if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO();
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
       this.updatedAt = now;
@@ -832,11 +832,11 @@ export class EntitlementGrantedEvent extends Node implements Event {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString();
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString();
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
@@ -884,9 +884,9 @@ export class EntitlementGrantedEvent extends Node implements Event {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
@@ -1213,7 +1213,7 @@ export class EntitlementRevokedEvent extends Node implements Event {
 
     // identity
     if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO();
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
       this.updatedAt = now;
@@ -1329,11 +1329,11 @@ export class EntitlementRevokedEvent extends Node implements Event {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString();
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString();
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
@@ -1381,9 +1381,9 @@ export class EntitlementRevokedEvent extends Node implements Event {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
@@ -1710,7 +1710,7 @@ export class EntitlementExpiredEvent extends Node implements Event {
 
     // identity
     if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO();
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
       this.updatedAt = now;
@@ -1826,11 +1826,11 @@ export class EntitlementExpiredEvent extends Node implements Event {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString();
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString();
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
@@ -1878,9 +1878,9 @@ export class EntitlementExpiredEvent extends Node implements Event {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
@@ -2223,7 +2223,7 @@ export class Entitlement extends Node implements Spatial, Entity, IsDeletable {
 
     // identity
     if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO();
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
       this.updatedAt = now;
@@ -2348,20 +2348,20 @@ export class Entitlement extends Node implements Spatial, Entity, IsDeletable {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString();
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString();
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["20"] = object.deletedAt.toString();
+      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["30"] = object.type;
     if (object.expiresAt != null) {
-      objectValue["40"] = object.expiresAt.toString();
+      objectValue["40"] = object.expiresAt.toString({ timeZoneName: "never" });
     }
     objectValue["41"] = object.targetPtr.toValue();
     return objectValue;
@@ -2381,7 +2381,9 @@ export class Entitlement extends Node implements Spatial, Entity, IsDeletable {
         : null;
     const expiresAtValue = objectValue["40"];
     const unpackedExpiresAt =
-      expiresAtValue != undefined ? Temporal.ZonedDateTime.from(expiresAtValue) : null;
+      expiresAtValue != undefined
+        ? Temporal.Instant.from(expiresAtValue).toZonedDateTimeISO("UTC")
+        : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
@@ -2399,7 +2401,9 @@ export class Entitlement extends Node implements Spatial, Entity, IsDeletable {
         : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt =
-      deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+      deletedAtValue != undefined
+        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+        : null;
     return new Entitlement({
       parent: unpackedParentPtr,
       type: Number(objectValue["30"]),
@@ -2413,9 +2417,9 @@ export class Entitlement extends Node implements Spatial, Entity, IsDeletable {
       ),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
       _session,

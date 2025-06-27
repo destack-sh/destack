@@ -1,7 +1,7 @@
+import { Value as RawValueProto } from "@destack/proto";
 import { Temporal } from "temporal-polyfill";
 import { Duration } from "../proto/google/protobuf/duration";
 import { Timestamp } from "../proto/google/protobuf/timestamp";
-import { Value as RawValueProto } from "@destack/proto";
 
 /**
  * Convert a Temporal.ZonedDateTime to a protobuf Timestamp.
@@ -11,10 +11,7 @@ export function packProtoTimestamp(timestamp: Temporal.ZonedDateTime): Timestamp
   const seconds = epochNanos / 1_000_000_000n;
   const nanos = Number(epochNanos % 1_000_000_000n);
 
-  return Timestamp.create({
-    seconds,
-    nanos,
-  });
+  return Timestamp.create({ seconds, nanos });
 }
 
 /**
@@ -48,7 +45,6 @@ export function unpackProtoDuration(durationPacked: Duration): Temporal.Duration
   return Temporal.Duration.from({ seconds: totalSeconds });
 }
 
-
 /**
  * Convert a protobuf Value to a TypeScript object.
  */
@@ -59,7 +55,6 @@ export function packProtoJson(json: any): RawValueProto {
 /**
  * Convert a protobuf Value to a TypeScript object.
  */
-export function unpackProtoJson(jsonPacked: RawValueProto ): any {
+export function unpackProtoJson(jsonPacked: RawValueProto): any {
   return RawValueProto.toJson(jsonPacked);
 }
-

@@ -224,7 +224,7 @@ export class GaugeMetric extends Node implements Spatial, Metric, HasName {
 
     // identity
     if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO();
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
       this.updatedAt = now;
@@ -354,11 +354,11 @@ export class GaugeMetric extends Node implements Spatial, Metric, HasName {
     if (object.prototypePtr != null) {
       objectValue["6"] = object.prototypePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString();
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString();
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
@@ -411,9 +411,9 @@ export class GaugeMetric extends Node implements Spatial, Metric, HasName {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       source: unpackedSourcePtr,
       orderKey: objectValue["22"],
@@ -720,7 +720,7 @@ export class GaugeMeasurement extends Node implements Spatial, Measurement {
 
     // identity
     if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO();
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
       this.updatedAt = now;
@@ -834,11 +834,11 @@ export class GaugeMeasurement extends Node implements Spatial, Measurement {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["6"] = object.definitionPtr.toValue();
-    objectValue["15"] = object.createdAt.toString();
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString();
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
@@ -883,9 +883,9 @@ export class GaugeMeasurement extends Node implements Spatial, Measurement {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
@@ -1224,7 +1224,7 @@ export class CounterMetric extends Node implements Spatial, Metric, HasName {
 
     // identity
     if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO();
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
       this.updatedAt = now;
@@ -1354,11 +1354,11 @@ export class CounterMetric extends Node implements Spatial, Metric, HasName {
     if (object.prototypePtr != null) {
       objectValue["6"] = object.prototypePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString();
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString();
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
@@ -1411,9 +1411,9 @@ export class CounterMetric extends Node implements Spatial, Metric, HasName {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       source: unpackedSourcePtr,
       orderKey: objectValue["22"],
@@ -1720,7 +1720,7 @@ export class CounterMeasurement extends Node implements Spatial, Measurement {
 
     // identity
     if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO();
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
       this.updatedAt = now;
@@ -1834,11 +1834,11 @@ export class CounterMeasurement extends Node implements Spatial, Measurement {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["6"] = object.definitionPtr.toValue();
-    objectValue["15"] = object.createdAt.toString();
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString();
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
@@ -1883,9 +1883,9 @@ export class CounterMeasurement extends Node implements Spatial, Measurement {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
@@ -2224,7 +2224,7 @@ export class HistogramMetric extends Node implements Spatial, Metric, HasName {
 
     // identity
     if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO();
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
       this.updatedAt = now;
@@ -2354,11 +2354,11 @@ export class HistogramMetric extends Node implements Spatial, Metric, HasName {
     if (object.prototypePtr != null) {
       objectValue["6"] = object.prototypePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString();
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString();
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
@@ -2411,9 +2411,9 @@ export class HistogramMetric extends Node implements Spatial, Metric, HasName {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       source: unpackedSourcePtr,
       orderKey: objectValue["22"],
@@ -2720,7 +2720,7 @@ export class HistogramMeasurement extends Node implements Spatial, Measurement {
 
     // identity
     if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO();
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
       this.updatedAt = now;
@@ -2834,11 +2834,11 @@ export class HistogramMeasurement extends Node implements Spatial, Measurement {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["6"] = object.definitionPtr.toValue();
-    objectValue["15"] = object.createdAt.toString();
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString();
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
@@ -2883,9 +2883,9 @@ export class HistogramMeasurement extends Node implements Spatial, Measurement {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,

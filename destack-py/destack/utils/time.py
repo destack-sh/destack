@@ -1,5 +1,8 @@
+import zoneinfo
 from datetime import timedelta
 from typing import TypeAlias
+
+utc = zoneinfo.ZoneInfo("UTC")
 
 _DurationParse: TypeAlias = list[tuple[str, str, int | None, bool]]
 _DurationUnits: TypeAlias = list[tuple[str, float]]

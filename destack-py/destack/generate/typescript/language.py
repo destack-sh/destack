@@ -405,7 +405,7 @@ if (_{ts_name_in} === null) {{
             elif prop.default_factory == DefaultFactory.NOW:
                 body_parts.append(f"""\
 if (_{ts_name_in} === null) {{
-    _{ts_name_in} = Temporal.Now.zonedDateTimeISO();
+    _{ts_name_in} = Temporal.Now.zonedDateTimeISO("UTC");
 }}""")
             else:
                 raise ValueError(
@@ -427,7 +427,7 @@ if (_{ts_name_in} === null) {{
     if issubclass(cls, Node):
         identity_str = """\
 if (options.id == null) {
-  const now = Temporal.Now.zonedDateTimeISO();
+  const now = Temporal.Now.zonedDateTimeISO("UTC");
   this.createdAt = now;
   this.createdByPtr = null;
   this.updatedAt = now;
@@ -504,11 +504,9 @@ repr(): string {{
         elif prop.scalar_type in (ScalarType.STRUCT, ScalarType.NODE_REFERENCE):
             return f"{value_expr}.repr()"
         elif prop.scalar_type in (ScalarType.PRIMITIVE, ScalarType.NODE_VALUE):
-            if prop.primitive_type in (
-                PrimitiveType.DATETIME,
-                PrimitiveType.DATE,
-                PrimitiveType.TIME,
-            ):
+            if prop.primitive_type == PrimitiveType.DATETIME:
+                return f"{value_expr}.toString({{ timeZoneName: 'never'}})"
+            elif prop.primitive_type in (PrimitiveType.DATE, PrimitiveType.TIME):
                 return f"{value_expr}.toString()"
             else:
                 return value_expr

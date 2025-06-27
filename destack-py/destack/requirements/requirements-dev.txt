@@ -144,8 +144,6 @@ python-dateutil==2.9.0.post0
     # via botocore
 python-dotenv==1.1.0
     # via -r destack-py/destack/requirements/dev.in
-pytz==2024.1
-    # via -r destack-py/destack/requirements/requirements.in
 pyyaml==6.0.2
     # via pre-commit
 regex==2024.11.6

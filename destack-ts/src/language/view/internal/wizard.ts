@@ -314,7 +314,7 @@ export class WizardView extends Node implements InternalView {
 
     // identity
     if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO();
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
       this.updatedAt = now;
@@ -501,16 +501,16 @@ export class WizardView extends Node implements InternalView {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString();
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString();
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["20"] = object.deletedAt.toString();
+      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["22"] = object.orderKey;
     objectValue["31"] = object.name;
@@ -610,7 +610,9 @@ export class WizardView extends Node implements InternalView {
         : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt =
-      deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+      deletedAtValue != undefined
+        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+        : null;
     return new WizardView({
       parent: unpackedParentPtr,
       position: unpackedPosition,
@@ -622,9 +624,9 @@ export class WizardView extends Node implements InternalView {
       maxHeight: unpackedMaxHeight,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       name: objectValue["31"],
       orderKey: objectValue["22"],

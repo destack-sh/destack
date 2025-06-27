@@ -309,7 +309,7 @@ export class User
 
     // identity
     if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO();
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
       this.updatedAt = now;
@@ -462,11 +462,11 @@ export class User
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString();
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString();
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
@@ -477,7 +477,7 @@ export class User
     }
     objectValue["40"] = object.status;
     if (object.lastLoggedInAt != null) {
-      objectValue["41"] = object.lastLoggedInAt.toString();
+      objectValue["41"] = object.lastLoggedInAt.toString({ timeZoneName: "never" });
     }
     objectValue["45"] = object.isStaff;
     objectValue["50"] = object.spacePtr.toValue();
@@ -508,7 +508,9 @@ export class User
   ): User {
     const lastLoggedInAtValue = objectValue["41"];
     const unpackedLastLoggedInAt =
-      lastLoggedInAtValue != undefined ? Temporal.ZonedDateTime.from(lastLoggedInAtValue) : null;
+      lastLoggedInAtValue != undefined
+        ? Temporal.Instant.from(lastLoggedInAtValue).toZonedDateTimeISO("UTC")
+        : null;
     const handlePtrValue = objectValue["51"];
     const unpackedHandlePtr =
       handlePtrValue != undefined
@@ -561,9 +563,9 @@ export class User
       passwordHash: unpackedPasswordHash,
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
-      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       icon: unpackedIcon,
       _session,

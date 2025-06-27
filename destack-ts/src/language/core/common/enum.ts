@@ -231,7 +231,7 @@ export class CustomEnumDefinition
 
     // identity
     if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO();
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
       this.updatedAt = now;
@@ -381,16 +381,16 @@ export class CustomEnumDefinition
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString();
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString();
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["20"] = object.deletedAt.toString();
+      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     if (object.value.size > 0) {
       const packedValue: { [key: string]: any } = {};
@@ -444,7 +444,9 @@ export class CustomEnumDefinition
         : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt =
-      deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+      deletedAtValue != undefined
+        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+        : null;
     const sourcePtrValue = objectValue["210"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
@@ -463,9 +465,9 @@ export class CustomEnumDefinition
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       name: objectValue["31"],
       icon: unpackedIcon,

@@ -183,12 +183,12 @@ export function timedeltaFromISOFormat(duration: string): Temporal.Duration {
     const remainingNanos = nanoseconds % 1000;
     const milliseconds = Math.floor(microseconds / 1000);
     const remainingMicros = microseconds % 1000;
-    
-    return Temporal.Duration.from({ 
-      seconds: seconds * sign, 
+
+    return Temporal.Duration.from({
+      seconds: seconds * sign,
       milliseconds: milliseconds * sign,
       microseconds: remainingMicros * sign,
-      nanoseconds: remainingNanos * sign
+      nanoseconds: remainingNanos * sign,
     });
   } catch (error) {
     throw new Error(`could not parse duration '${duration}': ${(error as any).message}`);
@@ -198,7 +198,7 @@ export function timedeltaFromISOFormat(duration: string): Temporal.Duration {
 /** Format a duration as an ISO string. */
 export function timedeltaToISOFormat(duration: number | Temporal.Duration): string {
   let totalNanoseconds: number;
-  
+
   if (typeof duration === "number") {
     // duration is in milliseconds
     totalNanoseconds = duration * 1_000_000;
@@ -247,7 +247,7 @@ export function timedeltaToISOFormat(duration: number | Temporal.Duration): stri
       // format seconds with proper nanosecond precision
       const wholeSeconds = Math.floor(seconds);
       const fractionalNanos = Math.round((seconds - wholeSeconds) * 1_000_000_000);
-      
+
       if (fractionalNanos === 0) {
         result += `${wholeSeconds}S`;
       } else {
@@ -262,7 +262,12 @@ export function timedeltaToISOFormat(duration: number | Temporal.Duration): stri
 }
 
 /** Convert a TimeOfDay to an ISO string. */
-export function timeOfDayToISOFormat(timeOfDay: { hours: number; minutes: number; seconds: number; nanos?: number }): string {
+export function timeOfDayToISOFormat(timeOfDay: {
+  hours: number;
+  minutes: number;
+  seconds: number;
+  nanos?: number;
+}): string {
   const hours = timeOfDay.hours.toString().padStart(2, "0");
   const minutes = timeOfDay.minutes.toString().padStart(2, "0");
   const seconds = timeOfDay.seconds.toString().padStart(2, "0");
@@ -271,14 +276,18 @@ export function timeOfDayToISOFormat(timeOfDay: { hours: number; minutes: number
 }
 
 /** Convert an ISO string to TimeOfDay. */
-export function timeOfDayFromISOFormat(ISOString: string): { hours: number; minutes: number; seconds: number; nanos: number } {
+export function timeOfDayFromISOFormat(ISOString: string): {
+  hours: number;
+  minutes: number;
+  seconds: number;
+  nanos: number;
+} {
   const [time, fractions] = ISOString.split(".");
   const [hours, minutes, seconds] = time.split(":").map(Number);
   const nanos = fractions ? parseInt(fractions.padEnd(9, "0")) : 0;
 
   return { hours, minutes, seconds, nanos };
 }
-
 
 /** Map of unit variations to standardized unit names */
 export const DURATION_UNIT_MAP = {

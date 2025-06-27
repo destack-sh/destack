@@ -1,10 +1,9 @@
 import calendar
 import textwrap
 from collections.abc import Mapping
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any, assert_never, cast
 
-import pytz
 import structlog
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.json_format import MessageToDict
@@ -80,7 +79,7 @@ from_proto = __unpack_proto__
     return proto_impl, {
         "Timestamp": Timestamp,
         "Duration": Duration,
-        "pytz": pytz,
+        "UTC": UTC,
         "pack_proto_json": pack_proto_json,
         "unpack_proto_json": unpack_proto_json,
         "pack_proto_timestamp": pack_proto_timestamp,
@@ -329,7 +328,7 @@ def _generate_unpack_scalar(prop: "PropertyDeclaration | TypeDeclaration", value
         assert_never(prop.scalar_type)
 
 
-_EPOCH_DATETIME_NAIVE = datetime(1970, 1, 1, tzinfo=None)  # noqa: DTZ001
+_EPOCH_DATETIME_NAIVE = datetime(1970, 1, 1, tzinfo=UTC)
 
 
 def pack_proto_timestamp(dt: datetime) -> Timestamp:
@@ -340,7 +339,7 @@ def pack_proto_timestamp(dt: datetime) -> Timestamp:
 
 def unpack_proto_timestamp(timestamp: Timestamp) -> datetime:
     delta = timedelta(seconds=timestamp.seconds, microseconds=timestamp.nanos // 1000)
-    return (_EPOCH_DATETIME_NAIVE + delta).replace(tzinfo=pytz.utc)
+    return (_EPOCH_DATETIME_NAIVE + delta).astimezone(UTC)
 
 
 def pack_proto_duration(td: timedelta) -> Duration:

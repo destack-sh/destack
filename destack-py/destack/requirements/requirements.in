@@ -9,7 +9,6 @@ opentelemetry-api==1.28.1
 opentelemetry-sdk==1.28.1
 pillow==11.2.1
 protobuf==5.28.3
-pytz==2024.1
 regex==2024.11.6
 rich==14.0.0
 structlog==24.2.0

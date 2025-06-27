@@ -298,7 +298,7 @@ export class Link extends Node implements Spatial, Resource {
 
     // identity
     if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO();
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
       this.updatedAt = now;
@@ -513,18 +513,18 @@ export class Link extends Node implements Spatial, Resource {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString();
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString();
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
     objectValue["30"] = object.type;
     objectValue["40"] = object.status;
     if (object.targetStatus != null) {
-      objectValue["41"] = object.targetStatus.toString();
+      objectValue["41"] = object.targetStatus.toString({ timeZoneName: "never" });
     }
     if (object.url != null) {
       objectValue["50"] = object.url;
@@ -557,10 +557,10 @@ export class Link extends Node implements Spatial, Resource {
       objectValue["63"] = object.attributionTag;
     }
     if (object.publishedAt != null) {
-      objectValue["64"] = object.publishedAt.toString();
+      objectValue["64"] = object.publishedAt.toString({ timeZoneName: "never" });
     }
     if (object.expiresAt != null) {
-      objectValue["65"] = object.expiresAt.toString();
+      objectValue["65"] = object.expiresAt.toString({ timeZoneName: "never" });
     }
     if (object.imageUrls.length > 0) {
       const packedImageUrls: any[] = [];
@@ -603,10 +603,14 @@ export class Link extends Node implements Spatial, Resource {
     const unpackedAttributionTag = attributionTagValue != undefined ? attributionTagValue : null;
     const publishedAtValue = objectValue["64"];
     const unpackedPublishedAt =
-      publishedAtValue != undefined ? Temporal.ZonedDateTime.from(publishedAtValue) : null;
+      publishedAtValue != undefined
+        ? Temporal.Instant.from(publishedAtValue).toZonedDateTimeISO("UTC")
+        : null;
     const expiresAtValue = objectValue["65"];
     const unpackedExpiresAt =
-      expiresAtValue != undefined ? Temporal.ZonedDateTime.from(expiresAtValue) : null;
+      expiresAtValue != undefined
+        ? Temporal.Instant.from(expiresAtValue).toZonedDateTimeISO("UTC")
+        : null;
     const unpackedImageUrls: any[] = [];
     if (objectValue["70"] != undefined) {
       for (const item of objectValue["70"]) {
@@ -625,7 +629,9 @@ export class Link extends Node implements Spatial, Resource {
         : null;
     const targetStatusValue = objectValue["41"];
     const unpackedTargetStatus =
-      targetStatusValue != undefined ? Temporal.ZonedDateTime.from(targetStatusValue) : null;
+      targetStatusValue != undefined
+        ? Temporal.Instant.from(targetStatusValue).toZonedDateTimeISO("UTC")
+        : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -656,9 +662,9 @@ export class Link extends Node implements Spatial, Resource {
       id: String(objectValue["2"]),
       status: Number(objectValue["40"]),
       targetStatus: unpackedTargetStatus,
-      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,

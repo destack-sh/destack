@@ -255,7 +255,7 @@ export class EventCursor extends Node implements Cursor, IsOwnable {
 
     // identity
     if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO();
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
       this.updatedAt = now;
@@ -384,11 +384,11 @@ export class EventCursor extends Node implements Cursor, IsOwnable {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString();
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString();
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
@@ -397,7 +397,7 @@ export class EventCursor extends Node implements Cursor, IsOwnable {
     }
     objectValue["40"] = object.status;
     if (object.activeAt != null) {
-      objectValue["41"] = object.activeAt.toString();
+      objectValue["41"] = object.activeAt.toString({ timeZoneName: "never" });
     }
     return objectValue;
   }
@@ -411,7 +411,9 @@ export class EventCursor extends Node implements Cursor, IsOwnable {
   ): EventCursor {
     const activeAtValue = objectValue["41"];
     const unpackedActiveAt =
-      activeAtValue != undefined ? Temporal.ZonedDateTime.from(activeAtValue) : null;
+      activeAtValue != undefined
+        ? Temporal.Instant.from(activeAtValue).toZonedDateTimeISO("UTC")
+        : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -443,9 +445,9 @@ export class EventCursor extends Node implements Cursor, IsOwnable {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       ownedBy: unpackedOwnedByPtr,
       _session,
@@ -770,7 +772,7 @@ export class ScreenCursor extends Node implements Cursor, IsOwnable {
 
     // identity
     if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO();
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
       this.updatedAt = now;
@@ -908,11 +910,11 @@ export class ScreenCursor extends Node implements Cursor, IsOwnable {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString();
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString();
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
@@ -921,7 +923,7 @@ export class ScreenCursor extends Node implements Cursor, IsOwnable {
     }
     objectValue["40"] = object.status;
     if (object.activeAt != null) {
-      objectValue["41"] = object.activeAt.toString();
+      objectValue["41"] = object.activeAt.toString({ timeZoneName: "never" });
     }
     if (object.position != null) {
       objectValue["50"] = object.position.toValue();
@@ -943,7 +945,9 @@ export class ScreenCursor extends Node implements Cursor, IsOwnable {
         : null;
     const activeAtValue = objectValue["41"];
     const unpackedActiveAt =
-      activeAtValue != undefined ? Temporal.ZonedDateTime.from(activeAtValue) : null;
+      activeAtValue != undefined
+        ? Temporal.Instant.from(activeAtValue).toZonedDateTimeISO("UTC")
+        : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -976,9 +980,9 @@ export class ScreenCursor extends Node implements Cursor, IsOwnable {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       ownedBy: unpackedOwnedByPtr,
       _session,
@@ -1302,7 +1306,7 @@ export class ThreadCursor extends Node implements Cursor, IsOwnable {
 
     // identity
     if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO();
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
       this.updatedAt = now;
@@ -1431,11 +1435,11 @@ export class ThreadCursor extends Node implements Cursor, IsOwnable {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString();
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString();
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
@@ -1444,7 +1448,7 @@ export class ThreadCursor extends Node implements Cursor, IsOwnable {
     }
     objectValue["40"] = object.status;
     if (object.activeAt != null) {
-      objectValue["41"] = object.activeAt.toString();
+      objectValue["41"] = object.activeAt.toString({ timeZoneName: "never" });
     }
     return objectValue;
   }
@@ -1458,7 +1462,9 @@ export class ThreadCursor extends Node implements Cursor, IsOwnable {
   ): ThreadCursor {
     const activeAtValue = objectValue["41"];
     const unpackedActiveAt =
-      activeAtValue != undefined ? Temporal.ZonedDateTime.from(activeAtValue) : null;
+      activeAtValue != undefined
+        ? Temporal.Instant.from(activeAtValue).toZonedDateTimeISO("UTC")
+        : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -1490,9 +1496,9 @@ export class ThreadCursor extends Node implements Cursor, IsOwnable {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       ownedBy: unpackedOwnedByPtr,
       _session,

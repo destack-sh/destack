@@ -1,3 +1,4 @@
+import zoneinfo
 from itertools import chain
 from string import ascii_letters, ascii_lowercase
 from typing import Any, assert_never, cast
@@ -5,7 +6,6 @@ from typing import Any, assert_never, cast
 import fastuuid
 import hypothesis
 import more_itertools
-import pytz
 import structlog
 from cachetools import cached
 from hypothesis import example, given, settings
@@ -270,7 +270,7 @@ STRATEGY_BY_PRIMITIVE_TYPE: dict[PrimitiveType, st.SearchStrategy] = {
     PrimitiveType.UUID: uuids(),
     PrimitiveType.JSON: JSON_STRATEGY,
     PrimitiveType.BYTES: st.binary(),
-    PrimitiveType.DATETIME: st.datetimes(timezones=st.just(pytz.utc)),
+    PrimitiveType.DATETIME: st.datetimes(timezones=st.just(zoneinfo.ZoneInfo("UTC"))),
     PrimitiveType.DURATION: st.timedeltas(),
 }
 

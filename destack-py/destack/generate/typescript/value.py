@@ -234,11 +234,9 @@ def _generate_pack_value_scalar(
             return f"String({value_expr})"
         elif prop.primitive_type == PrimitiveType.JSON:
             return value_expr
-        elif prop.primitive_type in (
-            PrimitiveType.DATE,
-            PrimitiveType.TIME,
-            PrimitiveType.DATETIME,
-        ):
+        elif prop.primitive_type == PrimitiveType.DATETIME:
+            return f"{value_expr}.toString({{ timeZoneName: 'never' }})"
+        elif prop.primitive_type in (PrimitiveType.DATE, PrimitiveType.TIME):
             return f"{value_expr}.toString()"
         elif prop.primitive_type == PrimitiveType.DURATION:
             return f"timedeltaToISOFormat({value_expr})"
@@ -268,7 +266,7 @@ def _generate_unpack_value_scalar(
         elif prop.primitive_type == PrimitiveType.TIME:
             return f"Temporal.PlainTime.from({value_expr})"
         elif prop.primitive_type == PrimitiveType.DATETIME:
-            return f"Temporal.ZonedDateTime.from({value_expr})"
+            return f"Temporal.Instant.from({value_expr}).toZonedDateTimeISO('UTC')"
         elif prop.primitive_type == PrimitiveType.DURATION:
             return f"timedeltaFromISOFormat({value_expr})"
         elif prop.primitive_type in (PrimitiveType.INT16, PrimitiveType.INT32, PrimitiveType.INT64):
