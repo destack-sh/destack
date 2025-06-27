@@ -3,11 +3,9 @@ import asyncio
 import contextvars
 import random
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from random import Random
 from typing import Callable, final, override
-
-import pytz
 
 
 class Oracle(abc.ABC):
@@ -97,7 +95,7 @@ class WorldOracle(Oracle):
 
     @override
     def utc(self) -> datetime:
-        return datetime.fromtimestamp(self._time.time_ns() / 1e9, tz=pytz.utc)
+        return datetime.fromtimestamp(self._time.time_ns() / 1e9, tz=UTC)
 
     @override
     async def sleep(self, duration: float) -> None:

@@ -643,7 +643,7 @@ export class Change extends StructFrozen {
     this.name = _name;
     let _createdAt = options.createdAt ?? null;
     if (_createdAt === null) {
-      _createdAt = Temporal.Now.zonedDateTimeISO();
+      _createdAt = Temporal.Now.zonedDateTimeISO("UTC");
     }
     if (_createdAt === null) {
       throw new Error(`Change.createdAt is required`);
@@ -718,7 +718,7 @@ export class Change extends StructFrozen {
       if (this.name !== null) {
         propertyReprs.push(`name=${this.name}`);
       }
-      propertyReprs.push(`createdAt=${this.createdAt.toString()}`);
+      propertyReprs.push(`createdAt=${this.createdAt.toString({ timeZoneName: "never" })}`);
       if (this.createdBy !== null) {
         propertyReprs.push(`createdBy=${this.createdBy.repr()}`);
       }
@@ -786,7 +786,7 @@ export class Change extends StructFrozen {
     if (object.name != null) {
       objectValue["31"] = object.name;
     }
-    objectValue["32"] = object.createdAt.toString();
+    objectValue["32"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["33"] = object.createdByPtr.toValue();
     }
@@ -836,7 +836,7 @@ export class Change extends StructFrozen {
     return new Change({
       id: String(objectValue["2"]),
       name: unpackedName,
-      createdAt: Temporal.ZonedDateTime.from(objectValue["32"]),
+      createdAt: Temporal.Instant.from(objectValue["32"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       origin: unpackedOrigin,
       debounce: unpackedDebounce,
@@ -1022,7 +1022,7 @@ export class ChangeResult extends StructFrozen {
     this.id = _id;
     let _createdAt = options.createdAt ?? null;
     if (_createdAt === null) {
-      _createdAt = Temporal.Now.zonedDateTimeISO();
+      _createdAt = Temporal.Now.zonedDateTimeISO("UTC");
     }
     if (_createdAt === null) {
       throw new Error(`ChangeResult.createdAt is required`);
@@ -1096,7 +1096,7 @@ export class ChangeResult extends StructFrozen {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`id=${this.id}`);
-      propertyReprs.push(`createdAt=${this.createdAt.toString()}`);
+      propertyReprs.push(`createdAt=${this.createdAt.toString({ timeZoneName: "never" })}`);
       if (this.debounce !== null) {
         propertyReprs.push(`debounce=${ChangeDebounce[this.debounce]}`);
       }
@@ -1153,7 +1153,7 @@ export class ChangeResult extends StructFrozen {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 50022;
     objectValue["2"] = String(object.id);
-    objectValue["10"] = object.createdAt.toString();
+    objectValue["10"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.debounce != null) {
       objectValue["35"] = object.debounce;
     }
@@ -1200,7 +1200,7 @@ export class ChangeResult extends StructFrozen {
     }
     return new ChangeResult({
       id: String(objectValue["2"]),
-      createdAt: Temporal.ZonedDateTime.from(objectValue["10"]),
+      createdAt: Temporal.Instant.from(objectValue["10"]).toZonedDateTimeISO("UTC"),
       debounce: unpackedDebounce,
       status: Number(objectValue["40"]),
       edits: unpackedEdits,

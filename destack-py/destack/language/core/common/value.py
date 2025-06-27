@@ -1,6 +1,6 @@
 import base64
 import textwrap
-from datetime import date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from typing import TYPE_CHECKING, Any, assert_never, cast
 
 import structlog
@@ -115,6 +115,7 @@ from_value = __unpack_value__
         "timedelta": timedelta,
         "date": date,
         "time": time,
+        "UTC": UTC,
         "base64": base64,
         "UUID": UUID,
     }
@@ -259,12 +260,12 @@ def _generate_pack_value_scalar(
             return f"str({value_expr})"
         elif prop.primitive_type == PrimitiveType.JSON:
             return value_expr
-        elif prop.primitive_type in (
-            PrimitiveType.DATE,
-            PrimitiveType.TIME,
-            PrimitiveType.DATETIME,
-        ):
+        elif prop.primitive_type == PrimitiveType.DATETIME:
+            return f"{value_expr}.astimezone(UTC).isoformat()"
+        elif prop.primitive_type == PrimitiveType.DATE:
             return f"{value_expr}.isoformat()"
+        elif prop.primitive_type == PrimitiveType.TIME:
+            return f"{value_expr}.astimezone(UTC).replace(tzinfo=None).isoformat()"
         elif prop.primitive_type == PrimitiveType.DURATION:
             return f"timedelta_to_isoformat({value_expr})"
         else:
@@ -289,12 +290,12 @@ def _generate_unpack_value_scalar(
             return f"UUID({value_expr})"
         elif prop.primitive_type == PrimitiveType.JSON:
             return value_expr
+        elif prop.primitive_type == PrimitiveType.DATETIME:
+            return f"datetime.fromisoformat({value_expr}).astimezone(UTC)"
         elif prop.primitive_type == PrimitiveType.DATE:
             return f"date.fromisoformat({value_expr})"
         elif prop.primitive_type == PrimitiveType.TIME:
-            return f"time.fromisoformat({value_expr})"
-        elif prop.primitive_type == PrimitiveType.DATETIME:
-            return f"datetime.fromisoformat({value_expr})"
+            return f"time.fromisoformat({value_expr}).astimezone(UTC)"
         elif prop.primitive_type == PrimitiveType.DURATION:
             return f"timedelta_from_isoformat({value_expr})"
         elif prop.primitive_type in (PrimitiveType.INT16, PrimitiveType.INT32, PrimitiveType.INT64):
@@ -432,12 +433,12 @@ def _pack_scalar_value(value: Any, type: Type) -> Json:
             return base64.b64encode(value).decode()
         elif type.primitive_type == PrimitiveType.UUID:
             return str(value)
-        elif type.primitive_type in (
-            PrimitiveType.DATE,
-            PrimitiveType.TIME,
-            PrimitiveType.DATETIME,
-        ):
+        elif type.primitive_type == PrimitiveType.DATETIME:
+            return value.astimezone(UTC).isoformat()
+        elif type.primitive_type == PrimitiveType.DATE:
             return value.isoformat()
+        elif type.primitive_type == PrimitiveType.TIME:
+            return value.astimezone(UTC).replace(tzinfo=None).isoformat()
         elif type.primitive_type == PrimitiveType.DURATION:
             return timedelta_to_isoformat(value)
         elif type.primitive_type in (PrimitiveType.INT16, PrimitiveType.INT32, PrimitiveType.INT64):
@@ -467,7 +468,7 @@ def _unpack_scalar_value(
         elif type.primitive_type == PrimitiveType.UUID:
             return UUID(value)
         elif type.primitive_type == PrimitiveType.DATETIME:
-            return datetime.fromisoformat(value).replace(tzinfo=None)
+            return datetime.fromisoformat(value).astimezone(UTC)
         elif type.primitive_type == PrimitiveType.DATE:
             return date.fromisoformat(value)
         elif type.primitive_type == PrimitiveType.TIME:

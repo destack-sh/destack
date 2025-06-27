@@ -365,7 +365,7 @@ function _unpackScalarValue(
     if (type.primitiveType == PrimitiveType.BYTES) {
       return base64Decode(value);
     } else if (type.primitiveType == PrimitiveType.DATETIME) {
-      return Temporal.ZonedDateTime.from(value);
+      return Temporal.Instant.from(value).toZonedDateTimeISO("UTC");
     } else if (type.primitiveType == PrimitiveType.DATE) {
       return Temporal.PlainDate.from(value);
     } else if (type.primitiveType == PrimitiveType.TIME) {

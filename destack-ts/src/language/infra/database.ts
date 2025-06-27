@@ -563,7 +563,7 @@ export class Database extends Node implements Spatial, Resource, HasName {
 
     // identity
     if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO();
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
       this.updatedAt = now;
@@ -731,11 +731,11 @@ export class Database extends Node implements Spatial, Resource, HasName {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString();
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString();
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
@@ -743,7 +743,7 @@ export class Database extends Node implements Spatial, Resource, HasName {
     objectValue["31"] = object.name;
     objectValue["40"] = object.status;
     if (object.targetStatus != null) {
-      objectValue["41"] = object.targetStatus.toString();
+      objectValue["41"] = object.targetStatus.toString({ timeZoneName: "never" });
     }
     objectValue["50"] = object.region;
     if (object.galaxyName != null) {
@@ -779,7 +779,9 @@ export class Database extends Node implements Spatial, Resource, HasName {
         : null;
     const targetStatusValue = objectValue["41"];
     const unpackedTargetStatus =
-      targetStatusValue != undefined ? Temporal.ZonedDateTime.from(targetStatusValue) : null;
+      targetStatusValue != undefined
+        ? Temporal.Instant.from(targetStatusValue).toZonedDateTimeISO("UTC")
+        : null;
     const createdByPtrValue = objectValue["16"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -803,9 +805,9 @@ export class Database extends Node implements Spatial, Resource, HasName {
       id: String(objectValue["2"]),
       status: Number(objectValue["40"]),
       targetStatus: unpackedTargetStatus,
-      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       name: objectValue["31"],
       type: Number(objectValue["30"]),

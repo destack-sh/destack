@@ -546,7 +546,7 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
 
     // identity
     if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO();
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
       this.updatedAt = now;
@@ -723,16 +723,16 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString();
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString();
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["20"] = object.deletedAt.toString();
+      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["30"] = object.type;
     objectValue["31"] = object.name;
@@ -761,10 +761,10 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
       objectValue["50"] = object.accessToken;
     }
     if (object.seenAt != null) {
-      objectValue["51"] = object.seenAt.toString();
+      objectValue["51"] = object.seenAt.toString({ timeZoneName: "never" });
     }
     if (object.loggedInAt != null) {
-      objectValue["52"] = object.loggedInAt.toString();
+      objectValue["52"] = object.loggedInAt.toString({ timeZoneName: "never" });
     }
     if (object.cursorPtr != null) {
       objectValue["55"] = object.cursorPtr.toValue();
@@ -798,10 +798,14 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
     const unpackedAccessToken = accessTokenValue != undefined ? accessTokenValue : null;
     const seenAtValue = objectValue["51"];
     const unpackedSeenAt =
-      seenAtValue != undefined ? Temporal.ZonedDateTime.from(seenAtValue) : null;
+      seenAtValue != undefined
+        ? Temporal.Instant.from(seenAtValue).toZonedDateTimeISO("UTC")
+        : null;
     const loggedInAtValue = objectValue["52"];
     const unpackedLoggedInAt =
-      loggedInAtValue != undefined ? Temporal.ZonedDateTime.from(loggedInAtValue) : null;
+      loggedInAtValue != undefined
+        ? Temporal.Instant.from(loggedInAtValue).toZonedDateTimeISO("UTC")
+        : null;
     const cursorPtrValue = objectValue["55"];
     const unpackedCursorPtr =
       cursorPtrValue != undefined
@@ -829,7 +833,9 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
         : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt =
-      deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+      deletedAtValue != undefined
+        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+        : null;
     return new Client({
       parent: unpackedParentPtr,
       type: Number(objectValue["30"]),
@@ -846,9 +852,9 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
       browserVersion: unpackedBrowserVersion,
       name: objectValue["31"],
       id: String(objectValue["2"]),
-      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
       _session,

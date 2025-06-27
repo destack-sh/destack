@@ -279,9 +279,7 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.1.0
     # via -r destack-py/destack/requirements/dev.in
 pytz==2024.1
-    # via
-    #   -r destack-py/destack/requirements/requirements.in
-    #   clickhouse-connect
+    # via clickhouse-connect
 pyyaml==6.0.2
     # via
     #   kubernetes

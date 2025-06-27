@@ -2,12 +2,11 @@ import base64
 import textwrap
 import uuid
 from collections.abc import Sequence
-from datetime import date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Any, Callable, assert_never
 
 import asyncpg
 import orjson
-import pytz
 
 from destack.language import (
     EMPTY_DICT,
@@ -63,7 +62,7 @@ def _unpack_{node_cls.__name__}_row(row: "asyncpg.Record") -> "Json":
         "base64": base64,
         "orjson": orjson,
         "uuid": uuid,
-        "pytz": pytz,
+        "UTC": UTC,
         "datetime": datetime,
         "date": date,
         "time": time,
@@ -110,11 +109,11 @@ def _generate_unpack_scalar_value(prop: "PropertyDeclaration", value_expr: str) 
         elif prop.primitive_type == PrimitiveType.UUID:
             return f"str({value_expr})"
         elif prop.primitive_type == PrimitiveType.DATETIME:
-            return f"{value_expr}.replace(tzinfo=pytz.utc).isoformat()"
+            return f"{value_expr}.astimezone(UTC).isoformat()"
         elif prop.primitive_type == PrimitiveType.DATE:
             return f"{value_expr}.isoformat()"
         elif prop.primitive_type == PrimitiveType.TIME:
-            return f"{value_expr}.replace(tzinfo=pytz.utc).isoformat()"
+            return f"{value_expr}.astimezone(UTC).isoformat()"
         elif prop.primitive_type == PrimitiveType.DURATION:
             return f"timedelta_to_isoformat({value_expr})"
         else:
@@ -418,11 +417,11 @@ def _unpack_column_scalar(type: "PropertyDefinition | Type | CustomProperty", va
         elif type.primitive_type == PrimitiveType.UUID:
             return str(value)
         elif type.primitive_type == PrimitiveType.DATETIME:
-            return value.replace(tzinfo=pytz.utc).isoformat()
+            return value.astimezone(UTC).isoformat()
         elif type.primitive_type == PrimitiveType.DATE:
             return value.isoformat()
         elif type.primitive_type == PrimitiveType.TIME:
-            return value.replace(tzinfo=pytz.utc).isoformat()
+            return value.astimezone(UTC).isoformat()
         elif type.primitive_type == PrimitiveType.DURATION:
             return timedelta_to_isoformat(value)
         else:

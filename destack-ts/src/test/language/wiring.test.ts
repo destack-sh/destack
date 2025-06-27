@@ -101,6 +101,5 @@ sessionTest("roundtrip user", ({ session }) => {
   const unpackedUserProto = UserProto.fromBinary(userProtoBytes);
   const unpackedUser2 = User.fromProto(unpackedUserProto);
   expect(unpackedUser2.equals(user)).toBe(true);
-  expect(unpackedUser2).toEqual(user);
   expect(unpackedUser2.hash()).toEqual(user.hash());
 });

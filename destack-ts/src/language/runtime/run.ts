@@ -319,7 +319,7 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
 
     // identity
     if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO();
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
       this.updatedAt = now;
@@ -486,7 +486,7 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
       propertyReprs.push(`duration=${this.duration}`);
     }
     if (this.startedAt !== null) {
-      propertyReprs.push(`startedAt=${this.startedAt.toString()}`);
+      propertyReprs.push(`startedAt=${this.startedAt.toString({ timeZoneName: "never" })}`);
     }
     if (this.interruption !== null) {
       propertyReprs.push(`interruption=${this.interruption.repr()}`);
@@ -508,11 +508,11 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString();
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString();
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
@@ -531,19 +531,19 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
       objectValue["42"] = timedeltaToISOFormat(object.duration);
     }
     if (object.scheduledAt != null) {
-      objectValue["45"] = object.scheduledAt.toString();
+      objectValue["45"] = object.scheduledAt.toString({ timeZoneName: "never" });
     }
     if (object.startedAt != null) {
-      objectValue["46"] = object.startedAt.toString();
+      objectValue["46"] = object.startedAt.toString({ timeZoneName: "never" });
     }
     if (object.seenAt != null) {
-      objectValue["47"] = object.seenAt.toString();
+      objectValue["47"] = object.seenAt.toString({ timeZoneName: "never" });
     }
     if (object.interruptedAt != null) {
-      objectValue["48"] = object.interruptedAt.toString();
+      objectValue["48"] = object.interruptedAt.toString({ timeZoneName: "never" });
     }
     if (object.terminatedAt != null) {
-      objectValue["49"] = object.terminatedAt.toString();
+      objectValue["49"] = object.terminatedAt.toString({ timeZoneName: "never" });
     }
     if (object.interruptionPtr != null) {
       objectValue["51"] = object.interruptionPtr.toValue();
@@ -573,19 +573,29 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
       durationValue != undefined ? timedeltaFromISOFormat(durationValue) : null;
     const scheduledAtValue = objectValue["45"];
     const unpackedScheduledAt =
-      scheduledAtValue != undefined ? Temporal.ZonedDateTime.from(scheduledAtValue) : null;
+      scheduledAtValue != undefined
+        ? Temporal.Instant.from(scheduledAtValue).toZonedDateTimeISO("UTC")
+        : null;
     const startedAtValue = objectValue["46"];
     const unpackedStartedAt =
-      startedAtValue != undefined ? Temporal.ZonedDateTime.from(startedAtValue) : null;
+      startedAtValue != undefined
+        ? Temporal.Instant.from(startedAtValue).toZonedDateTimeISO("UTC")
+        : null;
     const seenAtValue = objectValue["47"];
     const unpackedSeenAt =
-      seenAtValue != undefined ? Temporal.ZonedDateTime.from(seenAtValue) : null;
+      seenAtValue != undefined
+        ? Temporal.Instant.from(seenAtValue).toZonedDateTimeISO("UTC")
+        : null;
     const interruptedAtValue = objectValue["48"];
     const unpackedInterruptedAt =
-      interruptedAtValue != undefined ? Temporal.ZonedDateTime.from(interruptedAtValue) : null;
+      interruptedAtValue != undefined
+        ? Temporal.Instant.from(interruptedAtValue).toZonedDateTimeISO("UTC")
+        : null;
     const terminatedAtValue = objectValue["49"];
     const unpackedTerminatedAt =
-      terminatedAtValue != undefined ? Temporal.ZonedDateTime.from(terminatedAtValue) : null;
+      terminatedAtValue != undefined
+        ? Temporal.Instant.from(terminatedAtValue).toZonedDateTimeISO("UTC")
+        : null;
     const interruptionPtrValue = objectValue["51"];
     const unpackedInterruptionPtr =
       interruptionPtrValue != undefined
@@ -628,9 +638,9 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
       interruption: unpackedInterruptionPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       value: unpackedValue,
       _session,
@@ -1010,7 +1020,7 @@ export class RunStartedEvent extends Node implements Event {
 
     // identity
     if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO();
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
       this.updatedAt = now;
@@ -1128,11 +1138,11 @@ export class RunStartedEvent extends Node implements Event {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString();
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString();
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
@@ -1181,9 +1191,9 @@ export class RunStartedEvent extends Node implements Event {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
@@ -1504,7 +1514,7 @@ export class RunPauseRequestedEvent extends Node implements Event {
 
     // identity
     if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO();
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
       this.updatedAt = now;
@@ -1622,11 +1632,11 @@ export class RunPauseRequestedEvent extends Node implements Event {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString();
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString();
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
@@ -1675,9 +1685,9 @@ export class RunPauseRequestedEvent extends Node implements Event {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
@@ -2010,7 +2020,7 @@ export class RunPausedEvent extends Node implements Event {
 
     // identity
     if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO();
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
       this.updatedAt = now;
@@ -2128,11 +2138,11 @@ export class RunPausedEvent extends Node implements Event {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString();
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString();
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
@@ -2181,9 +2191,9 @@ export class RunPausedEvent extends Node implements Event {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
@@ -2504,7 +2514,7 @@ export class RunResumeRequestedEvent extends Node implements Event {
 
     // identity
     if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO();
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
       this.updatedAt = now;
@@ -2622,11 +2632,11 @@ export class RunResumeRequestedEvent extends Node implements Event {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString();
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString();
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
@@ -2675,9 +2685,9 @@ export class RunResumeRequestedEvent extends Node implements Event {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
@@ -3010,7 +3020,7 @@ export class RunResumedEvent extends Node implements Event {
 
     // identity
     if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO();
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
       this.updatedAt = now;
@@ -3128,11 +3138,11 @@ export class RunResumedEvent extends Node implements Event {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString();
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString();
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
@@ -3181,9 +3191,9 @@ export class RunResumedEvent extends Node implements Event {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
@@ -3504,7 +3514,7 @@ export class RunStopRequestedEvent extends Node implements Event {
 
     // identity
     if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO();
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
       this.updatedAt = now;
@@ -3622,11 +3632,11 @@ export class RunStopRequestedEvent extends Node implements Event {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString();
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString();
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
@@ -3675,9 +3685,9 @@ export class RunStopRequestedEvent extends Node implements Event {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
@@ -4010,7 +4020,7 @@ export class RunFailedEvent extends Node implements Event {
 
     // identity
     if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO();
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
       this.updatedAt = now;
@@ -4128,11 +4138,11 @@ export class RunFailedEvent extends Node implements Event {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString();
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString();
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
@@ -4181,9 +4191,9 @@ export class RunFailedEvent extends Node implements Event {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
@@ -4504,7 +4514,7 @@ export class RunCompletedEvent extends Node implements Event {
 
     // identity
     if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO();
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
       this.updatedAt = now;
@@ -4622,11 +4632,11 @@ export class RunCompletedEvent extends Node implements Event {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString();
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString();
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
@@ -4675,9 +4685,9 @@ export class RunCompletedEvent extends Node implements Event {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,

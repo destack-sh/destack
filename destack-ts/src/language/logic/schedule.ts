@@ -456,10 +456,10 @@ export class Schedule extends Struct {
     objectValue["31"] = object.frequency;
     objectValue["32"] = object.interval;
     if (object.start != null) {
-      objectValue["33"] = object.start.toString();
+      objectValue["33"] = object.start.toString({ timeZoneName: "never" });
     }
     if (object.end != null) {
-      objectValue["34"] = object.end.toString();
+      objectValue["34"] = object.end.toString({ timeZoneName: "never" });
     }
     if (object.count != null) {
       objectValue["35"] = object.count;
@@ -548,9 +548,11 @@ export class Schedule extends Struct {
     _connection?: any | null,
   ): Schedule {
     const startValue = objectValue["33"];
-    const unpackedStart = startValue != undefined ? Temporal.ZonedDateTime.from(startValue) : null;
+    const unpackedStart =
+      startValue != undefined ? Temporal.Instant.from(startValue).toZonedDateTimeISO("UTC") : null;
     const endValue = objectValue["34"];
-    const unpackedEnd = endValue != undefined ? Temporal.ZonedDateTime.from(endValue) : null;
+    const unpackedEnd =
+      endValue != undefined ? Temporal.Instant.from(endValue).toZonedDateTimeISO("UTC") : null;
     const countValue = objectValue["35"];
     const unpackedCount = countValue != undefined ? Number(countValue) : null;
     const weekStartValue = objectValue["36"];

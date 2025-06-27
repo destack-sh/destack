@@ -351,7 +351,7 @@ export class Interruption
 
     // identity
     if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO();
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
       this.updatedAt = now;
@@ -520,11 +520,11 @@ export class Interruption
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString();
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString();
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
@@ -547,7 +547,7 @@ export class Interruption
       objectValue["41"] = timedeltaToISOFormat(object.duration);
     }
     if (object.closedAt != null) {
-      objectValue["42"] = object.closedAt.toString();
+      objectValue["42"] = object.closedAt.toString({ timeZoneName: "never" });
     }
     if (object.response != null) {
       objectValue["54"] = object.response;
@@ -585,7 +585,9 @@ export class Interruption
       durationValue != undefined ? timedeltaFromISOFormat(durationValue) : null;
     const closedAtValue = objectValue["42"];
     const unpackedClosedAt =
-      closedAtValue != undefined ? Temporal.ZonedDateTime.from(closedAtValue) : null;
+      closedAtValue != undefined
+        ? Temporal.Instant.from(closedAtValue).toZonedDateTimeISO("UTC")
+        : null;
     const responseValue = objectValue["54"];
     const unpackedResponse = responseValue != undefined ? Number(responseValue) : null;
     const messagePtrValue = objectValue["55"];
@@ -629,9 +631,9 @@ export class Interruption
       message: unpackedMessagePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       value: unpackedValue,
       _session,

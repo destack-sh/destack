@@ -304,7 +304,7 @@ export class Message
 
     // identity
     if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO();
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
       this.createdAt = now;
       this.createdByPtr = null;
       this.updatedAt = now;
@@ -468,16 +468,16 @@ export class Message
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString();
+    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
     }
-    objectValue["17"] = object.updatedAt.toString();
+    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["18"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["20"] = object.deletedAt.toString();
+      objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     if (object.ownedByPtr != null) {
       objectValue["25"] = object.ownedByPtr.toValue();
@@ -486,7 +486,7 @@ export class Message
       objectValue["35"] = object.threadPtr.toValue();
     }
     if (object.editedAt != null) {
-      objectValue["40"] = object.editedAt.toString();
+      objectValue["40"] = object.editedAt.toString({ timeZoneName: "never" });
     }
     if (object.replyToPtr != null) {
       objectValue["50"] = object.replyToPtr.toValue();
@@ -522,7 +522,9 @@ export class Message
         : null;
     const editedAtValue = objectValue["40"];
     const unpackedEditedAt =
-      editedAtValue != undefined ? Temporal.ZonedDateTime.from(editedAtValue) : null;
+      editedAtValue != undefined
+        ? Temporal.Instant.from(editedAtValue).toZonedDateTimeISO("UTC")
+        : null;
     const replyToPtrValue = objectValue["50"];
     const unpackedReplyToPtr =
       replyToPtrValue != undefined
@@ -565,7 +567,9 @@ export class Message
         : null;
     const deletedAtValue = objectValue["20"];
     const unpackedDeletedAt =
-      deletedAtValue != undefined ? Temporal.ZonedDateTime.from(deletedAtValue) : null;
+      deletedAtValue != undefined
+        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+        : null;
     return new Message({
       parent: unpackedParentPtr,
       thread: unpackedThreadPtr,
@@ -576,9 +580,9 @@ export class Message
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       ownedBy: unpackedOwnedByPtr,
       deletedAt: unpackedDeletedAt,
