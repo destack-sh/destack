@@ -3,7 +3,6 @@ import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@des
 import {
   EnumType,
   IsSubject,
-  MaterializationType,
   Node,
   NodeType,
   Struct,
@@ -26,7 +25,6 @@ import {
   FontStyleProto,
   FontTypeProto,
   FontWeightProto,
-  MaterializationTypeProto,
   TextAlignProto,
   TextDecorationProto,
   TextTransformProto,
@@ -583,12 +581,12 @@ export class FontStyle extends Node implements Style {
     NodeType.LABEL_VIEW,
     NodeType.CUSTOM_VIEW_DEFINITION,
     NodeType.CUSTOM_VIEW,
-    NodeType.SCENE,
     NodeType.CANVAS,
+    NodeType.LAYER,
     NodeType.TEXT_VIEW,
     NodeType.SPLIT_VIEW,
     NodeType.WIZARD_VIEW,
-    NodeType.LAYER,
+    NodeType.SCENE,
   ];
   static __childTypes__: NodeType[] = [NodeType.TAGGING];
   static __ancestorTypes__: NodeType[] = [
@@ -605,8 +603,8 @@ export class FontStyle extends Node implements Style {
     NodeType.FRAME_VIEW,
     NodeType.WINDOW,
     NodeType.LABEL_VIEW,
-    NodeType.SCENE,
     NodeType.SPLIT_VIEW,
+    NodeType.SCENE,
     NodeType.LAYER,
     NodeType.TEXT_VIEW,
     NodeType.THEME,
@@ -639,11 +637,6 @@ export class FontStyle extends Node implements Style {
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: MaterializationType;
 
   /**
    * IsTracked.createdAt
@@ -743,7 +736,6 @@ export class FontStyle extends Node implements Style {
     id?: string;
     parent?: Scene | (Node & View) | Theme | NodeReference | null;
     space?: Space | NodeReference | null;
-    materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -799,14 +791,6 @@ export class FontStyle extends Node implements Style {
       _space = _space.toRef();
     }
     this.spacePtr = _space;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = MaterializationType.FULL_GRAPH;
-    }
-    if (_materialization === null) {
-      throw new Error(`FontStyle.materialization is required`);
-    }
-    this.materialization = _materialization;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _orderKey = options.orderKey ?? null;
@@ -990,7 +974,6 @@ export class FontStyle extends Node implements Style {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
@@ -1091,7 +1074,6 @@ export class FontStyle extends Node implements Style {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
@@ -1137,7 +1119,6 @@ export class FontStyle extends Node implements Style {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
-    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -1208,7 +1189,6 @@ export class FontStyle extends Node implements Style {
             )
           : null,
       id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined

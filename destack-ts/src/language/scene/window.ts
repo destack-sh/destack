@@ -10,7 +10,6 @@ import {
   IsOwner,
   IsSubject,
   IsVisual,
-  MaterializationType,
   Node,
   NodeType,
   Spatial,
@@ -19,7 +18,7 @@ import {
 } from "@destack/language/core/builtin";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
-import { MaterializationTypeProto, WindowProto, WindowTypeProto } from "@destack/proto";
+import { WindowProto, WindowTypeProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
@@ -89,15 +88,15 @@ export class Window
     NodeType.SLIDER_INPUT_VIEW,
     NodeType.FRAME_VIEW,
     NodeType.LABEL_VIEW,
-    NodeType.SCENE,
     NodeType.SCRIPT,
     NodeType.SPLIT_VIEW,
+    NodeType.SCENE,
     NodeType.LAYER,
-    NodeType.VARIANT,
     NodeType.SHADOW_STYLE,
     NodeType.CUSTOM_PROPERTY,
     NodeType.TEXT_VIEW,
     NodeType.CUSTOM_OPTION,
+    NodeType.VARIANT,
     NodeType.THREAD_VIEW,
     NodeType.PALETTE,
     NodeType.TAGGING,
@@ -134,11 +133,6 @@ export class Window
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: MaterializationType;
 
   /**
    * IsTracked.createdAt
@@ -217,7 +211,6 @@ export class Window
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -266,14 +259,6 @@ export class Window
       _space = _space.toRef();
     }
     this.spacePtr = _space;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = MaterializationType.FULL_GRAPH;
-    }
-    if (_materialization === null) {
-      throw new Error(`Window.materialization is required`);
-    }
-    this.materialization = _materialization;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _orderKey = options.orderKey ?? null;
@@ -398,7 +383,6 @@ export class Window
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
@@ -459,7 +443,6 @@ export class Window
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
@@ -497,7 +480,6 @@ export class Window
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
-    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -548,7 +530,6 @@ export class Window
             )
           : null,
       id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined

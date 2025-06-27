@@ -1,23 +1,29 @@
 import type {
   Entitlement,
-  EntitlementEvent,
-  EntitlementEventType,
+  EntitlementExpiredEvent,
+  EntitlementGrantedEvent,
+  EntitlementRequestedEvent,
+  EntitlementRevokedEvent,
   EntitlementType,
   Invite,
-  InviteEvent,
-  InviteEventType,
+  InviteAcceptedEvent,
+  InviteRejectedEvent,
+  InviteRescindedEvent,
+  InviteSentEvent,
   Membership,
-  MembershipEvent,
-  MembershipEventType,
+  MembershipJoinedEvent,
+  MembershipLeftEvent,
   MembershipPermission,
   Permission,
   PermissionType,
   Role,
-  RoleEvent,
-  RoleEventType,
+  RoleAssignedEvent,
+  RoleUnassignedEvent,
   Sanction,
-  SanctionEvent,
-  SanctionEventType,
+  SanctionExpiredEvent,
+  SanctionGrantedEvent,
+  SanctionRequestedEvent,
+  SanctionRevokedEvent,
   SanctionType,
 } from "@destack/language/access";
 import type {
@@ -278,12 +284,12 @@ import type {
   Service,
   ThreadCursor,
   Timer,
-  TimerEvent,
-  TimerEventType,
+  TimerStartedEvent,
+  TimerStoppedEvent,
   TimerType,
   Trigger,
-  TriggerEvent,
-  TriggerEventType,
+  TriggerStartedEvent,
+  TriggerStoppedEvent,
   TriggerType,
 } from "@destack/language/logic";
 import type {
@@ -294,17 +300,23 @@ import type {
   Log,
   LogLevel,
   Run,
-  RunEvent,
-  RunEventType,
+  RunCompletedEvent,
+  RunFailedEvent,
+  RunPauseRequestedEvent,
+  RunPausedEvent,
+  RunResumeRequestedEvent,
+  RunResumedEvent,
+  RunStartedEvent,
   RunStatus,
+  RunStopRequestedEvent,
   Span,
 } from "@destack/language/runtime";
 import type {
   Layer,
   LayerType,
   Scene,
-  SceneEvent,
-  SceneEventType,
+  SceneEnteredEvent,
+  SceneExitedEvent,
   Variant,
   VariantStateType,
   VariantType,
@@ -315,8 +327,11 @@ import type {
   Follow,
   Message,
   Notification,
-  NotificationEvent,
-  NotificationEventType,
+  NotificationDismissedEvent,
+  NotificationExpiredEvent,
+  NotificationReadEvent,
+  NotificationRescindedEvent,
+  NotificationSentEvent,
   NotificationStatus,
   Reaction,
   Star,
@@ -328,8 +343,10 @@ import type {
   Client,
   Friendship,
   FriendshipInvite,
-  FriendshipInviteEvent,
-  FriendshipInviteEventType,
+  FriendshipInviteAcceptedEvent,
+  FriendshipInviteRejectedEvent,
+  FriendshipInviteRescindedEvent,
+  FriendshipInviteSentEvent,
   Handle,
   Organization,
   OrganizationStatus,
@@ -417,16 +434,27 @@ export type NodeTypeMapping = {
   [NodeType.SNAPSHOT]: Snapshot;
   [NodeType.BRANCH]: Branch;
   [NodeType.CUSTOM_STRUCT_DEFINITION]: CustomStructDefinition;
-  [NodeType.ENTITLEMENT_EVENT]: EntitlementEvent;
+  [NodeType.ENTITLEMENT_REQUESTED_EVENT]: EntitlementRequestedEvent;
+  [NodeType.ENTITLEMENT_GRANTED_EVENT]: EntitlementGrantedEvent;
+  [NodeType.ENTITLEMENT_REVOKED_EVENT]: EntitlementRevokedEvent;
+  [NodeType.ENTITLEMENT_EXPIRED_EVENT]: EntitlementExpiredEvent;
   [NodeType.ENTITLEMENT]: Entitlement;
-  [NodeType.INVITE_EVENT]: InviteEvent;
+  [NodeType.INVITE_SENT_EVENT]: InviteSentEvent;
+  [NodeType.INVITE_RESCINDED_EVENT]: InviteRescindedEvent;
+  [NodeType.INVITE_ACCEPTED_EVENT]: InviteAcceptedEvent;
+  [NodeType.INVITE_REJECTED_EVENT]: InviteRejectedEvent;
   [NodeType.INVITE]: Invite;
-  [NodeType.MEMBERSHIP_EVENT]: MembershipEvent;
+  [NodeType.MEMBERSHIP_JOINED_EVENT]: MembershipJoinedEvent;
+  [NodeType.MEMBERSHIP_LEFT_EVENT]: MembershipLeftEvent;
   [NodeType.MEMBERSHIP]: Membership;
   [NodeType.PERMISSION]: Permission;
-  [NodeType.ROLE_EVENT]: RoleEvent;
+  [NodeType.ROLE_ASSIGNED_EVENT]: RoleAssignedEvent;
+  [NodeType.ROLE_UNASSIGNED_EVENT]: RoleUnassignedEvent;
   [NodeType.ROLE]: Role;
-  [NodeType.SANCTION_EVENT]: SanctionEvent;
+  [NodeType.SANCTION_REQUESTED_EVENT]: SanctionRequestedEvent;
+  [NodeType.SANCTION_GRANTED_EVENT]: SanctionGrantedEvent;
+  [NodeType.SANCTION_REVOKED_EVENT]: SanctionRevokedEvent;
+  [NodeType.SANCTION_EXPIRED_EVENT]: SanctionExpiredEvent;
   [NodeType.SANCTION]: Sanction;
   [NodeType.CUSTOM_VIEW_DEFINITION]: CustomViewDefinition;
   [NodeType.CUSTOM_VIEW]: CustomView;
@@ -484,23 +512,37 @@ export type NodeTypeMapping = {
   [NodeType.ROUTE]: Route;
   [NodeType.SCRIPT]: Script;
   [NodeType.SERVICE]: Service;
-  [NodeType.TIMER_EVENT]: TimerEvent;
+  [NodeType.TIMER_STARTED_EVENT]: TimerStartedEvent;
+  [NodeType.TIMER_STOPPED_EVENT]: TimerStoppedEvent;
   [NodeType.TIMER]: Timer;
-  [NodeType.TRIGGER_EVENT]: TriggerEvent;
+  [NodeType.TRIGGER_STARTED_EVENT]: TriggerStartedEvent;
+  [NodeType.TRIGGER_STOPPED_EVENT]: TriggerStoppedEvent;
   [NodeType.TRIGGER]: Trigger;
   [NodeType.INTERRUPTION]: Interruption;
   [NodeType.LOG]: Log;
-  [NodeType.RUN_EVENT]: RunEvent;
+  [NodeType.RUN_STARTED_EVENT]: RunStartedEvent;
+  [NodeType.RUN_PAUSE_REQUESTED_EVENT]: RunPauseRequestedEvent;
+  [NodeType.RUN_PAUSED_EVENT]: RunPausedEvent;
+  [NodeType.RUN_RESUME_REQUESTED_EVENT]: RunResumeRequestedEvent;
+  [NodeType.RUN_RESUMED_EVENT]: RunResumedEvent;
+  [NodeType.RUN_STOP_REQUESTED_EVENT]: RunStopRequestedEvent;
+  [NodeType.RUN_FAILED_EVENT]: RunFailedEvent;
+  [NodeType.RUN_COMPLETED_EVENT]: RunCompletedEvent;
   [NodeType.RUN]: Run;
   [NodeType.SPAN]: Span;
   [NodeType.LAYER]: Layer;
-  [NodeType.SCENE_EVENT]: SceneEvent;
+  [NodeType.SCENE_ENTERED_EVENT]: SceneEnteredEvent;
+  [NodeType.SCENE_EXITED_EVENT]: SceneExitedEvent;
   [NodeType.SCENE]: Scene;
   [NodeType.VARIANT]: Variant;
   [NodeType.WINDOW]: Window;
   [NodeType.FOLLOW]: Follow;
   [NodeType.MESSAGE]: Message;
-  [NodeType.NOTIFICATION_EVENT]: NotificationEvent;
+  [NodeType.NOTIFICATION_SENT_EVENT]: NotificationSentEvent;
+  [NodeType.NOTIFICATION_RESCINDED_EVENT]: NotificationRescindedEvent;
+  [NodeType.NOTIFICATION_READ_EVENT]: NotificationReadEvent;
+  [NodeType.NOTIFICATION_DISMISSED_EVENT]: NotificationDismissedEvent;
+  [NodeType.NOTIFICATION_EXPIRED_EVENT]: NotificationExpiredEvent;
   [NodeType.NOTIFICATION]: Notification;
   [NodeType.REACTION]: Reaction;
   [NodeType.STAR]: Star;
@@ -508,7 +550,10 @@ export type NodeTypeMapping = {
   [NodeType.AGENT]: Agent;
   [NodeType.CLIENT]: Client;
   [NodeType.FRIENDSHIP]: Friendship;
-  [NodeType.FRIENDSHIP_INVITE_EVENT]: FriendshipInviteEvent;
+  [NodeType.FRIENDSHIP_INVITE_SENT_EVENT]: FriendshipInviteSentEvent;
+  [NodeType.FRIENDSHIP_INVITE_RESCINDED_EVENT]: FriendshipInviteRescindedEvent;
+  [NodeType.FRIENDSHIP_INVITE_ACCEPTED_EVENT]: FriendshipInviteAcceptedEvent;
+  [NodeType.FRIENDSHIP_INVITE_REJECTED_EVENT]: FriendshipInviteRejectedEvent;
   [NodeType.FRIENDSHIP_INVITE]: FriendshipInvite;
   [NodeType.HANDLE]: Handle;
   [NodeType.ORGANIZATION]: Organization;
@@ -717,14 +762,9 @@ export type EnumTypeMapping = {
   [EnumType.LENGTH_UNIT]: LengthUnit;
   [EnumType.POSITION_TYPE]: PositionType;
   [EnumType.DIMENSION_TYPE]: DimensionType;
-  [EnumType.ENTITLEMENT_EVENT_TYPE]: EntitlementEventType;
   [EnumType.ENTITLEMENT_TYPE]: EntitlementType;
-  [EnumType.INVITE_EVENT_TYPE]: InviteEventType;
-  [EnumType.MEMBERSHIP_EVENT_TYPE]: MembershipEventType;
   [EnumType.MEMBERSHIP_PERMISSION]: MembershipPermission;
   [EnumType.PERMISSION_TYPE]: PermissionType;
-  [EnumType.ROLE_EVENT_TYPE]: RoleEventType;
-  [EnumType.SANCTION_EVENT_TYPE]: SanctionEventType;
   [EnumType.SANCTION_TYPE]: SanctionType;
   [EnumType.ARROW_HEAD_TYPE]: ArrowHeadType;
   [EnumType.CANVAS_TYPE]: CanvasType;
@@ -746,25 +786,19 @@ export type EnumTypeMapping = {
   [EnumType.DAY_OF_WEEK]: DayOfWeek;
   [EnumType.MONTH]: Month;
   [EnumType.SCHEDULE_FREQUENCY]: ScheduleFrequency;
-  [EnumType.TIMER_EVENT_TYPE]: TimerEventType;
   [EnumType.TIMER_TYPE]: TimerType;
-  [EnumType.TRIGGER_EVENT_TYPE]: TriggerEventType;
   [EnumType.TRIGGER_TYPE]: TriggerType;
   [EnumType.INTERRUPTION_TYPE]: InterruptionType;
   [EnumType.INTERRUPTION_STATUS]: InterruptionStatus;
   [EnumType.INTERRUPTION_RESPONSE]: InterruptionResponse;
   [EnumType.LOG_LEVEL]: LogLevel;
   [EnumType.RUN_STATUS]: RunStatus;
-  [EnumType.RUN_EVENT_TYPE]: RunEventType;
   [EnumType.LAYER_TYPE]: LayerType;
-  [EnumType.SCENE_EVENT_TYPE]: SceneEventType;
   [EnumType.VARIANT_TYPE]: VariantType;
   [EnumType.VARIANT_STATE_TYPE]: VariantStateType;
   [EnumType.WINDOW_TYPE]: WindowType;
   [EnumType.NOTIFICATION_STATUS]: NotificationStatus;
-  [EnumType.NOTIFICATION_EVENT_TYPE]: NotificationEventType;
   [EnumType.THREAD_STATUS]: ThreadStatus;
-  [EnumType.FRIENDSHIP_INVITE_EVENT_TYPE]: FriendshipInviteEventType;
   [EnumType.ORGANIZATION_STATUS]: OrganizationStatus;
   [EnumType.SPACE_STATUS]: SpaceStatus;
   [EnumType.USER_STATUS]: UserStatus;

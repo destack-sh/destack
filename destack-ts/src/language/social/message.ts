@@ -8,7 +8,6 @@ import {
   IsReactable,
   IsSubject,
   IsTaggable,
-  MaterializationType,
   Node,
   NodeType,
   Spatial,
@@ -19,11 +18,11 @@ import { Text } from "@destack/language/core/common";
 import { registerNodeClass } from "@destack/language/registry";
 import { Thread } from "@destack/language/social";
 import { Space } from "@destack/language/space";
-import { MaterializationTypeProto, MessageProto } from "@destack/proto";
+import { MessageProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:5510 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:5520 ==== */
 /**
  * A Message about something (usually in a Thread or a Channel).
  */
@@ -45,7 +44,7 @@ export class Message
   static __parentTypes__: NodeType[] = [NodeType.THREAD];
   static __childTypes__: NodeType[] = [NodeType.TAGGING, NodeType.REACTION];
   static __ancestorTypes__: NodeType[] = [NodeType.FOLDER, NodeType.SPACE, NodeType.THREAD];
-  static __descendantTypes__: NodeType[] = [NodeType.REACTION, NodeType.TAGGING];
+  static __descendantTypes__: NodeType[] = [NodeType.TAGGING, NodeType.REACTION];
 
   /**
    * Message.parent
@@ -70,11 +69,6 @@ export class Message
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: MaterializationType;
 
   /**
    * IsTracked.createdAt
@@ -224,7 +218,6 @@ export class Message
     id?: string;
     parent?: Thread | NodeReference | null;
     space?: Space | NodeReference | null;
-    materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -276,14 +269,6 @@ export class Message
       _space = _space.toRef();
     }
     this.spacePtr = _space;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = MaterializationType.FULL_GRAPH;
-    }
-    if (_materialization === null) {
-      throw new Error(`Message.materialization is required`);
-    }
-    this.materialization = _materialization;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _ownedBy = options.ownedBy ?? null;
@@ -421,7 +406,7 @@ export class Message
 
   static __packValue__(object: Message): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 5510;
+    objectValue["1"] = 5520;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -429,7 +414,6 @@ export class Message
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
@@ -538,7 +522,6 @@ export class Message
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
@@ -566,7 +549,7 @@ export class Message
   }
 
   static __packProto__(object: Message): MessageProto {
-    const objectProto: Partial<MessageProto> = { metatype: 5510 };
+    const objectProto: Partial<MessageProto> = { metatype: 5520 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -574,7 +557,6 @@ export class Message
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
-    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -685,7 +667,6 @@ export class Message
             )
           : null,
       id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -747,4 +728,4 @@ export class Message
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.MESSAGE, Message);
-/* ==== DESTACK_GENERATED_END:NODE:5510 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:5520 ==== */

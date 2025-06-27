@@ -167,7 +167,7 @@ export class Value extends StructFrozen {
   ): Value {
     return new Value({
       type: Type.fromProto(objectProto.type!, _session, _supergraph, _graph, _connection),
-      value: unpackProtoJson(objectProto.value),
+      value: unpackProtoJson(objectProto.value!),
       _proto: objectProto,
       _supergraph,
     });

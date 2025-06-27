@@ -10,7 +10,6 @@ import {
   IsJoinable,
   IsOwner,
   IsSubject,
-  MaterializationType,
   Node,
   NodeType,
   StructType,
@@ -19,11 +18,7 @@ import {
 import { Icon } from "@destack/language/core/common";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Handle, Space } from "@destack/language/space";
-import {
-  MaterializationTypeProto,
-  OrganizationProto,
-  OrganizationStatusProto,
-} from "@destack/proto";
+import { OrganizationProto, OrganizationStatusProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
@@ -42,7 +37,7 @@ export enum OrganizationStatus {
 registerEnumClass(EnumType.ORGANIZATION_STATUS, OrganizationStatus);
 /* ==== DESTACK_GENERATED_END:ENUM:40 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:40 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:100 ==== */
 /**
  * An Organization with Users and Teams.
  */
@@ -70,12 +65,12 @@ export class Organization
   ];
   static __ancestorTypes__: NodeType[] = [];
   static __descendantTypes__: NodeType[] = [
-    NodeType.ENTITLEMENT,
-    NodeType.ROLE,
-    NodeType.PERMISSION,
-    NodeType.MEMBERSHIP,
     NodeType.SANCTION,
     NodeType.INVITE,
+    NodeType.PERMISSION,
+    NodeType.MEMBERSHIP,
+    NodeType.ENTITLEMENT,
+    NodeType.ROLE,
   ];
 
   /**
@@ -89,11 +84,6 @@ export class Organization
     return null;
   }
   readonly parentPtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: MaterializationType;
 
   /**
    * IsTracked.createdAt
@@ -176,7 +166,6 @@ export class Organization
   constructor(options: {
     id?: string;
     parent?: Node | NodeReference | null;
-    materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -221,14 +210,6 @@ export class Organization
       _parent = _parent.toRef();
     }
     this.parentPtr = _parent;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = MaterializationType.FULL_GRAPH;
-    }
-    if (_materialization === null) {
-      throw new Error(`Organization.materialization is required`);
-    }
-    this.materialization = _materialization;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`Organization.name is required`);
@@ -352,12 +333,11 @@ export class Organization
 
   static __packValue__(object: Organization): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 40;
+    objectValue["1"] = 100;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
@@ -418,7 +398,6 @@ export class Organization
       handle: unpackedHandlePtr,
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
-      materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
@@ -446,12 +425,11 @@ export class Organization
   }
 
   static __packProto__(object: Organization): OrganizationProto {
-    const objectProto: Partial<OrganizationProto> = { metatype: 40 };
+    const objectProto: Partial<OrganizationProto> = { metatype: 100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -511,7 +489,6 @@ export class Organization
               _connection,
             )
           : null,
-      materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -566,4 +543,4 @@ export class Organization
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ORGANIZATION, Organization);
-/* ==== DESTACK_GENERATED_END:NODE:40 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:100 ==== */

@@ -7,7 +7,6 @@ import {
   IsOwnable,
   IsReactable,
   IsSubject,
-  MaterializationType,
   Node,
   NodeType,
   Spatial,
@@ -16,11 +15,11 @@ import {
 } from "@destack/language/core/builtin";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
-import { MaterializationTypeProto, ReactionProto } from "@destack/proto";
+import { ReactionProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:5520 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:5540 ==== */
 /**
  * A Reaction is a relationship between a Subject and a Reaction Node.
  */
@@ -39,13 +38,13 @@ export class Reaction
     TraitType.REACTABLE,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.REACTION, NodeType.MESSAGE];
+  static __parentTypes__: NodeType[] = [NodeType.MESSAGE, NodeType.REACTION];
   static __childTypes__: NodeType[] = [NodeType.REACTION];
   static __ancestorTypes__: NodeType[] = [
     NodeType.SPACE,
-    NodeType.MESSAGE,
-    NodeType.FOLDER,
     NodeType.REACTION,
+    NodeType.FOLDER,
+    NodeType.MESSAGE,
     NodeType.THREAD,
   ];
   static __descendantTypes__: NodeType[] = [NodeType.REACTION];
@@ -73,11 +72,6 @@ export class Reaction
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: MaterializationType;
 
   /**
    * IsTracked.createdAt
@@ -142,7 +136,6 @@ export class Reaction
     id?: string;
     parent?: (Node & IsReactable) | NodeReference | null;
     space?: Space | NodeReference | null;
-    materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -189,14 +182,6 @@ export class Reaction
       _space = _space.toRef();
     }
     this.spacePtr = _space;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = MaterializationType.FULL_GRAPH;
-    }
-    if (_materialization === null) {
-      throw new Error(`Reaction.materialization is required`);
-    }
-    this.materialization = _materialization;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _ownedBy = options.ownedBy;
@@ -300,7 +285,7 @@ export class Reaction
 
   static __packValue__(object: Reaction): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 5520;
+    objectValue["1"] = 5540;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -308,7 +293,6 @@ export class Reaction
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
@@ -367,7 +351,6 @@ export class Reaction
       content: objectValue["40"],
       id: String(objectValue["2"]),
       space: unpackedSpacePtr,
-      materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
@@ -394,7 +377,7 @@ export class Reaction
   }
 
   static __packProto__(object: Reaction): ReactionProto {
-    const objectProto: Partial<ReactionProto> = { metatype: 5520 };
+    const objectProto: Partial<ReactionProto> = { metatype: 5540 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -402,7 +385,6 @@ export class Reaction
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
-    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -456,7 +438,6 @@ export class Reaction
               _connection,
             )
           : null,
-      materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -508,4 +489,4 @@ export class Reaction
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.REACTION, Reaction);
-/* ==== DESTACK_GENERATED_END:NODE:5520 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:5540 ==== */

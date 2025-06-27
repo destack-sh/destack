@@ -7,7 +7,6 @@ import {
   IsOwnable,
   IsStarable,
   IsSubject,
-  MaterializationType,
   Node,
   NodeType,
   Spatial,
@@ -16,11 +15,11 @@ import {
 } from "@destack/language/core/builtin";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
-import { MaterializationTypeProto, StarProto } from "@destack/proto";
+import { StarProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:5521 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:5560 ==== */
 /**
  * A Star is a relationship between a Subject and a Starred Node.
  */
@@ -63,11 +62,6 @@ export class Star extends Node implements Global, Spatial, Entity, IsDeletable, 
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: MaterializationType;
 
   /**
    * IsTracked.createdAt
@@ -127,7 +121,6 @@ export class Star extends Node implements Global, Spatial, Entity, IsDeletable, 
     id?: string;
     parent?: (Node & IsStarable) | NodeReference | null;
     space?: Space | NodeReference | null;
-    materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -173,14 +166,6 @@ export class Star extends Node implements Global, Spatial, Entity, IsDeletable, 
       _space = _space.toRef();
     }
     this.spacePtr = _space;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = MaterializationType.FULL_GRAPH;
-    }
-    if (_materialization === null) {
-      throw new Error(`Star.materialization is required`);
-    }
-    this.materialization = _materialization;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _ownedBy = options.ownedBy;
@@ -276,7 +261,7 @@ export class Star extends Node implements Global, Spatial, Entity, IsDeletable, 
 
   static __packValue__(object: Star): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 5521;
+    objectValue["1"] = 5560;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -284,7 +269,6 @@ export class Star extends Node implements Global, Spatial, Entity, IsDeletable, 
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
@@ -341,7 +325,6 @@ export class Star extends Node implements Global, Spatial, Entity, IsDeletable, 
       ),
       id: String(objectValue["2"]),
       space: unpackedSpacePtr,
-      materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
@@ -368,7 +351,7 @@ export class Star extends Node implements Global, Spatial, Entity, IsDeletable, 
   }
 
   static __packProto__(object: Star): StarProto {
-    const objectProto: Partial<StarProto> = { metatype: 5521 };
+    const objectProto: Partial<StarProto> = { metatype: 5560 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -376,7 +359,6 @@ export class Star extends Node implements Global, Spatial, Entity, IsDeletable, 
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
-    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -428,7 +410,6 @@ export class Star extends Node implements Global, Spatial, Entity, IsDeletable, 
               _connection,
             )
           : null,
-      materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -480,4 +461,4 @@ export class Star extends Node implements Global, Spatial, Entity, IsDeletable, 
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.STAR, Star);
-/* ==== DESTACK_GENERATED_END:NODE:5521 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:5560 ==== */

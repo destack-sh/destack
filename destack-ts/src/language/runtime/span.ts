@@ -17,7 +17,7 @@ import { SpanProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:4010 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:4020 ==== */
 /**
  * A Span is a trace inside a Run.
  */
@@ -222,7 +222,7 @@ export class Span extends Node implements Spatial, Analytic, IsFrozen {
 
   static __packValue__(object: Span): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 4010;
+    objectValue["1"] = 4020;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -297,7 +297,7 @@ export class Span extends Node implements Spatial, Analytic, IsFrozen {
   }
 
   static __packProto__(object: Span): SpanProto {
-    const objectProto: Partial<SpanProto> = { metatype: 4010 };
+    const objectProto: Partial<SpanProto> = { metatype: 4020 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -394,4 +394,4 @@ export class Span extends Node implements Spatial, Analytic, IsFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SPAN, Span);
-/* ==== DESTACK_GENERATED_END:NODE:4010 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:4020 ==== */

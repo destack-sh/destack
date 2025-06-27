@@ -4,7 +4,6 @@ import {
   IsCustomNode,
   IsCustomNodeDefinition,
   IsSubject,
-  MaterializationType,
   Node,
   NodeType,
   StructType,
@@ -40,7 +39,6 @@ import {
   DirectionProto,
   DistributeProto,
   LayoutProto,
-  MaterializationTypeProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
@@ -115,11 +113,11 @@ export class CustomViewDefinition extends Node implements ContainerView, IsCusto
     NodeType.SCRIPT,
     NodeType.SPLIT_VIEW,
     NodeType.LAYER,
-    NodeType.VARIANT,
     NodeType.SHADOW_STYLE,
     NodeType.CUSTOM_PROPERTY,
     NodeType.TEXT_VIEW,
     NodeType.CUSTOM_OPTION,
+    NodeType.VARIANT,
     NodeType.THREAD_VIEW,
     NodeType.PALETTE,
     NodeType.TAGGING,
@@ -175,11 +173,6 @@ export class CustomViewDefinition extends Node implements ContainerView, IsCusto
     }
   }
   prototypePtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: MaterializationType;
 
   /**
    * IsTracked.createdAt
@@ -389,7 +382,6 @@ export class CustomViewDefinition extends Node implements ContainerView, IsCusto
     parent?: Folder | Scene | NodeReference | null;
     space?: Space | NodeReference | null;
     prototype?: CustomView | NodeReference | null;
-    materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -469,14 +461,6 @@ export class CustomViewDefinition extends Node implements ContainerView, IsCusto
       _prototype = _prototype.toRef();
     }
     this.prototypePtr = _prototype;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = MaterializationType.FULL_GRAPH;
-    }
-    if (_materialization === null) {
-      throw new Error(`CustomViewDefinition.materialization is required`);
-    }
-    this.materialization = _materialization;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _value = options.value ?? null;
@@ -811,7 +795,6 @@ export class CustomViewDefinition extends Node implements ContainerView, IsCusto
     if (object.prototypePtr != null) {
       objectValue["6"] = object.prototypePtr.toValue();
     }
-    objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
@@ -1099,7 +1082,6 @@ export class CustomViewDefinition extends Node implements ContainerView, IsCusto
       maxHeight: unpackedMaxHeight,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
@@ -1147,7 +1129,6 @@ export class CustomViewDefinition extends Node implements ContainerView, IsCusto
     if (object.prototypePtr != null) {
       objectProto.prototypePtr = object.prototypePtr.toProto();
     }
-    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -1378,7 +1359,6 @@ export class CustomViewDefinition extends Node implements ContainerView, IsCusto
             )
           : null,
       id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1479,11 +1459,11 @@ export class CustomView extends Node implements ContainerView, IsCustomNode {
     NodeType.WINDOW,
     NodeType.LABEL_VIEW,
     NodeType.CUSTOM_VIEW_DEFINITION,
+    NodeType.LAYER,
     NodeType.CUSTOM_VIEW,
-    NodeType.SCENE,
     NodeType.CANVAS,
     NodeType.SPLIT_VIEW,
-    NodeType.LAYER,
+    NodeType.SCENE,
   ];
   static __childTypes__: NodeType[] = [
     NodeType.CUSTOM_PROPERTY,
@@ -1520,12 +1500,12 @@ export class CustomView extends Node implements ContainerView, IsCustomNode {
     NodeType.WINDOW,
     NodeType.FOLDER,
     NodeType.LABEL_VIEW,
-    NodeType.CUSTOM_VIEW_DEFINITION,
-    NodeType.CUSTOM_VIEW,
-    NodeType.SCENE,
-    NodeType.SPLIT_VIEW,
     NodeType.CANVAS,
+    NodeType.CUSTOM_VIEW,
     NodeType.LAYER,
+    NodeType.CUSTOM_VIEW_DEFINITION,
+    NodeType.SPLIT_VIEW,
+    NodeType.SCENE,
   ];
   static __descendantTypes__: NodeType[] = [
     NodeType.LINE_SHAPE,
@@ -1541,11 +1521,11 @@ export class CustomView extends Node implements ContainerView, IsCustomNode {
     NodeType.SCRIPT,
     NodeType.SPLIT_VIEW,
     NodeType.LAYER,
-    NodeType.VARIANT,
     NodeType.SHADOW_STYLE,
     NodeType.CUSTOM_PROPERTY,
     NodeType.TEXT_VIEW,
     NodeType.CUSTOM_OPTION,
+    NodeType.VARIANT,
     NodeType.THREAD_VIEW,
     NodeType.PALETTE,
     NodeType.TAGGING,
@@ -1599,11 +1579,6 @@ export class CustomView extends Node implements ContainerView, IsCustomNode {
     return null;
   }
   readonly definitionPtr: NodeReference;
-
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: MaterializationType;
 
   /**
    * IsTracked.createdAt
@@ -1813,7 +1788,6 @@ export class CustomView extends Node implements ContainerView, IsCustomNode {
     parent?: Window | Scene | Layer | (Node & ContainerView) | NodeReference | null;
     space?: Space | NodeReference | null;
     definition?: CustomViewDefinition | NodeReference;
-    materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -1896,14 +1870,6 @@ export class CustomView extends Node implements ContainerView, IsCustomNode {
       throw new Error(`CustomView.definition is required`);
     }
     this.definitionPtr = _definition;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = MaterializationType.FULL_GRAPH;
-    }
-    if (_materialization === null) {
-      throw new Error(`CustomView.materialization is required`);
-    }
-    this.materialization = _materialization;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _value = options.value ?? null;
@@ -2237,7 +2203,6 @@ export class CustomView extends Node implements ContainerView, IsCustomNode {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["6"] = object.definitionPtr.toValue();
-    objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
@@ -2526,7 +2491,6 @@ export class CustomView extends Node implements ContainerView, IsCustomNode {
       maxHeight: unpackedMaxHeight,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
@@ -2566,7 +2530,6 @@ export class CustomView extends Node implements ContainerView, IsCustomNode {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
     objectProto.definitionPtr = object.definitionPtr.toProto();
-    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -2794,7 +2757,6 @@ export class CustomView extends Node implements ContainerView, IsCustomNode {
             )
           : null,
       id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined

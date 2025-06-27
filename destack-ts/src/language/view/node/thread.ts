@@ -1,13 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
-import {
-  IsSubject,
-  MaterializationType,
-  Node,
-  NodeType,
-  StructType,
-  TraitType,
-} from "@destack/language/core/builtin";
+import { IsSubject, Node, NodeType, StructType, TraitType } from "@destack/language/core/builtin";
 import { Dimension, Position, Text } from "@destack/language/core/common";
 import { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
@@ -16,7 +9,7 @@ import { Message } from "@destack/language/social";
 import { Space } from "@destack/language/space";
 import { ContainerView } from "@destack/language/view/container";
 import { NodeView } from "@destack/language/view/node";
-import { MaterializationTypeProto, ThreadViewProto } from "@destack/proto";
+import { ThreadViewProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
@@ -46,11 +39,11 @@ export class ThreadView extends Node implements NodeView {
     NodeType.WINDOW,
     NodeType.LABEL_VIEW,
     NodeType.CUSTOM_VIEW_DEFINITION,
+    NodeType.LAYER,
     NodeType.CUSTOM_VIEW,
-    NodeType.SCENE,
     NodeType.CANVAS,
     NodeType.SPLIT_VIEW,
-    NodeType.LAYER,
+    NodeType.SCENE,
   ];
   static __childTypes__: NodeType[] = [
     NodeType.TAGGING,
@@ -72,12 +65,12 @@ export class ThreadView extends Node implements NodeView {
     NodeType.WINDOW,
     NodeType.FOLDER,
     NodeType.LABEL_VIEW,
-    NodeType.CUSTOM_VIEW_DEFINITION,
-    NodeType.CUSTOM_VIEW,
-    NodeType.SCENE,
-    NodeType.SPLIT_VIEW,
     NodeType.CANVAS,
+    NodeType.CUSTOM_VIEW,
     NodeType.LAYER,
+    NodeType.CUSTOM_VIEW_DEFINITION,
+    NodeType.SPLIT_VIEW,
+    NodeType.SCENE,
   ];
   static __descendantTypes__: NodeType[] = [
     NodeType.CUSTOM_OPTION,
@@ -122,11 +115,6 @@ export class ThreadView extends Node implements NodeView {
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: MaterializationType;
 
   /**
    * IsTracked.createdAt
@@ -259,7 +247,6 @@ export class ThreadView extends Node implements NodeView {
     id?: string;
     parent?: Window | Scene | Layer | (Node & ContainerView) | NodeReference | null;
     space?: Space | NodeReference | null;
-    materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -316,14 +303,6 @@ export class ThreadView extends Node implements NodeView {
       _space = _space.toRef();
     }
     this.spacePtr = _space;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = MaterializationType.FULL_GRAPH;
-    }
-    if (_materialization === null) {
-      throw new Error(`ThreadView.materialization is required`);
-    }
-    this.materialization = _materialization;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _orderKey = options.orderKey ?? null;
@@ -512,7 +491,6 @@ export class ThreadView extends Node implements NodeView {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
@@ -652,7 +630,6 @@ export class ThreadView extends Node implements NodeView {
       maxHeight: unpackedMaxHeight,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
@@ -690,7 +667,6 @@ export class ThreadView extends Node implements NodeView {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
-    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -808,7 +784,6 @@ export class ThreadView extends Node implements NodeView {
             )
           : null,
       id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined

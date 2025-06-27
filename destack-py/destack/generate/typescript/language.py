@@ -1198,9 +1198,11 @@ def _generate_file(
                 continue  # duplicate block (for some reason)
             definition = file.get_definition(block.kind, block.id)
             if definition is None:
-                raise RuntimeError(
-                    f"unexpected definition: {key} in {file.path} (defines: {list(file.definitions.keys())})"
-                )
+                if block.custom_content and block.custom_content.count("\n") > 1:
+                    raise RuntimeError(
+                        f"cannot auto-remove stale definition {key} in {file.path}:\n{block.custom_content[:200]}"
+                    )
+                continue
 
             # merge custom content
             if block.custom_content:

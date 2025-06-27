@@ -4,7 +4,6 @@ import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@des
 import {
   EnumType,
   IsSubject,
-  MaterializationType,
   Node,
   NodeType,
   StructType,
@@ -17,12 +16,7 @@ import { Layer, Scene, Window } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { ContainerView } from "@destack/language/view/container";
 import { ContentView } from "@destack/language/view/content";
-import {
-  AlignProto,
-  ArrowHeadTypeProto,
-  ArrowShapeProto,
-  MaterializationTypeProto,
-} from "@destack/proto";
+import { AlignProto, ArrowHeadTypeProto, ArrowShapeProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
@@ -69,11 +63,11 @@ export class ArrowShape extends Node implements ContentView, IsShape {
     NodeType.WINDOW,
     NodeType.LABEL_VIEW,
     NodeType.CUSTOM_VIEW_DEFINITION,
+    NodeType.LAYER,
     NodeType.CUSTOM_VIEW,
-    NodeType.SCENE,
     NodeType.CANVAS,
     NodeType.SPLIT_VIEW,
-    NodeType.LAYER,
+    NodeType.SCENE,
   ];
   static __childTypes__: NodeType[] = [
     NodeType.TAGGING,
@@ -95,12 +89,12 @@ export class ArrowShape extends Node implements ContentView, IsShape {
     NodeType.WINDOW,
     NodeType.FOLDER,
     NodeType.LABEL_VIEW,
-    NodeType.CUSTOM_VIEW_DEFINITION,
-    NodeType.CUSTOM_VIEW,
-    NodeType.SCENE,
-    NodeType.SPLIT_VIEW,
     NodeType.CANVAS,
+    NodeType.CUSTOM_VIEW,
     NodeType.LAYER,
+    NodeType.CUSTOM_VIEW_DEFINITION,
+    NodeType.SPLIT_VIEW,
+    NodeType.SCENE,
   ];
   static __descendantTypes__: NodeType[] = [
     NodeType.CUSTOM_OPTION,
@@ -145,11 +139,6 @@ export class ArrowShape extends Node implements ContentView, IsShape {
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: MaterializationType;
 
   /**
    * IsTracked.createdAt
@@ -293,7 +282,6 @@ export class ArrowShape extends Node implements ContentView, IsShape {
     id?: string;
     parent?: Window | Scene | Layer | (Node & ContainerView) | NodeReference | null;
     space?: Space | NodeReference | null;
-    materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -355,14 +343,6 @@ export class ArrowShape extends Node implements ContentView, IsShape {
       _space = _space.toRef();
     }
     this.spacePtr = _space;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = MaterializationType.FULL_GRAPH;
-    }
-    if (_materialization === null) {
-      throw new Error(`ArrowShape.materialization is required`);
-    }
-    this.materialization = _materialization;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _orderKey = options.orderKey ?? null;
@@ -586,7 +566,6 @@ export class ArrowShape extends Node implements ContentView, IsShape {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
@@ -734,7 +713,6 @@ export class ArrowShape extends Node implements ContentView, IsShape {
       maxHeight: unpackedMaxHeight,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
@@ -772,7 +750,6 @@ export class ArrowShape extends Node implements ContentView, IsShape {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
-    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -890,7 +867,6 @@ export class ArrowShape extends Node implements ContentView, IsShape {
             )
           : null,
       id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined

@@ -25,7 +25,6 @@ from destack.utils.uuid import UUID
 from .common import (
     Enum,
     EnumType,
-    MaterializationType,
     NodeType,
     ResourceStatus,
     RoleType,
@@ -718,14 +717,14 @@ class Entity(IsTracked):
     #  - space: (instance_id, template_id)
     # when merging: time before space (id+snapshot_id over template)
     # snapshot and template properties must be READ ONLY (no write)
-    materialization: MaterializationType = property_(
-        7,
-        is_managed=True,
-        is_eq=False,
-        is_hash=False,
-        is_repr=False,
-        default=MaterializationType.FULL_GRAPH,
-    )
+    # materialization: MaterializationType = property_(
+    #     7,
+    #     is_managed=True,
+    #     is_eq=False,
+    #     is_hash=False,
+    #     is_repr=False,
+    #     default=MaterializationType.FULL_GRAPH,
+    # )
     # snapshot: Optional["Snapshot"] = property_(
     #     8,
     #     can_write=None,

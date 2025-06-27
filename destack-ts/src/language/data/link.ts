@@ -3,7 +3,6 @@ import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@des
 import {
   EnumType,
   IsSubject,
-  MaterializationType,
   Node,
   NodeType,
   Resource,
@@ -14,12 +13,7 @@ import {
 } from "@destack/language/core/builtin";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
-import {
-  LinkProto,
-  LinkTypeProto,
-  MaterializationTypeProto,
-  ResourceStatusProto,
-} from "@destack/proto";
+import { LinkProto, LinkTypeProto, ResourceStatusProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
@@ -78,11 +72,6 @@ export class Link extends Node implements Spatial, Resource {
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: MaterializationType;
 
   /**
    * IsTracked.createdAt
@@ -202,7 +191,6 @@ export class Link extends Node implements Spatial, Resource {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -262,14 +250,6 @@ export class Link extends Node implements Spatial, Resource {
       _space = _space.toRef();
     }
     this.spacePtr = _space;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = MaterializationType.FULL_GRAPH;
-    }
-    if (_materialization === null) {
-      throw new Error(`Link.materialization is required`);
-    }
-    this.materialization = _materialization;
     let _type = options.type;
     if (_type === null) {
       throw new Error(`Link.type is required`);
@@ -457,7 +437,6 @@ export class Link extends Node implements Spatial, Resource {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
@@ -601,7 +580,6 @@ export class Link extends Node implements Spatial, Resource {
       id: String(objectValue["2"]),
       status: Number(objectValue["40"]),
       targetStatus: unpackedTargetStatus,
-      materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
@@ -635,7 +613,6 @@ export class Link extends Node implements Spatial, Resource {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
-    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -755,7 +732,6 @@ export class Link extends Node implements Spatial, Resource {
         objectProto.targetStatus != undefined
           ? unpackProtoTimestamp(objectProto.targetStatus!)
           : null,
-      materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined

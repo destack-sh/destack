@@ -8,7 +8,6 @@ import {
   IsSourceable,
   IsSubject,
   IsTaggable,
-  MaterializationType,
   Node,
   NodeType,
   Spatial,
@@ -19,7 +18,7 @@ import { CustomProperty, CustomStructDefinition, Icon } from "@destack/language/
 import { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
-import { CustomOptionProto, MaterializationTypeProto } from "@destack/proto";
+import { CustomOptionProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
@@ -56,28 +55,28 @@ export class CustomOption
     NodeType.CUSTOM_VIEW_DEFINITION,
     NodeType.CUSTOM_VIEW,
     NodeType.WIZARD_VIEW,
-    NodeType.NUMBER_INPUT_VIEW,
-    NodeType.SLIDER_INPUT_VIEW,
     NodeType.RUN,
+    NodeType.SLIDER_INPUT_VIEW,
+    NodeType.NUMBER_INPUT_VIEW,
     NodeType.FRAME_VIEW,
     NodeType.WINDOW,
     NodeType.LABEL_VIEW,
-    NodeType.SCENE,
-    NodeType.INTERRUPTION,
     NodeType.SPLIT_VIEW,
     NodeType.SCRIPT,
-    NodeType.LAYER,
-    NodeType.SERVICE,
+    NodeType.SCENE,
     NodeType.CUSTOM_STRUCT_DEFINITION,
-    NodeType.ACTION,
+    NodeType.INTERRUPTION,
+    NodeType.SERVICE,
     NodeType.CUSTOM_ENUM_DEFINITION,
+    NodeType.LAYER,
     NodeType.CUSTOM_ENTITY_DEFINITION,
     NodeType.CUSTOM_ENTITY,
     NodeType.CUSTOM_PROPERTY,
-    NodeType.AGENT,
     NodeType.TEXT_VIEW,
+    NodeType.ACTION,
     NodeType.FOLDER,
     NodeType.THREAD_VIEW,
+    NodeType.AGENT,
     NodeType.CANVAS,
   ];
   static __descendantTypes__: NodeType[] = [NodeType.TAGGING];
@@ -105,11 +104,6 @@ export class CustomOption
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: MaterializationType;
 
   /**
    * IsTracked.createdAt
@@ -181,7 +175,6 @@ export class CustomOption
     id?: string;
     parent?: CustomStructDefinition | CustomProperty | NodeReference | null;
     space?: Space | NodeReference | null;
-    materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -230,14 +223,6 @@ export class CustomOption
       _space = _space.toRef();
     }
     this.spacePtr = _space;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = MaterializationType.FULL_GRAPH;
-    }
-    if (_materialization === null) {
-      throw new Error(`CustomOption.materialization is required`);
-    }
-    this.materialization = _materialization;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _orderKey = options.orderKey ?? null;
@@ -362,7 +347,6 @@ export class CustomOption
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
@@ -429,7 +413,6 @@ export class CustomOption
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
@@ -468,7 +451,6 @@ export class CustomOption
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
-    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -520,7 +502,6 @@ export class CustomOption
             )
           : null,
       id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined

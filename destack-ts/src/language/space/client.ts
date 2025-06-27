@@ -7,7 +7,6 @@ import {
   HasName,
   IsDeletable,
   IsSubject,
-  MaterializationType,
   Node,
   NodeType,
   StructFrozen,
@@ -18,12 +17,7 @@ import { Machine } from "@destack/language/infra";
 import { Cursor } from "@destack/language/logic";
 import { registerNodeClass, registerStructClass } from "@destack/language/registry";
 import { User } from "@destack/language/space";
-import {
-  ClientProto,
-  ClientTypeProto,
-  MaterializationTypeProto,
-  OriginProto,
-} from "@destack/proto";
+import { ClientProto, ClientTypeProto, OriginProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
@@ -245,7 +239,7 @@ export class Origin extends StructFrozen {
 registerStructClass(StructType.ORIGIN, Origin);
 /* ==== DESTACK_GENERATED_END:STRUCT:50001 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:200 ==== */
 /**
  * A Client to connect with the system.
  */
@@ -258,13 +252,13 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
     TraitType.DELETABLE,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.AGENT, NodeType.USER];
+  static __parentTypes__: NodeType[] = [NodeType.USER, NodeType.AGENT];
   static __childTypes__: NodeType[] = [];
   static __ancestorTypes__: NodeType[] = [
-    NodeType.AGENT,
     NodeType.FOLDER,
-    NodeType.USER,
     NodeType.SPACE,
+    NodeType.USER,
+    NodeType.AGENT,
   ];
   static __descendantTypes__: NodeType[] = [];
 
@@ -279,11 +273,6 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
     return null;
   }
   readonly parentPtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: MaterializationType;
 
   /**
    * IsTracked.createdAt
@@ -434,7 +423,6 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
   constructor(options: {
     id?: string;
     parent?: (Node & IsSubject) | NodeReference | null;
-    materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -487,14 +475,6 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
       _parent = _parent.toRef();
     }
     this.parentPtr = _parent;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = MaterializationType.FULL_GRAPH;
-    }
-    if (_materialization === null) {
-      throw new Error(`Client.materialization is required`);
-    }
-    this.materialization = _materialization;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _type = options.type;
@@ -655,12 +635,11 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
 
   static __packValue__(object: Client): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 100;
+    objectValue["1"] = 200;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
@@ -784,7 +763,6 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
       browserVersion: unpackedBrowserVersion,
       name: objectValue["31"],
       id: String(objectValue["2"]),
-      materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
@@ -811,12 +789,11 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
   }
 
   static __packProto__(object: Client): ClientProto {
-    const objectProto: Partial<ClientProto> = { metatype: 100 };
+    const objectProto: Partial<ClientProto> = { metatype: 200 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -927,7 +904,6 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
       browserVersion: objectProto.browserVersion != undefined ? objectProto.browserVersion : null,
       name: objectProto.name,
       id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -979,4 +955,4 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CLIENT, Client);
-/* ==== DESTACK_GENERATED_END:NODE:100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:200 ==== */

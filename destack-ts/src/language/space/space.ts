@@ -13,7 +13,6 @@ import {
   IsOwner,
   IsStarable,
   IsSubject,
-  MaterializationType,
   Node,
   NodeType,
   Region,
@@ -26,12 +25,7 @@ import { Folder } from "@destack/language/folder";
 import { Database } from "@destack/language/infra";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Handle } from "@destack/language/space";
-import {
-  MaterializationTypeProto,
-  RegionProto,
-  SpaceProto,
-  SpaceStatusProto,
-} from "@destack/proto";
+import { RegionProto, SpaceProto, SpaceStatusProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
@@ -97,16 +91,27 @@ export class Space
     NodeType.SNAPSHOT,
     NodeType.BRANCH,
     NodeType.CUSTOM_STRUCT_DEFINITION,
-    NodeType.ENTITLEMENT_EVENT,
+    NodeType.ENTITLEMENT_REQUESTED_EVENT,
+    NodeType.ENTITLEMENT_GRANTED_EVENT,
+    NodeType.ENTITLEMENT_REVOKED_EVENT,
+    NodeType.ENTITLEMENT_EXPIRED_EVENT,
     NodeType.ENTITLEMENT,
-    NodeType.INVITE_EVENT,
+    NodeType.INVITE_SENT_EVENT,
+    NodeType.INVITE_RESCINDED_EVENT,
+    NodeType.INVITE_ACCEPTED_EVENT,
+    NodeType.INVITE_REJECTED_EVENT,
     NodeType.INVITE,
-    NodeType.MEMBERSHIP_EVENT,
+    NodeType.MEMBERSHIP_JOINED_EVENT,
+    NodeType.MEMBERSHIP_LEFT_EVENT,
     NodeType.MEMBERSHIP,
     NodeType.PERMISSION,
-    NodeType.ROLE_EVENT,
+    NodeType.ROLE_ASSIGNED_EVENT,
+    NodeType.ROLE_UNASSIGNED_EVENT,
     NodeType.ROLE,
-    NodeType.SANCTION_EVENT,
+    NodeType.SANCTION_REQUESTED_EVENT,
+    NodeType.SANCTION_GRANTED_EVENT,
+    NodeType.SANCTION_REVOKED_EVENT,
+    NodeType.SANCTION_EXPIRED_EVENT,
     NodeType.SANCTION,
     NodeType.FILE,
     NodeType.LINK,
@@ -144,51 +149,92 @@ export class Space
     NodeType.SCREEN_CURSOR,
     NodeType.THREAD_CURSOR,
     NodeType.SERVICE,
-    NodeType.TIMER_EVENT,
+    NodeType.TIMER_STARTED_EVENT,
+    NodeType.TIMER_STOPPED_EVENT,
     NodeType.TIMER,
-    NodeType.TRIGGER_EVENT,
+    NodeType.TRIGGER_STARTED_EVENT,
+    NodeType.TRIGGER_STOPPED_EVENT,
     NodeType.TRIGGER,
     NodeType.LOG,
-    NodeType.RUN_EVENT,
+    NodeType.RUN_STARTED_EVENT,
+    NodeType.RUN_PAUSE_REQUESTED_EVENT,
+    NodeType.RUN_PAUSED_EVENT,
+    NodeType.RUN_RESUME_REQUESTED_EVENT,
+    NodeType.RUN_RESUMED_EVENT,
+    NodeType.RUN_STOP_REQUESTED_EVENT,
+    NodeType.RUN_FAILED_EVENT,
+    NodeType.RUN_COMPLETED_EVENT,
     NodeType.RUN,
-    NodeType.SCENE_EVENT,
+    NodeType.SCENE_ENTERED_EVENT,
+    NodeType.SCENE_EXITED_EVENT,
     NodeType.WINDOW,
     NodeType.FOLLOW,
-    NodeType.NOTIFICATION_EVENT,
+    NodeType.NOTIFICATION_SENT_EVENT,
+    NodeType.NOTIFICATION_RESCINDED_EVENT,
+    NodeType.NOTIFICATION_READ_EVENT,
+    NodeType.NOTIFICATION_DISMISSED_EVENT,
+    NodeType.NOTIFICATION_EXPIRED_EVENT,
     NodeType.NOTIFICATION,
     NodeType.STAR,
-    NodeType.FRIENDSHIP_INVITE_EVENT,
+    NodeType.FRIENDSHIP_INVITE_SENT_EVENT,
+    NodeType.FRIENDSHIP_INVITE_RESCINDED_EVENT,
+    NodeType.FRIENDSHIP_INVITE_ACCEPTED_EVENT,
+    NodeType.FRIENDSHIP_INVITE_REJECTED_EVENT,
     NodeType.HANDLE,
     NodeType.THEME,
   ];
   static __ancestorTypes__: NodeType[] = [];
   static __descendantTypes__: NodeType[] = [
     NodeType.LOG,
-    NodeType.ROLE,
-    NodeType.ROLE_EVENT,
-    NodeType.HANDLE,
-    NodeType.GAUGE_METRIC,
+    NodeType.MEMBERSHIP_JOINED_EVENT,
+    NodeType.NOTIFICATION_DISMISSED_EVENT,
+    NodeType.TRIGGER,
+    NodeType.INVITE,
+    NodeType.INVITE_ACCEPTED_EVENT,
+    NodeType.INVITE_REJECTED_EVENT,
+    NodeType.INVITE_RESCINDED_EVENT,
+    NodeType.INVITE_SENT_EVENT,
     NodeType.GAUGE_MEASUREMENT,
     NodeType.COUNTER_METRIC,
     NodeType.COUNTER_MEASUREMENT,
-    NodeType.PERMISSION,
+    NodeType.NOTIFICATION_EXPIRED_EVENT,
+    NodeType.TRIGGER_STOPPED_EVENT,
+    NodeType.HANDLE,
+    NodeType.TRIGGER_STARTED_EVENT,
     NodeType.HISTOGRAM_MEASUREMENT,
     NodeType.HISTOGRAM_METRIC,
-    NodeType.EVENT_CURSOR,
-    NodeType.SCREEN_CURSOR,
-    NodeType.THREAD_CURSOR,
+    NodeType.TIMER,
+    NodeType.ROLE,
+    NodeType.TIMER_STARTED_EVENT,
+    NodeType.TIMER_STOPPED_EVENT,
+    NodeType.ROLE_UNASSIGNED_EVENT,
+    NodeType.ROLE_ASSIGNED_EVENT,
+    NodeType.PERMISSION,
     NodeType.SANCTION,
-    NodeType.FRIENDSHIP_INVITE_EVENT,
-    NodeType.SANCTION_EVENT,
+    NodeType.SANCTION_REQUESTED_EVENT,
+    NodeType.SANCTION_GRANTED_EVENT,
+    NodeType.SANCTION_REVOKED_EVENT,
+    NodeType.SANCTION_EXPIRED_EVENT,
     NodeType.ENTITLEMENT,
-    NodeType.ENTITLEMENT_EVENT,
-    NodeType.AGENT,
-    NodeType.CLIENT,
+    NodeType.FRIENDSHIP_INVITE_SENT_EVENT,
+    NodeType.FRIENDSHIP_INVITE_RESCINDED_EVENT,
+    NodeType.FRIENDSHIP_INVITE_ACCEPTED_EVENT,
+    NodeType.FRIENDSHIP_INVITE_REJECTED_EVENT,
+    NodeType.ENTITLEMENT_REQUESTED_EVENT,
+    NodeType.ENTITLEMENT_GRANTED_EVENT,
+    NodeType.ENTITLEMENT_REVOKED_EVENT,
+    NodeType.ENTITLEMENT_EXPIRED_EVENT,
     NodeType.CUSTOM_EVENT_DEFINITION,
     NodeType.CUSTOM_EVENT,
     NodeType.EDIT_EVENT,
+    NodeType.AGENT,
+    NodeType.EVENT_CURSOR,
+    NodeType.SCREEN_CURSOR,
+    NodeType.THREAD_CURSOR,
     NodeType.NUMBER_INPUT_VIEW,
     NodeType.SLIDER_INPUT_VIEW,
+    NodeType.GAUGE_METRIC,
+    NodeType.CLIENT,
     NodeType.THEME,
     NodeType.PALETTE,
     NodeType.COLOR_STYLE,
@@ -223,65 +269,69 @@ export class Space
     NodeType.LABEL_VIEW,
     NodeType.KEY_DOWN_EVENT,
     NodeType.KEY_UP_EVENT,
-    NodeType.SCENE,
-    NodeType.SCENE_EVENT,
     NodeType.KEY_PRESS_EVENT,
     NodeType.SPLIT_VIEW,
     NodeType.DRAG_START_EVENT,
     NodeType.DRAG_END_EVENT,
-    NodeType.LAYER,
+    NodeType.SCENE,
     NodeType.DRAG_ENTER_EVENT,
     NodeType.DRAG_LEAVE_EVENT,
     NodeType.DROP_EVENT,
     NodeType.DRAG_OVER_EVENT,
     NodeType.COPY_EVENT,
     NodeType.CUT_EVENT,
-    NodeType.VARIANT,
+    NodeType.SCENE_ENTERED_EVENT,
+    NodeType.SCENE_EXITED_EVENT,
     NodeType.PASTE_EVENT,
     NodeType.DATABASE,
-    NodeType.FOCUS_IN_EVENT,
+    NodeType.LAYER,
     NodeType.FOCUS_OUT_EVENT,
+    NodeType.FOCUS_IN_EVENT,
+    NodeType.VARIANT,
     NodeType.THREAD_VIEW,
     NodeType.THREAD,
     NodeType.MESSAGE,
-    NodeType.REACTION,
-    NodeType.STAR,
     NodeType.ENVIRONMENT,
-    NodeType.FOLLOW,
     NodeType.WIZARD_VIEW,
     NodeType.RUN,
-    NodeType.RUN_EVENT,
-    NodeType.SPAN,
+    NodeType.REACTION,
+    NodeType.RUN_STARTED_EVENT,
+    NodeType.RUN_PAUSE_REQUESTED_EVENT,
+    NodeType.RUN_PAUSED_EVENT,
+    NodeType.RUN_RESUME_REQUESTED_EVENT,
+    NodeType.RUN_RESUMED_EVENT,
+    NodeType.RUN_STOP_REQUESTED_EVENT,
+    NodeType.RUN_FAILED_EVENT,
+    NodeType.RUN_COMPLETED_EVENT,
     NodeType.MACHINE,
-    NodeType.INTERRUPTION,
+    NodeType.SPAN,
+    NodeType.STAR,
     NodeType.SCRIPT,
-    NodeType.SERVICE,
     NodeType.CUSTOM_STRUCT_DEFINITION,
-    NodeType.ACTION,
+    NodeType.INTERRUPTION,
+    NodeType.FOLLOW,
+    NodeType.SERVICE,
     NodeType.CUSTOM_ENUM_DEFINITION,
     NodeType.CUSTOM_ENTITY_DEFINITION,
     NodeType.CUSTOM_ENTITY,
-    NodeType.ROUTE,
     NodeType.CUSTOM_PROPERTY,
     NodeType.TEXT_VIEW,
     NodeType.SNAPSHOT,
     NodeType.NOTIFICATION,
-    NodeType.NOTIFICATION_EVENT,
+    NodeType.ACTION,
     NodeType.CUSTOM_OPTION,
-    NodeType.TRIGGER,
-    NodeType.TRIGGER_EVENT,
     NodeType.BRANCH,
     NodeType.FOLDER,
-    NodeType.TIMER,
-    NodeType.TIMER_EVENT,
+    NodeType.NOTIFICATION_SENT_EVENT,
     NodeType.FILE,
     NodeType.TAG,
     NodeType.TAGGING,
+    NodeType.NOTIFICATION_RESCINDED_EVENT,
     NodeType.MEMBERSHIP,
-    NodeType.MEMBERSHIP_EVENT,
+    NodeType.ROUTE,
     NodeType.LINK,
-    NodeType.INVITE,
-    NodeType.INVITE_EVENT,
+    NodeType.NOTIFICATION_READ_EVENT,
+    NodeType.MEMBERSHIP_LEFT_EVENT,
   ];
 
   /**
@@ -307,11 +357,6 @@ export class Space
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: MaterializationType;
 
   /**
    * IsTracked.createdAt
@@ -448,7 +493,6 @@ export class Space
     id?: string;
     parent?: Node | NodeReference | null;
     space?: Space | NodeReference | null;
-    materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -503,14 +547,6 @@ export class Space
       _space = _space.toRef();
     }
     this.spacePtr = _space;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = MaterializationType.FULL_GRAPH;
-    }
-    if (_materialization === null) {
-      throw new Error(`Space.materialization is required`);
-    }
-    this.materialization = _materialization;
     let _ownedBy = options.ownedBy ?? null;
     if (_ownedBy != null && _ownedBy instanceof Node) {
       _ownedBy = _ownedBy.toRef();
@@ -677,7 +713,6 @@ export class Space
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
@@ -785,7 +820,6 @@ export class Space
       database: unpackedDatabasePtr,
       id: String(objectValue["2"]),
       parent: unpackedParentPtr,
-      materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
@@ -822,7 +856,6 @@ export class Space
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
-    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -923,7 +956,6 @@ export class Space
               _connection,
             )
           : null,
-      materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined

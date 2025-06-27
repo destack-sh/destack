@@ -9,7 +9,6 @@ import {
   IsJoinable,
   IsOwner,
   IsSubject,
-  MaterializationType,
   Node,
   NodeType,
   StructType,
@@ -17,11 +16,11 @@ import {
 } from "@destack/language/core/builtin";
 import { Icon } from "@destack/language/core/common";
 import { registerNodeClass } from "@destack/language/registry";
-import { MaterializationTypeProto, TeamProto } from "@destack/proto";
+import { TeamProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:50 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:120 ==== */
 /**
  * An Team with Users and Teams.
  */
@@ -49,12 +48,12 @@ export class Team
   ];
   static __ancestorTypes__: NodeType[] = [];
   static __descendantTypes__: NodeType[] = [
-    NodeType.ENTITLEMENT,
-    NodeType.ROLE,
-    NodeType.PERMISSION,
-    NodeType.MEMBERSHIP,
     NodeType.SANCTION,
     NodeType.INVITE,
+    NodeType.PERMISSION,
+    NodeType.MEMBERSHIP,
+    NodeType.ENTITLEMENT,
+    NodeType.ROLE,
   ];
 
   /**
@@ -68,11 +67,6 @@ export class Team
     return null;
   }
   readonly parentPtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: MaterializationType;
 
   /**
    * IsTracked.createdAt
@@ -126,7 +120,6 @@ export class Team
   constructor(options: {
     id?: string;
     parent?: Node | NodeReference | null;
-    materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -168,14 +161,6 @@ export class Team
       _parent = _parent.toRef();
     }
     this.parentPtr = _parent;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = MaterializationType.FULL_GRAPH;
-    }
-    if (_materialization === null) {
-      throw new Error(`Team.materialization is required`);
-    }
-    this.materialization = _materialization;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`Team.name is required`);
@@ -266,12 +251,11 @@ export class Team
 
   static __packValue__(object: Team): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 50;
+    objectValue["1"] = 120;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
@@ -322,7 +306,6 @@ export class Team
     return new Team({
       parent: unpackedParentPtr,
       id: String(objectValue["2"]),
-      materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
@@ -351,12 +334,11 @@ export class Team
   }
 
   static __packProto__(object: Team): TeamProto {
-    const objectProto: Partial<TeamProto> = { metatype: 50 };
+    const objectProto: Partial<TeamProto> = { metatype: 120 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -394,7 +376,6 @@ export class Team
             )
           : null,
       id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -450,4 +431,4 @@ export class Team
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TEAM, Team);
-/* ==== DESTACK_GENERATED_END:NODE:50 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:120 ==== */
