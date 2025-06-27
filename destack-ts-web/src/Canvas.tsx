@@ -1,9 +1,9 @@
 import { EASINGS } from "@destack-web/shared/easings";
 import { renderStroke } from "@destack-web/shared/freehand/svg";
 import { StrokeOptions } from "@destack-web/shared/freehand/types";
-import { signal } from "@preact/signals-react";
+import { computed, Signal, signal, useSignal } from "@preact/signals-react";
 import { Vector3 } from "destack";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 
 type Line = {
   points: Vector3[];
@@ -13,40 +13,41 @@ const currentLine = signal<Line | null>(null);
 const lines = signal<Line[]>([]);
 
 export const Canvas: React.FC = () => {
+  const size = useSignal(12);
+  const thinning = useSignal(0.5);
+  const smoothing = useSignal(0.4);
+  const streamline = useSignal(0.2);
+  const simulatePressure = useSignal(true);
+  const taperStart = useSignal(false);
+  const taperEnd = useSignal(false);
+  const isDrawing = useSignal(false);
+  const lastMousePosition = useSignal<Vector3 | null>(null);
+
   const svgRef = useRef<SVGSVGElement>(null);
-  const isDrawing = useRef(false);
-  const lastMousePosition = useRef<Vector3 | null>(null);
   const animationFrameId = useRef<number | null>(null);
 
-  // stroke option controls
-  const [size, setSize] = useState(12);
-  const [thinning, setThinning] = useState(0.5);
-  const [smoothing, setSmoothing] = useState(0.4);
-  const [streamline, setStreamline] = useState(0.2);
-  const [simulatePressure, setSimulatePressure] = useState(true);
-  const [taperStart, setTaperStart] = useState(false);
-  const [taperEnd, setTaperEnd] = useState(false);
-
-  const strokeOptions: StrokeOptions = {
-    size,
-    thinning,
-    smoothing,
-    streamline,
-    simulatePressure,
+  const strokeOptions: Signal<StrokeOptions> = computed(() => ({
+    size: size.value,
+    thinning: thinning.value,
+    smoothing: smoothing.value,
+    streamline: streamline.value,
+    simulatePressure: simulatePressure.value,
     start: {
       cap: true,
-      taper: taperStart,
+      taper: taperStart.value,
       easing: EASINGS.easeOutCubic,
     },
     end: {
       cap: true,
-      taper: taperEnd,
+      taper: taperEnd.value,
       easing: EASINGS.easeOutCubic,
     },
-  };
+  }));
 
   const getMousePosition = (event: React.MouseEvent<SVGSVGElement>): Vector3 => {
-    if (!svgRef.current) return new Vector3({ x: 0, y: 0, z: 0.5 });
+    if (!svgRef.current) {
+      throw new Error("SVG element not found");
+    }
 
     const rect = svgRef.current.getBoundingClientRect();
     const x = event.clientX - rect.left;
@@ -57,33 +58,33 @@ export const Canvas: React.FC = () => {
   };
 
   // high-frequency sampling using requestAnimationFrame
-  const sampleCurrentPosition = useCallback(() => {
-    if (!isDrawing.current || !lastMousePosition.current) return;
+  console.log("init");
+  const sampleCurrentPosition = () => {
+    if (!isDrawing.value || !lastMousePosition.value || currentLine.value == null) return;
 
     // add the current mouse position if we have one
-    if (currentLine.value) {
-      const lastPoint = currentLine.value.points[currentLine.value.points.length - 1];
-      const currentPoint = lastMousePosition.current;
+    const lastPoint = currentLine.value.points[currentLine.value.points.length - 1];
+    const currentPoint = lastMousePosition.value;
 
-      // only add if position has changed significantly (avoid duplicate points)
-      if (lastPoint == null || lastPoint.x != currentPoint.x || lastPoint.y != currentPoint.y) {
-        console.log("add point", currentLine.value.points.length, currentPoint.x, currentPoint.y);
-        currentLine.value = {
-          points: [...currentLine.value.points, currentPoint],
-        };
-      }
+    // only add if position has changed (avoid duplicate points)
+    if (lastPoint == null || lastPoint.x != currentPoint.x || lastPoint.y != currentPoint.y) {
+      console.log("add point", currentLine.value.points.length, {
+        x: currentPoint.x,
+        y: currentPoint.y,
+      });
+      currentLine.value = {
+        points: [...currentLine.value.points, currentPoint],
+      };
     }
 
     // continue sampling
-    if (isDrawing.current) {
-      animationFrameId.current = requestAnimationFrame(sampleCurrentPosition);
-    }
-  }, []);
+    animationFrameId.current = requestAnimationFrame(sampleCurrentPosition);
+  };
 
   const handleMouseDown = (event: React.MouseEvent<SVGSVGElement>) => {
-    isDrawing.current = true;
+    isDrawing.value = true;
     const point = getMousePosition(event);
-    lastMousePosition.current = point;
+    lastMousePosition.value = point;
     currentLine.value = { points: [point] };
 
     // start high-frequency sampling
@@ -91,19 +92,19 @@ export const Canvas: React.FC = () => {
   };
 
   const handleMouseMove = (event: React.MouseEvent<SVGSVGElement>) => {
-    if (!isDrawing.current) return;
+    if (!isDrawing.value) return;
 
     // just update the last mouse position, let RAF handle the sampling
-    lastMousePosition.current = getMousePosition(event);
+    lastMousePosition.value = getMousePosition(event);
   };
 
   const handleMouseUp = () => {
-    if (!isDrawing.current || !currentLine.value) return;
+    if (!isDrawing.value || !currentLine.value) return;
 
-    isDrawing.current = false;
+    isDrawing.value = false;
     lines.value = [...lines.value, currentLine.value];
     currentLine.value = null;
-    lastMousePosition.current = null;
+    lastMousePosition.value = null;
 
     // cleanup timers
     if (animationFrameId.current) {
@@ -134,8 +135,8 @@ export const Canvas: React.FC = () => {
               type="range"
               min="1"
               max="50"
-              value={size}
-              onChange={(e) => setSize(Number(e.target.value))}
+              value={size.value}
+              onChange={(e) => (size.value = Number(e.target.value))}
               style={{ width: "100px" }}
             />
             <span style={{ fontSize: "12px", minWidth: "25px" }}>{size}</span>
@@ -149,8 +150,8 @@ export const Canvas: React.FC = () => {
               min="0"
               max="1"
               step="0.1"
-              value={thinning}
-              onChange={(e) => setThinning(Number(e.target.value))}
+              value={thinning.value}
+              onChange={(e) => (thinning.value = Number(e.target.value))}
               style={{ width: "100px" }}
             />
             <span style={{ fontSize: "12px", minWidth: "25px" }}>{thinning}</span>
@@ -164,8 +165,8 @@ export const Canvas: React.FC = () => {
               min="0"
               max="1"
               step="0.1"
-              value={smoothing}
-              onChange={(e) => setSmoothing(Number(e.target.value))}
+              value={smoothing.value}
+              onChange={(e) => (smoothing.value = Number(e.target.value))}
               style={{ width: "100px" }}
             />
             <span style={{ fontSize: "12px", minWidth: "25px" }}>{smoothing}</span>
@@ -179,8 +180,8 @@ export const Canvas: React.FC = () => {
               min="0"
               max="1"
               step="0.1"
-              value={streamline}
-              onChange={(e) => setStreamline(Number(e.target.value))}
+              value={streamline.value}
+              onChange={(e) => (streamline.value = Number(e.target.value))}
               style={{ width: "100px" }}
             />
             <span style={{ fontSize: "12px", minWidth: "25px" }}>{streamline}</span>
@@ -192,8 +193,8 @@ export const Canvas: React.FC = () => {
           <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px" }}>
             <input
               type="checkbox"
-              checked={simulatePressure}
-              onChange={(e) => setSimulatePressure(e.target.checked)}
+              checked={simulatePressure.value}
+              onChange={(e) => (simulatePressure.value = e.target.checked)}
             />
             Simulate Pressure
           </label>
@@ -202,8 +203,8 @@ export const Canvas: React.FC = () => {
           <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px" }}>
             <input
               type="checkbox"
-              checked={taperStart}
-              onChange={(e) => setTaperStart(e.target.checked)}
+              checked={taperStart.value}
+              onChange={(e) => (taperStart.value = e.target.checked)}
             />
             Taper Start
           </label>
@@ -212,8 +213,8 @@ export const Canvas: React.FC = () => {
           <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px" }}>
             <input
               type="checkbox"
-              checked={taperEnd}
-              onChange={(e) => setTaperEnd(e.target.checked)}
+              checked={taperEnd.value}
+              onChange={(e) => (taperEnd.value = e.target.checked)}
             />
             Taper End
           </label>
@@ -256,7 +257,7 @@ export const Canvas: React.FC = () => {
         {lines.value.map((line, index) => (
           <path
             key={index}
-            d={renderStroke(line.points, { ...strokeOptions, last: true })}
+            d={renderStroke(line.points, { ...strokeOptions.value, last: true })}
             fill="#2563eb"
             stroke="none"
           />
@@ -265,7 +266,7 @@ export const Canvas: React.FC = () => {
         {/* render current line being drawn */}
         {currentLine.value && currentLine.value.points.length > 1 && (
           <path
-            d={renderStroke(currentLine.value.points, strokeOptions)}
+            d={renderStroke(currentLine.value.points, { ...strokeOptions.value })}
             fill="#94a3b8"
             stroke="red"
           />

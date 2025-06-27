@@ -8,10 +8,10 @@ import { Vector3 } from "destack";
  * Generate SVG path data for stroke with ink-like rendering.
  * Uses partitioning at elbows for more natural line appearance.
  */
-export function renderStroke(rawInputPoints: Vector3[], options: StrokeOptions = {}) {
+export function renderStroke(rawInputPoints: Vector3[], options: StrokeOptions) {
   const points = getStrokePoints(rawInputPoints, options);
   setStrokePointRadii(points, options);
-  const partitions = partitionAtElbows(points);
+  const partitions = partitionStroke(points);
 
   let svg = "";
   for (const partition of partitions) {
@@ -21,10 +21,10 @@ export function renderStroke(rawInputPoints: Vector3[], options: StrokeOptions =
 }
 
 /**
- * Partition stroke points at sharp elbow angles.
+ * Partition stroke points at sharp "elbow" angles.
  * Creates separate segments for better rendering of complex paths.
  */
-function partitionAtElbows(points: StrokePoint[]): StrokePoint[][] {
+function partitionStroke(points: StrokePoint[]): StrokePoint[][] {
   if (points.length <= 2) return [points];
 
   const result: StrokePoint[][] = [];
@@ -168,7 +168,7 @@ function renderCirclePath(cx: number, cy: number, r: number) {
  * Render a partition of stroke points as SVG path.
  * Handles single points as circles and multi-point strokes as paths with caps.
  */
-function renderPartition(strokePoints: StrokePoint[], options: StrokeOptions = {}): string {
+function renderPartition(strokePoints: StrokePoint[], options: StrokeOptions): string {
   if (strokePoints.length === 0) return "";
 
   if (strokePoints.length === 1) {

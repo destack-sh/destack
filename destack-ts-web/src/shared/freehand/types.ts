@@ -27,23 +27,23 @@ export interface StrokePoint {
 /** Configuration options for stroke generation. */
 export interface StrokeOptions {
   /** Base stroke size/width. */
-  size?: number;
+  size: number;
   
   /** Amount of pressure-based thinning (0-1). */
-  thinning?: number;
+  thinning: number;
   
   /** Amount of path smoothing (0-1). */
-  smoothing?: number;
+  smoothing: number;
   
   /** Amount of streamlining applied to path (0-1). */
-  streamline?: number;
+  streamline: number;
   
   /** Whether to simulate pressure if not provided. */
-  simulatePressure?: boolean;
+  simulatePressure: boolean;
   
   /** Easing function for pressure mapping. */
   easing?: (t: number) => number;
-  
+	
   /** Whether this is the final stroke. */
   last?: boolean;
   
