@@ -12,7 +12,7 @@ const SIMULATED_PRESSURE = 0.5;
  * Get an array of points describing a polygon that surrounds the input points.
  * This is the main entry point that combines all stroke processing steps.
  */
-export function getStroke(points: Vector3[], options: StrokeOptions = {}): Vector3[] {
+export function getStroke(points: Vector3[], options: StrokeOptions): Vector3[] {
   const strokePoints = getStrokePoints(points, options);
   const strokePointsWithRadii = setStrokePointRadii(strokePoints, options);
   return getStrokeOutlinePoints(strokePointsWithRadii, options);
@@ -24,7 +24,7 @@ export function getStroke(points: Vector3[], options: StrokeOptions = {}): Vecto
  */
 export function getStrokeOutlineTracks(
   strokePoints: StrokePoint[],
-  options: StrokeOptions = {},
+  options: StrokeOptions,
 ): { left: Vector3[]; right: Vector3[] } {
   const { size = 16, smoothing = 0.5 } = options;
 
@@ -148,7 +148,7 @@ export function getStrokeOutlineTracks(
  */
 export function getStrokeOutlinePoints(
   strokePoints: StrokePoint[],
-  options: StrokeOptions = {},
+  options: StrokeOptions,
 ): Vector3[] {
   const { size = 16, start = {}, end = {}, last: isComplete = false } = options;
 
@@ -273,10 +273,7 @@ export function getStrokeOutlinePoints(
  * Get an array of stroke points with computed properties.
  * Transform raw input points into stroke points with pressure, vectors, and distances.
  */
-export function getStrokePoints(
-  rawInputPoints: Vector3[],
-  options: StrokeOptions = {},
-): StrokePoint[] {
+export function getStrokePoints(rawInputPoints: Vector3[], options: StrokeOptions): StrokePoint[] {
   const { streamline = 0.5, size = 16, simulatePressure = false } = options;
 
   // if we don't have any points, return an empty array
