@@ -1,9 +1,6 @@
 import { averageVector2String, toDomPrecision, vector2String } from "@destack-web/shared/dom/utils";
-import {
-  getStrokeOutlineTracks,
-  getStrokePoints,
-} from "@destack-web/shared/freehand/stroke";
 import { setStrokePointRadii } from "@destack-web/shared/freehand/radius";
+import { getStrokeOutlineTracks, getStrokePoints } from "@destack-web/shared/freehand/stroke";
 import { StrokeOptions, StrokePoint } from "@destack-web/shared/freehand/types";
 import { Vector3 } from "destack";
 
@@ -11,11 +8,11 @@ import { Vector3 } from "destack";
  * Generate SVG path data for stroke with ink-like rendering.
  * Uses partitioning at elbows for more natural line appearance.
  */
-export function svgInk(rawInputPoints: Vector3[], options: StrokeOptions = {}) {
+export function renderStroke(rawInputPoints: Vector3[], options: StrokeOptions = {}) {
   const points = getStrokePoints(rawInputPoints, options);
   setStrokePointRadii(points, options);
   const partitions = partitionAtElbows(points);
-  
+
   let svg = "";
   for (const partition of partitions) {
     svg += renderPartition(partition, options);
@@ -58,7 +55,7 @@ function partitionAtElbows(points: StrokePoint[]): StrokePoint[][] {
       currentPartition = [elbowPoint];
       continue;
     }
-    
+
     currentPartition.push(thisPoint);
 
     if (dpr > 0.7) {
@@ -66,23 +63,20 @@ function partitionAtElbows(points: StrokePoint[]): StrokePoint[][] {
       continue;
     }
 
-    // so now we have a reasonably acute angle but it might not be an elbow if it's far
-    // away from its neighbors, angular dist is a normalized representation of how far away 
-    // the point is from it's neighbors (normalized by the radius)
+    // we have a reasonably acute angle but it might not be an elbow if it's far
     if (
       (prevPoint.point.distance2(thisPoint.point) + thisPoint.point.distance2(nextPoint.point)) /
         ((prevPoint.radius + thisPoint.radius + nextPoint.radius) / 3) ** 2 <
       1.5
     ) {
-      // if this point is kinda close to its neighbors and it has a reasonably
-      // acute angle, it's probably a hard elbow
+      // point is also close to its neighbors, probably a hard elbow
       currentPartition.push(thisPoint);
       result.push(cleanUpPartition(currentPartition));
       currentPartition = [thisPoint];
       continue;
     }
   }
-  
+
   currentPartition.push(points[points.length - 1]);
   result.push(cleanUpPartition(currentPartition));
 
@@ -97,7 +91,7 @@ function cleanUpPartition(partition: StrokePoint[]) {
   // clean up start of partition (remove points that are too close to the start)
   const startPoint = partition[0];
   let nextPoint: StrokePoint;
-  
+
   while (partition.length > 2) {
     nextPoint = partition[1];
     if (
@@ -109,11 +103,11 @@ function cleanUpPartition(partition: StrokePoint[]) {
       break;
     }
   }
-  
+
   // clean up end of partition in the same fashion
   const endPoint = partition[partition.length - 1];
   let prevPoint: StrokePoint;
-  
+
   while (partition.length > 2) {
     prevPoint = partition[partition.length - 2];
     if (
@@ -125,7 +119,7 @@ function cleanUpPartition(partition: StrokePoint[]) {
       break;
     }
   }
-  
+
   // now readjust the cap point vectors to point to their nearest neighbors
   if (partition.length > 1) {
     partition[0] = {
@@ -139,14 +133,14 @@ function cleanUpPartition(partition: StrokePoint[]) {
         .normalize(),
     };
   }
-  
+
   return partition;
 }
 
 /**
  * Generate SVG circle path for single point strokes.
  */
-function circlePath(cx: number, cy: number, r: number) {
+function renderCirclePath(cx: number, cy: number, r: number) {
   return (
     "M " +
     cx +
@@ -176,9 +170,13 @@ function circlePath(cx: number, cy: number, r: number) {
  */
 function renderPartition(strokePoints: StrokePoint[], options: StrokeOptions = {}): string {
   if (strokePoints.length === 0) return "";
-  
+
   if (strokePoints.length === 1) {
-    return circlePath(strokePoints[0].point.x, strokePoints[0].point.y, strokePoints[0].radius);
+    return renderCirclePath(
+      strokePoints[0].point.x,
+      strokePoints[0].point.y,
+      strokePoints[0].radius,
+    );
   }
 
   const { left, right } = getStrokeOutlineTracks(strokePoints, options);
@@ -189,7 +187,7 @@ function renderPartition(strokePoints: StrokePoint[], options: StrokeOptions = {
   for (let i = 1; i < left.length; i++) {
     svg += averageVector2String(left[i - 1], left[i]);
   }
-  
+
   // draw end cap arc
   {
     const point = strokePoints[strokePoints.length - 1];
@@ -201,12 +199,12 @@ function renderPartition(strokePoints: StrokePoint[], options: StrokeOptions = {
       radius,
     )} 0 0 1 ${vector2String(arcEnd)}T`;
   }
-  
+
   // draw right track
   for (let i = 1; i < right.length; i++) {
     svg += averageVector2String(right[i - 1], right[i]);
   }
-  
+
   // draw start cap arc
   {
     const point = strokePoints[0];
@@ -218,7 +216,7 @@ function renderPartition(strokePoints: StrokePoint[], options: StrokeOptions = {
       radius,
     )} 0 0 1 ${vector2String(arcEnd)}Z`;
   }
-  
+
   return svg;
 }
 
@@ -226,22 +224,19 @@ function renderPartition(strokePoints: StrokePoint[], options: StrokeOptions = {
  * Turn an array of stroke points into a path of quadratic curves.
  * Creates smooth curves between stroke points for SVG rendering.
  */
-export function getSvgPathFromStrokePoints(points: StrokePoint[], closed = false): string {
+export function getSvgPathFromStrokePoints(points: StrokePoint[], closed = false): string | null {
   const len = points.length;
-
   if (len < 2) {
-    return "";
+    return null; // nothing to render
   }
 
   let a = points[0].point;
   let b = points[1].point;
-
   if (len === 2) {
     return `M${vector2String(a)}L${vector2String(b)}`;
   }
 
   let result = "";
-
   for (let i = 2, max = len - 1; i < max; i++) {
     a = points[i].point;
     b = points[i + 1].point;

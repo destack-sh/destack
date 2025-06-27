@@ -1,9 +1,6 @@
 import { EASINGS } from "@destack-web/shared/easings";
 import { StrokeOptions, StrokePoint } from "@destack-web/shared/freehand/types";
 
-const { min } = Math;
-
-// rate of change for simulated pressure
 const RATE_OF_PRESSURE_CHANGE = 0.275;
 
 /**
@@ -48,13 +45,13 @@ export function setStrokePointRadii(
   for (let i = 0, n = strokePoints.length; i < n; i++) {
     strokePoint = strokePoints[i];
     if (strokePoint.runningLength > size * 5) break;
-    
-    const sp = min(1, strokePoint.distance / size);
+
+    const sp = Math.min(1, strokePoint.distance / size);
     if (simulatePressure) {
-      const rp = min(1, 1 - sp);
-      p = min(1, prevPressure + (rp - prevPressure) * (sp * RATE_OF_PRESSURE_CHANGE));
+      const rp = Math.min(1, 1 - sp);
+      p = Math.min(1, prevPressure + (rp - prevPressure) * (sp * RATE_OF_PRESSURE_CHANGE));
     } else {
-      p = min(1, prevPressure + (strokePoint.pressure - prevPressure) * 0.5);
+      p = Math.min(1, prevPressure + (strokePoint.pressure - prevPressure) * 0.5);
     }
     prevPressure = prevPressure + (p - prevPressure) * 0.5;
   }
@@ -62,18 +59,18 @@ export function setStrokePointRadii(
   // calculate pressure and radius for each point
   for (let i = 0; i < strokePoints.length; i++) {
     strokePoint = strokePoints[i];
-    
+
     if (thinning) {
       let { pressure } = strokePoint;
-      const sp = min(1, strokePoint.distance / size);
-      
+      const sp = Math.min(1, strokePoint.distance / size);
+
       if (simulatePressure) {
         // simulate pressure based on distance and stroke size
-        const rp = min(1, 1 - sp);
-        pressure = min(1, prevPressure + (rp - prevPressure) * (sp * RATE_OF_PRESSURE_CHANGE));
+        const rp = Math.min(1, 1 - sp);
+        pressure = Math.min(1, prevPressure + (rp - prevPressure) * (sp * RATE_OF_PRESSURE_CHANGE));
       } else {
         // use input pressure with light smoothing
-        pressure = min(
+        pressure = Math.min(
           1,
           prevPressure + (pressure - prevPressure) * (sp * RATE_OF_PRESSURE_CHANGE),
         );
@@ -109,18 +106,16 @@ export function setStrokePointRadii(
     for (let i = 0; i < strokePoints.length; i++) {
       strokePoint = strokePoints[i];
       const { runningLength } = strokePoint;
-
-      // calculate taper strength at start
-      const ts = runningLength < taperStart ? taperStartEase(runningLength / taperStart) : 1;
-
-      // calculate taper strength at end
-      const te =
+      const taperStartFactor =
+        runningLength < taperStart ? taperStartEase(runningLength / taperStart) : 1;
+      const taperEndFactor =
         totalLength - runningLength < taperEnd
           ? taperEndEase((totalLength - runningLength) / taperEnd)
           : 1;
-
-      // apply the smaller of the two taper strengths
-      strokePoint.radius = Math.max(0.01, strokePoint.radius * Math.min(ts, te));
+      strokePoint.radius = Math.max(
+        0.01,
+        strokePoint.radius * Math.min(taperStartFactor, taperEndFactor),
+      );
     }
   }
 
