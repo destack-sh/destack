@@ -300,6 +300,7 @@ export class Edit extends StructFrozen {
       if (this.key !== null) {
         propertyReprs.push(`key=${this.key.repr()}`);
       }
+      // @ts-expect-error(readonly)
       this._repr = `<Edit ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -695,6 +696,7 @@ export class Change extends StructFrozen {
       if (this.debounce !== null) {
         propertyReprs.push(`debounce=${ChangeDebounce[this.debounce]}`);
       }
+      // @ts-expect-error(readonly)
       this._repr = `<Change ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -1038,6 +1040,7 @@ export class ChangeResult extends StructFrozen {
         propertyReprs.push(`debounce=${ChangeDebounce[this.debounce]}`);
       }
       propertyReprs.push(`status=${ChangeStatus[this.status]}`);
+      // @ts-expect-error(readonly)
       this._repr = `<ChangeResult ${propertyReprs.join(" ")}>`;
     }
     return this._repr;

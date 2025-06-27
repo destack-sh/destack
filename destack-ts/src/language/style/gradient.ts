@@ -124,6 +124,7 @@ export class GradientStop extends StructFrozen {
         propertyReprs.push(`color=${this.color.repr()}`);
       }
       propertyReprs.push(`position=${this.position}`);
+      // @ts-expect-error(readonly)
       this._repr = `<GradientStop ${propertyReprs.join(" ")}>`;
     }
     return this._repr;

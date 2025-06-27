@@ -1339,6 +1339,7 @@ export class Type extends StructFrozen {
       if (this.keyType !== null) {
         propertyReprs.push(`keyType=${this.keyType.repr()}`);
       }
+      // @ts-expect-error(readonly)
       this._repr = `<Type ${propertyReprs.join(" ")}>`;
     }
     return this._repr;

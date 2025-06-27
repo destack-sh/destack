@@ -266,6 +266,8 @@ websocket-client==1.8.0
     # via kubernetes
 wrapt==1.17.2
     # via deprecated
+xxhash==3.5.0
+    # via -r destack-py/destack/requirements/requirements.in
 yarl==1.20.1
     # via aiohttp
 zipp==3.23.0

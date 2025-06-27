@@ -454,6 +454,7 @@ export class Position extends StructFrozen {
       if (this.height !== null) {
         propertyReprs.push(`height=${this.height.repr()}`);
       }
+      // @ts-expect-error(readonly)
       this._repr = `<Position ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -712,6 +713,7 @@ export class Dimension extends StructFrozen {
       propertyReprs.push(`type=${DimensionType[this.type]}`);
       propertyReprs.push(`unit=${LengthUnit[this.unit]}`);
       propertyReprs.push(`value=${this.value}`);
+      // @ts-expect-error(readonly)
       this._repr = `<Dimension ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -940,8 +942,10 @@ export class Insets extends StructFrozen {
         propertyReprs.push(`bottom=${this.bottom}`);
       }
       if (propertyReprs.length > 0) {
+        // @ts-expect-error(readonly)
         this._repr = `<Insets ${propertyReprs.join(" ")}>`;
       } else {
+        // @ts-expect-error(readonly)
         this._repr = `<Insets>`;
       }
     }
@@ -1209,8 +1213,10 @@ export class Corners extends StructFrozen {
         propertyReprs.push(`bottomRight=${this.bottomRight}`);
       }
       if (propertyReprs.length > 0) {
+        // @ts-expect-error(readonly)
         this._repr = `<Corners ${propertyReprs.join(" ")}>`;
       } else {
+        // @ts-expect-error(readonly)
         this._repr = `<Corners>`;
       }
     }
@@ -1459,8 +1465,10 @@ export class Axis2 extends StructFrozen {
         propertyReprs.push(`y=${this.y}`);
       }
       if (propertyReprs.length > 0) {
+        // @ts-expect-error(readonly)
         this._repr = `<Axis2 ${propertyReprs.join(" ")}>`;
       } else {
+        // @ts-expect-error(readonly)
         this._repr = `<Axis2>`;
       }
     }
@@ -1706,8 +1714,10 @@ export class Axis3 extends StructFrozen {
         propertyReprs.push(`z=${this.z}`);
       }
       if (propertyReprs.length > 0) {
+        // @ts-expect-error(readonly)
         this._repr = `<Axis3 ${propertyReprs.join(" ")}>`;
       } else {
+        // @ts-expect-error(readonly)
         this._repr = `<Axis3>`;
       }
     }
@@ -1975,6 +1985,7 @@ export class Grid extends StructFrozen {
       if (this.rowHeight !== null) {
         propertyReprs.push(`rowHeight=${this.rowHeight.repr()}`);
       }
+      // @ts-expect-error(readonly)
       this._repr = `<Grid ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -2218,6 +2229,7 @@ export class GridSpan extends StructFrozen {
       const propertyReprs: string[] = [];
       propertyReprs.push(`columns=${this.columns}`);
       propertyReprs.push(`rows=${this.rows}`);
+      // @ts-expect-error(readonly)
       this._repr = `<GridSpan ${propertyReprs.join(" ")}>`;
     }
     return this._repr;

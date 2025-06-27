@@ -151,8 +151,10 @@ export class Scope extends StructFrozen {
         propertyReprs.push(`spaceId=${this.spaceId}`);
       }
       if (propertyReprs.length > 0) {
+        // @ts-expect-error(readonly)
         this._repr = `<Scope ${propertyReprs.join(" ")}>`;
       } else {
+        // @ts-expect-error(readonly)
         this._repr = `<Scope>`;
       }
     }
@@ -389,6 +391,7 @@ export class RelationReference extends StructFrozen {
       if (this.traitType !== null) {
         propertyReprs.push(`traitType=${TraitType[this.traitType]}`);
       }
+      // @ts-expect-error(readonly)
       this._repr = `<RelationReference ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -688,6 +691,7 @@ export class ObjectReference extends StructFrozen {
       if (this.definition !== null) {
         propertyReprs.push(`definition=${this.definition.repr()}`);
       }
+      // @ts-expect-error(readonly)
       this._repr = `<ObjectReference ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -1004,6 +1008,7 @@ export class PropertyReference extends StructFrozen {
       if (this.customProperty !== null) {
         propertyReprs.push(`customProperty=${this.customProperty.repr()}`);
       }
+      // @ts-expect-error(readonly)
       this._repr = `<PropertyReference ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -1308,6 +1313,7 @@ export class NodeReference extends StructFrozen {
       if (this.definitionId !== null) {
         propertyReprs.push(`definitionId=${this.definitionId}`);
       }
+      // @ts-expect-error(readonly)
       this._repr = `<NodeReference ${propertyReprs.join(" ")}>`;
     }
     return this._repr;

@@ -582,6 +582,7 @@ export class PropertyDefinition extends StructFrozen {
       if (this.defaultFactory !== null) {
         propertyReprs.push(`defaultFactory=${DefaultFactory[this.defaultFactory]}`);
       }
+      // @ts-expect-error(readonly)
       this._repr = `<PropertyDefinition ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -1320,6 +1321,7 @@ export class TraitDefinition extends StructFrozen {
       if (this.description !== null) {
         propertyReprs.push(`description=${this.description}`);
       }
+      // @ts-expect-error(readonly)
       this._repr = `<TraitDefinition ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -1765,6 +1767,7 @@ export class NodeDefinition extends StructFrozen {
       if (this.description !== null) {
         propertyReprs.push(`description=${this.description}`);
       }
+      // @ts-expect-error(readonly)
       this._repr = `<NodeDefinition ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -2237,6 +2240,7 @@ export class StructDefinition extends StructFrozen {
       if (this.description !== null) {
         propertyReprs.push(`description=${this.description}`);
       }
+      // @ts-expect-error(readonly)
       this._repr = `<StructDefinition ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -2560,6 +2564,7 @@ export class EnumDefinition extends StructFrozen {
       if (this.description !== null) {
         propertyReprs.push(`description=${this.description}`);
       }
+      // @ts-expect-error(readonly)
       this._repr = `<EnumDefinition ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -2848,6 +2853,7 @@ export class OptionDefinition extends StructFrozen {
       if (this.description !== null) {
         propertyReprs.push(`description=${this.description}`);
       }
+      // @ts-expect-error(readonly)
       this._repr = `<OptionDefinition ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -3117,6 +3123,7 @@ export class PermissionDefinition extends StructFrozen {
       propertyReprs.push(`type=${EnumType[this.type]}`);
       propertyReprs.push(`name=${this.name}`);
       propertyReprs.push(`nodeType=${NodeType[this.nodeType]}`);
+      // @ts-expect-error(readonly)
       this._repr = `<PermissionDefinition ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -3363,6 +3370,7 @@ export class ConstantDefinition extends StructFrozen {
       if (this.description !== null) {
         propertyReprs.push(`description=${this.description}`);
       }
+      // @ts-expect-error(readonly)
       this._repr = `<ConstantDefinition ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
