@@ -767,22 +767,117 @@ def _generate_scalar_cmp_impl(prop: PropertyDeclaration) -> tuple[str, bool]:
 
 def _generate_hash(cls: type[BuiltinObjectBase]) -> str:
     """Generate a Typescript hash method."""
-    hash_str = """\
-hash(): number {
-  throw new Error("not implemented");
-}
+    hash_properties = [
+        prop for prop in cls.__properties__.values() if prop.is_hash and prop.is_wired
+    ]
+    assert hash_properties, f"{cls.__name__} has no properties to hash"
+    hash_parts: list[str] = ["let h = 1;"]
+    for prop in hash_properties:
+        prop_hash_impl = _generate_property_hash_impl(prop)
+        hash_parts.append(prop_hash_impl)
+    hash_parts.append("return h;")
+    hash_parts_str = "\n".join(hash_parts)
+
+    if cls.__is_frozen__ and not cls.__is_node__:
+        hash_impl = f"""\
+hash(): number {{
+  if (this._hash !== null) {{
+    return this._hash;
+  }}
+
+{textwrap.indent(hash_parts_str, "  ")}
+
+  // @ts-expect-error(readonly)
+  this._hash = h;
+  return h;
+}}
 """
-    return hash_str.strip()
+    else:
+        hash_impl = f"""\
+hash(): number {{
+{textwrap.indent(hash_parts_str, "  ")}
+}}
+"""
+    return hash_impl.strip()
 
 
 def _generate_property_hash_impl(prop: PropertyDeclaration) -> str:
     """Generate a Typescript hash method for a single property."""
-    ...
+    prop_name = to_casing(prop.name, Casing.LOWER_CAMEL)
+    if prop.scalar_type == ScalarType.NODE_REFERENCE:
+        prop_name = f"{prop_name}Ptr"
+
+    if prop.cardinality == TypeCardinality.SCALAR:
+        if prop.is_required:
+            scalar_hash_str = _generate_scalar_hash_impl(prop, f"this.{prop_name}")
+            return f"h = ((h * 31) + {scalar_hash_str}) & 0xFFFFFFFF;"
+        else:
+            scalar_hash_str = _generate_scalar_hash_impl(prop, f"this.{prop_name}")
+            return f"""\
+if (this.{prop_name} !== null) {{
+  h = ((h * 31) + {scalar_hash_str}) & 0xFFFFFFFF;
+}}"""
+    elif prop.cardinality == TypeCardinality.LIST:
+        scalar_hash_str = _generate_scalar_hash_impl(prop, "_item")
+        return f"""\
+if (this.{prop_name} && this.{prop_name}.length > 0) {{
+  for (const _item of this.{prop_name}) {{
+    h = ((h * 31) + {scalar_hash_str}) & 0xFFFFFFFF;
+  }}
+}}"""
+    elif prop.cardinality == TypeCardinality.MAP:
+        assert prop.key_type is not None, f"{prop.name} has no key type"
+        key_hash_str = _generate_scalar_hash_impl(prop.key_type, "_key")
+        value_hash_str = _generate_scalar_hash_impl(prop, "_value")
+        return f"""\
+if (this.{prop_name} && Object.keys(this.{prop_name}).length > 0) {{
+  for (const [_key, _value] of Object.entries(this.{prop_name})) {{
+    h = ((h * 31) + {key_hash_str}) & 0xFFFFFFFF;
+    h = ((h * 31) + {value_hash_str}) & 0xFFFFFFFF;
+  }}
+}}"""
+    else:
+        assert_never(prop.cardinality)
 
 
-def _generate_scalar_hash_impl(prop: PropertyDeclaration) -> str:
+def _generate_scalar_hash_impl(prop: TypeDeclaration | PropertyDeclaration, value_expr: str) -> str:
     """Generate a Typescript hash method for a single scalar property."""
-    ...
+    if prop.scalar_type == ScalarType.PRIMITIVE:
+        assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
+        if prop.primitive_type in (PrimitiveType.FLOAT32, PrimitiveType.FLOAT64):
+            return f"hashFloat({value_expr})"
+        elif prop.primitive_type in (PrimitiveType.INT16, PrimitiveType.INT32, PrimitiveType.INT64):
+            return f"hashInt({value_expr})"
+        elif prop.primitive_type == PrimitiveType.DECIMAL:
+            raise NotImplementedError(f"cannot hash decimal: {prop!r}")
+        elif prop.primitive_type == PrimitiveType.BOOLEAN:
+            return f"hashBool({value_expr})"
+        elif prop.primitive_type == PrimitiveType.STRING:
+            return f"hashString({value_expr})"
+        elif prop.primitive_type == PrimitiveType.BYTES:
+            return f"hashBytes({value_expr})"
+        elif prop.primitive_type == PrimitiveType.UUID:
+            return f"hashString({value_expr}.toString())"
+        elif prop.primitive_type == PrimitiveType.DATETIME:
+            return f"hashString({value_expr}.toString({{ timeZoneName: 'never'}}))"
+        elif prop.primitive_type in (PrimitiveType.DATE, PrimitiveType.TIME):
+            return f"hashString({value_expr}.toString())"
+        elif prop.primitive_type == PrimitiveType.DURATION:
+            return f"hashFloat({value_expr}.totalSeconds())"
+        elif prop.primitive_type == PrimitiveType.JSON:
+            return f"hashString(JSON.stringify({value_expr}))"
+        else:
+            assert_never(prop.primitive_type)
+    elif prop.scalar_type == ScalarType.ENUM:
+        return value_expr
+    elif prop.scalar_type == ScalarType.STRUCT:
+        return f"{value_expr}.hash()"
+    elif prop.scalar_type == ScalarType.NODE_VALUE:
+        raise NotImplementedError(f"cannot hash node value: {prop!r}")
+    elif prop.scalar_type == ScalarType.NODE_REFERENCE:
+        return f"hashString({value_expr}.id)"
+    else:
+        assert_never(prop.scalar_type)
 
 
 def _generate_validate(cls: type[BuiltinObjectBase]) -> str:
@@ -1480,6 +1575,9 @@ def _generate_file(
     import_parts.append("import type { IMessageType } from '@protobuf-ts/runtime';")
     import_parts.append("import { Temporal } from 'temporal-polyfill';")
     import_parts.append("import { v4 as uuid4 } from 'uuid';")
+    import_parts.append(
+        "import { hashString, hashBytes, hashInt, hashFloat, hashBool } from '@destack/utils/hash';"
+    )
     for import_ in import_block.imports:
         if not import_.path.startswith("@destack/language"):
             import_parts.append(import_.content)

@@ -30,6 +30,7 @@ import {
   TextTransformProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
+import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12026 ==== */
@@ -371,7 +372,37 @@ export class Font extends Struct {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.stylePtr !== null) {
+      h = (h * 31 + hashString(this.stylePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.weight !== null) {
+      h = (h * 31 + this.weight) & 0xffffffff;
+    }
+    if (this.color !== null) {
+      h = (h * 31 + this.color.hash()) & 0xffffffff;
+    }
+    if (this.size !== null) {
+      h = (h * 31 + this.size) & 0xffffffff;
+    }
+    if (this.align !== null) {
+      h = (h * 31 + this.align) & 0xffffffff;
+    }
+    if (this.lineHeight !== null) {
+      h = (h * 31 + this.lineHeight.hash()) & 0xffffffff;
+    }
+    if (this.letterSpacing !== null) {
+      h = (h * 31 + this.letterSpacing.hash()) & 0xffffffff;
+    }
+    if (this.decoration !== null) {
+      h = (h * 31 + this.decoration) & 0xffffffff;
+    }
+    if (this.transform !== null) {
+      h = (h * 31 + this.transform) & 0xffffffff;
+    }
+    return h;
   }
 
   validate(): void {
@@ -959,7 +990,54 @@ export class FontStyle extends Node implements Style {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    if (this.deletedAt !== null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.weight !== null) {
+      h = (h * 31 + this.weight) & 0xffffffff;
+    }
+    if (this.color !== null) {
+      h = (h * 31 + this.color.hash()) & 0xffffffff;
+    }
+    if (this.size !== null) {
+      h = (h * 31 + this.size) & 0xffffffff;
+    }
+    if (this.align !== null) {
+      h = (h * 31 + this.align) & 0xffffffff;
+    }
+    if (this.lineHeight !== null) {
+      h = (h * 31 + this.lineHeight.hash()) & 0xffffffff;
+    }
+    if (this.letterSpacing !== null) {
+      h = (h * 31 + this.letterSpacing.hash()) & 0xffffffff;
+    }
+    if (this.decoration !== null) {
+      h = (h * 31 + this.decoration) & 0xffffffff;
+    }
+    if (this.transform !== null) {
+      h = (h * 31 + this.transform) & 0xffffffff;
+    }
+    return h;
   }
 
   validate(): void {

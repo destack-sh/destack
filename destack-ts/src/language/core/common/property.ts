@@ -53,6 +53,7 @@ import {
   TypeCardinalityProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
+import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2580 ==== */
@@ -650,7 +651,86 @@ export class CustomProperty
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + this.cardinality) & 0xffffffff;
+    h = (h * 31 + this.scalarType) & 0xffffffff;
+    if (this.primitiveType !== null) {
+      h = (h * 31 + this.primitiveType) & 0xffffffff;
+    }
+    if (this.enumType !== null) {
+      h = (h * 31 + this.enumType) & 0xffffffff;
+    }
+    if (this.nodeType !== null) {
+      h = (h * 31 + this.nodeType) & 0xffffffff;
+    }
+    if (this.nodeDefinitionPtr !== null) {
+      h = (h * 31 + hashString(this.nodeDefinitionPtr.id)) & 0xffffffff;
+    }
+    if (this.structType !== null) {
+      h = (h * 31 + this.structType) & 0xffffffff;
+    }
+    if (this.baseTypePtr !== null) {
+      h = (h * 31 + hashString(this.baseTypePtr.id)) & 0xffffffff;
+    }
+    if (this.keyType !== null) {
+      h = (h * 31 + this.keyType.hash()) & 0xffffffff;
+    }
+    if (this.isRequired !== null) {
+      h = (h * 31 + hashBool(this.isRequired)) & 0xffffffff;
+    }
+    if (this.defaultValue !== null) {
+      h = (h * 31 + this.defaultValue.hash()) & 0xffffffff;
+    }
+    if (this.defaultFactory !== null) {
+      h = (h * 31 + this.defaultFactory) & 0xffffffff;
+    }
+    if (this.collectionConstraint !== null) {
+      h = (h * 31 + this.collectionConstraint.hash()) & 0xffffffff;
+    }
+    if (this.stringConstraint !== null) {
+      h = (h * 31 + this.stringConstraint.hash()) & 0xffffffff;
+    }
+    if (this.numberConstraint !== null) {
+      h = (h * 31 + this.numberConstraint.hash()) & 0xffffffff;
+    }
+    if (this.nodeConstraint !== null) {
+      h = (h * 31 + this.nodeConstraint.hash()) & 0xffffffff;
+    }
+    if (this.edgeType !== null) {
+      h = (h * 31 + this.edgeType) & 0xffffffff;
+    }
+    if (this.cascade !== null) {
+      h = (h * 31 + this.cascade) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    if (this.icon !== null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
+    if (this.deletedAt !== null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    if (this.sourcePtr !== null) {
+      h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    return h;
   }
 
   validate(): void {

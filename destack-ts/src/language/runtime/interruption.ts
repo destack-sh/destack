@@ -31,6 +31,7 @@ import {
   InterruptionTypeProto,
 } from "@destack/proto";
 import { base64Decode, timedeltaFromISOFormat, timedeltaToISOFormat } from "@destack/utils";
+import { hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:4020 ==== */
@@ -424,7 +425,50 @@ export class Interruption
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.runnablePtr !== null) {
+      h = (h * 31 + hashString(this.runnablePtr.id)) & 0xffffffff;
+    }
+    if (this.spanPtr !== null) {
+      h = (h * 31 + hashString(this.spanPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + this.status) & 0xffffffff;
+    if (this.duration !== null) {
+      h = (h * 31 + hashFloat(this.duration.totalSeconds())) & 0xffffffff;
+    }
+    if (this.closedAt !== null) {
+      h = (h * 31 + hashString(this.closedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    if (this.response !== null) {
+      h = (h * 31 + this.response) & 0xffffffff;
+    }
+    if (this.messagePtr !== null) {
+      h = (h * 31 + hashString(this.messagePtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    if (this.value && Object.keys(this.value).length > 0) {
+      for (const [_key, _value] of Object.entries(this.value)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
+    return h;
   }
 
   validate(): void {

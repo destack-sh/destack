@@ -33,6 +33,7 @@ import {
   timedeltaFromISOFormat,
   timedeltaToISOFormat,
 } from "@destack/utils";
+import { hashBytes, hashFloat, hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2541 ==== */
@@ -608,7 +609,79 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + this.source) & 0xffffffff;
+    if (this.mimeType !== null) {
+      h = (h * 31 + hashString(this.mimeType)) & 0xffffffff;
+    }
+    if (this.format !== null) {
+      h = (h * 31 + this.format) & 0xffffffff;
+    }
+    if (this.size !== null) {
+      h = (h * 31 + hashInt(this.size)) & 0xffffffff;
+    }
+    if (this.sha256 !== null) {
+      h = (h * 31 + hashString(this.sha256)) & 0xffffffff;
+    }
+    if (this.width !== null) {
+      h = (h * 31 + hashInt(this.width)) & 0xffffffff;
+    }
+    if (this.height !== null) {
+      h = (h * 31 + hashInt(this.height)) & 0xffffffff;
+    }
+    if (this.aspectRatio !== null) {
+      h = (h * 31 + hashFloat(this.aspectRatio)) & 0xffffffff;
+    }
+    if (this.codec !== null) {
+      h = (h * 31 + hashString(this.codec)) & 0xffffffff;
+    }
+    if (this.duration !== null) {
+      h = (h * 31 + hashFloat(this.duration.totalSeconds())) & 0xffffffff;
+    }
+    if (this.url !== null) {
+      h = (h * 31 + hashString(this.url)) & 0xffffffff;
+    }
+    if (this.contentUrl !== null) {
+      h = (h * 31 + hashString(this.contentUrl)) & 0xffffffff;
+    }
+    if (this.thumbnailUrl !== null) {
+      h = (h * 31 + hashString(this.thumbnailUrl)) & 0xffffffff;
+    }
+    if (this.faviconUrl !== null) {
+      h = (h * 31 + hashString(this.faviconUrl)) & 0xffffffff;
+    }
+    if (this.thumbnailWidth !== null) {
+      h = (h * 31 + hashInt(this.thumbnailWidth)) & 0xffffffff;
+    }
+    if (this.thumbnailHeight !== null) {
+      h = (h * 31 + hashInt(this.thumbnailHeight)) & 0xffffffff;
+    }
+    if (this.content !== null) {
+      h = (h * 31 + hashBytes(this.content)) & 0xffffffff;
+    }
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + this.status) & 0xffffffff;
+    if (this.targetStatus !== null) {
+      h = (h * 31 + hashString(this.targetStatus.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    return h;
   }
 
   validate(): void {

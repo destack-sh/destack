@@ -42,6 +42,7 @@ import {
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { assertNever } from "@destack/utils/functools";
+import { hashBool, hashInt, hashString } from "@destack/utils/hash";
 import { v4 as uuid4 } from "uuid";
 
 /* ==== DESTACK_GENERATED_START:ENUM:108 ==== */
@@ -310,7 +311,22 @@ export class Function extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + this.left.hash()) & 0xffffffff;
+    if (this.right !== null) {
+      h = (h * 31 + this.right.hash()) & 0xffffffff;
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -532,7 +548,22 @@ export class Condition extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + this.left.hash()) & 0xffffffff;
+    if (this.right !== null) {
+      h = (h * 31 + this.right.hash()) & 0xffffffff;
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -745,7 +776,21 @@ export class Aggregation extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.expression !== null) {
+      h = (h * 31 + this.expression.hash()) & 0xffffffff;
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -1022,7 +1067,33 @@ export class Expression extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.literal !== null) {
+      h = (h * 31 + this.literal.hash()) & 0xffffffff;
+    }
+    if (this.attribute !== null) {
+      h = (h * 31 + this.attribute.hash()) & 0xffffffff;
+    }
+    if (this.condition !== null) {
+      h = (h * 31 + this.condition.hash()) & 0xffffffff;
+    }
+    if (this.function !== null) {
+      h = (h * 31 + this.function.hash()) & 0xffffffff;
+    }
+    if (this.aggregation !== null) {
+      h = (h * 31 + this.aggregation.hash()) & 0xffffffff;
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -1344,7 +1415,22 @@ export class Sort extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + this.by.hash()) & 0xffffffff;
+    if (this.mode !== null) {
+      h = (h * 31 + this.mode) & 0xffffffff;
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -1540,7 +1626,22 @@ export class Select extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.attributes && this.attributes.length > 0) {
+      for (const _item of this.attributes) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -1804,7 +1905,28 @@ export class Join extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.relation !== null) {
+      h = (h * 31 + this.relation.hash()) & 0xffffffff;
+    }
+    h = (h * 31 + hashBool(this.recursive)) & 0xffffffff;
+    if (this.depth !== null) {
+      h = (h * 31 + hashInt(this.depth)) & 0xffffffff;
+    }
+    if (this.on !== null) {
+      h = (h * 31 + this.on.hash()) & 0xffffffff;
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -2269,7 +2391,57 @@ export class Query extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    h = (h * 31 + this.relation.hash()) & 0xffffffff;
+    if (this.join !== null) {
+      h = (h * 31 + this.join.hash()) & 0xffffffff;
+    }
+    if (this.select !== null) {
+      h = (h * 31 + this.select.hash()) & 0xffffffff;
+    }
+    if (this.subqueries && this.subqueries.length > 0) {
+      for (const _item of this.subqueries) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.where !== null) {
+      h = (h * 31 + this.where.hash()) & 0xffffffff;
+    }
+    if (this.having !== null) {
+      h = (h * 31 + this.having.hash()) & 0xffffffff;
+    }
+    if (this.groupBy && this.groupBy.length > 0) {
+      for (const _item of this.groupBy) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.aggregation !== null) {
+      h = (h * 31 + this.aggregation.hash()) & 0xffffffff;
+    }
+    if (this.sort && this.sort.length > 0) {
+      for (const _item of this.sort) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.limit !== null) {
+      h = (h * 31 + hashInt(this.limit)) & 0xffffffff;
+    }
+    if (this.offset !== null) {
+      h = (h * 31 + hashInt(this.offset)) & 0xffffffff;
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -2686,7 +2858,27 @@ export class Histogram extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.buckets && this.buckets.length > 0) {
+      for (const _item of this.buckets) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.counts && this.counts.length > 0) {
+      for (const _item of this.counts) {
+        h = (h * 31 + hashInt(_item)) & 0xffffffff;
+      }
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -3014,7 +3206,35 @@ export class QueryResult extends Struct {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this.groups && this.groups.length > 0) {
+      for (const _item of this.groups) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.subresults && this.subresults.length > 0) {
+      for (const _item of this.subresults) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.nodes && this.nodes.length > 0) {
+      for (const _item of this.nodes) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.count !== null) {
+      h = (h * 31 + hashInt(this.count)) & 0xffffffff;
+    }
+    if (this.exists !== null) {
+      h = (h * 31 + hashBool(this.exists)) & 0xffffffff;
+    }
+    if (this.scalar !== null) {
+      h = (h * 31 + this.scalar.hash()) & 0xffffffff;
+    }
+    return h;
   }
 
   validate(): void {
@@ -3365,7 +3585,25 @@ export class QueryResultGroup extends Struct {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.discriminator.hash()) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.nodes && this.nodes.length > 0) {
+      for (const _item of this.nodes) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.count !== null) {
+      h = (h * 31 + hashInt(this.count)) & 0xffffffff;
+    }
+    if (this.exists !== null) {
+      h = (h * 31 + hashBool(this.exists)) & 0xffffffff;
+    }
+    if (this.scalar !== null) {
+      h = (h * 31 + this.scalar.hash()) & 0xffffffff;
+    }
+    return h;
   }
 
   validate(): void {
@@ -3623,7 +3861,21 @@ export class QueryUpdate extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.result !== null) {
+      h = (h * 31 + this.result.hash()) & 0xffffffff;
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -3784,7 +4036,17 @@ export class Selection extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {

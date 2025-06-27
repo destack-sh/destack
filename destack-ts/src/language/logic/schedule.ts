@@ -4,6 +4,7 @@ import { EnumType, Struct, StructType } from "@destack/language/core/builtin";
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { DayOfWeekProto, MonthProto, ScheduleFrequencyProto, ScheduleProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
+import { hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:3051 ==== */
@@ -372,7 +373,73 @@ export class Schedule extends Struct {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.frequency) & 0xffffffff;
+    h = (h * 31 + hashInt(this.interval)) & 0xffffffff;
+    if (this.start !== null) {
+      h = (h * 31 + hashString(this.start.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    if (this.end !== null) {
+      h = (h * 31 + hashString(this.end.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    if (this.count !== null) {
+      h = (h * 31 + hashInt(this.count)) & 0xffffffff;
+    }
+    if (this.weekStart !== null) {
+      h = (h * 31 + this.weekStart) & 0xffffffff;
+    }
+    if (this.bySetPos && this.bySetPos.length > 0) {
+      for (const _item of this.bySetPos) {
+        h = (h * 31 + hashInt(_item)) & 0xffffffff;
+      }
+    }
+    if (this.byMonth && this.byMonth.length > 0) {
+      for (const _item of this.byMonth) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this.byMonthDay && this.byMonthDay.length > 0) {
+      for (const _item of this.byMonthDay) {
+        h = (h * 31 + hashInt(_item)) & 0xffffffff;
+      }
+    }
+    if (this.byYearDay && this.byYearDay.length > 0) {
+      for (const _item of this.byYearDay) {
+        h = (h * 31 + hashInt(_item)) & 0xffffffff;
+      }
+    }
+    if (this.byEaster && this.byEaster.length > 0) {
+      for (const _item of this.byEaster) {
+        h = (h * 31 + hashInt(_item)) & 0xffffffff;
+      }
+    }
+    if (this.byWeekNo && this.byWeekNo.length > 0) {
+      for (const _item of this.byWeekNo) {
+        h = (h * 31 + hashInt(_item)) & 0xffffffff;
+      }
+    }
+    if (this.byWeekDay && this.byWeekDay.length > 0) {
+      for (const _item of this.byWeekDay) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this.byHour && this.byHour.length > 0) {
+      for (const _item of this.byHour) {
+        h = (h * 31 + hashInt(_item)) & 0xffffffff;
+      }
+    }
+    if (this.byMinute && this.byMinute.length > 0) {
+      for (const _item of this.byMinute) {
+        h = (h * 31 + hashInt(_item)) & 0xffffffff;
+      }
+    }
+    if (this.bySecond && this.bySecond.length > 0) {
+      for (const _item of this.bySecond) {
+        h = (h * 31 + hashInt(_item)) & 0xffffffff;
+      }
+    }
+    return h;
   }
 
   validate(): void {

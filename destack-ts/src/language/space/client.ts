@@ -19,6 +19,7 @@ import { registerNodeClass, registerStructClass } from "@destack/language/regist
 import { User } from "@destack/language/space";
 import { ClientProto, ClientTypeProto, OriginProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
+import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50001 ==== */
@@ -116,7 +117,27 @@ export class Origin extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.id !== null) {
+      h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    }
+    if (this.ck !== null) {
+      h = (h * 31 + hashString(this.ck.toString())) & 0xffffffff;
+    }
+    if (this.nonce !== null) {
+      h = (h * 31 + hashString(this.nonce.toString())) & 0xffffffff;
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -600,7 +621,59 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.machinePtr !== null) {
+      h = (h * 31 + hashString(this.machinePtr.id)) & 0xffffffff;
+    }
+    if (this.userPtr !== null) {
+      h = (h * 31 + hashString(this.userPtr.id)) & 0xffffffff;
+    }
+    if (this.accessToken !== null) {
+      h = (h * 31 + hashString(this.accessToken)) & 0xffffffff;
+    }
+    if (this.seenAt !== null) {
+      h = (h * 31 + hashString(this.seenAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    if (this.loggedInAt !== null) {
+      h = (h * 31 + hashString(this.loggedInAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    if (this.cursorPtr !== null) {
+      h = (h * 31 + hashString(this.cursorPtr.id)) & 0xffffffff;
+    }
+    if (this.deviceType !== null) {
+      h = (h * 31 + hashString(this.deviceType)) & 0xffffffff;
+    }
+    if (this.deviceName !== null) {
+      h = (h * 31 + hashString(this.deviceName)) & 0xffffffff;
+    }
+    if (this.operatingSystem !== null) {
+      h = (h * 31 + hashString(this.operatingSystem)) & 0xffffffff;
+    }
+    if (this.browserName !== null) {
+      h = (h * 31 + hashString(this.browserName)) & 0xffffffff;
+    }
+    if (this.browserVersion !== null) {
+      h = (h * 31 + hashString(this.browserVersion)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    if (this.deletedAt !== null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    return h;
   }
 
   validate(): void {

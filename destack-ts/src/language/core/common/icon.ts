@@ -5,6 +5,7 @@ import { registerEnumClass, registerStructClass } from "@destack/language/regist
 import { Color } from "@destack/language/style";
 import { IconProto, IconTypeProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
+import { hashString } from "@destack/utils/hash";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2531 ==== */
 /**
@@ -168,7 +169,36 @@ export class Icon extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.emoji !== null) {
+      h = (h * 31 + hashString(this.emoji)) & 0xffffffff;
+    }
+    if (this.faName !== null) {
+      h = (h * 31 + hashString(this.faName)) & 0xffffffff;
+    }
+    if (this.vscName !== null) {
+      h = (h * 31 + hashString(this.vscName)) & 0xffffffff;
+    }
+    if (this.filePtr !== null) {
+      h = (h * 31 + hashString(this.filePtr.id)) & 0xffffffff;
+    }
+    if (this.fileUrl !== null) {
+      h = (h * 31 + hashString(this.fileUrl)) & 0xffffffff;
+    }
+    if (this.color !== null) {
+      h = (h * 31 + this.color.hash()) & 0xffffffff;
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {

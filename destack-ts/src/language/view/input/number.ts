@@ -10,6 +10,7 @@ import { ContainerView } from "@destack/language/view/container";
 import { InputView } from "@destack/language/view/input";
 import { NumberInputViewProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
+import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:10400 ==== */
@@ -448,7 +449,65 @@ export class NumberInputView extends Node implements InputView {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.value !== null) {
+      h = (h * 31 + hashString(this.value)) & 0xffffffff;
+    }
+    if (this.placeholder !== null) {
+      h = (h * 31 + hashString(this.placeholder)) & 0xffffffff;
+    }
+    if (this.isVisible !== null) {
+      h = (h * 31 + hashBool(this.isVisible)) & 0xffffffff;
+    }
+    if (this.opacity !== null) {
+      h = (h * 31 + hashFloat(this.opacity)) & 0xffffffff;
+    }
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.position !== null) {
+      h = (h * 31 + this.position.hash()) & 0xffffffff;
+    }
+    if (this.width !== null) {
+      h = (h * 31 + this.width.hash()) & 0xffffffff;
+    }
+    if (this.height !== null) {
+      h = (h * 31 + this.height.hash()) & 0xffffffff;
+    }
+    if (this.minWidth !== null) {
+      h = (h * 31 + this.minWidth.hash()) & 0xffffffff;
+    }
+    if (this.minHeight !== null) {
+      h = (h * 31 + this.minHeight.hash()) & 0xffffffff;
+    }
+    if (this.maxWidth !== null) {
+      h = (h * 31 + this.maxWidth.hash()) & 0xffffffff;
+    }
+    if (this.maxHeight !== null) {
+      h = (h * 31 + this.maxHeight.hash()) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    if (this.scriptPtr !== null) {
+      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
+    if (this.deletedAt !== null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    return h;
   }
 
   validate(): void {

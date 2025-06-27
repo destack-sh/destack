@@ -15,6 +15,7 @@ import { registerEnumClass, registerNodeClass } from "@destack/language/registry
 import { Space } from "@destack/language/space";
 import { LinkProto, LinkTypeProto, ResourceStatusProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
+import { hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2550 ==== */
@@ -389,7 +390,70 @@ export class Link extends Node implements Spatial, Resource {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.url !== null) {
+      h = (h * 31 + hashString(this.url)) & 0xffffffff;
+    }
+    if (this.domain !== null) {
+      h = (h * 31 + hashString(this.domain)) & 0xffffffff;
+    }
+    if (this.contentUrl !== null) {
+      h = (h * 31 + hashString(this.contentUrl)) & 0xffffffff;
+    }
+    if (this.thumbnailUrl !== null) {
+      h = (h * 31 + hashString(this.thumbnailUrl)) & 0xffffffff;
+    }
+    if (this.faviconUrl !== null) {
+      h = (h * 31 + hashString(this.faviconUrl)) & 0xffffffff;
+    }
+    if (this.thumbnailWidth !== null) {
+      h = (h * 31 + hashInt(this.thumbnailWidth)) & 0xffffffff;
+    }
+    if (this.thumbnailHeight !== null) {
+      h = (h * 31 + hashInt(this.thumbnailHeight)) & 0xffffffff;
+    }
+    if (this.content !== null) {
+      h = (h * 31 + hashString(this.content)) & 0xffffffff;
+    }
+    if (this.attribution !== null) {
+      h = (h * 31 + hashString(this.attribution)) & 0xffffffff;
+    }
+    if (this.attributionTag !== null) {
+      h = (h * 31 + hashString(this.attributionTag)) & 0xffffffff;
+    }
+    if (this.publishedAt !== null) {
+      h = (h * 31 + hashString(this.publishedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    if (this.expiresAt !== null) {
+      h = (h * 31 + hashString(this.expiresAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    if (this.imageUrls && this.imageUrls.length > 0) {
+      for (const _item of this.imageUrls) {
+        h = (h * 31 + hashString(_item)) & 0xffffffff;
+      }
+    }
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + this.status) & 0xffffffff;
+    if (this.targetStatus !== null) {
+      h = (h * 31 + hashString(this.targetStatus.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    return h;
   }
 
   validate(): void {

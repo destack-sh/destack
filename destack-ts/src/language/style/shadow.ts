@@ -26,6 +26,7 @@ import {
   ShadowTypeProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
+import { hashFloat, hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12030 ==== */
@@ -247,7 +248,29 @@ export class Shadow extends Struct {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.stylePtr !== null) {
+      h = (h * 31 + hashString(this.stylePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.color !== null) {
+      h = (h * 31 + this.color.hash()) & 0xffffffff;
+    }
+    h = (h * 31 + this.position) & 0xffffffff;
+    if (this.offset !== null) {
+      h = (h * 31 + this.offset.hash()) & 0xffffffff;
+    }
+    if (this.blur !== null) {
+      h = (h * 31 + hashInt(this.blur)) & 0xffffffff;
+    }
+    if (this.spread !== null) {
+      h = (h * 31 + hashInt(this.spread)) & 0xffffffff;
+    }
+    if (this.diffusion !== null) {
+      h = (h * 31 + hashFloat(this.diffusion)) & 0xffffffff;
+    }
+    return h;
   }
 
   validate(): void {
@@ -767,7 +790,46 @@ export class ShadowStyle extends Node implements Style {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    if (this.deletedAt !== null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.color !== null) {
+      h = (h * 31 + this.color.hash()) & 0xffffffff;
+    }
+    h = (h * 31 + this.position) & 0xffffffff;
+    if (this.offset !== null) {
+      h = (h * 31 + this.offset.hash()) & 0xffffffff;
+    }
+    if (this.blur !== null) {
+      h = (h * 31 + hashInt(this.blur)) & 0xffffffff;
+    }
+    if (this.spread !== null) {
+      h = (h * 31 + hashInt(this.spread)) & 0xffffffff;
+    }
+    if (this.diffusion !== null) {
+      h = (h * 31 + hashFloat(this.diffusion)) & 0xffffffff;
+    }
+    return h;
   }
 
   validate(): void {

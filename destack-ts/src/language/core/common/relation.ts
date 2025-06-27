@@ -27,6 +27,7 @@ import {
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { assertNever } from "@destack/utils/functools";
+import { hashInt, hashString } from "@destack/utils/hash";
 
 /* ==== DESTACK_GENERATED_START:ENUM:50010 ==== */
 /**
@@ -162,7 +163,23 @@ export class Scope extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.region !== null) {
+      h = (h * 31 + this.region) & 0xffffffff;
+    }
+    if (this.spaceId !== null) {
+      h = (h * 31 + hashString(this.spaceId.toString())) & 0xffffffff;
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -398,7 +415,27 @@ export class RelationReference extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.nodeType !== null) {
+      h = (h * 31 + this.nodeType) & 0xffffffff;
+    }
+    if (this.definitionPtr !== null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
+    if (this.traitType !== null) {
+      h = (h * 31 + this.traitType) & 0xffffffff;
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -698,7 +735,30 @@ export class ObjectReference extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.nodeType !== null) {
+      h = (h * 31 + this.nodeType) & 0xffffffff;
+    }
+    if (this.traitType !== null) {
+      h = (h * 31 + this.traitType) & 0xffffffff;
+    }
+    if (this.structType !== null) {
+      h = (h * 31 + this.structType) & 0xffffffff;
+    }
+    if (this.definitionPtr !== null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -1015,7 +1075,33 @@ export class PropertyReference extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.nodeType !== null) {
+      h = (h * 31 + this.nodeType) & 0xffffffff;
+    }
+    if (this.traitType !== null) {
+      h = (h * 31 + this.traitType) & 0xffffffff;
+    }
+    if (this.structType !== null) {
+      h = (h * 31 + this.structType) & 0xffffffff;
+    }
+    if (this.id !== null) {
+      h = (h * 31 + hashInt(this.id)) & 0xffffffff;
+    }
+    if (this.customPropertyPtr !== null) {
+      h = (h * 31 + hashString(this.customPropertyPtr.id)) & 0xffffffff;
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -1320,7 +1406,25 @@ export class NodeReference extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.nodeType) & 0xffffffff;
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this.spaceId !== null) {
+      h = (h * 31 + hashString(this.spaceId.toString())) & 0xffffffff;
+    }
+    if (this.definitionId !== null) {
+      h = (h * 31 + hashString(this.definitionId.toString())) & 0xffffffff;
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {

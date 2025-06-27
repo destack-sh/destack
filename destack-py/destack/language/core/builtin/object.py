@@ -91,7 +91,6 @@ def _generate_init[ObjectT: BuiltinObjectBase](
     # header
     header_properties = dict(properties)
     if is_node:
-        header_properties.pop("_hash")
         header_properties.pop("_ref")
         header_properties.pop("_is_new")
         header_properties.pop("_is_attached")
@@ -162,7 +161,6 @@ def _generate_init[ObjectT: BuiltinObjectBase](
         body_properties.pop("_session")
         body_properties.pop("_graph")
         body_properties.pop("_connection")
-        body_properties.pop("_hash")
         body_properties.pop("_ref")
         body_properties.pop("_is_new")
         body_properties.pop("_is_attached")
@@ -203,7 +201,6 @@ else:
 {set_template_str.format("updated_at", "updated_at")}
 """)
         method_body_lines.append(f"""\
-{set_template_str.format("_hash", "id.int")}
 {set_template_str.format("_ref", "None")}
 {set_template_str.format("_is_new", "_is_new")}
 {set_template_str.format("_is_attached", "_is_attached")}
@@ -643,7 +640,7 @@ def hash(self) -> int:
     }
 
 
-_SCALAR_HASH_TEMPLATE = "h = ((h * 31) + {value_expr}) & 0xFFFFFFFF_FFFFFFFF"
+_SCALAR_HASH_TEMPLATE = "h = ((h * 31) + {value_expr}) & 0xFFFFFFFF"
 
 
 def _generate_property_hash_impl(prop: PropertyDeclaration) -> str:

@@ -33,6 +33,7 @@ import {
   TypeProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
+import { hashBool, hashFloat, hashInt, hashString } from "@destack/utils/hash";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2570 ==== */
 /**
@@ -163,7 +164,29 @@ export class StringConstraint extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.format !== null) {
+      h = (h * 31 + this.format) & 0xffffffff;
+    }
+    if (this.regex !== null) {
+      h = (h * 31 + hashString(this.regex)) & 0xffffffff;
+    }
+    if (this.startsWith !== null) {
+      h = (h * 31 + hashString(this.startsWith)) & 0xffffffff;
+    }
+    if (this.endsWith !== null) {
+      h = (h * 31 + hashString(this.endsWith)) & 0xffffffff;
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -434,7 +457,35 @@ export class NumberConstraint extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.format !== null) {
+      h = (h * 31 + this.format) & 0xffffffff;
+    }
+    if (this.minValue !== null) {
+      h = (h * 31 + hashFloat(this.minValue)) & 0xffffffff;
+    }
+    if (this.maxValue !== null) {
+      h = (h * 31 + hashFloat(this.maxValue)) & 0xffffffff;
+    }
+    if (this.stepValue !== null) {
+      h = (h * 31 + hashFloat(this.stepValue)) & 0xffffffff;
+    }
+    if (this.precision !== null) {
+      h = (h * 31 + hashInt(this.precision)) & 0xffffffff;
+    }
+    if (this.scale !== null) {
+      h = (h * 31 + hashInt(this.scale)) & 0xffffffff;
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -669,7 +720,23 @@ export class CollectionConstraint extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.minLength !== null) {
+      h = (h * 31 + hashInt(this.minLength)) & 0xffffffff;
+    }
+    if (this.maxLength !== null) {
+      h = (h * 31 + hashInt(this.maxLength)) & 0xffffffff;
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -880,7 +947,27 @@ export class NodeConstraint extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.nodeTypes && this.nodeTypes.length > 0) {
+      for (const _item of this.nodeTypes) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this.nodeTraits && this.nodeTraits.length > 0) {
+      for (const _item of this.nodeTraits) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -1346,7 +1433,64 @@ export class Type extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.cardinality) & 0xffffffff;
+    h = (h * 31 + this.scalarType) & 0xffffffff;
+    if (this.primitiveType !== null) {
+      h = (h * 31 + this.primitiveType) & 0xffffffff;
+    }
+    if (this.enumType !== null) {
+      h = (h * 31 + this.enumType) & 0xffffffff;
+    }
+    if (this.nodeType !== null) {
+      h = (h * 31 + this.nodeType) & 0xffffffff;
+    }
+    if (this.nodeDefinitionPtr !== null) {
+      h = (h * 31 + hashString(this.nodeDefinitionPtr.id)) & 0xffffffff;
+    }
+    if (this.structType !== null) {
+      h = (h * 31 + this.structType) & 0xffffffff;
+    }
+    if (this.baseTypePtr !== null) {
+      h = (h * 31 + hashString(this.baseTypePtr.id)) & 0xffffffff;
+    }
+    if (this.keyType !== null) {
+      h = (h * 31 + this.keyType.hash()) & 0xffffffff;
+    }
+    if (this.isRequired !== null) {
+      h = (h * 31 + hashBool(this.isRequired)) & 0xffffffff;
+    }
+    if (this.isVariable !== null) {
+      h = (h * 31 + hashBool(this.isVariable)) & 0xffffffff;
+    }
+    if (this.defaultValue !== null) {
+      h = (h * 31 + this.defaultValue.hash()) & 0xffffffff;
+    }
+    if (this.defaultFactory !== null) {
+      h = (h * 31 + this.defaultFactory) & 0xffffffff;
+    }
+    if (this.collectionConstraint !== null) {
+      h = (h * 31 + this.collectionConstraint.hash()) & 0xffffffff;
+    }
+    if (this.stringConstraint !== null) {
+      h = (h * 31 + this.stringConstraint.hash()) & 0xffffffff;
+    }
+    if (this.numberConstraint !== null) {
+      h = (h * 31 + this.numberConstraint.hash()) & 0xffffffff;
+    }
+    if (this.nodeConstraint !== null) {
+      h = (h * 31 + this.nodeConstraint.hash()) & 0xffffffff;
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {

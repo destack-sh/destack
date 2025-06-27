@@ -33,6 +33,7 @@ import {
   TextSplitTypeProto,
 } from "@destack/proto";
 import { base64Decode, timedeltaFromISOFormat, timedeltaToISOFormat } from "@destack/utils";
+import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12046 ==== */
@@ -422,7 +423,55 @@ export class Effect extends Struct {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.stylePtr !== null) {
+      h = (h * 31 + hashString(this.stylePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.opacity !== null) {
+      h = (h * 31 + hashFloat(this.opacity)) & 0xffffffff;
+    }
+    if (this.offset !== null) {
+      h = (h * 31 + this.offset.hash()) & 0xffffffff;
+    }
+    if (this.scale !== null) {
+      h = (h * 31 + hashFloat(this.scale)) & 0xffffffff;
+    }
+    if (this.rotate !== null) {
+      h = (h * 31 + this.rotate.hash()) & 0xffffffff;
+    }
+    if (this.skew !== null) {
+      h = (h * 31 + this.skew.hash()) & 0xffffffff;
+    }
+    if (this.perspective !== null) {
+      h = (h * 31 + hashFloat(this.perspective)) & 0xffffffff;
+    }
+    if (this.delay !== null) {
+      h = (h * 31 + hashFloat(this.delay.totalSeconds())) & 0xffffffff;
+    }
+    if (this.duration !== null) {
+      h = (h * 31 + hashFloat(this.duration)) & 0xffffffff;
+    }
+    if (this.threshold !== null) {
+      h = (h * 31 + hashFloat(this.threshold)) & 0xffffffff;
+    }
+    if (this.once !== null) {
+      h = (h * 31 + hashBool(this.once)) & 0xffffffff;
+    }
+    if (this.repeat !== null) {
+      h = (h * 31 + this.repeat) & 0xffffffff;
+    }
+    if (this.split !== null) {
+      h = (h * 31 + this.split) & 0xffffffff;
+    }
+    if (this.offscreen !== null) {
+      h = (h * 31 + this.offscreen) & 0xffffffff;
+    }
+    if (this.transition !== null) {
+      h = (h * 31 + this.transition.hash()) & 0xffffffff;
+    }
+    return h;
   }
 
   validate(): void {
@@ -1153,7 +1202,72 @@ export class EffectStyle extends Node implements Style {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    if (this.deletedAt !== null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.opacity !== null) {
+      h = (h * 31 + hashFloat(this.opacity)) & 0xffffffff;
+    }
+    if (this.offset !== null) {
+      h = (h * 31 + this.offset.hash()) & 0xffffffff;
+    }
+    if (this.scale !== null) {
+      h = (h * 31 + hashFloat(this.scale)) & 0xffffffff;
+    }
+    if (this.rotate !== null) {
+      h = (h * 31 + this.rotate.hash()) & 0xffffffff;
+    }
+    if (this.skew !== null) {
+      h = (h * 31 + this.skew.hash()) & 0xffffffff;
+    }
+    if (this.perspective !== null) {
+      h = (h * 31 + hashFloat(this.perspective)) & 0xffffffff;
+    }
+    if (this.delay !== null) {
+      h = (h * 31 + hashFloat(this.delay.totalSeconds())) & 0xffffffff;
+    }
+    if (this.duration !== null) {
+      h = (h * 31 + hashFloat(this.duration)) & 0xffffffff;
+    }
+    if (this.threshold !== null) {
+      h = (h * 31 + hashFloat(this.threshold)) & 0xffffffff;
+    }
+    if (this.once !== null) {
+      h = (h * 31 + hashBool(this.once)) & 0xffffffff;
+    }
+    if (this.repeat !== null) {
+      h = (h * 31 + this.repeat) & 0xffffffff;
+    }
+    if (this.split !== null) {
+      h = (h * 31 + this.split) & 0xffffffff;
+    }
+    if (this.offscreen !== null) {
+      h = (h * 31 + this.offscreen) & 0xffffffff;
+    }
+    if (this.transition !== null) {
+      h = (h * 31 + this.transition.hash()) & 0xffffffff;
+    }
+    return h;
   }
 
   validate(): void {
