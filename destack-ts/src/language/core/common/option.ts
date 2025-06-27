@@ -333,6 +333,12 @@ export class CustomOption
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    return `<CustomOption '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return CustomOption.__packValue__(this);
   }

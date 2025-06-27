@@ -1,26 +1,25 @@
 import { EASINGS } from "@destack-web/shared/easings";
 import { renderStroke } from "@destack-web/shared/freehand/svg";
 import { StrokeOptions } from "@destack-web/shared/freehand/types";
-import { computed, Signal, signal, useSignal } from "@preact/signals-react";
+import { computed, Signal, signal } from "@preact/signals-react";
 import { Line, LineType, Vector3 } from "destack";
-import React, { useEffect, useRef } from "react";
+import React, { useRef } from "react";
 
 const currentLine = signal<Line | null>(null);
 const lines = signal<Line[]>([]);
 
-export const Canvas: React.FC = () => {
-  const size = useSignal(12);
-  const thinning = useSignal(0.5);
-  const smoothing = useSignal(0.4);
-  const streamline = useSignal(0.2);
-  const simulatePressure = useSignal(true);
-  const taperStart = useSignal(false);
-  const taperEnd = useSignal(false);
-  const isDrawing = useSignal(false);
-  const lastMousePosition = useSignal<Vector3 | null>(null);
+const size = signal(12);
+const thinning = signal(0.5);
+const smoothing = signal(0.4);
+const streamline = signal(0.2);
+const simulatePressure = signal(true);
+const taperStart = signal(false);
+const taperEnd = signal(false);
+const isDrawing = signal(false);
+const lastMousePosition = signal<Vector3 | null>(null);
 
+export const Canvas: React.FC = () => {
   const svgRef = useRef<SVGSVGElement>(null);
-  const animationFrameId = useRef<number | null>(null);
 
   const strokeOptions: Signal<StrokeOptions> = computed(() => ({
     size: size.value,
@@ -55,69 +54,36 @@ export const Canvas: React.FC = () => {
 
   // high-frequency sampling using requestAnimationFrame
   console.log("render");
-  const sampleCurrentPosition = () => {
-    if (!isDrawing.value || !lastMousePosition.value || currentLine.value == null) return;
-
-    // add the current mouse position if we have one
-    const lastPoint = currentLine.value.points[currentLine.value.points.length - 1];
-    const currentPoint = lastMousePosition.value;
-
-    // only add if position has changed (avoid duplicate points)
-    if (lastPoint == null || lastPoint.x != currentPoint.x || lastPoint.y != currentPoint.y) {
-      console.log("add point", currentLine.value.points.length, {
-        x: currentPoint.x,
-        y: currentPoint.y,
-      });
-      currentLine.value = new Line({
-        type: LineType.SOLID,
-        points: [...currentLine.value.points, currentPoint],
-      });
-    }
-
-    // continue sampling
-    animationFrameId.current = requestAnimationFrame(sampleCurrentPosition);
-  };
 
   const handleMouseDown = (event: React.MouseEvent<SVGSVGElement>) => {
     isDrawing.value = true;
     const point = getMousePosition(event);
     lastMousePosition.value = point;
     currentLine.value = new Line({ type: LineType.SOLID, points: [point] });
-
-    // start high-frequency sampling
-    animationFrameId.current = requestAnimationFrame(sampleCurrentPosition);
   };
 
   const handleMouseMove = (event: React.MouseEvent<SVGSVGElement>) => {
-    if (!isDrawing.value) return;
-
-    // just update the last mouse position, let RAF handle the sampling
-    lastMousePosition.value = getMousePosition(event);
+    if (!isDrawing.value || !currentLine.value) return;
+    const lastPoint = currentLine.value.points[currentLine.value.points.length - 1];
+    const currentPoint = getMousePosition(event);
+    if (lastPoint == null || lastPoint.x != currentPoint.x || lastPoint.y != currentPoint.y) {
+      console.log("add point", currentLine.value.points.length, currentPoint.repr());
+      currentLine.value = new Line({
+        type: LineType.SOLID,
+        points: [...currentLine.value.points, currentPoint],
+      });
+    }
   };
 
   const handleMouseUp = () => {
     if (!isDrawing.value || !currentLine.value) return;
 
+    // finish
     isDrawing.value = false;
     lines.value = [...lines.value, currentLine.value];
     currentLine.value = null;
     lastMousePosition.value = null;
-
-    // cleanup timers
-    if (animationFrameId.current) {
-      cancelAnimationFrame(animationFrameId.current);
-      animationFrameId.current = null;
-    }
   };
-
-  // cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (animationFrameId.current) {
-        cancelAnimationFrame(animationFrameId.current);
-      }
-    };
-  }, []);
 
   return (
     <div style={{ width: "100vw", height: "100vh", display: "flex", flexDirection: "column" }}>

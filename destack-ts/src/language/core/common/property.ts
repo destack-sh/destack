@@ -684,6 +684,35 @@ export class CustomProperty
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`cardinality=${TypeCardinality[this.cardinality]}`);
+    propertyReprs.push(`scalarType=${ScalarType[this.scalarType]}`);
+    if (this.primitiveType !== null) {
+      propertyReprs.push(`primitiveType=${PrimitiveType[this.primitiveType]}`);
+    }
+    if (this.enumType !== null) {
+      propertyReprs.push(`enumType=${EnumType[this.enumType]}`);
+    }
+    if (this.nodeType !== null) {
+      propertyReprs.push(`nodeType=${NodeType[this.nodeType]}`);
+    }
+    if (this.nodeDefinition !== null) {
+      propertyReprs.push(`nodeDefinition=${this.nodeDefinition.repr()}`);
+    }
+    if (this.structType !== null) {
+      propertyReprs.push(`structType=${StructType[this.structType]}`);
+    }
+    if (this.baseType !== null) {
+      propertyReprs.push(`baseType=${this.baseType.repr()}`);
+    }
+    if (this.keyType !== null) {
+      propertyReprs.push(`keyType=${this.keyType.repr()}`);
+    }
+    propertyReprs.push(`name=${this.name}`);
+    return `<CustomProperty '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return CustomProperty.__packValue__(this);
   }

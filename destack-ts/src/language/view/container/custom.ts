@@ -778,6 +778,12 @@ export class CustomViewDefinition extends Node implements ContainerView, IsCusto
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    return `<CustomViewDefinition '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return CustomViewDefinition.__packValue__(this);
   }
@@ -2186,6 +2192,12 @@ export class CustomView extends Node implements ContainerView, IsCustomNode {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    return `<CustomView '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {

@@ -320,6 +320,15 @@ export class Route
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    if (this.ownedBy !== null) {
+      propertyReprs.push(`ownedBy=${this.ownedBy.repr()}`);
+    }
+    return `<Route '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return Route.__packValue__(this);
   }

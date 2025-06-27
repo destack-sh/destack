@@ -642,6 +642,26 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`type=${FileType[this.type]}`);
+    propertyReprs.push(`source=${FileSource[this.source]}`);
+    if (this.mimeType !== null) {
+      propertyReprs.push(`mimeType=${this.mimeType}`);
+    }
+    if (this.format !== null) {
+      propertyReprs.push(`format=${FileFormat[this.format]}`);
+    }
+    if (this.size !== null) {
+      propertyReprs.push(`size=${this.size}`);
+    }
+    if (this.url !== null) {
+      propertyReprs.push(`url=${this.url}`);
+    }
+    propertyReprs.push(`name=${this.name}`);
+    return `<File '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return File.__packValue__(this);
   }

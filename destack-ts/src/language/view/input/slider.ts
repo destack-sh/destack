@@ -519,6 +519,12 @@ export class SliderInputView extends Node implements InputView {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    return `<SliderInputView '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return SliderInputView.__packValue__(this);
   }

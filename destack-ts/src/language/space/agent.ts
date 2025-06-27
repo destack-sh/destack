@@ -362,6 +362,13 @@ export class Agent
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    propertyReprs.push(`slug=${this.slug}`);
+    return `<Agent '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return Agent.__packValue__(this);
   }

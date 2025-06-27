@@ -111,6 +111,10 @@ export class Origin extends StructFrozen {
     return true;
   }
 
+  repr(): string {
+    return `<Origin>`;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -627,6 +631,12 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    return `<Client '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {

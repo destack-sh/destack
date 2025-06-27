@@ -291,6 +291,36 @@ export class Color extends Struct {
     return true;
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    if (this.style !== null) {
+      propertyReprs.push(`style=${this.style.repr()}`);
+    }
+    propertyReprs.push(`type=${ColorType[this.type]}`);
+    if (this.hue !== null) {
+      propertyReprs.push(`hue=${ColorHue[this.hue]}`);
+    }
+    if (this.shade !== null) {
+      propertyReprs.push(`shade=${ColorShade[this.shade]}`);
+    }
+    if (this.intent !== null) {
+      propertyReprs.push(`intent=${ColorIntent[this.intent]}`);
+    }
+    if (this.x !== null) {
+      propertyReprs.push(`x=${this.x}`);
+    }
+    if (this.y !== null) {
+      propertyReprs.push(`y=${this.y}`);
+    }
+    if (this.z !== null) {
+      propertyReprs.push(`z=${this.z}`);
+    }
+    if (this.alpha !== null) {
+      propertyReprs.push(`alpha=${this.alpha}`);
+    }
+    return `<Color ${propertyReprs.join(" ")}>`;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -869,6 +899,34 @@ export class ColorStyle extends Node implements Style {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    propertyReprs.push(`type=${ColorType[this.type]}`);
+    if (this.hue !== null) {
+      propertyReprs.push(`hue=${ColorHue[this.hue]}`);
+    }
+    if (this.shade !== null) {
+      propertyReprs.push(`shade=${ColorShade[this.shade]}`);
+    }
+    if (this.intent !== null) {
+      propertyReprs.push(`intent=${ColorIntent[this.intent]}`);
+    }
+    if (this.x !== null) {
+      propertyReprs.push(`x=${this.x}`);
+    }
+    if (this.y !== null) {
+      propertyReprs.push(`y=${this.y}`);
+    }
+    if (this.z !== null) {
+      propertyReprs.push(`z=${this.z}`);
+    }
+    if (this.alpha !== null) {
+      propertyReprs.push(`alpha=${this.alpha}`);
+    }
+    return `<ColorStyle '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {

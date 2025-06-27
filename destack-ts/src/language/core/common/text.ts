@@ -184,6 +184,10 @@ export class TextSpan extends StructFrozen {
     return true;
   }
 
+  repr(): string {
+    return `<TextSpan>`;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -490,6 +494,10 @@ export class Text extends StructFrozen {
       return false;
     }
     return true;
+  }
+
+  repr(): string {
+    return `<Text>`;
   }
 
   hash(): number {

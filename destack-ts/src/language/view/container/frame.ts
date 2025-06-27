@@ -764,6 +764,12 @@ export class FrameView extends Node implements ContainerView {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    return `<FrameView '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return FrameView.__packValue__(this);
   }

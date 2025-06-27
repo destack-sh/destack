@@ -336,6 +336,15 @@ export class EventCursor extends Node implements Cursor, IsOwnable {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${CursorStatus[this.status]}`);
+    if (this.ownedBy !== null) {
+      propertyReprs.push(`ownedBy=${this.ownedBy.repr()}`);
+    }
+    return `<EventCursor '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return EventCursor.__packValue__(this);
   }
@@ -822,6 +831,15 @@ export class ScreenCursor extends Node implements Cursor, IsOwnable {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${CursorStatus[this.status]}`);
+    if (this.ownedBy !== null) {
+      propertyReprs.push(`ownedBy=${this.ownedBy.repr()}`);
+    }
+    return `<ScreenCursor '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -1312,6 +1330,15 @@ export class ThreadCursor extends Node implements Cursor, IsOwnable {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${CursorStatus[this.status]}`);
+    if (this.ownedBy !== null) {
+      propertyReprs.push(`ownedBy=${this.ownedBy.repr()}`);
+    }
+    return `<ThreadCursor '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {

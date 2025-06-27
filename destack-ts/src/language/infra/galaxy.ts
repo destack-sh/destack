@@ -78,6 +78,14 @@ export class GalaxyInfo extends Struct {
     return true;
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`region=${Region[this.region]}`);
+    propertyReprs.push(`name=${this.name}`);
+    propertyReprs.push(`host=${this.host}`);
+    return `<GalaxyInfo ${propertyReprs.join(" ")}>`;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }

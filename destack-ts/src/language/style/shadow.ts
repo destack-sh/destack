@@ -221,6 +221,31 @@ export class Shadow extends Struct {
     return true;
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    if (this.style !== null) {
+      propertyReprs.push(`style=${this.style.repr()}`);
+    }
+    propertyReprs.push(`type=${ShadowType[this.type]}`);
+    if (this.color !== null) {
+      propertyReprs.push(`color=${this.color.repr()}`);
+    }
+    propertyReprs.push(`position=${ShadowPosition[this.position]}`);
+    if (this.offset !== null) {
+      propertyReprs.push(`offset=${this.offset.repr()}`);
+    }
+    if (this.blur !== null) {
+      propertyReprs.push(`blur=${this.blur}`);
+    }
+    if (this.spread !== null) {
+      propertyReprs.push(`spread=${this.spread}`);
+    }
+    if (this.diffusion !== null) {
+      propertyReprs.push(`diffusion=${this.diffusion}`);
+    }
+    return `<Shadow ${propertyReprs.join(" ")}>`;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -774,6 +799,29 @@ export class ShadowStyle extends Node implements Style {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    propertyReprs.push(`type=${ShadowType[this.type]}`);
+    if (this.color !== null) {
+      propertyReprs.push(`color=${this.color.repr()}`);
+    }
+    propertyReprs.push(`position=${ShadowPosition[this.position]}`);
+    if (this.offset !== null) {
+      propertyReprs.push(`offset=${this.offset.repr()}`);
+    }
+    if (this.blur !== null) {
+      propertyReprs.push(`blur=${this.blur}`);
+    }
+    if (this.spread !== null) {
+      propertyReprs.push(`spread=${this.spread}`);
+    }
+    if (this.diffusion !== null) {
+      propertyReprs.push(`diffusion=${this.diffusion}`);
+    }
+    return `<ShadowStyle '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {

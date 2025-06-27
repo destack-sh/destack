@@ -764,6 +764,12 @@ export class LabelView extends Node implements ContainerView {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    return `<LabelView '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return LabelView.__packValue__(this);
   }

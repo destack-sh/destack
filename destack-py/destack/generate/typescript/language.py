@@ -17,6 +17,7 @@ from destack.language import (
     NodeBase,
     NodeDefinition,
     NodeType,
+    PrimitiveType,
     PropertyDeclaration,
     PropertyDefinition,
     RoleType,
@@ -476,6 +477,188 @@ constructor(options: {{
     return init_str.strip()
 
 
+def _generate_repr(cls: type[BuiltinObjectBase]) -> str:
+    """Generate BuiltinObject.repr method."""
+    repr_properties = [prop for prop in cls.__properties__.values() if prop.is_repr]
+    if not repr_properties:
+        if cls.__is_node__:
+            repr_impl = f"""\
+repr(): string {{
+    return `<{cls.__name__} '${{this.path}}'>`
+}}
+"""
+        else:
+            repr_impl = f"""\
+repr(): string {{
+    return `<{cls.__name__}>`
+}}
+"""
+        return repr_impl
+
+    def _get_scalar_repr(prop: TypeDeclaration, value_expr: str) -> str:
+        """Get repr expression for a scalar value."""
+        if prop.scalar_type == ScalarType.ENUM:
+            assert prop.enum_type is not None, f"no enum type for {prop!r}"
+            enum_cls = ENUM_CLASS_BY_TYPE[prop.enum_type]
+            return f"{enum_cls.__name__}[{value_expr}]"
+        elif prop.scalar_type in (ScalarType.STRUCT, ScalarType.NODE_REFERENCE):
+            return f"{value_expr}.repr()"
+        elif prop.scalar_type in (ScalarType.PRIMITIVE, ScalarType.NODE_VALUE):
+            if prop.primitive_type in (
+                PrimitiveType.DATETIME,
+                PrimitiveType.DATE,
+                PrimitiveType.TIME,
+            ):
+                return f"{value_expr}.toString()"
+            else:
+                return value_expr
+        else:
+            assert_never(prop.scalar_type)
+
+    # property parts
+    repr_parts_lines: list[str] = []
+    repr_parts_lines.append("const propertyReprs: string[] = [];")
+    has_required_repr_props = False
+
+    for prop in repr_properties:
+        prop_name = to_casing(prop.name, Casing.LOWER_CAMEL)
+        if prop.cardinality == TypeCardinality.SCALAR:
+            if prop.is_required:
+                scalar_expr = _get_scalar_repr(prop, f"this.{prop_name}")
+                repr_parts_lines.append(f"propertyReprs.push(`{prop_name}=${{{scalar_expr}}}`);")
+                has_required_repr_props = True
+            else:
+                scalar_expr = _get_scalar_repr(prop, f"this.{prop_name}")
+                repr_parts_lines.append(f"if (this.{prop_name} !== null) {{")
+                repr_parts_lines.append(
+                    f"    propertyReprs.push(`{prop_name}=${{{scalar_expr}}}`);"
+                )
+                repr_parts_lines.append("}")
+        elif prop.cardinality == TypeCardinality.LIST:
+            if prop.scalar_type == ScalarType.ENUM:
+                list_expr = f"'[' + this.{prop_name}.map(x => {_get_scalar_repr(prop, 'x')}).join(', ') + ']'"
+            else:
+                list_expr = f"JSON.stringify(this.{prop_name})"
+            repr_parts_lines.append(f"if (this.{prop_name}.length > 0) {{")
+            repr_parts_lines.append(f"    propertyReprs.push(`{prop_name}=${{{list_expr}}}`);")
+            repr_parts_lines.append("}")
+        elif prop.cardinality == TypeCardinality.MAP:
+            assert prop.key_type is not None, f"{prop!r} has no key type"
+            if prop.key_type.scalar_type == ScalarType.ENUM:
+                key_repr = _get_scalar_repr(prop.key_type, "k")
+                value_repr = _get_scalar_repr(prop, "v")
+                map_expr = f"'{{' + Object.entries(this.{prop_name}).map(([k, v]) => `${{{key_repr}}}: ${{{value_repr}}}`).join(', ') + '}}'"
+            else:
+                map_expr = f"JSON.stringify(this.{prop_name})"
+            repr_parts_lines.append(f"if (Object.keys(this.{prop_name}).length > 0) {{")
+            repr_parts_lines.append(f"    propertyReprs.push(`{prop_name}=${{{map_expr}}}`);")
+            repr_parts_lines.append("}")
+        else:
+            assert_never(prop.cardinality)
+    # wrap in repr
+    repr_parts_str = "\n".join(repr_parts_lines)
+    if cls.__is_node__:
+        if has_required_repr_props:
+            inner_repr_impl = f"""\
+{repr_parts_str}
+return `<{cls.__name__} '${{this.path}}' ${{propertyReprs.join(' ')}}>`
+"""
+        else:
+            inner_repr_impl = f"""\
+{repr_parts_str}
+if (propertyReprs.length > 0) {{
+    return `<{cls.__name__} '${{this.path}}' ${{propertyReprs.join(' ')}}>`;
+}} else {{
+    return `<{cls.__name__} '${{this.path}}'>`;
+}}
+"""
+    else:
+        if has_required_repr_props:
+            inner_repr_impl = f"""\
+{repr_parts_str}
+return `<{cls.__name__} ${{propertyReprs.join(' ')}}>`
+"""
+        else:
+            inner_repr_impl = f"""\
+{repr_parts_str}
+if (propertyReprs.length > 0) {{
+    return `<{cls.__name__} ${{propertyReprs.join(' ')}}>`;
+}} else {{
+    return `<{cls.__name__}>`;
+}}
+"""
+
+    if cls.__is_frozen__ and not cls.__is_node__:
+        # cache _repr in __repr__ (frozen Struct)
+        inner_repr_impl = inner_repr_impl.replace("return ", "this._repr = ")
+        inner_repr_impl = textwrap.indent(inner_repr_impl, "    ")
+        inner_repr_impl = f"if (this._repr === null) {{\n{inner_repr_impl}\n}}\nreturn this._repr;"
+        inner_repr_impl = textwrap.indent(inner_repr_impl, "    ")
+        repr_impl = f"""\
+repr(): string {{
+{inner_repr_impl}
+}}
+"""
+    else:
+        # no cache
+        inner_repr_impl = textwrap.indent(inner_repr_impl, "    ")
+        repr_impl = f"""\
+repr(): string {{
+{inner_repr_impl}
+}}
+"""
+
+    return repr_impl
+
+
+def _generate_path(cls: type[Node]) -> str:
+    """Generate a Typescript path method."""
+    # Node._path_key
+    if "slug" in cls.__properties__:
+        if "name" in cls.__properties__:
+            path_key_str = "this.slug ?? this.name"
+        else:
+            path_key_str = f'this.slug ?? "{cls.__name__}[id={{this.id}}]"'
+    elif "name" in cls.__properties__:
+        path_key_str = "this.name"
+    elif "title" in cls.__properties__:
+        path_key_str = "this.title"
+    else:
+        path_key_str = f'"{cls.__name__}[id={{this.id}}]"'
+
+    # Node.path
+    if cls.__root_type__ is None:
+        path_str = f"""\
+get _pathKey(): string {{
+    return {path_key_str};
+}}
+
+get path(): string {{
+    return {path_key_str};
+}}"""
+    else:
+        path_str = f"""\
+get _pathKey(): string {{
+    return {path_key_str};
+}}
+
+get path(): string {{
+    const pathParts: string[] = [];
+    let node: Node | null = this;
+    while (node !== null) {{
+        pathParts.push(node._pathKey);
+        node = node.parent;
+    }}
+    if (!this._isAttached) {{
+        pathParts.push("<detached>");
+    }}
+    return pathParts.reverse().join("/");
+}}
+"""
+
+    return path_str.strip()
+
+
 def _generate_equals(cls: type[BuiltinObjectBase]) -> str:
     """Generate a Typescript equals method."""
     eq_properties = [prop for prop in cls.__properties__.values() if prop.is_eq and prop.is_wired]
@@ -655,54 +838,6 @@ __toRef__(): NodeReference {{
     return ref_impl.strip()
 
 
-def _generate_path(cls: type[Node]) -> str:
-    """Generate a Typescript path method."""
-    # Node._path_key
-    if "slug" in cls.__properties__:
-        if "name" in cls.__properties__:
-            path_key_str = "this.slug ?? this.name"
-        else:
-            path_key_str = f'this.slug ?? "{cls.__name__}[id={{this.id}}]"'
-    elif "name" in cls.__properties__:
-        path_key_str = "this.name"
-    elif "title" in cls.__properties__:
-        path_key_str = "this.title"
-    else:
-        path_key_str = f'"{cls.__name__}[id={{this.id}}]"'
-
-    # Node.path
-    if cls.__root_type__ is None:
-        path_str = f"""\
-get _pathKey(): string {{
-    return {path_key_str};
-}}
-
-get path(): string {{
-    return {path_key_str};
-}}"""
-    else:
-        path_str = f"""\
-get _pathKey(): string {{
-    return {path_key_str};
-}}
-
-get path(): string {{
-    const pathParts: string[] = [];
-    let node: Node | null = this;
-    while (node !== null) {{
-        pathParts.push(node._pathKey);
-        node = node.parent;
-    }}
-    if (!this._isAttached) {{
-        pathParts.push("<detached>");
-    }}
-    return pathParts.reverse().join("/");
-}}
-"""
-
-    return path_str.strip()
-
-
 def _generate_enum(definition: EnumDefinition) -> str:
     """Generate a Typescript Enum definition."""
     enum_parts: list[str] = []
@@ -751,6 +886,8 @@ def _generate_struct(definition: StructDefinition) -> str:
     struct_parts.append(init_str)
     equals_str = _generate_equals(struct_cls)
     struct_parts.append(equals_str)
+    repr_str = _generate_repr(struct_cls)
+    struct_parts.append(repr_str)
     hash_str = _generate_hash(struct_cls)
     struct_parts.append(hash_str)
     validate_str = _generate_validate(struct_cls)
@@ -881,6 +1018,8 @@ def _generate_node(definition: NodeDefinition) -> str:
     node_parts.append(to_ref_str)
     path_str = _generate_path(node_cls)
     node_parts.append(path_str)
+    repr_str = _generate_repr(node_cls)
+    node_parts.append(repr_str)
     value_str = generate_object_value(node_cls)
     node_parts.append(value_str)
     proto_str = generate_object_proto(node_cls)

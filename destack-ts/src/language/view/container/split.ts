@@ -764,6 +764,12 @@ export class SplitView extends Node implements ContainerView {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    return `<SplitView '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return SplitView.__packValue__(this);
   }

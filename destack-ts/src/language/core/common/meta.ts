@@ -545,6 +545,48 @@ export class PropertyDefinition extends StructFrozen {
     return true;
   }
 
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`id=${this.id}`);
+      propertyReprs.push(`name=${this.name}`);
+      if (this.description !== null) {
+        propertyReprs.push(`description=${this.description}`);
+      }
+      propertyReprs.push(`cardinality=${TypeCardinality[this.cardinality]}`);
+      propertyReprs.push(`scalarType=${ScalarType[this.scalarType]}`);
+      if (this.primitiveType !== null) {
+        propertyReprs.push(`primitiveType=${PrimitiveType[this.primitiveType]}`);
+      }
+      if (this.enumType !== null) {
+        propertyReprs.push(`enumType=${EnumType[this.enumType]}`);
+      }
+      if (this.nodeType !== null) {
+        propertyReprs.push(`nodeType=${NodeType[this.nodeType]}`);
+      }
+      if (this.structType !== null) {
+        propertyReprs.push(`structType=${StructType[this.structType]}`);
+      }
+      if (this.keyType !== null) {
+        propertyReprs.push(`keyType=${this.keyType.repr()}`);
+      }
+      if (this.isRequired !== null) {
+        propertyReprs.push(`isRequired=${this.isRequired}`);
+      }
+      if (this.isUnique !== null) {
+        propertyReprs.push(`isUnique=${this.isUnique}`);
+      }
+      if (this.defaultValue !== null) {
+        propertyReprs.push(`defaultValue=${this.defaultValue.repr()}`);
+      }
+      if (this.defaultFactory !== null) {
+        propertyReprs.push(`defaultFactory=${DefaultFactory[this.defaultFactory]}`);
+      }
+      this._repr = `<PropertyDefinition ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -1268,6 +1310,21 @@ export class TraitDefinition extends StructFrozen {
     return true;
   }
 
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`id=${this.id}`);
+      propertyReprs.push(`type=${TraitType[this.type]}`);
+      propertyReprs.push(`name=${this.name}`);
+      propertyReprs.push(`alias=${this.alias}`);
+      if (this.description !== null) {
+        propertyReprs.push(`description=${this.description}`);
+      }
+      this._repr = `<TraitDefinition ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -1697,6 +1754,20 @@ export class NodeDefinition extends StructFrozen {
       }
     }
     return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`id=${this.id}`);
+      propertyReprs.push(`type=${NodeType[this.type]}`);
+      propertyReprs.push(`name=${this.name}`);
+      if (this.description !== null) {
+        propertyReprs.push(`description=${this.description}`);
+      }
+      this._repr = `<NodeDefinition ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
   }
 
   hash(): number {
@@ -2157,6 +2228,20 @@ export class StructDefinition extends StructFrozen {
     return true;
   }
 
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`id=${this.id}`);
+      propertyReprs.push(`type=${StructType[this.type]}`);
+      propertyReprs.push(`name=${this.name}`);
+      if (this.description !== null) {
+        propertyReprs.push(`description=${this.description}`);
+      }
+      this._repr = `<StructDefinition ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -2466,6 +2551,20 @@ export class EnumDefinition extends StructFrozen {
     return true;
   }
 
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`id=${this.id}`);
+      propertyReprs.push(`type=${EnumType[this.type]}`);
+      propertyReprs.push(`name=${this.name}`);
+      if (this.description !== null) {
+        propertyReprs.push(`description=${this.description}`);
+      }
+      this._repr = `<EnumDefinition ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -2740,6 +2839,20 @@ export class OptionDefinition extends StructFrozen {
     return true;
   }
 
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`id=${this.id}`);
+      propertyReprs.push(`type=${EnumType[this.type]}`);
+      propertyReprs.push(`name=${this.name}`);
+      if (this.description !== null) {
+        propertyReprs.push(`description=${this.description}`);
+      }
+      this._repr = `<OptionDefinition ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -2997,6 +3110,18 @@ export class PermissionDefinition extends StructFrozen {
     return true;
   }
 
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`id=${this.id}`);
+      propertyReprs.push(`type=${EnumType[this.type]}`);
+      propertyReprs.push(`name=${this.name}`);
+      propertyReprs.push(`nodeType=${NodeType[this.nodeType]}`);
+      this._repr = `<PermissionDefinition ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -3229,6 +3354,18 @@ export class ConstantDefinition extends StructFrozen {
       return false;
     }
     return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`name=${this.name}`);
+      if (this.description !== null) {
+        propertyReprs.push(`description=${this.description}`);
+      }
+      this._repr = `<ConstantDefinition ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
   }
 
   hash(): number {

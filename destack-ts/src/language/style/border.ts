@@ -149,6 +149,21 @@ export class Border extends Struct {
     return true;
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    if (this.style !== null) {
+      propertyReprs.push(`style=${this.style.repr()}`);
+    }
+    propertyReprs.push(`type=${BorderType[this.type]}`);
+    if (this.color !== null) {
+      propertyReprs.push(`color=${this.color.repr()}`);
+    }
+    if (this.width !== null) {
+      propertyReprs.push(`width=${this.width.repr()}`);
+    }
+    return `<Border ${propertyReprs.join(" ")}>`;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -614,6 +629,19 @@ export class BorderStyle extends Node implements Style {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    propertyReprs.push(`type=${BorderType[this.type]}`);
+    if (this.color !== null) {
+      propertyReprs.push(`color=${this.color.repr()}`);
+    }
+    if (this.width !== null) {
+      propertyReprs.push(`width=${this.width.repr()}`);
+    }
+    return `<BorderStyle '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {

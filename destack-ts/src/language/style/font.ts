@@ -337,6 +337,39 @@ export class Font extends Struct {
     return true;
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    if (this.style !== null) {
+      propertyReprs.push(`style=${this.style.repr()}`);
+    }
+    propertyReprs.push(`type=${FontType[this.type]}`);
+    if (this.weight !== null) {
+      propertyReprs.push(`weight=${FontWeight[this.weight]}`);
+    }
+    if (this.color !== null) {
+      propertyReprs.push(`color=${this.color.repr()}`);
+    }
+    if (this.size !== null) {
+      propertyReprs.push(`size=${FontSize[this.size]}`);
+    }
+    if (this.align !== null) {
+      propertyReprs.push(`align=${TextAlign[this.align]}`);
+    }
+    if (this.lineHeight !== null) {
+      propertyReprs.push(`lineHeight=${this.lineHeight.repr()}`);
+    }
+    if (this.letterSpacing !== null) {
+      propertyReprs.push(`letterSpacing=${this.letterSpacing.repr()}`);
+    }
+    if (this.decoration !== null) {
+      propertyReprs.push(`decoration=${TextDecoration[this.decoration]}`);
+    }
+    if (this.transform !== null) {
+      propertyReprs.push(`transform=${TextTransform[this.transform]}`);
+    }
+    return `<Font ${propertyReprs.join(" ")}>`;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -958,6 +991,37 @@ export class FontStyle extends Node implements Style {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    propertyReprs.push(`type=${FontType[this.type]}`);
+    if (this.weight !== null) {
+      propertyReprs.push(`weight=${FontWeight[this.weight]}`);
+    }
+    if (this.color !== null) {
+      propertyReprs.push(`color=${this.color.repr()}`);
+    }
+    if (this.size !== null) {
+      propertyReprs.push(`size=${FontSize[this.size]}`);
+    }
+    if (this.align !== null) {
+      propertyReprs.push(`align=${TextAlign[this.align]}`);
+    }
+    if (this.lineHeight !== null) {
+      propertyReprs.push(`lineHeight=${this.lineHeight.repr()}`);
+    }
+    if (this.letterSpacing !== null) {
+      propertyReprs.push(`letterSpacing=${this.letterSpacing.repr()}`);
+    }
+    if (this.decoration !== null) {
+      propertyReprs.push(`decoration=${TextDecoration[this.decoration]}`);
+    }
+    if (this.transform !== null) {
+      propertyReprs.push(`transform=${TextTransform[this.transform]}`);
+    }
+    return `<FontStyle '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {

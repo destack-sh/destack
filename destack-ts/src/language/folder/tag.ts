@@ -277,6 +277,12 @@ export class Tag
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    return `<Tag '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return Tag.__packValue__(this);
   }
@@ -831,6 +837,10 @@ export class Tagging extends Node implements Spatial, Entity, IsTaggable, IsOrde
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<Tagging '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {

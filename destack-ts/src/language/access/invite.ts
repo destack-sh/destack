@@ -354,6 +354,10 @@ export class InviteSentEvent extends Node implements Event {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<InviteSentEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return InviteSentEvent.__packValue__(this);
   }
@@ -871,6 +875,10 @@ export class InviteRescindedEvent extends Node implements Event {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<InviteRescindedEvent '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -1431,6 +1439,10 @@ export class InviteAcceptedEvent extends Node implements Event {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<InviteAcceptedEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return InviteAcceptedEvent.__packValue__(this);
   }
@@ -1960,6 +1972,10 @@ export class InviteRejectedEvent extends Node implements Event {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<InviteRejectedEvent '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -2510,6 +2526,18 @@ export class Invite extends Node implements Global, Spatial, Entity, IsOwnable, 
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    if (this.ownedBy !== null) {
+      propertyReprs.push(`ownedBy=${this.ownedBy.repr()}`);
+    }
+    if (propertyReprs.length > 0) {
+      return `<Invite '${this.path}' ${propertyReprs.join(" ")}>`;
+    } else {
+      return `<Invite '${this.path}'>`;
+    }
   }
 
   toValue(): { [key: string]: any } {

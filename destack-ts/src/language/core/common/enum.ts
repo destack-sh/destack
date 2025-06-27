@@ -326,6 +326,12 @@ export class CustomEnumDefinition
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    return `<CustomEnumDefinition '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return CustomEnumDefinition.__packValue__(this);
   }

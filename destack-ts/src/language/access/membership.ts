@@ -364,6 +364,18 @@ export class Membership
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    if (this.ownedBy !== null) {
+      propertyReprs.push(`ownedBy=${this.ownedBy.repr()}`);
+    }
+    if (propertyReprs.length > 0) {
+      return `<Membership '${this.path}' ${propertyReprs.join(" ")}>`;
+    } else {
+      return `<Membership '${this.path}'>`;
+    }
+  }
+
   toValue(): { [key: string]: any } {
     return Membership.__packValue__(this);
   }
@@ -951,6 +963,10 @@ export class MembershipJoinedEvent extends Node implements Event {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<MembershipJoinedEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return MembershipJoinedEvent.__packValue__(this);
   }
@@ -1521,6 +1537,10 @@ export class MembershipLeftEvent extends Node implements Event {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<MembershipLeftEvent '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {

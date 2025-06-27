@@ -330,6 +330,12 @@ export class CustomStructDefinition
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    return `<CustomStructDefinition '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return CustomStructDefinition.__packValue__(this);
   }

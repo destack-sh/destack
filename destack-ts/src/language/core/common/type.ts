@@ -158,6 +158,10 @@ export class StringConstraint extends StructFrozen {
     return true;
   }
 
+  repr(): string {
+    return `<StringConstraint>`;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -425,6 +429,10 @@ export class NumberConstraint extends StructFrozen {
     return true;
   }
 
+  repr(): string {
+    return `<NumberConstraint>`;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -656,6 +664,10 @@ export class CollectionConstraint extends StructFrozen {
     return true;
   }
 
+  repr(): string {
+    return `<CollectionConstraint>`;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -861,6 +873,10 @@ export class NodeConstraint extends StructFrozen {
       }
     }
     return true;
+  }
+
+  repr(): string {
+    return `<NodeConstraint>`;
   }
 
   hash(): number {
@@ -1295,6 +1311,37 @@ export class Type extends StructFrozen {
       return false;
     }
     return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`cardinality=${TypeCardinality[this.cardinality]}`);
+      propertyReprs.push(`scalarType=${ScalarType[this.scalarType]}`);
+      if (this.primitiveType !== null) {
+        propertyReprs.push(`primitiveType=${PrimitiveType[this.primitiveType]}`);
+      }
+      if (this.enumType !== null) {
+        propertyReprs.push(`enumType=${EnumType[this.enumType]}`);
+      }
+      if (this.nodeType !== null) {
+        propertyReprs.push(`nodeType=${NodeType[this.nodeType]}`);
+      }
+      if (this.nodeDefinition !== null) {
+        propertyReprs.push(`nodeDefinition=${this.nodeDefinition.repr()}`);
+      }
+      if (this.structType !== null) {
+        propertyReprs.push(`structType=${StructType[this.structType]}`);
+      }
+      if (this.baseType !== null) {
+        propertyReprs.push(`baseType=${this.baseType.repr()}`);
+      }
+      if (this.keyType !== null) {
+        propertyReprs.push(`keyType=${this.keyType.repr()}`);
+      }
+      this._repr = `<Type ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
   }
 
   hash(): number {

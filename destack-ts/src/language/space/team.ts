@@ -245,6 +245,15 @@ export class Team
     return this.slug ?? this.name;
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    if (this.slug !== null) {
+      propertyReprs.push(`slug=${this.slug}`);
+    }
+    propertyReprs.push(`name=${this.name}`);
+    return `<Team '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return Team.__packValue__(this);
   }

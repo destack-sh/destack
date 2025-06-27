@@ -254,6 +254,12 @@ export class Environment extends Node implements Spatial, Entity, HasName, HasIc
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    return `<Environment '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return Environment.__packValue__(this);
   }

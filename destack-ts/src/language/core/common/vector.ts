@@ -82,6 +82,16 @@ export class Vector2 extends StructFrozen {
     return true;
   }
 
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`x=${this.x}`);
+      propertyReprs.push(`y=${this.y}`);
+      this._repr = `<Vector2 ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -421,6 +431,17 @@ export class Vector3 extends StructFrozen {
       return false;
     }
     return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`x=${this.x}`);
+      propertyReprs.push(`y=${this.y}`);
+      propertyReprs.push(`z=${this.z}`);
+      this._repr = `<Vector3 ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
   }
 
   hash(): number {
@@ -808,6 +829,18 @@ export class Vector4 extends StructFrozen {
     return true;
   }
 
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`x=${this.x}`);
+      propertyReprs.push(`y=${this.y}`);
+      propertyReprs.push(`z=${this.z}`);
+      propertyReprs.push(`w=${this.w}`);
+      this._repr = `<Vector4 ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -1185,6 +1218,16 @@ export class Vector2i extends StructFrozen {
     return true;
   }
 
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`x=${this.x}`);
+      propertyReprs.push(`y=${this.y}`);
+      this._repr = `<Vector2i ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -1524,6 +1567,17 @@ export class Vector3i extends StructFrozen {
       return false;
     }
     return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`x=${this.x}`);
+      propertyReprs.push(`y=${this.y}`);
+      propertyReprs.push(`z=${this.z}`);
+      this._repr = `<Vector3i ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
   }
 
   hash(): number {
@@ -1899,6 +1953,18 @@ export class Vector4i extends StructFrozen {
       return false;
     }
     return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`x=${this.x}`);
+      propertyReprs.push(`y=${this.y}`);
+      propertyReprs.push(`z=${this.z}`);
+      propertyReprs.push(`w=${this.w}`);
+      this._repr = `<Vector4i ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
   }
 
   hash(): number {

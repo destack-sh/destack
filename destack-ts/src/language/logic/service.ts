@@ -394,6 +394,15 @@ export class Service
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    if (this.ownedBy !== null) {
+      propertyReprs.push(`ownedBy=${this.ownedBy.repr()}`);
+    }
+    return `<Service '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return Service.__packValue__(this);
   }

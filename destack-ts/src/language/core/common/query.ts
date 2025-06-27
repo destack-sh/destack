@@ -295,6 +295,19 @@ export class Function extends StructFrozen {
     return true;
   }
 
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`type=${FunctionType[this.type]}`);
+      propertyReprs.push(`left=${this.left.repr()}`);
+      if (this.right !== null) {
+        propertyReprs.push(`right=${this.right.repr()}`);
+      }
+      this._repr = `<Function ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -503,6 +516,19 @@ export class Condition extends StructFrozen {
     return true;
   }
 
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`type=${ConditionalType[this.type]}`);
+      propertyReprs.push(`left=${this.left.repr()}`);
+      if (this.right !== null) {
+        propertyReprs.push(`right=${this.right.repr()}`);
+      }
+      this._repr = `<Condition ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -701,6 +727,18 @@ export class Aggregation extends StructFrozen {
       return false;
     }
     return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`type=${AggregationType[this.type]}`);
+      if (this.expression !== null) {
+        propertyReprs.push(`expression=${this.expression.repr()}`);
+      }
+      this._repr = `<Aggregation ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
   }
 
   hash(): number {
@@ -953,6 +991,30 @@ export class Expression extends StructFrozen {
       return false;
     }
     return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`type=${ExpressionType[this.type]}`);
+      if (this.literal !== null) {
+        propertyReprs.push(`literal=${this.literal.repr()}`);
+      }
+      if (this.attribute !== null) {
+        propertyReprs.push(`attribute=${this.attribute.repr()}`);
+      }
+      if (this.condition !== null) {
+        propertyReprs.push(`condition=${this.condition.repr()}`);
+      }
+      if (this.function !== null) {
+        propertyReprs.push(`function=${this.function.repr()}`);
+      }
+      if (this.aggregation !== null) {
+        propertyReprs.push(`aggregation=${this.aggregation.repr()}`);
+      }
+      this._repr = `<Expression ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
   }
 
   hash(): number {
@@ -1263,6 +1325,19 @@ export class Sort extends StructFrozen {
     return true;
   }
 
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`type=${SortType[this.type]}`);
+      propertyReprs.push(`by=${this.by.repr()}`);
+      if (this.mode !== null) {
+        propertyReprs.push(`mode=${SortMode[this.mode]}`);
+      }
+      this._repr = `<Sort ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -1440,6 +1515,21 @@ export class Select extends StructFrozen {
       }
     }
     return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      if (this.attributes.length > 0) {
+        propertyReprs.push(`attributes=${JSON.stringify(this.attributes)}`);
+      }
+      if (propertyReprs.length > 0) {
+        this._repr = `<Select ${propertyReprs.join(" ")}>`;
+      } else {
+        this._repr = `<Select>`;
+      }
+    }
+    return this._repr;
   }
 
   hash(): number {
@@ -1684,6 +1774,25 @@ export class Join extends StructFrozen {
       return false;
     }
     return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`type=${JoinType[this.type]}`);
+      if (this.relation !== null) {
+        propertyReprs.push(`relation=${this.relation.repr()}`);
+      }
+      propertyReprs.push(`recursive=${this.recursive}`);
+      if (this.depth !== null) {
+        propertyReprs.push(`depth=${this.depth}`);
+      }
+      if (this.on !== null) {
+        propertyReprs.push(`on=${this.on.repr()}`);
+      }
+      this._repr = `<Join ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
   }
 
   hash(): number {
@@ -2109,6 +2218,47 @@ export class Query extends StructFrozen {
     return true;
   }
 
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`type=${QueryType[this.type]}`);
+      propertyReprs.push(`name=${this.name}`);
+      propertyReprs.push(`relation=${this.relation.repr()}`);
+      if (this.join !== null) {
+        propertyReprs.push(`join=${this.join.repr()}`);
+      }
+      if (this.select !== null) {
+        propertyReprs.push(`select=${this.select.repr()}`);
+      }
+      if (this.subqueries.length > 0) {
+        propertyReprs.push(`subqueries=${JSON.stringify(this.subqueries)}`);
+      }
+      if (this.where !== null) {
+        propertyReprs.push(`where=${this.where.repr()}`);
+      }
+      if (this.having !== null) {
+        propertyReprs.push(`having=${this.having.repr()}`);
+      }
+      if (this.groupBy.length > 0) {
+        propertyReprs.push(`groupBy=${JSON.stringify(this.groupBy)}`);
+      }
+      if (this.aggregation !== null) {
+        propertyReprs.push(`aggregation=${this.aggregation.repr()}`);
+      }
+      if (this.sort.length > 0) {
+        propertyReprs.push(`sort=${JSON.stringify(this.sort)}`);
+      }
+      if (this.limit !== null) {
+        propertyReprs.push(`limit=${this.limit}`);
+      }
+      if (this.offset !== null) {
+        propertyReprs.push(`offset=${this.offset}`);
+      }
+      this._repr = `<Query ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -2506,6 +2656,24 @@ export class Histogram extends StructFrozen {
     return true;
   }
 
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      if (this.buckets.length > 0) {
+        propertyReprs.push(`buckets=${JSON.stringify(this.buckets)}`);
+      }
+      if (this.counts.length > 0) {
+        propertyReprs.push(`counts=${JSON.stringify(this.counts)}`);
+      }
+      if (propertyReprs.length > 0) {
+        this._repr = `<Histogram ${propertyReprs.join(" ")}>`;
+      } else {
+        this._repr = `<Histogram>`;
+      }
+    }
+    return this._repr;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -2810,6 +2978,28 @@ export class QueryResult extends Struct {
       return false;
     }
     return true;
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`id=${this.id}`);
+    if (this.groups.length > 0) {
+      propertyReprs.push(`groups=${JSON.stringify(this.groups)}`);
+    }
+    if (this.subresults.length > 0) {
+      propertyReprs.push(`subresults=${JSON.stringify(this.subresults)}`);
+    }
+    propertyReprs.push(`type=${QueryType[this.type]}`);
+    if (this.count !== null) {
+      propertyReprs.push(`count=${this.count}`);
+    }
+    if (this.exists !== null) {
+      propertyReprs.push(`exists=${this.exists}`);
+    }
+    if (this.scalar !== null) {
+      propertyReprs.push(`scalar=${this.scalar.repr()}`);
+    }
+    return `<QueryResult ${propertyReprs.join(" ")}>`;
   }
 
   hash(): number {
@@ -3147,6 +3337,22 @@ export class QueryResultGroup extends Struct {
     return true;
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`discriminator=${this.discriminator.repr()}`);
+    propertyReprs.push(`type=${QueryType[this.type]}`);
+    if (this.count !== null) {
+      propertyReprs.push(`count=${this.count}`);
+    }
+    if (this.exists !== null) {
+      propertyReprs.push(`exists=${this.exists}`);
+    }
+    if (this.scalar !== null) {
+      propertyReprs.push(`scalar=${this.scalar.repr()}`);
+    }
+    return `<QueryResultGroup ${propertyReprs.join(" ")}>`;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -3392,6 +3598,18 @@ export class QueryUpdate extends StructFrozen {
     return true;
   }
 
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`type=${QueryUpdateType[this.type]}`);
+      if (this.result !== null) {
+        propertyReprs.push(`result=${this.result.repr()}`);
+      }
+      this._repr = `<QueryUpdate ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -3547,6 +3765,10 @@ export class Selection extends StructFrozen {
       return false;
     }
     return true;
+  }
+
+  repr(): string {
+    return `<Selection>`;
   }
 
   hash(): number {

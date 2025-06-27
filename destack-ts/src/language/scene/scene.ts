@@ -276,6 +276,10 @@ export class SceneEnteredEvent extends Node implements Event {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<SceneEnteredEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return SceneEnteredEvent.__packValue__(this);
   }
@@ -705,6 +709,10 @@ export class SceneExitedEvent extends Node implements Event {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<SceneExitedEvent '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -1690,6 +1698,15 @@ export class Scene extends Node implements ContainerView, HasIcon, IsOwnable {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    if (this.ownedBy !== null) {
+      propertyReprs.push(`ownedBy=${this.ownedBy.repr()}`);
+    }
+    return `<Scene '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {

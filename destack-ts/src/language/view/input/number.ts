@@ -482,6 +482,12 @@ export class NumberInputView extends Node implements InputView {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    return `<NumberInputView '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return NumberInputView.__packValue__(this);
   }

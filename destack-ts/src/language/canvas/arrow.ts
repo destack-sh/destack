@@ -552,6 +552,12 @@ export class ArrowShape extends Node implements ContentView, IsShape {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    return `<ArrowShape '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return ArrowShape.__packValue__(this);
   }

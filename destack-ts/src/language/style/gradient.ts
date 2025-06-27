@@ -117,6 +117,18 @@ export class GradientStop extends StructFrozen {
     return true;
   }
 
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      if (this.color !== null) {
+        propertyReprs.push(`color=${this.color.repr()}`);
+      }
+      propertyReprs.push(`position=${this.position}`);
+      this._repr = `<GradientStop ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -357,6 +369,24 @@ export class Gradient extends Struct {
       return false;
     }
     return true;
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    if (this.style !== null) {
+      propertyReprs.push(`style=${this.style.repr()}`);
+    }
+    propertyReprs.push(`type=${GradientType[this.type]}`);
+    if (this.angle !== null) {
+      propertyReprs.push(`angle=${this.angle}`);
+    }
+    if (this.stops.length > 0) {
+      propertyReprs.push(`stops=${JSON.stringify(this.stops)}`);
+    }
+    if (this.centerAnchor !== null) {
+      propertyReprs.push(`centerAnchor=${this.centerAnchor.repr()}`);
+    }
+    return `<Gradient ${propertyReprs.join(" ")}>`;
   }
 
   hash(): number {
@@ -884,6 +914,22 @@ export class GradientStyle extends Node implements Style {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    propertyReprs.push(`type=${GradientType[this.type]}`);
+    if (this.angle !== null) {
+      propertyReprs.push(`angle=${this.angle}`);
+    }
+    if (this.stops.length > 0) {
+      propertyReprs.push(`stops=${JSON.stringify(this.stops)}`);
+    }
+    if (this.centerAnchor !== null) {
+      propertyReprs.push(`centerAnchor=${this.centerAnchor.repr()}`);
+    }
+    return `<GradientStyle '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {

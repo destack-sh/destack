@@ -423,6 +423,18 @@ export class Link extends Node implements Spatial, Resource {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`type=${LinkType[this.type]}`);
+    if (this.url !== null) {
+      propertyReprs.push(`url=${this.url}`);
+    }
+    if (this.domain !== null) {
+      propertyReprs.push(`domain=${this.domain}`);
+    }
+    return `<Link '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return Link.__packValue__(this);
   }

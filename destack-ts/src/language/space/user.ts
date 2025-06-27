@@ -401,6 +401,14 @@ export class User
     return this.slug ?? this.name;
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    propertyReprs.push(`slug=${this.slug}`);
+    propertyReprs.push(`status=${UserStatus[this.status]}`);
+    return `<User '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return User.__packValue__(this);
   }

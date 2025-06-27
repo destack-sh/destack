@@ -312,6 +312,15 @@ export class Permission
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    if (this.slug !== null) {
+      propertyReprs.push(`slug=${this.slug}`);
+    }
+    return `<Permission '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return Permission.__packValue__(this);
   }

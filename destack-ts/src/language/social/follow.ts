@@ -270,6 +270,10 @@ export class Follow
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<Follow '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return Follow.__packValue__(this);
   }

@@ -94,6 +94,15 @@ export class Value extends StructFrozen {
     return true;
   }
 
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`type=${this.type.repr()}`);
+      this._repr = `<Value ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }

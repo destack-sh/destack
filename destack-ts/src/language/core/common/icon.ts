@@ -163,6 +163,10 @@ export class Icon extends StructFrozen {
     return true;
   }
 
+  repr(): string {
+    return `<Icon>`;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }

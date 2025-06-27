@@ -400,6 +400,18 @@ export class Message
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    if (this.ownedBy !== null) {
+      propertyReprs.push(`ownedBy=${this.ownedBy.repr()}`);
+    }
+    if (propertyReprs.length > 0) {
+      return `<Message '${this.path}' ${propertyReprs.join(" ")}>`;
+    } else {
+      return `<Message '${this.path}'>`;
+    }
+  }
+
   toValue(): { [key: string]: any } {
     return Message.__packValue__(this);
   }
