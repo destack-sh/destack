@@ -440,6 +440,8 @@ def _pack_scalar_value(value: Any, type: Type) -> Json:
             return value.isoformat()
         elif type.primitive_type == PrimitiveType.DURATION:
             return timedelta_to_isoformat(value)
+        elif type.primitive_type in (PrimitiveType.INT16, PrimitiveType.INT32, PrimitiveType.INT64):
+            return float(value)  # cast ints to JSON floats
         else:
             return value  # as is
     elif type.scalar_type == ScalarType.ENUM:

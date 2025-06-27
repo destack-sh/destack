@@ -303,6 +303,7 @@ export class Function extends StructFrozen {
       if (this.right !== null) {
         propertyReprs.push(`right=${this.right.repr()}`);
       }
+      // @ts-expect-error(readonly)
       this._repr = `<Function ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -524,6 +525,7 @@ export class Condition extends StructFrozen {
       if (this.right !== null) {
         propertyReprs.push(`right=${this.right.repr()}`);
       }
+      // @ts-expect-error(readonly)
       this._repr = `<Condition ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -736,6 +738,7 @@ export class Aggregation extends StructFrozen {
       if (this.expression !== null) {
         propertyReprs.push(`expression=${this.expression.repr()}`);
       }
+      // @ts-expect-error(readonly)
       this._repr = `<Aggregation ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -1012,6 +1015,7 @@ export class Expression extends StructFrozen {
       if (this.aggregation !== null) {
         propertyReprs.push(`aggregation=${this.aggregation.repr()}`);
       }
+      // @ts-expect-error(readonly)
       this._repr = `<Expression ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -1333,6 +1337,7 @@ export class Sort extends StructFrozen {
       if (this.mode !== null) {
         propertyReprs.push(`mode=${SortMode[this.mode]}`);
       }
+      // @ts-expect-error(readonly)
       this._repr = `<Sort ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -1524,8 +1529,10 @@ export class Select extends StructFrozen {
         propertyReprs.push(`attributes=${JSON.stringify(this.attributes)}`);
       }
       if (propertyReprs.length > 0) {
+        // @ts-expect-error(readonly)
         this._repr = `<Select ${propertyReprs.join(" ")}>`;
       } else {
+        // @ts-expect-error(readonly)
         this._repr = `<Select>`;
       }
     }
@@ -1790,6 +1797,7 @@ export class Join extends StructFrozen {
       if (this.on !== null) {
         propertyReprs.push(`on=${this.on.repr()}`);
       }
+      // @ts-expect-error(readonly)
       this._repr = `<Join ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -2254,6 +2262,7 @@ export class Query extends StructFrozen {
       if (this.offset !== null) {
         propertyReprs.push(`offset=${this.offset}`);
       }
+      // @ts-expect-error(readonly)
       this._repr = `<Query ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
@@ -2666,8 +2675,10 @@ export class Histogram extends StructFrozen {
         propertyReprs.push(`counts=${JSON.stringify(this.counts)}`);
       }
       if (propertyReprs.length > 0) {
+        // @ts-expect-error(readonly)
         this._repr = `<Histogram ${propertyReprs.join(" ")}>`;
       } else {
+        // @ts-expect-error(readonly)
         this._repr = `<Histogram>`;
       }
     }
@@ -3605,6 +3616,7 @@ export class QueryUpdate extends StructFrozen {
       if (this.result !== null) {
         propertyReprs.push(`result=${this.result.repr()}`);
       }
+      // @ts-expect-error(readonly)
       this._repr = `<QueryUpdate ${propertyReprs.join(" ")}>`;
     }
     return this._repr;

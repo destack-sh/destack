@@ -1067,8 +1067,10 @@ export class Line extends StructFrozen {
         propertyReprs.push(`color=${this.color.repr()}`);
       }
       if (propertyReprs.length > 0) {
+        // @ts-expect-error(readonly)
         this._repr = `<Line ${propertyReprs.join(" ")}>`;
       } else {
+        // @ts-expect-error(readonly)
         this._repr = `<Line>`;
       }
     }

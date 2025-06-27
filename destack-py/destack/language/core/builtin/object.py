@@ -1,6 +1,7 @@
 import base64
 import contextvars
 import inspect
+import json
 import textwrap
 from collections.abc import Mapping
 from enum import Enum
@@ -24,6 +25,7 @@ from destack.utils.code import exec_, format_code
 from destack.utils.env import IS_DEV, IS_TEST
 from destack.utils.frozen import frozendict, frozenlist
 from destack.utils.func import dualmethod, get_superclasses
+from destack.utils.hash import hash_bool, hash_bytes, hash_float, hash_int, hash_string
 from destack.utils.uuid import UUID, uuid4
 
 from .common import (
@@ -600,6 +602,125 @@ def _generate_scalar_cmp_impl(prop: PropertyDeclaration) -> tuple[str, bool]:
         assert_never(prop.scalar_type)
 
 
+def _generate_hash[ObjectT: BuiltinObjectBase](
+    cls: type[ObjectT],
+) -> tuple[str, dict[str, Any]]:
+    """Generate BuiltinObject.hash method."""
+    hash_properties = [
+        prop for prop in cls.__properties__.values() if prop.is_hash and prop.is_wired
+    ]
+    assert hash_properties, f"{cls.__name__} has no properties to hash"
+    hash_parts: list[str] = ["h = 1"]
+    for prop in hash_properties:
+        prop_hash_impl = _generate_property_hash_impl(prop)
+        hash_parts.append(prop_hash_impl)
+    hash_parts_str = "\n".join(hash_parts)
+
+    if cls.__is_frozen__ and not cls.__is_node__:
+        hash_impl = f"""\
+def hash(self) -> int:
+    if self._hash is not None:
+        return self._hash
+
+{textwrap.indent(hash_parts_str, "    ")}
+
+    self._hash = h
+    return h
+"""
+    else:
+        hash_impl = f"""\
+def hash(self) -> int:
+{textwrap.indent(hash_parts_str, "    ")}
+    return h
+"""
+    return hash_impl, {
+        "hash_string": hash_string,
+        "hash_bytes": hash_bytes,
+        "hash_int": hash_int,
+        "hash_float": hash_float,
+        "hash_bool": hash_bool,
+        "json": json,
+    }
+
+
+_SCALAR_HASH_TEMPLATE = "h = ((h * 31) + {value_expr}) & 0xFFFFFFFF_FFFFFFFF"
+
+
+def _generate_property_hash_impl(prop: PropertyDeclaration) -> str:
+    """Generate a hash method for a single property."""
+    prop_name = prop.name
+    if prop.scalar_type == ScalarType.NODE_REFERENCE:
+        prop_name = f"{prop_name}_ptr"
+
+    if prop.cardinality == TypeCardinality.SCALAR:
+        if prop.is_required:
+            scalar_hash_str = _generate_scalar_hash_impl(prop, f"self.{prop_name}")
+            return _SCALAR_HASH_TEMPLATE.format(value_expr=scalar_hash_str)
+        else:
+            scalar_hash_str = _generate_scalar_hash_impl(prop, prop_name)
+            return f"""\
+if ({prop_name} := self.{prop_name}) is not None:
+    {_SCALAR_HASH_TEMPLATE.format(value_expr=scalar_hash_str)}"""
+    elif prop.cardinality == TypeCardinality.LIST:
+        scalar_hash_str = _generate_scalar_hash_impl(prop, "_item")
+        return f"""\
+if ({prop_name} := self.{prop_name}):
+    for _item in {prop_name}:
+        {_SCALAR_HASH_TEMPLATE.format(value_expr=scalar_hash_str)}"""
+    elif prop.cardinality == TypeCardinality.MAP:
+        assert prop.key_type is not None, f"{prop.name} has no key type"
+        scalar_hash_str = _generate_scalar_hash_impl(prop.key_type, "_key")
+        scalar_hash_str = _generate_scalar_hash_impl(prop, "_value")
+        return f"""\
+if ({prop_name} := self.{prop_name}):
+    for _key, _value in {prop_name}.items():
+        {_SCALAR_HASH_TEMPLATE.format(value_expr=scalar_hash_str)}"""
+    else:
+        assert_never(prop.cardinality)
+
+
+def _generate_scalar_hash_impl(prop: TypeDeclaration | PropertyDeclaration, value_expr: str) -> str:
+    """Generate a hash method for a single scalar property."""
+    if prop.scalar_type == ScalarType.PRIMITIVE:
+        assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
+        if prop.primitive_type in (PrimitiveType.FLOAT32, PrimitiveType.FLOAT64):
+            return f"hash_float({value_expr})"
+        elif prop.primitive_type in (PrimitiveType.INT16, PrimitiveType.INT32, PrimitiveType.INT64):
+            return f"hash_int({value_expr})"
+        elif prop.primitive_type == PrimitiveType.DECIMAL:
+            raise NotImplementedError(f"cannot hash decimal: {prop!r}")
+        elif prop.primitive_type == PrimitiveType.BOOLEAN:
+            return f"hash_bool({value_expr})"
+        elif prop.primitive_type == PrimitiveType.STRING:
+            return f"hash_string({value_expr})"
+        elif prop.primitive_type == PrimitiveType.BYTES:
+            return f"hash_bytes({value_expr})"
+        elif prop.primitive_type == PrimitiveType.UUID:
+            return f"{value_expr}.int"
+        elif prop.primitive_type in (
+            PrimitiveType.DATETIME,
+            PrimitiveType.DATE,
+            PrimitiveType.TIME,
+        ):
+            return f"hash_string({value_expr}.isoformat())"
+        elif prop.primitive_type == PrimitiveType.DURATION:
+            return f"hash_float({value_expr}.total_seconds())"
+        elif prop.primitive_type == PrimitiveType.JSON:
+            return f"hash_string(json.dumps({value_expr}))"
+        else:
+            assert_never(prop.primitive_type)
+    elif prop.scalar_type == ScalarType.ENUM:
+        return value_expr
+    elif prop.scalar_type == ScalarType.STRUCT:
+        return f"{value_expr}.hash()"
+    elif prop.scalar_type == ScalarType.NODE_VALUE:
+        raise NotImplementedError(f"cannot hash node value: {prop!r}")
+    elif prop.scalar_type == ScalarType.NODE_REFERENCE:
+        return f"{value_expr}.id.int"
+    else:
+        assert_never(prop.scalar_type)
+
+
 #
 # Validation
 #
@@ -897,6 +1018,9 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
         # equals
         equals_str, equals_glbls = _generate_equals(cls, is_node=is_node)
         exec_(equals_str, {**glbls, **equals_glbls}, cls_dict, f"{cls.__name__}:equals")
+        # hash
+        hash_str, hash_glbls = _generate_hash(cls)
+        exec_(hash_str, {**glbls, **hash_glbls}, cls_dict, f"{cls.__name__}:hash")
         # validate
         validate_str, validate_glbls = _generate_validate(cls)
         exec_(validate_str, {**glbls, **validate_glbls}, cls_dict, f"{cls.__name__}:validate")

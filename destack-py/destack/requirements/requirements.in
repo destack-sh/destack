@@ -14,3 +14,4 @@ regex==2024.11.6
 rich==14.0.0
 structlog==24.2.0
 typer==0.15.1
+xxhash==3.5.0

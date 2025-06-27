@@ -76,11 +76,13 @@ BuiltinEnumT = typing.TypeVar("BuiltinEnumT", bound=Enum)
 
 
 def builtin_enum(enum_type: "EnumType"):
-    """Register a Destack enum."""
+    """Register a builtin Enum."""
 
     def register_enum(cls: type[BuiltinEnumT]) -> type[BuiltinEnumT]:
-        if enum_type in _ENUM_CLASS_BY_TYPE:
-            raise ValueError(f"enum {enum_type} duplicate: {_ENUM_CLASS_BY_TYPE[enum_type]}")
+        if (existing_enum_type := _ENUM_CLASS_BY_TYPE.get(enum_type)) is not None:
+            raise ValueError(
+                f"enum {enum_type} duplicate: {existing_enum_type} ({cls.__module__}.{cls.__name__} != {existing_enum_type.__module__}.{existing_enum_type.__name__})"
+            )
         _ENUM_CLASS_BY_TYPE[enum_type] = cls
         _ENUM_TYPE_BY_CLASS[cls] = enum_type
         enum_name = to_casing(cls.__name__, Casing.ALL_CAPS)

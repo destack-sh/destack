@@ -98,6 +98,7 @@ export class Value extends StructFrozen {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${this.type.repr()}`);
+      // @ts-expect-error(readonly)
       this._repr = `<Value ${propertyReprs.join(" ")}>`;
     }
     return this._repr;

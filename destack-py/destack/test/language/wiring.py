@@ -36,6 +36,9 @@ def test_roundtrip_node_reference():
     unpacked_node_ref = NodeReference.from_proto(unpacked_node_ref_data)
     assert unpacked_node_ref.equals(node_ref), f"{unpacked_node_ref!r} != {node_ref!r}"
     assert unpacked_node_ref.to_proto() is unpacked_node_ref_data  # cached (frozen Struct)
+    assert unpacked_node_ref.hash() == node_ref.hash(), (
+        f"{unpacked_node_ref.hash()} != {node_ref.hash()}"
+    )
 
     # value
     node_ref_value = node_ref.to_value()
@@ -45,6 +48,9 @@ def test_roundtrip_node_reference():
     unpacked_node_ref = NodeReference.from_value(unpacked_node_ref_value)
     assert unpacked_node_ref.equals(node_ref), f"{unpacked_node_ref!r} != {node_ref!r}"
     assert unpacked_node_ref.to_value() is unpacked_node_ref_value  # cached (frozen Struct)
+    assert unpacked_node_ref.hash() == node_ref.hash(), (
+        f"{unpacked_node_ref.hash()} != {node_ref.hash()}"
+    )
 
 
 def test_roundtrip_query_proto(session: Session):
@@ -65,6 +71,7 @@ def test_roundtrip_query_proto(session: Session):
     unpacked_query = Query.from_proto(unpacked_query_data)
     assert unpacked_query.equals(query), f"{unpacked_query!r} != {query!r}"
     assert unpacked_query.to_proto() is unpacked_query_data  # cached (frozen Struct)
+    assert unpacked_query.hash() == query.hash(), f"{unpacked_query.hash()} != {query.hash()}"
 
     # value
     query_value = query.to_value()
@@ -74,6 +81,7 @@ def test_roundtrip_query_proto(session: Session):
     unpacked_query = Query.from_value(unpacked_query_value)
     assert unpacked_query.equals(query), f"{unpacked_query!r} != {query!r}"
     assert unpacked_query.to_value() is unpacked_query_value  # cached (frozen Struct)
+    assert unpacked_query.hash() == query.hash(), f"{unpacked_query.hash()} != {query.hash()}"
 
 
 def test_roundtrip_user_proto(session: Session):
@@ -92,6 +100,7 @@ def test_roundtrip_user_proto(session: Session):
     unpacked_user_data.ParseFromString(user_data_bytes)
     unpacked_user = User.from_proto(unpacked_user_data)
     assert unpacked_user.equals(user), f"{unpacked_user!r} != {user!r}"
+    assert unpacked_user.hash() == user.hash(), f"{unpacked_user.hash()} != {user.hash()}"
 
     # value
     user_value = user.to_value()
@@ -100,6 +109,7 @@ def test_roundtrip_user_proto(session: Session):
     unpacked_user_value = json.loads(user_value_str)
     unpacked_user = User.from_value(unpacked_user_value)
     assert unpacked_user.equals(user), f"{unpacked_user!r} != {user!r}"
+    assert unpacked_user.hash() == user.hash(), f"{unpacked_user.hash()} != {user.hash()}"
 
 
 @given(obj=builtin_objects())
@@ -113,6 +123,7 @@ def test_roundtrip_builtin_object(obj: BuiltinObjectBase[AnyObjectProto], sessio
     unpacked_obj_data.ParseFromString(packed_bytes)
     unpacked_obj = obj.__unpack_proto__(unpacked_obj_data)
     assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"
+    assert unpacked_obj.hash() == obj.hash(), f"{unpacked_obj.hash()} != {obj.hash()}"
 
     # value
     packed_obj_value = obj.to_value()
@@ -120,3 +131,4 @@ def test_roundtrip_builtin_object(obj: BuiltinObjectBase[AnyObjectProto], sessio
     unpacked_obj_value = json.loads(packed_obj_value_str)
     unpacked_obj = obj.from_value(unpacked_obj_value)
     assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"
+    assert unpacked_obj.hash() == obj.hash(), f"{unpacked_obj.hash()} != {obj.hash()}"

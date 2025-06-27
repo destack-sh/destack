@@ -590,7 +590,9 @@ if (propertyReprs.length > 0) {{
 
     if cls.__is_frozen__ and not cls.__is_node__:
         # cache _repr in __repr__ (frozen Struct)
-        inner_repr_impl = inner_repr_impl.replace("return ", "this._repr = ")
+        inner_repr_impl = inner_repr_impl.replace(
+            "return ", "// @ts-expect-error(readonly)\nthis._repr = "
+        )
         inner_repr_impl = textwrap.indent(inner_repr_impl, "    ")
         inner_repr_impl = f"if (this._repr === null) {{\n{inner_repr_impl}\n}}\nreturn this._repr;"
         inner_repr_impl = textwrap.indent(inner_repr_impl, "    ")
@@ -771,6 +773,16 @@ hash(): number {
 }
 """
     return hash_str.strip()
+
+
+def _generate_property_hash_impl(prop: PropertyDeclaration) -> str:
+    """Generate a Typescript hash method for a single property."""
+    ...
+
+
+def _generate_scalar_hash_impl(prop: PropertyDeclaration) -> str:
+    """Generate a Typescript hash method for a single scalar property."""
+    ...
 
 
 def _generate_validate(cls: type[BuiltinObjectBase]) -> str:

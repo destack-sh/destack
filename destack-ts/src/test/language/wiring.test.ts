@@ -40,6 +40,7 @@ sessionTest("roundtrip node reference", ({ session }) => {
   const unpackedNodeRef = NodeReference.fromValue(unpackedNodeRefValue);
   expect(unpackedNodeRef.equals(nodeRef)).toBe(true);
   expect(unpackedNodeRef.toValue()).toEqual(unpackedNodeRefValue);
+  expect(unpackedNodeRef.hash()).toEqual(nodeRef.hash());
 
   // proto
   const nodeRefProto = nodeRef.toProto();
@@ -47,6 +48,7 @@ sessionTest("roundtrip node reference", ({ session }) => {
   const unpackedNodeRefProto = NodeReferenceProto.fromBinary(nodeRefProtoBytes);
   const unpackedNodeRef2 = NodeReference.fromProto(unpackedNodeRefProto);
   expect(unpackedNodeRef2.equals(nodeRef)).toBe(true);
+  expect(unpackedNodeRef2.hash()).toEqual(nodeRef.hash());
 });
 
 sessionTest("roundtrip query", ({ session }) => {
@@ -67,6 +69,7 @@ sessionTest("roundtrip query", ({ session }) => {
   const unpackedQuery = Query.fromValue(unpackedQueryValue);
   expect(unpackedQuery.equals(query)).toBe(true);
   expect(unpackedQuery.toValue()).toEqual(unpackedQueryValue);
+  expect(unpackedQuery.hash()).toEqual(query.hash());
 
   // proto
   const queryProto = query.toProto();
@@ -74,6 +77,7 @@ sessionTest("roundtrip query", ({ session }) => {
   const unpackedQueryProto = QueryProto.fromBinary(queryProtoBytes);
   const unpackedQuery2 = Query.fromProto(unpackedQueryProto);
   expect(unpackedQuery2.equals(query)).toBe(true);
+  expect(unpackedQuery2.hash()).toEqual(query.hash());
 });
 
 sessionTest("roundtrip user", ({ session }) => {
@@ -92,6 +96,7 @@ sessionTest("roundtrip user", ({ session }) => {
   const unpackedUserValue = JSON.parse(userValueStr);
   const unpackedUser = User.fromValue(unpackedUserValue);
   expect(unpackedUser.equals(user)).toBe(true);
+  expect(unpackedUser.hash()).toEqual(user.hash());
 
   // proto
   const userProto = user.toProto();
@@ -99,4 +104,5 @@ sessionTest("roundtrip user", ({ session }) => {
   const unpackedUserProto = UserProto.fromBinary(userProtoBytes);
   const unpackedUser2 = User.fromProto(unpackedUserProto);
   expect(unpackedUser2.equals(user)).toBe(true);
+  expect(unpackedUser2.hash()).toEqual(user.hash());
 });
