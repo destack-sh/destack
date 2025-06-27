@@ -80,7 +80,7 @@ export class CustomViewDefinition extends Node implements ContainerView, IsCusto
     NodeType.ARROW_SHAPE,
     NodeType.CANVAS,
     NodeType.LINE_SHAPE,
-    NodeType.PLANE_SHAPE,
+    NodeType.POLYGON_SHAPE,
     NodeType.TAGGING,
     NodeType.SCRIPT,
     NodeType.VARIANT,
@@ -101,7 +101,7 @@ export class CustomViewDefinition extends Node implements ContainerView, IsCusto
   ];
   static __descendantTypes__: NodeType[] = [
     NodeType.LINE_SHAPE,
-    NodeType.PLANE_SHAPE,
+    NodeType.POLYGON_SHAPE,
     NodeType.ARROW_SHAPE,
     NodeType.ANNOTATION_SHAPE,
     NodeType.CUSTOM_VIEW,
@@ -1453,7 +1453,7 @@ export class CustomView extends Node implements ContainerView, IsCustomNode {
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [
-    NodeType.PLANE_SHAPE,
+    NodeType.POLYGON_SHAPE,
     NodeType.FRAME_VIEW,
     NodeType.ANNOTATION_SHAPE,
     NodeType.WINDOW,
@@ -1480,7 +1480,7 @@ export class CustomView extends Node implements ContainerView, IsCustomNode {
     NodeType.ARROW_SHAPE,
     NodeType.CANVAS,
     NodeType.LINE_SHAPE,
-    NodeType.PLANE_SHAPE,
+    NodeType.POLYGON_SHAPE,
     NodeType.TAGGING,
     NodeType.SCRIPT,
     NodeType.COLOR_STYLE,
@@ -1494,7 +1494,7 @@ export class CustomView extends Node implements ContainerView, IsCustomNode {
   ];
   static __ancestorTypes__: NodeType[] = [
     NodeType.SPACE,
-    NodeType.PLANE_SHAPE,
+    NodeType.POLYGON_SHAPE,
     NodeType.FRAME_VIEW,
     NodeType.ANNOTATION_SHAPE,
     NodeType.WINDOW,
@@ -1509,7 +1509,7 @@ export class CustomView extends Node implements ContainerView, IsCustomNode {
   ];
   static __descendantTypes__: NodeType[] = [
     NodeType.LINE_SHAPE,
-    NodeType.PLANE_SHAPE,
+    NodeType.POLYGON_SHAPE,
     NodeType.ARROW_SHAPE,
     NodeType.ANNOTATION_SHAPE,
     NodeType.CUSTOM_VIEW,

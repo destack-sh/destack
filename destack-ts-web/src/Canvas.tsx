@@ -2,12 +2,8 @@ import { EASINGS } from "@destack-web/shared/easings";
 import { renderStroke } from "@destack-web/shared/freehand/svg";
 import { StrokeOptions } from "@destack-web/shared/freehand/types";
 import { computed, Signal, signal, useSignal } from "@preact/signals-react";
-import { Vector3 } from "destack";
+import { Line, LineType, Vector3 } from "destack";
 import React, { useEffect, useRef } from "react";
-
-type Line = {
-  points: Vector3[];
-};
 
 const currentLine = signal<Line | null>(null);
 const lines = signal<Line[]>([]);
@@ -52,13 +48,13 @@ export const Canvas: React.FC = () => {
     const rect = svgRef.current.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
-    const pressure = 0.5;
+    const pressure = 1.0;
 
     return new Vector3({ x, y, z: pressure });
   };
 
   // high-frequency sampling using requestAnimationFrame
-  console.log("init");
+  console.log("render");
   const sampleCurrentPosition = () => {
     if (!isDrawing.value || !lastMousePosition.value || currentLine.value == null) return;
 
@@ -72,9 +68,10 @@ export const Canvas: React.FC = () => {
         x: currentPoint.x,
         y: currentPoint.y,
       });
-      currentLine.value = {
+      currentLine.value = new Line({
+        type: LineType.SOLID,
         points: [...currentLine.value.points, currentPoint],
-      };
+      });
     }
 
     // continue sampling
@@ -85,7 +82,7 @@ export const Canvas: React.FC = () => {
     isDrawing.value = true;
     const point = getMousePosition(event);
     lastMousePosition.value = point;
-    currentLine.value = { points: [point] };
+    currentLine.value = new Line({ type: LineType.SOLID, points: [point] });
 
     // start high-frequency sampling
     animationFrameId.current = requestAnimationFrame(sampleCurrentPosition);

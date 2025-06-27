@@ -6,18 +6,23 @@ import {
   IsSubject,
   Node,
   NodeType,
+  StructFrozen,
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
-import { Align, Dimension, Position, Vector2 } from "@destack/language/core/common";
+import { Align, Dimension, Position, Vector3 } from "@destack/language/core/common";
 import { Script } from "@destack/language/logic";
-import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
+import {
+  registerEnumClass,
+  registerNodeClass,
+  registerStructClass,
+} from "@destack/language/registry";
 import { Layer, Scene, Window } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Color } from "@destack/language/style";
 import { ContainerView } from "@destack/language/view/container";
 import { ContentView } from "@destack/language/view/content";
-import { AlignProto, LineShapeProto, LineTypeProto } from "@destack/proto";
+import { AlignProto, LineProto, LineShapeProto, LineTypeProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
@@ -58,7 +63,7 @@ export class LineShape extends Node implements ContentView, IsShape {
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [
-    NodeType.PLANE_SHAPE,
+    NodeType.POLYGON_SHAPE,
     NodeType.FRAME_VIEW,
     NodeType.ANNOTATION_SHAPE,
     NodeType.WINDOW,
@@ -84,7 +89,7 @@ export class LineShape extends Node implements ContentView, IsShape {
   ];
   static __ancestorTypes__: NodeType[] = [
     NodeType.SPACE,
-    NodeType.PLANE_SHAPE,
+    NodeType.POLYGON_SHAPE,
     NodeType.FRAME_VIEW,
     NodeType.ANNOTATION_SHAPE,
     NodeType.WINDOW,
@@ -248,7 +253,7 @@ export class LineShape extends Node implements ContentView, IsShape {
   /**
    * LineShape.points
    */
-  points: Array<Vector2>;
+  points: Array<Vector3>;
 
   /**
    * LineShape.color
@@ -296,7 +301,7 @@ export class LineShape extends Node implements ContentView, IsShape {
     align?: Align | null;
     isVisible?: boolean | null;
     opacity?: number | null;
-    points?: Array<Vector2>;
+    points?: Array<Vector3>;
     color?: Color | null;
     script?: Script | NodeReference | null;
     _session?: Session | null;
@@ -628,7 +633,7 @@ export class LineShape extends Node implements ContentView, IsShape {
     const unpackedPoints: any[] = [];
     if (objectValue["100"] != undefined) {
       for (const item of objectValue["100"]) {
-        unpackedPoints.push(Vector2.fromValue(item, _session, _supergraph, _graph, _connection));
+        unpackedPoints.push(Vector3.fromValue(item, _session, _supergraph, _graph, _connection));
       }
     }
     const colorValue = objectValue["101"];
@@ -829,7 +834,7 @@ export class LineShape extends Node implements ContentView, IsShape {
     const unpackedPoints: any[] = [];
     if (objectProto.points) {
       for (const item of objectProto.points) {
-        unpackedPoints.push(Vector2.fromProto(item!, _session, _supergraph, _graph, _connection));
+        unpackedPoints.push(Vector3.fromProto(item!, _session, _supergraph, _graph, _connection));
       }
     }
     return new LineShape({
@@ -955,3 +960,235 @@ export class LineShape extends Node implements ContentView, IsShape {
 }
 registerNodeClass(NodeType.LINE_SHAPE, LineShape);
 /* ==== DESTACK_GENERATED_END:NODE:11010 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:11010 ==== */
+/**
+ * A Line is a list of points.
+ */
+export class Line extends StructFrozen {
+  static metatype: StructType = StructType.LINE;
+  static __isFrozen__: boolean = true;
+
+  /**
+   * Line.type
+   */
+  readonly type: LineType;
+
+  /**
+   * Line.points
+   */
+  readonly points: Array<Vector3>;
+
+  /**
+   * Line.color
+   */
+  readonly color: Color | null;
+
+  constructor(options: {
+    type: LineType;
+    points?: Array<Vector3>;
+    color?: Color | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
+  }) {
+    super(
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+    );
+
+    // properties
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`Line.type is required`);
+    }
+    this.type = _type;
+    let _points = options.points ?? null;
+    if (_points === null) {
+      _points = [];
+    }
+    this.points = _points;
+    let _color = options.color ?? null;
+    this.color = _color;
+
+    // identity
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (this.points.length !== other.points.length) {
+      return false;
+    }
+    for (let i = 0; i < this.points.length; i++) {
+      if (!this.points[i].equals(other.points[i])) {
+        return false;
+      }
+    }
+    if (
+      (this.color == null) !== (other.color == null) ||
+      (this.color != null && !this.color.equals(other.color))
+    ) {
+      return false;
+    }
+    return true;
+  }
+
+  hash(): number {
+    throw new Error("not implemented");
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Line.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Line): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 11010;
+    objectValue["30"] = object.type;
+    if (object.points.length > 0) {
+      const packedPoints: any[] = [];
+      for (const item of object.points) {
+        packedPoints.push(item.toValue());
+      }
+      objectValue["100"] = packedPoints;
+    }
+    if (object.color != null) {
+      objectValue["101"] = object.color.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Line {
+    const unpackedPoints: any[] = [];
+    if (objectValue["100"] != undefined) {
+      for (const item of objectValue["100"]) {
+        unpackedPoints.push(Vector3.fromValue(item, _session, _supergraph, _graph, _connection));
+      }
+    }
+    const colorValue = objectValue["101"];
+    const unpackedColor =
+      colorValue != undefined
+        ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new Line({
+      type: Number(objectValue["30"]),
+      points: unpackedPoints,
+      color: unpackedColor,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Line {
+    return Line.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): LineProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Line.__packProto__(this);
+    }
+    return this._proto as LineProto;
+  }
+
+  static __packProto__(object: Line): LineProto {
+    const objectProto: Partial<LineProto> = { metatype: 11010 };
+    objectProto.type = Number(object.type) as LineTypeProto;
+    if (object.points) {
+      const packedPoints: any[] = [];
+      for (const item of object.points) {
+        packedPoints.push(item.toProto());
+      }
+      objectProto.points = packedPoints;
+    }
+    if (object.color != null) {
+      objectProto.color = object.color.toProto();
+    }
+    return objectProto as LineProto;
+  }
+
+  static __unpackProto__(
+    objectProto: LineProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Line {
+    const unpackedPoints: any[] = [];
+    if (objectProto.points) {
+      for (const item of objectProto.points) {
+        unpackedPoints.push(Vector3.fromProto(item!, _session, _supergraph, _graph, _connection));
+      }
+    }
+    return new Line({
+      type: Number(objectProto.type) as LineType,
+      points: unpackedPoints,
+      color:
+        objectProto.color != undefined
+          ? Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
+          : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: LineProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Line {
+    return Line.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Line {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = LineProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.LINE, Line);
+/* ==== DESTACK_GENERATED_END:STRUCT:11010 ==== */

@@ -247,7 +247,7 @@ export class Space
     NodeType.TRANSITION_STYLE,
     NodeType.EFFECT_STYLE,
     NodeType.LINE_SHAPE,
-    NodeType.PLANE_SHAPE,
+    NodeType.POLYGON_SHAPE,
     NodeType.ARROW_SHAPE,
     NodeType.ANNOTATION_SHAPE,
     NodeType.CUSTOM_VIEW_DEFINITION,

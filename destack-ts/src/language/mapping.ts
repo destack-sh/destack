@@ -33,10 +33,12 @@ import type {
   Canvas,
   CanvasType,
   IsShape,
+  Line,
   LineShape,
   LineType,
-  PlaneShape,
-  PlaneShapeType,
+  Polygon,
+  PolygonShape,
+  PolygonShapeType,
 } from "@destack/language/canvas";
 import type {
   Analytic,
@@ -470,7 +472,7 @@ export type NodeTypeMapping = {
   [NodeType.ARROW_SHAPE]: ArrowShape;
   [NodeType.CANVAS]: Canvas;
   [NodeType.LINE_SHAPE]: LineShape;
-  [NodeType.PLANE_SHAPE]: PlaneShape;
+  [NodeType.POLYGON_SHAPE]: PolygonShape;
   [NodeType.FILE]: File;
   [NodeType.LINK]: Link;
   [NodeType.ENVIRONMENT]: Environment;
@@ -686,6 +688,8 @@ export type StructTypeMapping = {
   [StructType.AXIS3]: Axis3;
   [StructType.GRID]: Grid;
   [StructType.GRID_SPAN]: GridSpan;
+  [StructType.LINE]: Line;
+  [StructType.POLYGON]: Polygon;
   [StructType.DATABASE_INFO]: DatabaseInfo;
   [StructType.GALAXY_INFO]: GalaxyInfo;
   [StructType.SCHEDULE]: Schedule;
@@ -769,7 +773,7 @@ export type EnumTypeMapping = {
   [EnumType.ARROW_HEAD_TYPE]: ArrowHeadType;
   [EnumType.CANVAS_TYPE]: CanvasType;
   [EnumType.LINE_TYPE]: LineType;
-  [EnumType.PLANE_SHAPE_TYPE]: PlaneShapeType;
+  [EnumType.POLYGON_SHAPE_TYPE]: PolygonShapeType;
   [EnumType.FILE_SOURCE]: FileSource;
   [EnumType.FILE_RETENTION_MODE]: FileRetentionMode;
   [EnumType.FILE_TYPE]: FileType;

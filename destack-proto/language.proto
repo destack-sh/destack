@@ -372,9 +372,9 @@ enum EnumTypeProto {
   ENUM_TYPE_TOOL_TYPE = 9501;
   ENUM_TYPE_MOUSE_BUTTON = 9510;
   ENUM_TYPE_CANVAS_TYPE = 11000;
-  ENUM_TYPE_PLANE_SHAPE_TYPE = 11011;
-  ENUM_TYPE_ARROW_HEAD_TYPE = 11012;
   ENUM_TYPE_LINE_TYPE = 11010;
+  ENUM_TYPE_POLYGON_SHAPE_TYPE = 11011;
+  ENUM_TYPE_ARROW_HEAD_TYPE = 11012;
   ENUM_TYPE_POSITION_TYPE = 12000;
   ENUM_TYPE_COLOR_TYPE = 12020;
   ENUM_TYPE_COLOR_SHADE = 12021;
@@ -971,7 +971,7 @@ enum NodeTypeProto {
   NODE_TYPE_WIZARD_VIEW = 10650;
   NODE_TYPE_CANVAS = 11000;
   NODE_TYPE_LINE_SHAPE = 11010;
-  NODE_TYPE_PLANE_SHAPE = 11011;
+  NODE_TYPE_POLYGON_SHAPE = 11011;
   NODE_TYPE_ARROW_SHAPE = 11012;
   NODE_TYPE_ANNOTATION_SHAPE = 11013;
   NODE_TYPE_THEME = 12000;
@@ -1048,20 +1048,20 @@ enum PermissionTypeProto {
   PERMISSION_TYPE_GENERAL = 1;
 }
 
-enum PlaneShapeTypeProto {
-  PLANE_SHAPE_TYPE_UNSPECIFIED = 0;
-  PLANE_SHAPE_TYPE_RECTANGLE = 1;
-  PLANE_SHAPE_TYPE_TRIANGLE = 2;
-  PLANE_SHAPE_TYPE_CIRCLE = 3;
-  PLANE_SHAPE_TYPE_ELLIPSE = 4;
-  PLANE_SHAPE_TYPE_POLYGON = 5;
-}
-
 enum PlatformTypeProto {
   PLATFORM_TYPE_UNSPECIFIED = 0;
   PLATFORM_TYPE_SYSTEM = 1;
   PLATFORM_TYPE_RUNTIME = 2;
   PLATFORM_TYPE_WEB = 10;
+}
+
+enum PolygonShapeTypeProto {
+  POLYGON_SHAPE_TYPE_UNSPECIFIED = 0;
+  POLYGON_SHAPE_TYPE_RECTANGLE = 1;
+  POLYGON_SHAPE_TYPE_TRIANGLE = 2;
+  POLYGON_SHAPE_TYPE_CIRCLE = 3;
+  POLYGON_SHAPE_TYPE_ELLIPSE = 4;
+  POLYGON_SHAPE_TYPE_POLYGON = 5;
 }
 
 // The position type of a View.
@@ -1336,6 +1336,8 @@ enum StructTypeProto {
   STRUCT_TYPE_SCHEDULE = 3001;
   STRUCT_TYPE_DATABASE_INFO = 7501;
   STRUCT_TYPE_GALAXY_INFO = 7601;
+  STRUCT_TYPE_LINE = 11010;
+  STRUCT_TYPE_POLYGON = 11011;
   STRUCT_TYPE_COLOR = 12011;
   STRUCT_TYPE_SHADOW = 12012;
   STRUCT_TYPE_BORDER = 12013;
@@ -3269,6 +3271,13 @@ message LengthProto {
   double value = 51;
 }
 
+message LineProto {
+  StructTypeProto metatype = 1;
+  LineTypeProto type = 30;
+  repeated Vector3Proto points = 100;
+  optional ColorProto color = 101;
+}
+
 // A LineShape is a shape that represents a line.
 message LineShapeProto {
   NodeTypeProto metatype = 1;
@@ -3293,7 +3302,7 @@ message LineShapeProto {
   optional AlignProto align = 53;
   optional bool is_visible = 60;
   optional double opacity = 61;
-  repeated Vector2Proto points = 100;
+  repeated Vector3Proto points = 100;
   optional ColorProto color = 101;
   optional NodeReferenceProto script_ptr = 200;
 }
@@ -3727,49 +3736,6 @@ message PermissionDefinitionProto {
   optional IconProto icon = 34;
 }
 
-message PlaneShapeProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  optional NodeReferenceProto space_ptr = 5;
-  google.protobuf.Timestamp created_at = 15;
-  optional NodeReferenceProto created_by_ptr = 16;
-  google.protobuf.Timestamp updated_at = 17;
-  optional NodeReferenceProto updated_by_ptr = 18;
-  optional google.protobuf.Timestamp deleted_at = 20;
-  map<string, ValueProto> value = 21;
-  string order_key = 22;
-  string name = 31;
-  optional PositionProto position = 40;
-  optional DimensionProto width = 41;
-  optional DimensionProto height = 42;
-  optional DimensionProto min_width = 43;
-  optional DimensionProto min_height = 44;
-  optional DimensionProto max_width = 45;
-  optional DimensionProto max_height = 46;
-  optional LayoutProto layout = 50;
-  optional DirectionProto direction = 51;
-  optional DistributeProto distribute = 52;
-  optional AlignProto align = 53;
-  optional Axis2Proto gap = 54;
-  optional InsetsProto padding = 55;
-  optional GridProto grid = 56;
-  optional GridSpanProto grid_span = 57;
-  optional double aspect_ratio = 58;
-  optional bool is_wrap = 59;
-  optional bool is_visible = 60;
-  optional double opacity = 61;
-  optional FillProto fill = 62;
-  optional Axis3Proto rotation = 63;
-  optional Vector2Proto skew = 64;
-  optional double scale = 65;
-  optional ShadowProto shadow = 66;
-  optional BorderProto border = 67;
-  optional CornersProto radius = 68;
-  repeated Vector2Proto points = 100;
-  optional NodeReferenceProto script_ptr = 200;
-}
-
 // A PointerDownEvent is a PointerEvent when a pointer is pressed down.
 message PointerDownEventProto {
   NodeTypeProto metatype = 1;
@@ -3888,6 +3854,57 @@ message PointerUpEventProto {
   bool ctrl_key = 82;
   bool meta_key = 83;
   bool accel_key = 84;
+}
+
+message PolygonProto {
+  StructTypeProto metatype = 1;
+  PolygonShapeTypeProto type = 30;
+  repeated Vector3Proto points = 100;
+}
+
+// A PolygonShape is a shape that represents a polygon.
+message PolygonShapeProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  optional google.protobuf.Timestamp deleted_at = 20;
+  map<string, ValueProto> value = 21;
+  string order_key = 22;
+  PolygonShapeTypeProto type = 30;
+  string name = 31;
+  optional PositionProto position = 40;
+  optional DimensionProto width = 41;
+  optional DimensionProto height = 42;
+  optional DimensionProto min_width = 43;
+  optional DimensionProto min_height = 44;
+  optional DimensionProto max_width = 45;
+  optional DimensionProto max_height = 46;
+  optional LayoutProto layout = 50;
+  optional DirectionProto direction = 51;
+  optional DistributeProto distribute = 52;
+  optional AlignProto align = 53;
+  optional Axis2Proto gap = 54;
+  optional InsetsProto padding = 55;
+  optional GridProto grid = 56;
+  optional GridSpanProto grid_span = 57;
+  optional double aspect_ratio = 58;
+  optional bool is_wrap = 59;
+  optional bool is_visible = 60;
+  optional double opacity = 61;
+  optional FillProto fill = 62;
+  optional Axis3Proto rotation = 63;
+  optional Vector2Proto skew = 64;
+  optional double scale = 65;
+  optional ShadowProto shadow = 66;
+  optional BorderProto border = 67;
+  optional CornersProto radius = 68;
+  repeated Vector3Proto points = 100;
+  optional NodeReferenceProto script_ptr = 200;
 }
 
 message PositionProto {
@@ -5280,7 +5297,7 @@ message SomeNodeProto {
     WizardViewProto wizard_view = 10650;
     CanvasProto canvas = 11000;
     LineShapeProto line_shape = 11010;
-    PlaneShapeProto plane_shape = 11011;
+    PolygonShapeProto polygon_shape = 11011;
     ArrowShapeProto arrow_shape = 11012;
     AnnotationShapeProto annotation_shape = 11013;
     ThemeProto theme = 12000;

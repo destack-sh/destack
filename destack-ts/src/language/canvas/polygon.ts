@@ -6,6 +6,7 @@ import {
   IsSubject,
   Node,
   NodeType,
+  StructFrozen,
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
@@ -24,9 +25,14 @@ import {
   Position,
   Value,
   Vector2,
+  Vector3,
 } from "@destack/language/core/common";
 import { Script } from "@destack/language/logic";
-import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
+import {
+  registerEnumClass,
+  registerNodeClass,
+  registerStructClass,
+} from "@destack/language/registry";
 import { Layer, Scene, Window } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { Border, Fill, Shadow } from "@destack/language/style";
@@ -36,16 +42,18 @@ import {
   DirectionProto,
   DistributeProto,
   LayoutProto,
-  PlaneShapeProto,
+  PolygonProto,
+  PolygonShapeProto,
+  PolygonShapeTypeProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:11011 ==== */
 /**
- * PlaneShapeType
+ * PolygonShapeType
  */
-export enum PlaneShapeType {
+export enum PolygonShapeType {
   RECTANGLE = 1,
   TRIANGLE = 2,
   CIRCLE = 3,
@@ -56,15 +64,217 @@ export enum PlaneShapeType {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerEnumClass(EnumType.PLANE_SHAPE_TYPE, PlaneShapeType);
+registerEnumClass(EnumType.POLYGON_SHAPE_TYPE, PolygonShapeType);
 /* ==== DESTACK_GENERATED_END:ENUM:11011 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:11011 ==== */
+/**
+ * A Polygon is a list of points.
+ */
+export class Polygon extends StructFrozen {
+  static metatype: StructType = StructType.POLYGON;
+  static __isFrozen__: boolean = true;
+
+  /**
+   * Polygon.type
+   */
+  readonly type: PolygonShapeType;
+
+  /**
+   * Polygon.points
+   */
+  readonly points: Array<Vector3>;
+
+  constructor(options: {
+    type: PolygonShapeType;
+    points?: Array<Vector3>;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
+  }) {
+    super(
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+    );
+
+    // properties
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`Polygon.type is required`);
+    }
+    this.type = _type;
+    let _points = options.points ?? null;
+    if (_points === null) {
+      _points = [];
+    }
+    this.points = _points;
+
+    // identity
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (this.points.length !== other.points.length) {
+      return false;
+    }
+    for (let i = 0; i < this.points.length; i++) {
+      if (!this.points[i].equals(other.points[i])) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  hash(): number {
+    throw new Error("not implemented");
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  toValue(): { [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Polygon.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Polygon): { [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 11011;
+    objectValue["30"] = object.type;
+    if (object.points.length > 0) {
+      const packedPoints: any[] = [];
+      for (const item of object.points) {
+        packedPoints.push(item.toValue());
+      }
+      objectValue["100"] = packedPoints;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Polygon {
+    const unpackedPoints: any[] = [];
+    if (objectValue["100"] != undefined) {
+      for (const item of objectValue["100"]) {
+        unpackedPoints.push(Vector3.fromValue(item, _session, _supergraph, _graph, _connection));
+      }
+    }
+    return new Polygon({
+      type: Number(objectValue["30"]),
+      points: unpackedPoints,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Polygon {
+    return Polygon.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): PolygonProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Polygon.__packProto__(this);
+    }
+    return this._proto as PolygonProto;
+  }
+
+  static __packProto__(object: Polygon): PolygonProto {
+    const objectProto: Partial<PolygonProto> = { metatype: 11011 };
+    objectProto.type = Number(object.type) as PolygonShapeTypeProto;
+    if (object.points) {
+      const packedPoints: any[] = [];
+      for (const item of object.points) {
+        packedPoints.push(item.toProto());
+      }
+      objectProto.points = packedPoints;
+    }
+    return objectProto as PolygonProto;
+  }
+
+  static __unpackProto__(
+    objectProto: PolygonProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Polygon {
+    const unpackedPoints: any[] = [];
+    if (objectProto.points) {
+      for (const item of objectProto.points) {
+        unpackedPoints.push(Vector3.fromProto(item!, _session, _supergraph, _graph, _connection));
+      }
+    }
+    return new Polygon({
+      type: Number(objectProto.type) as PolygonShapeType,
+      points: unpackedPoints,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: PolygonProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Polygon {
+    return Polygon.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Polygon {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = PolygonProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.POLYGON, Polygon);
+/* ==== DESTACK_GENERATED_END:STRUCT:11011 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:11011 ==== */
 /**
- * PlaneShape
+ * A PolygonShape is a shape that represents a polygon.
  */
-export class PlaneShape extends Node implements ContainerView, IsShape {
-  static metatype: NodeType = NodeType.PLANE_SHAPE;
+export class PolygonShape extends Node implements ContainerView, IsShape {
+  static metatype: NodeType = NodeType.POLYGON_SHAPE;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.VISUAL,
@@ -81,7 +291,7 @@ export class PlaneShape extends Node implements ContainerView, IsShape {
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [
-    NodeType.PLANE_SHAPE,
+    NodeType.POLYGON_SHAPE,
     NodeType.FRAME_VIEW,
     NodeType.ANNOTATION_SHAPE,
     NodeType.WINDOW,
@@ -108,7 +318,7 @@ export class PlaneShape extends Node implements ContainerView, IsShape {
     NodeType.ARROW_SHAPE,
     NodeType.CANVAS,
     NodeType.LINE_SHAPE,
-    NodeType.PLANE_SHAPE,
+    NodeType.POLYGON_SHAPE,
     NodeType.TAGGING,
     NodeType.SCRIPT,
     NodeType.COLOR_STYLE,
@@ -122,7 +332,7 @@ export class PlaneShape extends Node implements ContainerView, IsShape {
   ];
   static __ancestorTypes__: NodeType[] = [
     NodeType.SPACE,
-    NodeType.PLANE_SHAPE,
+    NodeType.POLYGON_SHAPE,
     NodeType.FRAME_VIEW,
     NodeType.ANNOTATION_SHAPE,
     NodeType.WINDOW,
@@ -137,7 +347,7 @@ export class PlaneShape extends Node implements ContainerView, IsShape {
   ];
   static __descendantTypes__: NodeType[] = [
     NodeType.LINE_SHAPE,
-    NodeType.PLANE_SHAPE,
+    NodeType.POLYGON_SHAPE,
     NodeType.ARROW_SHAPE,
     NodeType.ANNOTATION_SHAPE,
     NodeType.CUSTOM_VIEW,
@@ -244,6 +454,11 @@ export class PlaneShape extends Node implements ContainerView, IsShape {
    * IsOrdered.orderKey
    */
   readonly orderKey: string;
+
+  /**
+   * PolygonShape.type
+   */
+  type: PolygonShapeType;
 
   /**
    * HasName.name
@@ -381,9 +596,9 @@ export class PlaneShape extends Node implements ContainerView, IsShape {
   radius: Corners | null;
 
   /**
-   * PlaneShape.points
+   * PolygonShape.points
    */
-  points: Array<Vector2>;
+  points: Array<Vector3>;
 
   /**
    * The main / root Script of this Node.
@@ -415,6 +630,7 @@ export class PlaneShape extends Node implements ContainerView, IsShape {
     deletedAt?: Temporal.ZonedDateTime | null;
     value?: Map<string, Value>;
     orderKey?: string;
+    type: PolygonShapeType;
     name: string;
     position?: Position | null;
     width?: Dimension | null;
@@ -442,7 +658,7 @@ export class PlaneShape extends Node implements ContainerView, IsShape {
     shadow?: Shadow | null;
     border?: Border | null;
     radius?: Corners | null;
-    points?: Array<Vector2>;
+    points?: Array<Vector3>;
     script?: Script | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -495,12 +711,17 @@ export class PlaneShape extends Node implements ContainerView, IsShape {
       _orderKey = "a0";
     }
     if (_orderKey === null) {
-      throw new Error(`PlaneShape.orderKey is required`);
+      throw new Error(`PolygonShape.orderKey is required`);
     }
     this.orderKey = _orderKey;
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`PolygonShape.type is required`);
+    }
+    this.type = _type;
     let _name = options.name;
     if (_name === null) {
-      throw new Error(`PlaneShape.name is required`);
+      throw new Error(`PolygonShape.name is required`);
     }
     this.name = _name;
     let _position = options.position ?? null;
@@ -598,6 +819,9 @@ export class PlaneShape extends Node implements ContainerView, IsShape {
 
   equals(other: any): boolean {
     if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
       return false;
     }
     if (this.points.length !== other.points.length) {
@@ -785,7 +1009,7 @@ export class PlaneShape extends Node implements ContainerView, IsShape {
 
   __toRef__(): NodeReference {
     return new NodeReference({
-      nodeType: NodeType.PLANE_SHAPE,
+      nodeType: NodeType.POLYGON_SHAPE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       _session: this._session,
@@ -811,10 +1035,10 @@ export class PlaneShape extends Node implements ContainerView, IsShape {
   }
 
   toValue(): { [key: string]: any } {
-    return PlaneShape.__packValue__(this);
+    return PolygonShape.__packValue__(this);
   }
 
-  static __packValue__(object: PlaneShape): { [key: string]: any } {
+  static __packValue__(object: PolygonShape): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 11011;
     objectValue["2"] = String(object.id);
@@ -843,6 +1067,7 @@ export class PlaneShape extends Node implements ContainerView, IsShape {
       objectValue["21"] = packedValue;
     }
     objectValue["22"] = object.orderKey;
+    objectValue["30"] = object.type;
     objectValue["31"] = object.name;
     if (object.position != null) {
       objectValue["40"] = object.position.toValue();
@@ -941,11 +1166,11 @@ export class PlaneShape extends Node implements ContainerView, IsShape {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): PlaneShape {
+  ): PolygonShape {
     const unpackedPoints: any[] = [];
     if (objectValue["100"] != undefined) {
       for (const item of objectValue["100"]) {
-        unpackedPoints.push(Vector2.fromValue(item, _session, _supergraph, _graph, _connection));
+        unpackedPoints.push(Vector3.fromValue(item, _session, _supergraph, _graph, _connection));
       }
     }
     const layoutValue = objectValue["50"];
@@ -1088,7 +1313,8 @@ export class PlaneShape extends Node implements ContainerView, IsShape {
         );
       }
     }
-    return new PlaneShape({
+    return new PolygonShape({
+      type: Number(objectValue["30"]),
       points: unpackedPoints,
       layout: unpackedLayout,
       direction: unpackedDirection,
@@ -1140,16 +1366,16 @@ export class PlaneShape extends Node implements ContainerView, IsShape {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): PlaneShape {
-    return PlaneShape.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  ): PolygonShape {
+    return PolygonShape.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): PlaneShapeProto {
-    return PlaneShape.__packProto__(this);
+  toProto(): PolygonShapeProto {
+    return PolygonShape.__packProto__(this);
   }
 
-  static __packProto__(object: PlaneShape): PlaneShapeProto {
-    const objectProto: Partial<PlaneShapeProto> = { metatype: 11011 };
+  static __packProto__(object: PolygonShape): PolygonShapeProto {
+    const objectProto: Partial<PolygonShapeProto> = { metatype: 11011 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1175,6 +1401,7 @@ export class PlaneShape extends Node implements ContainerView, IsShape {
       }
     }
     objectProto.orderKey = object.orderKey;
+    objectProto.type = Number(object.type) as PolygonShapeTypeProto;
     objectProto.name = object.name;
     if (object.position != null) {
       objectProto.position = object.position.toProto();
@@ -1264,20 +1491,20 @@ export class PlaneShape extends Node implements ContainerView, IsShape {
     if (object.scriptPtr != null) {
       objectProto.scriptPtr = object.scriptPtr.toProto();
     }
-    return objectProto as PlaneShapeProto;
+    return objectProto as PolygonShapeProto;
   }
 
   static __unpackProto__(
-    objectProto: PlaneShapeProto,
+    objectProto: PolygonShapeProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): PlaneShape {
+  ): PolygonShape {
     const unpackedPoints: any[] = [];
     if (objectProto.points) {
       for (const item of objectProto.points) {
-        unpackedPoints.push(Vector2.fromProto(item!, _session, _supergraph, _graph, _connection));
+        unpackedPoints.push(Vector3.fromProto(item!, _session, _supergraph, _graph, _connection));
       }
     }
     const unpackedValue = new Map();
@@ -1289,7 +1516,8 @@ export class PlaneShape extends Node implements ContainerView, IsShape {
         );
       }
     }
-    return new PlaneShape({
+    return new PolygonShape({
+      type: Number(objectProto.type) as PolygonShapeType,
       points: unpackedPoints,
       layout: objectProto.layout != undefined ? (Number(objectProto.layout) as Layout) : null,
       direction:
@@ -1435,18 +1663,18 @@ export class PlaneShape extends Node implements ContainerView, IsShape {
   }
 
   static fromProto(
-    objectProto: PlaneShapeProto,
+    objectProto: PolygonShapeProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): PlaneShape {
-    return PlaneShape.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  ): PolygonShape {
+    return PolygonShape.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
-  static fromProtoString(packedProtoString: string): PlaneShape {
+  static fromProtoString(packedProtoString: string): PolygonShape {
     const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = PlaneShapeProto.fromBinary(packedProtoBytes);
+    const packedProto = PolygonShapeProto.fromBinary(packedProtoBytes);
     return this.fromProto(packedProto);
   }
 
@@ -1454,5 +1682,5 @@ export class PlaneShape extends Node implements ContainerView, IsShape {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerNodeClass(NodeType.PLANE_SHAPE, PlaneShape);
+registerNodeClass(NodeType.POLYGON_SHAPE, PolygonShape);
 /* ==== DESTACK_GENERATED_END:NODE:11011 ==== */

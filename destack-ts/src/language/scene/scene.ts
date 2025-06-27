@@ -947,7 +947,7 @@ export class Scene extends Node implements ContainerView, HasIcon, IsOwnable {
     NodeType.ARROW_SHAPE,
     NodeType.CANVAS,
     NodeType.LINE_SHAPE,
-    NodeType.PLANE_SHAPE,
+    NodeType.POLYGON_SHAPE,
     NodeType.TAGGING,
     NodeType.SCRIPT,
     NodeType.LAYER,
@@ -971,7 +971,7 @@ export class Scene extends Node implements ContainerView, HasIcon, IsOwnable {
   ];
   static __descendantTypes__: NodeType[] = [
     NodeType.LINE_SHAPE,
-    NodeType.PLANE_SHAPE,
+    NodeType.POLYGON_SHAPE,
     NodeType.ARROW_SHAPE,
     NodeType.ANNOTATION_SHAPE,
     NodeType.CUSTOM_VIEW_DEFINITION,
