@@ -1,0 +1,7 @@
+---
+description: 
+globs: *.tsx
+alwaysApply: false
+---
+Prefer Preact's new signals for state management wherever possible (useSignal instead of useState).
+(useRef is fine.)

@@ -6,6 +6,17 @@ import { Vector3 } from "destack";
 const FIXED_PI = Math.PI + 0.0001;
 const MIN_START_PRESSURE = 0.025;
 const MIN_END_PRESSURE = 0.01;
+const SIMULATED_PRESSURE = 0.5;
+
+/**
+ * Get an array of points describing a polygon that surrounds the input points.
+ * This is the main entry point that combines all stroke processing steps.
+ */
+export function getStroke(points: Vector3[], options: StrokeOptions = {}): Vector3[] {
+  const strokePoints = getStrokePoints(points, options);
+  const strokePointsWithRadii = setStrokePointRadii(strokePoints, options);
+  return getStrokeOutlinePoints(strokePointsWithRadii, options);
+}
 
 /**
  * Get left and right outline tracks for a stroke.
@@ -303,7 +314,7 @@ export function getStrokePoints(
       {
         point: rawInputPoints[0],
         input: rawInputPoints[0],
-        pressure: simulatePressure ? 0.5 : 0.15,
+        pressure: simulatePressure ? SIMULATED_PRESSURE : 0.15,
         direction: new Vector3({ x: 1, y: 1, z: 0 }),
         distance: 0,
         runningLength: 0,
@@ -337,8 +348,8 @@ export function getStrokePoints(
     (pts.length > 1 && pts[pts.length - 1].distance2(pts[pts.length - 2]) < size ** 2) ||
     pointsRemovedFromNearEnd > 0;
 
-  // add extra points between the two, to help avoid "dash" lines
-  // for strokes with tapered start and ends. don't mutate the input array!
+  // add extra points between the two,
+  // (to help avoid "dash" lines for strokes with tapered start and ends)
   if (pts.length === 2 && options.simulatePressure) {
     const last = pts[1];
     pts = pts.slice(0, -1);
@@ -359,7 +370,7 @@ export function getStrokePoints(
     {
       point: pts[0],
       input: pts[0],
-      pressure: simulatePressure ? 0.5 : pts[0].z,
+      pressure: simulatePressure ? SIMULATED_PRESSURE : pts[0].z,
       direction: new Vector3({ x: 1, y: 1, z: 0 }),
       distance: 0,
       runningLength: 0,
@@ -391,25 +402,19 @@ export function getStrokePoints(
     totalLength += distance;
 
     // at the start of the line, we wait until the new point is a
-    // certain distance away from the original point, to avoid noise
+    // certain distance away from the original point to avoid noise
     if (i < 4 && totalLength < size) {
       continue;
     }
 
-    // create a new strokepoint (it will be the new "previous" one)
+    // new strokepoint
     prev = {
       input: pts[i],
-      // the adjusted point
       point,
-      // the input pressure (or .5 if not specified)
-      pressure: simulatePressure ? 0.5 : pts[i].z,
-      // the vector from the current point to the previous point
+      pressure: simulatePressure ? SIMULATED_PRESSURE : pts[i].z,
       direction: prev.point.sub(point).normalize(),
-      // the distance between the current point and the previous point
       distance,
-      // the total distance so far
       runningLength: totalLength,
-      // the stroke point's radius
       radius: 1,
     };
 
@@ -423,20 +428,12 @@ export function getStrokePoints(
   }
 
   if (totalLength < 1) {
-    const maxPressureAmongPoints = Math.max(0.5, ...strokePoints.map((s) => s.pressure));
+    const maxPressureAmongPoints = Math.max(
+      SIMULATED_PRESSURE,
+      ...strokePoints.map((s) => s.pressure),
+    );
     strokePoints.forEach((s) => (s.pressure = maxPressureAmongPoints));
   }
 
   return strokePoints;
-}
-
-/**
- * Get an array of points describing a polygon that surrounds the input points.
- * This is the main entry point that combines all stroke processing steps.
- */
-export function getStroke(points: Vector3[], options: StrokeOptions = {}): Vector3[] {
-  return getStrokeOutlinePoints(
-    setStrokePointRadii(getStrokePoints(points, options), options),
-    options,
-  );
 }
