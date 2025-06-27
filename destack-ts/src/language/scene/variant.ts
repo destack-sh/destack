@@ -10,7 +10,6 @@ import {
   IsOwnable,
   IsOwner,
   IsSubject,
-  MaterializationType,
   Node,
   NodeType,
   Spatial,
@@ -22,7 +21,7 @@ import { registerEnumClass, registerNodeClass } from "@destack/language/registry
 import { Layer, Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
 import { CustomViewDefinition } from "@destack/language/view/container";
-import { MaterializationTypeProto, VariantProto, VariantTypeProto } from "@destack/proto";
+import { VariantProto, VariantTypeProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
@@ -57,7 +56,7 @@ export enum VariantStateType {
 registerEnumClass(EnumType.VARIANT_STATE_TYPE, VariantStateType);
 /* ==== DESTACK_GENERATED_END:ENUM:9031 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:9030 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:9060 ==== */
 /**
  * A Variant is an alternative presentation of a visual.
  */
@@ -75,9 +74,9 @@ export class Variant
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [
+    NodeType.LAYER,
     NodeType.CUSTOM_VIEW_DEFINITION,
     NodeType.SCENE,
-    NodeType.LAYER,
   ];
   static __childTypes__: NodeType[] = [];
   static __ancestorTypes__: NodeType[] = [
@@ -89,11 +88,11 @@ export class Variant
     NodeType.FOLDER,
     NodeType.LABEL_VIEW,
     NodeType.CUSTOM_VIEW_DEFINITION,
-    NodeType.CUSTOM_VIEW,
-    NodeType.SCENE,
-    NodeType.SPLIT_VIEW,
-    NodeType.CANVAS,
     NodeType.LAYER,
+    NodeType.SPLIT_VIEW,
+    NodeType.CUSTOM_VIEW,
+    NodeType.CANVAS,
+    NodeType.SCENE,
   ];
   static __descendantTypes__: NodeType[] = [];
 
@@ -120,11 +119,6 @@ export class Variant
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: MaterializationType;
 
   /**
    * IsTracked.createdAt
@@ -228,7 +222,6 @@ export class Variant
     id?: string;
     parent?: Scene | Layer | CustomViewDefinition | NodeReference | null;
     space?: Space | NodeReference | null;
-    materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -282,14 +275,6 @@ export class Variant
       _space = _space.toRef();
     }
     this.spacePtr = _space;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = MaterializationType.FULL_GRAPH;
-    }
-    if (_materialization === null) {
-      throw new Error(`Variant.materialization is required`);
-    }
-    this.materialization = _materialization;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _ownedBy = options.ownedBy ?? null;
@@ -443,7 +428,7 @@ export class Variant
 
   static __packValue__(object: Variant): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 9030;
+    objectValue["1"] = 9060;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -451,7 +436,6 @@ export class Variant
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
@@ -560,7 +544,6 @@ export class Variant
       minHeight: unpackedMinHeight,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
@@ -591,7 +574,7 @@ export class Variant
   }
 
   static __packProto__(object: Variant): VariantProto {
-    const objectProto: Partial<VariantProto> = { metatype: 9030 };
+    const objectProto: Partial<VariantProto> = { metatype: 9060 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -599,7 +582,6 @@ export class Variant
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
-    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -683,7 +665,6 @@ export class Variant
             )
           : null,
       id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -751,4 +732,4 @@ export class Variant
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.VARIANT, Variant);
-/* ==== DESTACK_GENERATED_END:NODE:9030 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:9060 ==== */

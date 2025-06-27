@@ -82,7 +82,7 @@ class RunStartedEvent(
     Event["Run"],
     Node[RunStartedEventProto],
 ):
-    """A Event regarding a Run."""
+    """An Event regarding a Run."""
 
     node: "Run" = property_(35)
     target: Optional[IsRunnable] = property_(40)
@@ -95,7 +95,7 @@ class RunPauseRequestedEvent(
     Event["Run"],
     Node[RunPauseRequestedEventProto],
 ):
-    """A Event regarding a Run."""
+    """An Event regarding a Run."""
 
     node: "Run" = property_(35)
     target: Optional[IsRunnable] = property_(40)
@@ -121,7 +121,7 @@ class RunResumeRequestedEvent(
     Event["Run"],
     Node[RunResumeRequestedEventProto],
 ):
-    """A Event regarding a Run."""
+    """An Event regarding a Run."""
 
     node: "Run" = property_(35)
     target: Optional[IsRunnable] = property_(40)
@@ -147,7 +147,7 @@ class RunStopRequestedEvent(
     Event["Run"],
     Node[RunStopRequestedEventProto],
 ):
-    """A Event regarding a Run."""
+    """An Event regarding a Run."""
 
     node: "Run" = property_(35)
     target: Optional[IsRunnable] = property_(40)
@@ -160,7 +160,7 @@ class RunFailedEvent(
     Event["Run"],
     Node[RunFailedEventProto],
 ):
-    """A Event regarding a Run."""
+    """An Event regarding a Run."""
 
     node: "Run" = property_(35)
     target: Optional[IsRunnable] = property_(40)
@@ -173,7 +173,7 @@ class RunCompletedEvent(
     Event["Run"],
     Node[RunCompletedEventProto],
 ):
-    """A Event regarding a Run."""
+    """An Event regarding a Run."""
 
     node: "Run" = property_(35)
     target: Optional[IsRunnable] = property_(40)

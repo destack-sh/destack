@@ -8,7 +8,6 @@ import {
   IsOwnable,
   IsOwner,
   IsSubject,
-  MaterializationType,
   Node,
   NodeType,
   Spatial,
@@ -17,7 +16,7 @@ import {
 } from "@destack/language/core/builtin";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
-import { BranchProto, MaterializationTypeProto, SnapshotProto } from "@destack/proto";
+import { BranchProto, SnapshotProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
@@ -66,11 +65,6 @@ export class Snapshot
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: MaterializationType;
 
   /**
    * IsTracked.createdAt
@@ -144,7 +138,6 @@ export class Snapshot
     id?: string;
     parent?: Space | Branch | NodeReference | null;
     space?: Space | NodeReference | null;
-    materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -192,14 +185,6 @@ export class Snapshot
       _space = _space.toRef();
     }
     this.spacePtr = _space;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = MaterializationType.FULL_GRAPH;
-    }
-    if (_materialization === null) {
-      throw new Error(`Snapshot.materialization is required`);
-    }
-    this.materialization = _materialization;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _ownedBy = options.ownedBy ?? null;
@@ -313,7 +298,6 @@ export class Snapshot
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
@@ -376,7 +360,6 @@ export class Snapshot
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
@@ -414,7 +397,6 @@ export class Snapshot
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
-    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -465,7 +447,6 @@ export class Snapshot
             )
           : null,
       id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -578,11 +559,6 @@ export class Branch
   readonly spacePtr: NodeReference | null;
 
   /**
-   * Entity.materialization
-   */
-  readonly materialization: MaterializationType;
-
-  /**
    * IsTracked.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -673,7 +649,6 @@ export class Branch
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -722,14 +697,6 @@ export class Branch
       _space = _space.toRef();
     }
     this.spacePtr = _space;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = MaterializationType.FULL_GRAPH;
-    }
-    if (_materialization === null) {
-      throw new Error(`Branch.materialization is required`);
-    }
-    this.materialization = _materialization;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _ownedBy = options.ownedBy ?? null;
@@ -851,7 +818,6 @@ export class Branch
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
@@ -923,7 +889,6 @@ export class Branch
       head: unpackedHeadPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
@@ -961,7 +926,6 @@ export class Branch
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
-    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -1025,7 +989,6 @@ export class Branch
             )
           : null,
       id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined

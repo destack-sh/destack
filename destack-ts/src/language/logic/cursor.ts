@@ -6,7 +6,6 @@ import {
   IsOwnable,
   IsOwner,
   IsSubject,
-  MaterializationType,
   Node,
   NodeType,
   Spatial,
@@ -24,7 +23,6 @@ import { Space } from "@destack/language/space";
 import {
   CursorStatusProto,
   EventCursorProto,
-  MaterializationTypeProto,
   ScreenCursorProto,
   ThreadCursorProto,
 } from "@destack/proto";
@@ -82,7 +80,7 @@ export const Cursor = new Cursor$Type(TraitType.CURSOR);
 registerTraitClass(TraitType.CURSOR, Cursor);
 /* ==== DESTACK_GENERATED_END:TRAIT:3012 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:3100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:3200 ==== */
 /**
  * A EventCursor is a cursor for iterating over Events.
  */
@@ -124,11 +122,6 @@ export class EventCursor extends Node implements Cursor, IsOwnable {
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: MaterializationType;
 
   /**
    * IsTracked.createdAt
@@ -197,7 +190,6 @@ export class EventCursor extends Node implements Cursor, IsOwnable {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -244,14 +236,6 @@ export class EventCursor extends Node implements Cursor, IsOwnable {
       _space = _space.toRef();
     }
     this.spacePtr = _space;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = MaterializationType.FULL_GRAPH;
-    }
-    if (_materialization === null) {
-      throw new Error(`EventCursor.materialization is required`);
-    }
-    this.materialization = _materialization;
     let _ownedBy = options.ownedBy ?? null;
     if (_ownedBy != null && _ownedBy instanceof Node) {
       _ownedBy = _ownedBy.toRef();
@@ -358,7 +342,7 @@ export class EventCursor extends Node implements Cursor, IsOwnable {
 
   static __packValue__(object: EventCursor): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 3100;
+    objectValue["1"] = 3200;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -366,7 +350,6 @@ export class EventCursor extends Node implements Cursor, IsOwnable {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
@@ -426,7 +409,6 @@ export class EventCursor extends Node implements Cursor, IsOwnable {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
@@ -453,7 +435,7 @@ export class EventCursor extends Node implements Cursor, IsOwnable {
   }
 
   static __packProto__(object: EventCursor): EventCursorProto {
-    const objectProto: Partial<EventCursorProto> = { metatype: 3100 };
+    const objectProto: Partial<EventCursorProto> = { metatype: 3200 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -461,7 +443,6 @@ export class EventCursor extends Node implements Cursor, IsOwnable {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
-    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -512,7 +493,6 @@ export class EventCursor extends Node implements Cursor, IsOwnable {
             )
           : null,
       id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -572,9 +552,9 @@ export class EventCursor extends Node implements Cursor, IsOwnable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.EVENT_CURSOR, EventCursor);
-/* ==== DESTACK_GENERATED_END:NODE:3100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:3200 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:3101 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:3201 ==== */
 /**
  * A ScreenCursor is a visual cursor corresponding to a pointing device on some screen.
  */
@@ -616,11 +596,6 @@ export class ScreenCursor extends Node implements Cursor, IsOwnable {
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: MaterializationType;
 
   /**
    * IsTracked.createdAt
@@ -694,7 +669,6 @@ export class ScreenCursor extends Node implements Cursor, IsOwnable {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -742,14 +716,6 @@ export class ScreenCursor extends Node implements Cursor, IsOwnable {
       _space = _space.toRef();
     }
     this.spacePtr = _space;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = MaterializationType.FULL_GRAPH;
-    }
-    if (_materialization === null) {
-      throw new Error(`ScreenCursor.materialization is required`);
-    }
-    this.materialization = _materialization;
     let _ownedBy = options.ownedBy ?? null;
     if (_ownedBy != null && _ownedBy instanceof Node) {
       _ownedBy = _ownedBy.toRef();
@@ -864,7 +830,7 @@ export class ScreenCursor extends Node implements Cursor, IsOwnable {
 
   static __packValue__(object: ScreenCursor): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 3101;
+    objectValue["1"] = 3201;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -872,7 +838,6 @@ export class ScreenCursor extends Node implements Cursor, IsOwnable {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
@@ -941,7 +906,6 @@ export class ScreenCursor extends Node implements Cursor, IsOwnable {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
@@ -968,7 +932,7 @@ export class ScreenCursor extends Node implements Cursor, IsOwnable {
   }
 
   static __packProto__(object: ScreenCursor): ScreenCursorProto {
-    const objectProto: Partial<ScreenCursorProto> = { metatype: 3101 };
+    const objectProto: Partial<ScreenCursorProto> = { metatype: 3201 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -976,7 +940,6 @@ export class ScreenCursor extends Node implements Cursor, IsOwnable {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
-    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -1034,7 +997,6 @@ export class ScreenCursor extends Node implements Cursor, IsOwnable {
             )
           : null,
       id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1094,9 +1056,9 @@ export class ScreenCursor extends Node implements Cursor, IsOwnable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SCREEN_CURSOR, ScreenCursor);
-/* ==== DESTACK_GENERATED_END:NODE:3101 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:3201 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:3102 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:3202 ==== */
 /**
  * A ThreadCursor is a cursor corresponding to a Thread.
  */
@@ -1138,11 +1100,6 @@ export class ThreadCursor extends Node implements Cursor, IsOwnable {
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: MaterializationType;
 
   /**
    * IsTracked.createdAt
@@ -1211,7 +1168,6 @@ export class ThreadCursor extends Node implements Cursor, IsOwnable {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -1258,14 +1214,6 @@ export class ThreadCursor extends Node implements Cursor, IsOwnable {
       _space = _space.toRef();
     }
     this.spacePtr = _space;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = MaterializationType.FULL_GRAPH;
-    }
-    if (_materialization === null) {
-      throw new Error(`ThreadCursor.materialization is required`);
-    }
-    this.materialization = _materialization;
     let _ownedBy = options.ownedBy ?? null;
     if (_ownedBy != null && _ownedBy instanceof Node) {
       _ownedBy = _ownedBy.toRef();
@@ -1372,7 +1320,7 @@ export class ThreadCursor extends Node implements Cursor, IsOwnable {
 
   static __packValue__(object: ThreadCursor): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 3102;
+    objectValue["1"] = 3202;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1380,7 +1328,6 @@ export class ThreadCursor extends Node implements Cursor, IsOwnable {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
@@ -1440,7 +1387,6 @@ export class ThreadCursor extends Node implements Cursor, IsOwnable {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
@@ -1467,7 +1413,7 @@ export class ThreadCursor extends Node implements Cursor, IsOwnable {
   }
 
   static __packProto__(object: ThreadCursor): ThreadCursorProto {
-    const objectProto: Partial<ThreadCursorProto> = { metatype: 3102 };
+    const objectProto: Partial<ThreadCursorProto> = { metatype: 3202 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1475,7 +1421,6 @@ export class ThreadCursor extends Node implements Cursor, IsOwnable {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
-    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -1526,7 +1471,6 @@ export class ThreadCursor extends Node implements Cursor, IsOwnable {
             )
           : null,
       id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1586,4 +1530,4 @@ export class ThreadCursor extends Node implements Cursor, IsOwnable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.THREAD_CURSOR, ThreadCursor);
-/* ==== DESTACK_GENERATED_END:NODE:3102 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:3202 ==== */

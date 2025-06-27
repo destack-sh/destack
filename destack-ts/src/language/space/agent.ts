@@ -10,7 +10,6 @@ import {
   IsOwner,
   IsScriptable,
   IsSubject,
-  MaterializationType,
   Node,
   NodeType,
   Spatial,
@@ -22,11 +21,11 @@ import { Folder } from "@destack/language/folder";
 import { Cursor, Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
-import { AgentProto, MaterializationTypeProto } from "@destack/proto";
+import { AgentProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:600 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:620 ==== */
 /**
  * An Agent is an identity for a bot.
  */
@@ -67,13 +66,13 @@ export class Agent
   static __ancestorTypes__: NodeType[] = [NodeType.FOLDER, NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [
     NodeType.CUSTOM_OPTION,
+    NodeType.SANCTION,
+    NodeType.CUSTOM_PROPERTY,
     NodeType.CLIENT,
     NodeType.ENTITLEMENT,
-    NodeType.CUSTOM_PROPERTY,
+    NodeType.FOLLOW,
     NodeType.TAGGING,
     NodeType.SCRIPT,
-    NodeType.FOLLOW,
-    NodeType.SANCTION,
   ];
 
   /**
@@ -99,11 +98,6 @@ export class Agent
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: MaterializationType;
 
   /**
    * IsTracked.createdAt
@@ -201,7 +195,6 @@ export class Agent
     id?: string;
     parent?: Folder | NodeReference | null;
     space?: Space | NodeReference | null;
-    materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -251,14 +244,6 @@ export class Agent
       _space = _space.toRef();
     }
     this.spacePtr = _space;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = MaterializationType.FULL_GRAPH;
-    }
-    if (_materialization === null) {
-      throw new Error(`Agent.materialization is required`);
-    }
-    this.materialization = _materialization;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _name = options.name;
@@ -383,7 +368,7 @@ export class Agent
 
   static __packValue__(object: Agent): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 600;
+    objectValue["1"] = 620;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -391,7 +376,6 @@ export class Agent
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
@@ -469,7 +453,6 @@ export class Agent
       cursor: unpackedCursorPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
@@ -498,7 +481,7 @@ export class Agent
   }
 
   static __packProto__(object: Agent): AgentProto {
-    const objectProto: Partial<AgentProto> = { metatype: 600 };
+    const objectProto: Partial<AgentProto> = { metatype: 620 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -506,7 +489,6 @@ export class Agent
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
-    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -573,7 +555,6 @@ export class Agent
             )
           : null,
       id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -639,4 +620,4 @@ export class Agent
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.AGENT, Agent);
-/* ==== DESTACK_GENERATED_END:NODE:600 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:620 ==== */

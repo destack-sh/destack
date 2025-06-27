@@ -9,7 +9,6 @@ import {
   IsRunnable,
   IsScriptable,
   IsSubject,
-  MaterializationType,
   Node,
   NodeType,
   Spatial,
@@ -20,7 +19,7 @@ import { Value } from "@destack/language/core/common";
 import { Folder } from "@destack/language/folder";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
-import { MaterializationTypeProto, ScriptProto } from "@destack/proto";
+import { ScriptProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
@@ -55,16 +54,16 @@ export class Script
     NodeType.SLIDER_INPUT_VIEW,
     NodeType.FRAME_VIEW,
     NodeType.LABEL_VIEW,
-    NodeType.SCENE,
     NodeType.SPLIT_VIEW,
     NodeType.SCRIPT,
-    NodeType.LAYER,
+    NodeType.SCENE,
     NodeType.SERVICE,
     NodeType.CUSTOM_ENTITY_DEFINITION,
+    NodeType.LAYER,
     NodeType.TEXT_VIEW,
-    NodeType.AGENT,
     NodeType.FOLDER,
     NodeType.THREAD_VIEW,
+    NodeType.AGENT,
     NodeType.CANVAS,
   ];
   static __childTypes__: NodeType[] = [NodeType.CUSTOM_PROPERTY, NodeType.SCRIPT];
@@ -82,16 +81,16 @@ export class Script
     NodeType.FRAME_VIEW,
     NodeType.WINDOW,
     NodeType.LABEL_VIEW,
-    NodeType.SCENE,
     NodeType.SPLIT_VIEW,
     NodeType.SCRIPT,
-    NodeType.LAYER,
+    NodeType.SCENE,
     NodeType.SERVICE,
+    NodeType.LAYER,
     NodeType.CUSTOM_ENTITY_DEFINITION,
-    NodeType.AGENT,
     NodeType.TEXT_VIEW,
     NodeType.FOLDER,
     NodeType.THREAD_VIEW,
+    NodeType.AGENT,
     NodeType.CANVAS,
   ];
   static __descendantTypes__: NodeType[] = [
@@ -124,11 +123,6 @@ export class Script
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: MaterializationType;
 
   /**
    * IsTracked.createdAt
@@ -193,7 +187,6 @@ export class Script
     id?: string;
     parent?: Folder | (Node & IsScriptable) | Script | NodeReference | null;
     space?: Space | NodeReference | null;
-    materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -242,14 +235,6 @@ export class Script
       _space = _space.toRef();
     }
     this.spacePtr = _space;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = MaterializationType.FULL_GRAPH;
-    }
-    if (_materialization === null) {
-      throw new Error(`Script.materialization is required`);
-    }
-    this.materialization = _materialization;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _value = options.value ?? null;
@@ -379,7 +364,6 @@ export class Script
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
@@ -452,7 +436,6 @@ export class Script
       code: unpackedCode,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
@@ -490,7 +473,6 @@ export class Script
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
-    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -555,7 +537,6 @@ export class Script
             )
           : null,
       id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined

@@ -7,7 +7,6 @@ import {
   IsOwnable,
   IsOwner,
   IsSubject,
-  MaterializationType,
   Node,
   NodeType,
   StructType,
@@ -43,7 +42,6 @@ import {
   LayerProto,
   LayerTypeProto,
   LayoutProto,
-  MaterializationTypeProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
@@ -63,7 +61,7 @@ export enum LayerType {
 registerEnumClass(EnumType.LAYER_TYPE, LayerType);
 /* ==== DESTACK_GENERATED_END:ENUM:9020 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:9020 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:9040 ==== */
 /**
  * A Layer is a named container for Views.
  */
@@ -121,12 +119,12 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
     NodeType.WINDOW,
     NodeType.FOLDER,
     NodeType.LABEL_VIEW,
-    NodeType.CUSTOM_VIEW_DEFINITION,
-    NodeType.CUSTOM_VIEW,
-    NodeType.SCENE,
-    NodeType.SPLIT_VIEW,
-    NodeType.CANVAS,
     NodeType.LAYER,
+    NodeType.CUSTOM_VIEW,
+    NodeType.SPLIT_VIEW,
+    NodeType.CUSTOM_VIEW_DEFINITION,
+    NodeType.CANVAS,
+    NodeType.SCENE,
   ];
   static __descendantTypes__: NodeType[] = [
     NodeType.LINE_SHAPE,
@@ -142,11 +140,11 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
     NodeType.SCRIPT,
     NodeType.SPLIT_VIEW,
     NodeType.LAYER,
-    NodeType.VARIANT,
     NodeType.SHADOW_STYLE,
     NodeType.CUSTOM_PROPERTY,
     NodeType.TEXT_VIEW,
     NodeType.CUSTOM_OPTION,
+    NodeType.VARIANT,
     NodeType.THREAD_VIEW,
     NodeType.PALETTE,
     NodeType.TAGGING,
@@ -183,11 +181,6 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: MaterializationType;
 
   /**
    * IsTracked.createdAt
@@ -425,7 +418,6 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
     id?: string;
     parent?: Scene | Canvas | NodeReference | null;
     space?: Space | NodeReference | null;
-    materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -503,14 +495,6 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
       _space = _space.toRef();
     }
     this.spacePtr = _space;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = MaterializationType.FULL_GRAPH;
-    }
-    if (_materialization === null) {
-      throw new Error(`Layer.materialization is required`);
-    }
-    this.materialization = _materialization;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _value = options.value ?? null;
@@ -858,7 +842,7 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
 
   static __packValue__(object: Layer): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 9020;
+    objectValue["1"] = 9040;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -866,7 +850,6 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
@@ -1166,7 +1149,6 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
       maxHeight: unpackedMaxHeight,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
@@ -1199,7 +1181,7 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
   }
 
   static __packProto__(object: Layer): LayerProto {
-    const objectProto: Partial<LayerProto> = { metatype: 9020 };
+    const objectProto: Partial<LayerProto> = { metatype: 9040 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1207,7 +1189,6 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
-    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -1436,7 +1417,6 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
             )
           : null,
       id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1515,4 +1495,4 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.LAYER, Layer);
-/* ==== DESTACK_GENERATED_END:NODE:9020 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:9040 ==== */

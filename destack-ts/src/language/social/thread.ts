@@ -10,7 +10,6 @@ import {
   IsOwner,
   IsSubject,
   IsTaggable,
-  MaterializationType,
   Node,
   NodeType,
   Spatial,
@@ -20,7 +19,7 @@ import {
 import { Folder } from "@destack/language/folder";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
-import { MaterializationTypeProto, ThreadProto } from "@destack/proto";
+import { ThreadProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
@@ -74,16 +73,16 @@ export class Thread
   ];
   static __ancestorTypes__: NodeType[] = [NodeType.FOLDER, NodeType.SPACE, NodeType.THREAD];
   static __descendantTypes__: NodeType[] = [
-    NodeType.MESSAGE,
-    NodeType.ENTITLEMENT,
-    NodeType.ROLE,
     NodeType.REACTION,
+    NodeType.SANCTION,
+    NodeType.INVITE,
+    NodeType.MESSAGE,
     NodeType.PERMISSION,
     NodeType.TAGGING,
     NodeType.MEMBERSHIP,
+    NodeType.ENTITLEMENT,
     NodeType.THREAD,
-    NodeType.SANCTION,
-    NodeType.INVITE,
+    NodeType.ROLE,
   ];
 
   /**
@@ -109,11 +108,6 @@ export class Thread
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: MaterializationType;
 
   /**
    * IsTracked.createdAt
@@ -182,7 +176,6 @@ export class Thread
     id?: string;
     parent?: Folder | Thread | NodeReference | null;
     space?: Space | NodeReference | null;
-    materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -229,14 +222,6 @@ export class Thread
       _space = _space.toRef();
     }
     this.spacePtr = _space;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = MaterializationType.FULL_GRAPH;
-    }
-    if (_materialization === null) {
-      throw new Error(`Thread.materialization is required`);
-    }
-    this.materialization = _materialization;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _ownedBy = options.ownedBy ?? null;
@@ -345,7 +330,6 @@ export class Thread
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
@@ -404,7 +388,6 @@ export class Thread
       name: objectValue["31"],
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
@@ -440,7 +423,6 @@ export class Thread
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
-    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -489,7 +471,6 @@ export class Thread
             )
           : null,
       id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined

@@ -11,7 +11,6 @@ import {
   IsSourceable,
   IsSubject,
   IsTaggable,
-  MaterializationType,
   Node,
   NodeType,
   Spatial,
@@ -22,7 +21,7 @@ import { Text, Value } from "@destack/language/core/common";
 import { Script } from "@destack/language/logic";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
-import { ActionCardinalityProto, ActionProto, MaterializationTypeProto } from "@destack/proto";
+import { ActionCardinalityProto, ActionProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
@@ -40,7 +39,7 @@ export enum ActionCardinality {
 registerEnumClass(EnumType.ACTION_CARDINALITY, ActionCardinality);
 /* ==== DESTACK_GENERATED_END:ENUM:3020 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:3020 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:3040 ==== */
 /**
  * An implementation of a unit of work, usually expressed with Code or some tool.
  * May defer to a builtin or some other service in a separate system.
@@ -107,11 +106,6 @@ export class Action
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: MaterializationType;
 
   /**
    * IsTracked.createdAt
@@ -193,7 +187,6 @@ export class Action
     id?: string;
     parent?: (Node & IsActionable) | NodeReference | null;
     space?: Space | NodeReference | null;
-    materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -244,14 +237,6 @@ export class Action
       _space = _space.toRef();
     }
     this.spacePtr = _space;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = MaterializationType.FULL_GRAPH;
-    }
-    if (_materialization === null) {
-      throw new Error(`Action.materialization is required`);
-    }
-    this.materialization = _materialization;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _value = options.value ?? null;
@@ -395,7 +380,7 @@ export class Action
 
   static __packValue__(object: Action): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 3020;
+    objectValue["1"] = 3040;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -403,7 +388,6 @@ export class Action
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
@@ -489,7 +473,6 @@ export class Action
       text: unpackedText,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
@@ -520,7 +503,7 @@ export class Action
   }
 
   static __packProto__(object: Action): ActionProto {
-    const objectProto: Partial<ActionProto> = { metatype: 3020 };
+    const objectProto: Partial<ActionProto> = { metatype: 3040 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -528,7 +511,6 @@ export class Action
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
-    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -601,7 +583,6 @@ export class Action
             )
           : null,
       id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -666,4 +647,4 @@ export class Action
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ACTION, Action);
-/* ==== DESTACK_GENERATED_END:NODE:3020 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:3040 ==== */

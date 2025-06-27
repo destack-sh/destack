@@ -9,7 +9,6 @@ import {
   IsSubject,
   IsTaggable,
   IsVisual,
-  MaterializationType,
   Node,
   NodeType,
   Spatial,
@@ -19,7 +18,7 @@ import {
 import { Icon } from "@destack/language/core/common";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
-import { MaterializationTypeProto, ThemeProto } from "@destack/proto";
+import { ThemeProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
@@ -94,11 +93,6 @@ export class Theme
   readonly spacePtr: NodeReference | null;
 
   /**
-   * Entity.materialization
-   */
-  readonly materialization: MaterializationType;
-
-  /**
    * IsTracked.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -156,7 +150,6 @@ export class Theme
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -204,14 +197,6 @@ export class Theme
       _space = _space.toRef();
     }
     this.spacePtr = _space;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = MaterializationType.FULL_GRAPH;
-    }
-    if (_materialization === null) {
-      throw new Error(`Theme.materialization is required`);
-    }
-    this.materialization = _materialization;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _orderKey = options.orderKey ?? null;
@@ -328,7 +313,6 @@ export class Theme
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
@@ -387,7 +371,6 @@ export class Theme
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
@@ -425,7 +408,6 @@ export class Theme
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
-    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -474,7 +456,6 @@ export class Theme
             )
           : null,
       id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined

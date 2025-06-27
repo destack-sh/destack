@@ -9,7 +9,6 @@ import {
   IsDeletable,
   IsJoinable,
   IsSubject,
-  MaterializationType,
   Node,
   NodeType,
   Spatial,
@@ -20,7 +19,7 @@ import { Icon } from "@destack/language/core/common";
 import { Folder } from "@destack/language/folder";
 import { registerEnumClass, registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
-import { MaterializationTypeProto, PermissionProto, PermissionTypeProto } from "@destack/proto";
+import { PermissionProto, PermissionTypeProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
@@ -38,7 +37,7 @@ export enum PermissionType {
 registerEnumClass(EnumType.PERMISSION_TYPE, PermissionType);
 /* ==== DESTACK_GENERATED_END:ENUM:530 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:530 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:560 ==== */
 /**
  * A Permission for something.
  */
@@ -56,16 +55,16 @@ export class Permission
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [
     NodeType.SPACE,
-    NodeType.FOLDER,
     NodeType.ORGANIZATION,
+    NodeType.FOLDER,
     NodeType.TEAM,
     NodeType.THREAD,
   ];
   static __childTypes__: NodeType[] = [];
   static __ancestorTypes__: NodeType[] = [
     NodeType.SPACE,
-    NodeType.FOLDER,
     NodeType.ORGANIZATION,
+    NodeType.FOLDER,
     NodeType.TEAM,
     NodeType.THREAD,
   ];
@@ -94,11 +93,6 @@ export class Permission
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: MaterializationType;
 
   /**
    * IsTracked.createdAt
@@ -163,7 +157,6 @@ export class Permission
     id?: string;
     parent?: (Node & IsJoinable) | Folder | NodeReference | null;
     space?: Space | NodeReference | null;
-    materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -212,14 +205,6 @@ export class Permission
       _space = _space.toRef();
     }
     this.spacePtr = _space;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = MaterializationType.FULL_GRAPH;
-    }
-    if (_materialization === null) {
-      throw new Error(`Permission.materialization is required`);
-    }
-    this.materialization = _materialization;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _type = options.type;
@@ -333,7 +318,7 @@ export class Permission
 
   static __packValue__(object: Permission): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 530;
+    objectValue["1"] = 560;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -341,7 +326,6 @@ export class Permission
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
@@ -406,7 +390,6 @@ export class Permission
       type: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
@@ -436,7 +419,7 @@ export class Permission
   }
 
   static __packProto__(object: Permission): PermissionProto {
-    const objectProto: Partial<PermissionProto> = { metatype: 530 };
+    const objectProto: Partial<PermissionProto> = { metatype: 560 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -444,7 +427,6 @@ export class Permission
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
-    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -497,7 +479,6 @@ export class Permission
             )
           : null,
       id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -555,4 +536,4 @@ export class Permission
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.PERMISSION, Permission);
-/* ==== DESTACK_GENERATED_END:NODE:530 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:560 ==== */

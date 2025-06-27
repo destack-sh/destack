@@ -14,7 +14,6 @@ import {
   IsSourceable,
   IsSubject,
   IsTaggable,
-  MaterializationType,
   Node,
   NodeType,
   Spatial,
@@ -26,12 +25,7 @@ import { Folder } from "@destack/language/folder";
 import { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
-import {
-  CustomEntityDefinitionProto,
-  CustomEntityProto,
-  MaterializationTypeProto,
-  TraitTypeProto,
-} from "@destack/proto";
+import { CustomEntityDefinitionProto, CustomEntityProto, TraitTypeProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
@@ -78,9 +72,9 @@ export class CustomEntityDefinition
   ];
   static __ancestorTypes__: NodeType[] = [NodeType.FOLDER, NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [
+    NodeType.ACTION,
     NodeType.CUSTOM_OPTION,
     NodeType.CUSTOM_PROPERTY,
-    NodeType.ACTION,
     NodeType.CUSTOM_ENTITY,
     NodeType.TAGGING,
     NodeType.SCRIPT,
@@ -128,11 +122,6 @@ export class CustomEntityDefinition
     }
   }
   prototypePtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: MaterializationType;
 
   /**
    * IsTracked.createdAt
@@ -243,7 +232,6 @@ export class CustomEntityDefinition
     parent?: Folder | NodeReference | null;
     space?: Space | NodeReference | null;
     prototype?: CustomEntity | NodeReference | null;
-    materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -299,14 +287,6 @@ export class CustomEntityDefinition
       _prototype = _prototype.toRef();
     }
     this.prototypePtr = _prototype;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = MaterializationType.FULL_GRAPH;
-    }
-    if (_materialization === null) {
-      throw new Error(`CustomEntityDefinition.materialization is required`);
-    }
-    this.materialization = _materialization;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _orderKey = options.orderKey ?? null;
@@ -458,7 +438,6 @@ export class CustomEntityDefinition
     if (object.prototypePtr != null) {
       objectValue["6"] = object.prototypePtr.toValue();
     }
-    objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
@@ -553,7 +532,6 @@ export class CustomEntityDefinition
       traits: unpackedTraits,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
@@ -602,7 +580,6 @@ export class CustomEntityDefinition
     if (object.prototypePtr != null) {
       objectProto.prototypePtr = object.prototypePtr.toProto();
     }
-    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -681,7 +658,6 @@ export class CustomEntityDefinition
             )
           : null,
       id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -843,11 +819,6 @@ export class CustomEntity
   readonly definitionPtr: NodeReference;
 
   /**
-   * Entity.materialization
-   */
-  readonly materialization: MaterializationType;
-
-  /**
    * IsTracked.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -896,7 +867,6 @@ export class CustomEntity
     parent?: CustomEntityDefinition | CustomEntity | NodeReference | null;
     space?: Space | NodeReference | null;
     definition?: CustomEntityDefinition | NodeReference;
-    materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -950,14 +920,6 @@ export class CustomEntity
       throw new Error(`CustomEntity.definition is required`);
     }
     this.definitionPtr = _definition;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = MaterializationType.FULL_GRAPH;
-    }
-    if (_materialization === null) {
-      throw new Error(`CustomEntity.materialization is required`);
-    }
-    this.materialization = _materialization;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _value = options.value ?? null;
@@ -1071,7 +1033,6 @@ export class CustomEntity
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["6"] = object.definitionPtr.toValue();
-    objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
@@ -1143,7 +1104,6 @@ export class CustomEntity
       ),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
@@ -1180,7 +1140,6 @@ export class CustomEntity
       objectProto.spacePtr = object.spacePtr.toProto();
     }
     objectProto.definitionPtr = object.definitionPtr.toProto();
-    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -1246,7 +1205,6 @@ export class CustomEntity
             )
           : null,
       id: String(objectProto.id),
-      materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined

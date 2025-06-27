@@ -1,7 +1,6 @@
 import { NodeReference } from "@destack/language/core";
 import {
   EnumType,
-  MaterializationType,
   Node,
   ResourceStatus,
   TraitClass,
@@ -709,11 +708,6 @@ registerTraitClass(TraitType.SPATIAL, Spatial);
  * An Entity is a versioned Node in primary relational storage (OLTP).
  */
 export interface Entity extends IsTracked {
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: MaterializationType;
-
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */

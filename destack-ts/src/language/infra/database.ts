@@ -4,7 +4,6 @@ import {
   EnumType,
   HasName,
   IsSubject,
-  MaterializationType,
   Node,
   NodeType,
   Region,
@@ -26,7 +25,6 @@ import {
   DatabaseInfoProto,
   DatabaseProto,
   DatabaseTypeProto,
-  MaterializationTypeProto,
   RegionProto,
   ResourceStatusProto,
   TenancyProto,
@@ -347,11 +345,6 @@ export class Database extends Node implements Spatial, Resource, HasName {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * Entity.materialization
-   */
-  readonly materialization: MaterializationType;
-
-  /**
    * IsTracked.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -439,7 +432,6 @@ export class Database extends Node implements Spatial, Resource, HasName {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    materialization?: MaterializationType;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -493,14 +485,6 @@ export class Database extends Node implements Spatial, Resource, HasName {
       _space = _space.toRef();
     }
     this.spacePtr = _space;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = MaterializationType.FULL_GRAPH;
-    }
-    if (_materialization === null) {
-      throw new Error(`Database.materialization is required`);
-    }
-    this.materialization = _materialization;
     let _type = options.type;
     if (_type === null) {
       throw new Error(`Database.type is required`);
@@ -665,7 +649,6 @@ export class Database extends Node implements Spatial, Resource, HasName {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["7"] = object.materialization;
     objectValue["15"] = object.createdAt.toString();
     if (object.createdByPtr != null) {
       objectValue["16"] = object.createdByPtr.toValue();
@@ -738,7 +721,6 @@ export class Database extends Node implements Spatial, Resource, HasName {
       id: String(objectValue["2"]),
       status: Number(objectValue["40"]),
       targetStatus: unpackedTargetStatus,
-      materialization: Number(objectValue["7"]),
       createdAt: Temporal.ZonedDateTime.from(objectValue["15"]),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.ZonedDateTime.from(objectValue["17"]),
@@ -780,7 +762,6 @@ export class Database extends Node implements Spatial, Resource, HasName {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
-    objectProto.materialization = Number(object.materialization) as MaterializationTypeProto;
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -844,7 +825,6 @@ export class Database extends Node implements Spatial, Resource, HasName {
         objectProto.targetStatus != undefined
           ? unpackProtoTimestamp(objectProto.targetStatus!)
           : null,
-      materialization: Number(objectProto.materialization) as MaterializationType,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined

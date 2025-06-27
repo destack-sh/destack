@@ -80,7 +80,7 @@ export enum InterruptionResponse {
 registerEnumClass(EnumType.INTERRUPTION_RESPONSE, InterruptionResponse);
 /* ==== DESTACK_GENERATED_END:ENUM:4022 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:4020 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:4040 ==== */
 /**
  * An Interruption in run of something.
  */
@@ -464,7 +464,7 @@ export class Interruption
 
   static __packValue__(object: Interruption): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 4020;
+    objectValue["1"] = 4040;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -607,7 +607,7 @@ export class Interruption
   }
 
   static __packProto__(object: Interruption): InterruptionProto {
-    const objectProto: Partial<InterruptionProto> = { metatype: 4020 };
+    const objectProto: Partial<InterruptionProto> = { metatype: 4040 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -780,4 +780,4 @@ export class Interruption
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.INTERRUPTION, Interruption);
-/* ==== DESTACK_GENERATED_END:NODE:4020 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:4040 ==== */
