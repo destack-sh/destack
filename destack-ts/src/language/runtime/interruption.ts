@@ -55,7 +55,7 @@ registerEnumClass(EnumType.INTERRUPTION_TYPE, InterruptionType);
  */
 export enum InterruptionStatus {
   OPEN = 10,
-  CANGALAXYED = 30,
+  CANCELLED = 30,
   COMPLETED = 33,
 
   /* ==== DESTACK_CUSTOM_START ==== */

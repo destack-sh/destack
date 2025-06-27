@@ -19,7 +19,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import MembershipEventProto, MembershipProto
+from destack.proto import MembershipJoinedEventProto, MembershipLeftEventProto, MembershipProto
 
 if TYPE_CHECKING:
     from destack.language import Role, RoleType
@@ -27,27 +27,31 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_enum(EnumType.MEMBERSHIP_EVENT_TYPE)
-class MembershipEventType(Enum):
-    """A Type of Membership Event."""
-
-    JOIN = 1, "Join", "Join", "fas fa-user-plus"
-    LEAVE = 2, "Leave", "Leave", "fas fa-user-minus"
-    KICK = 3, "Kick", "Kick", "fas fa-user-minus"
-    BAN = 4, "Ban", "Ban", "fas fa-user-minus"
-
-
-@builtin_node(NodeType.MEMBERSHIP_EVENT)
-class MembershipEvent(
+@builtin_node(NodeType.MEMBERSHIP_JOINED_EVENT)
+class MembershipJoinedEvent(
     Event["Membership"],
-    Node[MembershipEventProto],
+    Node[MembershipJoinedEventProto],
 ):
-    """A Event regarding a Membership."""
+    """A Event regarding a Membership Join."""
 
     node: "Membership" = property_(35)
     joinable: "IsJoinable" = property_(40)
     member: "IsSubject" = property_(41)
-    role: "Role | None" = property_(42)
+    role: "Role" = property_(42)
+    role_type: "RoleType" = property_(43)
+
+
+@builtin_node(NodeType.MEMBERSHIP_LEFT_EVENT)
+class MembershipLeftEvent(
+    Event["Membership"],
+    Node[MembershipLeftEventProto],
+):
+    """A Event regarding a Membership Leave."""
+
+    node: "Membership" = property_(35)
+    joinable: "IsJoinable" = property_(40)
+    member: "IsSubject" = property_(41)
+    role: "Role" = property_(42)
     role_type: "RoleType" = property_(43)
 
 

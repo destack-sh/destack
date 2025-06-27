@@ -13,7 +13,14 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.proto import NotificationEventProto, NotificationProto
+from destack.proto import (
+    NotificationDismissedEventProto,
+    NotificationExpiredEventProto,
+    NotificationProto,
+    NotificationReadEventProto,
+    NotificationRescindedEventProto,
+    NotificationSentEventProto,
+)
 
 if TYPE_CHECKING:
     from destack.language import Text
@@ -32,25 +39,53 @@ class NotificationStatus(Enum):
     RESCINDED = 5, "Rescinded", "Rescinded", "fas fa-times"
 
 
-@builtin_enum(EnumType.NOTIFICATION_EVENT_TYPE)
-class NotificationEventType(Enum):
-    """A Type of Notification Event."""
-
-    SENT = 1, "Sent", "Sent", "fas fa-circle"
-    RESCINDED = 2, "Rescinded", "Rescinded", "fas fa-times"
-    READ = 3, "Read", "Read", "fas fa-check"
-    DISMISSED = 4, "Dismissed", "Dismissed", "fas fa-times"
-    EXPIRED = 5, "Expired", "Expired", "fas fa-clock"
-
-
-@builtin_node(NodeType.NOTIFICATION_EVENT)
-class NotificationEvent(
+@builtin_node(NodeType.NOTIFICATION_SENT_EVENT)
+class NotificationSentEvent(
     Event["Notification"],
-    Node[NotificationEventProto],
+    Node[NotificationSentEventProto],
 ):
     """A Event regarding a Notification."""
 
-    type: NotificationEventType = property_(30)
+    node: "Notification" = property_(35)
+
+
+@builtin_node(NodeType.NOTIFICATION_RESCINDED_EVENT)
+class NotificationRescindedEvent(
+    Event["Notification"],
+    Node[NotificationRescindedEventProto],
+):
+    """A Event regarding a Notification."""
+
+    node: "Notification" = property_(35)
+
+
+@builtin_node(NodeType.NOTIFICATION_READ_EVENT)
+class NotificationReadEvent(
+    Event["Notification"],
+    Node[NotificationReadEventProto],
+):
+    """A Event regarding a Notification."""
+
+    node: "Notification" = property_(35)
+
+
+@builtin_node(NodeType.NOTIFICATION_DISMISSED_EVENT)
+class NotificationDismissedEvent(
+    Event["Notification"],
+    Node[NotificationDismissedEventProto],
+):
+    """A Event regarding a Notification."""
+
+    node: "Notification" = property_(35)
+
+
+@builtin_node(NodeType.NOTIFICATION_EXPIRED_EVENT)
+class NotificationExpiredEvent(
+    Event["Notification"],
+    Node[NotificationExpiredEventProto],
+):
+    """A Event regarding a Notification."""
+
     node: "Notification" = property_(35)
 
 

@@ -18,7 +18,17 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import RunEventProto, RunProto
+from destack.proto import (
+    RunCompletedEventProto,
+    RunFailedEventProto,
+    RunPausedEventProto,
+    RunPauseRequestedEventProto,
+    RunProto,
+    RunResumedEventProto,
+    RunResumeRequestedEventProto,
+    RunStartedEventProto,
+    RunStopRequestedEventProto,
+)
 
 if TYPE_CHECKING:
     from destack.language import Interruption, NodeReference, Space
@@ -37,7 +47,7 @@ class RunStatus(Enum):
     PAUSED = 21, "Paused", "Paused manually", "fas fa-circle-pause"
     YIELDED = 23, "Yielded", "Yielded to someone", "fas fa-circle-pause"
     # terminal
-    CANGALAXYED = 51, "Cangalaxyed", "Cangalaxyed before running", "fas fa-circle-xmark"
+    CANCELLED = 51, "Cancelled", "Cancelled before running", "fas fa-circle-xmark"
     ABORTED = 52, "Aborted", "Aborted while running", "fas fa-circle-xmark"
     FAILED = 53, "Failed", "Failed due to an error", "fas fa-circle-xmark"
     COMPLETED = 54, "Completed", "Completed successfully", "fas fa-circle-check"
@@ -64,34 +74,107 @@ class RunStatus(Enum):
 
     @property
     def is_bad(self) -> bool:
-        return self in (RunStatus.FAILED, RunStatus.ABORTED, RunStatus.CANGALAXYED)
+        return self in (RunStatus.FAILED, RunStatus.ABORTED, RunStatus.CANCELLED)
 
 
-@builtin_enum(EnumType.RUN_EVENT_TYPE)
-class RunEventType(Enum):
-    """A Type of Run Event."""
-
-    SCHEDULED = 1, "Scheduled", "Scheduled for sometime", "fas fa-clock"
-    RUNNING = 10, "Running", "Actively running", "fas fa-circle-notch"
-    REQUESTED_PAUSE = 20, "Requested Pause", "Requested to pause", "fas fa-circle-pause"
-    PAUSED = 21, "Paused", "Paused manually", "fas fa-circle-pause"
-    REQUESTED_RESUME = 22, "Requested Resume", "Requested to resume", "fas fa-circle-pause"
-    RESUMED = 23, "Resumed", "Resumed manually", "fas fa-circle-pause"
-    REQUESTED_CANCEL = 50, "Requested Cancel", "Requested to cancel", "fas fa-circle-xmark"
-    CANGALAXYED = 51, "Cangalaxyed", "Cangalaxyed before running", "fas fa-circle-xmark"
-    ABORTED = 52, "Aborted", "Aborted while running", "fas fa-circle-xmark"
-    FAILED = 53, "Failed", "Failed due to an error", "fas fa-circle-xmark"
-    COMPLETED = 54, "Completed", "Completed successfully", "fas fa-circle-check"
-
-
-@builtin_node(NodeType.RUN_EVENT)
-class RunEvent(
+@builtin_node(NodeType.RUN_STARTED_EVENT)
+class RunStartedEvent(
     Event["Run"],
-    Node[RunEventProto],
+    Node[RunStartedEventProto],
 ):
     """A Event regarding a Run."""
 
-    type: RunEventType = property_(30)
+    node: "Run" = property_(35)
+    target: Optional[IsRunnable] = property_(40)
+    if TYPE_CHECKING:
+        target_ptr: Optional[NodeReference] = None
+
+
+@builtin_node(NodeType.RUN_PAUSE_REQUESTED_EVENT)
+class RunPauseRequestedEvent(
+    Event["Run"],
+    Node[RunPauseRequestedEventProto],
+):
+    """A Event regarding a Run."""
+
+    node: "Run" = property_(35)
+    target: Optional[IsRunnable] = property_(40)
+    if TYPE_CHECKING:
+        target_ptr: Optional[NodeReference] = None
+
+
+@builtin_node(NodeType.RUN_PAUSED_EVENT)
+class RunPausedEvent(
+    Event["Run"],
+    Node[RunPausedEventProto],
+):
+    """A Event regarding a Run."""
+
+    node: "Run" = property_(35)
+    target: Optional[IsRunnable] = property_(40)
+    if TYPE_CHECKING:
+        target_ptr: Optional[NodeReference] = None
+
+
+@builtin_node(NodeType.RUN_RESUME_REQUESTED_EVENT)
+class RunResumeRequestedEvent(
+    Event["Run"],
+    Node[RunResumeRequestedEventProto],
+):
+    """A Event regarding a Run."""
+
+    node: "Run" = property_(35)
+    target: Optional[IsRunnable] = property_(40)
+    if TYPE_CHECKING:
+        target_ptr: Optional[NodeReference] = None
+
+
+@builtin_node(NodeType.RUN_RESUMED_EVENT)
+class RunResumedEvent(
+    Event["Run"],
+    Node[RunResumedEventProto],
+):
+    """A Event regarding a Run."""
+
+    node: "Run" = property_(35)
+    target: Optional[IsRunnable] = property_(40)
+    if TYPE_CHECKING:
+        target_ptr: Optional[NodeReference] = None
+
+
+@builtin_node(NodeType.RUN_STOP_REQUESTED_EVENT)
+class RunStopRequestedEvent(
+    Event["Run"],
+    Node[RunStopRequestedEventProto],
+):
+    """A Event regarding a Run."""
+
+    node: "Run" = property_(35)
+    target: Optional[IsRunnable] = property_(40)
+    if TYPE_CHECKING:
+        target_ptr: Optional[NodeReference] = None
+
+
+@builtin_node(NodeType.RUN_FAILED_EVENT)
+class RunFailedEvent(
+    Event["Run"],
+    Node[RunFailedEventProto],
+):
+    """A Event regarding a Run."""
+
+    node: "Run" = property_(35)
+    target: Optional[IsRunnable] = property_(40)
+    if TYPE_CHECKING:
+        target_ptr: Optional[NodeReference] = None
+
+
+@builtin_node(NodeType.RUN_COMPLETED_EVENT)
+class RunCompletedEvent(
+    Event["Run"],
+    Node[RunCompletedEventProto],
+):
+    """A Event regarding a Run."""
+
     node: "Run" = property_(35)
     target: Optional[IsRunnable] = property_(40)
     if TYPE_CHECKING:

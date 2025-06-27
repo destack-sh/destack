@@ -43,7 +43,7 @@ export enum CursorStatus {
   THINKING = 13,
   WAITING = 15,
   IDLE = 30,
-  CANGALAXYED = 50,
+  CANCELLED = 50,
   COMPLETED = 53,
 
   /* ==== DESTACK_CUSTOM_START ==== */

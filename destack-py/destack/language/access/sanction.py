@@ -19,7 +19,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import SanctionEventProto, SanctionProto
+from destack.proto import SanctionGrantedEventProto, SanctionProto, SanctionRequestedEventProto
 
 if TYPE_CHECKING:
     pass
@@ -27,22 +27,40 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_enum(EnumType.SANCTION_EVENT_TYPE)
-class SanctionEventType(Enum):
-    """A Type of Sanction Event."""
-
-    REQUESTED = 1
-    GRANTED = 2
-    REVOKED = 3
-    EXPIRED = 4
-
-
-@builtin_node(NodeType.SANCTION_EVENT)
-class SanctionEvent(
+@builtin_node(NodeType.SANCTION_REQUESTED_EVENT)
+class SanctionRequestedEvent(
     Event["Sanction"],
-    Node[SanctionEventProto],
+    Node[SanctionRequestedEventProto],
 ):
     node: "Sanction" = property_(35)
+    target: "IsSubject" = property_(40)
+
+
+@builtin_node(NodeType.SANCTION_GRANTED_EVENT)
+class SanctionGrantedEvent(
+    Event["Sanction"],
+    Node[SanctionGrantedEventProto],
+):
+    node: "Sanction" = property_(35)
+    target: "IsSubject" = property_(40)
+
+
+@builtin_node(NodeType.SANCTION_REVOKED_EVENT)
+class SanctionRevokedEvent(
+    Event["Sanction"],
+    Node[SanctionGrantedEventProto],
+):
+    node: "Sanction" = property_(35)
+    target: "IsSubject" = property_(40)
+
+
+@builtin_node(NodeType.SANCTION_EXPIRED_EVENT)
+class SanctionExpiredEvent(
+    Event["Sanction"],
+    Node[SanctionGrantedEventProto],
+):
+    node: "Sanction" = property_(35)
+    target: "IsSubject" = property_(40)
 
 
 @builtin_enum(EnumType.SANCTION_TYPE)

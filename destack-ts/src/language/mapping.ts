@@ -226,6 +226,43 @@ import type {
 } from "@destack/language/infra";
 import type { ModelDeveloper, ModelProvider } from "@destack/language/intelligence";
 import type {
+  ClickEvent,
+  ClipboardEvent,
+  CopyEvent,
+  CutEvent,
+  DoubleClickEvent,
+  DragEndEvent,
+  DragEnterEvent,
+  DragEvent,
+  DragLeaveEvent,
+  DragOverEvent,
+  DragStartEvent,
+  DropEvent,
+  FocusEvent,
+  FocusInEvent,
+  FocusOutEvent,
+  InputEvent,
+  KeyDownEvent,
+  KeyPressEvent,
+  KeyUpEvent,
+  KeyboardEvent,
+  LeftClickEvent,
+  LongPressEvent,
+  MiddleClickEvent,
+  MouseButton,
+  MouseEvent,
+  PasteEvent,
+  PointerDownEvent,
+  PointerEnterEvent,
+  PointerEvent,
+  PointerLeaveEvent,
+  PointerMoveEvent,
+  PointerOverEvent,
+  PointerUpEvent,
+  RightClickEvent,
+  WheelEvent,
+} from "@destack/language/interaction";
+import type {
   Action,
   ActionCardinality,
   Cursor,
@@ -348,7 +385,7 @@ import type {
   TransitionStyle,
   TransitionType,
 } from "@destack/language/style";
-import type { View } from "@destack/language/view";
+import type { View, ViewEvent } from "@destack/language/view";
 import type {
   ContainerView,
   CustomView,
@@ -414,6 +451,32 @@ export type NodeTypeMapping = {
   [NodeType.TAGGING]: Tagging;
   [NodeType.DATABASE]: Database;
   [NodeType.MACHINE]: Machine;
+  [NodeType.POINTER_DOWN_EVENT]: PointerDownEvent;
+  [NodeType.POINTER_UP_EVENT]: PointerUpEvent;
+  [NodeType.POINTER_MOVE_EVENT]: PointerMoveEvent;
+  [NodeType.POINTER_ENTER_EVENT]: PointerEnterEvent;
+  [NodeType.POINTER_OVER_EVENT]: PointerOverEvent;
+  [NodeType.POINTER_LEAVE_EVENT]: PointerLeaveEvent;
+  [NodeType.LONG_PRESS_EVENT]: LongPressEvent;
+  [NodeType.LEFT_CLICK_EVENT]: LeftClickEvent;
+  [NodeType.RIGHT_CLICK_EVENT]: RightClickEvent;
+  [NodeType.MIDDLE_CLICK_EVENT]: MiddleClickEvent;
+  [NodeType.DOUBLE_CLICK_EVENT]: DoubleClickEvent;
+  [NodeType.WHEEL_EVENT]: WheelEvent;
+  [NodeType.KEY_DOWN_EVENT]: KeyDownEvent;
+  [NodeType.KEY_UP_EVENT]: KeyUpEvent;
+  [NodeType.KEY_PRESS_EVENT]: KeyPressEvent;
+  [NodeType.DRAG_START_EVENT]: DragStartEvent;
+  [NodeType.DRAG_END_EVENT]: DragEndEvent;
+  [NodeType.DRAG_OVER_EVENT]: DragOverEvent;
+  [NodeType.DRAG_ENTER_EVENT]: DragEnterEvent;
+  [NodeType.DRAG_LEAVE_EVENT]: DragLeaveEvent;
+  [NodeType.DROP_EVENT]: DropEvent;
+  [NodeType.COPY_EVENT]: CopyEvent;
+  [NodeType.CUT_EVENT]: CutEvent;
+  [NodeType.PASTE_EVENT]: PasteEvent;
+  [NodeType.FOCUS_IN_EVENT]: FocusInEvent;
+  [NodeType.FOCUS_OUT_EVENT]: FocusOutEvent;
   [NodeType.ACTION]: Action;
   [NodeType.EVENT_CURSOR]: EventCursor;
   [NodeType.SCREEN_CURSOR]: ScreenCursor;
@@ -504,6 +567,7 @@ export type TraitTypeMapping = {
   [TraitType.METRIC]: Metric;
   [TraitType.MEASUREMENT]: Measurement;
   [TraitType.EVENT]: Event;
+  [TraitType.VIEW_EVENT]: ViewEvent;
   [TraitType.VIEW]: View;
   [TraitType.CONTAINER_VIEW]: ContainerView;
   [TraitType.CONTENT_VIEW]: ContentView;
@@ -511,6 +575,14 @@ export type TraitTypeMapping = {
   [TraitType.INTERNAL_VIEW]: InternalView;
   [TraitType.NODE_VIEW]: NodeView;
   [TraitType.SHAPE]: IsShape;
+  [TraitType.INPUT_EVENT]: InputEvent;
+  [TraitType.POINTER_EVENT]: PointerEvent;
+  [TraitType.MOUSE_EVENT]: MouseEvent;
+  [TraitType.CLICK_EVENT]: ClickEvent;
+  [TraitType.KEYBOARD_EVENT]: KeyboardEvent;
+  [TraitType.DRAG_EVENT]: DragEvent;
+  [TraitType.CLIPBOARD_EVENT]: ClipboardEvent;
+  [TraitType.FOCUS_EVENT]: FocusEvent;
   [TraitType.CURSOR]: Cursor;
   [TraitType.STYLE]: Style;
 };
@@ -668,6 +740,7 @@ export type EnumTypeMapping = {
   [EnumType.MACHINE_TYPE]: MachineType;
   [EnumType.MODEL_DEVELOPER]: ModelDeveloper;
   [EnumType.MODEL_PROVIDER]: ModelProvider;
+  [EnumType.MOUSE_BUTTON]: MouseButton;
   [EnumType.ACTION_CARDINALITY]: ActionCardinality;
   [EnumType.CURSOR_STATUS]: CursorStatus;
   [EnumType.DAY_OF_WEEK]: DayOfWeek;

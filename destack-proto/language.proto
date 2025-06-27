@@ -188,7 +188,7 @@ enum CursorStatusProto {
   CURSOR_STATUS_THINKING = 13;
   CURSOR_STATUS_WAITING = 15;
   CURSOR_STATUS_IDLE = 30;
-  CURSOR_STATUS_CANGALAXYED = 50;
+  CURSOR_STATUS_CANCELLED = 50;
   CURSOR_STATUS_COMPLETED = 53;
 }
 
@@ -294,15 +294,6 @@ enum EffectTypeProto {
   EFFECT_TYPE_LOOP = 30;
 }
 
-// A Type of Entitlement Event.
-enum EntitlementEventTypeProto {
-  ENTITLEMENT_EVENT_TYPE_UNSPECIFIED = 0;
-  ENTITLEMENT_EVENT_TYPE_REQUESTED = 1;
-  ENTITLEMENT_EVENT_TYPE_GRANTED = 2;
-  ENTITLEMENT_EVENT_TYPE_REVOKED = 3;
-  ENTITLEMENT_EVENT_TYPE_EXPIRED = 4;
-}
-
 // A Type of Entitlement.
 enum EntitlementTypeProto {
   ENTITLEMENT_TYPE_UNSPECIFIED = 0;
@@ -314,7 +305,6 @@ enum EnumTypeProto {
   ENUM_TYPE_UNSPECIFIED = 0;
   ENUM_TYPE_SPACE_STATUS = 1;
   ENUM_TYPE_USER_STATUS = 20;
-  ENUM_TYPE_FRIENDSHIP_INVITE_EVENT_TYPE = 31;
   ENUM_TYPE_ORGANIZATION_STATUS = 40;
   ENUM_TYPE_CLIENT_TYPE = 100;
   ENUM_TYPE_CONDITIONAL_TYPE = 103;
@@ -326,16 +316,11 @@ enum EnumTypeProto {
   ENUM_TYPE_EXPRESSION_TYPE = 109;
   ENUM_TYPE_QUERY_TYPE = 120;
   ENUM_TYPE_QUERY_UPDATE_TYPE = 121;
-  ENUM_TYPE_MEMBERSHIP_EVENT_TYPE = 500;
   ENUM_TYPE_MEMBERSHIP_PERMISSION = 501;
-  ENUM_TYPE_INVITE_EVENT_TYPE = 510;
   ENUM_TYPE_ROLE_TYPE = 520;
-  ENUM_TYPE_ROLE_EVENT_TYPE = 521;
   ENUM_TYPE_PERMISSION_TYPE = 530;
   ENUM_TYPE_SANCTION_TYPE = 540;
-  ENUM_TYPE_SANCTION_EVENT_TYPE = 541;
   ENUM_TYPE_ENTITLEMENT_TYPE = 550;
-  ENUM_TYPE_ENTITLEMENT_EVENT_TYPE = 551;
   ENUM_TYPE_FOLDER_TYPE = 1000;
   ENUM_TYPE_TEXT_SPAN_TYPE = 2521;
   ENUM_TYPE_FILE_RETENTION_MODE = 2540;
@@ -361,11 +346,8 @@ enum EnumTypeProto {
   ENUM_TYPE_DAY_OF_WEEK = 3051;
   ENUM_TYPE_MONTH = 3052;
   ENUM_TYPE_TIMER_TYPE = 3053;
-  ENUM_TYPE_TIMER_EVENT_TYPE = 3054;
   ENUM_TYPE_TRIGGER_TYPE = 3040;
-  ENUM_TYPE_TRIGGER_EVENT_TYPE = 3041;
   ENUM_TYPE_RUN_STATUS = 4000;
-  ENUM_TYPE_RUN_EVENT_TYPE = 4001;
   ENUM_TYPE_INTERRUPTION_TYPE = 4020;
   ENUM_TYPE_INTERRUPTION_STATUS = 4021;
   ENUM_TYPE_INTERRUPTION_RESPONSE = 4022;
@@ -373,7 +355,6 @@ enum EnumTypeProto {
   ENUM_TYPE_ENVIRONMENT_TYPE = 4500;
   ENUM_TYPE_THREAD_STATUS = 5500;
   ENUM_TYPE_NOTIFICATION_STATUS = 5600;
-  ENUM_TYPE_NOTIFICATION_EVENT_TYPE = 5601;
   ENUM_TYPE_CLOUD = 7500;
   ENUM_TYPE_REGION = 7501;
   ENUM_TYPE_REGION_AREA = 7502;
@@ -384,12 +365,12 @@ enum EnumTypeProto {
   ENUM_TYPE_MODEL_DEVELOPER = 8000;
   ENUM_TYPE_MODEL_PROVIDER = 8001;
   ENUM_TYPE_WINDOW_TYPE = 9000;
-  ENUM_TYPE_SCENE_EVENT_TYPE = 9011;
   ENUM_TYPE_LAYER_TYPE = 9020;
   ENUM_TYPE_VARIANT_TYPE = 9030;
   ENUM_TYPE_VARIANT_STATE_TYPE = 9031;
   ENUM_TYPE_MODE_TYPE = 9500;
   ENUM_TYPE_TOOL_TYPE = 9501;
+  ENUM_TYPE_MOUSE_BUTTON = 9510;
   ENUM_TYPE_CANVAS_TYPE = 11000;
   ENUM_TYPE_PLANE_SHAPE_TYPE = 11011;
   ENUM_TYPE_ARROW_HEAD_TYPE = 11012;
@@ -658,15 +639,6 @@ enum FontWeightProto {
   FONT_WEIGHT_BLACK = 900;
 }
 
-// A Type of Friendship Invite Event.
-enum FriendshipInviteEventTypeProto {
-  FRIENDSHIP_INVITE_EVENT_TYPE_UNSPECIFIED = 0;
-  FRIENDSHIP_INVITE_EVENT_TYPE_SENT = 1;
-  FRIENDSHIP_INVITE_EVENT_TYPE_RESCINDED = 2;
-  FRIENDSHIP_INVITE_EVENT_TYPE_ACCEPTED = 3;
-  FRIENDSHIP_INVITE_EVENT_TYPE_REJECTED = 4;
-}
-
 enum FunctionTypeProto {
   FUNCTION_TYPE_UNSPECIFIED = 0;
   FUNCTION_TYPE_ADD = 1;
@@ -704,7 +676,7 @@ enum InterruptionResponseProto {
 enum InterruptionStatusProto {
   INTERRUPTION_STATUS_UNSPECIFIED = 0;
   INTERRUPTION_STATUS_OPEN = 10;
-  INTERRUPTION_STATUS_CANGALAXYED = 30;
+  INTERRUPTION_STATUS_CANCELLED = 30;
   INTERRUPTION_STATUS_COMPLETED = 33;
 }
 
@@ -713,15 +685,6 @@ enum InterruptionTypeProto {
   INTERRUPTION_TYPE_PAUSE = 10;
   INTERRUPTION_TYPE_YIELD = 20;
   INTERRUPTION_TYPE_WAIT = 30;
-}
-
-// A Type of Invite Event.
-enum InviteEventTypeProto {
-  INVITE_EVENT_TYPE_UNSPECIFIED = 0;
-  INVITE_EVENT_TYPE_SENT = 1;
-  INVITE_EVENT_TYPE_RESCINDED = 2;
-  INVITE_EVENT_TYPE_ACCEPTED = 3;
-  INVITE_EVENT_TYPE_REJECTED = 4;
 }
 
 enum JoinTypeProto {
@@ -801,15 +764,6 @@ enum MaterializationTypeProto {
   MATERIALIZATION_TYPE_FULL_GRAPH = 3;
 }
 
-// A Type of Membership Event.
-enum MembershipEventTypeProto {
-  MEMBERSHIP_EVENT_TYPE_UNSPECIFIED = 0;
-  MEMBERSHIP_EVENT_TYPE_JOIN = 1;
-  MEMBERSHIP_EVENT_TYPE_LEAVE = 2;
-  MEMBERSHIP_EVENT_TYPE_KICK = 3;
-  MEMBERSHIP_EVENT_TYPE_BAN = 4;
-}
-
 // A Permission for a Membership.
 enum MembershipPermissionProto {
   MEMBERSHIP_PERMISSION_UNSPECIFIED = 0;
@@ -859,6 +813,14 @@ enum MonthProto {
   MONTH_DECEMBER = 12;
 }
 
+// A MouseButton is a button on a mouse.
+enum MouseButtonProto {
+  MOUSE_BUTTON_UNSPECIFIED = 0;
+  MOUSE_BUTTON_LEFT = 1;
+  MOUSE_BUTTON_RIGHT = 2;
+  MOUSE_BUTTON_MIDDLE = 3;
+}
+
 enum NodePermissionProto {
   NODE_PERMISSION_UNSPECIFIED = 0;
   NODE_PERMISSION_READ = 1;
@@ -870,26 +832,40 @@ enum NodePermissionProto {
 enum NodeTypeProto {
   NODE_TYPE_UNSPECIFIED = 0;
   NODE_TYPE_SPACE = 1;
-  NODE_TYPE_HANDLE = 10;
-  NODE_TYPE_USER = 20;
-  NODE_TYPE_FRIENDSHIP = 30;
-  NODE_TYPE_FRIENDSHIP_INVITE = 31;
-  NODE_TYPE_FRIENDSHIP_INVITE_EVENT = 32;
-  NODE_TYPE_ORGANIZATION = 40;
-  NODE_TYPE_TEAM = 50;
-  NODE_TYPE_CLIENT = 100;
+  NODE_TYPE_HANDLE = 20;
+  NODE_TYPE_USER = 40;
+  NODE_TYPE_FRIENDSHIP = 60;
+  NODE_TYPE_FRIENDSHIP_INVITE = 80;
+  NODE_TYPE_FRIENDSHIP_INVITE_SENT_EVENT = 90;
+  NODE_TYPE_FRIENDSHIP_INVITE_RESCINDED_EVENT = 91;
+  NODE_TYPE_FRIENDSHIP_INVITE_ACCEPTED_EVENT = 92;
+  NODE_TYPE_FRIENDSHIP_INVITE_REJECTED_EVENT = 93;
+  NODE_TYPE_ORGANIZATION = 100;
+  NODE_TYPE_TEAM = 120;
+  NODE_TYPE_CLIENT = 200;
   NODE_TYPE_MEMBERSHIP = 500;
-  NODE_TYPE_MEMBERSHIP_EVENT = 501;
-  NODE_TYPE_INVITE = 510;
-  NODE_TYPE_INVITE_EVENT = 511;
-  NODE_TYPE_ROLE = 520;
-  NODE_TYPE_ROLE_EVENT = 521;
-  NODE_TYPE_PERMISSION = 530;
-  NODE_TYPE_SANCTION = 540;
-  NODE_TYPE_SANCTION_EVENT = 541;
-  NODE_TYPE_ENTITLEMENT = 550;
-  NODE_TYPE_ENTITLEMENT_EVENT = 551;
-  NODE_TYPE_AGENT = 600;
+  NODE_TYPE_MEMBERSHIP_JOINED_EVENT = 510;
+  NODE_TYPE_MEMBERSHIP_LEFT_EVENT = 511;
+  NODE_TYPE_INVITE = 520;
+  NODE_TYPE_INVITE_SENT_EVENT = 521;
+  NODE_TYPE_INVITE_RESCINDED_EVENT = 522;
+  NODE_TYPE_INVITE_ACCEPTED_EVENT = 523;
+  NODE_TYPE_INVITE_REJECTED_EVENT = 524;
+  NODE_TYPE_ROLE = 540;
+  NODE_TYPE_ROLE_ASSIGNED_EVENT = 550;
+  NODE_TYPE_ROLE_UNASSIGNED_EVENT = 551;
+  NODE_TYPE_PERMISSION = 560;
+  NODE_TYPE_SANCTION = 580;
+  NODE_TYPE_SANCTION_REQUESTED_EVENT = 590;
+  NODE_TYPE_SANCTION_GRANTED_EVENT = 591;
+  NODE_TYPE_SANCTION_REVOKED_EVENT = 592;
+  NODE_TYPE_SANCTION_EXPIRED_EVENT = 593;
+  NODE_TYPE_ENTITLEMENT = 600;
+  NODE_TYPE_ENTITLEMENT_REQUESTED_EVENT = 610;
+  NODE_TYPE_ENTITLEMENT_GRANTED_EVENT = 611;
+  NODE_TYPE_ENTITLEMENT_REVOKED_EVENT = 612;
+  NODE_TYPE_ENTITLEMENT_EXPIRED_EVENT = 613;
+  NODE_TYPE_AGENT = 620;
   NODE_TYPE_FOLDER = 1000;
   NODE_TYPE_TAG = 1010;
   NODE_TYPE_TAGGING = 1011;
@@ -904,20 +880,29 @@ enum NodeTypeProto {
   NODE_TYPE_FILE = 2540;
   NODE_TYPE_LINK = 2550;
   NODE_TYPE_SCRIPT = 3000;
-  NODE_TYPE_SERVICE = 3010;
-  NODE_TYPE_ACTION = 3020;
-  NODE_TYPE_ROUTE = 3030;
-  NODE_TYPE_TRIGGER = 3040;
-  NODE_TYPE_TRIGGER_EVENT = 3041;
-  NODE_TYPE_TIMER = 3050;
-  NODE_TYPE_TIMER_EVENT = 3051;
-  NODE_TYPE_EVENT_CURSOR = 3100;
-  NODE_TYPE_SCREEN_CURSOR = 3101;
-  NODE_TYPE_THREAD_CURSOR = 3102;
+  NODE_TYPE_SERVICE = 3020;
+  NODE_TYPE_ACTION = 3040;
+  NODE_TYPE_ROUTE = 3060;
+  NODE_TYPE_TRIGGER = 3080;
+  NODE_TYPE_TRIGGER_STARTED_EVENT = 3090;
+  NODE_TYPE_TRIGGER_STOPPED_EVENT = 3091;
+  NODE_TYPE_TIMER = 3100;
+  NODE_TYPE_TIMER_STARTED_EVENT = 3110;
+  NODE_TYPE_TIMER_STOPPED_EVENT = 3111;
+  NODE_TYPE_EVENT_CURSOR = 3200;
+  NODE_TYPE_SCREEN_CURSOR = 3201;
+  NODE_TYPE_THREAD_CURSOR = 3202;
   NODE_TYPE_RUN = 4000;
-  NODE_TYPE_RUN_EVENT = 4001;
-  NODE_TYPE_SPAN = 4010;
-  NODE_TYPE_INTERRUPTION = 4020;
+  NODE_TYPE_RUN_STARTED_EVENT = 4011;
+  NODE_TYPE_RUN_PAUSE_REQUESTED_EVENT = 4012;
+  NODE_TYPE_RUN_PAUSED_EVENT = 4013;
+  NODE_TYPE_RUN_RESUME_REQUESTED_EVENT = 4014;
+  NODE_TYPE_RUN_RESUMED_EVENT = 4015;
+  NODE_TYPE_RUN_STOP_REQUESTED_EVENT = 4016;
+  NODE_TYPE_RUN_FAILED_EVENT = 4017;
+  NODE_TYPE_RUN_COMPLETED_EVENT = 4018;
+  NODE_TYPE_SPAN = 4020;
+  NODE_TYPE_INTERRUPTION = 4040;
   NODE_TYPE_LOG = 4100;
   NODE_TYPE_GAUGE_METRIC = 4110;
   NODE_TYPE_GAUGE_MEASUREMENT = 4111;
@@ -930,19 +915,50 @@ enum NodeTypeProto {
   NODE_TYPE_EDIT_EVENT = 4202;
   NODE_TYPE_ENVIRONMENT = 4500;
   NODE_TYPE_THREAD = 5500;
-  NODE_TYPE_MESSAGE = 5510;
-  NODE_TYPE_REACTION = 5520;
-  NODE_TYPE_STAR = 5521;
-  NODE_TYPE_FOLLOW = 5530;
+  NODE_TYPE_MESSAGE = 5520;
+  NODE_TYPE_REACTION = 5540;
+  NODE_TYPE_STAR = 5560;
+  NODE_TYPE_FOLLOW = 5580;
   NODE_TYPE_NOTIFICATION = 5600;
-  NODE_TYPE_NOTIFICATION_EVENT = 5601;
+  NODE_TYPE_NOTIFICATION_SENT_EVENT = 5610;
+  NODE_TYPE_NOTIFICATION_RESCINDED_EVENT = 5620;
+  NODE_TYPE_NOTIFICATION_READ_EVENT = 5630;
+  NODE_TYPE_NOTIFICATION_DISMISSED_EVENT = 5640;
+  NODE_TYPE_NOTIFICATION_EXPIRED_EVENT = 5650;
   NODE_TYPE_DATABASE = 7500;
   NODE_TYPE_MACHINE = 7600;
   NODE_TYPE_WINDOW = 9000;
-  NODE_TYPE_SCENE = 9010;
-  NODE_TYPE_SCENE_EVENT = 9011;
-  NODE_TYPE_LAYER = 9020;
-  NODE_TYPE_VARIANT = 9030;
+  NODE_TYPE_SCENE = 9020;
+  NODE_TYPE_SCENE_ENTERED_EVENT = 9030;
+  NODE_TYPE_SCENE_EXITED_EVENT = 9031;
+  NODE_TYPE_LAYER = 9040;
+  NODE_TYPE_VARIANT = 9060;
+  NODE_TYPE_POINTER_DOWN_EVENT = 9500;
+  NODE_TYPE_POINTER_UP_EVENT = 9501;
+  NODE_TYPE_POINTER_MOVE_EVENT = 9502;
+  NODE_TYPE_POINTER_ENTER_EVENT = 9503;
+  NODE_TYPE_POINTER_OVER_EVENT = 9504;
+  NODE_TYPE_POINTER_LEAVE_EVENT = 9505;
+  NODE_TYPE_LONG_PRESS_EVENT = 9506;
+  NODE_TYPE_LEFT_CLICK_EVENT = 9510;
+  NODE_TYPE_RIGHT_CLICK_EVENT = 9511;
+  NODE_TYPE_MIDDLE_CLICK_EVENT = 9512;
+  NODE_TYPE_DOUBLE_CLICK_EVENT = 9513;
+  NODE_TYPE_WHEEL_EVENT = 9514;
+  NODE_TYPE_KEY_DOWN_EVENT = 9520;
+  NODE_TYPE_KEY_UP_EVENT = 9521;
+  NODE_TYPE_KEY_PRESS_EVENT = 9522;
+  NODE_TYPE_DRAG_START_EVENT = 9530;
+  NODE_TYPE_DRAG_END_EVENT = 9531;
+  NODE_TYPE_DRAG_OVER_EVENT = 9532;
+  NODE_TYPE_DRAG_ENTER_EVENT = 9533;
+  NODE_TYPE_DRAG_LEAVE_EVENT = 9534;
+  NODE_TYPE_DROP_EVENT = 9535;
+  NODE_TYPE_COPY_EVENT = 9540;
+  NODE_TYPE_CUT_EVENT = 9541;
+  NODE_TYPE_PASTE_EVENT = 9542;
+  NODE_TYPE_FOCUS_IN_EVENT = 9552;
+  NODE_TYPE_FOCUS_OUT_EVENT = 9553;
   NODE_TYPE_CUSTOM_VIEW_DEFINITION = 10000;
   NODE_TYPE_CUSTOM_VIEW = 10001;
   NODE_TYPE_FRAME_VIEW = 10020;
@@ -968,16 +984,6 @@ enum NodeTypeProto {
   NODE_TYPE_GRADIENT_STYLE = 12025;
   NODE_TYPE_TRANSITION_STYLE = 12026;
   NODE_TYPE_EFFECT_STYLE = 12027;
-}
-
-// A Type of Notification Event.
-enum NotificationEventTypeProto {
-  NOTIFICATION_EVENT_TYPE_UNSPECIFIED = 0;
-  NOTIFICATION_EVENT_TYPE_SENT = 1;
-  NOTIFICATION_EVENT_TYPE_RESCINDED = 2;
-  NOTIFICATION_EVENT_TYPE_READ = 3;
-  NOTIFICATION_EVENT_TYPE_DISMISSED = 4;
-  NOTIFICATION_EVENT_TYPE_EXPIRED = 5;
 }
 
 // A Status of a Notification.
@@ -1181,13 +1187,6 @@ enum ResourceStatusProto {
   RESOURCE_STATUS_FAILED = 31;
 }
 
-// A Type of Role Event.
-enum RoleEventTypeProto {
-  ROLE_EVENT_TYPE_UNSPECIFIED = 0;
-  ROLE_EVENT_TYPE_ASSIGNED = 1;
-  ROLE_EVENT_TYPE_REMOVED = 2;
-}
-
 enum RoleTypeProto {
   ROLE_TYPE_UNSPECIFIED = 0;
   ROLE_TYPE_SYSTEM = 1;
@@ -1198,29 +1197,13 @@ enum RoleTypeProto {
   ROLE_TYPE_SPECTATOR = 10;
 }
 
-// A Type of Run Event.
-enum RunEventTypeProto {
-  RUN_EVENT_TYPE_UNSPECIFIED = 0;
-  RUN_EVENT_TYPE_SCHEDULED = 1;
-  RUN_EVENT_TYPE_RUNNING = 10;
-  RUN_EVENT_TYPE_REQUESTED_PAUSE = 20;
-  RUN_EVENT_TYPE_PAUSED = 21;
-  RUN_EVENT_TYPE_REQUESTED_RESUME = 22;
-  RUN_EVENT_TYPE_RESUMED = 23;
-  RUN_EVENT_TYPE_REQUESTED_CANCEL = 50;
-  RUN_EVENT_TYPE_CANGALAXYED = 51;
-  RUN_EVENT_TYPE_ABORTED = 52;
-  RUN_EVENT_TYPE_FAILED = 53;
-  RUN_EVENT_TYPE_COMPLETED = 54;
-}
-
 enum RunStatusProto {
   RUN_STATUS_UNSPECIFIED = 0;
   RUN_STATUS_SCHEDULED = 2;
   RUN_STATUS_RUNNING = 10;
   RUN_STATUS_PAUSED = 21;
   RUN_STATUS_YIELDED = 23;
-  RUN_STATUS_CANGALAXYED = 51;
+  RUN_STATUS_CANCELLED = 51;
   RUN_STATUS_ABORTED = 52;
   RUN_STATUS_FAILED = 53;
   RUN_STATUS_COMPLETED = 54;
@@ -1230,15 +1213,6 @@ enum RuntimeTypeProto {
   RUNTIME_TYPE_UNSPECIFIED = 0;
   RUNTIME_TYPE_PYTHON = 1;
   RUNTIME_TYPE_JAVASCRIPT = 2;
-}
-
-// A Type of Sanction Event.
-enum SanctionEventTypeProto {
-  SANCTION_EVENT_TYPE_UNSPECIFIED = 0;
-  SANCTION_EVENT_TYPE_REQUESTED = 1;
-  SANCTION_EVENT_TYPE_GRANTED = 2;
-  SANCTION_EVENT_TYPE_REVOKED = 3;
-  SANCTION_EVENT_TYPE_EXPIRED = 4;
 }
 
 // A Type of Sanction.
@@ -1256,13 +1230,6 @@ enum ScalarTypeProto {
   SCALAR_TYPE_NODE_REFERENCE = 3;
   SCALAR_TYPE_NODE_VALUE = 4;
   SCALAR_TYPE_STRUCT = 5;
-}
-
-// A Type of Scene Event.
-enum SceneEventTypeProto {
-  SCENE_EVENT_TYPE_UNSPECIFIED = 0;
-  SCENE_EVENT_TYPE_ENTERED = 1;
-  SCENE_EVENT_TYPE_EXITED = 2;
 }
 
 enum ScheduleFrequencyProto {
@@ -1476,14 +1443,6 @@ enum ThreadStatusProto {
   THREAD_STATUS_CLOSED = 30;
 }
 
-// A Type of Timer Event.
-enum TimerEventTypeProto {
-  TIMER_EVENT_TYPE_UNSPECIFIED = 0;
-  TIMER_EVENT_TYPE_STARTED = 1;
-  TIMER_EVENT_TYPE_STOPPED = 2;
-  TIMER_EVENT_TYPE_EXPIRED = 3;
-}
-
 enum TimerTypeProto {
   TIMER_TYPE_UNSPECIFIED = 0;
   TIMER_TYPE_ONCE = 1;
@@ -1541,6 +1500,15 @@ enum TraitTypeProto {
   TRAIT_TYPE_FOLLOW = 5535;
   TRAIT_TYPE_VISUAL = 9000;
   TRAIT_TYPE_VIEW = 9001;
+  TRAIT_TYPE_VIEW_EVENT = 9002;
+  TRAIT_TYPE_INPUT_EVENT = 9500;
+  TRAIT_TYPE_POINTER_EVENT = 9501;
+  TRAIT_TYPE_MOUSE_EVENT = 9510;
+  TRAIT_TYPE_CLICK_EVENT = 9511;
+  TRAIT_TYPE_KEYBOARD_EVENT = 9520;
+  TRAIT_TYPE_DRAG_EVENT = 9530;
+  TRAIT_TYPE_CLIPBOARD_EVENT = 9540;
+  TRAIT_TYPE_FOCUS_EVENT = 9550;
   TRAIT_TYPE_CONTAINER_VIEW = 10000;
   TRAIT_TYPE_CONTENT_VIEW = 10200;
   TRAIT_TYPE_INPUT_VIEW = 10400;
@@ -1556,14 +1524,6 @@ enum TransitionTypeProto {
   TRANSITION_TYPE_STYLE = 2;
   TRANSITION_TYPE_TWEEN = 10;
   TRANSITION_TYPE_SPRING = 11;
-}
-
-// A Type of Trigger Event.
-enum TriggerEventTypeProto {
-  TRIGGER_EVENT_TYPE_UNSPECIFIED = 0;
-  TRIGGER_EVENT_TYPE_STARTED = 1;
-  TRIGGER_EVENT_TYPE_TRIGGERED = 2;
-  TRIGGER_EVENT_TYPE_STOPPED = 3;
 }
 
 enum TriggerTypeProto {
@@ -1938,6 +1898,19 @@ message ConstantDefinitionProto {
   bool is_deferred = 50;
 }
 
+// A CopyEvent is a ClipboardEvent when a copy is performed.
+message CopyEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  optional NodeReferenceProto node_ptr = 35;
+}
+
 message CornersProto {
   StructTypeProto metatype = 1;
   optional int64 base = 50 [jstype = JS_NUMBER];
@@ -2226,6 +2199,19 @@ message CustomViewDefinitionProto {
   optional NodeReferenceProto script_ptr = 200;
 }
 
+// A CutEvent is a ClipboardEvent when a cut is performed.
+message CutEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  optional NodeReferenceProto node_ptr = 35;
+}
+
 // A primary storage Database of some flavor.
 message DatabaseProto {
   NodeTypeProto metatype = 1;
@@ -2265,6 +2251,111 @@ message DimensionProto {
   DimensionTypeProto type = 30;
   LengthUnitProto unit = 50;
   double value = 51;
+}
+
+// A DoubleClickEvent is a ClickEvent when a pointer is clicked twice in a short time.
+message DoubleClickEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  optional NodeReferenceProto node_ptr = 35;
+  Vector2Proto position = 50;
+  double pressure = 51;
+  MouseButtonProto button = 60;
+  bool shift_key = 80;
+  bool alt_key = 81;
+  bool ctrl_key = 82;
+  bool meta_key = 83;
+  bool accel_key = 84;
+}
+
+// A DragEndEvent is a DragEvent when a drag ends.
+message DragEndEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  optional NodeReferenceProto node_ptr = 35;
+  Vector2Proto position = 50;
+}
+
+// A DragEnterEvent is a DragEvent when a drag enters an element.
+message DragEnterEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  optional NodeReferenceProto node_ptr = 35;
+  Vector2Proto position = 50;
+}
+
+// A DragLeaveEvent is a DragEvent when a drag leaves an element.
+message DragLeaveEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  optional NodeReferenceProto node_ptr = 35;
+  Vector2Proto position = 50;
+}
+
+// A DragOverEvent is a DragEvent when a drag is over an element.
+message DragOverEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  optional NodeReferenceProto node_ptr = 35;
+  Vector2Proto position = 50;
+}
+
+// A DragStartEvent is a DragEvent when a drag starts.
+message DragStartEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  optional NodeReferenceProto node_ptr = 35;
+  Vector2Proto position = 50;
+}
+
+// A DropEvent is a DragEvent when a drag is dropped on an element.
+message DropEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  optional NodeReferenceProto node_ptr = 35;
+  Vector2Proto position = 50;
 }
 
 message EditProto {
@@ -2367,7 +2458,7 @@ message EntitlementProto {
   NodeReferenceProto target_ptr = 41;
 }
 
-message EntitlementEventProto {
+message EntitlementExpiredEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
@@ -2377,6 +2468,46 @@ message EntitlementEventProto {
   google.protobuf.Timestamp updated_at = 17;
   optional NodeReferenceProto updated_by_ptr = 18;
   NodeReferenceProto node_ptr = 35;
+  NodeReferenceProto target_ptr = 40;
+}
+
+message EntitlementGrantedEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  NodeReferenceProto node_ptr = 35;
+  NodeReferenceProto target_ptr = 40;
+}
+
+message EntitlementRequestedEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  NodeReferenceProto node_ptr = 35;
+  NodeReferenceProto target_ptr = 40;
+}
+
+message EntitlementRevokedEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  NodeReferenceProto node_ptr = 35;
+  NodeReferenceProto target_ptr = 40;
 }
 
 message EnumDefinitionProto {
@@ -2496,6 +2627,32 @@ message FillStyleProto {
   optional NodeReferenceProto image_ptr = 52;
   optional FillPositionProto position = 53;
   optional FillSizeProto size = 54;
+}
+
+// A FocusInEvent is a FocusEvent when a focus is gained.
+message FocusInEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  optional NodeReferenceProto node_ptr = 35;
+}
+
+// A FocusOutEvent is a FocusEvent when a focus is lost.
+message FocusOutEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  optional NodeReferenceProto node_ptr = 35;
 }
 
 // A Folder is a sub-space of a Space.
@@ -2646,7 +2803,7 @@ message FriendshipInviteProto {
 }
 
 // A Event regarding a Friendship Invite.
-message FriendshipInviteEventProto {
+message FriendshipInviteAcceptedEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
@@ -2655,7 +2812,45 @@ message FriendshipInviteEventProto {
   optional NodeReferenceProto created_by_ptr = 16;
   google.protobuf.Timestamp updated_at = 17;
   optional NodeReferenceProto updated_by_ptr = 18;
-  FriendshipInviteEventTypeProto type = 30;
+  NodeReferenceProto node_ptr = 35;
+}
+
+// A Event regarding a Friendship Invite.
+message FriendshipInviteRejectedEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  NodeReferenceProto node_ptr = 35;
+}
+
+// A Event regarding a Friendship Invite.
+message FriendshipInviteRescindedEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  NodeReferenceProto node_ptr = 35;
+}
+
+// A Event regarding a Friendship Invite.
+message FriendshipInviteSentEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
   NodeReferenceProto node_ptr = 35;
 }
 
@@ -2863,7 +3058,7 @@ message InviteProto {
 }
 
 // A Event regarding an Invite.
-message InviteEventProto {
+message InviteAcceptedEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
@@ -2875,7 +3070,54 @@ message InviteEventProto {
   NodeReferenceProto node_ptr = 35;
   NodeReferenceProto joinable_ptr = 40;
   NodeReferenceProto member_ptr = 41;
-  optional NodeReferenceProto role_ptr = 42;
+  NodeReferenceProto role_ptr = 42;
+  RoleTypeProto role_type = 43;
+}
+
+// A Event regarding an Invite.
+message InviteRejectedEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  NodeReferenceProto node_ptr = 35;
+  NodeReferenceProto joinable_ptr = 40;
+  NodeReferenceProto member_ptr = 41;
+}
+
+// A Event regarding an Invite.
+message InviteRescindedEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  NodeReferenceProto node_ptr = 35;
+  NodeReferenceProto joinable_ptr = 40;
+  NodeReferenceProto member_ptr = 41;
+}
+
+// A Event regarding an Invite.
+message InviteSentEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  NodeReferenceProto node_ptr = 35;
+  NodeReferenceProto joinable_ptr = 40;
+  NodeReferenceProto member_ptr = 41;
+  NodeReferenceProto role_ptr = 42;
   RoleTypeProto role_type = 43;
 }
 
@@ -2886,6 +3128,66 @@ message JoinProto {
   bool recursive = 33;
   optional int64 depth = 34 [jstype = JS_NUMBER];
   optional ConditionProto on = 35;
+}
+
+// A KeyDownEvent is a KeyboardEvent when a key is pressed down.
+message KeyDownEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  optional NodeReferenceProto node_ptr = 35;
+  string key = 50;
+  string code = 51;
+  bool repeat = 52;
+  bool shift_key = 80;
+  bool alt_key = 81;
+  bool ctrl_key = 82;
+  bool meta_key = 83;
+}
+
+// A KeyPressEvent is a KeyboardEvent when a key is pressed.
+message KeyPressEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  optional NodeReferenceProto node_ptr = 35;
+  string key = 50;
+  string code = 51;
+  bool repeat = 52;
+  bool shift_key = 80;
+  bool alt_key = 81;
+  bool ctrl_key = 82;
+  bool meta_key = 83;
+}
+
+// A KeyUpEvent is a KeyboardEvent when a key is released.
+message KeyUpEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  optional NodeReferenceProto node_ptr = 35;
+  string key = 50;
+  string code = 51;
+  bool repeat = 52;
+  bool shift_key = 80;
+  bool alt_key = 81;
+  bool ctrl_key = 82;
+  bool meta_key = 83;
 }
 
 // A label container View for form-like input views.
@@ -2979,6 +3281,27 @@ message LayerProto {
   optional NodeReferenceProto script_ptr = 200;
 }
 
+// A LeftClickEvent is a ClickEvent when a pointer is clicked with the left button.
+message LeftClickEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  optional NodeReferenceProto node_ptr = 35;
+  Vector2Proto position = 50;
+  double pressure = 51;
+  MouseButtonProto button = 60;
+  bool shift_key = 80;
+  bool alt_key = 81;
+  bool ctrl_key = 82;
+  bool meta_key = 83;
+  bool accel_key = 84;
+}
+
 message LengthProto {
   StructTypeProto metatype = 1;
   LengthUnitProto unit = 50;
@@ -3059,6 +3382,26 @@ message LogProto {
   LogLevelProto level = 42;
 }
 
+// A LongPressEvent is a PointerEvent when a pointer is pressed down and held for a long time.
+message LongPressEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  optional NodeReferenceProto node_ptr = 35;
+  Vector2Proto position = 50;
+  double pressure = 51;
+  bool shift_key = 80;
+  bool alt_key = 81;
+  bool ctrl_key = 82;
+  bool meta_key = 83;
+  bool accel_key = 84;
+}
+
 // A Machine provides physical compute.
 // NOTE :RichComputing: Machines also need Deployments/Endpoints/...?
 message MachineProto {
@@ -3106,8 +3449,8 @@ message MembershipProto {
   optional RoleTypeProto role_type = 42;
 }
 
-// A Event regarding a Membership.
-message MembershipEventProto {
+// A Event regarding a Membership Join.
+message MembershipJoinedEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
@@ -3119,7 +3462,24 @@ message MembershipEventProto {
   NodeReferenceProto node_ptr = 35;
   NodeReferenceProto joinable_ptr = 40;
   NodeReferenceProto member_ptr = 41;
-  optional NodeReferenceProto role_ptr = 42;
+  NodeReferenceProto role_ptr = 42;
+  RoleTypeProto role_type = 43;
+}
+
+// A Event regarding a Membership Leave.
+message MembershipLeftEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  NodeReferenceProto node_ptr = 35;
+  NodeReferenceProto joinable_ptr = 40;
+  NodeReferenceProto member_ptr = 41;
+  NodeReferenceProto role_ptr = 42;
   RoleTypeProto role_type = 43;
 }
 
@@ -3142,6 +3502,27 @@ message MessageProto {
   optional NodeReferenceProto forwarded_from_ptr = 51;
   optional TextProto text = 61;
   optional NodeReferenceProto node_ptr = 62;
+}
+
+// A MiddleClickEvent is a ClickEvent when a pointer is clicked with the middle button.
+message MiddleClickEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  optional NodeReferenceProto node_ptr = 35;
+  Vector2Proto position = 50;
+  double pressure = 51;
+  MouseButtonProto button = 60;
+  bool shift_key = 80;
+  bool alt_key = 81;
+  bool ctrl_key = 82;
+  bool meta_key = 83;
+  bool accel_key = 84;
 }
 
 message NodeConstraintProto {
@@ -3192,7 +3573,7 @@ message NotificationProto {
 }
 
 // A Event regarding a Notification.
-message NotificationEventProto {
+message NotificationDismissedEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
@@ -3201,7 +3582,58 @@ message NotificationEventProto {
   optional NodeReferenceProto created_by_ptr = 16;
   google.protobuf.Timestamp updated_at = 17;
   optional NodeReferenceProto updated_by_ptr = 18;
-  NotificationEventTypeProto type = 30;
+  NodeReferenceProto node_ptr = 35;
+}
+
+// A Event regarding a Notification.
+message NotificationExpiredEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  NodeReferenceProto node_ptr = 35;
+}
+
+// A Event regarding a Notification.
+message NotificationReadEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  NodeReferenceProto node_ptr = 35;
+}
+
+// A Event regarding a Notification.
+message NotificationRescindedEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  NodeReferenceProto node_ptr = 35;
+}
+
+// A Event regarding a Notification.
+message NotificationSentEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
   NodeReferenceProto node_ptr = 35;
 }
 
@@ -3304,6 +3736,19 @@ message PaletteProto {
   optional IconProto icon = 34;
 }
 
+// A PasteEvent is a ClipboardEvent when a paste is performed.
+message PasteEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  optional NodeReferenceProto node_ptr = 35;
+}
+
 // A Permission for something.
 message PermissionProto {
   NodeTypeProto metatype = 1;
@@ -3373,6 +3818,126 @@ message PlaneShapeProto {
   optional CornersProto radius = 68;
   repeated Vector2Proto points = 100;
   optional NodeReferenceProto script_ptr = 200;
+}
+
+// A PointerDownEvent is a PointerEvent when a pointer is pressed down.
+message PointerDownEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  optional NodeReferenceProto node_ptr = 35;
+  Vector2Proto position = 50;
+  double pressure = 51;
+  bool shift_key = 80;
+  bool alt_key = 81;
+  bool ctrl_key = 82;
+  bool meta_key = 83;
+  bool accel_key = 84;
+}
+
+// A PointerEnterEvent is a PointerEvent when a pointer enters an element.
+message PointerEnterEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  optional NodeReferenceProto node_ptr = 35;
+  Vector2Proto position = 50;
+  double pressure = 51;
+  bool shift_key = 80;
+  bool alt_key = 81;
+  bool ctrl_key = 82;
+  bool meta_key = 83;
+  bool accel_key = 84;
+}
+
+// A PointerLeaveEvent is a PointerEvent when a pointer leaves an element.
+message PointerLeaveEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  optional NodeReferenceProto node_ptr = 35;
+  Vector2Proto position = 50;
+  double pressure = 51;
+  bool shift_key = 80;
+  bool alt_key = 81;
+  bool ctrl_key = 82;
+  bool meta_key = 83;
+  bool accel_key = 84;
+}
+
+// A PointerMoveEvent is a PointerEvent when a pointer is moved.
+message PointerMoveEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  optional NodeReferenceProto node_ptr = 35;
+  Vector2Proto position = 50;
+  double pressure = 51;
+  bool shift_key = 80;
+  bool alt_key = 81;
+  bool ctrl_key = 82;
+  bool meta_key = 83;
+  bool accel_key = 84;
+}
+
+// A PointerOverEvent is a PointerEvent when a pointer is over an element.
+message PointerOverEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  optional NodeReferenceProto node_ptr = 35;
+  Vector2Proto position = 50;
+  double pressure = 51;
+  bool shift_key = 80;
+  bool alt_key = 81;
+  bool ctrl_key = 82;
+  bool meta_key = 83;
+  bool accel_key = 84;
+}
+
+// A PointerUpEvent is a PointerEvent when a pointer is released.
+message PointerUpEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  optional NodeReferenceProto node_ptr = 35;
+  Vector2Proto position = 50;
+  double pressure = 51;
+  bool shift_key = 80;
+  bool alt_key = 81;
+  bool ctrl_key = 82;
+  bool meta_key = 83;
+  bool accel_key = 84;
 }
 
 message PositionProto {
@@ -3502,6 +4067,27 @@ message RelationReferenceProto {
   optional TraitTypeProto trait_type = 33;
 }
 
+// A RightClickEvent is a ClickEvent when a pointer is clicked with the right button.
+message RightClickEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  optional NodeReferenceProto node_ptr = 35;
+  Vector2Proto position = 50;
+  double pressure = 51;
+  MouseButtonProto button = 60;
+  bool shift_key = 80;
+  bool alt_key = 81;
+  bool ctrl_key = 82;
+  bool meta_key = 83;
+  bool accel_key = 84;
+}
+
 // A Role for Subjects to take.
 message RoleProto {
   NodeTypeProto metatype = 1;
@@ -3522,7 +4108,7 @@ message RoleProto {
 }
 
 // A Event regarding a Role.
-message RoleEventProto {
+message RoleAssignedEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
@@ -3531,8 +4117,22 @@ message RoleEventProto {
   optional NodeReferenceProto created_by_ptr = 16;
   google.protobuf.Timestamp updated_at = 17;
   optional NodeReferenceProto updated_by_ptr = 18;
-  RoleEventTypeProto type = 30;
-  NodeReferenceProto node_ptr = 35;
+  optional NodeReferenceProto node_ptr = 35;
+  NodeReferenceProto subject_ptr = 40;
+}
+
+// A Event regarding a Role.
+message RoleUnassignedEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  optional NodeReferenceProto node_ptr = 35;
+  NodeReferenceProto subject_ptr = 40;
 }
 
 // A Route is a path to a Scene.
@@ -3576,7 +4176,7 @@ message RunProto {
 }
 
 // A Event regarding a Run.
-message RunEventProto {
+message RunCompletedEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
@@ -3585,7 +4185,104 @@ message RunEventProto {
   optional NodeReferenceProto created_by_ptr = 16;
   google.protobuf.Timestamp updated_at = 17;
   optional NodeReferenceProto updated_by_ptr = 18;
-  RunEventTypeProto type = 30;
+  NodeReferenceProto node_ptr = 35;
+  optional NodeReferenceProto target_ptr = 40;
+}
+
+// A Event regarding a Run.
+message RunFailedEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  NodeReferenceProto node_ptr = 35;
+  optional NodeReferenceProto target_ptr = 40;
+}
+
+// A Event regarding a Run.
+message RunPauseRequestedEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  NodeReferenceProto node_ptr = 35;
+  optional NodeReferenceProto target_ptr = 40;
+}
+
+// A Event regarding a Run.
+message RunPausedEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  NodeReferenceProto node_ptr = 35;
+  optional NodeReferenceProto target_ptr = 40;
+}
+
+// A Event regarding a Run.
+message RunResumeRequestedEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  NodeReferenceProto node_ptr = 35;
+  optional NodeReferenceProto target_ptr = 40;
+}
+
+// A Event regarding a Run.
+message RunResumedEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  NodeReferenceProto node_ptr = 35;
+  optional NodeReferenceProto target_ptr = 40;
+}
+
+// A Event regarding a Run.
+message RunStartedEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  NodeReferenceProto node_ptr = 35;
+  optional NodeReferenceProto target_ptr = 40;
+}
+
+// A Event regarding a Run.
+message RunStopRequestedEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
   NodeReferenceProto node_ptr = 35;
   optional NodeReferenceProto target_ptr = 40;
 }
@@ -3607,7 +4304,7 @@ message SanctionProto {
   NodeReferenceProto target_ptr = 41;
 }
 
-message SanctionEventProto {
+message SanctionExpiredEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
@@ -3617,6 +4314,46 @@ message SanctionEventProto {
   google.protobuf.Timestamp updated_at = 17;
   optional NodeReferenceProto updated_by_ptr = 18;
   NodeReferenceProto node_ptr = 35;
+  NodeReferenceProto target_ptr = 40;
+}
+
+message SanctionGrantedEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  NodeReferenceProto node_ptr = 35;
+  NodeReferenceProto target_ptr = 40;
+}
+
+message SanctionRequestedEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  NodeReferenceProto node_ptr = 35;
+  NodeReferenceProto target_ptr = 40;
+}
+
+message SanctionRevokedEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  NodeReferenceProto node_ptr = 35;
+  NodeReferenceProto target_ptr = 40;
 }
 
 // A Scene is a container for a specific interaction point.
@@ -3667,7 +4404,7 @@ message SceneProto {
 }
 
 // A Event regarding a Scene.
-message SceneEventProto {
+message SceneEnteredEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
@@ -3676,7 +4413,19 @@ message SceneEventProto {
   optional NodeReferenceProto created_by_ptr = 16;
   google.protobuf.Timestamp updated_at = 17;
   optional NodeReferenceProto updated_by_ptr = 18;
-  SceneEventTypeProto type = 30;
+  NodeReferenceProto node_ptr = 35;
+}
+
+// A Event regarding a Scene.
+message SceneExitedEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
   NodeReferenceProto node_ptr = 35;
 }
 
@@ -4169,7 +4918,7 @@ message TimerProto {
 }
 
 // A Event regarding a Timer.
-message TimerEventProto {
+message TimerStartedEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
@@ -4178,7 +4927,19 @@ message TimerEventProto {
   optional NodeReferenceProto created_by_ptr = 16;
   google.protobuf.Timestamp updated_at = 17;
   optional NodeReferenceProto updated_by_ptr = 18;
-  TimerEventTypeProto type = 30;
+  NodeReferenceProto node_ptr = 35;
+}
+
+// A Event regarding a Timer.
+message TimerStoppedEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
   NodeReferenceProto node_ptr = 35;
 }
 
@@ -4244,7 +5005,6 @@ message TriggerProto {
   optional NodeReferenceProto created_by_ptr = 16;
   google.protobuf.Timestamp updated_at = 17;
   optional NodeReferenceProto updated_by_ptr = 18;
-  TriggerTypeProto type = 30;
   string name = 31;
   optional RelationReferenceProto event = 40;
   optional ConditionProto where = 41;
@@ -4253,7 +5013,7 @@ message TriggerProto {
 }
 
 // A Event regarding a Trigger.
-message TriggerEventProto {
+message TriggerStartedEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
@@ -4262,7 +5022,19 @@ message TriggerEventProto {
   optional NodeReferenceProto created_by_ptr = 16;
   google.protobuf.Timestamp updated_at = 17;
   optional NodeReferenceProto updated_by_ptr = 18;
-  TriggerEventTypeProto type = 30;
+  NodeReferenceProto node_ptr = 35;
+}
+
+// A Event regarding a Trigger.
+message TriggerStoppedEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
   NodeReferenceProto node_ptr = 35;
 }
 
@@ -4382,6 +5154,28 @@ message Vector4iProto {
   int64 w = 53 [jstype = JS_NUMBER];
 }
 
+// A WheelEvent is a MouseEvent when a wheel is scrolled.
+message WheelEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  optional NodeReferenceProto node_ptr = 35;
+  Vector2Proto position = 50;
+  double pressure = 51;
+  MouseButtonProto button = 60;
+  Vector2Proto delta = 70;
+  bool shift_key = 80;
+  bool alt_key = 81;
+  bool ctrl_key = 82;
+  bool meta_key = 83;
+  bool accel_key = 84;
+}
+
 // A Window for someone to interact with a Space via Scenes.
 message WindowProto {
   NodeTypeProto metatype = 1;
@@ -4426,26 +5220,40 @@ message WizardViewProto {
 message SomeNodeProto {
   oneof node {
     SpaceProto space = 1;
-    HandleProto handle = 10;
-    UserProto user = 20;
-    FriendshipProto friendship = 30;
-    FriendshipInviteProto friendship_invite = 31;
-    FriendshipInviteEventProto friendship_invite_event = 32;
-    OrganizationProto organization = 40;
-    TeamProto team = 50;
-    ClientProto client = 100;
+    HandleProto handle = 20;
+    UserProto user = 40;
+    FriendshipProto friendship = 60;
+    FriendshipInviteProto friendship_invite = 80;
+    FriendshipInviteSentEventProto friendship_invite_sent_event = 90;
+    FriendshipInviteRescindedEventProto friendship_invite_rescinded_event = 91;
+    FriendshipInviteAcceptedEventProto friendship_invite_accepted_event = 92;
+    FriendshipInviteRejectedEventProto friendship_invite_rejected_event = 93;
+    OrganizationProto organization = 100;
+    TeamProto team = 120;
+    ClientProto client = 200;
     MembershipProto membership = 500;
-    MembershipEventProto membership_event = 501;
-    InviteProto invite = 510;
-    InviteEventProto invite_event = 511;
-    RoleProto role = 520;
-    RoleEventProto role_event = 521;
-    PermissionProto permission = 530;
-    SanctionProto sanction = 540;
-    SanctionEventProto sanction_event = 541;
-    EntitlementProto entitlement = 550;
-    EntitlementEventProto entitlement_event = 551;
-    AgentProto agent = 600;
+    MembershipJoinedEventProto membership_joined_event = 510;
+    MembershipLeftEventProto membership_left_event = 511;
+    InviteProto invite = 520;
+    InviteSentEventProto invite_sent_event = 521;
+    InviteRescindedEventProto invite_rescinded_event = 522;
+    InviteAcceptedEventProto invite_accepted_event = 523;
+    InviteRejectedEventProto invite_rejected_event = 524;
+    RoleProto role = 540;
+    RoleAssignedEventProto role_assigned_event = 550;
+    RoleUnassignedEventProto role_unassigned_event = 551;
+    PermissionProto permission = 560;
+    SanctionProto sanction = 580;
+    SanctionRequestedEventProto sanction_requested_event = 590;
+    SanctionGrantedEventProto sanction_granted_event = 591;
+    SanctionRevokedEventProto sanction_revoked_event = 592;
+    SanctionExpiredEventProto sanction_expired_event = 593;
+    EntitlementProto entitlement = 600;
+    EntitlementRequestedEventProto entitlement_requested_event = 610;
+    EntitlementGrantedEventProto entitlement_granted_event = 611;
+    EntitlementRevokedEventProto entitlement_revoked_event = 612;
+    EntitlementExpiredEventProto entitlement_expired_event = 613;
+    AgentProto agent = 620;
     FolderProto folder = 1000;
     TagProto tag = 1010;
     TaggingProto tagging = 1011;
@@ -4460,20 +5268,29 @@ message SomeNodeProto {
     FileProto file = 2540;
     LinkProto link = 2550;
     ScriptProto script = 3000;
-    ServiceProto service = 3010;
-    ActionProto action = 3020;
-    RouteProto route = 3030;
-    TriggerProto trigger = 3040;
-    TriggerEventProto trigger_event = 3041;
-    TimerProto timer = 3050;
-    TimerEventProto timer_event = 3051;
-    EventCursorProto event_cursor = 3100;
-    ScreenCursorProto screen_cursor = 3101;
-    ThreadCursorProto thread_cursor = 3102;
+    ServiceProto service = 3020;
+    ActionProto action = 3040;
+    RouteProto route = 3060;
+    TriggerProto trigger = 3080;
+    TriggerStartedEventProto trigger_started_event = 3090;
+    TriggerStoppedEventProto trigger_stopped_event = 3091;
+    TimerProto timer = 3100;
+    TimerStartedEventProto timer_started_event = 3110;
+    TimerStoppedEventProto timer_stopped_event = 3111;
+    EventCursorProto event_cursor = 3200;
+    ScreenCursorProto screen_cursor = 3201;
+    ThreadCursorProto thread_cursor = 3202;
     RunProto run = 4000;
-    RunEventProto run_event = 4001;
-    SpanProto span = 4010;
-    InterruptionProto interruption = 4020;
+    RunStartedEventProto run_started_event = 4011;
+    RunPauseRequestedEventProto run_pause_requested_event = 4012;
+    RunPausedEventProto run_paused_event = 4013;
+    RunResumeRequestedEventProto run_resume_requested_event = 4014;
+    RunResumedEventProto run_resumed_event = 4015;
+    RunStopRequestedEventProto run_stop_requested_event = 4016;
+    RunFailedEventProto run_failed_event = 4017;
+    RunCompletedEventProto run_completed_event = 4018;
+    SpanProto span = 4020;
+    InterruptionProto interruption = 4040;
     LogProto log = 4100;
     GaugeMetricProto gauge_metric = 4110;
     GaugeMeasurementProto gauge_measurement = 4111;
@@ -4486,19 +5303,50 @@ message SomeNodeProto {
     EditEventProto edit_event = 4202;
     EnvironmentProto environment = 4500;
     ThreadProto thread = 5500;
-    MessageProto message = 5510;
-    ReactionProto reaction = 5520;
-    StarProto star = 5521;
-    FollowProto follow = 5530;
+    MessageProto message = 5520;
+    ReactionProto reaction = 5540;
+    StarProto star = 5560;
+    FollowProto follow = 5580;
     NotificationProto notification = 5600;
-    NotificationEventProto notification_event = 5601;
+    NotificationSentEventProto notification_sent_event = 5610;
+    NotificationRescindedEventProto notification_rescinded_event = 5620;
+    NotificationReadEventProto notification_read_event = 5630;
+    NotificationDismissedEventProto notification_dismissed_event = 5640;
+    NotificationExpiredEventProto notification_expired_event = 5650;
     DatabaseProto database = 7500;
     MachineProto machine = 7600;
     WindowProto window = 9000;
-    SceneProto scene = 9010;
-    SceneEventProto scene_event = 9011;
-    LayerProto layer = 9020;
-    VariantProto variant = 9030;
+    SceneProto scene = 9020;
+    SceneEnteredEventProto scene_entered_event = 9030;
+    SceneExitedEventProto scene_exited_event = 9031;
+    LayerProto layer = 9040;
+    VariantProto variant = 9060;
+    PointerDownEventProto pointer_down_event = 9500;
+    PointerUpEventProto pointer_up_event = 9501;
+    PointerMoveEventProto pointer_move_event = 9502;
+    PointerEnterEventProto pointer_enter_event = 9503;
+    PointerOverEventProto pointer_over_event = 9504;
+    PointerLeaveEventProto pointer_leave_event = 9505;
+    LongPressEventProto long_press_event = 9506;
+    LeftClickEventProto left_click_event = 9510;
+    RightClickEventProto right_click_event = 9511;
+    MiddleClickEventProto middle_click_event = 9512;
+    DoubleClickEventProto double_click_event = 9513;
+    WheelEventProto wheel_event = 9514;
+    KeyDownEventProto key_down_event = 9520;
+    KeyUpEventProto key_up_event = 9521;
+    KeyPressEventProto key_press_event = 9522;
+    DragStartEventProto drag_start_event = 9530;
+    DragEndEventProto drag_end_event = 9531;
+    DragOverEventProto drag_over_event = 9532;
+    DragEnterEventProto drag_enter_event = 9533;
+    DragLeaveEventProto drag_leave_event = 9534;
+    DropEventProto drop_event = 9535;
+    CopyEventProto copy_event = 9540;
+    CutEventProto cut_event = 9541;
+    PasteEventProto paste_event = 9542;
+    FocusInEventProto focus_in_event = 9552;
+    FocusOutEventProto focus_out_event = 9553;
     CustomViewDefinitionProto custom_view_definition = 10000;
     CustomViewProto custom_view = 10001;
     FrameViewProto frame_view = 10020;

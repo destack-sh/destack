@@ -16,7 +16,7 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.proto import TriggerEventProto, TriggerProto
+from destack.proto import TriggerProto, TriggerStartedEventProto, TriggerStoppedEventProto
 from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
@@ -25,23 +25,23 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_enum(EnumType.TRIGGER_EVENT_TYPE)
-class TriggerEventType(Enum):
-    """A Type of Trigger Event."""
-
-    STARTED = 1, "Started", "Started", "fas fa-play"
-    TRIGGERED = 2, "Triggered", "Triggered", "fas fa-play"
-    STOPPED = 3, "Stopped", "Stopped", "fas fa-stop"
-
-
-@builtin_node(NodeType.TRIGGER_EVENT)
-class TriggerEvent(
+@builtin_node(NodeType.TRIGGER_STARTED_EVENT)
+class TriggerStartedEvent(
     Event["Trigger"],
-    Node[TriggerEventProto],
+    Node[TriggerStartedEventProto],
 ):
     """A Event regarding a Trigger."""
 
-    type: TriggerEventType = property_(30)
+    node: "Trigger" = property_(35)
+
+
+@builtin_node(NodeType.TRIGGER_STOPPED_EVENT)
+class TriggerStoppedEvent(
+    Event["Trigger"],
+    Node[TriggerStoppedEventProto],
+):
+    """A Event regarding a Trigger."""
+
     node: "Trigger" = property_(35)
 
 
@@ -58,8 +58,6 @@ class Trigger(
     Node[TriggerProto],
 ):
     """A Trigger is a dynamic event to run something."""
-
-    type: TriggerType = property_(30)
 
     # when
     event: Optional[RelationReference] = property_(40)
