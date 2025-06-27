@@ -418,7 +418,7 @@ export class Log extends Node implements Spatial, Analytic, IsFrozen {
     const unpackedAttributes = new Map();
     if (objectProto.attributes) {
       for (const [key, value] of Object.entries(objectProto.attributes)) {
-        unpackedAttributes.set(key, unpackProtoJson(value as any));
+        unpackedAttributes.set(key, unpackProtoJson((value as any)!));
       }
     }
     return new Log({

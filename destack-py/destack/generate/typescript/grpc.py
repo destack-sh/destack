@@ -210,7 +210,7 @@ def _generate_unpack_proto_property(prop: "PropertyDeclaration") -> list[str]:
         lines.append(f"if ({proto_value}) {{")
         lines.append(f"  for (const [key, value] of Object.entries({proto_value})) {{")
         key_expr = _generate_unpack_proto_scalar(prop.key_type, "key")
-        value_expr = _generate_unpack_proto_scalar(prop, "value as any")
+        value_expr = _generate_unpack_proto_scalar(prop, "(value as any)")
         lines.append(f"    {var_name}.set({key_expr}, {value_expr});")
         lines.append("  }")
         lines.append("}")
@@ -256,7 +256,7 @@ def _generate_unpack_proto_scalar(
         if prop.primitive_type == PrimitiveType.UUID:
             return f"String({value_expr})"
         elif prop.primitive_type == PrimitiveType.JSON:
-            return f"unpackProtoJson({value_expr})"
+            return f"unpackProtoJson({value_expr}!)"
         elif prop.primitive_type == PrimitiveType.DATETIME:
             return f"unpackProtoTimestamp({value_expr}!)"
         elif prop.primitive_type == PrimitiveType.DURATION:
