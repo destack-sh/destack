@@ -458,6 +458,10 @@ export class Interruption
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<Interruption '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return Interruption.__packValue__(this);
   }

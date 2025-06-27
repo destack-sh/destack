@@ -370,6 +370,57 @@ export class Effect extends Struct {
     return true;
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    if (this.style !== null) {
+      propertyReprs.push(`style=${this.style.repr()}`);
+    }
+    propertyReprs.push(`type=${EffectType[this.type]}`);
+    if (this.opacity !== null) {
+      propertyReprs.push(`opacity=${this.opacity}`);
+    }
+    if (this.offset !== null) {
+      propertyReprs.push(`offset=${this.offset.repr()}`);
+    }
+    if (this.scale !== null) {
+      propertyReprs.push(`scale=${this.scale}`);
+    }
+    if (this.rotate !== null) {
+      propertyReprs.push(`rotate=${this.rotate.repr()}`);
+    }
+    if (this.skew !== null) {
+      propertyReprs.push(`skew=${this.skew.repr()}`);
+    }
+    if (this.perspective !== null) {
+      propertyReprs.push(`perspective=${this.perspective}`);
+    }
+    if (this.delay !== null) {
+      propertyReprs.push(`delay=${this.delay}`);
+    }
+    if (this.duration !== null) {
+      propertyReprs.push(`duration=${this.duration}`);
+    }
+    if (this.threshold !== null) {
+      propertyReprs.push(`threshold=${this.threshold}`);
+    }
+    if (this.once !== null) {
+      propertyReprs.push(`once=${this.once}`);
+    }
+    if (this.repeat !== null) {
+      propertyReprs.push(`repeat=${RepeatType[this.repeat]}`);
+    }
+    if (this.split !== null) {
+      propertyReprs.push(`split=${TextSplitType[this.split]}`);
+    }
+    if (this.offscreen !== null) {
+      propertyReprs.push(`offscreen=${OffscreenBehavior[this.offscreen]}`);
+    }
+    if (this.transition !== null) {
+      propertyReprs.push(`transition=${this.transition.repr()}`);
+    }
+    return `<Effect ${propertyReprs.join(" ")}>`;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -1134,6 +1185,55 @@ export class EffectStyle extends Node implements Style {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    propertyReprs.push(`type=${EffectType[this.type]}`);
+    if (this.opacity !== null) {
+      propertyReprs.push(`opacity=${this.opacity}`);
+    }
+    if (this.offset !== null) {
+      propertyReprs.push(`offset=${this.offset.repr()}`);
+    }
+    if (this.scale !== null) {
+      propertyReprs.push(`scale=${this.scale}`);
+    }
+    if (this.rotate !== null) {
+      propertyReprs.push(`rotate=${this.rotate.repr()}`);
+    }
+    if (this.skew !== null) {
+      propertyReprs.push(`skew=${this.skew.repr()}`);
+    }
+    if (this.perspective !== null) {
+      propertyReprs.push(`perspective=${this.perspective}`);
+    }
+    if (this.delay !== null) {
+      propertyReprs.push(`delay=${this.delay}`);
+    }
+    if (this.duration !== null) {
+      propertyReprs.push(`duration=${this.duration}`);
+    }
+    if (this.threshold !== null) {
+      propertyReprs.push(`threshold=${this.threshold}`);
+    }
+    if (this.once !== null) {
+      propertyReprs.push(`once=${this.once}`);
+    }
+    if (this.repeat !== null) {
+      propertyReprs.push(`repeat=${RepeatType[this.repeat]}`);
+    }
+    if (this.split !== null) {
+      propertyReprs.push(`split=${TextSplitType[this.split]}`);
+    }
+    if (this.offscreen !== null) {
+      propertyReprs.push(`offscreen=${OffscreenBehavior[this.offscreen]}`);
+    }
+    if (this.transition !== null) {
+      propertyReprs.push(`transition=${this.transition.repr()}`);
+    }
+    return `<EffectStyle '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {

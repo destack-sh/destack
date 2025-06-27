@@ -202,6 +202,12 @@ export class Handle extends Node implements Global, Entity, HasSlug {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`slug=${this.slug}`);
+    return `<Handle '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return Handle.__packValue__(this);
   }

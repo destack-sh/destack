@@ -627,6 +627,10 @@ export class PointerDownEvent extends Node implements PointerEvent {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<PointerDownEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return PointerDownEvent.__packValue__(this);
   }
@@ -1205,6 +1209,10 @@ export class PointerUpEvent extends Node implements PointerEvent {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<PointerUpEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return PointerUpEvent.__packValue__(this);
   }
@@ -1769,6 +1777,10 @@ export class PointerMoveEvent extends Node implements PointerEvent {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<PointerMoveEvent '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -2349,6 +2361,10 @@ export class PointerEnterEvent extends Node implements PointerEvent {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<PointerEnterEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return PointerEnterEvent.__packValue__(this);
   }
@@ -2925,6 +2941,10 @@ export class PointerOverEvent extends Node implements PointerEvent {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<PointerOverEvent '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -3505,6 +3525,10 @@ export class PointerLeaveEvent extends Node implements PointerEvent {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<PointerLeaveEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return PointerLeaveEvent.__packValue__(this);
   }
@@ -4081,6 +4105,10 @@ export class LongPressEvent extends Node implements PointerEvent {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<LongPressEvent '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -4663,6 +4691,10 @@ export class LeftClickEvent extends Node implements ClickEvent {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<LeftClickEvent '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -5251,6 +5283,10 @@ export class RightClickEvent extends Node implements ClickEvent {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<RightClickEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return RightClickEvent.__packValue__(this);
   }
@@ -5835,6 +5871,10 @@ export class MiddleClickEvent extends Node implements ClickEvent {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<MiddleClickEvent '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -6433,6 +6473,10 @@ export class DoubleClickEvent extends Node implements ClickEvent {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<DoubleClickEvent '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -7046,6 +7090,10 @@ export class WheelEvent extends Node implements MouseEvent {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<WheelEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return WheelEvent.__packValue__(this);
   }
@@ -7620,6 +7668,10 @@ export class KeyDownEvent extends Node implements KeyboardEvent {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<KeyDownEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return KeyDownEvent.__packValue__(this);
   }
@@ -8178,6 +8230,10 @@ export class KeyUpEvent extends Node implements KeyboardEvent {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<KeyUpEvent '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -8740,6 +8796,10 @@ export class KeyPressEvent extends Node implements KeyboardEvent {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<KeyPressEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return KeyPressEvent.__packValue__(this);
   }
@@ -9216,6 +9276,10 @@ export class DragStartEvent extends Node implements DragEvent {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<DragStartEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return DragStartEvent.__packValue__(this);
   }
@@ -9672,6 +9736,10 @@ export class DragEndEvent extends Node implements DragEvent {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<DragEndEvent '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -10132,6 +10200,10 @@ export class DragOverEvent extends Node implements DragEvent {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<DragOverEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return DragOverEvent.__packValue__(this);
   }
@@ -10588,6 +10660,10 @@ export class DragEnterEvent extends Node implements DragEvent {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<DragEnterEvent '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -11048,6 +11124,10 @@ export class DragLeaveEvent extends Node implements DragEvent {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<DragLeaveEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return DragLeaveEvent.__packValue__(this);
   }
@@ -11506,6 +11586,10 @@ export class DropEvent extends Node implements DragEvent {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<DropEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return DropEvent.__packValue__(this);
   }
@@ -11950,6 +12034,10 @@ export class CopyEvent extends Node implements ClipboardEvent {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<CopyEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return CopyEvent.__packValue__(this);
   }
@@ -12382,6 +12470,10 @@ export class CutEvent extends Node implements ClipboardEvent {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<CutEvent '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -12818,6 +12910,10 @@ export class PasteEvent extends Node implements ClipboardEvent {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<PasteEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return PasteEvent.__packValue__(this);
   }
@@ -13252,6 +13348,10 @@ export class FocusInEvent extends Node implements FocusEvent {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<FocusInEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return FocusInEvent.__packValue__(this);
   }
@@ -13684,6 +13784,10 @@ export class FocusOutEvent extends Node implements FocusEvent {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<FocusOutEvent '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {

@@ -305,6 +305,12 @@ export class GaugeMetric extends Node implements Spatial, Metric, HasName {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    return `<GaugeMetric '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return GaugeMetric.__packValue__(this);
   }
@@ -763,6 +769,10 @@ export class GaugeMeasurement extends Node implements Spatial, Measurement {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<GaugeMeasurement '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -1252,6 +1262,12 @@ export class CounterMetric extends Node implements Spatial, Metric, HasName {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    return `<CounterMetric '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return CounterMetric.__packValue__(this);
   }
@@ -1710,6 +1726,10 @@ export class CounterMeasurement extends Node implements Spatial, Measurement {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<CounterMeasurement '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -2199,6 +2219,12 @@ export class HistogramMetric extends Node implements Spatial, Metric, HasName {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    return `<HistogramMetric '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return HistogramMetric.__packValue__(this);
   }
@@ -2657,6 +2683,10 @@ export class HistogramMeasurement extends Node implements Spatial, Measurement {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<HistogramMeasurement '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {

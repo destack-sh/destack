@@ -429,6 +429,21 @@ export class Run extends Node implements Spatial, Particle, Analytic, Indexed, I
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`status=${RunStatus[this.status]}`);
+    if (this.duration !== null) {
+      propertyReprs.push(`duration=${this.duration}`);
+    }
+    if (this.startedAt !== null) {
+      propertyReprs.push(`startedAt=${this.startedAt.toString()}`);
+    }
+    if (this.interruption !== null) {
+      propertyReprs.push(`interruption=${this.interruption.repr()}`);
+    }
+    return `<Run '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return Run.__packValue__(this);
   }
@@ -1024,6 +1039,10 @@ export class RunStartedEvent extends Node implements Event {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<RunStartedEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return RunStartedEvent.__packValue__(this);
   }
@@ -1491,6 +1510,10 @@ export class RunPauseRequestedEvent extends Node implements Event {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<RunPauseRequestedEvent '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -1974,6 +1997,10 @@ export class RunPausedEvent extends Node implements Event {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<RunPausedEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return RunPausedEvent.__packValue__(this);
   }
@@ -2441,6 +2468,10 @@ export class RunResumeRequestedEvent extends Node implements Event {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<RunResumeRequestedEvent '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -2924,6 +2955,10 @@ export class RunResumedEvent extends Node implements Event {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<RunResumedEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return RunResumedEvent.__packValue__(this);
   }
@@ -3391,6 +3426,10 @@ export class RunStopRequestedEvent extends Node implements Event {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<RunStopRequestedEvent '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -3874,6 +3913,10 @@ export class RunFailedEvent extends Node implements Event {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<RunFailedEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return RunFailedEvent.__packValue__(this);
   }
@@ -4341,6 +4384,10 @@ export class RunCompletedEvent extends Node implements Event {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<RunCompletedEvent '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {

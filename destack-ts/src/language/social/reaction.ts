@@ -279,6 +279,12 @@ export class Reaction
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`content=${this.content}`);
+    return `<Reaction '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return Reaction.__packValue__(this);
   }

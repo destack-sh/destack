@@ -263,6 +263,10 @@ export class TriggerStartedEvent extends Node implements Event {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<TriggerStartedEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return TriggerStartedEvent.__packValue__(this);
   }
@@ -692,6 +696,10 @@ export class TriggerStoppedEvent extends Node implements Event {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<TriggerStoppedEvent '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -1179,6 +1187,12 @@ export class Trigger extends Node implements Spatial, Entity, HasName {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    return `<Trigger '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {

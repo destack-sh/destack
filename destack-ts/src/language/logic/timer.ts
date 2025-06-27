@@ -268,6 +268,10 @@ export class TimerStartedEvent extends Node implements Event {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<TimerStartedEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return TimerStartedEvent.__packValue__(this);
   }
@@ -697,6 +701,10 @@ export class TimerStoppedEvent extends Node implements Event {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<TimerStoppedEvent '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -1135,6 +1143,12 @@ export class Timer extends Node implements Spatial, Entity, HasName {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    return `<Timer '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {

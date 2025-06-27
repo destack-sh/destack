@@ -243,6 +243,30 @@ export class Fill extends Struct {
     return true;
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    if (this.style !== null) {
+      propertyReprs.push(`style=${this.style.repr()}`);
+    }
+    propertyReprs.push(`type=${FillType[this.type]}`);
+    if (this.color !== null) {
+      propertyReprs.push(`color=${this.color.repr()}`);
+    }
+    if (this.gradient !== null) {
+      propertyReprs.push(`gradient=${this.gradient.repr()}`);
+    }
+    if (this.image !== null) {
+      propertyReprs.push(`image=${this.image.repr()}`);
+    }
+    if (this.position !== null) {
+      propertyReprs.push(`position=${FillPosition[this.position]}`);
+    }
+    if (this.size !== null) {
+      propertyReprs.push(`size=${FillSize[this.size]}`);
+    }
+    return `<Fill ${propertyReprs.join(" ")}>`;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -798,6 +822,28 @@ export class FillStyle extends Node implements Style {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    propertyReprs.push(`type=${FillType[this.type]}`);
+    if (this.color !== null) {
+      propertyReprs.push(`color=${this.color.repr()}`);
+    }
+    if (this.gradient !== null) {
+      propertyReprs.push(`gradient=${this.gradient.repr()}`);
+    }
+    if (this.image !== null) {
+      propertyReprs.push(`image=${this.image.repr()}`);
+    }
+    if (this.position !== null) {
+      propertyReprs.push(`position=${FillPosition[this.position]}`);
+    }
+    if (this.size !== null) {
+      propertyReprs.push(`size=${FillSize[this.size]}`);
+    }
+    return `<FillStyle '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {

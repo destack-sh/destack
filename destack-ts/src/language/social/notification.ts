@@ -315,6 +315,18 @@ export class Notification extends Node implements Spatial, Entity, IsOwnable {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    if (this.ownedBy !== null) {
+      propertyReprs.push(`ownedBy=${this.ownedBy.repr()}`);
+    }
+    if (propertyReprs.length > 0) {
+      return `<Notification '${this.path}' ${propertyReprs.join(" ")}>`;
+    } else {
+      return `<Notification '${this.path}'>`;
+    }
+  }
+
   toValue(): { [key: string]: any } {
     return Notification.__packValue__(this);
   }
@@ -770,6 +782,10 @@ export class NotificationSentEvent extends Node implements Event {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<NotificationSentEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return NotificationSentEvent.__packValue__(this);
   }
@@ -1199,6 +1215,10 @@ export class NotificationRescindedEvent extends Node implements Event {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<NotificationRescindedEvent '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -1632,6 +1652,10 @@ export class NotificationReadEvent extends Node implements Event {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<NotificationReadEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return NotificationReadEvent.__packValue__(this);
   }
@@ -2063,6 +2087,10 @@ export class NotificationDismissedEvent extends Node implements Event {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<NotificationDismissedEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return NotificationDismissedEvent.__packValue__(this);
   }
@@ -2492,6 +2520,10 @@ export class NotificationExpiredEvent extends Node implements Event {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<NotificationExpiredEvent '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {

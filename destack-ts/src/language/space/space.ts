@@ -699,6 +699,17 @@ export class Space
     return this.slug ?? this.name;
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    propertyReprs.push(`slug=${this.slug}`);
+    propertyReprs.push(`status=${SpaceStatus[this.status]}`);
+    if (this.ownedBy !== null) {
+      propertyReprs.push(`ownedBy=${this.ownedBy.repr()}`);
+    }
+    return `<Space '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return Space.__packValue__(this);
   }

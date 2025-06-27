@@ -141,6 +141,24 @@ export class Scope extends StructFrozen {
     return true;
   }
 
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      if (this.region !== null) {
+        propertyReprs.push(`region=${Region[this.region]}`);
+      }
+      if (this.spaceId !== null) {
+        propertyReprs.push(`spaceId=${this.spaceId}`);
+      }
+      if (propertyReprs.length > 0) {
+        this._repr = `<Scope ${propertyReprs.join(" ")}>`;
+      } else {
+        this._repr = `<Scope>`;
+      }
+    }
+    return this._repr;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -356,6 +374,24 @@ export class RelationReference extends StructFrozen {
       return false;
     }
     return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`type=${RelationType[this.type]}`);
+      if (this.nodeType !== null) {
+        propertyReprs.push(`nodeType=${NodeType[this.nodeType]}`);
+      }
+      if (this.definition !== null) {
+        propertyReprs.push(`definition=${this.definition.repr()}`);
+      }
+      if (this.traitType !== null) {
+        propertyReprs.push(`traitType=${TraitType[this.traitType]}`);
+      }
+      this._repr = `<RelationReference ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
   }
 
   hash(): number {
@@ -634,6 +670,27 @@ export class ObjectReference extends StructFrozen {
       return false;
     }
     return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`type=${ObjectType[this.type]}`);
+      if (this.nodeType !== null) {
+        propertyReprs.push(`nodeType=${NodeType[this.nodeType]}`);
+      }
+      if (this.traitType !== null) {
+        propertyReprs.push(`traitType=${TraitType[this.traitType]}`);
+      }
+      if (this.structType !== null) {
+        propertyReprs.push(`structType=${StructType[this.structType]}`);
+      }
+      if (this.definition !== null) {
+        propertyReprs.push(`definition=${this.definition.repr()}`);
+      }
+      this._repr = `<ObjectReference ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
   }
 
   hash(): number {
@@ -928,6 +985,30 @@ export class PropertyReference extends StructFrozen {
     return true;
   }
 
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`type=${PropertyReferenceType[this.type]}`);
+      if (this.nodeType !== null) {
+        propertyReprs.push(`nodeType=${NodeType[this.nodeType]}`);
+      }
+      if (this.traitType !== null) {
+        propertyReprs.push(`traitType=${TraitType[this.traitType]}`);
+      }
+      if (this.structType !== null) {
+        propertyReprs.push(`structType=${StructType[this.structType]}`);
+      }
+      if (this.id !== null) {
+        propertyReprs.push(`id=${this.id}`);
+      }
+      if (this.customProperty !== null) {
+        propertyReprs.push(`customProperty=${this.customProperty.repr()}`);
+      }
+      this._repr = `<PropertyReference ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -1214,6 +1295,22 @@ export class NodeReference extends StructFrozen {
       return false;
     }
     return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`nodeType=${NodeType[this.nodeType]}`);
+      propertyReprs.push(`id=${this.id}`);
+      if (this.spaceId !== null) {
+        propertyReprs.push(`spaceId=${this.spaceId}`);
+      }
+      if (this.definitionId !== null) {
+        propertyReprs.push(`definitionId=${this.definitionId}`);
+      }
+      this._repr = `<NodeReference ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
   }
 
   hash(): number {

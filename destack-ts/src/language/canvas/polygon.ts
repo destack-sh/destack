@@ -143,6 +143,10 @@ export class Polygon extends StructFrozen {
     return true;
   }
 
+  repr(): string {
+    return `<Polygon>`;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -1032,6 +1036,12 @@ export class PolygonShape extends Node implements ContainerView, IsShape {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    return `<PolygonShape '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {

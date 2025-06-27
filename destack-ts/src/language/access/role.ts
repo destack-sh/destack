@@ -288,6 +288,10 @@ export class RoleAssignedEvent extends Node implements Event {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<RoleAssignedEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return RoleAssignedEvent.__packValue__(this);
   }
@@ -773,6 +777,10 @@ export class RoleUnassignedEvent extends Node implements Event {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<RoleUnassignedEvent '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -1295,6 +1303,16 @@ export class Role
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`type=${RoleType[this.type]}`);
+    if (this.slug !== null) {
+      propertyReprs.push(`slug=${this.slug}`);
+    }
+    propertyReprs.push(`name=${this.name}`);
+    return `<Role '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {

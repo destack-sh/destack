@@ -257,6 +257,39 @@ export class Transition extends Struct {
     return true;
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    if (this.style !== null) {
+      propertyReprs.push(`style=${this.style.repr()}`);
+    }
+    propertyReprs.push(`type=${TransitionType[this.type]}`);
+    if (this.delay !== null) {
+      propertyReprs.push(`delay=${this.delay}`);
+    }
+    if (this.duration !== null) {
+      propertyReprs.push(`duration=${this.duration}`);
+    }
+    if (this.ease.length > 0) {
+      propertyReprs.push(`ease=${JSON.stringify(this.ease)}`);
+    }
+    if (this.stiffness !== null) {
+      propertyReprs.push(`stiffness=${this.stiffness}`);
+    }
+    if (this.damping !== null) {
+      propertyReprs.push(`damping=${this.damping}`);
+    }
+    if (this.mass !== null) {
+      propertyReprs.push(`mass=${this.mass}`);
+    }
+    if (this.bounce !== null) {
+      propertyReprs.push(`bounce=${this.bounce}`);
+    }
+    if (this.springType !== null) {
+      propertyReprs.push(`springType=${SpringType[this.springType]}`);
+    }
+    return `<Transition ${propertyReprs.join(" ")}>`;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -880,6 +913,37 @@ export class TransitionStyle extends Node implements Style {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    propertyReprs.push(`type=${TransitionType[this.type]}`);
+    if (this.delay !== null) {
+      propertyReprs.push(`delay=${this.delay}`);
+    }
+    if (this.duration !== null) {
+      propertyReprs.push(`duration=${this.duration}`);
+    }
+    if (this.ease.length > 0) {
+      propertyReprs.push(`ease=${JSON.stringify(this.ease)}`);
+    }
+    if (this.stiffness !== null) {
+      propertyReprs.push(`stiffness=${this.stiffness}`);
+    }
+    if (this.damping !== null) {
+      propertyReprs.push(`damping=${this.damping}`);
+    }
+    if (this.mass !== null) {
+      propertyReprs.push(`mass=${this.mass}`);
+    }
+    if (this.bounce !== null) {
+      propertyReprs.push(`bounce=${this.bounce}`);
+    }
+    if (this.springType !== null) {
+      propertyReprs.push(`springType=${SpringType[this.springType]}`);
+    }
+    return `<TransitionStyle '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {

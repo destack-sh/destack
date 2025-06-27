@@ -358,6 +358,25 @@ export class EditEvent extends Node implements Event, IsTaggable {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`type=${EditType[this.type]}`);
+    if (this.operation !== null) {
+      propertyReprs.push(`operation=${EditOperation[this.operation]}`);
+    }
+    propertyReprs.push(`node=${this.node.repr()}`);
+    if (this.propPtr !== null) {
+      propertyReprs.push(`propPtr=${this.propPtr.repr()}`);
+    }
+    if (this.field !== null) {
+      propertyReprs.push(`field=${this.field.repr()}`);
+    }
+    if (this.key !== null) {
+      propertyReprs.push(`key=${this.key.repr()}`);
+    }
+    return `<EditEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return EditEvent.__packValue__(this);
   }
@@ -890,6 +909,12 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, HasN
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    return `<CustomEventDefinition '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return CustomEventDefinition.__packValue__(this);
   }
@@ -1367,6 +1392,10 @@ export class CustomEvent extends Node implements Event {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<CustomEvent '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {

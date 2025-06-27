@@ -236,6 +236,13 @@ export class Friendship extends Node implements Global, Entity {
     return "Friendship[id={this.id}]";
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`userA=${this.userA.repr()}`);
+    propertyReprs.push(`userB=${this.userB.repr()}`);
+    return `<Friendship '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return Friendship.__packValue__(this);
   }
@@ -641,6 +648,10 @@ export class FriendshipInviteSentEvent extends Node implements Event {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<FriendshipInviteSentEvent '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -1072,6 +1083,10 @@ export class FriendshipInviteRescindedEvent extends Node implements Event {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<FriendshipInviteRescindedEvent '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -1507,6 +1522,10 @@ export class FriendshipInviteAcceptedEvent extends Node implements Event {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<FriendshipInviteAcceptedEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return FriendshipInviteAcceptedEvent.__packValue__(this);
   }
@@ -1938,6 +1957,10 @@ export class FriendshipInviteRejectedEvent extends Node implements Event {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<FriendshipInviteRejectedEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return FriendshipInviteRejectedEvent.__packValue__(this);
   }
@@ -2361,6 +2384,12 @@ export class FriendshipInvite extends Node implements Global, Entity, LikeInvite
 
   get path(): string {
     return "FriendshipInvite[id={this.id}]";
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`ownedBy=${this.ownedBy.repr()}`);
+    return `<FriendshipInvite '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { [key: string]: any } {

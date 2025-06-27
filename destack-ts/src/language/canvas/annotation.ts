@@ -781,6 +781,12 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    return `<AnnotationShape '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return AnnotationShape.__packValue__(this);
   }

@@ -297,6 +297,10 @@ export class EntitlementRequestedEvent extends Node implements Event {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<EntitlementRequestedEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return EntitlementRequestedEvent.__packValue__(this);
   }
@@ -769,6 +773,10 @@ export class EntitlementGrantedEvent extends Node implements Event {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<EntitlementGrantedEvent '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -1245,6 +1253,10 @@ export class EntitlementRevokedEvent extends Node implements Event {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<EntitlementRevokedEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return EntitlementRevokedEvent.__packValue__(this);
   }
@@ -1717,6 +1729,10 @@ export class EntitlementExpiredEvent extends Node implements Event {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<EntitlementExpiredEvent '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -2210,6 +2226,10 @@ export class Entitlement extends Node implements Spatial, Entity, IsDeletable {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<Entitlement '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {

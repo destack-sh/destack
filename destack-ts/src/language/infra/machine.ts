@@ -465,6 +465,10 @@ export class Machine extends Node implements Spatial, Resource {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<Machine '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return Machine.__packValue__(this);
   }

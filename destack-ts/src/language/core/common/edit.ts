@@ -282,6 +282,29 @@ export class Edit extends StructFrozen {
     return true;
   }
 
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`id=${this.id}`);
+      propertyReprs.push(`type=${EditType[this.type]}`);
+      if (this.operation !== null) {
+        propertyReprs.push(`operation=${EditOperation[this.operation]}`);
+      }
+      propertyReprs.push(`node=${this.node.repr()}`);
+      if (this.propPtr !== null) {
+        propertyReprs.push(`propPtr=${this.propPtr.repr()}`);
+      }
+      if (this.field !== null) {
+        propertyReprs.push(`field=${this.field.repr()}`);
+      }
+      if (this.key !== null) {
+        propertyReprs.push(`key=${this.key.repr()}`);
+      }
+      this._repr = `<Edit ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -655,6 +678,28 @@ export class Change extends StructFrozen {
     return true;
   }
 
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`id=${this.id}`);
+      if (this.name !== null) {
+        propertyReprs.push(`name=${this.name}`);
+      }
+      propertyReprs.push(`createdAt=${this.createdAt.toString()}`);
+      if (this.createdBy !== null) {
+        propertyReprs.push(`createdBy=${this.createdBy.repr()}`);
+      }
+      if (this.origin !== null) {
+        propertyReprs.push(`origin=${this.origin.repr()}`);
+      }
+      if (this.debounce !== null) {
+        propertyReprs.push(`debounce=${ChangeDebounce[this.debounce]}`);
+      }
+      this._repr = `<Change ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -982,6 +1027,20 @@ export class ChangeResult extends StructFrozen {
       }
     }
     return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`id=${this.id}`);
+      propertyReprs.push(`createdAt=${this.createdAt.toString()}`);
+      if (this.debounce !== null) {
+        propertyReprs.push(`debounce=${ChangeDebounce[this.debounce]}`);
+      }
+      propertyReprs.push(`status=${ChangeStatus[this.status]}`);
+      this._repr = `<ChangeResult ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
   }
 
   hash(): number {

@@ -367,6 +367,10 @@ export class Schedule extends Struct {
     return true;
   }
 
+  repr(): string {
+    return `<Schedule>`;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }

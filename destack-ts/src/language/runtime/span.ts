@@ -216,6 +216,10 @@ export class Span extends Node implements Spatial, Analytic, IsFrozen {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<Span '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return Span.__packValue__(this);
   }

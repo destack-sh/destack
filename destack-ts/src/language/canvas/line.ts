@@ -549,6 +549,15 @@ export class LineShape extends Node implements ContentView, IsShape {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    if (this.color !== null) {
+      propertyReprs.push(`color=${this.color.repr()}`);
+    }
+    propertyReprs.push(`name=${this.name}`);
+    return `<LineShape '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return LineShape.__packValue__(this);
   }
@@ -1049,6 +1058,21 @@ export class Line extends StructFrozen {
       return false;
     }
     return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      if (this.color !== null) {
+        propertyReprs.push(`color=${this.color.repr()}`);
+      }
+      if (propertyReprs.length > 0) {
+        this._repr = `<Line ${propertyReprs.join(" ")}>`;
+      } else {
+        this._repr = `<Line>`;
+      }
+    }
+    return this._repr;
   }
 
   hash(): number {

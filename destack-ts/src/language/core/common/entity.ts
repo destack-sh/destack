@@ -421,6 +421,15 @@ export class CustomEntityDefinition
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${this.name}`);
+    if (this.ownedBy !== null) {
+      propertyReprs.push(`ownedBy=${this.ownedBy.repr()}`);
+    }
+    return `<CustomEntityDefinition '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return CustomEntityDefinition.__packValue__(this);
   }
@@ -1016,6 +1025,10 @@ export class CustomEntity
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<CustomEntity '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {

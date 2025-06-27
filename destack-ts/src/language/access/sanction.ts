@@ -297,6 +297,10 @@ export class SanctionRequestedEvent extends Node implements Event {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<SanctionRequestedEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return SanctionRequestedEvent.__packValue__(this);
   }
@@ -769,6 +773,10 @@ export class SanctionGrantedEvent extends Node implements Event {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<SanctionGrantedEvent '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -1245,6 +1253,10 @@ export class SanctionRevokedEvent extends Node implements Event {
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<SanctionRevokedEvent '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return SanctionRevokedEvent.__packValue__(this);
   }
@@ -1717,6 +1729,10 @@ export class SanctionExpiredEvent extends Node implements Event {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<SanctionExpiredEvent '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {
@@ -2210,6 +2226,10 @@ export class Sanction extends Node implements Spatial, Entity, IsDeletable {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    return `<Sanction '${this.path}'>`;
   }
 
   toValue(): { [key: string]: any } {

@@ -327,6 +327,14 @@ export class Organization
     return this.slug ?? this.name;
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`slug=${this.slug}`);
+    propertyReprs.push(`status=${OrganizationStatus[this.status]}`);
+    propertyReprs.push(`name=${this.name}`);
+    return `<Organization '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return Organization.__packValue__(this);
   }

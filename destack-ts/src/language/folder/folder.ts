@@ -471,6 +471,19 @@ export class Folder
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`type=${FolderType[this.type]}`);
+    if (this.slug !== null) {
+      propertyReprs.push(`slug=${this.slug}`);
+    }
+    propertyReprs.push(`name=${this.name}`);
+    if (this.ownedBy !== null) {
+      propertyReprs.push(`ownedBy=${this.ownedBy.repr()}`);
+    }
+    return `<Folder '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
   toValue(): { [key: string]: any } {
     return Folder.__packValue__(this);
   }

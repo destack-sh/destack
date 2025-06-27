@@ -219,6 +219,10 @@ export class Length extends StructFrozen {
     return true;
   }
 
+  repr(): string {
+    return `<Length>`;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -432,6 +436,27 @@ export class Position extends StructFrozen {
       return false;
     }
     return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`type=${PositionType[this.type]}`);
+      if (this.top !== null) {
+        propertyReprs.push(`top=${this.top.repr()}`);
+      }
+      if (this.left !== null) {
+        propertyReprs.push(`left=${this.left.repr()}`);
+      }
+      if (this.width !== null) {
+        propertyReprs.push(`width=${this.width.repr()}`);
+      }
+      if (this.height !== null) {
+        propertyReprs.push(`height=${this.height.repr()}`);
+      }
+      this._repr = `<Position ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
   }
 
   hash(): number {
@@ -681,6 +706,17 @@ export class Dimension extends StructFrozen {
     return true;
   }
 
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`type=${DimensionType[this.type]}`);
+      propertyReprs.push(`unit=${LengthUnit[this.unit]}`);
+      propertyReprs.push(`value=${this.value}`);
+      this._repr = `<Dimension ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -883,6 +919,33 @@ export class Insets extends StructFrozen {
       return false;
     }
     return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      if (this.base !== null) {
+        propertyReprs.push(`base=${this.base}`);
+      }
+      if (this.top !== null) {
+        propertyReprs.push(`top=${this.top}`);
+      }
+      if (this.left !== null) {
+        propertyReprs.push(`left=${this.left}`);
+      }
+      if (this.right !== null) {
+        propertyReprs.push(`right=${this.right}`);
+      }
+      if (this.bottom !== null) {
+        propertyReprs.push(`bottom=${this.bottom}`);
+      }
+      if (propertyReprs.length > 0) {
+        this._repr = `<Insets ${propertyReprs.join(" ")}>`;
+      } else {
+        this._repr = `<Insets>`;
+      }
+    }
+    return this._repr;
   }
 
   hash(): number {
@@ -1127,6 +1190,33 @@ export class Corners extends StructFrozen {
     return true;
   }
 
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      if (this.base !== null) {
+        propertyReprs.push(`base=${this.base}`);
+      }
+      if (this.topLeft !== null) {
+        propertyReprs.push(`topLeft=${this.topLeft}`);
+      }
+      if (this.topRight !== null) {
+        propertyReprs.push(`topRight=${this.topRight}`);
+      }
+      if (this.bottomLeft !== null) {
+        propertyReprs.push(`bottomLeft=${this.bottomLeft}`);
+      }
+      if (this.bottomRight !== null) {
+        propertyReprs.push(`bottomRight=${this.bottomRight}`);
+      }
+      if (propertyReprs.length > 0) {
+        this._repr = `<Corners ${propertyReprs.join(" ")}>`;
+      } else {
+        this._repr = `<Corners>`;
+      }
+    }
+    return this._repr;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -1356,6 +1446,27 @@ export class Axis2 extends StructFrozen {
     return true;
   }
 
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      if (this.base !== null) {
+        propertyReprs.push(`base=${this.base}`);
+      }
+      if (this.x !== null) {
+        propertyReprs.push(`x=${this.x}`);
+      }
+      if (this.y !== null) {
+        propertyReprs.push(`y=${this.y}`);
+      }
+      if (propertyReprs.length > 0) {
+        this._repr = `<Axis2 ${propertyReprs.join(" ")}>`;
+      } else {
+        this._repr = `<Axis2>`;
+      }
+    }
+    return this._repr;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -1577,6 +1688,30 @@ export class Axis3 extends StructFrozen {
       return false;
     }
     return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      if (this.base !== null) {
+        propertyReprs.push(`base=${this.base}`);
+      }
+      if (this.x !== null) {
+        propertyReprs.push(`x=${this.x}`);
+      }
+      if (this.y !== null) {
+        propertyReprs.push(`y=${this.y}`);
+      }
+      if (this.z !== null) {
+        propertyReprs.push(`z=${this.z}`);
+      }
+      if (propertyReprs.length > 0) {
+        this._repr = `<Axis3 ${propertyReprs.join(" ")}>`;
+      } else {
+        this._repr = `<Axis3>`;
+      }
+    }
+    return this._repr;
   }
 
   hash(): number {
@@ -1826,6 +1961,25 @@ export class Grid extends StructFrozen {
     return true;
   }
 
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`columns=${this.columns}`);
+      propertyReprs.push(`rows=${this.rows}`);
+      if (this.columnWidth !== null) {
+        propertyReprs.push(`columnWidth=${this.columnWidth.repr()}`);
+      }
+      if (this.columnMinWidth !== null) {
+        propertyReprs.push(`columnMinWidth=${this.columnMinWidth.repr()}`);
+      }
+      if (this.rowHeight !== null) {
+        propertyReprs.push(`rowHeight=${this.rowHeight.repr()}`);
+      }
+      this._repr = `<Grid ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
   hash(): number {
     throw new Error("not implemented");
   }
@@ -2057,6 +2211,16 @@ export class GridSpan extends StructFrozen {
       return false;
     }
     return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`columns=${this.columns}`);
+      propertyReprs.push(`rows=${this.rows}`);
+      this._repr = `<GridSpan ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
   }
 
   hash(): number {

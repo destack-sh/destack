@@ -255,6 +255,10 @@ export class Star extends Node implements Global, Spatial, Entity, IsDeletable, 
     return pathParts.reverse().join("/");
   }
 
+  repr(): string {
+    return `<Star '${this.path}'>`;
+  }
+
   toValue(): { [key: string]: any } {
     return Star.__packValue__(this);
   }
