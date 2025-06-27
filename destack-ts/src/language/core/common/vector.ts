@@ -179,7 +179,7 @@ export class Vector2 extends StructFrozen {
 
   /* ==== DESTACK_CUSTOM_START ==== */
 
-	/** Add two vectors or a vector and a scalar. */
+  /** Add two vectors or a vector and a scalar. */
   add(other: Vector2 | number): Vector2 {
     if (typeof other === "number") {
       return new Vector2({
@@ -194,7 +194,7 @@ export class Vector2 extends StructFrozen {
     }
   }
 
-	/** Subtract two vectors or a vector and a scalar. */
+  /** Subtract two vectors or a vector and a scalar. */
   sub(other: Vector2 | number): Vector2 {
     if (typeof other === "number") {
       return new Vector2({
@@ -209,7 +209,7 @@ export class Vector2 extends StructFrozen {
     }
   }
 
-	/** Multiply two vectors or a vector and a scalar. */
+  /** Multiply two vectors or a vector and a scalar. */
   mul(other: Vector2 | number): Vector2 {
     if (typeof other === "number") {
       return new Vector2({
@@ -224,7 +224,7 @@ export class Vector2 extends StructFrozen {
     }
   }
 
-	/** Divide two vectors or a vector and a scalar. */
+  /** Divide two vectors or a vector and a scalar. */
   div(other: Vector2 | number): Vector2 {
     if (typeof other === "number") {
       return new Vector2({
@@ -239,7 +239,7 @@ export class Vector2 extends StructFrozen {
     }
   }
 
-	/** Negate a vector. */
+  /** Negate a vector. */
   neg(): Vector2 {
     return new Vector2({
       x: -this.x,
@@ -257,7 +257,7 @@ export class Vector2 extends StructFrozen {
     });
   }
 
-	/** Get the absolute value of a vector. */
+  /** Get the absolute value of a vector. */
   abs(): Vector2 {
     return new Vector2({
       x: Math.abs(this.x),
@@ -524,7 +524,7 @@ export class Vector3 extends StructFrozen {
 
   /* ==== DESTACK_CUSTOM_START ==== */
 
-	/** Add two vectors or a vector and a scalar. */
+  /** Add two vectors or a vector and a scalar. */
   add(other: Vector3 | number): Vector3 {
     if (typeof other === "number") {
       return new Vector3({
@@ -541,7 +541,7 @@ export class Vector3 extends StructFrozen {
     }
   }
 
-	/** Subtract two vectors or a vector and a scalar. */
+  /** Subtract two vectors or a vector and a scalar. */
   sub(other: Vector3 | number): Vector3 {
     if (typeof other === "number") {
       return new Vector3({
@@ -558,7 +558,7 @@ export class Vector3 extends StructFrozen {
     }
   }
 
-	/** Multiply two vectors or a vector and a scalar. */
+  /** Multiply two vectors or a vector and a scalar. */
   mul(other: Vector3 | number): Vector3 {
     if (typeof other === "number") {
       return new Vector3({
@@ -575,7 +575,7 @@ export class Vector3 extends StructFrozen {
     }
   }
 
-	/** Divide two vectors or a vector and a scalar. */
+  /** Divide two vectors or a vector and a scalar. */
   div(other: Vector3 | number): Vector3 {
     if (typeof other === "number") {
       return new Vector3({
@@ -592,7 +592,7 @@ export class Vector3 extends StructFrozen {
     }
   }
 
-	/** Negate a vector. */
+  /** Negate a vector. */
   neg(): Vector3 {
     return new Vector3({
       x: -this.x,
@@ -612,7 +612,7 @@ export class Vector3 extends StructFrozen {
     });
   }
 
-	/** Get the absolute value of a vector. */
+  /** Get the absolute value of a vector. */
   abs(): Vector3 {
     return new Vector3({
       x: Math.abs(this.x),
@@ -913,7 +913,7 @@ export class Vector4 extends StructFrozen {
 
   /* ==== DESTACK_CUSTOM_START ==== */
 
-	/** Add two vectors or a vector and a scalar. */
+  /** Add two vectors or a vector and a scalar. */
   add(other: Vector4 | number): Vector4 {
     if (typeof other === "number") {
       return new Vector4({
@@ -932,7 +932,7 @@ export class Vector4 extends StructFrozen {
     }
   }
 
-	/** Subtract two vectors or a vector and a scalar. */
+  /** Subtract two vectors or a vector and a scalar. */
   sub(other: Vector4 | number): Vector4 {
     if (typeof other === "number") {
       return new Vector4({
@@ -951,7 +951,7 @@ export class Vector4 extends StructFrozen {
     }
   }
 
-	/** Multiply two vectors or a vector and a scalar. */
+  /** Multiply two vectors or a vector and a scalar. */
   mul(other: Vector4 | number): Vector4 {
     if (typeof other === "number") {
       return new Vector4({
@@ -970,7 +970,7 @@ export class Vector4 extends StructFrozen {
     }
   }
 
-	/** Divide two vectors or a vector and a scalar. */
+  /** Divide two vectors or a vector and a scalar. */
   div(other: Vector4 | number): Vector4 {
     if (typeof other === "number") {
       return new Vector4({
@@ -989,7 +989,7 @@ export class Vector4 extends StructFrozen {
     }
   }
 
-	/** Negate a vector. */
+  /** Negate a vector. */
   neg(): Vector4 {
     return new Vector4({
       x: -this.x,
@@ -1011,7 +1011,7 @@ export class Vector4 extends StructFrozen {
     });
   }
 
-	/** Get the absolute value of a vector. */
+  /** Get the absolute value of a vector. */
   abs(): Vector4 {
     return new Vector4({
       x: Math.abs(this.x),
@@ -1282,7 +1282,7 @@ export class Vector2i extends StructFrozen {
 
   /* ==== DESTACK_CUSTOM_START ==== */
 
-	/** Add two vectors or a vector and a scalar. */
+  /** Add two vectors or a vector and a scalar. */
   add(other: Vector2i | number): Vector2i {
     if (typeof other === "number") {
       return new Vector2i({
@@ -1297,7 +1297,7 @@ export class Vector2i extends StructFrozen {
     }
   }
 
-	/** Subtract two vectors or a vector and a scalar. */
+  /** Subtract two vectors or a vector and a scalar. */
   sub(other: Vector2i | number): Vector2i {
     if (typeof other === "number") {
       return new Vector2i({
@@ -1312,7 +1312,7 @@ export class Vector2i extends StructFrozen {
     }
   }
 
-	/** Multiply two vectors or a vector and a scalar. */
+  /** Multiply two vectors or a vector and a scalar. */
   mul(other: Vector2i | number): Vector2i {
     if (typeof other === "number") {
       return new Vector2i({
@@ -1327,7 +1327,7 @@ export class Vector2i extends StructFrozen {
     }
   }
 
-	/** Divide two vectors or a vector and a scalar. */
+  /** Divide two vectors or a vector and a scalar. */
   div(other: Vector2i | number): Vector2i {
     if (typeof other === "number") {
       return new Vector2i({
@@ -1342,7 +1342,7 @@ export class Vector2i extends StructFrozen {
     }
   }
 
-	/** Negate a vector. */
+  /** Negate a vector. */
   neg(): Vector2i {
     return new Vector2i({
       x: -this.x,
@@ -1360,7 +1360,7 @@ export class Vector2i extends StructFrozen {
     });
   }
 
-	/** Get the absolute value of a vector. */
+  /** Get the absolute value of a vector. */
   abs(): Vector2i {
     return new Vector2i({
       x: Math.abs(this.x),
@@ -1627,7 +1627,7 @@ export class Vector3i extends StructFrozen {
 
   /* ==== DESTACK_CUSTOM_START ==== */
 
-	/** Add two vectors or a vector and a scalar. */
+  /** Add two vectors or a vector and a scalar. */
   add(other: Vector3i | number): Vector3i {
     if (typeof other === "number") {
       return new Vector3i({
@@ -1644,7 +1644,7 @@ export class Vector3i extends StructFrozen {
     }
   }
 
-	/** Subtract two vectors or a vector and a scalar. */
+  /** Subtract two vectors or a vector and a scalar. */
   sub(other: Vector3i | number): Vector3i {
     if (typeof other === "number") {
       return new Vector3i({
@@ -1661,7 +1661,7 @@ export class Vector3i extends StructFrozen {
     }
   }
 
-	/** Multiply two vectors or a vector and a scalar. */
+  /** Multiply two vectors or a vector and a scalar. */
   mul(other: Vector3i | number): Vector3i {
     if (typeof other === "number") {
       return new Vector3i({
@@ -1678,7 +1678,7 @@ export class Vector3i extends StructFrozen {
     }
   }
 
-	/** Divide two vectors or a vector and a scalar. */
+  /** Divide two vectors or a vector and a scalar. */
   div(other: Vector3i | number): Vector3i {
     if (typeof other === "number") {
       return new Vector3i({
@@ -1695,7 +1695,7 @@ export class Vector3i extends StructFrozen {
     }
   }
 
-	/** Negate a vector. */
+  /** Negate a vector. */
   neg(): Vector3i {
     return new Vector3i({
       x: -this.x,
@@ -1704,7 +1704,7 @@ export class Vector3i extends StructFrozen {
     });
   }
 
-	/** Get the absolute value of a vector. */
+  /** Get the absolute value of a vector. */
   abs(): Vector3i {
     return new Vector3i({
       x: Math.abs(this.x),
@@ -2006,7 +2006,7 @@ export class Vector4i extends StructFrozen {
 
   /* ==== DESTACK_CUSTOM_START ==== */
 
-	/** Add two vectors or a vector and a scalar. */
+  /** Add two vectors or a vector and a scalar. */
   add(other: Vector4i | number): Vector4i {
     if (typeof other === "number") {
       return new Vector4i({
@@ -2025,7 +2025,7 @@ export class Vector4i extends StructFrozen {
     }
   }
 
-	/** Subtract two vectors or a vector and a scalar. */
+  /** Subtract two vectors or a vector and a scalar. */
   sub(other: Vector4i | number): Vector4i {
     if (typeof other === "number") {
       return new Vector4i({
@@ -2044,7 +2044,7 @@ export class Vector4i extends StructFrozen {
     }
   }
 
-	/** Multiply two vectors or a vector and a scalar. */
+  /** Multiply two vectors or a vector and a scalar. */
   mul(other: Vector4i | number): Vector4i {
     if (typeof other === "number") {
       return new Vector4i({
@@ -2063,7 +2063,7 @@ export class Vector4i extends StructFrozen {
     }
   }
 
-	/** Divide two vectors or a vector and a scalar. */
+  /** Divide two vectors or a vector and a scalar. */
   div(other: Vector4i | number): Vector4i {
     if (typeof other === "number") {
       return new Vector4i({
@@ -2082,7 +2082,7 @@ export class Vector4i extends StructFrozen {
     }
   }
 
-	/** Negate a vector. */
+  /** Negate a vector. */
   neg(): Vector4i {
     return new Vector4i({
       x: -this.x,
@@ -2092,7 +2092,7 @@ export class Vector4i extends StructFrozen {
     });
   }
 
-	/** Get the absolute value of a vector. */
+  /** Get the absolute value of a vector. */
   abs(): Vector4i {
     return new Vector4i({
       x: Math.abs(this.x),

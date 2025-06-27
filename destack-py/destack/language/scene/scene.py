@@ -1,19 +1,16 @@
 from typing import TYPE_CHECKING, Optional, Union
 
 from destack.language.core import (
-    Enum,
-    EnumType,
     Event,
     HasIcon,
     IsOwnable,
     Node,
     NodeType,
-    builtin_enum,
     builtin_node,
     property_,
     property_parent_,
 )
-from destack.proto import SceneEventProto, SceneProto
+from destack.proto import SceneEnteredEventProto, SceneExitedEventProto, SceneProto
 
 from ..view import ContainerView
 
@@ -23,22 +20,23 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_enum(EnumType.SCENE_EVENT_TYPE)
-class SceneEventType(Enum):
-    """A Type of Scene Event."""
-
-    ENTERED = 1, "Entered", "Entered the Scene", "fas fa-circle"
-    EXITED = 2, "Exited", "Exited the Scene", "fas fa-circle"
-
-
-@builtin_node(NodeType.SCENE_EVENT)
-class SceneEvent(
+@builtin_node(NodeType.SCENE_ENTERED_EVENT)
+class SceneEnteredEvent(
     Event["Scene"],
-    Node[SceneEventProto],
+    Node[SceneEnteredEventProto],
 ):
     """A Event regarding a Scene."""
 
-    type: SceneEventType = property_(30)
+    node: "Scene" = property_(35)
+
+
+@builtin_node(NodeType.SCENE_EXITED_EVENT)
+class SceneExitedEvent(
+    Event["Scene"],
+    Node[SceneExitedEventProto],
+):
+    """A Event regarding a Scene."""
+
     node: "Scene" = property_(35)
 
 

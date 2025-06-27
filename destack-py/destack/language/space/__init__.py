@@ -1,6 +1,13 @@
 from .agent import Agent
 from .client import Client, Origin
-from .friendship import Friendship, FriendshipInvite
+from .friendship import (
+    Friendship,
+    FriendshipInvite,
+    FriendshipInviteAcceptedEvent,
+    FriendshipInviteRejectedEvent,
+    FriendshipInviteRescindedEvent,
+    FriendshipInviteSentEvent,
+)
 from .handle import Handle
 from .organization import Organization, OrganizationProto, OrganizationStatus
 from .space import Space, SpaceStatus
@@ -12,6 +19,10 @@ __all__ = [
     "Client",
     "Friendship",
     "FriendshipInvite",
+    "FriendshipInviteAcceptedEvent",
+    "FriendshipInviteRejectedEvent",
+    "FriendshipInviteRescindedEvent",
+    "FriendshipInviteSentEvent",
     "Handle",
     "Organization",
     "OrganizationProto",

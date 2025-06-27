@@ -859,8 +859,7 @@ registerTraitClass(TraitType.MEASUREMENT, Measurement);
 
 /* ==== DESTACK_GENERATED_START:TRAIT:22 ==== */
 /**
- * An Event is a Node that represents an Event.
- * Events always belong to a specific Space.
+ * An Event represents something happening in a Space.
  */
 export interface Event extends Spatial, Particle, Analytic, Indexed, IsFrozen {
   get node(): Node | null;
@@ -873,8 +872,7 @@ export interface Event extends Spatial, Particle, Analytic, Indexed, IsFrozen {
 }
 
 /**
- * An Event is a Node that represents an Event.
- * Events always belong to a specific Space.
+ * An Event represents something happening in a Space.
  */
 class Event$Type extends TraitClass<Event, TraitType.EVENT> {}
 

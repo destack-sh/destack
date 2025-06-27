@@ -2,8 +2,6 @@ from typing import Optional
 
 from destack.language.core import (
     Entity,
-    Enum,
-    EnumType,
     Event,
     Global,
     HasIcon,
@@ -13,37 +11,38 @@ from destack.language.core import (
     IsJoinable,
     IsOrdered,
     IsOwner,
+    IsSubject,
     Node,
     NodeType,
     RoleType,
     Spatial,
-    builtin_enum,
     builtin_node,
     property_,
     property_parent_,
 )
-from destack.proto import RoleEventProto, RoleProto
+from destack.proto import RoleAssignedEventProto, RoleProto, RoleUnassignedEventProto
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_enum(EnumType.ROLE_EVENT_TYPE)
-class RoleEventType(Enum):
-    """A Type of Role Event."""
-
-    ASSIGNED = 1, "Assigned", "Assigned to someone", "fas fa-circle"
-    REMOVED = 2, "Removed", "Removed from someone", "fas fa-circle"
-
-
-@builtin_node(NodeType.ROLE_EVENT)
-class RoleEvent(
+@builtin_node(NodeType.ROLE_ASSIGNED_EVENT)
+class RoleAssignedEvent(
     Event["Role"],
-    Node[RoleEventProto],
+    Node[RoleAssignedEventProto],
 ):
     """A Event regarding a Role."""
 
-    type: RoleEventType = property_(30)
-    node: "Role" = property_(35)
+    subject: "IsSubject" = property_(40)
+
+
+@builtin_node(NodeType.ROLE_UNASSIGNED_EVENT)
+class RoleUnassignedEvent(
+    Event["Role"],
+    Node[RoleUnassignedEventProto],
+):
+    """A Event regarding a Role."""
+
+    subject: "IsSubject" = property_(40)
 
 
 @builtin_node(NodeType.ROLE)

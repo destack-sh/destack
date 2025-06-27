@@ -13,7 +13,7 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.proto import TimerEventProto, TimerProto
+from destack.proto import TimerProto, TimerStartedEventProto, TimerStoppedEventProto
 
 from .schedule import Schedule
 
@@ -23,23 +23,23 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_enum(EnumType.TIMER_EVENT_TYPE)
-class TimerEventType(Enum):
-    """A Type of Timer Event."""
-
-    STARTED = 1, "Started", "Started", "fas fa-play"
-    STOPPED = 2, "Stopped", "Stopped", "fas fa-stop"
-    EXPIRED = 3, "Expired", "Expired", "fas fa-clock"
-
-
-@builtin_node(NodeType.TIMER_EVENT)
-class TimerEvent(
+@builtin_node(NodeType.TIMER_STARTED_EVENT)
+class TimerStartedEvent(
     Event["Timer"],
-    Node[TimerEventProto],
+    Node[TimerStartedEventProto],
 ):
     """A Event regarding a Timer."""
 
-    type: TimerEventType = property_(30)
+    node: "Timer" = property_(35)
+
+
+@builtin_node(NodeType.TIMER_STOPPED_EVENT)
+class TimerStoppedEvent(
+    Event["Timer"],
+    Node[TimerStoppedEventProto],
+):
+    """A Event regarding a Timer."""
+
     node: "Timer" = property_(35)
 
 

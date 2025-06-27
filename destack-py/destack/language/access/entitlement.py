@@ -19,7 +19,11 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import EntitlementEventProto, EntitlementProto
+from destack.proto import (
+    EntitlementExpiredEventProto,
+    EntitlementGrantedEventProto,
+    EntitlementProto,
+)
 
 if TYPE_CHECKING:
     pass
@@ -27,22 +31,40 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_enum(EnumType.ENTITLEMENT_EVENT_TYPE)
-class EntitlementEventType(Enum):
-    """A Type of Entitlement Event."""
-
-    REQUESTED = 1
-    GRANTED = 2
-    REVOKED = 3
-    EXPIRED = 4
-
-
-@builtin_node(NodeType.ENTITLEMENT_EVENT)
-class EntitlementEvent(
+@builtin_node(NodeType.ENTITLEMENT_REQUESTED_EVENT)
+class EntitlementRequestedEvent(
     Event["Entitlement"],
-    Node[EntitlementEventProto],
+    Node[EntitlementGrantedEventProto],
 ):
     node: "Entitlement" = property_(35)
+    target: "IsSubject" = property_(40)
+
+
+@builtin_node(NodeType.ENTITLEMENT_GRANTED_EVENT)
+class EntitlementGrantedEvent(
+    Event["Entitlement"],
+    Node[EntitlementGrantedEventProto],
+):
+    node: "Entitlement" = property_(35)
+    target: "IsSubject" = property_(40)
+
+
+@builtin_node(NodeType.ENTITLEMENT_REVOKED_EVENT)
+class EntitlementRevokedEvent(
+    Event["Entitlement"],
+    Node[EntitlementExpiredEventProto],
+):
+    node: "Entitlement" = property_(35)
+    target: "IsSubject" = property_(40)
+
+
+@builtin_node(NodeType.ENTITLEMENT_EXPIRED_EVENT)
+class EntitlementExpiredEvent(
+    Event["Entitlement"],
+    Node[EntitlementExpiredEventProto],
+):
+    node: "Entitlement" = property_(35)
+    target: "IsSubject" = property_(40)
 
 
 @builtin_enum(EnumType.ENTITLEMENT_TYPE)

@@ -819,8 +819,7 @@ class Measurement(Analytic, IsCustomNode):
 @builtin_trait(TraitType.EVENT, pretend_frozen=True)
 class Event[N: Node = Node](Spatial, Particle, Indexed, Analytic, IsFrozen):
     """
-    An Event is a Node that represents an Event.
-    Events always belong to a specific Space.
+    An Event represents something happening in a Space.
     """
 
     node: Optional["Node"] = property_(35, description="The Node this Event is about.")

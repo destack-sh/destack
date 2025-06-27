@@ -36,7 +36,7 @@ class InterruptionType(Enum):
 @builtin_enum(EnumType.INTERRUPTION_STATUS)
 class InterruptionStatus(Enum):
     OPEN = 10
-    CANGALAXYED = 30
+    CANCELLED = 30
     COMPLETED = 33
 
     @property

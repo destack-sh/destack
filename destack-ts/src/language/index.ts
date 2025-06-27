@@ -8,6 +8,7 @@ export * from "@destack/language/finalize";
 export * from "@destack/language/folder";
 export * from "@destack/language/infra";
 export * from "@destack/language/intelligence";
+export * from "@destack/language/interaction";
 export * from "@destack/language/logic";
 export * from "@destack/language/lookup";
 export * from "@destack/language/mapping";
