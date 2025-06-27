@@ -91,7 +91,7 @@ export class CustomProperty
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [
-    NodeType.PLANE_SHAPE,
+    NodeType.POLYGON_SHAPE,
     NodeType.ANNOTATION_SHAPE,
     NodeType.CUSTOM_VIEW_DEFINITION,
     NodeType.CUSTOM_VIEW,
@@ -119,7 +119,7 @@ export class CustomProperty
   static __ancestorTypes__: NodeType[] = [
     NodeType.SPACE,
     NodeType.LINE_SHAPE,
-    NodeType.PLANE_SHAPE,
+    NodeType.POLYGON_SHAPE,
     NodeType.ARROW_SHAPE,
     NodeType.ANNOTATION_SHAPE,
     NodeType.CUSTOM_VIEW_DEFINITION,

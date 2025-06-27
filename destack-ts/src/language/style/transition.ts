@@ -487,7 +487,7 @@ export class TransitionStyle extends Node implements Style {
     NodeType.NUMBER_INPUT_VIEW,
     NodeType.SLIDER_INPUT_VIEW,
     NodeType.LINE_SHAPE,
-    NodeType.PLANE_SHAPE,
+    NodeType.POLYGON_SHAPE,
     NodeType.FRAME_VIEW,
     NodeType.ANNOTATION_SHAPE,
     NodeType.ARROW_SHAPE,
@@ -507,7 +507,7 @@ export class TransitionStyle extends Node implements Style {
   static __ancestorTypes__: NodeType[] = [
     NodeType.SPACE,
     NodeType.LINE_SHAPE,
-    NodeType.PLANE_SHAPE,
+    NodeType.POLYGON_SHAPE,
     NodeType.ARROW_SHAPE,
     NodeType.ANNOTATION_SHAPE,
     NodeType.CUSTOM_VIEW_DEFINITION,

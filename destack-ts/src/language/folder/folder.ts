@@ -105,7 +105,7 @@ export class Folder
   static __ancestorTypes__: NodeType[] = [NodeType.FOLDER, NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [
     NodeType.LINE_SHAPE,
-    NodeType.PLANE_SHAPE,
+    NodeType.POLYGON_SHAPE,
     NodeType.ARROW_SHAPE,
     NodeType.ANNOTATION_SHAPE,
     NodeType.INVITE,

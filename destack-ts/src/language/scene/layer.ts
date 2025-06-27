@@ -98,7 +98,7 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
     NodeType.ARROW_SHAPE,
     NodeType.CANVAS,
     NodeType.LINE_SHAPE,
-    NodeType.PLANE_SHAPE,
+    NodeType.POLYGON_SHAPE,
     NodeType.TAGGING,
     NodeType.SCRIPT,
     NodeType.VARIANT,
@@ -113,7 +113,7 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
   ];
   static __ancestorTypes__: NodeType[] = [
     NodeType.SPACE,
-    NodeType.PLANE_SHAPE,
+    NodeType.POLYGON_SHAPE,
     NodeType.FRAME_VIEW,
     NodeType.ANNOTATION_SHAPE,
     NodeType.WINDOW,
@@ -128,7 +128,7 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
   ];
   static __descendantTypes__: NodeType[] = [
     NodeType.LINE_SHAPE,
-    NodeType.PLANE_SHAPE,
+    NodeType.POLYGON_SHAPE,
     NodeType.ARROW_SHAPE,
     NodeType.ANNOTATION_SHAPE,
     NodeType.CUSTOM_VIEW,

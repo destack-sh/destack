@@ -49,7 +49,7 @@ export class Palette
   static __ancestorTypes__: NodeType[] = [
     NodeType.THEME,
     NodeType.SPACE,
-    NodeType.PLANE_SHAPE,
+    NodeType.POLYGON_SHAPE,
     NodeType.FRAME_VIEW,
     NodeType.ANNOTATION_SHAPE,
     NodeType.WINDOW,

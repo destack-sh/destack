@@ -81,7 +81,7 @@ export class Variant
   static __childTypes__: NodeType[] = [];
   static __ancestorTypes__: NodeType[] = [
     NodeType.SPACE,
-    NodeType.PLANE_SHAPE,
+    NodeType.POLYGON_SHAPE,
     NodeType.FRAME_VIEW,
     NodeType.ANNOTATION_SHAPE,
     NodeType.WINDOW,

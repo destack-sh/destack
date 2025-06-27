@@ -5,12 +5,15 @@ from destack.language.core import (
     EnumType,
     Node,
     NodeType,
-    Vector2,
+    StructFrozen,
+    StructType,
+    Vector3,
     builtin_enum,
     builtin_node,
+    builtin_struct,
     property_,
 )
-from destack.proto import LineShapeProto
+from destack.proto import LineProto, LineShapeProto
 
 from ..view import ContentView
 from .shape import IsShape
@@ -28,10 +31,19 @@ class LineType(Enum):
     DOTTED = 3
 
 
+@builtin_struct(StructType.LINE, frozen=True)
+class Line(StructFrozen[LineProto]):
+    """A Line is a list of points."""
+
+    type: LineType = property_(30)
+    points: list[Vector3] = property_(100)
+    color: Optional["Color"] = property_(101, is_repr=True)
+
+
 @builtin_node(NodeType.LINE_SHAPE, pretend_frozen=True)
 class LineShape(ContentView, IsShape, Node[LineShapeProto]):
     """A LineShape is a shape that represents a line."""
 
     type: LineType = property_(30)
-    points: list[Vector2] = property_(100)
+    points: list[Vector3] = property_(100)
     color: Optional["Color"] = property_(101, is_repr=True)
