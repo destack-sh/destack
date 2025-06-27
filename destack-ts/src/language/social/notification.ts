@@ -26,6 +26,7 @@ import {
   NotificationStatusProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
+import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:5600 ==== */
@@ -281,7 +282,32 @@ export class Notification extends Node implements Spatial, Entity, IsOwnable {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.status) & 0xffffffff;
+    h = (h * 31 + hashString(this.title)) & 0xffffffff;
+    if (this.text !== null) {
+      h = (h * 31 + this.text.hash()) & 0xffffffff;
+    }
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    if (this.ownedByPtr !== null) {
+      h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
+    }
+    return h;
   }
 
   validate(): void {
@@ -748,7 +774,25 @@ export class NotificationSentEvent extends Node implements Event {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    return h;
   }
 
   validate(): void {
@@ -1183,7 +1227,25 @@ export class NotificationRescindedEvent extends Node implements Event {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    return h;
   }
 
   validate(): void {
@@ -1618,7 +1680,25 @@ export class NotificationReadEvent extends Node implements Event {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    return h;
   }
 
   validate(): void {
@@ -2053,7 +2133,25 @@ export class NotificationDismissedEvent extends Node implements Event {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    return h;
   }
 
   validate(): void {
@@ -2488,7 +2586,25 @@ export class NotificationExpiredEvent extends Node implements Event {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    return h;
   }
 
   validate(): void {

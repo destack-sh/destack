@@ -27,6 +27,7 @@ import {
   ThreadCursorProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
+import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:3100 ==== */
@@ -302,7 +303,31 @@ export class EventCursor extends Node implements Cursor, IsOwnable {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.status) & 0xffffffff;
+    if (this.activeAt !== null) {
+      h = (h * 31 + hashString(this.activeAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    if (this.ownedByPtr !== null) {
+      h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
+    }
+    return h;
   }
 
   validate(): void {
@@ -799,7 +824,34 @@ export class ScreenCursor extends Node implements Cursor, IsOwnable {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.position !== null) {
+      h = (h * 31 + this.position.hash()) & 0xffffffff;
+    }
+    h = (h * 31 + this.status) & 0xffffffff;
+    if (this.activeAt !== null) {
+      h = (h * 31 + hashString(this.activeAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    if (this.ownedByPtr !== null) {
+      h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
+    }
+    return h;
   }
 
   validate(): void {
@@ -1298,7 +1350,31 @@ export class ThreadCursor extends Node implements Cursor, IsOwnable {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.status) & 0xffffffff;
+    if (this.activeAt !== null) {
+      h = (h * 31 + hashString(this.activeAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    if (this.ownedByPtr !== null) {
+      h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
+    }
+    return h;
   }
 
   validate(): void {

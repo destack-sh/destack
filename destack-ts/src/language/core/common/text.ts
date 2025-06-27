@@ -3,6 +3,7 @@ import { EnumType, Node, StructFrozen, StructType } from "@destack/language/core
 import { registerEnumClass, registerStructClass } from "@destack/language/registry";
 import { TextProto, TextSpanProto, TextSpanTypeProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
+import { hashBool, hashString } from "@destack/utils/hash";
 
 /* ==== DESTACK_GENERATED_START:ENUM:2521 ==== */
 /**
@@ -189,7 +190,42 @@ export class TextSpan extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.content !== null) {
+      h = (h * 31 + hashString(this.content)) & 0xffffffff;
+    }
+    if (this.nodePtr !== null) {
+      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    }
+    if (this.url !== null) {
+      h = (h * 31 + hashString(this.url)) & 0xffffffff;
+    }
+    if (this.isBold !== null) {
+      h = (h * 31 + hashBool(this.isBold)) & 0xffffffff;
+    }
+    if (this.isItalic !== null) {
+      h = (h * 31 + hashBool(this.isItalic)) & 0xffffffff;
+    }
+    if (this.isStrikethrough !== null) {
+      h = (h * 31 + hashBool(this.isStrikethrough)) & 0xffffffff;
+    }
+    if (this.isUnderline !== null) {
+      h = (h * 31 + hashBool(this.isUnderline)) & 0xffffffff;
+    }
+    if (this.isCode !== null) {
+      h = (h * 31 + hashBool(this.isCode)) & 0xffffffff;
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -501,7 +537,37 @@ export class Text extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.spans && this.spans.length > 0) {
+      for (const _item of this.spans) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.isBold !== null) {
+      h = (h * 31 + hashBool(this.isBold)) & 0xffffffff;
+    }
+    if (this.isItalic !== null) {
+      h = (h * 31 + hashBool(this.isItalic)) & 0xffffffff;
+    }
+    if (this.isStrikethrough !== null) {
+      h = (h * 31 + hashBool(this.isStrikethrough)) & 0xffffffff;
+    }
+    if (this.isUnderline !== null) {
+      h = (h * 31 + hashBool(this.isUnderline)) & 0xffffffff;
+    }
+    if (this.isCode !== null) {
+      h = (h * 31 + hashBool(this.isCode)) & 0xffffffff;
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {

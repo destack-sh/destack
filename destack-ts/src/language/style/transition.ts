@@ -25,6 +25,7 @@ import {
   TransitionTypeProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
+import { hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12043 ==== */
@@ -291,7 +292,39 @@ export class Transition extends Struct {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.stylePtr !== null) {
+      h = (h * 31 + hashString(this.stylePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.delay !== null) {
+      h = (h * 31 + hashFloat(this.delay)) & 0xffffffff;
+    }
+    if (this.duration !== null) {
+      h = (h * 31 + hashFloat(this.duration)) & 0xffffffff;
+    }
+    if (this.ease && this.ease.length > 0) {
+      for (const _item of this.ease) {
+        h = (h * 31 + hashFloat(_item)) & 0xffffffff;
+      }
+    }
+    if (this.stiffness !== null) {
+      h = (h * 31 + hashFloat(this.stiffness)) & 0xffffffff;
+    }
+    if (this.damping !== null) {
+      h = (h * 31 + hashFloat(this.damping)) & 0xffffffff;
+    }
+    if (this.mass !== null) {
+      h = (h * 31 + hashFloat(this.mass)) & 0xffffffff;
+    }
+    if (this.bounce !== null) {
+      h = (h * 31 + hashFloat(this.bounce)) & 0xffffffff;
+    }
+    if (this.springType !== null) {
+      h = (h * 31 + this.springType) & 0xffffffff;
+    }
+    return h;
   }
 
   validate(): void {
@@ -881,7 +914,56 @@ export class TransitionStyle extends Node implements Style {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    if (this.deletedAt !== null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.delay !== null) {
+      h = (h * 31 + hashFloat(this.delay)) & 0xffffffff;
+    }
+    if (this.duration !== null) {
+      h = (h * 31 + hashFloat(this.duration)) & 0xffffffff;
+    }
+    if (this.ease && this.ease.length > 0) {
+      for (const _item of this.ease) {
+        h = (h * 31 + hashFloat(_item)) & 0xffffffff;
+      }
+    }
+    if (this.stiffness !== null) {
+      h = (h * 31 + hashFloat(this.stiffness)) & 0xffffffff;
+    }
+    if (this.damping !== null) {
+      h = (h * 31 + hashFloat(this.damping)) & 0xffffffff;
+    }
+    if (this.mass !== null) {
+      h = (h * 31 + hashFloat(this.mass)) & 0xffffffff;
+    }
+    if (this.bounce !== null) {
+      h = (h * 31 + hashFloat(this.bounce)) & 0xffffffff;
+    }
+    if (this.springType !== null) {
+      h = (h * 31 + this.springType) & 0xffffffff;
+    }
+    return h;
   }
 
   validate(): void {

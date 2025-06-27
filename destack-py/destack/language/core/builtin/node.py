@@ -114,7 +114,6 @@ class Node[NodeProtoT: AnyNodeProto](NodeBase[NodeProtoT]):
     _supergraph: "Supergraph" = property_runtime_()
     _graph: "Graph" = property_runtime_(default=None)
     _connection: "QueryConnection | None" = property_runtime_(default=None)
-    _hash: int = property_runtime_(default=None)
     _ref: "Optional[NodeReference]" = property_runtime_(default=None)
     _is_new: bool = property_runtime_(default=False)
     _is_attached: bool = property_runtime_(default=False)
@@ -124,11 +123,9 @@ class Node[NodeProtoT: AnyNodeProto](NodeBase[NodeProtoT]):
         """Equals the Node's identity."""
         return type(self) is type(other) and (self.id == other.id)
 
-    def hash(self):
+    def __hash__(self):
         """Hash the Node's identity."""
-        return self._hash
-
-    __hash__ = hash  # type: ignore
+        return self.id.int
 
     def _do_set(self, key: str, value: Any):
         """Set a Property on this Node."""

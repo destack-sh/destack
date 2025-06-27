@@ -21,6 +21,7 @@ import { registerEnumClass, registerNodeClass } from "@destack/language/registry
 import { Handle, Space } from "@destack/language/space";
 import { UserProto, UserStatusProto } from "@destack/proto";
 import { base64Decode, base64Encode } from "@destack/utils";
+import { hashBool, hashBytes, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:20 ==== */
@@ -377,7 +378,48 @@ export class User
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    h = (h * 31 + hashString(this.slug)) & 0xffffffff;
+    h = (h * 31 + this.status) & 0xffffffff;
+    if (this.lastLoggedInAt !== null) {
+      h =
+        (h * 31 + hashString(this.lastLoggedInAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    h = (h * 31 + hashBool(this.isStaff)) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    if (this.handlePtr !== null) {
+      h = (h * 31 + hashString(this.handlePtr.id)) & 0xffffffff;
+    }
+    if (this.cursorPtr !== null) {
+      h = (h * 31 + hashString(this.cursorPtr.id)) & 0xffffffff;
+    }
+    if (this.email !== null) {
+      h = (h * 31 + hashString(this.email)) & 0xffffffff;
+    }
+    if (this.passwordSalt !== null) {
+      h = (h * 31 + hashBytes(this.passwordSalt)) & 0xffffffff;
+    }
+    if (this.passwordHash !== null) {
+      h = (h * 31 + hashBytes(this.passwordHash)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    if (this.icon !== null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
+    return h;
   }
 
   validate(): void {

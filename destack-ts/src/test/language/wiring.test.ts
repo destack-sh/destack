@@ -35,7 +35,6 @@ sessionTest("roundtrip node reference", ({ session }) => {
   // value
   const nodeRefValue = nodeRef.toValue();
   const nodeRefValueStr = JSON.stringify(nodeRefValue, null, 2);
-  console.log(nodeRefValueStr);
   const unpackedNodeRefValue = JSON.parse(nodeRefValueStr);
   const unpackedNodeRef = NodeReference.fromValue(unpackedNodeRefValue);
   expect(unpackedNodeRef.equals(nodeRef)).toBe(true);
@@ -64,7 +63,6 @@ sessionTest("roundtrip query", ({ session }) => {
   // value
   const queryValue = query.toValue();
   const queryValueStr = JSON.stringify(queryValue, null, 2);
-  console.log(queryValueStr);
   const unpackedQueryValue = JSON.parse(queryValueStr);
   const unpackedQuery = Query.fromValue(unpackedQueryValue);
   expect(unpackedQuery.equals(query)).toBe(true);
@@ -92,7 +90,6 @@ sessionTest("roundtrip user", ({ session }) => {
   // value
   const userValue = user.toValue();
   const userValueStr = JSON.stringify(userValue, null, 2);
-  console.log(userValueStr);
   const unpackedUserValue = JSON.parse(userValueStr);
   const unpackedUser = User.fromValue(unpackedUserValue);
   expect(unpackedUser.equals(user)).toBe(true);
@@ -104,5 +101,6 @@ sessionTest("roundtrip user", ({ session }) => {
   const unpackedUserProto = UserProto.fromBinary(userProtoBytes);
   const unpackedUser2 = User.fromProto(unpackedUserProto);
   expect(unpackedUser2.equals(user)).toBe(true);
+  expect(unpackedUser2).toEqual(user);
   expect(unpackedUser2.hash()).toEqual(user.hash());
 });

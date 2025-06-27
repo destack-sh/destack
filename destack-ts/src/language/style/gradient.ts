@@ -27,6 +27,7 @@ import {
   GradientTypeProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
+import { hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12033 ==== */
@@ -131,7 +132,21 @@ export class GradientStop extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.color !== null) {
+      h = (h * 31 + this.color.hash()) & 0xffffffff;
+    }
+    h = (h * 31 + hashFloat(this.position)) & 0xffffffff;
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -391,7 +406,24 @@ export class Gradient extends Struct {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.stylePtr !== null) {
+      h = (h * 31 + hashString(this.stylePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.angle !== null) {
+      h = (h * 31 + hashFloat(this.angle)) & 0xffffffff;
+    }
+    if (this.stops && this.stops.length > 0) {
+      for (const _item of this.stops) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.centerAnchor !== null) {
+      h = (h * 31 + this.centerAnchor.hash()) & 0xffffffff;
+    }
+    return h;
   }
 
   validate(): void {
@@ -883,7 +915,44 @@ export class GradientStyle extends Node implements Style {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.dark !== null) {
+      h = (h * 31 + this.dark.hash()) & 0xffffffff;
+    }
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    if (this.deletedAt !== null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.angle !== null) {
+      h = (h * 31 + hashFloat(this.angle)) & 0xffffffff;
+    }
+    if (this.stops && this.stops.length > 0) {
+      for (const _item of this.stops) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.centerAnchor !== null) {
+      h = (h * 31 + this.centerAnchor.hash()) & 0xffffffff;
+    }
+    return h;
   }
 
   validate(): void {

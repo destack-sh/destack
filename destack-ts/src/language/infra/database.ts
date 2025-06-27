@@ -30,6 +30,7 @@ import {
   TenancyProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
+import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:7505 ==== */
@@ -186,7 +187,22 @@ export class DatabaseInfo extends Struct {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + this.region) & 0xffffffff;
+    if (this.galaxyName !== null) {
+      h = (h * 31 + hashString(this.galaxyName)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.externalName)) & 0xffffffff;
+    if (this.customSchemaName !== null) {
+      h = (h * 31 + hashString(this.customSchemaName)) & 0xffffffff;
+    }
+    h = (h * 31 + this.tenancy) & 0xffffffff;
+    if (this.connectionUrl !== null) {
+      h = (h * 31 + hashString(this.connectionUrl)) & 0xffffffff;
+    }
+    return h;
   }
 
   validate(): void {
@@ -616,7 +632,42 @@ export class Database extends Node implements Spatial, Resource, HasName {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + this.status) & 0xffffffff;
+    if (this.targetStatus !== null) {
+      h = (h * 31 + hashString(this.targetStatus.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + this.region) & 0xffffffff;
+    if (this.galaxyName !== null) {
+      h = (h * 31 + hashString(this.galaxyName)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.externalName)) & 0xffffffff;
+    if (this.customSchemaName !== null) {
+      h = (h * 31 + hashString(this.customSchemaName)) & 0xffffffff;
+    }
+    h = (h * 31 + this.tenancy) & 0xffffffff;
+    if (this.connectionUrl !== null) {
+      h = (h * 31 + hashString(this.connectionUrl)) & 0xffffffff;
+    }
+    return h;
   }
 
   validate(): void {

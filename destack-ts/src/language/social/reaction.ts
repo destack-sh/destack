@@ -17,6 +17,7 @@ import { registerNodeClass } from "@destack/language/registry";
 import { Space } from "@destack/language/space";
 import { ReactionProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
+import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:5540 ==== */
@@ -245,7 +246,29 @@ export class Reaction
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.content)) & 0xffffffff;
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    if (this.deletedAt !== null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    return h;
   }
 
   validate(): void {

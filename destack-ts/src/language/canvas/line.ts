@@ -24,6 +24,7 @@ import { ContainerView } from "@destack/language/view/container";
 import { ContentView } from "@destack/language/view/content";
 import { AlignProto, LineProto, LineShapeProto, LineTypeProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
+import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:11010 ==== */
@@ -515,7 +516,71 @@ export class LineShape extends Node implements ContentView, IsShape {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.points && this.points.length > 0) {
+      for (const _item of this.points) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.color !== null) {
+      h = (h * 31 + this.color.hash()) & 0xffffffff;
+    }
+    if (this.align !== null) {
+      h = (h * 31 + this.align) & 0xffffffff;
+    }
+    if (this.isVisible !== null) {
+      h = (h * 31 + hashBool(this.isVisible)) & 0xffffffff;
+    }
+    if (this.opacity !== null) {
+      h = (h * 31 + hashFloat(this.opacity)) & 0xffffffff;
+    }
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.position !== null) {
+      h = (h * 31 + this.position.hash()) & 0xffffffff;
+    }
+    if (this.width !== null) {
+      h = (h * 31 + this.width.hash()) & 0xffffffff;
+    }
+    if (this.height !== null) {
+      h = (h * 31 + this.height.hash()) & 0xffffffff;
+    }
+    if (this.minWidth !== null) {
+      h = (h * 31 + this.minWidth.hash()) & 0xffffffff;
+    }
+    if (this.minHeight !== null) {
+      h = (h * 31 + this.minHeight.hash()) & 0xffffffff;
+    }
+    if (this.maxWidth !== null) {
+      h = (h * 31 + this.maxWidth.hash()) & 0xffffffff;
+    }
+    if (this.maxHeight !== null) {
+      h = (h * 31 + this.maxHeight.hash()) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    if (this.scriptPtr !== null) {
+      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
+    if (this.deletedAt !== null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    return h;
   }
 
   validate(): void {
@@ -1078,7 +1143,26 @@ export class Line extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.points && this.points.length > 0) {
+      for (const _item of this.points) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.color !== null) {
+      h = (h * 31 + this.color.hash()) & 0xffffffff;
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {

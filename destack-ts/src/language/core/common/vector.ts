@@ -10,6 +10,7 @@ import {
   Vector4iProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
+import { hashFloat, hashInt } from "@destack/utils/hash";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50200 ==== */
 /**
@@ -94,7 +95,19 @@ export class Vector2 extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashFloat(this.x)) & 0xffffffff;
+    h = (h * 31 + hashFloat(this.y)) & 0xffffffff;
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -447,7 +460,20 @@ export class Vector3 extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashFloat(this.x)) & 0xffffffff;
+    h = (h * 31 + hashFloat(this.y)) & 0xffffffff;
+    h = (h * 31 + hashFloat(this.z)) & 0xffffffff;
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -845,7 +871,21 @@ export class Vector4 extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashFloat(this.x)) & 0xffffffff;
+    h = (h * 31 + hashFloat(this.y)) & 0xffffffff;
+    h = (h * 31 + hashFloat(this.z)) & 0xffffffff;
+    h = (h * 31 + hashFloat(this.w)) & 0xffffffff;
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -1233,7 +1273,19 @@ export class Vector2i extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashInt(this.x)) & 0xffffffff;
+    h = (h * 31 + hashInt(this.y)) & 0xffffffff;
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -1586,7 +1638,20 @@ export class Vector3i extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashInt(this.x)) & 0xffffffff;
+    h = (h * 31 + hashInt(this.y)) & 0xffffffff;
+    h = (h * 31 + hashInt(this.z)) & 0xffffffff;
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -1974,7 +2039,21 @@ export class Vector4i extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashInt(this.x)) & 0xffffffff;
+    h = (h * 31 + hashInt(this.y)) & 0xffffffff;
+    h = (h * 31 + hashInt(this.z)) & 0xffffffff;
+    h = (h * 31 + hashInt(this.w)) & 0xffffffff;
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {

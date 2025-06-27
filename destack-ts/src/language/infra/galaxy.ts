@@ -3,6 +3,7 @@ import { Region, Struct, StructType } from "@destack/language/core/builtin";
 import { registerStructClass } from "@destack/language/registry";
 import { GalaxyInfoProto, RegionProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
+import { hashString } from "@destack/utils/hash";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:7601 ==== */
 /**
@@ -87,7 +88,12 @@ export class GalaxyInfo extends Struct {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.region) & 0xffffffff;
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    h = (h * 31 + hashString(this.host)) & 0xffffffff;
+    return h;
   }
 
   validate(): void {

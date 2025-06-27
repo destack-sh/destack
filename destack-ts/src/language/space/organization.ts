@@ -20,6 +20,7 @@ import { registerEnumClass, registerNodeClass } from "@destack/language/registry
 import { Handle, Space } from "@destack/language/space";
 import { OrganizationProto, OrganizationStatusProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
+import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:40 ==== */
@@ -303,7 +304,31 @@ export class Organization
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.slug)) & 0xffffffff;
+    h = (h * 31 + this.status) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    if (this.handlePtr !== null) {
+      h = (h * 31 + hashString(this.handlePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    if (this.icon !== null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    return h;
   }
 
   validate(): void {

@@ -31,6 +31,7 @@ import {
   LayoutProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
+import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:10030 ==== */
@@ -730,7 +731,116 @@ export class LabelView extends Node implements ContainerView {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.layout !== null) {
+      h = (h * 31 + this.layout) & 0xffffffff;
+    }
+    if (this.direction !== null) {
+      h = (h * 31 + this.direction) & 0xffffffff;
+    }
+    if (this.distribute !== null) {
+      h = (h * 31 + this.distribute) & 0xffffffff;
+    }
+    if (this.align !== null) {
+      h = (h * 31 + this.align) & 0xffffffff;
+    }
+    if (this.gap !== null) {
+      h = (h * 31 + this.gap.hash()) & 0xffffffff;
+    }
+    if (this.padding !== null) {
+      h = (h * 31 + this.padding.hash()) & 0xffffffff;
+    }
+    if (this.grid !== null) {
+      h = (h * 31 + this.grid.hash()) & 0xffffffff;
+    }
+    if (this.gridSpan !== null) {
+      h = (h * 31 + this.gridSpan.hash()) & 0xffffffff;
+    }
+    if (this.aspectRatio !== null) {
+      h = (h * 31 + hashFloat(this.aspectRatio)) & 0xffffffff;
+    }
+    if (this.isWrap !== null) {
+      h = (h * 31 + hashBool(this.isWrap)) & 0xffffffff;
+    }
+    if (this.isVisible !== null) {
+      h = (h * 31 + hashBool(this.isVisible)) & 0xffffffff;
+    }
+    if (this.opacity !== null) {
+      h = (h * 31 + hashFloat(this.opacity)) & 0xffffffff;
+    }
+    if (this.fill !== null) {
+      h = (h * 31 + this.fill.hash()) & 0xffffffff;
+    }
+    if (this.rotation !== null) {
+      h = (h * 31 + this.rotation.hash()) & 0xffffffff;
+    }
+    if (this.skew !== null) {
+      h = (h * 31 + this.skew.hash()) & 0xffffffff;
+    }
+    if (this.scale !== null) {
+      h = (h * 31 + hashFloat(this.scale)) & 0xffffffff;
+    }
+    if (this.shadow !== null) {
+      h = (h * 31 + this.shadow.hash()) & 0xffffffff;
+    }
+    if (this.border !== null) {
+      h = (h * 31 + this.border.hash()) & 0xffffffff;
+    }
+    if (this.radius !== null) {
+      h = (h * 31 + this.radius.hash()) & 0xffffffff;
+    }
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.position !== null) {
+      h = (h * 31 + this.position.hash()) & 0xffffffff;
+    }
+    if (this.width !== null) {
+      h = (h * 31 + this.width.hash()) & 0xffffffff;
+    }
+    if (this.height !== null) {
+      h = (h * 31 + this.height.hash()) & 0xffffffff;
+    }
+    if (this.minWidth !== null) {
+      h = (h * 31 + this.minWidth.hash()) & 0xffffffff;
+    }
+    if (this.minHeight !== null) {
+      h = (h * 31 + this.minHeight.hash()) & 0xffffffff;
+    }
+    if (this.maxWidth !== null) {
+      h = (h * 31 + this.maxWidth.hash()) & 0xffffffff;
+    }
+    if (this.maxHeight !== null) {
+      h = (h * 31 + this.maxHeight.hash()) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    if (this.scriptPtr !== null) {
+      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
+    if (this.deletedAt !== null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    if (this.value && Object.keys(this.value).length > 0) {
+      for (const [_key, _value] of Object.entries(this.value)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
+    return h;
   }
 
   validate(): void {

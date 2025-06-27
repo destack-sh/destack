@@ -15,6 +15,7 @@ import { registerEnumClass, registerNodeClass } from "@destack/language/registry
 import { Client, Space } from "@destack/language/space";
 import { MachineProto, MachineTypeProto, ResourceStatusProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
+import { hashBool, hashFloat, hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:7600 ==== */
@@ -431,7 +432,53 @@ export class Machine extends Node implements Spatial, Resource {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + hashString(this.version)) & 0xffffffff;
+    if (this.externalName !== null) {
+      h = (h * 31 + hashString(this.externalName)) & 0xffffffff;
+    }
+    if (this.externalId !== null) {
+      h = (h * 31 + hashString(this.externalId)) & 0xffffffff;
+    }
+    if (this.imageId !== null) {
+      h = (h * 31 + hashString(this.imageId)) & 0xffffffff;
+    }
+    if (this.grpcUrl !== null) {
+      h = (h * 31 + hashString(this.grpcUrl)) & 0xffffffff;
+    }
+    if (this.vncUrl !== null) {
+      h = (h * 31 + hashString(this.vncUrl)) & 0xffffffff;
+    }
+    if (this.clientPtr !== null) {
+      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashFloat(this.cpu)) & 0xffffffff;
+    h = (h * 31 + hashFloat(this.ram)) & 0xffffffff;
+    h = (h * 31 + hashInt(this.width)) & 0xffffffff;
+    h = (h * 31 + hashInt(this.height)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isHeadless)) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + this.status) & 0xffffffff;
+    if (this.targetStatus !== null) {
+      h = (h * 31 + hashString(this.targetStatus.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    return h;
   }
 
   validate(): void {

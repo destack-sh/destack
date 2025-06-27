@@ -51,6 +51,7 @@ import {
   TypeCardinalityProto,
 } from "@destack/proto";
 import { assertNever, base64Decode } from "@destack/utils";
+import { hashBool, hashInt, hashString } from "@destack/utils/hash";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:50004 ==== */
 /**
@@ -589,7 +590,85 @@ export class PropertyDefinition extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    if (this.icon !== null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
+    if (this.description !== null) {
+      h = (h * 31 + hashString(this.description)) & 0xffffffff;
+    }
+    h = (h * 31 + this.object.hash()) & 0xffffffff;
+    h = (h * 31 + this.originalObject.hash()) & 0xffffffff;
+    h = (h * 31 + this.cardinality) & 0xffffffff;
+    h = (h * 31 + this.scalarType) & 0xffffffff;
+    if (this.primitiveType !== null) {
+      h = (h * 31 + this.primitiveType) & 0xffffffff;
+    }
+    if (this.enumType !== null) {
+      h = (h * 31 + this.enumType) & 0xffffffff;
+    }
+    if (this.nodeType !== null) {
+      h = (h * 31 + this.nodeType) & 0xffffffff;
+    }
+    if (this.structType !== null) {
+      h = (h * 31 + this.structType) & 0xffffffff;
+    }
+    if (this.keyType !== null) {
+      h = (h * 31 + this.keyType.hash()) & 0xffffffff;
+    }
+    if (this.isRequired !== null) {
+      h = (h * 31 + hashBool(this.isRequired)) & 0xffffffff;
+    }
+    if (this.isUnique !== null) {
+      h = (h * 31 + hashBool(this.isUnique)) & 0xffffffff;
+    }
+    if (this.defaultValue !== null) {
+      h = (h * 31 + this.defaultValue.hash()) & 0xffffffff;
+    }
+    if (this.defaultFactory !== null) {
+      h = (h * 31 + this.defaultFactory) & 0xffffffff;
+    }
+    if (this.collectionConstraint !== null) {
+      h = (h * 31 + this.collectionConstraint.hash()) & 0xffffffff;
+    }
+    if (this.stringConstraint !== null) {
+      h = (h * 31 + this.stringConstraint.hash()) & 0xffffffff;
+    }
+    if (this.numberConstraint !== null) {
+      h = (h * 31 + this.numberConstraint.hash()) & 0xffffffff;
+    }
+    if (this.nodeConstraint !== null) {
+      h = (h * 31 + this.nodeConstraint.hash()) & 0xffffffff;
+    }
+    h = (h * 31 + hashBool(this.nodeIsCustomizable)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.nodeHasType)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.nodeHasSpace)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.nodeHasDefinition)) & 0xffffffff;
+    if (this.edgeType !== null) {
+      h = (h * 31 + this.edgeType) & 0xffffffff;
+    }
+    if (this.cascade !== null) {
+      h = (h * 31 + this.cascade) & 0xffffffff;
+    }
+    h = (h * 31 + hashBool(this.isWired)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isStored)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isRepr)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isHash)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isEq)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isManaged)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isComputed)) & 0xffffffff;
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -1328,7 +1407,37 @@ export class TraitDefinition extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    h = (h * 31 + hashString(this.alias)) & 0xffffffff;
+    if (this.icon !== null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
+    if (this.description !== null) {
+      h = (h * 31 + hashString(this.description)) & 0xffffffff;
+    }
+    if (this.properties && this.properties.length > 0) {
+      for (const _item of this.properties) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.traits && this.traits.length > 0) {
+      for (const _item of this.traits) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -1774,7 +1883,59 @@ export class NodeDefinition extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    if (this.icon !== null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
+    if (this.description !== null) {
+      h = (h * 31 + hashString(this.description)) & 0xffffffff;
+    }
+    if (this.properties && this.properties.length > 0) {
+      for (const _item of this.properties) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.traits && this.traits.length > 0) {
+      for (const _item of this.traits) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this.rootType !== null) {
+      h = (h * 31 + this.rootType) & 0xffffffff;
+    }
+    if (this.parentTypes && this.parentTypes.length > 0) {
+      for (const _item of this.parentTypes) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this.childTypes && this.childTypes.length > 0) {
+      for (const _item of this.childTypes) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this.ancestorTypes && this.ancestorTypes.length > 0) {
+      for (const _item of this.ancestorTypes) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this.descendantTypes && this.descendantTypes.length > 0) {
+      for (const _item of this.descendantTypes) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -2247,7 +2408,32 @@ export class StructDefinition extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    if (this.icon !== null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
+    if (this.description !== null) {
+      h = (h * 31 + hashString(this.description)) & 0xffffffff;
+    }
+    if (this.properties && this.properties.length > 0) {
+      for (const _item of this.properties) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    h = (h * 31 + hashBool(this.isFrozen)) & 0xffffffff;
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -2571,7 +2757,31 @@ export class EnumDefinition extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    if (this.icon !== null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
+    if (this.description !== null) {
+      h = (h * 31 + hashString(this.description)) & 0xffffffff;
+    }
+    if (this.options && this.options.length > 0) {
+      for (const _item of this.options) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -2860,7 +3070,26 @@ export class OptionDefinition extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    if (this.icon !== null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
+    if (this.description !== null) {
+      h = (h * 31 + hashString(this.description)) & 0xffffffff;
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -3130,7 +3359,24 @@ export class PermissionDefinition extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    h = (h * 31 + this.nodeType) & 0xffffffff;
+    if (this.icon !== null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -3377,7 +3623,23 @@ export class ConstantDefinition extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    if (this.description !== null) {
+      h = (h * 31 + hashString(this.description)) & 0xffffffff;
+    }
+    h = (h * 31 + this.value.hash()) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isDeferred)) & 0xffffffff;
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {

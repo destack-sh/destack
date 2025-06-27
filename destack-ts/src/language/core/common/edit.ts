@@ -20,6 +20,7 @@ import {
   EditTypeProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
+import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 import { v4 as uuid4 } from "uuid";
 
@@ -307,7 +308,38 @@ export class Edit extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.operation !== null) {
+      h = (h * 31 + this.operation) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    if (this.propPtr !== null) {
+      h = (h * 31 + this.propPtr.hash()) & 0xffffffff;
+    }
+    if (this.fieldPtr !== null) {
+      h = (h * 31 + hashString(this.fieldPtr.id)) & 0xffffffff;
+    }
+    if (this.key !== null) {
+      h = (h * 31 + this.key.hash()) & 0xffffffff;
+    }
+    if (this.value !== null) {
+      h = (h * 31 + this.value.hash()) & 0xffffffff;
+    }
+    if (this.undo !== null) {
+      h = (h * 31 + this.undo.hash()) & 0xffffffff;
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -703,7 +735,36 @@ export class Change extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this.name !== null) {
+      h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    if (this.origin !== null) {
+      h = (h * 31 + this.origin.hash()) & 0xffffffff;
+    }
+    if (this.debounce !== null) {
+      h = (h * 31 + this.debounce) & 0xffffffff;
+    }
+    if (this.edits && this.edits.length > 0) {
+      for (const _item of this.edits) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -1047,7 +1108,33 @@ export class ChangeResult extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.debounce !== null) {
+      h = (h * 31 + this.debounce) & 0xffffffff;
+    }
+    h = (h * 31 + this.status) & 0xffffffff;
+    if (this.edits && this.edits.length > 0) {
+      for (const _item of this.edits) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.cascadedEdits && this.cascadedEdits.length > 0) {
+      for (const _item of this.cascadedEdits) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {

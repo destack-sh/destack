@@ -16,6 +16,7 @@ import {
   PositionTypeProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
+import { hashFloat, hashInt } from "@destack/utils/hash";
 
 /* ==== DESTACK_GENERATED_START:ENUM:12038 ==== */
 /**
@@ -224,7 +225,19 @@ export class Length extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.unit) & 0xffffffff;
+    h = (h * 31 + hashFloat(this.value)) & 0xffffffff;
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -461,7 +474,30 @@ export class Position extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.top !== null) {
+      h = (h * 31 + this.top.hash()) & 0xffffffff;
+    }
+    if (this.left !== null) {
+      h = (h * 31 + this.left.hash()) & 0xffffffff;
+    }
+    if (this.width !== null) {
+      h = (h * 31 + this.width.hash()) & 0xffffffff;
+    }
+    if (this.height !== null) {
+      h = (h * 31 + this.height.hash()) & 0xffffffff;
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -720,7 +756,20 @@ export class Dimension extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + this.unit) & 0xffffffff;
+    h = (h * 31 + hashFloat(this.value)) & 0xffffffff;
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -953,7 +1002,32 @@ export class Insets extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.base !== null) {
+      h = (h * 31 + hashInt(this.base)) & 0xffffffff;
+    }
+    if (this.top !== null) {
+      h = (h * 31 + hashInt(this.top)) & 0xffffffff;
+    }
+    if (this.left !== null) {
+      h = (h * 31 + hashInt(this.left)) & 0xffffffff;
+    }
+    if (this.right !== null) {
+      h = (h * 31 + hashInt(this.right)) & 0xffffffff;
+    }
+    if (this.bottom !== null) {
+      h = (h * 31 + hashInt(this.bottom)) & 0xffffffff;
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -1224,7 +1298,32 @@ export class Corners extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.base !== null) {
+      h = (h * 31 + hashInt(this.base)) & 0xffffffff;
+    }
+    if (this.topLeft !== null) {
+      h = (h * 31 + hashInt(this.topLeft)) & 0xffffffff;
+    }
+    if (this.topRight !== null) {
+      h = (h * 31 + hashInt(this.topRight)) & 0xffffffff;
+    }
+    if (this.bottomLeft !== null) {
+      h = (h * 31 + hashInt(this.bottomLeft)) & 0xffffffff;
+    }
+    if (this.bottomRight !== null) {
+      h = (h * 31 + hashInt(this.bottomRight)) & 0xffffffff;
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -1476,7 +1575,26 @@ export class Axis2 extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.base !== null) {
+      h = (h * 31 + hashFloat(this.base)) & 0xffffffff;
+    }
+    if (this.x !== null) {
+      h = (h * 31 + hashFloat(this.x)) & 0xffffffff;
+    }
+    if (this.y !== null) {
+      h = (h * 31 + hashFloat(this.y)) & 0xffffffff;
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -1725,7 +1843,29 @@ export class Axis3 extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.base !== null) {
+      h = (h * 31 + hashFloat(this.base)) & 0xffffffff;
+    }
+    if (this.x !== null) {
+      h = (h * 31 + hashFloat(this.x)) & 0xffffffff;
+    }
+    if (this.y !== null) {
+      h = (h * 31 + hashFloat(this.y)) & 0xffffffff;
+    }
+    if (this.z !== null) {
+      h = (h * 31 + hashFloat(this.z)) & 0xffffffff;
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -1992,7 +2132,28 @@ export class Grid extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashInt(this.columns)) & 0xffffffff;
+    h = (h * 31 + hashInt(this.rows)) & 0xffffffff;
+    if (this.columnWidth !== null) {
+      h = (h * 31 + this.columnWidth.hash()) & 0xffffffff;
+    }
+    if (this.columnMinWidth !== null) {
+      h = (h * 31 + this.columnMinWidth.hash()) & 0xffffffff;
+    }
+    if (this.rowHeight !== null) {
+      h = (h * 31 + this.rowHeight.hash()) & 0xffffffff;
+    }
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {
@@ -2236,7 +2397,19 @@ export class GridSpan extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashInt(this.columns)) & 0xffffffff;
+    h = (h * 31 + hashInt(this.rows)) & 0xffffffff;
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {

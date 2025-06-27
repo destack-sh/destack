@@ -21,6 +21,7 @@ import {
   timedeltaFromISOFormat,
   timedeltaToISOFormat,
 } from "@destack/utils";
+import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2500 ==== */
@@ -105,7 +106,19 @@ export class Value extends StructFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type.hash()) & 0xffffffff;
+    h = (h * 31 + hashString(JSON.stringify(this.value))) & 0xffffffff;
+    return h;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
   }
 
   validate(): void {

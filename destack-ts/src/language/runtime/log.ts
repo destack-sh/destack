@@ -20,6 +20,7 @@ import { registerEnumClass, registerNodeClass } from "@destack/language/registry
 import { Space } from "@destack/language/space";
 import { LogLevelProto, LogProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
+import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:4100 ==== */
@@ -248,7 +249,32 @@ export class Log extends Node implements Spatial, Analytic, IsFrozen {
   }
 
   hash(): number {
-    throw new Error("not implemented");
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.content)) & 0xffffffff;
+    if (this.attributes && Object.keys(this.attributes).length > 0) {
+      for (const [_key, _value] of Object.entries(this.attributes)) {
+        h = (h * 31 + hashString(_key)) & 0xffffffff;
+        h = (h * 31 + hashString(JSON.stringify(_value))) & 0xffffffff;
+      }
+    }
+    h = (h * 31 + this.level) & 0xffffffff;
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    return h;
   }
 
   validate(): void {
