@@ -29,37 +29,6 @@ import { base64Decode } from "@destack/utils";
 import { hashFloat, hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:12030 ==== */
-/**
- * ShadowType
- */
-export enum ShadowType {
-  STYLE = 2,
-  BOX = 10,
-  REALISTIC = 11,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.SHADOW_TYPE, ShadowType);
-/* ==== DESTACK_GENERATED_END:ENUM:12030 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:12031 ==== */
-/**
- * ShadowPosition
- */
-export enum ShadowPosition {
-  OUTSIDE = 1,
-  INSIDE = 2,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.SHADOW_POSITION, ShadowPosition);
-/* ==== DESTACK_GENERATED_END:ENUM:12031 ==== */
-
 /* ==== DESTACK_GENERATED_START:STRUCT:12012 ==== */
 /**
  * A shadow value.
@@ -69,7 +38,7 @@ export class Shadow extends Struct {
   static __isFrozen__: boolean = false;
 
   /**
-   * ShadowBase.type
+   * Shadow.type
    */
   type: ShadowType;
 
@@ -96,32 +65,32 @@ export class Shadow extends Struct {
   stylePtr: NodeReference | null;
 
   /**
-   * ShadowBase.color
+   * Shadow.color
    */
   color: Color | null;
 
   /**
-   * ShadowBase.position
+   * Shadow.position
    */
   position: ShadowPosition;
 
   /**
-   * ShadowBase.offset
+   * Shadow.offset
    */
   offset: Axis2 | null;
 
   /**
-   * ShadowBase.blur
+   * Shadow.blur
    */
   blur: number | null;
 
   /**
-   * ShadowBase.spread
+   * Shadow.spread
    */
   spread: number | null;
 
   /**
-   * ShadowBase.diffusion
+   * Shadow.diffusion
    */
   diffusion: number | null;
 
@@ -185,10 +154,10 @@ export class Shadow extends Struct {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.stylePtr?.id === other.stylePtr?.id)) {
+    if (!(this.type === other.type)) {
       return false;
     }
-    if (!(this.type === other.type)) {
+    if (!(this.stylePtr?.id === other.stylePtr?.id)) {
       return false;
     }
     if (
@@ -224,10 +193,10 @@ export class Shadow extends Struct {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`type=${ShadowType[this.type]}`);
     if (this.style !== null) {
       propertyReprs.push(`style=${this.style.repr()}`);
     }
-    propertyReprs.push(`type=${ShadowType[this.type]}`);
     if (this.color !== null) {
       propertyReprs.push(`color=${this.color.repr()}`);
     }
@@ -250,10 +219,10 @@ export class Shadow extends Struct {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
     if (this.stylePtr !== null) {
       h = (h * 31 + hashString(this.stylePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + this.type) & 0xffffffff;
     if (this.color !== null) {
       h = (h * 31 + this.color.hash()) & 0xffffffff;
     }
@@ -337,8 +306,8 @@ export class Shadow extends Struct {
     const diffusionValue = objectValue["55"];
     const unpackedDiffusion = diffusionValue != undefined ? diffusionValue : null;
     return new Shadow({
-      style: unpackedStylePtr,
       type: Number(objectValue["30"]),
+      style: unpackedStylePtr,
       color: unpackedColor,
       position: Number(objectValue["51"]),
       offset: unpackedOffset,
@@ -396,6 +365,7 @@ export class Shadow extends Struct {
     _connection?: any | null,
   ): Shadow {
     return new Shadow({
+      type: Number(objectProto.type) as ShadowType,
       style:
         objectProto.stylePtr != undefined
           ? NodeReference.fromProto(
@@ -406,7 +376,6 @@ export class Shadow extends Struct {
               _connection,
             )
           : null,
-      type: Number(objectProto.type) as ShadowType,
       color:
         objectProto.color != undefined
           ? Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
@@ -446,7 +415,38 @@ export class Shadow extends Struct {
 registerStructClass(StructType.SHADOW, Shadow);
 /* ==== DESTACK_GENERATED_END:STRUCT:12012 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:12024 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:12060 ==== */
+/**
+ * ShadowType
+ */
+export enum ShadowType {
+  STYLE = 2,
+  BOX = 10,
+  REALISTIC = 11,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.SHADOW_TYPE, ShadowType);
+/* ==== DESTACK_GENERATED_END:ENUM:12060 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:12061 ==== */
+/**
+ * ShadowPosition
+ */
+export enum ShadowPosition {
+  OUTSIDE = 1,
+  INSIDE = 2,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.SHADOW_POSITION, ShadowPosition);
+/* ==== DESTACK_GENERATED_END:ENUM:12061 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:12060 ==== */
 /**
  * A shadow style.
  */
@@ -578,7 +578,7 @@ export class ShadowStyle extends Node implements Style {
   readonly orderKey: string;
 
   /**
-   * ShadowBase.type
+   * ShadowStyle.type
    */
   type: ShadowType;
 
@@ -588,32 +588,32 @@ export class ShadowStyle extends Node implements Style {
   name: string;
 
   /**
-   * ShadowBase.color
+   * ShadowStyle.color
    */
   color: Color | null;
 
   /**
-   * ShadowBase.position
+   * ShadowStyle.position
    */
   position: ShadowPosition;
 
   /**
-   * ShadowBase.offset
+   * ShadowStyle.offset
    */
   offset: Axis2 | null;
 
   /**
-   * ShadowBase.blur
+   * ShadowStyle.blur
    */
   blur: number | null;
 
   /**
-   * ShadowBase.spread
+   * ShadowStyle.spread
    */
   spread: number | null;
 
   /**
-   * ShadowBase.diffusion
+   * ShadowStyle.diffusion
    */
   diffusion: number | null;
 
@@ -750,12 +750,6 @@ export class ShadowStyle extends Node implements Style {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
     if (!(this.type === other.type)) {
       return false;
     }
@@ -787,12 +781,35 @@ export class ShadowStyle extends Node implements Style {
     ) {
       return false;
     }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
     return true;
   }
 
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.color !== null) {
+      h = (h * 31 + this.color.hash()) & 0xffffffff;
+    }
+    h = (h * 31 + this.position) & 0xffffffff;
+    if (this.offset !== null) {
+      h = (h * 31 + this.offset.hash()) & 0xffffffff;
+    }
+    if (this.blur !== null) {
+      h = (h * 31 + hashInt(this.blur)) & 0xffffffff;
+    }
+    if (this.spread !== null) {
+      h = (h * 31 + hashInt(this.spread)) & 0xffffffff;
+    }
+    if (this.diffusion !== null) {
+      h = (h * 31 + hashFloat(this.diffusion)) & 0xffffffff;
+    }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -812,23 +829,6 @@ export class ShadowStyle extends Node implements Style {
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    }
-    h = (h * 31 + this.type) & 0xffffffff;
-    if (this.color !== null) {
-      h = (h * 31 + this.color.hash()) & 0xffffffff;
-    }
-    h = (h * 31 + this.position) & 0xffffffff;
-    if (this.offset !== null) {
-      h = (h * 31 + this.offset.hash()) & 0xffffffff;
-    }
-    if (this.blur !== null) {
-      h = (h * 31 + hashInt(this.blur)) & 0xffffffff;
-    }
-    if (this.spread !== null) {
-      h = (h * 31 + hashInt(this.spread)) & 0xffffffff;
-    }
-    if (this.diffusion !== null) {
-      h = (h * 31 + hashFloat(this.diffusion)) & 0xffffffff;
     }
 
     return h;
@@ -867,7 +867,6 @@ export class ShadowStyle extends Node implements Style {
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${this.name}`);
     propertyReprs.push(`type=${ShadowType[this.type]}`);
     if (this.color !== null) {
       propertyReprs.push(`color=${this.color.repr()}`);
@@ -885,6 +884,7 @@ export class ShadowStyle extends Node implements Style {
     if (this.diffusion !== null) {
       propertyReprs.push(`diffusion=${this.diffusion}`);
     }
+    propertyReprs.push(`name=${this.name}`);
     return `<ShadowStyle '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
@@ -894,7 +894,7 @@ export class ShadowStyle extends Node implements Style {
 
   static __packValue__(object: ShadowStyle): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 12024;
+    objectValue["1"] = 12060;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -942,6 +942,22 @@ export class ShadowStyle extends Node implements Style {
     _graph?: any | null,
     _connection?: any | null,
   ): ShadowStyle {
+    const colorValue = objectValue["50"];
+    const unpackedColor =
+      colorValue != undefined
+        ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const offsetValue = objectValue["52"];
+    const unpackedOffset =
+      offsetValue != undefined
+        ? Axis2.fromValue(offsetValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const blurValue = objectValue["53"];
+    const unpackedBlur = blurValue != undefined ? Number(blurValue) : null;
+    const spreadValue = objectValue["54"];
+    const unpackedSpread = spreadValue != undefined ? Number(spreadValue) : null;
+    const diffusionValue = objectValue["55"];
+    const unpackedDiffusion = diffusionValue != undefined ? diffusionValue : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -967,23 +983,14 @@ export class ShadowStyle extends Node implements Style {
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const colorValue = objectValue["50"];
-    const unpackedColor =
-      colorValue != undefined
-        ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const offsetValue = objectValue["52"];
-    const unpackedOffset =
-      offsetValue != undefined
-        ? Axis2.fromValue(offsetValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const blurValue = objectValue["53"];
-    const unpackedBlur = blurValue != undefined ? Number(blurValue) : null;
-    const spreadValue = objectValue["54"];
-    const unpackedSpread = spreadValue != undefined ? Number(spreadValue) : null;
-    const diffusionValue = objectValue["55"];
-    const unpackedDiffusion = diffusionValue != undefined ? diffusionValue : null;
     return new ShadowStyle({
+      type: Number(objectValue["30"]),
+      color: unpackedColor,
+      position: Number(objectValue["51"]),
+      offset: unpackedOffset,
+      blur: unpackedBlur,
+      spread: unpackedSpread,
+      diffusion: unpackedDiffusion,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -994,13 +1001,6 @@ export class ShadowStyle extends Node implements Style {
       name: objectValue["31"],
       orderKey: objectValue["22"],
       deletedAt: unpackedDeletedAt,
-      type: Number(objectValue["30"]),
-      color: unpackedColor,
-      position: Number(objectValue["51"]),
-      offset: unpackedOffset,
-      blur: unpackedBlur,
-      spread: unpackedSpread,
-      diffusion: unpackedDiffusion,
       _session,
       _graph,
       _connection,
@@ -1022,7 +1022,7 @@ export class ShadowStyle extends Node implements Style {
   }
 
   static __packProto__(object: ShadowStyle): ShadowStyleProto {
-    const objectProto: Partial<ShadowStyleProto> = { metatype: 12024 };
+    const objectProto: Partial<ShadowStyleProto> = { metatype: 12060 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1071,6 +1071,19 @@ export class ShadowStyle extends Node implements Style {
     _connection?: any | null,
   ): ShadowStyle {
     return new ShadowStyle({
+      type: Number(objectProto.type) as ShadowType,
+      color:
+        objectProto.color != undefined
+          ? Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
+          : null,
+      position: Number(objectProto.position) as ShadowPosition,
+      offset:
+        objectProto.offset != undefined
+          ? Axis2.fromProto(objectProto.offset!, _session, _supergraph, _graph, _connection)
+          : null,
+      blur: objectProto.blur != undefined ? Number(objectProto.blur) : null,
+      spread: objectProto.spread != undefined ? Number(objectProto.spread) : null,
+      diffusion: objectProto.diffusion != undefined ? objectProto.diffusion : null,
       parent:
         objectProto.parentPtr != undefined
           ? NodeReference.fromProto(
@@ -1118,19 +1131,6 @@ export class ShadowStyle extends Node implements Style {
       orderKey: objectProto.orderKey,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
-      type: Number(objectProto.type) as ShadowType,
-      color:
-        objectProto.color != undefined
-          ? Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
-          : null,
-      position: Number(objectProto.position) as ShadowPosition,
-      offset:
-        objectProto.offset != undefined
-          ? Axis2.fromProto(objectProto.offset!, _session, _supergraph, _graph, _connection)
-          : null,
-      blur: objectProto.blur != undefined ? Number(objectProto.blur) : null,
-      spread: objectProto.spread != undefined ? Number(objectProto.spread) : null,
-      diffusion: objectProto.diffusion != undefined ? objectProto.diffusion : null,
       _session,
       _graph,
       _connection,
@@ -1158,4 +1158,4 @@ export class ShadowStyle extends Node implements Style {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SHADOW_STYLE, ShadowStyle);
-/* ==== DESTACK_GENERATED_END:NODE:12024 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:12060 ==== */

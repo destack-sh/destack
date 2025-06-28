@@ -35,7 +35,6 @@ import type {
   IsShape,
   Line,
   LineShape,
-  LineType,
   Polygon,
   PolygonShape,
   PolygonShapeType,
@@ -369,6 +368,7 @@ import type {
   ColorShade,
   ColorStyle,
   ColorType,
+  Easing,
   Effect,
   EffectStyle,
   EffectType,
@@ -394,6 +394,12 @@ import type {
   ShadowStyle,
   ShadowType,
   SpringType,
+  Stroke,
+  StrokeCap,
+  StrokePath,
+  StrokePoint,
+  StrokeStyle,
+  StrokeType,
   Style,
   TextAlign,
   TextDecoration,
@@ -571,6 +577,7 @@ export type NodeTypeMapping = {
   [NodeType.FONT_STYLE]: FontStyle;
   [NodeType.PALETTE]: Palette;
   [NodeType.SHADOW_STYLE]: ShadowStyle;
+  [NodeType.STROKE_STYLE]: StrokeStyle;
   [NodeType.THEME]: Theme;
 };
 
@@ -703,6 +710,10 @@ export type StructTypeMapping = {
   [StructType.FILL]: Fill;
   [StructType.FONT]: Font;
   [StructType.SHADOW]: Shadow;
+  [StructType.STROKE]: Stroke;
+  [StructType.STROKE_CAP]: StrokeCap;
+  [StructType.STROKE_POINT]: StrokePoint;
+  [StructType.STROKE_PATH]: StrokePath;
 };
 
 export type EnumTypeMapping = {
@@ -772,7 +783,6 @@ export type EnumTypeMapping = {
   [EnumType.SANCTION_TYPE]: SanctionType;
   [EnumType.ARROW_HEAD_TYPE]: ArrowHeadType;
   [EnumType.CANVAS_TYPE]: CanvasType;
-  [EnumType.LINE_TYPE]: LineType;
   [EnumType.POLYGON_SHAPE_TYPE]: PolygonShapeType;
   [EnumType.FILE_SOURCE]: FileSource;
   [EnumType.FILE_RETENTION_MODE]: FileRetentionMode;
@@ -811,6 +821,7 @@ export type EnumTypeMapping = {
   [EnumType.COLOR_SHADE]: ColorShade;
   [EnumType.COLOR_INTENT]: ColorIntent;
   [EnumType.BORDER_TYPE]: BorderType;
+  [EnumType.EASING]: Easing;
   [EnumType.TRANSITION_TYPE]: TransitionType;
   [EnumType.SPRING_TYPE]: SpringType;
   [EnumType.EFFECT_TYPE]: EffectType;
@@ -829,4 +840,5 @@ export type EnumTypeMapping = {
   [EnumType.TEXT_TRANSFORM]: TextTransform;
   [EnumType.SHADOW_TYPE]: ShadowType;
   [EnumType.SHADOW_POSITION]: ShadowPosition;
+  [EnumType.STROKE_TYPE]: StrokeType;
 };

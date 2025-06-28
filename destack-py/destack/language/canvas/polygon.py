@@ -1,3 +1,5 @@
+from typing import TYPE_CHECKING, Optional
+
 from destack.language.core import (
     Enum,
     EnumType,
@@ -15,6 +17,9 @@ from destack.proto import PolygonProto, PolygonShapeProto
 
 from ..view import ContainerView
 from .shape import IsShape
+
+if TYPE_CHECKING:
+    from destack.language import Stroke
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -42,3 +47,4 @@ class PolygonShape(ContainerView, IsShape, Node[PolygonShapeProto]):
 
     type: PolygonShapeType = property_(30, is_repr=True)
     points: list[Vector3] = property_(100)
+    stroke: Optional["Stroke"] = property_(101, is_repr=True)

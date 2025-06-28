@@ -20,6 +20,8 @@ const strokeOptions: Signal<StrokeOptions> = computed(() => ({
   smoothing: smoothing.value,
   streamline: streamline.value,
   simulatePressure: simulatePressure.value,
+  easing: EASINGS.linear,
+  last: false,
   start: {
     cap: true,
     taper: taperStart.value,
@@ -34,10 +36,6 @@ const strokeOptions: Signal<StrokeOptions> = computed(() => ({
 
 export const Canvas: React.FC = () => {
   const currentLine = useSignal<Line | null>(null);
-  const points = useSignal({
-    type: LineType.SOLID,
-    points: [] as Vector3[],
-  });
   const lines = useSignal<Line[]>([]);
 
   const svgRef = useRef<SVGSVGElement>(null);
@@ -66,20 +64,14 @@ export const Canvas: React.FC = () => {
   const handleMouseMove = (event: React.MouseEvent<SVGSVGElement>) => {
     if (!isDrawing.value || !currentLine.value) return;
     const currentPoint = getMousePosition(event);
-    currentLine.value = new Line({
-      type: LineType.SOLID,
-      points: [...currentLine.value.points, currentPoint],
-    });
-    points.value = {
-      type: LineType.SOLID,
-      points: [...points.value.points, currentPoint],
-    };
-    console.log(
-      "mouse move",
-      points.value.points.length,
-      currentLine.value.points.length,
-      currentPoint.repr(),
-    );
+    const lastPoint = currentLine.value.points[currentLine.value.points.length - 1];
+    if (lastPoint.x !== currentPoint.x || lastPoint.y !== currentPoint.y) {
+      currentLine.value = new Line({
+        type: LineType.SOLID,
+        points: [...currentLine.value.points, currentPoint],
+      });
+      console.log("mouse move", currentLine.value.points.length, currentPoint.repr());
+    }
   };
 
   // finish drawing on mouse up
@@ -117,9 +109,9 @@ export const Canvas: React.FC = () => {
             <label style={{ fontSize: "14px", minWidth: "60px" }}>Thinning:</label>
             <input
               type="range"
-              min="0"
+              min="-1"
               max="1"
-              step="0.1"
+              step="0.05"
               value={thinning.value}
               onChange={(e) => (thinning.value = Number(e.target.value))}
               style={{ width: "100px" }}
@@ -236,9 +228,9 @@ export const Canvas: React.FC = () => {
         {/* render current line being drawn */}
         {currentLine.value && currentLine.value.points.length > 1 && (
           <path
-            d={renderStroke(currentLine.value.points, { ...strokeOptions.value })}
+            d={renderStroke(currentLine.value.points, { ...strokeOptions.value, last: true })}
             fill="#94a3b8"
-            stroke="red"
+            stroke="none"
           />
         )}
       </svg>

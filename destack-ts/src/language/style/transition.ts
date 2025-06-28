@@ -28,37 +28,6 @@ import { base64Decode } from "@destack/utils";
 import { hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:12043 ==== */
-/**
- * TransitionType
- */
-export enum TransitionType {
-  STYLE = 2,
-  TWEEN = 10,
-  SPRING = 11,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.TRANSITION_TYPE, TransitionType);
-/* ==== DESTACK_GENERATED_END:ENUM:12043 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:12044 ==== */
-/**
- * SpringType
- */
-export enum SpringType {
-  TIME = 1,
-  PHYSICS = 2,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.SPRING_TYPE, SpringType);
-/* ==== DESTACK_GENERATED_END:ENUM:12044 ==== */
-
 /* ==== DESTACK_GENERATED_START:STRUCT:12024 ==== */
 /**
  * A transition value.
@@ -68,7 +37,7 @@ export class Transition extends Struct {
   static __isFrozen__: boolean = false;
 
   /**
-   * TransitionBase.type
+   * Transition.type
    */
   type: TransitionType;
 
@@ -95,42 +64,42 @@ export class Transition extends Struct {
   stylePtr: NodeReference | null;
 
   /**
-   * TransitionBase.delay
+   * Transition.delay
    */
   delay: number | null;
 
   /**
-   * TransitionBase.duration
+   * Transition.duration
    */
   duration: number | null;
 
   /**
-   * TransitionBase.ease
+   * Transition.ease
    */
   ease: Array<number>;
 
   /**
-   * TransitionBase.stiffness
+   * Transition.stiffness
    */
   stiffness: number | null;
 
   /**
-   * TransitionBase.damping
+   * Transition.damping
    */
   damping: number | null;
 
   /**
-   * TransitionBase.mass
+   * Transition.mass
    */
   mass: number | null;
 
   /**
-   * TransitionBase.bounce
+   * Transition.bounce
    */
   bounce: number | null;
 
   /**
-   * TransitionBase.springType
+   * Transition.springType
    */
   springType: SpringType | null;
 
@@ -197,10 +166,10 @@ export class Transition extends Struct {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.stylePtr?.id === other.stylePtr?.id)) {
+    if (!(this.type === other.type)) {
       return false;
     }
-    if (!(this.type === other.type)) {
+    if (!(this.stylePtr?.id === other.stylePtr?.id)) {
       return false;
     }
     if (
@@ -260,10 +229,10 @@ export class Transition extends Struct {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`type=${TransitionType[this.type]}`);
     if (this.style !== null) {
       propertyReprs.push(`style=${this.style.repr()}`);
     }
-    propertyReprs.push(`type=${TransitionType[this.type]}`);
     if (this.delay !== null) {
       propertyReprs.push(`delay=${this.delay}`);
     }
@@ -294,10 +263,10 @@ export class Transition extends Struct {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
     if (this.stylePtr !== null) {
       h = (h * 31 + hashString(this.stylePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + this.type) & 0xffffffff;
     if (this.delay !== null) {
       h = (h * 31 + hashFloat(this.delay)) & 0xffffffff;
     }
@@ -407,8 +376,8 @@ export class Transition extends Struct {
     const springTypeValue = objectValue["57"];
     const unpackedSpringType = springTypeValue != undefined ? Number(springTypeValue) : null;
     return new Transition({
-      style: unpackedStylePtr,
       type: Number(objectValue["30"]),
+      style: unpackedStylePtr,
       delay: unpackedDelay,
       duration: unpackedDuration,
       ease: unpackedEase,
@@ -486,6 +455,7 @@ export class Transition extends Struct {
       }
     }
     return new Transition({
+      type: Number(objectProto.type) as TransitionType,
       style:
         objectProto.stylePtr != undefined
           ? NodeReference.fromProto(
@@ -496,7 +466,6 @@ export class Transition extends Struct {
               _connection,
             )
           : null,
-      type: Number(objectProto.type) as TransitionType,
       delay: objectProto.delay != undefined ? objectProto.delay : null,
       duration: objectProto.duration != undefined ? objectProto.duration : null,
       ease: unpackedEase,
@@ -533,7 +502,38 @@ export class Transition extends Struct {
 registerStructClass(StructType.TRANSITION, Transition);
 /* ==== DESTACK_GENERATED_END:STRUCT:12024 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:12026 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:12080 ==== */
+/**
+ * TransitionType
+ */
+export enum TransitionType {
+  STYLE = 2,
+  TWEEN = 10,
+  SPRING = 11,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.TRANSITION_TYPE, TransitionType);
+/* ==== DESTACK_GENERATED_END:ENUM:12080 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:12081 ==== */
+/**
+ * SpringType
+ */
+export enum SpringType {
+  TIME = 1,
+  PHYSICS = 2,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.SPRING_TYPE, SpringType);
+/* ==== DESTACK_GENERATED_END:ENUM:12081 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:12080 ==== */
 /**
  * A transition style.
  */
@@ -665,7 +665,7 @@ export class TransitionStyle extends Node implements Style {
   readonly orderKey: string;
 
   /**
-   * TransitionBase.type
+   * TransitionStyle.type
    */
   type: TransitionType;
 
@@ -675,42 +675,42 @@ export class TransitionStyle extends Node implements Style {
   name: string;
 
   /**
-   * TransitionBase.delay
+   * TransitionStyle.delay
    */
   delay: number | null;
 
   /**
-   * TransitionBase.duration
+   * TransitionStyle.duration
    */
   duration: number | null;
 
   /**
-   * TransitionBase.ease
+   * TransitionStyle.ease
    */
   ease: Array<number>;
 
   /**
-   * TransitionBase.stiffness
+   * TransitionStyle.stiffness
    */
   stiffness: number | null;
 
   /**
-   * TransitionBase.damping
+   * TransitionStyle.damping
    */
   damping: number | null;
 
   /**
-   * TransitionBase.mass
+   * TransitionStyle.mass
    */
   mass: number | null;
 
   /**
-   * TransitionBase.bounce
+   * TransitionStyle.bounce
    */
   bounce: number | null;
 
   /**
-   * TransitionBase.springType
+   * TransitionStyle.springType
    */
   springType: SpringType | null;
 
@@ -850,12 +850,6 @@ export class TransitionStyle extends Node implements Style {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
     if (!(this.type === other.type)) {
       return false;
     }
@@ -911,32 +905,18 @@ export class TransitionStyle extends Node implements Style {
     if (!(this.springType === other.springType)) {
       return false;
     }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
     return true;
   }
 
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
-    if (this.deletedAt !== null) {
-      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    }
     h = (h * 31 + this.type) & 0xffffffff;
     if (this.delay !== null) {
       h = (h * 31 + hashFloat(this.delay)) & 0xffffffff;
@@ -963,6 +943,26 @@ export class TransitionStyle extends Node implements Style {
     }
     if (this.springType !== null) {
       h = (h * 31 + this.springType) & 0xffffffff;
+    }
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    if (this.deletedAt !== null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
 
     return h;
@@ -1001,7 +1001,6 @@ export class TransitionStyle extends Node implements Style {
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${this.name}`);
     propertyReprs.push(`type=${TransitionType[this.type]}`);
     if (this.delay !== null) {
       propertyReprs.push(`delay=${this.delay}`);
@@ -1027,6 +1026,7 @@ export class TransitionStyle extends Node implements Style {
     if (this.springType !== null) {
       propertyReprs.push(`springType=${SpringType[this.springType]}`);
     }
+    propertyReprs.push(`name=${this.name}`);
     return `<TransitionStyle '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
@@ -1036,7 +1036,7 @@ export class TransitionStyle extends Node implements Style {
 
   static __packValue__(object: TransitionStyle): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 12026;
+    objectValue["1"] = 12080;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1096,6 +1096,26 @@ export class TransitionStyle extends Node implements Style {
     _graph?: any | null,
     _connection?: any | null,
   ): TransitionStyle {
+    const delayValue = objectValue["50"];
+    const unpackedDelay = delayValue != undefined ? delayValue : null;
+    const durationValue = objectValue["51"];
+    const unpackedDuration = durationValue != undefined ? durationValue : null;
+    const unpackedEase: any[] = [];
+    if (objectValue["52"] != undefined) {
+      for (const item of objectValue["52"]) {
+        unpackedEase.push(item);
+      }
+    }
+    const stiffnessValue = objectValue["53"];
+    const unpackedStiffness = stiffnessValue != undefined ? stiffnessValue : null;
+    const dampingValue = objectValue["54"];
+    const unpackedDamping = dampingValue != undefined ? dampingValue : null;
+    const massValue = objectValue["55"];
+    const unpackedMass = massValue != undefined ? massValue : null;
+    const bounceValue = objectValue["56"];
+    const unpackedBounce = bounceValue != undefined ? bounceValue : null;
+    const springTypeValue = objectValue["57"];
+    const unpackedSpringType = springTypeValue != undefined ? Number(springTypeValue) : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -1121,27 +1141,16 @@ export class TransitionStyle extends Node implements Style {
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const delayValue = objectValue["50"];
-    const unpackedDelay = delayValue != undefined ? delayValue : null;
-    const durationValue = objectValue["51"];
-    const unpackedDuration = durationValue != undefined ? durationValue : null;
-    const unpackedEase: any[] = [];
-    if (objectValue["52"] != undefined) {
-      for (const item of objectValue["52"]) {
-        unpackedEase.push(item);
-      }
-    }
-    const stiffnessValue = objectValue["53"];
-    const unpackedStiffness = stiffnessValue != undefined ? stiffnessValue : null;
-    const dampingValue = objectValue["54"];
-    const unpackedDamping = dampingValue != undefined ? dampingValue : null;
-    const massValue = objectValue["55"];
-    const unpackedMass = massValue != undefined ? massValue : null;
-    const bounceValue = objectValue["56"];
-    const unpackedBounce = bounceValue != undefined ? bounceValue : null;
-    const springTypeValue = objectValue["57"];
-    const unpackedSpringType = springTypeValue != undefined ? Number(springTypeValue) : null;
     return new TransitionStyle({
+      type: Number(objectValue["30"]),
+      delay: unpackedDelay,
+      duration: unpackedDuration,
+      ease: unpackedEase,
+      stiffness: unpackedStiffness,
+      damping: unpackedDamping,
+      mass: unpackedMass,
+      bounce: unpackedBounce,
+      springType: unpackedSpringType,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -1152,15 +1161,6 @@ export class TransitionStyle extends Node implements Style {
       name: objectValue["31"],
       orderKey: objectValue["22"],
       deletedAt: unpackedDeletedAt,
-      type: Number(objectValue["30"]),
-      delay: unpackedDelay,
-      duration: unpackedDuration,
-      ease: unpackedEase,
-      stiffness: unpackedStiffness,
-      damping: unpackedDamping,
-      mass: unpackedMass,
-      bounce: unpackedBounce,
-      springType: unpackedSpringType,
       _session,
       _graph,
       _connection,
@@ -1182,7 +1182,7 @@ export class TransitionStyle extends Node implements Style {
   }
 
   static __packProto__(object: TransitionStyle): TransitionStyleProto {
-    const objectProto: Partial<TransitionStyleProto> = { metatype: 12026 };
+    const objectProto: Partial<TransitionStyleProto> = { metatype: 12080 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1249,6 +1249,16 @@ export class TransitionStyle extends Node implements Style {
       }
     }
     return new TransitionStyle({
+      type: Number(objectProto.type) as TransitionType,
+      delay: objectProto.delay != undefined ? objectProto.delay : null,
+      duration: objectProto.duration != undefined ? objectProto.duration : null,
+      ease: unpackedEase,
+      stiffness: objectProto.stiffness != undefined ? objectProto.stiffness : null,
+      damping: objectProto.damping != undefined ? objectProto.damping : null,
+      mass: objectProto.mass != undefined ? objectProto.mass : null,
+      bounce: objectProto.bounce != undefined ? objectProto.bounce : null,
+      springType:
+        objectProto.springType != undefined ? (Number(objectProto.springType) as SpringType) : null,
       parent:
         objectProto.parentPtr != undefined
           ? NodeReference.fromProto(
@@ -1296,16 +1306,6 @@ export class TransitionStyle extends Node implements Style {
       orderKey: objectProto.orderKey,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
-      type: Number(objectProto.type) as TransitionType,
-      delay: objectProto.delay != undefined ? objectProto.delay : null,
-      duration: objectProto.duration != undefined ? objectProto.duration : null,
-      ease: unpackedEase,
-      stiffness: objectProto.stiffness != undefined ? objectProto.stiffness : null,
-      damping: objectProto.damping != undefined ? objectProto.damping : null,
-      mass: objectProto.mass != undefined ? objectProto.mass : null,
-      bounce: objectProto.bounce != undefined ? objectProto.bounce : null,
-      springType:
-        objectProto.springType != undefined ? (Number(objectProto.springType) as SpringType) : null,
       _session,
       _graph,
       _connection,
@@ -1333,4 +1333,4 @@ export class TransitionStyle extends Node implements Style {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TRANSITION_STYLE, TransitionStyle);
-/* ==== DESTACK_GENERATED_END:NODE:12026 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:12080 ==== */

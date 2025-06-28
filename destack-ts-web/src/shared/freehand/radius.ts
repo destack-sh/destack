@@ -1,4 +1,3 @@
-import { EASINGS } from "@destack-web/shared/easings";
 import { StrokeOptions, StrokePoint } from "@destack-web/shared/freehand/types";
 
 const RATE_OF_PRESSURE_CHANGE = 0.275;
@@ -11,17 +10,9 @@ export function setStrokePointRadii(
   strokePoints: StrokePoint[],
   options: StrokeOptions,
 ): StrokePoint[] {
-  const {
-    size = 16,
-    thinning = 0.5,
-    simulatePressure = true,
-    easing = (t) => t,
-    start = {},
-    end = {},
-  } = options;
-
-  const { easing: taperStartEase = EASINGS.easeOutQuad } = start;
-  const { easing: taperEndEase = EASINGS.easeOutCubic } = end;
+  const { size, thinning, simulatePressure, easing, start, end } = options;
+  const { easing: taperStartEase } = start;
+  const { easing: taperEndEase } = end;
 
   const totalLength = strokePoints[strokePoints.length - 1].runningLength;
 
@@ -94,14 +85,12 @@ export function setStrokePointRadii(
       : start.taper === true
         ? Math.max(size, totalLength)
         : (start.taper as number);
-
   const taperEnd =
     end.taper === false
       ? 0
       : end.taper === true
         ? Math.max(size, totalLength)
         : (end.taper as number);
-
   if (taperStart || taperEnd) {
     for (let i = 0; i < strokePoints.length; i++) {
       strokePoint = strokePoints[i];
@@ -120,16 +109,4 @@ export function setStrokePointRadii(
   }
 
   return strokePoints;
-}
-
-/**
- * Compute radius based on pressure.
- */
-export function getStrokeRadius(
-  size: number,
-  thinning: number,
-  pressure: number,
-  easing: (t: number) => number = (t) => t,
-) {
-  return size * easing(0.5 - thinning * (0.5 - pressure));
 }

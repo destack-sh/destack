@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
     Axis2,
-    BuiltinObjectMutable,
     Enum,
     EnumType,
     Node,
@@ -12,7 +11,6 @@ from destack.language.core import (
     builtin_enum,
     builtin_node,
     builtin_struct,
-    object_,
     property_,
 )
 from destack.proto import ShadowStyleProto
@@ -30,7 +28,6 @@ if TYPE_CHECKING:
 class ShadowType(Enum):
     """Built-in shadow types."""
 
-    STYLE = 2
     BOX = 10
     REALISTIC = 11
 
@@ -43,9 +40,12 @@ class ShadowPosition(Enum):
     INSIDE = 2
 
 
-@object_()
-class ShadowBase(BuiltinObjectMutable):
+@builtin_struct(StructType.SHADOW)
+class Shadow(StructMutable):
+    """A shadow value."""
+
     type: ShadowType = property_(30, default=ShadowType.BOX, is_repr=True)
+    style: Optional["ShadowStyle"] = property_(41, is_repr=True)
     color: Optional["Color"] = property_(50, is_repr=True)
     position: ShadowPosition = property_(51, default=ShadowPosition.OUTSIDE, is_repr=True)
     offset: Optional[Axis2] = property_(52, is_repr=True)
@@ -54,19 +54,17 @@ class ShadowBase(BuiltinObjectMutable):
     diffusion: float | None = property_(55, is_repr=True)
 
 
-@builtin_struct(StructType.SHADOW)
-class Shadow(ShadowBase, StructMutable):
-    """A shadow value."""
-
-    style: Optional["ShadowStyle"] = property_(41, is_repr=True)
-
-
 @builtin_node(NodeType.SHADOW_STYLE)
 class ShadowStyle(
     Style,
-    ShadowBase,
     Node[ShadowStyleProto],
 ):
     """A shadow style."""
 
-    pass
+    type: ShadowType = property_(30, default=ShadowType.BOX, is_repr=True)
+    color: Optional["Color"] = property_(50, is_repr=True)
+    position: ShadowPosition = property_(51, default=ShadowPosition.OUTSIDE, is_repr=True)
+    offset: Optional[Axis2] = property_(52, is_repr=True)
+    blur: int | None = property_(53, is_repr=True)
+    spread: int | None = property_(54, is_repr=True)
+    diffusion: float | None = property_(55, is_repr=True)

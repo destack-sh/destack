@@ -248,6 +248,31 @@ enum DistributeProto {
   DISTRIBUTE_SPACE_EVENLY = 6;
 }
 
+// Built-in easing types.
+enum EasingProto {
+  EASING_UNSPECIFIED = 0;
+  EASING_LINEAR = 1;
+  EASING_EASE_IN_QUAD = 10;
+  EASING_EASE_OUT_QUAD = 11;
+  EASING_EASE_IN_OUT_QUAD = 12;
+  EASING_EASE_IN_CUBIC = 20;
+  EASING_EASE_OUT_CUBIC = 21;
+  EASING_EASE_IN_OUT_CUBIC = 22;
+  EASING_EASE_IN_QUART = 30;
+  EASING_EASE_OUT_QUART = 31;
+  EASING_EASE_IN_OUT_QUART = 32;
+  EASING_EASE_IN_QUINT = 40;
+  EASING_EASE_OUT_QUINT = 41;
+  EASING_EASE_IN_OUT_QUINT = 42;
+  EASING_EASE_IN_SINE = 50;
+  EASING_EASE_OUT_SINE = 51;
+  EASING_EASE_IN_OUT_SINE = 52;
+  EASING_EASE_IN_EXPO = 60;
+  EASING_EASE_OUT_EXPO = 61;
+  EASING_EASE_IN_OUT_EXPO = 62;
+  EASING_EASE_PEN = 70;
+}
+
 enum EdgeDirectionProto {
   EDGE_DIRECTION_UNSPECIFIED = 0;
   EDGE_DIRECTION_PARENT = 1;
@@ -372,40 +397,41 @@ enum EnumTypeProto {
   ENUM_TYPE_TOOL_TYPE = 9501;
   ENUM_TYPE_MOUSE_BUTTON = 9510;
   ENUM_TYPE_CANVAS_TYPE = 11000;
-  ENUM_TYPE_LINE_TYPE = 11010;
-  ENUM_TYPE_POLYGON_SHAPE_TYPE = 11011;
-  ENUM_TYPE_ARROW_HEAD_TYPE = 11012;
-  ENUM_TYPE_POSITION_TYPE = 12000;
+  ENUM_TYPE_POLYGON_SHAPE_TYPE = 11010;
+  ENUM_TYPE_ARROW_HEAD_TYPE = 11011;
   ENUM_TYPE_COLOR_TYPE = 12020;
   ENUM_TYPE_COLOR_SHADE = 12021;
   ENUM_TYPE_COLOR_HUE = 12022;
   ENUM_TYPE_COLOR_INTENT = 12023;
-  ENUM_TYPE_FONT_WEIGHT = 12024;
-  ENUM_TYPE_FONT_SIZE = 12025;
-  ENUM_TYPE_FONT_TYPE = 12026;
-  ENUM_TYPE_TEXT_ALIGN = 12027;
-  ENUM_TYPE_TEXT_DECORATION = 12028;
-  ENUM_TYPE_TEXT_TRANSFORM = 12029;
-  ENUM_TYPE_SHADOW_TYPE = 12030;
-  ENUM_TYPE_SHADOW_POSITION = 12031;
-  ENUM_TYPE_BORDER_TYPE = 12032;
-  ENUM_TYPE_GRADIENT_TYPE = 12033;
-  ENUM_TYPE_FILL_TYPE = 12034;
-  ENUM_TYPE_FILL_POSITION = 12035;
-  ENUM_TYPE_FILL_SIZE = 12036;
-  ENUM_TYPE_LENGTH_UNIT = 12037;
-  ENUM_TYPE_LAYOUT = 12038;
-  ENUM_TYPE_DISTRIBUTE = 12039;
-  ENUM_TYPE_ALIGN = 12040;
-  ENUM_TYPE_DIRECTION = 12041;
-  ENUM_TYPE_OVERFLOW = 12042;
-  ENUM_TYPE_TRANSITION_TYPE = 12043;
-  ENUM_TYPE_SPRING_TYPE = 12044;
-  ENUM_TYPE_DIMENSION_TYPE = 12045;
-  ENUM_TYPE_EFFECT_TYPE = 12046;
-  ENUM_TYPE_REPEAT_TYPE = 12047;
-  ENUM_TYPE_TEXT_SPLIT_TYPE = 12048;
-  ENUM_TYPE_OFFSCREEN_BEHAVIOR = 12049;
+  ENUM_TYPE_FILL_TYPE = 12030;
+  ENUM_TYPE_FILL_POSITION = 12031;
+  ENUM_TYPE_FILL_SIZE = 12032;
+  ENUM_TYPE_FONT_TYPE = 12040;
+  ENUM_TYPE_FONT_WEIGHT = 12041;
+  ENUM_TYPE_FONT_SIZE = 12042;
+  ENUM_TYPE_TEXT_ALIGN = 12043;
+  ENUM_TYPE_TEXT_DECORATION = 12044;
+  ENUM_TYPE_TEXT_TRANSFORM = 12045;
+  ENUM_TYPE_BORDER_TYPE = 12050;
+  ENUM_TYPE_SHADOW_TYPE = 12060;
+  ENUM_TYPE_SHADOW_POSITION = 12061;
+  ENUM_TYPE_GRADIENT_TYPE = 12070;
+  ENUM_TYPE_TRANSITION_TYPE = 12080;
+  ENUM_TYPE_SPRING_TYPE = 12081;
+  ENUM_TYPE_EFFECT_TYPE = 12090;
+  ENUM_TYPE_STROKE_TYPE = 12100;
+  ENUM_TYPE_POSITION_TYPE = 12110;
+  ENUM_TYPE_LENGTH_UNIT = 12111;
+  ENUM_TYPE_LAYOUT = 12112;
+  ENUM_TYPE_DISTRIBUTE = 12113;
+  ENUM_TYPE_ALIGN = 12114;
+  ENUM_TYPE_DIRECTION = 12115;
+  ENUM_TYPE_OVERFLOW = 12116;
+  ENUM_TYPE_DIMENSION_TYPE = 12117;
+  ENUM_TYPE_REPEAT_TYPE = 12118;
+  ENUM_TYPE_TEXT_SPLIT_TYPE = 12119;
+  ENUM_TYPE_OFFSCREEN_BEHAVIOR = 12120;
+  ENUM_TYPE_EASING = 12121;
   ENUM_TYPE_ENUM_TYPE = 50000;
   ENUM_TYPE_NODE_TYPE = 50001;
   ENUM_TYPE_STRUCT_TYPE = 50002;
@@ -726,13 +752,6 @@ enum LengthUnitProto {
   LENGTH_UNIT_FR = 4;
 }
 
-enum LineTypeProto {
-  LINE_TYPE_UNSPECIFIED = 0;
-  LINE_TYPE_SOLID = 1;
-  LINE_TYPE_DASHED = 2;
-  LINE_TYPE_DOTTED = 3;
-}
-
 enum LinkTypeProto {
   LINK_TYPE_UNSPECIFIED = 0;
   LINK_TYPE_WEB = 1;
@@ -977,13 +996,14 @@ enum NodeTypeProto {
   NODE_TYPE_THEME = 12000;
   NODE_TYPE_PALETTE = 12010;
   NODE_TYPE_COLOR_STYLE = 12020;
-  NODE_TYPE_FILL_STYLE = 12021;
-  NODE_TYPE_FONT_STYLE = 12022;
-  NODE_TYPE_BORDER_STYLE = 12023;
-  NODE_TYPE_SHADOW_STYLE = 12024;
-  NODE_TYPE_GRADIENT_STYLE = 12025;
-  NODE_TYPE_TRANSITION_STYLE = 12026;
-  NODE_TYPE_EFFECT_STYLE = 12027;
+  NODE_TYPE_FILL_STYLE = 12030;
+  NODE_TYPE_FONT_STYLE = 12040;
+  NODE_TYPE_BORDER_STYLE = 12050;
+  NODE_TYPE_SHADOW_STYLE = 12060;
+  NODE_TYPE_GRADIENT_STYLE = 12070;
+  NODE_TYPE_TRANSITION_STYLE = 12080;
+  NODE_TYPE_EFFECT_STYLE = 12090;
+  NODE_TYPE_STROKE_STYLE = 12100;
 }
 
 // A Status of a Notification.
@@ -1321,6 +1341,13 @@ enum StringFormatProto {
   STRING_FORMAT_BASE64 = 20;
 }
 
+enum StrokeTypeProto {
+  STROKE_TYPE_UNSPECIFIED = 0;
+  STROKE_TYPE_SOLID = 1;
+  STROKE_TYPE_DASHED = 2;
+  STROKE_TYPE_DOTTED = 3;
+}
+
 enum StructTypeProto {
   STRUCT_TYPE_UNSPECIFIED = 0;
   STRUCT_TYPE_VALUE = 2500;
@@ -1354,6 +1381,10 @@ enum StructTypeProto {
   STRUCT_TYPE_GRID_SPAN = 12028;
   STRUCT_TYPE_INSETS = 12030;
   STRUCT_TYPE_CORNERS = 12032;
+  STRUCT_TYPE_STROKE = 12100;
+  STRUCT_TYPE_STROKE_CAP = 12101;
+  STRUCT_TYPE_STROKE_PATH = 12102;
+  STRUCT_TYPE_STROKE_POINT = 12103;
   STRUCT_TYPE_SCOPE = 50000;
   STRUCT_TYPE_ORIGIN = 50001;
   STRUCT_TYPE_NODE_REFERENCE = 50002;
@@ -3273,9 +3304,8 @@ message LengthProto {
 
 message LineProto {
   StructTypeProto metatype = 1;
-  LineTypeProto type = 30;
   repeated Vector3Proto points = 100;
-  optional ColorProto color = 101;
+  optional StrokeProto stroke = 101;
 }
 
 // A LineShape is a shape that represents a line.
@@ -3290,7 +3320,6 @@ message LineShapeProto {
   optional NodeReferenceProto updated_by_ptr = 18;
   optional google.protobuf.Timestamp deleted_at = 20;
   string order_key = 22;
-  LineTypeProto type = 30;
   string name = 31;
   optional PositionProto position = 40;
   optional DimensionProto width = 41;
@@ -3303,7 +3332,7 @@ message LineShapeProto {
   optional bool is_visible = 60;
   optional double opacity = 61;
   repeated Vector3Proto points = 100;
-  optional ColorProto color = 101;
+  optional StrokeProto stroke = 101;
   optional NodeReferenceProto script_ptr = 200;
 }
 
@@ -3904,6 +3933,7 @@ message PolygonShapeProto {
   optional BorderProto border = 67;
   optional CornersProto radius = 68;
   repeated Vector3Proto points = 100;
+  optional StrokeProto stroke = 101;
   optional NodeReferenceProto script_ptr = 200;
 }
 
@@ -4664,6 +4694,66 @@ message StringConstraintProto {
   optional string ends_with = 43;
 }
 
+message StrokeProto {
+  StructTypeProto metatype = 1;
+  StrokeTypeProto type = 30;
+  int64 size = 50 [jstype = JS_NUMBER];
+  double thinning = 51;
+  double smoothing = 52;
+  double streamline = 53;
+  bool simulate_pressure = 54;
+  EasingProto easing = 55;
+  optional StrokeCapProto start = 60;
+  optional StrokeCapProto end = 61;
+}
+
+message StrokeCapProto {
+  StructTypeProto metatype = 1;
+  bool cap = 50;
+  optional double taper = 51;
+  EasingProto easing = 52;
+}
+
+message StrokePathProto {
+  StructTypeProto metatype = 1;
+  repeated StrokePointProto points = 100;
+}
+
+message StrokePointProto {
+  StructTypeProto metatype = 1;
+  Vector2Proto point = 50;
+  Vector3Proto original_point = 51;
+  double pressure = 52;
+  Vector3Proto direction = 53;
+  double distance = 54;
+  double running_length = 55;
+  double radius = 56;
+}
+
+// A StrokeStyle.
+message StrokeStyleProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  google.protobuf.Timestamp created_at = 15;
+  optional NodeReferenceProto created_by_ptr = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  optional NodeReferenceProto updated_by_ptr = 18;
+  optional google.protobuf.Timestamp deleted_at = 20;
+  string order_key = 22;
+  StrokeTypeProto type = 30;
+  string name = 31;
+  int64 size = 50 [jstype = JS_NUMBER];
+  double thinning = 51;
+  double smoothing = 52;
+  double streamline = 53;
+  bool simulate_pressure = 54;
+  EasingProto easing = 55;
+  optional StrokeCapProto start = 60;
+  optional StrokeCapProto end = 61;
+}
+
 message StructDefinitionProto {
   StructTypeProto metatype = 1;
   int64 id = 2 [jstype = JS_NUMBER];
@@ -5303,13 +5393,14 @@ message SomeNodeProto {
     ThemeProto theme = 12000;
     PaletteProto palette = 12010;
     ColorStyleProto color_style = 12020;
-    FillStyleProto fill_style = 12021;
-    FontStyleProto font_style = 12022;
-    BorderStyleProto border_style = 12023;
-    ShadowStyleProto shadow_style = 12024;
-    GradientStyleProto gradient_style = 12025;
-    TransitionStyleProto transition_style = 12026;
-    EffectStyleProto effect_style = 12027;
+    FillStyleProto fill_style = 12030;
+    FontStyleProto font_style = 12040;
+    BorderStyleProto border_style = 12050;
+    ShadowStyleProto shadow_style = 12060;
+    GradientStyleProto gradient_style = 12070;
+    TransitionStyleProto transition_style = 12080;
+    EffectStyleProto effect_style = 12090;
+    StrokeStyleProto stroke_style = 12100;
   };
 }
 

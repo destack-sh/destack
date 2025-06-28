@@ -173,6 +173,7 @@ AnyNodeProto = Union[
     FontStyleProto,
     PaletteProto,
     ShadowStyleProto,
+    StrokeStyleProto,
     ThemeProto,
 ]
 AnyStructProto = Union[
@@ -244,5 +245,9 @@ AnyStructProto = Union[
     FillProto,
     FontProto,
     ShadowProto,
+    StrokeProto,
+    StrokeCapProto,
+    StrokePointProto,
+    StrokePathProto,
 ]
 AnyObjectProto = AnyNodeProto | AnyStructProto

@@ -36,75 +36,6 @@ import { base64Decode, timedeltaFromISOFormat, timedeltaToISOFormat } from "@des
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:12046 ==== */
-/**
- * EffectType
- */
-export enum EffectType {
-  STYLE = 2,
-  APPEAR = 10,
-  ENTER = 11,
-  EXIT = 12,
-  HOVER = 20,
-  PRESS = 21,
-  DRAG = 22,
-  FOCUS = 23,
-  LOOP = 30,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.EFFECT_TYPE, EffectType);
-/* ==== DESTACK_GENERATED_END:ENUM:12046 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:12047 ==== */
-/**
- * RepeatType
- */
-export enum RepeatType {
-  LOOP = 1,
-  REVERSE = 2,
-  MIRROR = 3,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.REPEAT_TYPE, RepeatType);
-/* ==== DESTACK_GENERATED_END:ENUM:12047 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:12048 ==== */
-/**
- * TextSplitType
- */
-export enum TextSplitType {
-  CHAR = 1,
-  WORD = 2,
-  LINE = 3,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.TEXT_SPLIT_TYPE, TextSplitType);
-/* ==== DESTACK_GENERATED_END:ENUM:12048 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:12049 ==== */
-/**
- * OffscreenBehavior
- */
-export enum OffscreenBehavior {
-  PLAY = 1,
-  PAUSE = 2,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.OFFSCREEN_BEHAVIOR, OffscreenBehavior);
-/* ==== DESTACK_GENERATED_END:ENUM:12049 ==== */
-
 /* ==== DESTACK_GENERATED_START:STRUCT:12025 ==== */
 /**
  * An effect value.
@@ -114,7 +45,7 @@ export class Effect extends Struct {
   static __isFrozen__: boolean = false;
 
   /**
-   * EffectBase.type
+   * Effect.type
    */
   type: EffectType;
 
@@ -141,72 +72,72 @@ export class Effect extends Struct {
   stylePtr: NodeReference | null;
 
   /**
-   * EffectBase.opacity
+   * Effect.opacity
    */
   opacity: number | null;
 
   /**
-   * EffectBase.offset
+   * Effect.offset
    */
   offset: Vector2 | null;
 
   /**
-   * EffectBase.scale
+   * Effect.scale
    */
   scale: number | null;
 
   /**
-   * EffectBase.rotate
+   * Effect.rotate
    */
   rotate: Axis3 | null;
 
   /**
-   * EffectBase.skew
+   * Effect.skew
    */
   skew: Vector2 | null;
 
   /**
-   * EffectBase.perspective
+   * Effect.perspective
    */
   perspective: number | null;
 
   /**
-   * EffectBase.delay
+   * Effect.delay
    */
   delay: Temporal.Duration | null;
 
   /**
-   * EffectBase.duration
+   * Effect.duration
    */
   duration: number | null;
 
   /**
-   * EffectBase.threshold
+   * Effect.threshold
    */
   threshold: number | null;
 
   /**
-   * EffectBase.once
+   * Effect.once
    */
   once: boolean | null;
 
   /**
-   * EffectBase.repeat
+   * Effect.repeat
    */
   repeat: RepeatType | null;
 
   /**
-   * EffectBase.split
+   * Effect.split
    */
   split: TextSplitType | null;
 
   /**
-   * EffectBase.offscreen
+   * Effect.offscreen
    */
   offscreen: OffscreenBehavior | null;
 
   /**
-   * EffectBase.transition
+   * Effect.transition
    */
   transition: Transition | null;
 
@@ -285,10 +216,10 @@ export class Effect extends Struct {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.stylePtr?.id === other.stylePtr?.id)) {
+    if (!(this.type === other.type)) {
       return false;
     }
-    if (!(this.type === other.type)) {
+    if (!(this.stylePtr?.id === other.stylePtr?.id)) {
       return false;
     }
     if (
@@ -373,10 +304,10 @@ export class Effect extends Struct {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`type=${EffectType[this.type]}`);
     if (this.style !== null) {
       propertyReprs.push(`style=${this.style.repr()}`);
     }
-    propertyReprs.push(`type=${EffectType[this.type]}`);
     if (this.opacity !== null) {
       propertyReprs.push(`opacity=${this.opacity}`);
     }
@@ -425,10 +356,10 @@ export class Effect extends Struct {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
     if (this.stylePtr !== null) {
       h = (h * 31 + hashString(this.stylePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + this.type) & 0xffffffff;
     if (this.opacity !== null) {
       h = (h * 31 + hashFloat(this.opacity)) & 0xffffffff;
     }
@@ -588,8 +519,8 @@ export class Effect extends Struct {
         ? Transition.fromValue(transitionValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Effect({
-      style: unpackedStylePtr,
       type: Number(objectValue["30"]),
+      style: unpackedStylePtr,
       opacity: unpackedOpacity,
       offset: unpackedOffset,
       scale: unpackedScale,
@@ -681,6 +612,7 @@ export class Effect extends Struct {
     _connection?: any | null,
   ): Effect {
     return new Effect({
+      type: Number(objectProto.type) as EffectType,
       style:
         objectProto.stylePtr != undefined
           ? NodeReference.fromProto(
@@ -691,7 +623,6 @@ export class Effect extends Struct {
               _connection,
             )
           : null,
-      type: Number(objectProto.type) as EffectType,
       opacity: objectProto.opacity != undefined ? objectProto.opacity : null,
       offset:
         objectProto.offset != undefined
@@ -754,7 +685,76 @@ export class Effect extends Struct {
 registerStructClass(StructType.EFFECT, Effect);
 /* ==== DESTACK_GENERATED_END:STRUCT:12025 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:12027 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:12090 ==== */
+/**
+ * EffectType
+ */
+export enum EffectType {
+  STYLE = 2,
+  APPEAR = 10,
+  ENTER = 11,
+  EXIT = 12,
+  HOVER = 20,
+  PRESS = 21,
+  DRAG = 22,
+  FOCUS = 23,
+  LOOP = 30,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.EFFECT_TYPE, EffectType);
+/* ==== DESTACK_GENERATED_END:ENUM:12090 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:12118 ==== */
+/**
+ * RepeatType
+ */
+export enum RepeatType {
+  LOOP = 1,
+  REVERSE = 2,
+  MIRROR = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.REPEAT_TYPE, RepeatType);
+/* ==== DESTACK_GENERATED_END:ENUM:12118 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:12119 ==== */
+/**
+ * TextSplitType
+ */
+export enum TextSplitType {
+  CHAR = 1,
+  WORD = 2,
+  LINE = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.TEXT_SPLIT_TYPE, TextSplitType);
+/* ==== DESTACK_GENERATED_END:ENUM:12119 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:12120 ==== */
+/**
+ * OffscreenBehavior
+ */
+export enum OffscreenBehavior {
+  PLAY = 1,
+  PAUSE = 2,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.OFFSCREEN_BEHAVIOR, OffscreenBehavior);
+/* ==== DESTACK_GENERATED_END:ENUM:12120 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:12090 ==== */
 /**
  * An effect style.
  */
@@ -886,7 +886,7 @@ export class EffectStyle extends Node implements Style {
   readonly orderKey: string;
 
   /**
-   * EffectBase.type
+   * EffectStyle.type
    */
   type: EffectType;
 
@@ -896,72 +896,72 @@ export class EffectStyle extends Node implements Style {
   name: string;
 
   /**
-   * EffectBase.opacity
+   * EffectStyle.opacity
    */
   opacity: number | null;
 
   /**
-   * EffectBase.offset
+   * EffectStyle.offset
    */
   offset: Vector2 | null;
 
   /**
-   * EffectBase.scale
+   * EffectStyle.scale
    */
   scale: number | null;
 
   /**
-   * EffectBase.rotate
+   * EffectStyle.rotate
    */
   rotate: Axis3 | null;
 
   /**
-   * EffectBase.skew
+   * EffectStyle.skew
    */
   skew: Vector2 | null;
 
   /**
-   * EffectBase.perspective
+   * EffectStyle.perspective
    */
   perspective: number | null;
 
   /**
-   * EffectBase.delay
+   * EffectStyle.delay
    */
   delay: Temporal.Duration | null;
 
   /**
-   * EffectBase.duration
+   * EffectStyle.duration
    */
   duration: number | null;
 
   /**
-   * EffectBase.threshold
+   * EffectStyle.threshold
    */
   threshold: number | null;
 
   /**
-   * EffectBase.once
+   * EffectStyle.once
    */
   once: boolean | null;
 
   /**
-   * EffectBase.repeat
+   * EffectStyle.repeat
    */
   repeat: RepeatType | null;
 
   /**
-   * EffectBase.split
+   * EffectStyle.split
    */
   split: TextSplitType | null;
 
   /**
-   * EffectBase.offscreen
+   * EffectStyle.offscreen
    */
   offscreen: OffscreenBehavior | null;
 
   /**
-   * EffectBase.transition
+   * EffectStyle.transition
    */
   transition: Transition | null;
 
@@ -1113,12 +1113,6 @@ export class EffectStyle extends Node implements Style {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
     if (!(this.type === other.type)) {
       return false;
     }
@@ -1199,32 +1193,18 @@ export class EffectStyle extends Node implements Style {
     ) {
       return false;
     }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
     return true;
   }
 
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
-    if (this.deletedAt !== null) {
-      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    }
     h = (h * 31 + this.type) & 0xffffffff;
     if (this.opacity !== null) {
       h = (h * 31 + hashFloat(this.opacity)) & 0xffffffff;
@@ -1268,6 +1248,26 @@ export class EffectStyle extends Node implements Style {
     if (this.transition !== null) {
       h = (h * 31 + this.transition.hash()) & 0xffffffff;
     }
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    if (this.deletedAt !== null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
 
     return h;
   }
@@ -1305,7 +1305,6 @@ export class EffectStyle extends Node implements Style {
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${this.name}`);
     propertyReprs.push(`type=${EffectType[this.type]}`);
     if (this.opacity !== null) {
       propertyReprs.push(`opacity=${this.opacity}`);
@@ -1349,6 +1348,7 @@ export class EffectStyle extends Node implements Style {
     if (this.transition !== null) {
       propertyReprs.push(`transition=${this.transition.repr()}`);
     }
+    propertyReprs.push(`name=${this.name}`);
     return `<EffectStyle '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
@@ -1358,7 +1358,7 @@ export class EffectStyle extends Node implements Style {
 
   static __packValue__(object: EffectStyle): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 12027;
+    objectValue["1"] = 12090;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1432,31 +1432,6 @@ export class EffectStyle extends Node implements Style {
     _graph?: any | null,
     _connection?: any | null,
   ): EffectStyle {
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const deletedAtValue = objectValue["20"];
-    const unpackedDeletedAt =
-      deletedAtValue != undefined
-        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-        : null;
     const opacityValue = objectValue["50"];
     const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
     const offsetValue = objectValue["51"];
@@ -1497,17 +1472,32 @@ export class EffectStyle extends Node implements Style {
       transitionValue != undefined
         ? Transition.fromValue(transitionValue, _session, _supergraph, _graph, _connection)
         : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const deletedAtValue = objectValue["20"];
+    const unpackedDeletedAt =
+      deletedAtValue != undefined
+        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+        : null;
     return new EffectStyle({
-      parent: unpackedParentPtr,
-      space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
-      name: objectValue["31"],
-      orderKey: objectValue["22"],
-      deletedAt: unpackedDeletedAt,
       type: Number(objectValue["30"]),
       opacity: unpackedOpacity,
       offset: unpackedOffset,
@@ -1523,6 +1513,16 @@ export class EffectStyle extends Node implements Style {
       split: unpackedSplit,
       offscreen: unpackedOffscreen,
       transition: unpackedTransition,
+      parent: unpackedParentPtr,
+      space: unpackedSpacePtr,
+      id: String(objectValue["2"]),
+      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
+      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
+      updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["31"],
+      orderKey: objectValue["22"],
+      deletedAt: unpackedDeletedAt,
       _session,
       _graph,
       _connection,
@@ -1544,7 +1544,7 @@ export class EffectStyle extends Node implements Style {
   }
 
   static __packProto__(object: EffectStyle): EffectStyleProto {
-    const objectProto: Partial<EffectStyleProto> = { metatype: 12027 };
+    const objectProto: Partial<EffectStyleProto> = { metatype: 12090 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1619,6 +1619,42 @@ export class EffectStyle extends Node implements Style {
     _connection?: any | null,
   ): EffectStyle {
     return new EffectStyle({
+      type: Number(objectProto.type) as EffectType,
+      opacity: objectProto.opacity != undefined ? objectProto.opacity : null,
+      offset:
+        objectProto.offset != undefined
+          ? Vector2.fromProto(objectProto.offset!, _session, _supergraph, _graph, _connection)
+          : null,
+      scale: objectProto.scale != undefined ? objectProto.scale : null,
+      rotate:
+        objectProto.rotate != undefined
+          ? Axis3.fromProto(objectProto.rotate!, _session, _supergraph, _graph, _connection)
+          : null,
+      skew:
+        objectProto.skew != undefined
+          ? Vector2.fromProto(objectProto.skew!, _session, _supergraph, _graph, _connection)
+          : null,
+      perspective: objectProto.perspective != undefined ? objectProto.perspective : null,
+      delay: objectProto.delay != undefined ? unpackProtoDuration(objectProto.delay!) : null,
+      duration: objectProto.duration != undefined ? objectProto.duration : null,
+      threshold: objectProto.threshold != undefined ? objectProto.threshold : null,
+      once: objectProto.once != undefined ? objectProto.once : null,
+      repeat: objectProto.repeat != undefined ? (Number(objectProto.repeat) as RepeatType) : null,
+      split: objectProto.split != undefined ? (Number(objectProto.split) as TextSplitType) : null,
+      offscreen:
+        objectProto.offscreen != undefined
+          ? (Number(objectProto.offscreen) as OffscreenBehavior)
+          : null,
+      transition:
+        objectProto.transition != undefined
+          ? Transition.fromProto(
+              objectProto.transition!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       parent:
         objectProto.parentPtr != undefined
           ? NodeReference.fromProto(
@@ -1666,42 +1702,6 @@ export class EffectStyle extends Node implements Style {
       orderKey: objectProto.orderKey,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
-      type: Number(objectProto.type) as EffectType,
-      opacity: objectProto.opacity != undefined ? objectProto.opacity : null,
-      offset:
-        objectProto.offset != undefined
-          ? Vector2.fromProto(objectProto.offset!, _session, _supergraph, _graph, _connection)
-          : null,
-      scale: objectProto.scale != undefined ? objectProto.scale : null,
-      rotate:
-        objectProto.rotate != undefined
-          ? Axis3.fromProto(objectProto.rotate!, _session, _supergraph, _graph, _connection)
-          : null,
-      skew:
-        objectProto.skew != undefined
-          ? Vector2.fromProto(objectProto.skew!, _session, _supergraph, _graph, _connection)
-          : null,
-      perspective: objectProto.perspective != undefined ? objectProto.perspective : null,
-      delay: objectProto.delay != undefined ? unpackProtoDuration(objectProto.delay!) : null,
-      duration: objectProto.duration != undefined ? objectProto.duration : null,
-      threshold: objectProto.threshold != undefined ? objectProto.threshold : null,
-      once: objectProto.once != undefined ? objectProto.once : null,
-      repeat: objectProto.repeat != undefined ? (Number(objectProto.repeat) as RepeatType) : null,
-      split: objectProto.split != undefined ? (Number(objectProto.split) as TextSplitType) : null,
-      offscreen:
-        objectProto.offscreen != undefined
-          ? (Number(objectProto.offscreen) as OffscreenBehavior)
-          : null,
-      transition:
-        objectProto.transition != undefined
-          ? Transition.fromProto(
-              objectProto.transition!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -1729,4 +1729,4 @@ export class EffectStyle extends Node implements Style {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.EFFECT_STYLE, EffectStyle);
-/* ==== DESTACK_GENERATED_END:NODE:12027 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:12090 ==== */

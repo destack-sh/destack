@@ -10,7 +10,6 @@ const SIMULATED_PRESSURE = 0.5;
 
 /**
  * Get an array of points describing a polygon that surrounds the input points.
- * This is the main entry point that combines all stroke processing steps.
  */
 export function getStroke(points: Vector3[], options: StrokeOptions): Vector3[] {
   const strokePoints = getStrokePoints(points, options);
@@ -20,7 +19,6 @@ export function getStroke(points: Vector3[], options: StrokeOptions): Vector3[] 
 
 /**
  * Get left and right outline tracks for a stroke.
- * Returns separate arrays for left and right side points.
  */
 export function getStrokeOutlineTracks(
   strokePoints: StrokePoint[],
@@ -91,11 +89,11 @@ export function getStrokeOutlineTracks(
       } else {
         // draw a "sharp" corner
         const offset = prevVector.mul(strokePoint.radius).per();
-        const start = strokePoint.input.sub(offset);
+        const start = strokePoint.originalPoint.sub(offset);
         for (let step = 1 / 13, t = 0; t < 1; t += step) {
-          templ = start.rotWith(strokePoint.input, FIXED_PI * t);
+          templ = start.rotWith(strokePoint.originalPoint, FIXED_PI * t);
           leftPts.push(templ);
-          tempr = start.rotWith(strokePoint.input, FIXED_PI + FIXED_PI * -t);
+          tempr = start.rotWith(strokePoint.originalPoint, FIXED_PI + FIXED_PI * -t);
           rightPts.push(tempr);
         }
       }
@@ -150,7 +148,7 @@ export function getStrokeOutlinePoints(
   strokePoints: StrokePoint[],
   options: StrokeOptions,
 ): Vector3[] {
-  const { size = 16, start = {}, end = {}, last: isComplete = false } = options;
+  const { size, start, end, last: isComplete = false } = options;
 
   const { cap: capStart = true } = start;
   const { cap: capEnd = true } = end;
@@ -261,7 +259,7 @@ export function getStrokeOutlinePoints(
     );
   }
 
-  // Return the points in the correct winding order:
+  // return the points in the correct winding order:
   //  1. begin on the left side,
   //  2. then continue around the end cap,
   //  3. then come back along the right side,
@@ -273,17 +271,17 @@ export function getStrokeOutlinePoints(
  * Get an array of stroke points with computed properties.
  * Transform raw input points into stroke points with pressure, vectors, and distances.
  */
-export function getStrokePoints(rawInputPoints: Vector3[], options: StrokeOptions): StrokePoint[] {
+export function getStrokePoints(points: readonly Vector3[], options: StrokeOptions): StrokePoint[] {
   const { streamline = 0.5, size = 16, simulatePressure = false } = options;
 
   // if we don't have any points, return an empty array
-  if (rawInputPoints.length === 0) return [];
+  if (points.length === 0) return [];
 
   // find the interpolation level between points
   const t = 0.15 + (1 - streamline) * 0.85;
 
   // whatever the input is, make sure that the points are in Vector3[]
-  let pts = rawInputPoints;
+  let pts = points.slice();
   let pointsRemovedFromNearEnd = 0;
 
   if (!simulatePressure) {
@@ -309,8 +307,8 @@ export function getStrokePoints(rawInputPoints: Vector3[], options: StrokeOption
   if (pts.length === 0)
     return [
       {
-        point: rawInputPoints[0],
-        input: rawInputPoints[0],
+        point: points[0],
+        originalPoint: points[0],
         pressure: simulatePressure ? SIMULATED_PRESSURE : 0.15,
         direction: new Vector3({ x: 1, y: 1, z: 0 }),
         distance: 0,
@@ -366,7 +364,7 @@ export function getStrokePoints(rawInputPoints: Vector3[], options: StrokeOption
   const strokePoints: StrokePoint[] = [
     {
       point: pts[0],
-      input: pts[0],
+      originalPoint: pts[0],
       pressure: simulatePressure ? SIMULATED_PRESSURE : pts[0].z,
       direction: new Vector3({ x: 1, y: 1, z: 0 }),
       distance: 0,
@@ -393,7 +391,9 @@ export function getStrokePoints(rawInputPoints: Vector3[], options: StrokeOption
     point = !t || (options.last && i === n - 1) ? pts[i] : pts[i].lerp(prev.point, 1 - t);
 
     // if the new point is the same as the previous point, skip ahead
-    if (prev.point.equals(point)) continue;
+    if (prev.point.x === point.x && prev.point.y === point.y) {
+      continue;
+    }
 
     distance = point.distance(prev.point);
     totalLength += distance;
@@ -406,7 +406,7 @@ export function getStrokePoints(rawInputPoints: Vector3[], options: StrokeOption
 
     // new strokepoint
     prev = {
-      input: pts[i],
+      originalPoint: pts[i],
       point,
       pressure: simulatePressure ? SIMULATED_PRESSURE : pts[i].z,
       direction: prev.point.sub(point).normalize(),
@@ -414,8 +414,6 @@ export function getStrokePoints(rawInputPoints: Vector3[], options: StrokeOption
       runningLength: totalLength,
       radius: 1,
     };
-
-    // push it to the strokePoints array
     strokePoints.push(prev);
   }
 

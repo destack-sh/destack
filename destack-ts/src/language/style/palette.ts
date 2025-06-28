@@ -1,5 +1,4 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import { Canvas } from "@destack/language/canvas";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
   Entity,
@@ -45,22 +44,13 @@ export class Palette
     TraitType.ORDERED,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
-  static __parentTypes__: NodeType[] = [NodeType.THEME, NodeType.CANVAS, NodeType.SCENE];
+  static __parentTypes__: NodeType[] = [NodeType.THEME, NodeType.SCENE];
   static __childTypes__: NodeType[] = [NodeType.TAGGING, NodeType.COLOR_STYLE];
   static __ancestorTypes__: NodeType[] = [
     NodeType.THEME,
     NodeType.SPACE,
-    NodeType.POLYGON_SHAPE,
-    NodeType.FRAME_VIEW,
-    NodeType.ANNOTATION_SHAPE,
     NodeType.WINDOW,
     NodeType.FOLDER,
-    NodeType.LABEL_VIEW,
-    NodeType.LAYER,
-    NodeType.CUSTOM_VIEW,
-    NodeType.SPLIT_VIEW,
-    NodeType.CUSTOM_VIEW_DEFINITION,
-    NodeType.CANVAS,
     NodeType.SCENE,
   ];
   static __descendantTypes__: NodeType[] = [NodeType.TAGGING, NodeType.COLOR_STYLE];
@@ -68,10 +58,10 @@ export class Palette
   /**
    * Palette.parent
    */
-  get parent(): Scene | Theme | Canvas | null {
+  get parent(): Scene | Theme | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Scene | Theme | Canvas | null;
+      return this._supergraph.get(nodePtr.id) as Scene | Theme | null;
     }
     return null;
   }
@@ -145,7 +135,7 @@ export class Palette
 
   constructor(options: {
     id?: string;
-    parent?: Scene | Theme | Canvas | NodeReference | null;
+    parent?: Scene | Theme | NodeReference | null;
     space?: Space | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;

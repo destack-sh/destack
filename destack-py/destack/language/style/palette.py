@@ -17,7 +17,7 @@ from destack.language.core import (
 from destack.proto import PaletteProto
 
 if TYPE_CHECKING:
-    from destack.language import Canvas, Scene, Theme
+    from destack.language import Scene, Theme
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -36,4 +36,4 @@ class Palette(
 ):
     """A Palette with common ColorStyles."""
 
-    parent: Union["Scene", "Theme", "Canvas", None] = property_parent_(node_is_customizable=True)
+    parent: Union["Scene", "Theme", None] = property_parent_(node_is_customizable=True)
