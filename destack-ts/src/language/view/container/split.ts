@@ -840,6 +840,7 @@ export class SplitView extends Node implements ContainerView {
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
+
     return h;
   }
 

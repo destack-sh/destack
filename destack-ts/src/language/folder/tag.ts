@@ -269,6 +269,7 @@ export class Tag
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -857,6 +858,7 @@ export class Tagging extends Node implements Spatial, Entity, IsTaggable, IsOrde
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
+
     return h;
   }
 

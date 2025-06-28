@@ -178,6 +178,7 @@ export class Border extends Struct {
     if (this.width !== null) {
       h = (h * 31 + this.width.hash()) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -639,6 +640,7 @@ export class BorderStyle extends Node implements Style {
     if (this.width !== null) {
       h = (h * 31 + this.width.hash()) & 0xffffffff;
     }
+
     return h;
   }
 

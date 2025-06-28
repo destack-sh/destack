@@ -253,6 +253,7 @@ export class TimerStartedEvent extends Node implements Event {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -706,6 +707,7 @@ export class TimerStoppedEvent extends Node implements Event {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -1170,6 +1172,7 @@ export class Timer extends Node implements Spatial, Entity, HasName {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
+
     return h;
   }
 

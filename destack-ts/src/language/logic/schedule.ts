@@ -439,6 +439,7 @@ export class Schedule extends Struct {
         h = (h * 31 + hashInt(_item)) & 0xffffffff;
       }
     }
+
     return h;
   }
 

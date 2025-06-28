@@ -221,7 +221,6 @@ export class TextSpan extends StructFrozen {
     if (this.isCode !== null) {
       h = (h * 31 + hashBool(this.isCode)) & 0xffffffff;
     }
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -563,7 +562,6 @@ export class Text extends StructFrozen {
     if (this.isCode !== null) {
       h = (h * 31 + hashBool(this.isCode)) & 0xffffffff;
     }
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;

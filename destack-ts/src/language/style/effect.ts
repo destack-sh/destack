@@ -471,6 +471,7 @@ export class Effect extends Struct {
     if (this.transition !== null) {
       h = (h * 31 + this.transition.hash()) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -1267,6 +1268,7 @@ export class EffectStyle extends Node implements Style {
     if (this.transition !== null) {
       h = (h * 31 + this.transition.hash()) & 0xffffffff;
     }
+
     return h;
   }
 

@@ -167,7 +167,6 @@ export class Polygon extends StructFrozen {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -1142,6 +1141,7 @@ export class PolygonShape extends Node implements ContainerView, IsShape {
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
+
     return h;
   }
 

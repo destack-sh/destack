@@ -297,6 +297,7 @@ export class GaugeMetric extends Node implements Spatial, Metric, HasName {
       h = (h * 31 + hashString(this.prototypePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
+
     return h;
   }
 
@@ -780,6 +781,7 @@ export class GaugeMeasurement extends Node implements Spatial, Measurement {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -1297,6 +1299,7 @@ export class CounterMetric extends Node implements Spatial, Metric, HasName {
       h = (h * 31 + hashString(this.prototypePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
+
     return h;
   }
 
@@ -1780,6 +1783,7 @@ export class CounterMeasurement extends Node implements Spatial, Measurement {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -2297,6 +2301,7 @@ export class HistogramMetric extends Node implements Spatial, Metric, HasName {
       h = (h * 31 + hashString(this.prototypePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
+
     return h;
   }
 
@@ -2780,6 +2785,7 @@ export class HistogramMeasurement extends Node implements Spatial, Measurement {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 

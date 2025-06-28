@@ -202,6 +202,7 @@ export class DatabaseInfo extends Struct {
     if (this.connectionUrl !== null) {
       h = (h * 31 + hashString(this.connectionUrl)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -667,6 +668,7 @@ export class Database extends Node implements Spatial, Resource, HasName {
     if (this.connectionUrl !== null) {
       h = (h * 31 + hashString(this.connectionUrl)) & 0xffffffff;
     }
+
     return h;
   }
 

@@ -290,6 +290,7 @@ export class Fill extends Struct {
     if (this.size !== null) {
       h = (h * 31 + this.size) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -850,6 +851,7 @@ export class FillStyle extends Node implements Style {
     if (this.size !== null) {
       h = (h * 31 + this.size) & 0xffffffff;
     }
+
     return h;
   }
 

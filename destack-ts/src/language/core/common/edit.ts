@@ -335,7 +335,6 @@ export class Edit extends StructFrozen {
     if (this.undo !== null) {
       h = (h * 31 + this.undo.hash()) & 0xffffffff;
     }
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -760,7 +759,6 @@ export class Change extends StructFrozen {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -1130,7 +1128,6 @@ export class ChangeResult extends StructFrozen {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;

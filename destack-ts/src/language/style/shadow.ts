@@ -270,6 +270,7 @@ export class Shadow extends Struct {
     if (this.diffusion !== null) {
       h = (h * 31 + hashFloat(this.diffusion)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -829,6 +830,7 @@ export class ShadowStyle extends Node implements Style {
     if (this.diffusion !== null) {
       h = (h * 31 + hashFloat(this.diffusion)) & 0xffffffff;
     }
+
     return h;
   }
 

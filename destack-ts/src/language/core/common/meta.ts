@@ -664,7 +664,6 @@ export class PropertyDefinition extends StructFrozen {
     h = (h * 31 + hashBool(this.isEq)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isManaged)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isComputed)) & 0xffffffff;
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -1433,7 +1432,6 @@ export class TraitDefinition extends StructFrozen {
         h = (h * 31 + _item) & 0xffffffff;
       }
     }
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -1931,7 +1929,6 @@ export class NodeDefinition extends StructFrozen {
         h = (h * 31 + _item) & 0xffffffff;
       }
     }
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -2429,7 +2426,6 @@ export class StructDefinition extends StructFrozen {
       }
     }
     h = (h * 31 + hashBool(this.isFrozen)) & 0xffffffff;
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -2777,7 +2773,6 @@ export class EnumDefinition extends StructFrozen {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -3085,7 +3080,6 @@ export class OptionDefinition extends StructFrozen {
     if (this.description !== null) {
       h = (h * 31 + hashString(this.description)) & 0xffffffff;
     }
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -3372,7 +3366,6 @@ export class PermissionDefinition extends StructFrozen {
     if (this.icon !== null) {
       h = (h * 31 + this.icon.hash()) & 0xffffffff;
     }
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -3635,7 +3628,6 @@ export class ConstantDefinition extends StructFrozen {
     }
     h = (h * 31 + this.value.hash()) & 0xffffffff;
     h = (h * 31 + hashBool(this.isDeferred)) & 0xffffffff;
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;

@@ -307,6 +307,7 @@ export class Thread
     if (this.ownedByPtr !== null) {
       h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 

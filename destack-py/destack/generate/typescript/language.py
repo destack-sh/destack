@@ -768,7 +768,6 @@ def _generate_hash(cls: type[BuiltinObjectBase]) -> str:
     for prop in hash_properties:
         prop_hash_impl = _generate_property_hash_impl(prop)
         hash_parts.append(prop_hash_impl)
-    hash_parts.append("return h;")
     hash_parts_str = "\n".join(hash_parts)
 
     if cls.__is_frozen__ and not cls.__is_node__:
@@ -789,6 +788,8 @@ hash(): number {{
         hash_impl = f"""\
 hash(): number {{
 {textwrap.indent(hash_parts_str, "  ")}
+
+  return h;
 }}
 """
     return hash_impl.strip()

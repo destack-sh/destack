@@ -93,6 +93,7 @@ export class GalaxyInfo extends Struct {
     h = (h * 31 + this.region) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     h = (h * 31 + hashString(this.host)) & 0xffffffff;
+
     return h;
   }
 

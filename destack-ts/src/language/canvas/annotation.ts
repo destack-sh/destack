@@ -860,6 +860,7 @@ export class AnnotationShape extends Node implements ContainerView, IsShape {
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
+
     return h;
   }
 

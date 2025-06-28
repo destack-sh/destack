@@ -919,6 +919,7 @@ export class Layer extends Node implements ContainerView, HasIcon, IsOwnable {
     if (this.ownedByPtr !== null) {
       h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 

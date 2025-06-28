@@ -327,6 +327,7 @@ export class EventCursor extends Node implements Cursor, IsOwnable {
     if (this.ownedByPtr !== null) {
       h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -853,6 +854,7 @@ export class ScreenCursor extends Node implements Cursor, IsOwnable {
     if (this.ownedByPtr !== null) {
       h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -1378,6 +1380,7 @@ export class ThreadCursor extends Node implements Cursor, IsOwnable {
     if (this.ownedByPtr !== null) {
       h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 

@@ -478,6 +478,7 @@ export class Machine extends Node implements Spatial, Resource {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 

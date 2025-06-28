@@ -327,6 +327,7 @@ export class CustomEnumDefinition
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
+
     return h;
   }
 

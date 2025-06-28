@@ -133,7 +133,6 @@ export class Origin extends StructFrozen {
     if (this.nonce !== null) {
       h = (h * 31 + hashString(this.nonce.toString())) & 0xffffffff;
     }
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -673,6 +672,7 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
+
     return h;
   }
 

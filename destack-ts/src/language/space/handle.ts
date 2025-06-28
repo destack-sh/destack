@@ -185,6 +185,7 @@ export class Handle extends Node implements Global, Entity, HasSlug {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
