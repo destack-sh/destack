@@ -16,8 +16,10 @@ export function renderStroke(
 
   const svgPartitions = [];
   for (const partition of partitions) {
-    svgPartitions.push(renderPartition(partition, stroke));
+    const svgPartition = renderPartition(partition, stroke);
+    svgPartitions.push(svgPartition);
   }
+  console.log("svgPartitions", svgPartitions);
   return svgPartitions.join("");
 }
 
@@ -159,8 +161,6 @@ function partitionStroke(points: readonly StrokePoint[]): readonly (readonly Str
   const partitions: StrokePoint[][] = [];
   let currentPartition: StrokePoint[] = [points[0]];
   let prevV = points[1].point.sub(points[0].point).normalize();
-  let nextV: Vector2;
-  let dpr: number;
   let prevPoint: StrokePoint;
   let currentPoint: StrokePoint;
   let nextPoint: StrokePoint;
@@ -169,18 +169,14 @@ function partitionStroke(points: readonly StrokePoint[]): readonly (readonly Str
     prevPoint = points[i - 1];
     currentPoint = points[i];
     nextPoint = points[i + 1];
-
-    nextV = nextPoint.point.sub(currentPoint.point).normalize();
-    dpr = prevV.dot(nextV);
+    const nextV = nextPoint.point.sub(currentPoint.point).normalize();
+    const cos = prevV.dot(nextV);
     prevV = nextV;
 
-    if (dpr < -0.8) {
+    if (cos < -0.8) {
       // always treat such acute angles as elbows
-      // and use the extended .input point as the elbow point for swooshiness in fast zaggy lines
-      const elbowPoint = new StrokePoint({
-        ...currentPoint,
-        point: currentPoint.originalPoint,
-      });
+      // (use the .originalPoint as the elbow point for swooshiness in fast zaggy lines)
+      const elbowPoint = new StrokePoint({ ...currentPoint, point: currentPoint.originalPoint });
       currentPartition.push(elbowPoint);
       partitions.push(cleanUpPartition(currentPartition));
       currentPartition = [elbowPoint];
@@ -189,21 +185,22 @@ function partitionStroke(points: readonly StrokePoint[]): readonly (readonly Str
 
     currentPartition.push(currentPoint);
 
-    if (dpr > 0.7) {
+    if (cos > 0.7) {
       // not an elbow
       continue;
     }
 
     // we have a reasonably acute angle but it might not be an elbow if it's far
-    if (
-      (prevPoint.point.distance2(currentPoint.point) +
-        currentPoint.point.distance2(nextPoint.point)) /
-        ((prevPoint.radius + currentPoint.radius + nextPoint.radius) / 3) ** 2 <
-      1.5
-    ) {
+    // NOTE :Robustness: revisit freehand stroke partitioning logic
+    // (the original from perfect-freehand doesn't work well, so I played around until this came out)
+    const prevToCurrent = prevPoint.point.distance(currentPoint.point);
+    const currentToNext = currentPoint.point.distance(nextPoint.point);
+    const avgRadius = (prevPoint.radius + currentPoint.radius + nextPoint.radius) / 3;
+    if ((prevToCurrent + currentToNext) / avgRadius ** 2 < avgRadius) {
       // point is also close to its neighbors, probably a hard elbow
       currentPartition.push(currentPoint);
-      partitions.push(cleanUpPartition(currentPartition));
+      currentPartition = cleanUpPartition(currentPartition);
+      partitions.push(currentPartition);
       currentPartition = [currentPoint];
       continue;
     }
@@ -224,7 +221,6 @@ function cleanUpPartition(partition: StrokePoint[]): StrokePoint[] {
   // clean up start of partition (remove points that are too close to the start)
   const startPoint = partition[0];
   let nextPoint: StrokePoint;
-
   while (partition.length > 2) {
     nextPoint = partition[1];
     if (
@@ -240,7 +236,6 @@ function cleanUpPartition(partition: StrokePoint[]): StrokePoint[] {
   // clean up end of partition in the same fashion
   const endPoint = partition[partition.length - 1];
   let prevPoint: StrokePoint;
-
   while (partition.length > 2) {
     prevPoint = partition[partition.length - 2];
     if (

@@ -3,16 +3,14 @@ import { computed, Signal, signal } from "@preact/signals-react";
 import { Easing, Line, Stroke, StrokeCap, StrokeType, Vector2 } from "destack";
 import React, { useRef } from "react";
 
-// nocheckin
-const 
-
 const size = signal(12);
 const thinning = signal(0.5);
-const smoothing = signal(0.6);
-const streamline = signal(0.6);
+const smoothing = signal(0.62);
+const streamline = signal(0.62);
 const simulatePressure = signal(true);
 const taperStart = signal(false);
 const taperEnd = signal(false);
+const showPoints = signal(false);
 const isDrawing = signal(false);
 const lastMousePosition = signal<Vector2 | null>(null);
 const strokeOptions: Signal<Stroke> = computed(
@@ -154,16 +152,6 @@ export const Canvas: React.FC = () => {
         </div>
 
         <div style={{ display: "flex", gap: "20px", marginTop: "10px", alignItems: "center" }}>
-          {/* simulate pressure toggle */}
-          <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px" }}>
-            <input
-              type="checkbox"
-              checked={simulatePressure.value}
-              onChange={(e) => (simulatePressure.value = e.target.checked)}
-            />
-            Simulate Pressure
-          </label>
-
           {/* taper start toggle */}
           <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px" }}>
             <input
@@ -182,6 +170,16 @@ export const Canvas: React.FC = () => {
               onChange={(e) => (taperEnd.value = e.target.checked)}
             />
             Taper End
+          </label>
+
+          {/* show points toggle */}
+          <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px" }}>
+            <input
+              type="checkbox"
+              checked={showPoints.value}
+              onChange={(e) => (showPoints.value = e.target.checked)}
+            />
+            Show Points
           </label>
 
           {/* clear button */}
@@ -220,21 +218,50 @@ export const Canvas: React.FC = () => {
       >
         {/* render completed lines */}
         {lines.value.map((line, index) => (
-          <path
-            key={index}
-            d={renderStroke(line.points, strokeOptions.value, { isComplete: true })}
-            fill="#2563eb"
-            stroke="none"
-          />
+          <g key={index}>
+            <path
+              d={renderStroke(line.points, strokeOptions.value, { isComplete: true })}
+              fill="#2563eb"
+              stroke="none"
+            />
+            {/* render individual points if enabled */}
+            {showPoints.value &&
+              line.points.map((point, pointIndex) => (
+                <circle
+                  key={pointIndex}
+                  cx={point.x}
+                  cy={point.y}
+                  r="3"
+                  fill="#dc2626"
+                  stroke="black"
+                  strokeWidth="1"
+                />
+              ))}
+          </g>
         ))}
 
         {/* render current line being drawn */}
         {currentLine.value && currentLine.value.points.length > 1 && (
-          <path
-            d={renderStroke(currentLine.value.points, strokeOptions.value, { isComplete: false })}
-            fill="#94a3b8"
-            stroke="none"
-          />
+          <g>
+            <path
+              d={renderStroke(currentLine.value.points, strokeOptions.value, { isComplete: false })}
+              fill="#94a3b8"
+              stroke="none"
+            />
+            {/* render individual points for current line if enabled */}
+            {showPoints.value &&
+              currentLine.value.points.map((point, pointIndex) => (
+                <circle
+                  key={pointIndex}
+                  cx={point.x}
+                  cy={point.y}
+                  r="2"
+                  fill="#dc2626"
+                  stroke="black"
+                  strokeWidth="1"
+                />
+              ))}
+          </g>
         )}
       </svg>
     </div>
