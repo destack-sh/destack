@@ -67,9 +67,11 @@ async def test_create_user_with_clients(_session: Session):
     await _session.commit()
     # query user by id
     user_unpacked = await User.get(where=User.property("id").eq(user.id)).execute_one()
+    assert user_unpacked.created_at == user.created_at
     assert user.equals(user_unpacked)
     # query user by slug
     user_unpacked = await User.search(where=User.property("slug").eq("flotothemoon")).execute_one()
+    assert user_unpacked.equals(user)
     assert user_unpacked.name == "Fluff"
     assert user_unpacked.slug == "flotothemoon"
     assert user_unpacked.status == UserStatus.ACTIVE
