@@ -19,7 +19,6 @@ export function renderStroke(
     const svgPartition = renderPartition(partition, stroke);
     svgPartitions.push(svgPartition);
   }
-  console.log("svgPartitions", svgPartitions);
   return svgPartitions.join("");
 }
 
@@ -191,7 +190,7 @@ function partitionStroke(points: readonly StrokePoint[]): readonly (readonly Str
     }
 
     // we have a reasonably acute angle but it might not be an elbow if it's far
-    // NOTE :Robustness: revisit freehand stroke partitioning logic
+    // TODO :UX: revisit freehand stroke partitioning logic
     // (the original from perfect-freehand doesn't work well, so I played around until this came out)
     const prevToCurrent = prevPoint.point.distance(currentPoint.point);
     const currentToNext = currentPoint.point.distance(nextPoint.point);
