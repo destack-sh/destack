@@ -25,7 +25,6 @@ import {
   Position,
   Value,
   Vector2,
-  Vector3,
 } from "@destack/language/core/common";
 import { Script } from "@destack/language/logic";
 import {
@@ -66,11 +65,11 @@ export class Polygon extends StructFrozen {
   /**
    * Polygon.points
    */
-  readonly points: Array<Vector3>;
+  readonly points: Array<Vector2>;
 
   constructor(options: {
     type: PolygonShapeType;
-    points?: Array<Vector3>;
+    points?: Array<Vector2>;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -191,7 +190,7 @@ export class Polygon extends StructFrozen {
     const unpackedPoints: any[] = [];
     if (objectValue["100"] != undefined) {
       for (const item of objectValue["100"]) {
-        unpackedPoints.push(Vector3.fromValue(item, _session, _supergraph, _graph, _connection));
+        unpackedPoints.push(Vector2.fromValue(item, _session, _supergraph, _graph, _connection));
       }
     }
     return new Polygon({
@@ -243,7 +242,7 @@ export class Polygon extends StructFrozen {
     const unpackedPoints: any[] = [];
     if (objectProto.points) {
       for (const item of objectProto.points) {
-        unpackedPoints.push(Vector3.fromProto(item!, _session, _supergraph, _graph, _connection));
+        unpackedPoints.push(Vector2.fromProto(item!, _session, _supergraph, _graph, _connection));
       }
     }
     return new Polygon({
@@ -607,7 +606,7 @@ export class PolygonShape extends Node implements ContainerView, IsShape {
   /**
    * PolygonShape.points
    */
-  points: Array<Vector3>;
+  points: Array<Vector2>;
 
   /**
    * PolygonShape.stroke
@@ -672,7 +671,7 @@ export class PolygonShape extends Node implements ContainerView, IsShape {
     shadow?: Shadow | null;
     border?: Border | null;
     radius?: Corners | null;
-    points?: Array<Vector3>;
+    points?: Array<Vector2>;
     stroke?: Stroke | null;
     script?: Script | NodeReference | null;
     _session?: Session | null;
@@ -1325,7 +1324,7 @@ export class PolygonShape extends Node implements ContainerView, IsShape {
     const unpackedPoints: any[] = [];
     if (objectValue["100"] != undefined) {
       for (const item of objectValue["100"]) {
-        unpackedPoints.push(Vector3.fromValue(item, _session, _supergraph, _graph, _connection));
+        unpackedPoints.push(Vector2.fromValue(item, _session, _supergraph, _graph, _connection));
       }
     }
     const strokeValue = objectValue["101"];
@@ -1670,7 +1669,7 @@ export class PolygonShape extends Node implements ContainerView, IsShape {
     const unpackedPoints: any[] = [];
     if (objectProto.points) {
       for (const item of objectProto.points) {
-        unpackedPoints.push(Vector3.fromProto(item!, _session, _supergraph, _graph, _connection));
+        unpackedPoints.push(Vector2.fromProto(item!, _session, _supergraph, _graph, _connection));
       }
     }
     const unpackedValue = new Map();

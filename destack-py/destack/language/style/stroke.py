@@ -7,7 +7,7 @@ from destack.language.core import (
     NodeType,
     StructFrozen,
     StructType,
-    Vector3,
+    Vector2,
     builtin_enum,
     builtin_node,
     builtin_struct,
@@ -72,9 +72,6 @@ class StrokeStyle(Style, Node[StrokeStyleProto]):
     streamline: float = property_(
         53, description="The amount of streamlining applied to path (0-1)."
     )
-    simulate_pressure: bool = property_(
-        54, description="Whether to simulate pressure if not provided."
-    )
     easing: Easing = property_(55, description="The easing function for pressure mapping.")
     start: Optional["StrokeCap"] = property_(60, description="The start cap configuration.")
     end: Optional["StrokeCap"] = property_(61, description="The end cap configuration.")
@@ -84,10 +81,10 @@ class StrokeStyle(Style, Node[StrokeStyleProto]):
 class StrokePoint(StructFrozen):
     """A computed point in a stroke."""
 
-    point: Vector3 = property_(50, is_repr=True, description="The adjusted point position.")
-    original_point: Vector3 = property_(51, is_repr=True, description="The original input point.")
+    point: Vector2 = property_(50, is_repr=True, description="The adjusted point position.")
+    original_point: Vector2 = property_(51, is_repr=True, description="The original input point.")
     pressure: float = property_(52, description="The pressure value at this point (0-1).")
-    direction: Vector3 = property_(
+    direction: Vector2 = property_(
         53, description="The normalized direction vector from previous point."
     )
     distance: float = property_(54, description="Distance from the previous point.")

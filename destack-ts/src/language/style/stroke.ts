@@ -9,7 +9,7 @@ import {
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
-import { Vector3 } from "@destack/language/core/common";
+import { Vector2 } from "@destack/language/core/common";
 import {
   registerEnumClass,
   registerNodeClass,
@@ -17,7 +17,7 @@ import {
 } from "@destack/language/registry";
 import { Scene } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
-import { Easing, Style, Theme } from "@destack/language/style";
+import { Color, Easing, Style, Theme } from "@destack/language/style";
 import { View } from "@destack/language/view";
 import {
   EasingProto,
@@ -102,6 +102,11 @@ export class Stroke extends StructFrozen {
    */
   readonly end: StrokeCap | null;
 
+  /**
+   * The stroke color.
+   */
+  readonly color: Color | null;
+
   constructor(options: {
     type: StrokeType;
     size: number;
@@ -112,6 +117,7 @@ export class Stroke extends StructFrozen {
     easing: Easing;
     start?: StrokeCap | null;
     end?: StrokeCap | null;
+    color?: Color | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -166,6 +172,8 @@ export class Stroke extends StructFrozen {
     this.start = _start;
     let _end = options.end ?? null;
     this.end = _end;
+    let _color = options.color ?? null;
+    this.color = _color;
 
     // identity
     // @ts-expect-error(readonly)
@@ -221,6 +229,12 @@ export class Stroke extends StructFrozen {
     ) {
       return false;
     }
+    if (
+      (this.color == null) !== (other.color == null) ||
+      (this.color != null && !this.color.equals(other.color))
+    ) {
+      return false;
+    }
     return true;
   }
 
@@ -247,6 +261,9 @@ export class Stroke extends StructFrozen {
     }
     if (this.end !== null) {
       h = (h * 31 + this.end.hash()) & 0xffffffff;
+    }
+    if (this.color !== null) {
+      h = (h * 31 + this.color.hash()) & 0xffffffff;
     }
 
     // @ts-expect-error(readonly)
@@ -282,6 +299,9 @@ export class Stroke extends StructFrozen {
     if (object.end != null) {
       objectValue["61"] = object.end.toValue();
     }
+    if (object.color != null) {
+      objectValue["70"] = object.color.toValue();
+    }
     return objectValue;
   }
 
@@ -302,6 +322,11 @@ export class Stroke extends StructFrozen {
       endValue != undefined
         ? StrokeCap.fromValue(endValue, _session, _supergraph, _graph, _connection)
         : null;
+    const colorValue = objectValue["70"];
+    const unpackedColor =
+      colorValue != undefined
+        ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new Stroke({
       type: Number(objectValue["30"]),
       size: Number(objectValue["50"]),
@@ -312,6 +337,7 @@ export class Stroke extends StructFrozen {
       easing: Number(objectValue["55"]),
       start: unpackedStart,
       end: unpackedEnd,
+      color: unpackedColor,
       _value: objectValue,
       _supergraph,
     });
@@ -350,6 +376,9 @@ export class Stroke extends StructFrozen {
     if (object.end != null) {
       objectProto.end = object.end.toProto();
     }
+    if (object.color != null) {
+      objectProto.color = object.color.toProto();
+    }
     return objectProto as StrokeProto;
   }
 
@@ -375,6 +404,10 @@ export class Stroke extends StructFrozen {
       end:
         objectProto.end != undefined
           ? StrokeCap.fromProto(objectProto.end!, _session, _supergraph, _graph, _connection)
+          : null,
+      color:
+        objectProto.color != undefined
+          ? Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
           : null,
       _proto: objectProto,
       _supergraph,
@@ -622,12 +655,12 @@ export class StrokePoint extends StructFrozen {
   /**
    * The adjusted point position.
    */
-  readonly point: Vector3;
+  readonly point: Vector2;
 
   /**
    * The original input point.
    */
-  readonly originalPoint: Vector3;
+  readonly originalPoint: Vector2;
 
   /**
    * The pressure value at this point (0-1).
@@ -637,7 +670,7 @@ export class StrokePoint extends StructFrozen {
   /**
    * The normalized direction vector from previous point.
    */
-  readonly direction: Vector3;
+  readonly direction: Vector2;
 
   /**
    * Distance from the previous point.
@@ -655,10 +688,10 @@ export class StrokePoint extends StructFrozen {
   readonly radius: number;
 
   constructor(options: {
-    point: Vector3;
-    originalPoint: Vector3;
+    point: Vector2;
+    originalPoint: Vector2;
     pressure: number;
-    direction: Vector3;
+    direction: Vector2;
     distance: number;
     runningLength: number;
     radius: number;
@@ -821,8 +854,8 @@ export class StrokePoint extends StructFrozen {
     _connection?: any | null,
   ): StrokePoint {
     return new StrokePoint({
-      point: Vector3.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
-      originalPoint: Vector3.fromValue(
+      point: Vector2.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
+      originalPoint: Vector2.fromValue(
         objectValue["51"],
         _session,
         _supergraph,
@@ -830,7 +863,7 @@ export class StrokePoint extends StructFrozen {
         _connection,
       ),
       pressure: objectValue["52"],
-      direction: Vector3.fromValue(objectValue["53"], _session, _supergraph, _graph, _connection),
+      direction: Vector2.fromValue(objectValue["53"], _session, _supergraph, _graph, _connection),
       distance: objectValue["54"],
       runningLength: objectValue["55"],
       radius: objectValue["56"],
@@ -877,8 +910,8 @@ export class StrokePoint extends StructFrozen {
     _connection?: any | null,
   ): StrokePoint {
     return new StrokePoint({
-      point: Vector3.fromProto(objectProto.point!, _session, _supergraph, _graph, _connection),
-      originalPoint: Vector3.fromProto(
+      point: Vector2.fromProto(objectProto.point!, _session, _supergraph, _graph, _connection),
+      originalPoint: Vector2.fromProto(
         objectProto.originalPoint!,
         _session,
         _supergraph,
@@ -886,7 +919,7 @@ export class StrokePoint extends StructFrozen {
         _connection,
       ),
       pressure: objectProto.pressure,
-      direction: Vector3.fromProto(
+      direction: Vector2.fromProto(
         objectProto.direction!,
         _session,
         _supergraph,

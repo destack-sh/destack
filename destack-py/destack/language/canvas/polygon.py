@@ -7,7 +7,7 @@ from destack.language.core import (
     NodeType,
     StructFrozen,
     StructType,
-    Vector3,
+    Vector2,
     builtin_enum,
     builtin_node,
     builtin_struct,
@@ -19,7 +19,7 @@ from ..view import ContainerView
 from .shape import IsShape
 
 if TYPE_CHECKING:
-    from destack.language import Fill, Stroke
+    from destack.language import Stroke
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -38,7 +38,7 @@ class Polygon(StructFrozen[PolygonProto]):
     """A Polygon is a list of points."""
 
     type: PolygonShapeType = property_(30, is_repr=True)
-    points: list[Vector3] = property_(100)
+    points: list[Vector2] = property_(100)
 
 
 @builtin_node(NodeType.POLYGON_SHAPE, pretend_frozen=True)
@@ -46,6 +46,5 @@ class PolygonShape(ContainerView, IsShape, Node[PolygonShapeProto]):
     """A PolygonShape is a shape that represents a polygon."""
 
     type: PolygonShapeType = property_(30, is_repr=True)
-    points: list[Vector3] = property_(100)
+    points: list[Vector2] = property_(100)
     stroke: Optional["Stroke"] = property_(101, is_repr=True)
-    fill: Optional["Fill"] = property_(102, is_repr=True)

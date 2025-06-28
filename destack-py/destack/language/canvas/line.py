@@ -5,7 +5,7 @@ from destack.language.core import (
     NodeType,
     StructFrozen,
     StructType,
-    Vector3,
+    Vector2,
     builtin_node,
     builtin_struct,
     property_,
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 class Line(StructFrozen[LineProto]):
     """A Line is a list of points."""
 
-    points: list[Vector3] = property_(100)
+    points: list[Vector2] = property_(100)
     stroke: Optional["Stroke"] = property_(101, is_repr=True)
 
 
@@ -33,5 +33,5 @@ class Line(StructFrozen[LineProto]):
 class LineShape(ContentView, IsShape, Node[LineShapeProto]):
     """A LineShape is a shape that represents a line."""
 
-    points: list[Vector3] = property_(100)
+    points: list[Vector2] = property_(100)
     stroke: Optional["Stroke"] = property_(101, is_repr=True)

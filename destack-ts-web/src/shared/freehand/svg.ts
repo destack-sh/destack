@@ -1,13 +1,13 @@
 import { averageVector2String, toDomPrecision, vector2String } from "@destack-web/shared/dom/utils";
 import { getStrokeOutlineTracks, getStrokePoints } from "@destack-web/shared/freehand/stroke";
-import { Stroke, StrokePoint, Vector3 } from "destack";
+import { Stroke, StrokePoint, Vector2 } from "destack";
 
 /**
  * Generate SVG path data for stroke with ink-like rendering.
  * Uses partitioning at elbows for more natural line appearance.
  */
 export function renderStroke(
-  points: readonly Vector3[],
+  points: readonly Vector2[],
   stroke: Stroke,
   options: { isComplete: boolean },
 ) {
@@ -52,10 +52,10 @@ function renderCirclePath(cx: number, cy: number, r: number) {
  * Render a partition of stroke points as SVG path.
  * Handles single points as circles and multi-point strokes as paths with caps.
  */
-function renderPartition(strokePoints: StrokePoint[], options: Stroke): string {
-  if (strokePoints.length === 0) return "";
-
-  if (strokePoints.length === 1) {
+function renderPartition(strokePoints: readonly StrokePoint[], options: Stroke): string {
+  if (strokePoints.length === 0) {
+    return "";
+  } else if (strokePoints.length === 1) {
     return renderCirclePath(
       strokePoints[0].point.x,
       strokePoints[0].point.y,
@@ -108,7 +108,7 @@ function renderPartition(strokePoints: StrokePoint[], options: Stroke): string {
  * Turn an array of stroke points into a path of quadratic curves.
  * Creates smooth curves between stroke points for SVG rendering.
  */
-export function renderStrokePath(points: StrokePoint[], closed = false): string | null {
+export function renderStrokePath(points: readonly StrokePoint[], closed = false): string | null {
   const len = points.length;
   if (len < 2) {
     return null; // nothing to render
@@ -151,22 +151,26 @@ export function renderStrokePath(points: StrokePoint[], closed = false): string 
  * Partition stroke points at sharp "elbow" angles.
  * Creates separate segments for better rendering of complex paths.
  */
-function partitionStroke(points: StrokePoint[]): StrokePoint[][] {
-  if (points.length <= 2) return [points];
+function partitionStroke(points: readonly StrokePoint[]): readonly (readonly StrokePoint[])[] {
+  if (points.length <= 2) {
+    return [points];
+  }
 
   const partitions: StrokePoint[][] = [];
   let currentPartition: StrokePoint[] = [points[0]];
   let prevV = points[1].point.sub(points[0].point).normalize();
-  let nextV: Vector3;
+  let nextV: Vector2;
   let dpr: number;
-  let prevPoint: StrokePoint, thisPoint: StrokePoint, nextPoint: StrokePoint;
+  let prevPoint: StrokePoint;
+  let currentPoint: StrokePoint;
+  let nextPoint: StrokePoint;
 
   for (let i = 1, n = points.length; i < n - 1; i++) {
     prevPoint = points[i - 1];
-    thisPoint = points[i];
+    currentPoint = points[i];
     nextPoint = points[i + 1];
 
-    nextV = nextPoint.point.sub(thisPoint.point).normalize();
+    nextV = nextPoint.point.sub(currentPoint.point).normalize();
     dpr = prevV.dot(nextV);
     prevV = nextV;
 
@@ -174,8 +178,8 @@ function partitionStroke(points: StrokePoint[]): StrokePoint[][] {
       // always treat such acute angles as elbows
       // and use the extended .input point as the elbow point for swooshiness in fast zaggy lines
       const elbowPoint = new StrokePoint({
-        ...thisPoint,
-        point: thisPoint.originalPoint,
+        ...currentPoint,
+        point: currentPoint.originalPoint,
       });
       currentPartition.push(elbowPoint);
       partitions.push(cleanUpPartition(currentPartition));
@@ -183,7 +187,7 @@ function partitionStroke(points: StrokePoint[]): StrokePoint[][] {
       continue;
     }
 
-    currentPartition.push(thisPoint);
+    currentPartition.push(currentPoint);
 
     if (dpr > 0.7) {
       // not an elbow
@@ -192,20 +196,22 @@ function partitionStroke(points: StrokePoint[]): StrokePoint[][] {
 
     // we have a reasonably acute angle but it might not be an elbow if it's far
     if (
-      (prevPoint.point.distance2(thisPoint.point) + thisPoint.point.distance2(nextPoint.point)) /
-        ((prevPoint.radius + thisPoint.radius + nextPoint.radius) / 3) ** 2 <
+      (prevPoint.point.distance2(currentPoint.point) +
+        currentPoint.point.distance2(nextPoint.point)) /
+        ((prevPoint.radius + currentPoint.radius + nextPoint.radius) / 3) ** 2 <
       1.5
     ) {
       // point is also close to its neighbors, probably a hard elbow
-      currentPartition.push(thisPoint);
+      currentPartition.push(currentPoint);
       partitions.push(cleanUpPartition(currentPartition));
-      currentPartition = [thisPoint];
+      currentPartition = [currentPoint];
       continue;
     }
   }
 
   currentPartition.push(points[points.length - 1]);
-  partitions.push(cleanUpPartition(currentPartition));
+  currentPartition = cleanUpPartition(currentPartition);
+  partitions.push(currentPartition);
 
   return partitions;
 }
@@ -214,7 +220,7 @@ function partitionStroke(points: StrokePoint[]): StrokePoint[][] {
  * Clean up a partition by removing points too close to start/end.
  * Adjust cap point vectors to point to nearest neighbors.
  */
-function cleanUpPartition(partition: StrokePoint[]) {
+function cleanUpPartition(partition: StrokePoint[]): StrokePoint[] {
   // clean up start of partition (remove points that are too close to the start)
   const startPoint = partition[0];
   let nextPoint: StrokePoint;
