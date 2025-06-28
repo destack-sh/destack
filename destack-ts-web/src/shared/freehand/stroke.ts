@@ -430,18 +430,17 @@ export function getStrokePoints(
   for (let i = 0; i < strokePoints.length; i++) {
     strokePoint = strokePoints[i];
 
-    if (thinning) {
+    if (thinning > 0) {
       let { pressure } = strokePoint;
       const sp = Math.min(1, strokePoint.distance / size);
       const rp = Math.min(1, 1 - sp);
       pressure = Math.min(1, prevPressure + (rp - prevPressure) * (sp * RATE_OF_PRESSURE_CHANGE));
       const radius = size * easingFunction(0.5 - thinning * (0.5 - pressure));
-      strokePoints[i] = new StrokePoint({ ...strokePoint, radius });
+      strokePoints[i] = new StrokePoint({ ...strokePoint, pressure, radius });
       prevPressure = pressure;
     } else {
       strokePoints[i] = new StrokePoint({ ...strokePoint, radius: size / 2 });
     }
-
     if (firstRadius === undefined) {
       firstRadius = strokePoints[i].radius;
     }
