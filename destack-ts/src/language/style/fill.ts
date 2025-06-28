@@ -441,7 +441,6 @@ registerStructClass(StructType.FILL, Fill);
  * FillType
  */
 export enum FillType {
-  STYLE = 2,
   SOLID = 10,
   GRADIENT = 11,
   IMAGE = 12,

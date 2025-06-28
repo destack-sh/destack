@@ -507,7 +507,6 @@ registerStructClass(StructType.TRANSITION, Transition);
  * TransitionType
  */
 export enum TransitionType {
-  STYLE = 2,
   TWEEN = 10,
   SPRING = 11,
 

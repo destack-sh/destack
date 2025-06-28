@@ -10923,9 +10923,9 @@ export interface StrokeCapProto {
      */
     cap: boolean;
     /**
-     * @generated from protobuf field: optional double taper = 51
+     * @generated from protobuf field: bool taper = 51
      */
-    taper?: number;
+    taper: boolean;
     /**
      * @generated from protobuf field: symbol.destack.EasingProto easing = 52
      */
@@ -10953,9 +10953,9 @@ export interface StrokePointProto {
      */
     metatype: StructTypeProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2Proto point = 50
+     * @generated from protobuf field: symbol.destack.Vector3Proto point = 50
      */
-    point?: Vector2Proto;
+    point?: Vector3Proto;
     /**
      * @generated from protobuf field: symbol.destack.Vector3Proto original_point = 51
      */
@@ -14145,14 +14145,6 @@ export enum ColorTypeProto {
      */
     COLOR_TYPE_BUILTIN = 1,
     /**
-     * @generated from protobuf enum value: COLOR_TYPE_STYLE = 2;
-     */
-    COLOR_TYPE_STYLE = 2,
-    /**
-     * @generated from protobuf enum value: COLOR_TYPE_FIELD = 3;
-     */
-    COLOR_TYPE_FIELD = 3,
-    /**
      * @generated from protobuf enum value: COLOR_TYPE_RGB = 10;
      */
     COLOR_TYPE_RGB = 10,
@@ -14655,10 +14647,6 @@ export enum EffectTypeProto {
      * @generated from protobuf enum value: EFFECT_TYPE_UNSPECIFIED = 0;
      */
     EFFECT_TYPE_UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: EFFECT_TYPE_STYLE = 2;
-     */
-    EFFECT_TYPE_STYLE = 2,
     /**
      * @generated from protobuf enum value: EFFECT_TYPE_APPEAR = 10;
      */
@@ -15799,10 +15787,6 @@ export enum FillTypeProto {
      */
     FILL_TYPE_UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: FILL_TYPE_STYLE = 2;
-     */
-    FILL_TYPE_STYLE = 2,
-    /**
      * @generated from protobuf enum value: FILL_TYPE_SOLID = 10;
      */
     FILL_TYPE_SOLID = 10,
@@ -15906,10 +15890,6 @@ export enum FontTypeProto {
      */
     FONT_TYPE_UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: FONT_TYPE_STYLE = 2;
-     */
-    FONT_TYPE_STYLE = 2,
-    /**
      * @generated from protobuf enum value: FONT_TYPE_SERIF = 10;
      */
     FONT_TYPE_SERIF = 10,
@@ -16010,10 +15990,6 @@ export enum GradientTypeProto {
      * @generated from protobuf enum value: GRADIENT_TYPE_UNSPECIFIED = 0;
      */
     GRADIENT_TYPE_UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: GRADIENT_TYPE_STYLE = 2;
-     */
-    GRADIENT_TYPE_STYLE = 2,
     /**
      * @generated from protobuf enum value: GRADIENT_TYPE_LINEAR = 10;
      */
@@ -17993,10 +17969,6 @@ export enum ShadowTypeProto {
      */
     SHADOW_TYPE_UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: SHADOW_TYPE_STYLE = 2;
-     */
-    SHADOW_TYPE_STYLE = 2,
-    /**
      * @generated from protobuf enum value: SHADOW_TYPE_BOX = 10;
      */
     SHADOW_TYPE_BOX = 10,
@@ -18218,7 +18190,11 @@ export enum StrokeTypeProto {
     /**
      * @generated from protobuf enum value: STROKE_TYPE_DOTTED = 3;
      */
-    STROKE_TYPE_DOTTED = 3
+    STROKE_TYPE_DOTTED = 3,
+    /**
+     * @generated from protobuf enum value: STROKE_TYPE_FREEHAND = 4;
+     */
+    STROKE_TYPE_FREEHAND = 4
 }
 /**
  * @generated from protobuf enum symbol.destack.StructTypeProto
@@ -18965,10 +18941,6 @@ export enum TransitionTypeProto {
      * @generated from protobuf enum value: TRANSITION_TYPE_UNSPECIFIED = 0;
      */
     TRANSITION_TYPE_UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: TRANSITION_TYPE_STYLE = 2;
-     */
-    TRANSITION_TYPE_STYLE = 2,
     /**
      * @generated from protobuf enum value: TRANSITION_TYPE_TWEEN = 10;
      */
@@ -44622,7 +44594,7 @@ class StrokeCapProto$Type extends MessageType<StrokeCapProto> {
         super("symbol.destack.StrokeCapProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
             { no: 50, name: "cap", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 51, name: "taper", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 51, name: "taper", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 52, name: "easing", kind: "enum", T: () => ["symbol.destack.EasingProto", EasingProto] }
         ]);
     }
@@ -44630,6 +44602,7 @@ class StrokeCapProto$Type extends MessageType<StrokeCapProto> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.cap = false;
+        message.taper = false;
         message.easing = 0;
         if (value !== undefined)
             reflectionMergePartial<StrokeCapProto>(this, message, value);
@@ -44646,8 +44619,8 @@ class StrokeCapProto$Type extends MessageType<StrokeCapProto> {
                 case /* bool cap */ 50:
                     message.cap = reader.bool();
                     break;
-                case /* optional double taper */ 51:
-                    message.taper = reader.double();
+                case /* bool taper */ 51:
+                    message.taper = reader.bool();
                     break;
                 case /* symbol.destack.EasingProto easing */ 52:
                     message.easing = reader.int32();
@@ -44670,9 +44643,9 @@ class StrokeCapProto$Type extends MessageType<StrokeCapProto> {
         /* bool cap = 50; */
         if (message.cap !== false)
             writer.tag(50, WireType.Varint).bool(message.cap);
-        /* optional double taper = 51; */
-        if (message.taper !== undefined)
-            writer.tag(51, WireType.Bit64).double(message.taper);
+        /* bool taper = 51; */
+        if (message.taper !== false)
+            writer.tag(51, WireType.Varint).bool(message.taper);
         /* symbol.destack.EasingProto easing = 52; */
         if (message.easing !== 0)
             writer.tag(52, WireType.Varint).int32(message.easing);
@@ -44746,7 +44719,7 @@ class StrokePointProto$Type extends MessageType<StrokePointProto> {
     constructor() {
         super("symbol.destack.StrokePointProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
-            { no: 50, name: "point", kind: "message", T: () => Vector2Proto },
+            { no: 50, name: "point", kind: "message", T: () => Vector3Proto },
             { no: 51, name: "original_point", kind: "message", T: () => Vector3Proto },
             { no: 52, name: "pressure", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 53, name: "direction", kind: "message", T: () => Vector3Proto },
@@ -44774,8 +44747,8 @@ class StrokePointProto$Type extends MessageType<StrokePointProto> {
                 case /* symbol.destack.StructTypeProto metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* symbol.destack.Vector2Proto point */ 50:
-                    message.point = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.point);
+                case /* symbol.destack.Vector3Proto point */ 50:
+                    message.point = Vector3Proto.internalBinaryRead(reader, reader.uint32(), options, message.point);
                     break;
                 case /* symbol.destack.Vector3Proto original_point */ 51:
                     message.originalPoint = Vector3Proto.internalBinaryRead(reader, reader.uint32(), options, message.originalPoint);
@@ -44810,9 +44783,9 @@ class StrokePointProto$Type extends MessageType<StrokePointProto> {
         /* symbol.destack.StructTypeProto metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbol.destack.Vector2Proto point = 50; */
+        /* symbol.destack.Vector3Proto point = 50; */
         if (message.point)
-            Vector2Proto.internalBinaryWrite(message.point, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+            Vector3Proto.internalBinaryWrite(message.point, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.Vector3Proto original_point = 51; */
         if (message.originalPoint)
             Vector3Proto.internalBinaryWrite(message.originalPoint, writer.tag(51, WireType.LengthDelimited).fork(), options).join();

@@ -508,7 +508,6 @@ registerStructClass(StructType.FONT, Font);
  * FontType
  */
 export enum FontType {
-  STYLE = 2,
   SERIF = 10,
   SANS = 11,
   MONO = 12,

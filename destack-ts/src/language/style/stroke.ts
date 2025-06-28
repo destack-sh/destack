@@ -9,7 +9,7 @@ import {
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
-import { Vector2, Vector3 } from "@destack/language/core/common";
+import { Vector3 } from "@destack/language/core/common";
 import {
   registerEnumClass,
   registerNodeClass,
@@ -40,6 +40,7 @@ export enum StrokeType {
   SOLID = 1,
   DASHED = 2,
   DOTTED = 3,
+  FREEHAND = 4,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -417,9 +418,9 @@ export class StrokeCap extends StructFrozen {
   readonly cap: boolean;
 
   /**
-   * The taper amount (0-1).
+   * Whether to taper the stroke.
    */
-  readonly taper: number | null;
+  readonly taper: boolean;
 
   /**
    * The easing function for taper.
@@ -428,7 +429,7 @@ export class StrokeCap extends StructFrozen {
 
   constructor(options: {
     cap: boolean;
-    taper?: number | null;
+    taper: boolean;
     easing: Easing;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -450,7 +451,10 @@ export class StrokeCap extends StructFrozen {
       throw new Error(`StrokeCap.cap is required`);
     }
     this.cap = _cap;
-    let _taper = options.taper ?? null;
+    let _taper = options.taper;
+    if (_taper === null) {
+      throw new Error(`StrokeCap.taper is required`);
+    }
     this.taper = _taper;
     let _easing = options.easing;
     if (_easing === null) {
@@ -476,11 +480,7 @@ export class StrokeCap extends StructFrozen {
     if (!(this.cap === other.cap)) {
       return false;
     }
-    if (
-      (this.taper == null) !== (other.taper == null) ||
-      (this.taper != null &&
-        !(this.taper === other.taper || Math.abs(this.taper - other.taper) < 1e-10))
-    ) {
+    if (!(this.taper === other.taper)) {
       return false;
     }
     if (!(this.easing === other.easing)) {
@@ -501,9 +501,7 @@ export class StrokeCap extends StructFrozen {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashBool(this.cap)) & 0xffffffff;
-    if (this.taper !== null) {
-      h = (h * 31 + hashFloat(this.taper)) & 0xffffffff;
-    }
+    h = (h * 31 + hashBool(this.taper)) & 0xffffffff;
     h = (h * 31 + this.easing) & 0xffffffff;
 
     // @ts-expect-error(readonly)
@@ -527,9 +525,7 @@ export class StrokeCap extends StructFrozen {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 12101;
     objectValue["50"] = object.cap;
-    if (object.taper != null) {
-      objectValue["51"] = object.taper;
-    }
+    objectValue["51"] = object.taper;
     objectValue["52"] = object.easing;
     return objectValue;
   }
@@ -541,11 +537,9 @@ export class StrokeCap extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): StrokeCap {
-    const taperValue = objectValue["51"];
-    const unpackedTaper = taperValue != undefined ? taperValue : null;
     return new StrokeCap({
       cap: objectValue["50"],
-      taper: unpackedTaper,
+      taper: objectValue["51"],
       easing: Number(objectValue["52"]),
       _value: objectValue,
       _supergraph,
@@ -573,9 +567,7 @@ export class StrokeCap extends StructFrozen {
   static __packProto__(object: StrokeCap): StrokeCapProto {
     const objectProto: Partial<StrokeCapProto> = { metatype: 12101 };
     objectProto.cap = object.cap;
-    if (object.taper != null) {
-      objectProto.taper = object.taper;
-    }
+    objectProto.taper = object.taper;
     objectProto.easing = Number(object.easing) as EasingProto;
     return objectProto as StrokeCapProto;
   }
@@ -589,7 +581,7 @@ export class StrokeCap extends StructFrozen {
   ): StrokeCap {
     return new StrokeCap({
       cap: objectProto.cap,
-      taper: objectProto.taper != undefined ? objectProto.taper : null,
+      taper: objectProto.taper,
       easing: Number(objectProto.easing) as Easing,
       _proto: objectProto,
       _supergraph,
@@ -630,7 +622,7 @@ export class StrokePoint extends StructFrozen {
   /**
    * The adjusted point position.
    */
-  readonly point: Vector2;
+  readonly point: Vector3;
 
   /**
    * The original input point.
@@ -663,7 +655,7 @@ export class StrokePoint extends StructFrozen {
   readonly radius: number;
 
   constructor(options: {
-    point: Vector2;
+    point: Vector3;
     originalPoint: Vector3;
     pressure: number;
     direction: Vector3;
@@ -829,7 +821,7 @@ export class StrokePoint extends StructFrozen {
     _connection?: any | null,
   ): StrokePoint {
     return new StrokePoint({
-      point: Vector2.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
+      point: Vector3.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
       originalPoint: Vector3.fromValue(
         objectValue["51"],
         _session,
@@ -885,7 +877,7 @@ export class StrokePoint extends StructFrozen {
     _connection?: any | null,
   ): StrokePoint {
     return new StrokePoint({
-      point: Vector2.fromProto(objectProto.point!, _session, _supergraph, _graph, _connection),
+      point: Vector3.fromProto(objectProto.point!, _session, _supergraph, _graph, _connection),
       originalPoint: Vector3.fromProto(
         objectProto.originalPoint!,
         _session,

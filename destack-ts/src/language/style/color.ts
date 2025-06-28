@@ -36,8 +36,6 @@ import { Temporal } from "temporal-polyfill";
  */
 export enum ColorType {
   BUILTIN = 1,
-  STYLE = 2,
-  FIELD = 3,
   RGB = 10,
   HSL = 11,
   P3 = 12,
