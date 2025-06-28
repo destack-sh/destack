@@ -1491,7 +1491,6 @@ enum TraitTypeProto {
   TRAIT_TYPE_ENTITY = 10;
   TRAIT_TYPE_PARTICLE = 11;
   TRAIT_TYPE_ANALYTIC = 12;
-  TRAIT_TYPE_INDEXED = 13;
   TRAIT_TYPE_RESOURCE = 21;
   TRAIT_TYPE_EVENT = 22;
   TRAIT_TYPE_CUSTOM_NODE_DEFINITION = 23;
@@ -4742,7 +4741,6 @@ message StrokeStyleProto {
   double thinning = 51;
   double smoothing = 52;
   double streamline = 53;
-  bool simulate_pressure = 54;
   EasingProto easing = 55;
   optional StrokeCapProto start = 60;
   optional StrokeCapProto end = 61;

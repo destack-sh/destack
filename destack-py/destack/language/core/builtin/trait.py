@@ -74,7 +74,7 @@ TRAIT_PREFIXES = ("Is", "Has", "Like")
 # traits you must have at least one of
 AT_LEAST_ONE_TRAITS = (
     (TraitType.GLOBAL, TraitType.SPATIAL),
-    (TraitType.ENTITY, TraitType.PARTICLE, TraitType.ANALYTIC, TraitType.INDEXED),
+    (TraitType.ENTITY, TraitType.PARTICLE, TraitType.ANALYTIC),
 )
 # traits you can have at most one of
 AT_MOST_ONE_TRAITS = ((TraitType.ENTITY, TraitType.PARTICLE),)
@@ -780,15 +780,6 @@ class Analytic(IsTracked):
     pass
 
 
-@builtin_trait(TraitType.INDEXED)
-class Indexed(IsTracked):
-    """
-    A Node that is indexed in secondary search storage (OLTP).
-    """
-
-    pass
-
-
 @builtin_trait(TraitType.RESOURCE)
 class Resource(Entity):
     """
@@ -816,7 +807,7 @@ class Measurement(Analytic, IsCustomNode):
 
 
 @builtin_trait(TraitType.EVENT, pretend_frozen=True)
-class Event[N: Node = Node](Spatial, Particle, Indexed, Analytic, IsFrozen):
+class Event[N: Node = Node](Spatial, Particle, Analytic, IsFrozen):
     """
     An Event represents something happening in a Space.
     """

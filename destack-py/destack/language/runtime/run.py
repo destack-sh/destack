@@ -6,7 +6,6 @@ from destack.language.core import (
     Enum,
     EnumType,
     Event,
-    Indexed,
     IsExtensible,
     IsRunnable,
     Node,
@@ -186,7 +185,6 @@ class Run(
     Spatial,
     Particle,
     Analytic,
-    Indexed,
     IsExtensible,
     Node[RunProto],
 ):

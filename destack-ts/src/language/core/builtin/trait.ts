@@ -760,25 +760,6 @@ export const Analytic = new Analytic$Type(TraitType.ANALYTIC);
 registerTraitClass(TraitType.ANALYTIC, Analytic);
 /* ==== DESTACK_GENERATED_END:TRAIT:12 ==== */
 
-/* ==== DESTACK_GENERATED_START:TRAIT:13 ==== */
-/**
- * A Node that is indexed in secondary search storage (OLTP).
- */
-export interface Indexed extends IsTracked {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node that is indexed in secondary search storage (OLTP).
- */
-class Indexed$Type extends TraitClass<Indexed, TraitType.INDEXED> {}
-
-export const Indexed = new Indexed$Type(TraitType.INDEXED);
-registerTraitClass(TraitType.INDEXED, Indexed);
-/* ==== DESTACK_GENERATED_END:TRAIT:13 ==== */
-
 /* ==== DESTACK_GENERATED_START:TRAIT:21 ==== */
 /**
  * A Resource represents an external asset.
@@ -855,7 +836,7 @@ registerTraitClass(TraitType.MEASUREMENT, Measurement);
 /**
  * An Event represents something happening in a Space.
  */
-export interface Event extends Spatial, Particle, Analytic, Indexed, IsFrozen {
+export interface Event extends Spatial, Particle, Analytic, IsFrozen {
   get node(): Node | null;
   set node(value: Node | null);
   nodePtr: NodeReference | null;

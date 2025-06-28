@@ -23,6 +23,9 @@ if TYPE_CHECKING:
 
 # pyright: reportIncompatibleVariableOverride=false
 
+# nocheckin: separate different Polygons? add base shapes as plain Structs?
+#  (Ellipse/EllipseShape, Rectangle/..., Triangle/..., Polygon/..., )
+
 
 @builtin_enum(EnumType.POLYGON_SHAPE_TYPE)
 class PolygonShapeType(Enum):

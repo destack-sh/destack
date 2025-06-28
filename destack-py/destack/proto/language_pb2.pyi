@@ -1462,7 +1462,6 @@ class TraitTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TRAIT_TYPE_ENTITY: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_PARTICLE: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_ANALYTIC: _ClassVar[TraitTypeProto]
-    TRAIT_TYPE_INDEXED: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_RESOURCE: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_EVENT: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_CUSTOM_NODE_DEFINITION: _ClassVar[TraitTypeProto]
@@ -2647,7 +2646,6 @@ TRAIT_TYPE_SPATIAL: TraitTypeProto
 TRAIT_TYPE_ENTITY: TraitTypeProto
 TRAIT_TYPE_PARTICLE: TraitTypeProto
 TRAIT_TYPE_ANALYTIC: TraitTypeProto
-TRAIT_TYPE_INDEXED: TraitTypeProto
 TRAIT_TYPE_RESOURCE: TraitTypeProto
 TRAIT_TYPE_EVENT: TraitTypeProto
 TRAIT_TYPE_CUSTOM_NODE_DEFINITION: TraitTypeProto
@@ -8487,7 +8485,7 @@ class StrokePointProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., point: _Optional[_Union[Vector2Proto, _Mapping]] = ..., original_point: _Optional[_Union[Vector2Proto, _Mapping]] = ..., pressure: _Optional[float] = ..., direction: _Optional[_Union[Vector2Proto, _Mapping]] = ..., distance: _Optional[float] = ..., running_length: _Optional[float] = ..., radius: _Optional[float] = ...) -> None: ...
 
 class StrokeStyleProto(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "order_key", "type", "name", "size", "thinning", "smoothing", "streamline", "simulate_pressure", "easing", "start", "end")
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "order_key", "type", "name", "size", "thinning", "smoothing", "streamline", "easing", "start", "end")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -8504,7 +8502,6 @@ class StrokeStyleProto(_message.Message):
     THINNING_FIELD_NUMBER: _ClassVar[int]
     SMOOTHING_FIELD_NUMBER: _ClassVar[int]
     STREAMLINE_FIELD_NUMBER: _ClassVar[int]
-    SIMULATE_PRESSURE_FIELD_NUMBER: _ClassVar[int]
     EASING_FIELD_NUMBER: _ClassVar[int]
     START_FIELD_NUMBER: _ClassVar[int]
     END_FIELD_NUMBER: _ClassVar[int]
@@ -8524,11 +8521,10 @@ class StrokeStyleProto(_message.Message):
     thinning: float
     smoothing: float
     streamline: float
-    simulate_pressure: bool
     easing: EasingProto
     start: StrokeCapProto
     end: StrokeCapProto
-    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., order_key: _Optional[str] = ..., type: _Optional[_Union[StrokeTypeProto, str]] = ..., name: _Optional[str] = ..., size: _Optional[int] = ..., thinning: _Optional[float] = ..., smoothing: _Optional[float] = ..., streamline: _Optional[float] = ..., simulate_pressure: bool = ..., easing: _Optional[_Union[EasingProto, str]] = ..., start: _Optional[_Union[StrokeCapProto, _Mapping]] = ..., end: _Optional[_Union[StrokeCapProto, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., order_key: _Optional[str] = ..., type: _Optional[_Union[StrokeTypeProto, str]] = ..., name: _Optional[str] = ..., size: _Optional[int] = ..., thinning: _Optional[float] = ..., smoothing: _Optional[float] = ..., streamline: _Optional[float] = ..., easing: _Optional[_Union[EasingProto, str]] = ..., start: _Optional[_Union[StrokeCapProto, _Mapping]] = ..., end: _Optional[_Union[StrokeCapProto, _Mapping]] = ...) -> None: ...
 
 class StructDefinitionProto(_message.Message):
     __slots__ = ("metatype", "id", "type", "name", "icon", "description", "properties", "is_frozen")

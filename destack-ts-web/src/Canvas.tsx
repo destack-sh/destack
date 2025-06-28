@@ -194,7 +194,6 @@ export const Canvas: React.FC = () => {
       isDrawing.value = true;
       lastMousePosition.value = point;
       currentLine.value = new Line({ points: [point] });
-      console.log("mouse down", currentLine.value.points.length);
     } else if (currentTool.value === "select") {
       // select mode - handle selection, movement, and resizing
       if (selectedLine.value) {
@@ -357,7 +356,6 @@ export const Canvas: React.FC = () => {
         currentLine.value = new Line({
           points: [...currentLine.value.points, currentPoint],
         });
-        console.log("mouse move", currentLine.value.points.length, currentPoint.repr());
       }
     }
   };
@@ -381,7 +379,6 @@ export const Canvas: React.FC = () => {
       lines.value = [...lines.value, currentLine.value];
       currentLine.value = null;
       lastMousePosition.value = null;
-      console.log("mouse up", lines.value[lines.value.length - 1].repr());
     }
   };
 
