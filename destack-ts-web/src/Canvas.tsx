@@ -1,12 +1,9 @@
 import { EASINGS } from "@destack-web/shared/easings";
 import { renderStroke } from "@destack-web/shared/freehand/svg";
 import { StrokeOptions } from "@destack-web/shared/freehand/types";
-import { computed, Signal, signal } from "@preact/signals-react";
+import { computed, Signal, signal, useSignal } from "@preact/signals-react";
 import { Line, LineType, Vector3 } from "destack";
 import React, { useRef } from "react";
-
-const currentLine = signal<Line | null>(null);
-const lines = signal<Line[]>([]);
 
 const size = signal(12);
 const thinning = signal(0.5);
@@ -17,41 +14,46 @@ const taperStart = signal(false);
 const taperEnd = signal(false);
 const isDrawing = signal(false);
 const lastMousePosition = signal<Vector3 | null>(null);
+const strokeOptions: Signal<StrokeOptions> = computed(() => ({
+  size: size.value,
+  thinning: thinning.value,
+  smoothing: smoothing.value,
+  streamline: streamline.value,
+  simulatePressure: simulatePressure.value,
+  start: {
+    cap: true,
+    taper: taperStart.value,
+    easing: EASINGS.easeOutCubic,
+  },
+  end: {
+    cap: true,
+    taper: taperEnd.value,
+    easing: EASINGS.easeOutCubic,
+  },
+}));
 
 export const Canvas: React.FC = () => {
-  const svgRef = useRef<SVGSVGElement>(null);
+  const currentLine = useSignal<Line | null>(null);
+  const points = useSignal({
+    type: LineType.SOLID,
+    points: [] as Vector3[],
+  });
+  const lines = useSignal<Line[]>([]);
 
-  const strokeOptions: Signal<StrokeOptions> = computed(() => ({
-    size: size.value,
-    thinning: thinning.value,
-    smoothing: smoothing.value,
-    streamline: streamline.value,
-    simulatePressure: simulatePressure.value,
-    start: {
-      cap: true,
-      taper: taperStart.value,
-      easing: EASINGS.easeOutCubic,
-    },
-    end: {
-      cap: true,
-      taper: taperEnd.value,
-      easing: EASINGS.easeOutCubic,
-    },
-  }));
+  const svgRef = useRef<SVGSVGElement>(null);
 
   const getMousePosition = (event: React.MouseEvent<SVGSVGElement>): Vector3 => {
     if (!svgRef.current) {
       throw new Error("SVG element not found");
     }
-
     const rect = svgRef.current.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
     const pressure = 1.0;
-
     return new Vector3({ x, y, z: pressure });
   };
 
+  // begin drawing on mouse down
   const handleMouseDown = (event: React.MouseEvent<SVGSVGElement>) => {
     isDrawing.value = true;
     const point = getMousePosition(event);
@@ -60,24 +62,29 @@ export const Canvas: React.FC = () => {
     console.log("mouse down", currentLine.value.points.length);
   };
 
+  // add points on mouse move
   const handleMouseMove = (event: React.MouseEvent<SVGSVGElement>) => {
     if (!isDrawing.value || !currentLine.value) return;
-    const lastPoint = currentLine.value.points[currentLine.value.points.length - 1];
     const currentPoint = getMousePosition(event);
-    if (lastPoint == null || lastPoint.x != currentPoint.x || lastPoint.y != currentPoint.y) {
-      console.log("add point", currentLine.value.points.length, currentPoint.repr());
-      currentLine.value = new Line({
-        type: LineType.SOLID,
-        points: [...currentLine.value.points, currentPoint],
-      });
-      console.log("mouse move", currentLine.value.points.length);
-    }
+    currentLine.value = new Line({
+      type: LineType.SOLID,
+      points: [...currentLine.value.points, currentPoint],
+    });
+    points.value = {
+      type: LineType.SOLID,
+      points: [...points.value.points, currentPoint],
+    };
+    console.log(
+      "mouse move",
+      points.value.points.length,
+      currentLine.value.points.length,
+      currentPoint.repr(),
+    );
   };
 
+  // finish drawing on mouse up
   const handleMouseUp = () => {
     if (!isDrawing.value || !currentLine.value) return;
-
-    // finish
     isDrawing.value = false;
     lines.value = [...lines.value, currentLine.value];
     currentLine.value = null;

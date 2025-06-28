@@ -681,6 +681,7 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
+
     return h;
   }
 

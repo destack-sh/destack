@@ -194,7 +194,6 @@ export class Icon extends StructFrozen {
     if (this.color !== null) {
       h = (h * 31 + this.color.hash()) & 0xffffffff;
     }
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;

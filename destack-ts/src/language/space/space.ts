@@ -717,6 +717,7 @@ export class Space
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 

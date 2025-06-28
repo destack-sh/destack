@@ -324,6 +324,7 @@ export class Transition extends Struct {
     if (this.springType !== null) {
       h = (h * 31 + this.springType) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -963,6 +964,7 @@ export class TransitionStyle extends Node implements Style {
     if (this.springType !== null) {
       h = (h * 31 + this.springType) & 0xffffffff;
     }
+
     return h;
   }
 

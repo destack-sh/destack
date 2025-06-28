@@ -307,6 +307,7 @@ export class Notification extends Node implements Spatial, Entity, IsOwnable {
     if (this.ownedByPtr !== null) {
       h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -792,6 +793,7 @@ export class NotificationSentEvent extends Node implements Event {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -1245,6 +1247,7 @@ export class NotificationRescindedEvent extends Node implements Event {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -1698,6 +1701,7 @@ export class NotificationReadEvent extends Node implements Event {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -2151,6 +2155,7 @@ export class NotificationDismissedEvent extends Node implements Event {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -2604,6 +2609,7 @@ export class NotificationExpiredEvent extends Node implements Event {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 

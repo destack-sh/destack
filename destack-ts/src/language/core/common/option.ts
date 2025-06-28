@@ -328,6 +328,7 @@ export class CustomOption
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+
     return h;
   }
 

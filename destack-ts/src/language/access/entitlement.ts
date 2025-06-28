@@ -283,6 +283,7 @@ export class EntitlementRequestedEvent extends Node implements Event {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -780,6 +781,7 @@ export class EntitlementGrantedEvent extends Node implements Event {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -1277,6 +1279,7 @@ export class EntitlementRevokedEvent extends Node implements Event {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -1774,6 +1777,7 @@ export class EntitlementExpiredEvent extends Node implements Event {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -2296,6 +2300,7 @@ export class Entitlement extends Node implements Spatial, Entity, IsDeletable {
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
+
     return h;
   }
 

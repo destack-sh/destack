@@ -350,6 +350,7 @@ export class Color extends Struct {
     if (this.alpha !== null) {
       h = (h * 31 + hashFloat(this.alpha)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -942,6 +943,7 @@ export class ColorStyle extends Node implements Style {
     if (this.alpha !== null) {
       h = (h * 31 + hashFloat(this.alpha)) & 0xffffffff;
     }
+
     return h;
   }
 

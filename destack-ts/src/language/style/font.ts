@@ -402,6 +402,7 @@ export class Font extends Struct {
     if (this.transform !== null) {
       h = (h * 31 + this.transform) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -1037,6 +1038,7 @@ export class FontStyle extends Node implements Style {
     if (this.transform !== null) {
       h = (h * 31 + this.transform) & 0xffffffff;
     }
+
     return h;
   }
 

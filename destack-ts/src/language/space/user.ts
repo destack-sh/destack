@@ -419,6 +419,7 @@ export class User
     if (this.icon !== null) {
       h = (h * 31 + this.icon.hash()) & 0xffffffff;
     }
+
     return h;
   }
 

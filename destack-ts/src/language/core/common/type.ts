@@ -182,7 +182,6 @@ export class StringConstraint extends StructFrozen {
     if (this.endsWith !== null) {
       h = (h * 31 + hashString(this.endsWith)) & 0xffffffff;
     }
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -481,7 +480,6 @@ export class NumberConstraint extends StructFrozen {
     if (this.scale !== null) {
       h = (h * 31 + hashInt(this.scale)) & 0xffffffff;
     }
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -732,7 +730,6 @@ export class CollectionConstraint extends StructFrozen {
     if (this.maxLength !== null) {
       h = (h * 31 + hashInt(this.maxLength)) & 0xffffffff;
     }
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -963,7 +960,6 @@ export class NodeConstraint extends StructFrozen {
         h = (h * 31 + _item) & 0xffffffff;
       }
     }
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -1486,7 +1482,6 @@ export class Type extends StructFrozen {
     if (this.nodeConstraint !== null) {
       h = (h * 31 + this.nodeConstraint.hash()) & 0xffffffff;
     }
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;

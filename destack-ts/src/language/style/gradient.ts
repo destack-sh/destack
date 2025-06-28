@@ -142,7 +142,6 @@ export class GradientStop extends StructFrozen {
       h = (h * 31 + this.color.hash()) & 0xffffffff;
     }
     h = (h * 31 + hashFloat(this.position)) & 0xffffffff;
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -423,6 +422,7 @@ export class Gradient extends Struct {
     if (this.centerAnchor !== null) {
       h = (h * 31 + this.centerAnchor.hash()) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -952,6 +952,7 @@ export class GradientStyle extends Node implements Style {
     if (this.centerAnchor !== null) {
       h = (h * 31 + this.centerAnchor.hash()) & 0xffffffff;
     }
+
     return h;
   }
 

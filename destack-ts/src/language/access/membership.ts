@@ -361,6 +361,7 @@ export class Membership
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -984,6 +985,7 @@ export class MembershipJoinedEvent extends Node implements Event {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -1582,6 +1584,7 @@ export class MembershipLeftEvent extends Node implements Event {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 

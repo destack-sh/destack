@@ -233,7 +233,6 @@ export class Length extends StructFrozen {
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.unit) & 0xffffffff;
     h = (h * 31 + hashFloat(this.value)) & 0xffffffff;
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -493,7 +492,6 @@ export class Position extends StructFrozen {
     if (this.height !== null) {
       h = (h * 31 + this.height.hash()) & 0xffffffff;
     }
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -765,7 +763,6 @@ export class Dimension extends StructFrozen {
     h = (h * 31 + this.type) & 0xffffffff;
     h = (h * 31 + this.unit) & 0xffffffff;
     h = (h * 31 + hashFloat(this.value)) & 0xffffffff;
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -1023,7 +1020,6 @@ export class Insets extends StructFrozen {
     if (this.bottom !== null) {
       h = (h * 31 + hashInt(this.bottom)) & 0xffffffff;
     }
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -1319,7 +1315,6 @@ export class Corners extends StructFrozen {
     if (this.bottomRight !== null) {
       h = (h * 31 + hashInt(this.bottomRight)) & 0xffffffff;
     }
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -1590,7 +1585,6 @@ export class Axis2 extends StructFrozen {
     if (this.y !== null) {
       h = (h * 31 + hashFloat(this.y)) & 0xffffffff;
     }
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -1861,7 +1855,6 @@ export class Axis3 extends StructFrozen {
     if (this.z !== null) {
       h = (h * 31 + hashFloat(this.z)) & 0xffffffff;
     }
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -2149,7 +2142,6 @@ export class Grid extends StructFrozen {
     if (this.rowHeight !== null) {
       h = (h * 31 + this.rowHeight.hash()) & 0xffffffff;
     }
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -2405,7 +2397,6 @@ export class GridSpan extends StructFrozen {
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashInt(this.columns)) & 0xffffffff;
     h = (h * 31 + hashInt(this.rows)) & 0xffffffff;
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;

@@ -114,7 +114,6 @@ export class Value extends StructFrozen {
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type.hash()) & 0xffffffff;
     h = (h * 31 + hashString(JSON.stringify(this.value))) & 0xffffffff;
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;

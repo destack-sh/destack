@@ -556,6 +556,7 @@ export class TextView extends Node implements ContentView {
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
+
     return h;
   }
 

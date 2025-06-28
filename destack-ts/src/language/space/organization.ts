@@ -328,6 +328,7 @@ export class Organization
       h = (h * 31 + this.icon.hash()) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
+
     return h;
   }
 

@@ -427,6 +427,7 @@ export class CustomEntityDefinition
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+
     return h;
   }
 
@@ -1061,6 +1062,7 @@ export class CustomEntity
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
+
     return h;
   }
 

@@ -276,6 +276,7 @@ export class RoleAssignedEvent extends Node implements Event {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -788,6 +789,7 @@ export class RoleUnassignedEvent extends Node implements Event {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -1343,6 +1345,7 @@ export class Role
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
+
     return h;
   }
 

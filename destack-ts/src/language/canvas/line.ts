@@ -580,6 +580,7 @@ export class LineShape extends Node implements ContentView, IsShape {
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -1157,7 +1158,6 @@ export class Line extends StructFrozen {
     if (this.color !== null) {
       h = (h * 31 + this.color.hash()) & 0xffffffff;
     }
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;

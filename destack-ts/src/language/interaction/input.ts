@@ -621,6 +621,7 @@ export class PointerDownEvent extends Node implements PointerEvent {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -1230,6 +1231,7 @@ export class PointerUpEvent extends Node implements PointerEvent {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -1827,6 +1829,7 @@ export class PointerMoveEvent extends Node implements PointerEvent {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -2436,6 +2439,7 @@ export class PointerEnterEvent extends Node implements PointerEvent {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -3045,6 +3049,7 @@ export class PointerOverEvent extends Node implements PointerEvent {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -3654,6 +3659,7 @@ export class PointerLeaveEvent extends Node implements PointerEvent {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -4263,6 +4269,7 @@ export class LongPressEvent extends Node implements PointerEvent {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -4877,6 +4884,7 @@ export class LeftClickEvent extends Node implements ClickEvent {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -5495,6 +5503,7 @@ export class RightClickEvent extends Node implements ClickEvent {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -6113,6 +6122,7 @@ export class MiddleClickEvent extends Node implements ClickEvent {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -6743,6 +6753,7 @@ export class DoubleClickEvent extends Node implements ClickEvent {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -7387,6 +7398,7 @@ export class WheelEvent extends Node implements MouseEvent {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -7992,6 +8004,7 @@ export class KeyDownEvent extends Node implements KeyboardEvent {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -8583,6 +8596,7 @@ export class KeyUpEvent extends Node implements KeyboardEvent {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -9174,6 +9188,7 @@ export class KeyPressEvent extends Node implements KeyboardEvent {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -9675,6 +9690,7 @@ export class DragStartEvent extends Node implements DragEvent {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -10158,6 +10174,7 @@ export class DragEndEvent extends Node implements DragEvent {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -10641,6 +10658,7 @@ export class DragOverEvent extends Node implements DragEvent {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -11124,6 +11142,7 @@ export class DragEnterEvent extends Node implements DragEvent {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -11607,6 +11626,7 @@ export class DragLeaveEvent extends Node implements DragEvent {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -12090,6 +12110,7 @@ export class DropEvent extends Node implements DragEvent {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -12558,6 +12579,7 @@ export class CopyEvent extends Node implements ClipboardEvent {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -13016,6 +13038,7 @@ export class CutEvent extends Node implements ClipboardEvent {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -13474,6 +13497,7 @@ export class PasteEvent extends Node implements ClipboardEvent {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -13932,6 +13956,7 @@ export class FocusInEvent extends Node implements FocusEvent {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -14390,6 +14415,7 @@ export class FocusOutEvent extends Node implements FocusEvent {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 

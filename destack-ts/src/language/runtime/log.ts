@@ -274,6 +274,7 @@ export class Log extends Node implements Spatial, Analytic, IsFrozen {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 

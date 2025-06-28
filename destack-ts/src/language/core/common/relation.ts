@@ -175,7 +175,6 @@ export class Scope extends StructFrozen {
     if (this.spaceId !== null) {
       h = (h * 31 + hashString(this.spaceId.toString())) & 0xffffffff;
     }
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -431,7 +430,6 @@ export class RelationReference extends StructFrozen {
     if (this.traitType !== null) {
       h = (h * 31 + this.traitType) & 0xffffffff;
     }
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -754,7 +752,6 @@ export class ObjectReference extends StructFrozen {
     if (this.definitionPtr !== null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -1097,7 +1094,6 @@ export class PropertyReference extends StructFrozen {
     if (this.customPropertyPtr !== null) {
       h = (h * 31 + hashString(this.customPropertyPtr.id)) & 0xffffffff;
     }
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -1420,7 +1416,6 @@ export class NodeReference extends StructFrozen {
     if (this.definitionId !== null) {
       h = (h * 31 + hashString(this.definitionId.toString())) & 0xffffffff;
     }
-    return h;
 
     // @ts-expect-error(readonly)
     this._hash = h;

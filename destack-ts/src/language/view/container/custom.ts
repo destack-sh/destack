@@ -857,6 +857,7 @@ export class CustomViewDefinition extends Node implements ContainerView, IsCusto
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
+
     return h;
   }
 
@@ -2384,6 +2385,7 @@ export class CustomView extends Node implements ContainerView, IsCustomNode {
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
+
     return h;
   }
 

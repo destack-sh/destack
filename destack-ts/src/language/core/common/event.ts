@@ -359,6 +359,7 @@ export class EditEvent extends Node implements Event, IsTaggable {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -932,6 +933,7 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, HasN
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+
     return h;
   }
 
@@ -1438,6 +1440,7 @@ export class CustomEvent extends Node implements Event {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 

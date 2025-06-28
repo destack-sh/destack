@@ -229,6 +229,7 @@ export class Friendship extends Node implements Global, Entity {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -651,6 +652,7 @@ export class FriendshipInviteSentEvent extends Node implements Event {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -1104,6 +1106,7 @@ export class FriendshipInviteRescindedEvent extends Node implements Event {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -1559,6 +1562,7 @@ export class FriendshipInviteAcceptedEvent extends Node implements Event {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -2012,6 +2016,7 @@ export class FriendshipInviteRejectedEvent extends Node implements Event {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+
     return h;
   }
 
@@ -2467,6 +2472,7 @@ export class FriendshipInvite extends Node implements Global, Entity, LikeInvite
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.memberPtr.id)) & 0xffffffff;
+
     return h;
   }
 
