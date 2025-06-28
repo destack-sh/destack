@@ -54,19 +54,21 @@ export class Theme
     NodeType.FONT_STYLE,
     NodeType.PALETTE,
     NodeType.SHADOW_STYLE,
+    NodeType.STROKE_STYLE,
   ];
   static __ancestorTypes__: NodeType[] = [NodeType.SPACE];
   static __descendantTypes__: NodeType[] = [
+    NodeType.STROKE_STYLE,
+    NodeType.GRADIENT_STYLE,
+    NodeType.FONT_STYLE,
     NodeType.PALETTE,
+    NodeType.TRANSITION_STYLE,
+    NodeType.BORDER_STYLE,
     NodeType.TAGGING,
     NodeType.COLOR_STYLE,
-    NodeType.FILL_STYLE,
-    NodeType.FONT_STYLE,
-    NodeType.BORDER_STYLE,
-    NodeType.SHADOW_STYLE,
-    NodeType.GRADIENT_STYLE,
-    NodeType.TRANSITION_STYLE,
     NodeType.EFFECT_STYLE,
+    NodeType.SHADOW_STYLE,
+    NodeType.FILL_STYLE,
   ];
 
   /**

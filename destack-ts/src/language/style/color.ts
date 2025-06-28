@@ -134,7 +134,7 @@ export class Color extends Struct {
   static __isFrozen__: boolean = false;
 
   /**
-   * ColorBase.type
+   * Color.type
    */
   type: ColorType;
 
@@ -161,37 +161,37 @@ export class Color extends Struct {
   stylePtr: NodeReference | null;
 
   /**
-   * ColorBase.hue
+   * Color.hue
    */
   hue: ColorHue | null;
 
   /**
-   * ColorBase.shade
+   * Color.shade
    */
   shade: ColorShade | null;
 
   /**
-   * ColorBase.intent
+   * Color.intent
    */
   intent: ColorIntent | null;
 
   /**
-   * ColorBase.x
+   * Color.x
    */
   x: number | null;
 
   /**
-   * ColorBase.y
+   * Color.y
    */
   y: number | null;
 
   /**
-   * ColorBase.z
+   * Color.z
    */
   z: number | null;
 
   /**
-   * ColorBase.alpha
+   * Color.alpha
    */
   alpha: number | null;
 
@@ -249,10 +249,10 @@ export class Color extends Struct {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.stylePtr?.id === other.stylePtr?.id)) {
+    if (!(this.type === other.type)) {
       return false;
     }
-    if (!(this.type === other.type)) {
+    if (!(this.stylePtr?.id === other.stylePtr?.id)) {
       return false;
     }
     if (!(this.hue === other.hue)) {
@@ -294,10 +294,10 @@ export class Color extends Struct {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`type=${ColorType[this.type]}`);
     if (this.style !== null) {
       propertyReprs.push(`style=${this.style.repr()}`);
     }
-    propertyReprs.push(`type=${ColorType[this.type]}`);
     if (this.hue !== null) {
       propertyReprs.push(`hue=${ColorHue[this.hue]}`);
     }
@@ -325,10 +325,10 @@ export class Color extends Struct {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
     if (this.stylePtr !== null) {
       h = (h * 31 + hashString(this.stylePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + this.type) & 0xffffffff;
     if (this.hue !== null) {
       h = (h * 31 + this.hue) & 0xffffffff;
     }
@@ -420,8 +420,8 @@ export class Color extends Struct {
     const alphaValue = objectValue["58"];
     const unpackedAlpha = alphaValue != undefined ? alphaValue : null;
     return new Color({
-      style: unpackedStylePtr,
       type: Number(objectValue["30"]),
+      style: unpackedStylePtr,
       hue: unpackedHue,
       shade: unpackedShade,
       intent: unpackedIntent,
@@ -485,6 +485,7 @@ export class Color extends Struct {
     _connection?: any | null,
   ): Color {
     return new Color({
+      type: Number(objectProto.type) as ColorType,
       style:
         objectProto.stylePtr != undefined
           ? NodeReference.fromProto(
@@ -495,7 +496,6 @@ export class Color extends Struct {
               _connection,
             )
           : null,
-      type: Number(objectProto.type) as ColorType,
       hue: objectProto.hue != undefined ? (Number(objectProto.hue) as ColorHue) : null,
       shade: objectProto.shade != undefined ? (Number(objectProto.shade) as ColorShade) : null,
       intent: objectProto.intent != undefined ? (Number(objectProto.intent) as ColorIntent) : null,
@@ -664,7 +664,7 @@ export class ColorStyle extends Node implements Style {
   readonly orderKey: string;
 
   /**
-   * ColorBase.type
+   * ColorStyle.type
    */
   type: ColorType;
 
@@ -674,37 +674,37 @@ export class ColorStyle extends Node implements Style {
   name: string;
 
   /**
-   * ColorBase.hue
+   * ColorStyle.hue
    */
   hue: ColorHue | null;
 
   /**
-   * ColorBase.shade
+   * ColorStyle.shade
    */
   shade: ColorShade | null;
 
   /**
-   * ColorBase.intent
+   * ColorStyle.intent
    */
   intent: ColorIntent | null;
 
   /**
-   * ColorBase.x
+   * ColorStyle.x
    */
   x: number | null;
 
   /**
-   * ColorBase.y
+   * ColorStyle.y
    */
   y: number | null;
 
   /**
-   * ColorBase.z
+   * ColorStyle.z
    */
   z: number | null;
 
   /**
-   * ColorBase.alpha
+   * ColorStyle.alpha
    */
   alpha: number | null;
 
@@ -843,18 +843,6 @@ export class ColorStyle extends Node implements Style {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (
-      (this.dark == null) !== (other.dark == null) ||
-      (this.dark != null && !this.dark.equals(other.dark))
-    ) {
-      return false;
-    }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
     if (!(this.type === other.type)) {
       return false;
     }
@@ -892,6 +880,18 @@ export class ColorStyle extends Node implements Style {
     ) {
       return false;
     }
+    if (
+      (this.dark == null) !== (other.dark == null) ||
+      (this.dark != null && !this.dark.equals(other.dark))
+    ) {
+      return false;
+    }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
     return true;
   }
 
@@ -900,26 +900,6 @@ export class ColorStyle extends Node implements Style {
     h = (h * 31 + this.metatype) & 0xffffffff;
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    if (this.dark !== null) {
-      h = (h * 31 + this.dark.hash()) & 0xffffffff;
-    }
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
-    if (this.deletedAt !== null) {
-      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + this.type) & 0xffffffff;
     if (this.hue !== null) {
@@ -942,6 +922,26 @@ export class ColorStyle extends Node implements Style {
     }
     if (this.alpha !== null) {
       h = (h * 31 + hashFloat(this.alpha)) & 0xffffffff;
+    }
+    if (this.dark !== null) {
+      h = (h * 31 + this.dark.hash()) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    if (this.deletedAt !== null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
 
     return h;
@@ -980,7 +980,6 @@ export class ColorStyle extends Node implements Style {
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${this.name}`);
     propertyReprs.push(`type=${ColorType[this.type]}`);
     if (this.hue !== null) {
       propertyReprs.push(`hue=${ColorHue[this.hue]}`);
@@ -1003,6 +1002,7 @@ export class ColorStyle extends Node implements Style {
     if (this.alpha !== null) {
       propertyReprs.push(`alpha=${this.alpha}`);
     }
+    propertyReprs.push(`name=${this.name}`);
     return `<ColorStyle '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
@@ -1073,6 +1073,20 @@ export class ColorStyle extends Node implements Style {
       parentPtrValue != undefined
         ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const hueValue = objectValue["50"];
+    const unpackedHue = hueValue != undefined ? Number(hueValue) : null;
+    const shadeValue = objectValue["51"];
+    const unpackedShade = shadeValue != undefined ? Number(shadeValue) : null;
+    const intentValue = objectValue["52"];
+    const unpackedIntent = intentValue != undefined ? Number(intentValue) : null;
+    const xValue = objectValue["55"];
+    const unpackedX = xValue != undefined ? xValue : null;
+    const yValue = objectValue["56"];
+    const unpackedY = yValue != undefined ? yValue : null;
+    const zValue = objectValue["57"];
+    const unpackedZ = zValue != undefined ? zValue : null;
+    const alphaValue = objectValue["58"];
+    const unpackedAlpha = alphaValue != undefined ? alphaValue : null;
     const darkValue = objectValue["60"];
     const unpackedDark =
       darkValue != undefined
@@ -1098,22 +1112,16 @@ export class ColorStyle extends Node implements Style {
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const hueValue = objectValue["50"];
-    const unpackedHue = hueValue != undefined ? Number(hueValue) : null;
-    const shadeValue = objectValue["51"];
-    const unpackedShade = shadeValue != undefined ? Number(shadeValue) : null;
-    const intentValue = objectValue["52"];
-    const unpackedIntent = intentValue != undefined ? Number(intentValue) : null;
-    const xValue = objectValue["55"];
-    const unpackedX = xValue != undefined ? xValue : null;
-    const yValue = objectValue["56"];
-    const unpackedY = yValue != undefined ? yValue : null;
-    const zValue = objectValue["57"];
-    const unpackedZ = zValue != undefined ? zValue : null;
-    const alphaValue = objectValue["58"];
-    const unpackedAlpha = alphaValue != undefined ? alphaValue : null;
     return new ColorStyle({
       parent: unpackedParentPtr,
+      type: Number(objectValue["30"]),
+      hue: unpackedHue,
+      shade: unpackedShade,
+      intent: unpackedIntent,
+      x: unpackedX,
+      y: unpackedY,
+      z: unpackedZ,
+      alpha: unpackedAlpha,
       dark: unpackedDark,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -1124,14 +1132,6 @@ export class ColorStyle extends Node implements Style {
       name: objectValue["31"],
       orderKey: objectValue["22"],
       deletedAt: unpackedDeletedAt,
-      type: Number(objectValue["30"]),
-      hue: unpackedHue,
-      shade: unpackedShade,
-      intent: unpackedIntent,
-      x: unpackedX,
-      y: unpackedY,
-      z: unpackedZ,
-      alpha: unpackedAlpha,
       _session,
       _graph,
       _connection,
@@ -1220,6 +1220,14 @@ export class ColorStyle extends Node implements Style {
               _connection,
             )
           : null,
+      type: Number(objectProto.type) as ColorType,
+      hue: objectProto.hue != undefined ? (Number(objectProto.hue) as ColorHue) : null,
+      shade: objectProto.shade != undefined ? (Number(objectProto.shade) as ColorShade) : null,
+      intent: objectProto.intent != undefined ? (Number(objectProto.intent) as ColorIntent) : null,
+      x: objectProto.x != undefined ? objectProto.x : null,
+      y: objectProto.y != undefined ? objectProto.y : null,
+      z: objectProto.z != undefined ? objectProto.z : null,
+      alpha: objectProto.alpha != undefined ? objectProto.alpha : null,
       dark:
         objectProto.dark != undefined
           ? Color.fromProto(objectProto.dark!, _session, _supergraph, _graph, _connection)
@@ -1261,14 +1269,6 @@ export class ColorStyle extends Node implements Style {
       orderKey: objectProto.orderKey,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
-      type: Number(objectProto.type) as ColorType,
-      hue: objectProto.hue != undefined ? (Number(objectProto.hue) as ColorHue) : null,
-      shade: objectProto.shade != undefined ? (Number(objectProto.shade) as ColorShade) : null,
-      intent: objectProto.intent != undefined ? (Number(objectProto.intent) as ColorIntent) : null,
-      x: objectProto.x != undefined ? objectProto.x : null,
-      y: objectProto.y != undefined ? objectProto.y : null,
-      z: objectProto.z != undefined ? objectProto.z : null,
-      alpha: objectProto.alpha != undefined ? objectProto.alpha : null,
       _session,
       _graph,
       _connection,

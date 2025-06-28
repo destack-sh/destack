@@ -5,7 +5,7 @@ import {
   IsSubject,
   Node,
   NodeType,
-  Struct,
+  StructFrozen,
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
@@ -30,74 +30,18 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:12034 ==== */
-/**
- * FillType
- */
-export enum FillType {
-  STYLE = 2,
-  SOLID = 10,
-  GRADIENT = 11,
-  IMAGE = 12,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.FILL_TYPE, FillType);
-/* ==== DESTACK_GENERATED_END:ENUM:12034 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:12035 ==== */
-/**
- * FillPosition
- */
-export enum FillPosition {
-  TOP_LEFT = 1,
-  TOP_CENTER = 2,
-  TOP_RIGHT = 3,
-  LEFT = 10,
-  CENTER = 11,
-  RIGHT = 12,
-  BOTTOM_LEFT = 20,
-  BOTTOM_CENTER = 21,
-  BOTTOM_RIGHT = 22,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.FILL_POSITION, FillPosition);
-/* ==== DESTACK_GENERATED_END:ENUM:12035 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:12036 ==== */
-/**
- * FillSize
- */
-export enum FillSize {
-  FILL = 1,
-  STRETCH = 2,
-  FIT = 3,
-  TILE = 4,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.FILL_SIZE, FillSize);
-/* ==== DESTACK_GENERATED_END:ENUM:12036 ==== */
-
 /* ==== DESTACK_GENERATED_START:STRUCT:12017 ==== */
 /**
  * A fill value.
  */
-export class Fill extends Struct {
+export class Fill extends StructFrozen {
   static metatype: StructType = StructType.FILL;
-  static __isFrozen__: boolean = false;
+  static __isFrozen__: boolean = true;
 
   /**
-   * FillBase.type
+   * Fill.type
    */
-  type: FillType;
+  readonly type: FillType;
 
   /**
    * style
@@ -112,24 +56,17 @@ export class Fill extends Struct {
     }
     return null;
   }
-  set style(value: FillStyle | null) {
-    if (value == null) {
-      this.stylePtr = null;
-    } else {
-      this.stylePtr = value.toRef();
-    }
-  }
-  stylePtr: NodeReference | null;
+  readonly stylePtr: NodeReference | null;
 
   /**
-   * FillBase.color
+   * Fill.color
    */
-  color: Color | null;
+  readonly color: Color | null;
 
   /**
-   * FillBase.gradient
+   * Fill.gradient
    */
-  gradient: Gradient | null;
+  readonly gradient: Gradient | null;
 
   /**
    * image
@@ -144,24 +81,17 @@ export class Fill extends Struct {
     }
     return null;
   }
-  set image(value: File | null) {
-    if (value == null) {
-      this.imagePtr = null;
-    } else {
-      this.imagePtr = value.toRef();
-    }
-  }
-  imagePtr: NodeReference | null;
+  readonly imagePtr: NodeReference | null;
 
   /**
-   * FillBase.position
+   * Fill.position
    */
-  position: FillPosition | null;
+  readonly position: FillPosition | null;
 
   /**
-   * FillBase.size
+   * Fill.size
    */
-  size: FillSize | null;
+  readonly size: FillSize | null;
 
   constructor(options: {
     type: FillType;
@@ -173,6 +103,10 @@ export class Fill extends Struct {
     size?: FillSize | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
   }) {
     super(
       // session
@@ -207,17 +141,24 @@ export class Fill extends Struct {
     this.size = _size;
 
     // identity
-    // ...
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
   }
 
   equals(other: any): boolean {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.stylePtr?.id === other.stylePtr?.id)) {
+    if (!(this.type === other.type)) {
       return false;
     }
-    if (!(this.type === other.type)) {
+    if (!(this.stylePtr?.id === other.stylePtr?.id)) {
       return false;
     }
     if (
@@ -245,36 +186,44 @@ export class Fill extends Struct {
   }
 
   repr(): string {
-    const propertyReprs: string[] = [];
-    if (this.style !== null) {
-      propertyReprs.push(`style=${this.style.repr()}`);
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`type=${FillType[this.type]}`);
+      if (this.style !== null) {
+        propertyReprs.push(`style=${this.style.repr()}`);
+      }
+      if (this.color !== null) {
+        propertyReprs.push(`color=${this.color.repr()}`);
+      }
+      if (this.gradient !== null) {
+        propertyReprs.push(`gradient=${this.gradient.repr()}`);
+      }
+      if (this.image !== null) {
+        propertyReprs.push(`image=${this.image.repr()}`);
+      }
+      if (this.position !== null) {
+        propertyReprs.push(`position=${FillPosition[this.position]}`);
+      }
+      if (this.size !== null) {
+        propertyReprs.push(`size=${FillSize[this.size]}`);
+      }
+      // @ts-expect-error(readonly)
+      this._repr = `<Fill ${propertyReprs.join(" ")}>`;
     }
-    propertyReprs.push(`type=${FillType[this.type]}`);
-    if (this.color !== null) {
-      propertyReprs.push(`color=${this.color.repr()}`);
-    }
-    if (this.gradient !== null) {
-      propertyReprs.push(`gradient=${this.gradient.repr()}`);
-    }
-    if (this.image !== null) {
-      propertyReprs.push(`image=${this.image.repr()}`);
-    }
-    if (this.position !== null) {
-      propertyReprs.push(`position=${FillPosition[this.position]}`);
-    }
-    if (this.size !== null) {
-      propertyReprs.push(`size=${FillSize[this.size]}`);
-    }
-    return `<Fill ${propertyReprs.join(" ")}>`;
+    return this._repr;
   }
 
   hash(): number {
+    if (this._hash !== null) {
+      return this._hash;
+    }
+
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
     if (this.stylePtr !== null) {
       h = (h * 31 + hashString(this.stylePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + this.type) & 0xffffffff;
     if (this.color !== null) {
       h = (h * 31 + this.color.hash()) & 0xffffffff;
     }
@@ -291,6 +240,8 @@ export class Fill extends Struct {
       h = (h * 31 + this.size) & 0xffffffff;
     }
 
+    // @ts-expect-error(readonly)
+    this._hash = h;
     return h;
   }
 
@@ -299,7 +250,11 @@ export class Fill extends Struct {
   }
 
   toValue(): { [key: string]: any } {
-    return Fill.__packValue__(this);
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Fill.__packValue__(this);
+    }
+    return this._value;
   }
 
   static __packValue__(object: Fill): { [key: string]: any } {
@@ -359,13 +314,14 @@ export class Fill extends Struct {
     const sizeValue = objectValue["54"];
     const unpackedSize = sizeValue != undefined ? Number(sizeValue) : null;
     return new Fill({
-      style: unpackedStylePtr,
       type: Number(objectValue["30"]),
+      style: unpackedStylePtr,
       color: unpackedColor,
       gradient: unpackedGradient,
       image: unpackedImagePtr,
       position: unpackedPosition,
       size: unpackedSize,
+      _value: objectValue,
       _supergraph,
     });
   }
@@ -381,7 +337,11 @@ export class Fill extends Struct {
   }
 
   toProto(): FillProto {
-    return Fill.__packProto__(this);
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Fill.__packProto__(this);
+    }
+    return this._proto as FillProto;
   }
 
   static __packProto__(object: Fill): FillProto {
@@ -416,6 +376,7 @@ export class Fill extends Struct {
     _connection?: any | null,
   ): Fill {
     return new Fill({
+      type: Number(objectProto.type) as FillType,
       style:
         objectProto.stylePtr != undefined
           ? NodeReference.fromProto(
@@ -426,7 +387,6 @@ export class Fill extends Struct {
               _connection,
             )
           : null,
-      type: Number(objectProto.type) as FillType,
       color:
         objectProto.color != undefined
           ? Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
@@ -448,6 +408,7 @@ export class Fill extends Struct {
       position:
         objectProto.position != undefined ? (Number(objectProto.position) as FillPosition) : null,
       size: objectProto.size != undefined ? (Number(objectProto.size) as FillSize) : null,
+      _proto: objectProto,
       _supergraph,
     });
   }
@@ -475,7 +436,63 @@ export class Fill extends Struct {
 registerStructClass(StructType.FILL, Fill);
 /* ==== DESTACK_GENERATED_END:STRUCT:12017 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:12021 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:12030 ==== */
+/**
+ * FillType
+ */
+export enum FillType {
+  STYLE = 2,
+  SOLID = 10,
+  GRADIENT = 11,
+  IMAGE = 12,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.FILL_TYPE, FillType);
+/* ==== DESTACK_GENERATED_END:ENUM:12030 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:12031 ==== */
+/**
+ * FillPosition
+ */
+export enum FillPosition {
+  TOP_LEFT = 1,
+  TOP_CENTER = 2,
+  TOP_RIGHT = 3,
+  LEFT = 10,
+  CENTER = 11,
+  RIGHT = 12,
+  BOTTOM_LEFT = 20,
+  BOTTOM_CENTER = 21,
+  BOTTOM_RIGHT = 22,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.FILL_POSITION, FillPosition);
+/* ==== DESTACK_GENERATED_END:ENUM:12031 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:12032 ==== */
+/**
+ * FillSize
+ */
+export enum FillSize {
+  FILL = 1,
+  STRETCH = 2,
+  FIT = 3,
+  TILE = 4,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.FILL_SIZE, FillSize);
+/* ==== DESTACK_GENERATED_END:ENUM:12032 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:12030 ==== */
 /**
  * A fill style.
  */
@@ -607,7 +624,7 @@ export class FillStyle extends Node implements Style {
   readonly orderKey: string;
 
   /**
-   * FillBase.type
+   * FillStyle.type
    */
   type: FillType;
 
@@ -617,17 +634,17 @@ export class FillStyle extends Node implements Style {
   name: string;
 
   /**
-   * FillBase.color
+   * FillStyle.color
    */
   color: Color | null;
 
   /**
-   * FillBase.gradient
+   * FillStyle.gradient
    */
   gradient: Gradient | null;
 
   /**
-   * FillBase.image
+   * FillStyle.image
    */
   get image(): File | null {
     const nodePtr: NodeReference | null = this.imagePtr;
@@ -646,12 +663,12 @@ export class FillStyle extends Node implements Style {
   imagePtr: NodeReference | null;
 
   /**
-   * FillBase.position
+   * FillStyle.position
    */
   position: FillPosition | null;
 
   /**
-   * FillBase.size
+   * FillStyle.size
    */
   size: FillSize | null;
 
@@ -779,12 +796,6 @@ export class FillStyle extends Node implements Style {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
     if (!(this.type === other.type)) {
       return false;
     }
@@ -809,12 +820,34 @@ export class FillStyle extends Node implements Style {
     if (!(this.size === other.size)) {
       return false;
     }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
     return true;
   }
 
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.color !== null) {
+      h = (h * 31 + this.color.hash()) & 0xffffffff;
+    }
+    if (this.gradient !== null) {
+      h = (h * 31 + this.gradient.hash()) & 0xffffffff;
+    }
+    if (this.imagePtr !== null) {
+      h = (h * 31 + hashString(this.imagePtr.id)) & 0xffffffff;
+    }
+    if (this.position !== null) {
+      h = (h * 31 + this.position) & 0xffffffff;
+    }
+    if (this.size !== null) {
+      h = (h * 31 + this.size) & 0xffffffff;
+    }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -834,22 +867,6 @@ export class FillStyle extends Node implements Style {
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    }
-    h = (h * 31 + this.type) & 0xffffffff;
-    if (this.color !== null) {
-      h = (h * 31 + this.color.hash()) & 0xffffffff;
-    }
-    if (this.gradient !== null) {
-      h = (h * 31 + this.gradient.hash()) & 0xffffffff;
-    }
-    if (this.imagePtr !== null) {
-      h = (h * 31 + hashString(this.imagePtr.id)) & 0xffffffff;
-    }
-    if (this.position !== null) {
-      h = (h * 31 + this.position) & 0xffffffff;
-    }
-    if (this.size !== null) {
-      h = (h * 31 + this.size) & 0xffffffff;
     }
 
     return h;
@@ -888,7 +905,6 @@ export class FillStyle extends Node implements Style {
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${this.name}`);
     propertyReprs.push(`type=${FillType[this.type]}`);
     if (this.color !== null) {
       propertyReprs.push(`color=${this.color.repr()}`);
@@ -905,6 +921,7 @@ export class FillStyle extends Node implements Style {
     if (this.size !== null) {
       propertyReprs.push(`size=${FillSize[this.size]}`);
     }
+    propertyReprs.push(`name=${this.name}`);
     return `<FillStyle '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
@@ -914,7 +931,7 @@ export class FillStyle extends Node implements Style {
 
   static __packValue__(object: FillStyle): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 12021;
+    objectValue["1"] = 12030;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -961,6 +978,25 @@ export class FillStyle extends Node implements Style {
     _graph?: any | null,
     _connection?: any | null,
   ): FillStyle {
+    const colorValue = objectValue["50"];
+    const unpackedColor =
+      colorValue != undefined
+        ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const gradientValue = objectValue["51"];
+    const unpackedGradient =
+      gradientValue != undefined
+        ? Gradient.fromValue(gradientValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const imagePtrValue = objectValue["52"];
+    const unpackedImagePtr =
+      imagePtrValue != undefined
+        ? NodeReference.fromValue(imagePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const positionValue = objectValue["53"];
+    const unpackedPosition = positionValue != undefined ? Number(positionValue) : null;
+    const sizeValue = objectValue["54"];
+    const unpackedSize = sizeValue != undefined ? Number(sizeValue) : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -986,26 +1022,13 @@ export class FillStyle extends Node implements Style {
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const colorValue = objectValue["50"];
-    const unpackedColor =
-      colorValue != undefined
-        ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const gradientValue = objectValue["51"];
-    const unpackedGradient =
-      gradientValue != undefined
-        ? Gradient.fromValue(gradientValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const imagePtrValue = objectValue["52"];
-    const unpackedImagePtr =
-      imagePtrValue != undefined
-        ? NodeReference.fromValue(imagePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const positionValue = objectValue["53"];
-    const unpackedPosition = positionValue != undefined ? Number(positionValue) : null;
-    const sizeValue = objectValue["54"];
-    const unpackedSize = sizeValue != undefined ? Number(sizeValue) : null;
     return new FillStyle({
+      type: Number(objectValue["30"]),
+      color: unpackedColor,
+      gradient: unpackedGradient,
+      image: unpackedImagePtr,
+      position: unpackedPosition,
+      size: unpackedSize,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -1016,12 +1039,6 @@ export class FillStyle extends Node implements Style {
       name: objectValue["31"],
       orderKey: objectValue["22"],
       deletedAt: unpackedDeletedAt,
-      type: Number(objectValue["30"]),
-      color: unpackedColor,
-      gradient: unpackedGradient,
-      image: unpackedImagePtr,
-      position: unpackedPosition,
-      size: unpackedSize,
       _session,
       _graph,
       _connection,
@@ -1043,7 +1060,7 @@ export class FillStyle extends Node implements Style {
   }
 
   static __packProto__(object: FillStyle): FillStyleProto {
-    const objectProto: Partial<FillStyleProto> = { metatype: 12021 };
+    const objectProto: Partial<FillStyleProto> = { metatype: 12030 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1091,6 +1108,28 @@ export class FillStyle extends Node implements Style {
     _connection?: any | null,
   ): FillStyle {
     return new FillStyle({
+      type: Number(objectProto.type) as FillType,
+      color:
+        objectProto.color != undefined
+          ? Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
+          : null,
+      gradient:
+        objectProto.gradient != undefined
+          ? Gradient.fromProto(objectProto.gradient!, _session, _supergraph, _graph, _connection)
+          : null,
+      image:
+        objectProto.imagePtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.imagePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      position:
+        objectProto.position != undefined ? (Number(objectProto.position) as FillPosition) : null,
+      size: objectProto.size != undefined ? (Number(objectProto.size) as FillSize) : null,
       parent:
         objectProto.parentPtr != undefined
           ? NodeReference.fromProto(
@@ -1138,28 +1177,6 @@ export class FillStyle extends Node implements Style {
       orderKey: objectProto.orderKey,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
-      type: Number(objectProto.type) as FillType,
-      color:
-        objectProto.color != undefined
-          ? Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
-          : null,
-      gradient:
-        objectProto.gradient != undefined
-          ? Gradient.fromProto(objectProto.gradient!, _session, _supergraph, _graph, _connection)
-          : null,
-      image:
-        objectProto.imagePtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.imagePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      position:
-        objectProto.position != undefined ? (Number(objectProto.position) as FillPosition) : null,
-      size: objectProto.size != undefined ? (Number(objectProto.size) as FillSize) : null,
       _session,
       _graph,
       _connection,
@@ -1187,4 +1204,4 @@ export class FillStyle extends Node implements Style {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FILL_STYLE, FillStyle);
-/* ==== DESTACK_GENERATED_END:NODE:12021 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:12030 ==== */

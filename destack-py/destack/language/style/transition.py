@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
-    BuiltinObjectMutable,
     Enum,
     EnumType,
     Node,
@@ -11,7 +10,6 @@ from destack.language.core import (
     builtin_enum,
     builtin_node,
     builtin_struct,
-    object_,
     property_,
 )
 from destack.proto import TransitionStyleProto
@@ -29,7 +27,6 @@ if TYPE_CHECKING:
 class TransitionType(Enum):
     """Built-in transition types."""
 
-    STYLE = 2
     TWEEN = 10
     SPRING = 11
 
@@ -42,9 +39,12 @@ class SpringType(Enum):
     PHYSICS = 2
 
 
-@object_()
-class TransitionBase(BuiltinObjectMutable):
+@builtin_struct(StructType.TRANSITION)
+class Transition(StructMutable):
+    """A transition value."""
+
     type: TransitionType = property_(30, default=TransitionType.TWEEN, is_repr=True)
+    style: Optional["TransitionStyle"] = property_(41, is_repr=True)
     delay: float | None = property_(50, is_repr=True)
     duration: float | None = property_(51, is_repr=True)
     ease: list[float] = property_(52, is_repr=True)
@@ -55,19 +55,19 @@ class TransitionBase(BuiltinObjectMutable):
     spring_type: SpringType | None = property_(57, is_repr=True)
 
 
-@builtin_struct(StructType.TRANSITION)
-class Transition(TransitionBase, StructMutable):
-    """A transition value."""
-
-    style: Optional["TransitionStyle"] = property_(41, is_repr=True)
-
-
 @builtin_node(NodeType.TRANSITION_STYLE)
 class TransitionStyle(
     Style,
-    TransitionBase,
     Node[TransitionStyleProto],
 ):
     """A transition style."""
 
-    pass
+    type: TransitionType = property_(30, default=TransitionType.TWEEN, is_repr=True)
+    delay: float | None = property_(50, is_repr=True)
+    duration: float | None = property_(51, is_repr=True)
+    ease: list[float] = property_(52, is_repr=True)
+    stiffness: float | None = property_(53, is_repr=True)
+    damping: float | None = property_(54, is_repr=True)
+    mass: float | None = property_(55, is_repr=True)
+    bounce: float | None = property_(56, is_repr=True)
+    spring_type: SpringType | None = property_(57, is_repr=True)

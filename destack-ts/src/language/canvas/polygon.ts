@@ -35,7 +35,7 @@ import {
 } from "@destack/language/registry";
 import { Layer, Scene, Window } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
-import { Border, Fill, Shadow } from "@destack/language/style";
+import { Border, Fill, Shadow, Stroke } from "@destack/language/style";
 import { ContainerView } from "@destack/language/view/container";
 import {
   AlignProto,
@@ -49,24 +49,6 @@ import {
 import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
-
-/* ==== DESTACK_GENERATED_START:ENUM:11011 ==== */
-/**
- * PolygonShapeType
- */
-export enum PolygonShapeType {
-  RECTANGLE = 1,
-  TRIANGLE = 2,
-  CIRCLE = 3,
-  ELLIPSE = 4,
-  POLYGON = 5,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.POLYGON_SHAPE_TYPE, PolygonShapeType);
-/* ==== DESTACK_GENERATED_END:ENUM:11011 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:11011 ==== */
 /**
@@ -355,6 +337,7 @@ export class PolygonShape extends Node implements ContainerView, IsShape {
     NodeType.FILL_STYLE,
     NodeType.FONT_STYLE,
     NodeType.SHADOW_STYLE,
+    NodeType.STROKE_STYLE,
   ];
   static __ancestorTypes__: NodeType[] = [
     NodeType.SPACE,
@@ -376,31 +359,31 @@ export class PolygonShape extends Node implements ContainerView, IsShape {
     NodeType.POLYGON_SHAPE,
     NodeType.ARROW_SHAPE,
     NodeType.ANNOTATION_SHAPE,
+    NodeType.FONT_STYLE,
     NodeType.CUSTOM_VIEW,
+    NodeType.BORDER_STYLE,
     NodeType.WIZARD_VIEW,
+    NodeType.SHADOW_STYLE,
     NodeType.NUMBER_INPUT_VIEW,
     NodeType.SLIDER_INPUT_VIEW,
     NodeType.FRAME_VIEW,
+    NodeType.GRADIENT_STYLE,
     NodeType.LABEL_VIEW,
+    NodeType.TRANSITION_STYLE,
     NodeType.SCRIPT,
     NodeType.SPLIT_VIEW,
+    NodeType.EFFECT_STYLE,
+    NodeType.STROKE_STYLE,
     NodeType.LAYER,
-    NodeType.SHADOW_STYLE,
     NodeType.CUSTOM_PROPERTY,
     NodeType.TEXT_VIEW,
     NodeType.CUSTOM_OPTION,
     NodeType.VARIANT,
     NodeType.THREAD_VIEW,
-    NodeType.PALETTE,
     NodeType.TAGGING,
     NodeType.COLOR_STYLE,
-    NodeType.FILL_STYLE,
-    NodeType.FONT_STYLE,
-    NodeType.BORDER_STYLE,
     NodeType.CANVAS,
-    NodeType.GRADIENT_STYLE,
-    NodeType.TRANSITION_STYLE,
-    NodeType.EFFECT_STYLE,
+    NodeType.FILL_STYLE,
   ];
 
   /**
@@ -627,6 +610,11 @@ export class PolygonShape extends Node implements ContainerView, IsShape {
   points: Array<Vector3>;
 
   /**
+   * PolygonShape.stroke
+   */
+  stroke: Stroke | null;
+
+  /**
    * The main / root Script of this Node.
    */
   get script(): Script | null {
@@ -685,6 +673,7 @@ export class PolygonShape extends Node implements ContainerView, IsShape {
     border?: Border | null;
     radius?: Corners | null;
     points?: Array<Vector3>;
+    stroke?: Stroke | null;
     script?: Script | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -807,6 +796,8 @@ export class PolygonShape extends Node implements ContainerView, IsShape {
       _points = [];
     }
     this.points = _points;
+    let _stroke = options.stroke ?? null;
+    this.stroke = _stroke;
     let _script = options.script ?? null;
     if (_script != null && _script instanceof Node) {
       _script = _script.toRef();
@@ -857,6 +848,12 @@ export class PolygonShape extends Node implements ContainerView, IsShape {
       if (!this.points[i].equals(other.points[i])) {
         return false;
       }
+    }
+    if (
+      (this.stroke == null) !== (other.stroke == null) ||
+      (this.stroke != null && !this.stroke.equals(other.stroke))
+    ) {
+      return false;
     }
     if (!(this.layout === other.layout)) {
       return false;
@@ -1034,6 +1031,9 @@ export class PolygonShape extends Node implements ContainerView, IsShape {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
+    if (this.stroke !== null) {
+      h = (h * 31 + this.stroke.hash()) & 0xffffffff;
+    }
     if (this.layout !== null) {
       h = (h * 31 + this.layout) & 0xffffffff;
     }
@@ -1179,6 +1179,9 @@ export class PolygonShape extends Node implements ContainerView, IsShape {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`type=${PolygonShapeType[this.type]}`);
+    if (this.stroke !== null) {
+      propertyReprs.push(`stroke=${this.stroke.repr()}`);
+    }
     propertyReprs.push(`name=${this.name}`);
     return `<PolygonShape '${this.path}' ${propertyReprs.join(" ")}>`;
   }
@@ -1303,6 +1306,9 @@ export class PolygonShape extends Node implements ContainerView, IsShape {
       }
       objectValue["100"] = packedPoints;
     }
+    if (object.stroke != null) {
+      objectValue["101"] = object.stroke.toValue();
+    }
     if (object.scriptPtr != null) {
       objectValue["200"] = object.scriptPtr.toValue();
     }
@@ -1322,6 +1328,11 @@ export class PolygonShape extends Node implements ContainerView, IsShape {
         unpackedPoints.push(Vector3.fromValue(item, _session, _supergraph, _graph, _connection));
       }
     }
+    const strokeValue = objectValue["101"];
+    const unpackedStroke =
+      strokeValue != undefined
+        ? Stroke.fromValue(strokeValue, _session, _supergraph, _graph, _connection)
+        : null;
     const layoutValue = objectValue["50"];
     const unpackedLayout = layoutValue != undefined ? Number(layoutValue) : null;
     const directionValue = objectValue["51"];
@@ -1467,6 +1478,7 @@ export class PolygonShape extends Node implements ContainerView, IsShape {
     return new PolygonShape({
       type: Number(objectValue["30"]),
       points: unpackedPoints,
+      stroke: unpackedStroke,
       layout: unpackedLayout,
       direction: unpackedDirection,
       distribute: unpackedDistribute,
@@ -1639,6 +1651,9 @@ export class PolygonShape extends Node implements ContainerView, IsShape {
       }
       objectProto.points = packedPoints;
     }
+    if (object.stroke != null) {
+      objectProto.stroke = object.stroke.toProto();
+    }
     if (object.scriptPtr != null) {
       objectProto.scriptPtr = object.scriptPtr.toProto();
     }
@@ -1670,6 +1685,10 @@ export class PolygonShape extends Node implements ContainerView, IsShape {
     return new PolygonShape({
       type: Number(objectProto.type) as PolygonShapeType,
       points: unpackedPoints,
+      stroke:
+        objectProto.stroke != undefined
+          ? Stroke.fromProto(objectProto.stroke!, _session, _supergraph, _graph, _connection)
+          : null,
       layout: objectProto.layout != undefined ? (Number(objectProto.layout) as Layout) : null,
       direction:
         objectProto.direction != undefined ? (Number(objectProto.direction) as Direction) : null,
@@ -1835,3 +1854,21 @@ export class PolygonShape extends Node implements ContainerView, IsShape {
 }
 registerNodeClass(NodeType.POLYGON_SHAPE, PolygonShape);
 /* ==== DESTACK_GENERATED_END:NODE:11011 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:11010 ==== */
+/**
+ * PolygonShapeType
+ */
+export enum PolygonShapeType {
+  RECTANGLE = 1,
+  TRIANGLE = 2,
+  CIRCLE = 3,
+  ELLIPSE = 4,
+  POLYGON = 5,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.POLYGON_SHAPE_TYPE, PolygonShapeType);
+/* ==== DESTACK_GENERATED_END:ENUM:11010 ==== */

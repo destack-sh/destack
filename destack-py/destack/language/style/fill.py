@@ -1,17 +1,15 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
-    BuiltinObjectMutable,
     Enum,
     EnumType,
     Node,
     NodeType,
-    StructMutable,
+    StructFrozen,
     StructType,
     builtin_enum,
     builtin_node,
     builtin_struct,
-    object_,
     property_,
 )
 from destack.proto import FillStyleProto
@@ -28,7 +26,6 @@ if TYPE_CHECKING:
 
 @builtin_enum(EnumType.FILL_TYPE)
 class FillType(Enum):
-    STYLE = 2
     SOLID = 10
     GRADIENT = 11
     IMAGE = 12
@@ -55,24 +52,17 @@ class FillSize(Enum):
     TILE = 4
 
 
-@object_()
-class FillBase(BuiltinObjectMutable):
+@builtin_struct(StructType.FILL, frozen=True)
+class Fill(StructFrozen):
     """A fill value."""
 
     type: FillType = property_(30, is_repr=True)
-
+    style: Optional["FillStyle"] = property_(42, is_repr=True)
     color: Color | None = property_(50, is_repr=True)
     gradient: Optional[Gradient] = property_(51, is_repr=True)
     image: "File | None" = property_(52, is_repr=True)
     position: FillPosition | None = property_(53, is_repr=True)
     size: FillSize | None = property_(54, is_repr=True)
-
-
-@builtin_struct(StructType.FILL)
-class Fill(FillBase, StructMutable):
-    """A fill value."""
-
-    style: Optional["FillStyle"] = property_(42, is_repr=True)
 
     @staticmethod
     def from_color(color: Color) -> "Fill":
@@ -86,10 +76,16 @@ class Fill(FillBase, StructMutable):
 @builtin_node(NodeType.FILL_STYLE)
 class FillStyle(
     Style,
-    FillBase,
     Node[FillStyleProto],
 ):
     """A fill style."""
+
+    type: FillType = property_(30, is_repr=True)
+    color: Color | None = property_(50, is_repr=True)
+    gradient: Optional[Gradient] = property_(51, is_repr=True)
+    image: "File | None" = property_(52, is_repr=True)
+    position: FillPosition | None = property_(53, is_repr=True)
+    size: FillSize | None = property_(54, is_repr=True)
 
     @staticmethod
     def from_fill(fill: Fill) -> "FillStyle":

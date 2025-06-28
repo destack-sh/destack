@@ -33,119 +33,6 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:12026 ==== */
-/**
- * FontType
- */
-export enum FontType {
-  STYLE = 2,
-  SERIF = 10,
-  SANS = 11,
-  MONO = 12,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.FONT_TYPE, FontType);
-/* ==== DESTACK_GENERATED_END:ENUM:12026 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:12024 ==== */
-/**
- * FontWeight
- */
-export enum FontWeight {
-  THIN = 100,
-  EXTRA_LIGHT = 200,
-  LIGHT = 300,
-  NORMAL = 400,
-  MEDIUM = 500,
-  SEMI_BOLD = 600,
-  BOLD = 700,
-  EXTRA_BOLD = 800,
-  BLACK = 900,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.FONT_WEIGHT, FontWeight);
-/* ==== DESTACK_GENERATED_END:ENUM:12024 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:12025 ==== */
-/**
- * FontSize
- */
-export enum FontSize {
-  XS = 12,
-  SM = 14,
-  BASE = 16,
-  LG = 18,
-  XL = 20,
-  XL2 = 24,
-  XL3 = 30,
-  XL4 = 36,
-  XL5 = 48,
-  XL6 = 60,
-  XL7 = 72,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.FONT_SIZE, FontSize);
-/* ==== DESTACK_GENERATED_END:ENUM:12025 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:12027 ==== */
-/**
- * TextAlign
- */
-export enum TextAlign {
-  LEFT = 1,
-  CENTER = 2,
-  RIGHT = 3,
-  JUSTIFY = 4,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.TEXT_ALIGN, TextAlign);
-/* ==== DESTACK_GENERATED_END:ENUM:12027 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:12028 ==== */
-/**
- * TextDecoration
- */
-export enum TextDecoration {
-  NONE = 1,
-  UNDERLINE = 2,
-  STRIKETHROUGH = 3,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.TEXT_DECORATION, TextDecoration);
-/* ==== DESTACK_GENERATED_END:ENUM:12028 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:12029 ==== */
-/**
- * TextTransform
- */
-export enum TextTransform {
-  NONE = 1,
-  UPPERCASE = 2,
-  LOWERCASE = 3,
-  CAPITALIZE = 4,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.TEXT_TRANSFORM, TextTransform);
-/* ==== DESTACK_GENERATED_END:ENUM:12029 ==== */
-
 /* ==== DESTACK_GENERATED_START:STRUCT:12014 ==== */
 /**
  * A font value.
@@ -155,7 +42,7 @@ export class Font extends Struct {
   static __isFrozen__: boolean = false;
 
   /**
-   * FontBase.type
+   * Font.type
    */
   type: FontType;
 
@@ -182,42 +69,42 @@ export class Font extends Struct {
   stylePtr: NodeReference | null;
 
   /**
-   * FontBase.weight
+   * Font.weight
    */
   weight: FontWeight | null;
 
   /**
-   * FontBase.color
+   * Font.color
    */
   color: Fill | null;
 
   /**
-   * FontBase.size
+   * Font.size
    */
   size: FontSize | null;
 
   /**
-   * FontBase.align
+   * Font.align
    */
   align: TextAlign | null;
 
   /**
-   * FontBase.lineHeight
+   * Font.lineHeight
    */
   lineHeight: Length | null;
 
   /**
-   * FontBase.letterSpacing
+   * Font.letterSpacing
    */
   letterSpacing: Length | null;
 
   /**
-   * FontBase.decoration
+   * Font.decoration
    */
   decoration: TextDecoration | null;
 
   /**
-   * FontBase.transform
+   * Font.transform
    */
   transform: TextTransform | null;
 
@@ -296,10 +183,10 @@ export class Font extends Struct {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.stylePtr?.id === other.stylePtr?.id)) {
+    if (!(this.type === other.type)) {
       return false;
     }
-    if (!(this.type === other.type)) {
+    if (!(this.stylePtr?.id === other.stylePtr?.id)) {
       return false;
     }
     if (!(this.weight === other.weight)) {
@@ -340,10 +227,10 @@ export class Font extends Struct {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`type=${FontType[this.type]}`);
     if (this.style !== null) {
       propertyReprs.push(`style=${this.style.repr()}`);
     }
-    propertyReprs.push(`type=${FontType[this.type]}`);
     if (this.weight !== null) {
       propertyReprs.push(`weight=${FontWeight[this.weight]}`);
     }
@@ -374,10 +261,10 @@ export class Font extends Struct {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
     if (this.stylePtr !== null) {
       h = (h * 31 + hashString(this.stylePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + this.type) & 0xffffffff;
     if (this.weight !== null) {
       h = (h * 31 + this.weight) & 0xffffffff;
     }
@@ -486,8 +373,8 @@ export class Font extends Struct {
     const transformValue = objectValue["57"];
     const unpackedTransform = transformValue != undefined ? Number(transformValue) : null;
     return new Font({
-      style: unpackedStylePtr,
       type: Number(objectValue["30"]),
+      style: unpackedStylePtr,
       weight: unpackedWeight,
       color: unpackedColor,
       size: unpackedSize,
@@ -555,6 +442,7 @@ export class Font extends Struct {
     _connection?: any | null,
   ): Font {
     return new Font({
+      type: Number(objectProto.type) as FontType,
       style:
         objectProto.stylePtr != undefined
           ? NodeReference.fromProto(
@@ -565,7 +453,6 @@ export class Font extends Struct {
               _connection,
             )
           : null,
-      type: Number(objectProto.type) as FontType,
       weight: objectProto.weight != undefined ? (Number(objectProto.weight) as FontWeight) : null,
       color:
         objectProto.color != undefined
@@ -616,7 +503,120 @@ export class Font extends Struct {
 registerStructClass(StructType.FONT, Font);
 /* ==== DESTACK_GENERATED_END:STRUCT:12014 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:12022 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:12040 ==== */
+/**
+ * FontType
+ */
+export enum FontType {
+  STYLE = 2,
+  SERIF = 10,
+  SANS = 11,
+  MONO = 12,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.FONT_TYPE, FontType);
+/* ==== DESTACK_GENERATED_END:ENUM:12040 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:12041 ==== */
+/**
+ * FontWeight
+ */
+export enum FontWeight {
+  THIN = 100,
+  EXTRA_LIGHT = 200,
+  LIGHT = 300,
+  NORMAL = 400,
+  MEDIUM = 500,
+  SEMI_BOLD = 600,
+  BOLD = 700,
+  EXTRA_BOLD = 800,
+  BLACK = 900,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.FONT_WEIGHT, FontWeight);
+/* ==== DESTACK_GENERATED_END:ENUM:12041 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:12042 ==== */
+/**
+ * FontSize
+ */
+export enum FontSize {
+  XS = 12,
+  SM = 14,
+  BASE = 16,
+  LG = 18,
+  XL = 20,
+  XL2 = 24,
+  XL3 = 30,
+  XL4 = 36,
+  XL5 = 48,
+  XL6 = 60,
+  XL7 = 72,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.FONT_SIZE, FontSize);
+/* ==== DESTACK_GENERATED_END:ENUM:12042 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:12043 ==== */
+/**
+ * TextAlign
+ */
+export enum TextAlign {
+  LEFT = 1,
+  CENTER = 2,
+  RIGHT = 3,
+  JUSTIFY = 4,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.TEXT_ALIGN, TextAlign);
+/* ==== DESTACK_GENERATED_END:ENUM:12043 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:12044 ==== */
+/**
+ * TextDecoration
+ */
+export enum TextDecoration {
+  NONE = 1,
+  UNDERLINE = 2,
+  STRIKETHROUGH = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.TEXT_DECORATION, TextDecoration);
+/* ==== DESTACK_GENERATED_END:ENUM:12044 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:12045 ==== */
+/**
+ * TextTransform
+ */
+export enum TextTransform {
+  NONE = 1,
+  UPPERCASE = 2,
+  LOWERCASE = 3,
+  CAPITALIZE = 4,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.TEXT_TRANSFORM, TextTransform);
+/* ==== DESTACK_GENERATED_END:ENUM:12045 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:12040 ==== */
 /**
  * A font style.
  */
@@ -748,7 +748,7 @@ export class FontStyle extends Node implements Style {
   readonly orderKey: string;
 
   /**
-   * FontBase.type
+   * FontStyle.type
    */
   type: FontType;
 
@@ -758,42 +758,42 @@ export class FontStyle extends Node implements Style {
   name: string;
 
   /**
-   * FontBase.weight
+   * FontStyle.weight
    */
   weight: FontWeight | null;
 
   /**
-   * FontBase.color
+   * FontStyle.color
    */
   color: Fill | null;
 
   /**
-   * FontBase.size
+   * FontStyle.size
    */
   size: FontSize | null;
 
   /**
-   * FontBase.align
+   * FontStyle.align
    */
   align: TextAlign | null;
 
   /**
-   * FontBase.lineHeight
+   * FontStyle.lineHeight
    */
   lineHeight: Length | null;
 
   /**
-   * FontBase.letterSpacing
+   * FontStyle.letterSpacing
    */
   letterSpacing: Length | null;
 
   /**
-   * FontBase.decoration
+   * FontStyle.decoration
    */
   decoration: TextDecoration | null;
 
   /**
-   * FontBase.transform
+   * FontStyle.transform
    */
   transform: TextTransform | null;
 
@@ -945,12 +945,6 @@ export class FontStyle extends Node implements Style {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
     if (!(this.type === other.type)) {
       return false;
     }
@@ -987,32 +981,18 @@ export class FontStyle extends Node implements Style {
     if (!(this.transform === other.transform)) {
       return false;
     }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
     return true;
   }
 
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
-    if (this.deletedAt !== null) {
-      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    }
     h = (h * 31 + this.type) & 0xffffffff;
     if (this.weight !== null) {
       h = (h * 31 + this.weight) & 0xffffffff;
@@ -1037,6 +1017,26 @@ export class FontStyle extends Node implements Style {
     }
     if (this.transform !== null) {
       h = (h * 31 + this.transform) & 0xffffffff;
+    }
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr !== null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    if (this.deletedAt !== null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
 
     return h;
@@ -1075,7 +1075,6 @@ export class FontStyle extends Node implements Style {
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${this.name}`);
     propertyReprs.push(`type=${FontType[this.type]}`);
     if (this.weight !== null) {
       propertyReprs.push(`weight=${FontWeight[this.weight]}`);
@@ -1101,6 +1100,7 @@ export class FontStyle extends Node implements Style {
     if (this.transform !== null) {
       propertyReprs.push(`transform=${TextTransform[this.transform]}`);
     }
+    propertyReprs.push(`name=${this.name}`);
     return `<FontStyle '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
@@ -1110,7 +1110,7 @@ export class FontStyle extends Node implements Style {
 
   static __packValue__(object: FontStyle): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 12022;
+    objectValue["1"] = 12040;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1166,31 +1166,6 @@ export class FontStyle extends Node implements Style {
     _graph?: any | null,
     _connection?: any | null,
   ): FontStyle {
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const deletedAtValue = objectValue["20"];
-    const unpackedDeletedAt =
-      deletedAtValue != undefined
-        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-        : null;
     const weightValue = objectValue["50"];
     const unpackedWeight = weightValue != undefined ? Number(weightValue) : null;
     const colorValue = objectValue["51"];
@@ -1216,7 +1191,41 @@ export class FontStyle extends Node implements Style {
     const unpackedDecoration = decorationValue != undefined ? Number(decorationValue) : null;
     const transformValue = objectValue["57"];
     const unpackedTransform = transformValue != undefined ? Number(transformValue) : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const createdByPtrValue = objectValue["16"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["18"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const deletedAtValue = objectValue["20"];
+    const unpackedDeletedAt =
+      deletedAtValue != undefined
+        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+        : null;
     return new FontStyle({
+      type: Number(objectValue["30"]),
+      weight: unpackedWeight,
+      color: unpackedColor,
+      size: unpackedSize,
+      align: unpackedAlign,
+      lineHeight: unpackedLineHeight,
+      letterSpacing: unpackedLetterSpacing,
+      decoration: unpackedDecoration,
+      transform: unpackedTransform,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -1227,15 +1236,6 @@ export class FontStyle extends Node implements Style {
       name: objectValue["31"],
       orderKey: objectValue["22"],
       deletedAt: unpackedDeletedAt,
-      type: Number(objectValue["30"]),
-      weight: unpackedWeight,
-      color: unpackedColor,
-      size: unpackedSize,
-      align: unpackedAlign,
-      lineHeight: unpackedLineHeight,
-      letterSpacing: unpackedLetterSpacing,
-      decoration: unpackedDecoration,
-      transform: unpackedTransform,
       _session,
       _graph,
       _connection,
@@ -1257,7 +1257,7 @@ export class FontStyle extends Node implements Style {
   }
 
   static __packProto__(object: FontStyle): FontStyleProto {
-    const objectProto: Partial<FontStyleProto> = { metatype: 12022 };
+    const objectProto: Partial<FontStyleProto> = { metatype: 12040 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1314,6 +1314,30 @@ export class FontStyle extends Node implements Style {
     _connection?: any | null,
   ): FontStyle {
     return new FontStyle({
+      type: Number(objectProto.type) as FontType,
+      weight: objectProto.weight != undefined ? (Number(objectProto.weight) as FontWeight) : null,
+      color:
+        objectProto.color != undefined
+          ? Fill.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
+          : null,
+      size: objectProto.size != undefined ? (Number(objectProto.size) as FontSize) : null,
+      align: objectProto.align != undefined ? (Number(objectProto.align) as TextAlign) : null,
+      lineHeight:
+        objectProto.lineHeight != undefined
+          ? Length.fromProto(objectProto.lineHeight!, _session, _supergraph, _graph, _connection)
+          : null,
+      letterSpacing:
+        objectProto.letterSpacing != undefined
+          ? Length.fromProto(objectProto.letterSpacing!, _session, _supergraph, _graph, _connection)
+          : null,
+      decoration:
+        objectProto.decoration != undefined
+          ? (Number(objectProto.decoration) as TextDecoration)
+          : null,
+      transform:
+        objectProto.transform != undefined
+          ? (Number(objectProto.transform) as TextTransform)
+          : null,
       parent:
         objectProto.parentPtr != undefined
           ? NodeReference.fromProto(
@@ -1361,30 +1385,6 @@ export class FontStyle extends Node implements Style {
       orderKey: objectProto.orderKey,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
-      type: Number(objectProto.type) as FontType,
-      weight: objectProto.weight != undefined ? (Number(objectProto.weight) as FontWeight) : null,
-      color:
-        objectProto.color != undefined
-          ? Fill.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
-          : null,
-      size: objectProto.size != undefined ? (Number(objectProto.size) as FontSize) : null,
-      align: objectProto.align != undefined ? (Number(objectProto.align) as TextAlign) : null,
-      lineHeight:
-        objectProto.lineHeight != undefined
-          ? Length.fromProto(objectProto.lineHeight!, _session, _supergraph, _graph, _connection)
-          : null,
-      letterSpacing:
-        objectProto.letterSpacing != undefined
-          ? Length.fromProto(objectProto.letterSpacing!, _session, _supergraph, _graph, _connection)
-          : null,
-      decoration:
-        objectProto.decoration != undefined
-          ? (Number(objectProto.decoration) as TextDecoration)
-          : null,
-      transform:
-        objectProto.transform != undefined
-          ? (Number(objectProto.transform) as TextTransform)
-          : null,
       _session,
       _graph,
       _connection,
@@ -1412,4 +1412,4 @@ export class FontStyle extends Node implements Style {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FONT_STYLE, FontStyle);
-/* ==== DESTACK_GENERATED_END:NODE:12022 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:12040 ==== */

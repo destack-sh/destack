@@ -30,23 +30,6 @@ import { base64Decode } from "@destack/utils";
 import { hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:12033 ==== */
-/**
- * GradientType
- */
-export enum GradientType {
-  STYLE = 2,
-  LINEAR = 10,
-  RADIAL = 11,
-  CONIC = 12,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.GRADIENT_TYPE, GradientType);
-/* ==== DESTACK_GENERATED_END:ENUM:12033 ==== */
-
 /* ==== DESTACK_GENERATED_START:STRUCT:12015 ==== */
 /**
  * A gradient stop with color and position.
@@ -267,7 +250,7 @@ export class Gradient extends Struct {
   static __isFrozen__: boolean = false;
 
   /**
-   * GradientBase.type
+   * Gradient.type
    */
   type: GradientType;
 
@@ -294,17 +277,17 @@ export class Gradient extends Struct {
   stylePtr: NodeReference | null;
 
   /**
-   * GradientBase.angle
+   * Gradient.angle
    */
   angle: number | null;
 
   /**
-   * GradientBase.stops
+   * Gradient.stops
    */
   stops: Array<GradientStop>;
 
   /**
-   * GradientBase.centerAnchor
+   * Gradient.centerAnchor
    */
   centerAnchor: Axis2 | null;
 
@@ -356,10 +339,10 @@ export class Gradient extends Struct {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.stylePtr?.id === other.stylePtr?.id)) {
+    if (!(this.type === other.type)) {
       return false;
     }
-    if (!(this.type === other.type)) {
+    if (!(this.stylePtr?.id === other.stylePtr?.id)) {
       return false;
     }
     if (
@@ -388,10 +371,10 @@ export class Gradient extends Struct {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`type=${GradientType[this.type]}`);
     if (this.style !== null) {
       propertyReprs.push(`style=${this.style.repr()}`);
     }
-    propertyReprs.push(`type=${GradientType[this.type]}`);
     if (this.angle !== null) {
       propertyReprs.push(`angle=${this.angle}`);
     }
@@ -407,10 +390,10 @@ export class Gradient extends Struct {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
     if (this.stylePtr !== null) {
       h = (h * 31 + hashString(this.stylePtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + this.type) & 0xffffffff;
     if (this.angle !== null) {
       h = (h * 31 + hashFloat(this.angle)) & 0xffffffff;
     }
@@ -485,8 +468,8 @@ export class Gradient extends Struct {
         ? Axis2.fromValue(centerAnchorValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Gradient({
-      style: unpackedStylePtr,
       type: Number(objectValue["30"]),
+      style: unpackedStylePtr,
       angle: unpackedAngle,
       stops: unpackedStops,
       centerAnchor: unpackedCenterAnchor,
@@ -546,6 +529,7 @@ export class Gradient extends Struct {
       }
     }
     return new Gradient({
+      type: Number(objectProto.type) as GradientType,
       style:
         objectProto.stylePtr != undefined
           ? NodeReference.fromProto(
@@ -556,7 +540,6 @@ export class Gradient extends Struct {
               _connection,
             )
           : null,
-      type: Number(objectProto.type) as GradientType,
       angle: objectProto.angle != undefined ? objectProto.angle : null,
       stops: unpackedStops,
       centerAnchor:
@@ -590,7 +573,24 @@ export class Gradient extends Struct {
 registerStructClass(StructType.GRADIENT, Gradient);
 /* ==== DESTACK_GENERATED_END:STRUCT:12016 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:12025 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:12070 ==== */
+/**
+ * GradientType
+ */
+export enum GradientType {
+  STYLE = 2,
+  LINEAR = 10,
+  RADIAL = 11,
+  CONIC = 12,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.GRADIENT_TYPE, GradientType);
+/* ==== DESTACK_GENERATED_END:ENUM:12070 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:12070 ==== */
 /**
  * A gradient style.
  */
@@ -722,7 +722,7 @@ export class GradientStyle extends Node implements Style {
   readonly orderKey: string;
 
   /**
-   * GradientBase.type
+   * GradientStyle.type
    */
   type: GradientType;
 
@@ -732,17 +732,17 @@ export class GradientStyle extends Node implements Style {
   name: string;
 
   /**
-   * GradientBase.angle
+   * GradientStyle.angle
    */
   angle: number | null;
 
   /**
-   * GradientBase.stops
+   * GradientStyle.stops
    */
   stops: Array<GradientStop>;
 
   /**
-   * GradientBase.centerAnchor
+   * GradientStyle.centerAnchor
    */
   centerAnchor: Axis2 | null;
 
@@ -875,18 +875,6 @@ export class GradientStyle extends Node implements Style {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (
-      (this.dark == null) !== (other.dark == null) ||
-      (this.dark != null && !this.dark.equals(other.dark))
-    ) {
-      return false;
-    }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
     if (!(this.type === other.type)) {
       return false;
     }
@@ -911,12 +899,36 @@ export class GradientStyle extends Node implements Style {
     ) {
       return false;
     }
+    if (
+      (this.dark == null) !== (other.dark == null) ||
+      (this.dark != null && !this.dark.equals(other.dark))
+    ) {
+      return false;
+    }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
     return true;
   }
 
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.angle !== null) {
+      h = (h * 31 + hashFloat(this.angle)) & 0xffffffff;
+    }
+    if (this.stops && this.stops.length > 0) {
+      for (const _item of this.stops) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.centerAnchor !== null) {
+      h = (h * 31 + this.centerAnchor.hash()) & 0xffffffff;
+    }
     if (this.dark !== null) {
       h = (h * 31 + this.dark.hash()) & 0xffffffff;
     }
@@ -939,18 +951,6 @@ export class GradientStyle extends Node implements Style {
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    }
-    h = (h * 31 + this.type) & 0xffffffff;
-    if (this.angle !== null) {
-      h = (h * 31 + hashFloat(this.angle)) & 0xffffffff;
-    }
-    if (this.stops && this.stops.length > 0) {
-      for (const _item of this.stops) {
-        h = (h * 31 + _item.hash()) & 0xffffffff;
-      }
-    }
-    if (this.centerAnchor !== null) {
-      h = (h * 31 + this.centerAnchor.hash()) & 0xffffffff;
     }
 
     return h;
@@ -989,7 +989,6 @@ export class GradientStyle extends Node implements Style {
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${this.name}`);
     propertyReprs.push(`type=${GradientType[this.type]}`);
     if (this.angle !== null) {
       propertyReprs.push(`angle=${this.angle}`);
@@ -1000,6 +999,7 @@ export class GradientStyle extends Node implements Style {
     if (this.centerAnchor !== null) {
       propertyReprs.push(`centerAnchor=${this.centerAnchor.repr()}`);
     }
+    propertyReprs.push(`name=${this.name}`);
     return `<GradientStyle '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
@@ -1009,7 +1009,7 @@ export class GradientStyle extends Node implements Style {
 
   static __packValue__(object: GradientStyle): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 12025;
+    objectValue["1"] = 12070;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1057,6 +1057,21 @@ export class GradientStyle extends Node implements Style {
     _graph?: any | null,
     _connection?: any | null,
   ): GradientStyle {
+    const angleValue = objectValue["50"];
+    const unpackedAngle = angleValue != undefined ? angleValue : null;
+    const unpackedStops: any[] = [];
+    if (objectValue["51"] != undefined) {
+      for (const item of objectValue["51"]) {
+        unpackedStops.push(
+          GradientStop.fromValue(item, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const centerAnchorValue = objectValue["52"];
+    const unpackedCenterAnchor =
+      centerAnchorValue != undefined
+        ? Axis2.fromValue(centerAnchorValue, _session, _supergraph, _graph, _connection)
+        : null;
     const darkValue = objectValue["60"];
     const unpackedDark =
       darkValue != undefined
@@ -1087,22 +1102,11 @@ export class GradientStyle extends Node implements Style {
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const angleValue = objectValue["50"];
-    const unpackedAngle = angleValue != undefined ? angleValue : null;
-    const unpackedStops: any[] = [];
-    if (objectValue["51"] != undefined) {
-      for (const item of objectValue["51"]) {
-        unpackedStops.push(
-          GradientStop.fromValue(item, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
-    const centerAnchorValue = objectValue["52"];
-    const unpackedCenterAnchor =
-      centerAnchorValue != undefined
-        ? Axis2.fromValue(centerAnchorValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new GradientStyle({
+      type: Number(objectValue["30"]),
+      angle: unpackedAngle,
+      stops: unpackedStops,
+      centerAnchor: unpackedCenterAnchor,
       dark: unpackedDark,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
@@ -1114,10 +1118,6 @@ export class GradientStyle extends Node implements Style {
       name: objectValue["31"],
       orderKey: objectValue["22"],
       deletedAt: unpackedDeletedAt,
-      type: Number(objectValue["30"]),
-      angle: unpackedAngle,
-      stops: unpackedStops,
-      centerAnchor: unpackedCenterAnchor,
       _session,
       _graph,
       _connection,
@@ -1139,7 +1139,7 @@ export class GradientStyle extends Node implements Style {
   }
 
   static __packProto__(object: GradientStyle): GradientStyleProto {
-    const objectProto: Partial<GradientStyleProto> = { metatype: 12025 };
+    const objectProto: Partial<GradientStyleProto> = { metatype: 12070 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1196,6 +1196,13 @@ export class GradientStyle extends Node implements Style {
       }
     }
     return new GradientStyle({
+      type: Number(objectProto.type) as GradientType,
+      angle: objectProto.angle != undefined ? objectProto.angle : null,
+      stops: unpackedStops,
+      centerAnchor:
+        objectProto.centerAnchor != undefined
+          ? Axis2.fromProto(objectProto.centerAnchor!, _session, _supergraph, _graph, _connection)
+          : null,
       dark:
         objectProto.dark != undefined
           ? Gradient.fromProto(objectProto.dark!, _session, _supergraph, _graph, _connection)
@@ -1247,13 +1254,6 @@ export class GradientStyle extends Node implements Style {
       orderKey: objectProto.orderKey,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
-      type: Number(objectProto.type) as GradientType,
-      angle: objectProto.angle != undefined ? objectProto.angle : null,
-      stops: unpackedStops,
-      centerAnchor:
-        objectProto.centerAnchor != undefined
-          ? Axis2.fromProto(objectProto.centerAnchor!, _session, _supergraph, _graph, _connection)
-          : null,
       _session,
       _graph,
       _connection,
@@ -1281,4 +1281,4 @@ export class GradientStyle extends Node implements Style {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.GRADIENT_STYLE, GradientStyle);
-/* ==== DESTACK_GENERATED_END:NODE:12025 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:12070 ==== */

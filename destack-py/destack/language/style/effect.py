@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
     Axis3,
-    BuiltinObjectMutable,
     Enum,
     EnumType,
     Node,
@@ -14,7 +13,6 @@ from destack.language.core import (
     builtin_enum,
     builtin_node,
     builtin_struct,
-    object_,
     property_,
 )
 from destack.proto import EffectStyleProto
@@ -33,7 +31,6 @@ if TYPE_CHECKING:
 class EffectType(Enum):
     """When the effect fires."""
 
-    STYLE = 2
     APPEAR = 10, "Appear", "Initial render in"
     ENTER = 11, "Enter", "Enters viewport"
     EXIT = 12, "Exit", "Leaves viewport"
@@ -67,12 +64,12 @@ class OffscreenBehavior(Enum):
     PAUSE = 2, "Pause", "Pause the animation"
 
 
-@object_()
-class EffectBase(BuiltinObjectMutable):
-    """A base class for effects."""
+@builtin_struct(StructType.EFFECT)
+class Effect(StructMutable):
+    """An effect value."""
 
     type: EffectType = property_(30, is_repr=True)
-
+    style: Optional["EffectStyle"] = property_(41, is_repr=True)
     opacity: Optional[float] = property_(50, is_repr=True)
     offset: Optional[Vector2] = property_(51, is_repr=True)
     scale: Optional[float] = property_(52, is_repr=True)
@@ -86,23 +83,28 @@ class EffectBase(BuiltinObjectMutable):
     repeat: Optional[RepeatType] = property_(60, is_repr=True)
     split: Optional[TextSplitType] = property_(61, is_repr=True)
     offscreen: Optional[OffscreenBehavior] = property_(62, is_repr=True)
-
     transition: Optional["Transition"] = property_(70, is_repr=True)
-
-
-@builtin_struct(StructType.EFFECT)
-class Effect(EffectBase, StructMutable):
-    """An effect value."""
-
-    style: Optional["EffectStyle"] = property_(41, is_repr=True)
 
 
 @builtin_node(NodeType.EFFECT_STYLE)
 class EffectStyle(
     Style,
-    EffectBase,
     Node[EffectStyleProto],
 ):
     """An effect style."""
 
-    pass
+    type: EffectType = property_(30, is_repr=True)
+    opacity: Optional[float] = property_(50, is_repr=True)
+    offset: Optional[Vector2] = property_(51, is_repr=True)
+    scale: Optional[float] = property_(52, is_repr=True)
+    rotate: Optional[Axis3] = property_(53, is_repr=True)
+    skew: Optional[Vector2] = property_(54, is_repr=True)
+    perspective: Optional[float] = property_(55, is_repr=True)
+    delay: Optional[timedelta] = property_(56, is_repr=True)
+    duration: Optional[float] = property_(57, is_repr=True)
+    threshold: Optional[float] = property_(58, is_repr=True)
+    once: Optional[bool] = property_(59, is_repr=True)
+    repeat: Optional[RepeatType] = property_(60, is_repr=True)
+    split: Optional[TextSplitType] = property_(61, is_repr=True)
+    offscreen: Optional[OffscreenBehavior] = property_(62, is_repr=True)
+    transition: Optional["Transition"] = property_(70, is_repr=True)

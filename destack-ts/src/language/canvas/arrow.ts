@@ -21,22 +21,6 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:11012 ==== */
-/**
- * ArrowHeadType
- */
-export enum ArrowHeadType {
-  ARROW = 1,
-  TRIANGLE = 2,
-  DOT = 3,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.ARROW_HEAD_TYPE, ArrowHeadType);
-/* ==== DESTACK_GENERATED_END:ENUM:11012 ==== */
-
 /* ==== DESTACK_GENERATED_START:NODE:11012 ==== */
 /**
  * An ArrowShape is a shape that represents an arrow.
@@ -81,6 +65,7 @@ export class ArrowShape extends Node implements ContentView, IsShape {
     NodeType.FILL_STYLE,
     NodeType.FONT_STYLE,
     NodeType.SHADOW_STYLE,
+    NodeType.STROKE_STYLE,
   ];
   static __ancestorTypes__: NodeType[] = [
     NodeType.SPACE,
@@ -99,17 +84,18 @@ export class ArrowShape extends Node implements ContentView, IsShape {
   ];
   static __descendantTypes__: NodeType[] = [
     NodeType.CUSTOM_OPTION,
+    NodeType.STROKE_STYLE,
+    NodeType.GRADIENT_STYLE,
     NodeType.CUSTOM_PROPERTY,
+    NodeType.FONT_STYLE,
+    NodeType.TRANSITION_STYLE,
+    NodeType.BORDER_STYLE,
     NodeType.TAGGING,
     NodeType.COLOR_STYLE,
-    NodeType.FILL_STYLE,
-    NodeType.FONT_STYLE,
-    NodeType.BORDER_STYLE,
-    NodeType.SHADOW_STYLE,
-    NodeType.GRADIENT_STYLE,
-    NodeType.TRANSITION_STYLE,
-    NodeType.EFFECT_STYLE,
     NodeType.SCRIPT,
+    NodeType.EFFECT_STYLE,
+    NodeType.SHADOW_STYLE,
+    NodeType.FILL_STYLE,
   ];
 
   /**
@@ -1000,3 +986,19 @@ export class ArrowShape extends Node implements ContentView, IsShape {
 }
 registerNodeClass(NodeType.ARROW_SHAPE, ArrowShape);
 /* ==== DESTACK_GENERATED_END:NODE:11012 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:11011 ==== */
+/**
+ * ArrowHeadType
+ */
+export enum ArrowHeadType {
+  ARROW = 1,
+  TRIANGLE = 2,
+  DOT = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.ARROW_HEAD_TYPE, ArrowHeadType);
+/* ==== DESTACK_GENERATED_END:ENUM:11011 ==== */

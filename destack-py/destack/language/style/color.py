@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Optional, Union, assert_never
 
 from destack.language.core import (
-    BuiltinObjectMutable,
     Enum,
     EnumType,
     Node,
@@ -11,7 +10,6 @@ from destack.language.core import (
     builtin_enum,
     builtin_node,
     builtin_struct,
-    object_,
     property_,
     property_parent_,
 )
@@ -31,8 +29,6 @@ class ColorType(Enum):
     """Built-in color formats."""
 
     BUILTIN = 1
-    STYLE = 2
-    FIELD = 3
     RGB = 10
     HSL = 11
     P3 = 12
@@ -93,12 +89,12 @@ class ColorIntent(Enum):
     ERROR = 13
 
 
-@object_()
-class ColorBase(BuiltinObjectMutable):
-    """A color value (x, y, z, alpha in 0-1)."""
+@builtin_struct(StructType.COLOR)
+class Color(StructMutable):
+    """A color value."""
 
     type: ColorType = property_(30, is_repr=True)
-
+    style: Optional["ColorStyle"] = property_(42, is_repr=True)
     hue: Optional[ColorHue] = property_(50, is_repr=True)
     shade: Optional[ColorShade] = property_(51, is_repr=True)
     intent: Optional[ColorIntent] = property_(52, is_repr=True)
@@ -106,13 +102,6 @@ class ColorBase(BuiltinObjectMutable):
     y: Optional[float] = property_(56, is_repr=True)
     z: Optional[float] = property_(57, is_repr=True)
     alpha: Optional[float] = property_(58, is_repr=True)
-
-
-@builtin_struct(StructType.COLOR)
-class Color(ColorBase, StructMutable):
-    """A color value."""
-
-    style: Optional["ColorStyle"] = property_(42, is_repr=True)
 
     @staticmethod
     def from_hex(hex: str) -> "Color":
@@ -127,7 +116,6 @@ class Color(ColorBase, StructMutable):
 @builtin_node(NodeType.COLOR_STYLE)
 class ColorStyle(
     Style,
-    ColorBase,
     Node[ColorStyleProto],
 ):
     """A color style, with an optional dark variant."""
@@ -135,6 +123,14 @@ class ColorStyle(
     parent: Union["Scene", "View", "Theme", "Palette", None] = property_parent_(
         node_is_customizable=True
     )
+    type: ColorType = property_(30, is_repr=True)
+    hue: Optional[ColorHue] = property_(50, is_repr=True)
+    shade: Optional[ColorShade] = property_(51, is_repr=True)
+    intent: Optional[ColorIntent] = property_(52, is_repr=True)
+    x: Optional[float] = property_(55, is_repr=True)
+    y: Optional[float] = property_(56, is_repr=True)
+    z: Optional[float] = property_(57, is_repr=True)
+    alpha: Optional[float] = property_(58, is_repr=True)
     dark: Color | None = property_(60)
 
     @staticmethod
@@ -178,7 +174,7 @@ def to_color(color: ColorIn) -> Color:
     elif isinstance(color, ColorHue):
         return Color(type=ColorType.BUILTIN, hue=color)
     elif isinstance(color, ColorStyle):
-        return Color(type=ColorType.STYLE, style=color)
+        return Color(type=ColorType.BUILTIN, style=color)
     elif isinstance(color, str):
         r, g, b, a = hex_to_rgb(color)
         return Color(type=ColorType.RGB, x=r, y=g, z=b, alpha=a)

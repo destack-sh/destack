@@ -157,6 +157,7 @@ export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {
     NodeType.FONT_STYLE,
     NodeType.PALETTE,
     NodeType.SHADOW_STYLE,
+    NodeType.STROKE_STYLE,
     NodeType.THEME,
   ],
   [TraitType.VISUAL]: [
@@ -187,6 +188,7 @@ export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {
     NodeType.FONT_STYLE,
     NodeType.PALETTE,
     NodeType.SHADOW_STYLE,
+    NodeType.STROKE_STYLE,
     NodeType.THEME,
   ],
   [TraitType.FROZEN]: [
@@ -319,6 +321,7 @@ export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {
     NodeType.FONT_STYLE,
     NodeType.PALETTE,
     NodeType.SHADOW_STYLE,
+    NodeType.STROKE_STYLE,
     NodeType.THEME,
   ],
   [TraitType.CUSTOM_NODE_DEFINITION]: [
@@ -400,6 +403,7 @@ export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {
     NodeType.FONT_STYLE,
     NodeType.PALETTE,
     NodeType.SHADOW_STYLE,
+    NodeType.STROKE_STYLE,
     NodeType.THEME,
   ],
   [TraitType.REACTABLE]: [NodeType.MESSAGE, NodeType.REACTION],
@@ -523,6 +527,7 @@ export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {
     NodeType.FONT_STYLE,
     NodeType.PALETTE,
     NodeType.SHADOW_STYLE,
+    NodeType.STROKE_STYLE,
     NodeType.THEME,
   ],
   [TraitType.MEMBERSHIP]: [NodeType.MEMBERSHIP],
@@ -692,6 +697,7 @@ export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {
     NodeType.FONT_STYLE,
     NodeType.PALETTE,
     NodeType.SHADOW_STYLE,
+    NodeType.STROKE_STYLE,
     NodeType.THEME,
   ],
   [TraitType.ENTITY]: [
@@ -773,6 +779,7 @@ export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {
     NodeType.FONT_STYLE,
     NodeType.PALETTE,
     NodeType.SHADOW_STYLE,
+    NodeType.STROKE_STYLE,
     NodeType.THEME,
   ],
   [TraitType.PARTICLE]: [
@@ -1191,5 +1198,6 @@ export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {
     NodeType.FILL_STYLE,
     NodeType.FONT_STYLE,
     NodeType.SHADOW_STYLE,
+    NodeType.STROKE_STYLE,
   ],
 };

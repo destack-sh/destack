@@ -2,7 +2,6 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { IsShape } from "@destack/language/canvas";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
-  EnumType,
   IsSubject,
   Node,
   NodeType,
@@ -12,36 +11,16 @@ import {
 } from "@destack/language/core/builtin";
 import { Align, Dimension, Position, Vector3 } from "@destack/language/core/common";
 import { Script } from "@destack/language/logic";
-import {
-  registerEnumClass,
-  registerNodeClass,
-  registerStructClass,
-} from "@destack/language/registry";
+import { registerNodeClass, registerStructClass } from "@destack/language/registry";
 import { Layer, Scene, Window } from "@destack/language/scene";
 import { Space } from "@destack/language/space";
-import { Color } from "@destack/language/style";
+import { Stroke } from "@destack/language/style";
 import { ContainerView } from "@destack/language/view/container";
 import { ContentView } from "@destack/language/view/content";
-import { AlignProto, LineProto, LineShapeProto, LineTypeProto } from "@destack/proto";
+import { AlignProto, LineProto, LineShapeProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
-
-/* ==== DESTACK_GENERATED_START:ENUM:11010 ==== */
-/**
- * LineType
- */
-export enum LineType {
-  SOLID = 1,
-  DASHED = 2,
-  DOTTED = 3,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.LINE_TYPE, LineType);
-/* ==== DESTACK_GENERATED_END:ENUM:11010 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:11010 ==== */
 /**
@@ -87,6 +66,7 @@ export class LineShape extends Node implements ContentView, IsShape {
     NodeType.FILL_STYLE,
     NodeType.FONT_STYLE,
     NodeType.SHADOW_STYLE,
+    NodeType.STROKE_STYLE,
   ];
   static __ancestorTypes__: NodeType[] = [
     NodeType.SPACE,
@@ -105,17 +85,18 @@ export class LineShape extends Node implements ContentView, IsShape {
   ];
   static __descendantTypes__: NodeType[] = [
     NodeType.CUSTOM_OPTION,
+    NodeType.STROKE_STYLE,
+    NodeType.GRADIENT_STYLE,
     NodeType.CUSTOM_PROPERTY,
+    NodeType.FONT_STYLE,
+    NodeType.TRANSITION_STYLE,
+    NodeType.BORDER_STYLE,
     NodeType.TAGGING,
     NodeType.COLOR_STYLE,
-    NodeType.FILL_STYLE,
-    NodeType.FONT_STYLE,
-    NodeType.BORDER_STYLE,
-    NodeType.SHADOW_STYLE,
-    NodeType.GRADIENT_STYLE,
-    NodeType.TRANSITION_STYLE,
-    NodeType.EFFECT_STYLE,
     NodeType.SCRIPT,
+    NodeType.EFFECT_STYLE,
+    NodeType.SHADOW_STYLE,
+    NodeType.FILL_STYLE,
   ];
 
   /**
@@ -192,11 +173,6 @@ export class LineShape extends Node implements ContentView, IsShape {
   readonly orderKey: string;
 
   /**
-   * LineShape.type
-   */
-  type: LineType;
-
-  /**
    * HasName.name
    */
   name: string;
@@ -257,9 +233,9 @@ export class LineShape extends Node implements ContentView, IsShape {
   points: Array<Vector3>;
 
   /**
-   * LineShape.color
+   * LineShape.stroke
    */
-  color: Color | null;
+  stroke: Stroke | null;
 
   /**
    * The main / root Script of this Node.
@@ -290,7 +266,6 @@ export class LineShape extends Node implements ContentView, IsShape {
     updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;
-    type: LineType;
     name: string;
     position?: Position | null;
     width?: Dimension | null;
@@ -303,7 +278,7 @@ export class LineShape extends Node implements ContentView, IsShape {
     isVisible?: boolean | null;
     opacity?: number | null;
     points?: Array<Vector3>;
-    color?: Color | null;
+    stroke?: Stroke | null;
     script?: Script | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -354,11 +329,6 @@ export class LineShape extends Node implements ContentView, IsShape {
       throw new Error(`LineShape.orderKey is required`);
     }
     this.orderKey = _orderKey;
-    let _type = options.type;
-    if (_type === null) {
-      throw new Error(`LineShape.type is required`);
-    }
-    this.type = _type;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`LineShape.name is required`);
@@ -389,8 +359,8 @@ export class LineShape extends Node implements ContentView, IsShape {
       _points = [];
     }
     this.points = _points;
-    let _color = options.color ?? null;
-    this.color = _color;
+    let _stroke = options.stroke ?? null;
+    this.stroke = _stroke;
     let _script = options.script ?? null;
     if (_script != null && _script instanceof Node) {
       _script = _script.toRef();
@@ -431,9 +401,6 @@ export class LineShape extends Node implements ContentView, IsShape {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.type === other.type)) {
-      return false;
-    }
     if (this.points.length !== other.points.length) {
       return false;
     }
@@ -443,8 +410,8 @@ export class LineShape extends Node implements ContentView, IsShape {
       }
     }
     if (
-      (this.color == null) !== (other.color == null) ||
-      (this.color != null && !this.color.equals(other.color))
+      (this.stroke == null) !== (other.stroke == null) ||
+      (this.stroke != null && !this.stroke.equals(other.stroke))
     ) {
       return false;
     }
@@ -518,14 +485,13 @@ export class LineShape extends Node implements ContentView, IsShape {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.type) & 0xffffffff;
     if (this.points && this.points.length > 0) {
       for (const _item of this.points) {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
-    if (this.color !== null) {
-      h = (h * 31 + this.color.hash()) & 0xffffffff;
+    if (this.stroke !== null) {
+      h = (h * 31 + this.stroke.hash()) & 0xffffffff;
     }
     if (this.align !== null) {
       h = (h * 31 + this.align) & 0xffffffff;
@@ -617,9 +583,8 @@ export class LineShape extends Node implements ContentView, IsShape {
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`type=${LineType[this.type]}`);
-    if (this.color !== null) {
-      propertyReprs.push(`color=${this.color.repr()}`);
+    if (this.stroke !== null) {
+      propertyReprs.push(`stroke=${this.stroke.repr()}`);
     }
     propertyReprs.push(`name=${this.name}`);
     return `<LineShape '${this.path}' ${propertyReprs.join(" ")}>`;
@@ -651,7 +616,6 @@ export class LineShape extends Node implements ContentView, IsShape {
       objectValue["20"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["22"] = object.orderKey;
-    objectValue["30"] = object.type;
     objectValue["31"] = object.name;
     if (object.position != null) {
       objectValue["40"] = object.position.toValue();
@@ -690,8 +654,8 @@ export class LineShape extends Node implements ContentView, IsShape {
       }
       objectValue["100"] = packedPoints;
     }
-    if (object.color != null) {
-      objectValue["101"] = object.color.toValue();
+    if (object.stroke != null) {
+      objectValue["101"] = object.stroke.toValue();
     }
     if (object.scriptPtr != null) {
       objectValue["200"] = object.scriptPtr.toValue();
@@ -712,10 +676,10 @@ export class LineShape extends Node implements ContentView, IsShape {
         unpackedPoints.push(Vector3.fromValue(item, _session, _supergraph, _graph, _connection));
       }
     }
-    const colorValue = objectValue["101"];
-    const unpackedColor =
-      colorValue != undefined
-        ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
+    const strokeValue = objectValue["101"];
+    const unpackedStroke =
+      strokeValue != undefined
+        ? Stroke.fromValue(strokeValue, _session, _supergraph, _graph, _connection)
         : null;
     const alignValue = objectValue["53"];
     const unpackedAlign = alignValue != undefined ? Number(alignValue) : null;
@@ -789,9 +753,8 @@ export class LineShape extends Node implements ContentView, IsShape {
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
     return new LineShape({
-      type: Number(objectValue["30"]),
       points: unpackedPoints,
-      color: unpackedColor,
+      stroke: unpackedStroke,
       align: unpackedAlign,
       isVisible: unpackedIsVisible,
       opacity: unpackedOpacity,
@@ -854,7 +817,6 @@ export class LineShape extends Node implements ContentView, IsShape {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     objectProto.orderKey = object.orderKey;
-    objectProto.type = Number(object.type) as LineTypeProto;
     objectProto.name = object.name;
     if (object.position != null) {
       objectProto.position = object.position.toProto();
@@ -893,8 +855,8 @@ export class LineShape extends Node implements ContentView, IsShape {
       }
       objectProto.points = packedPoints;
     }
-    if (object.color != null) {
-      objectProto.color = object.color.toProto();
+    if (object.stroke != null) {
+      objectProto.stroke = object.stroke.toProto();
     }
     if (object.scriptPtr != null) {
       objectProto.scriptPtr = object.scriptPtr.toProto();
@@ -916,11 +878,10 @@ export class LineShape extends Node implements ContentView, IsShape {
       }
     }
     return new LineShape({
-      type: Number(objectProto.type) as LineType,
       points: unpackedPoints,
-      color:
-        objectProto.color != undefined
-          ? Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
+      stroke:
+        objectProto.stroke != undefined
+          ? Stroke.fromProto(objectProto.stroke!, _session, _supergraph, _graph, _connection)
           : null,
       align: objectProto.align != undefined ? (Number(objectProto.align) as Align) : null,
       isVisible: objectProto.isVisible != undefined ? objectProto.isVisible : null,
@@ -1048,24 +1009,18 @@ export class Line extends StructFrozen {
   static __isFrozen__: boolean = true;
 
   /**
-   * Line.type
-   */
-  readonly type: LineType;
-
-  /**
    * Line.points
    */
   readonly points: Array<Vector3>;
 
   /**
-   * Line.color
+   * Line.stroke
    */
-  readonly color: Color | null;
+  readonly stroke: Stroke | null;
 
   constructor(options: {
-    type: LineType;
     points?: Array<Vector3>;
-    color?: Color | null;
+    stroke?: Stroke | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -1081,18 +1036,13 @@ export class Line extends StructFrozen {
     );
 
     // properties
-    let _type = options.type;
-    if (_type === null) {
-      throw new Error(`Line.type is required`);
-    }
-    this.type = _type;
     let _points = options.points ?? null;
     if (_points === null) {
       _points = [];
     }
     this.points = _points;
-    let _color = options.color ?? null;
-    this.color = _color;
+    let _stroke = options.stroke ?? null;
+    this.stroke = _stroke;
 
     // identity
     // @ts-expect-error(readonly)
@@ -1109,9 +1059,6 @@ export class Line extends StructFrozen {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this.type === other.type)) {
-      return false;
-    }
     if (this.points.length !== other.points.length) {
       return false;
     }
@@ -1121,8 +1068,8 @@ export class Line extends StructFrozen {
       }
     }
     if (
-      (this.color == null) !== (other.color == null) ||
-      (this.color != null && !this.color.equals(other.color))
+      (this.stroke == null) !== (other.stroke == null) ||
+      (this.stroke != null && !this.stroke.equals(other.stroke))
     ) {
       return false;
     }
@@ -1132,12 +1079,16 @@ export class Line extends StructFrozen {
   repr(): string {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
-      propertyReprs.push(`type=${LineType[this.type]}`);
-      if (this.color !== null) {
-        propertyReprs.push(`color=${this.color.repr()}`);
+      if (this.stroke !== null) {
+        propertyReprs.push(`stroke=${this.stroke.repr()}`);
       }
-      // @ts-expect-error(readonly)
-      this._repr = `<Line ${propertyReprs.join(" ")}>`;
+      if (propertyReprs.length > 0) {
+        // @ts-expect-error(readonly)
+        this._repr = `<Line ${propertyReprs.join(" ")}>`;
+      } else {
+        // @ts-expect-error(readonly)
+        this._repr = `<Line>`;
+      }
     }
     return this._repr;
   }
@@ -1149,14 +1100,13 @@ export class Line extends StructFrozen {
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.type) & 0xffffffff;
     if (this.points && this.points.length > 0) {
       for (const _item of this.points) {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
-    if (this.color !== null) {
-      h = (h * 31 + this.color.hash()) & 0xffffffff;
+    if (this.stroke !== null) {
+      h = (h * 31 + this.stroke.hash()) & 0xffffffff;
     }
 
     // @ts-expect-error(readonly)
@@ -1179,7 +1129,6 @@ export class Line extends StructFrozen {
   static __packValue__(object: Line): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 11010;
-    objectValue["30"] = object.type;
     if (object.points.length > 0) {
       const packedPoints: any[] = [];
       for (const item of object.points) {
@@ -1187,8 +1136,8 @@ export class Line extends StructFrozen {
       }
       objectValue["100"] = packedPoints;
     }
-    if (object.color != null) {
-      objectValue["101"] = object.color.toValue();
+    if (object.stroke != null) {
+      objectValue["101"] = object.stroke.toValue();
     }
     return objectValue;
   }
@@ -1206,15 +1155,14 @@ export class Line extends StructFrozen {
         unpackedPoints.push(Vector3.fromValue(item, _session, _supergraph, _graph, _connection));
       }
     }
-    const colorValue = objectValue["101"];
-    const unpackedColor =
-      colorValue != undefined
-        ? Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
+    const strokeValue = objectValue["101"];
+    const unpackedStroke =
+      strokeValue != undefined
+        ? Stroke.fromValue(strokeValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Line({
-      type: Number(objectValue["30"]),
       points: unpackedPoints,
-      color: unpackedColor,
+      stroke: unpackedStroke,
       _value: objectValue,
       _supergraph,
     });
@@ -1240,7 +1188,6 @@ export class Line extends StructFrozen {
 
   static __packProto__(object: Line): LineProto {
     const objectProto: Partial<LineProto> = { metatype: 11010 };
-    objectProto.type = Number(object.type) as LineTypeProto;
     if (object.points) {
       const packedPoints: any[] = [];
       for (const item of object.points) {
@@ -1248,8 +1195,8 @@ export class Line extends StructFrozen {
       }
       objectProto.points = packedPoints;
     }
-    if (object.color != null) {
-      objectProto.color = object.color.toProto();
+    if (object.stroke != null) {
+      objectProto.stroke = object.stroke.toProto();
     }
     return objectProto as LineProto;
   }
@@ -1268,11 +1215,10 @@ export class Line extends StructFrozen {
       }
     }
     return new Line({
-      type: Number(objectProto.type) as LineType,
       points: unpackedPoints,
-      color:
-        objectProto.color != undefined
-          ? Color.fromProto(objectProto.color!, _session, _supergraph, _graph, _connection)
+      stroke:
+        objectProto.stroke != undefined
+          ? Stroke.fromProto(objectProto.stroke!, _session, _supergraph, _graph, _connection)
           : null,
       _proto: objectProto,
       _supergraph,

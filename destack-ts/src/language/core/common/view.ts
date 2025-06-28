@@ -18,137 +18,6 @@ import {
 import { base64Decode } from "@destack/utils";
 import { hashFloat, hashInt } from "@destack/utils/hash";
 
-/* ==== DESTACK_GENERATED_START:ENUM:12038 ==== */
-/**
- * Layout
- */
-export enum Layout {
-  STACK = 1,
-  GRID = 2,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.LAYOUT, Layout);
-/* ==== DESTACK_GENERATED_END:ENUM:12038 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:12042 ==== */
-/**
- * Overflow
- */
-export enum Overflow {
-  HIDDEN = 2,
-  VISIBLE = 3,
-  SCROLL = 4,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.OVERFLOW, Overflow);
-/* ==== DESTACK_GENERATED_END:ENUM:12042 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:12041 ==== */
-/**
- * Direction
- */
-export enum Direction {
-  HORIZONTAL = 1,
-  VERTICAL = 2,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.DIRECTION, Direction);
-/* ==== DESTACK_GENERATED_END:ENUM:12041 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:12039 ==== */
-/**
- * Distribute
- */
-export enum Distribute {
-  START = 1,
-  CENTER = 2,
-  END = 3,
-  SPACE_BETWEEN = 4,
-  SPACE_AROUND = 5,
-  SPACE_EVENLY = 6,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.DISTRIBUTE, Distribute);
-/* ==== DESTACK_GENERATED_END:ENUM:12039 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:12040 ==== */
-/**
- * Align
- */
-export enum Align {
-  START = 1,
-  CENTER = 2,
-  END = 3,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.ALIGN, Align);
-/* ==== DESTACK_GENERATED_END:ENUM:12040 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:12037 ==== */
-/**
- * LengthUnit
- */
-export enum LengthUnit {
-  PIXEL = 1,
-  REM = 2,
-  PERCENT = 3,
-  FR = 4,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.LENGTH_UNIT, LengthUnit);
-/* ==== DESTACK_GENERATED_END:ENUM:12037 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:12000 ==== */
-/**
- * PositionType
- */
-export enum PositionType {
-  RELATIVE = 1,
-  ABSOLUTE = 2,
-  FIXED = 3,
-  STICKY = 4,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.POSITION_TYPE, PositionType);
-/* ==== DESTACK_GENERATED_END:ENUM:12000 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:12045 ==== */
-/**
- * DimensionType
- */
-export enum DimensionType {
-  FIXED = 2,
-  FIT = 3,
-  FILL = 4,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.DIMENSION_TYPE, DimensionType);
-/* ==== DESTACK_GENERATED_END:ENUM:12045 ==== */
-
 /* ==== DESTACK_GENERATED_START:STRUCT:12018 ==== */
 /**
  * A length value.
@@ -2500,3 +2369,134 @@ export class GridSpan extends StructFrozen {
 }
 registerStructClass(StructType.GRID_SPAN, GridSpan);
 /* ==== DESTACK_GENERATED_END:STRUCT:12028 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:12112 ==== */
+/**
+ * Layout
+ */
+export enum Layout {
+  STACK = 1,
+  GRID = 2,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.LAYOUT, Layout);
+/* ==== DESTACK_GENERATED_END:ENUM:12112 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:12116 ==== */
+/**
+ * Overflow
+ */
+export enum Overflow {
+  HIDDEN = 2,
+  VISIBLE = 3,
+  SCROLL = 4,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.OVERFLOW, Overflow);
+/* ==== DESTACK_GENERATED_END:ENUM:12116 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:12115 ==== */
+/**
+ * Direction
+ */
+export enum Direction {
+  HORIZONTAL = 1,
+  VERTICAL = 2,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.DIRECTION, Direction);
+/* ==== DESTACK_GENERATED_END:ENUM:12115 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:12113 ==== */
+/**
+ * Distribute
+ */
+export enum Distribute {
+  START = 1,
+  CENTER = 2,
+  END = 3,
+  SPACE_BETWEEN = 4,
+  SPACE_AROUND = 5,
+  SPACE_EVENLY = 6,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.DISTRIBUTE, Distribute);
+/* ==== DESTACK_GENERATED_END:ENUM:12113 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:12114 ==== */
+/**
+ * Align
+ */
+export enum Align {
+  START = 1,
+  CENTER = 2,
+  END = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.ALIGN, Align);
+/* ==== DESTACK_GENERATED_END:ENUM:12114 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:12111 ==== */
+/**
+ * LengthUnit
+ */
+export enum LengthUnit {
+  PIXEL = 1,
+  REM = 2,
+  PERCENT = 3,
+  FR = 4,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.LENGTH_UNIT, LengthUnit);
+/* ==== DESTACK_GENERATED_END:ENUM:12111 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:12110 ==== */
+/**
+ * PositionType
+ */
+export enum PositionType {
+  RELATIVE = 1,
+  ABSOLUTE = 2,
+  FIXED = 3,
+  STICKY = 4,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.POSITION_TYPE, PositionType);
+/* ==== DESTACK_GENERATED_END:ENUM:12110 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:12117 ==== */
+/**
+ * DimensionType
+ */
+export enum DimensionType {
+  FIXED = 2,
+  FIT = 3,
+  FILL = 4,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.DIMENSION_TYPE, DimensionType);
+/* ==== DESTACK_GENERATED_END:ENUM:12117 ==== */

@@ -156,45 +156,46 @@ class EnumType(Enum):
 
     # canvas [11000-11500]
     CANVAS_TYPE = 11000
-    LINE_TYPE = 11010
-    POLYGON_SHAPE_TYPE = 11011
-    ARROW_HEAD_TYPE = 11012
+    POLYGON_SHAPE_TYPE = 11010
+    ARROW_HEAD_TYPE = 11011
 
     # animation [11500-12000]
     # ...
 
     # style [12000-12500]
-    POSITION_TYPE = 12000
     COLOR_TYPE = 12020
     COLOR_SHADE = 12021
     COLOR_HUE = 12022
     COLOR_INTENT = 12023
-    FONT_WEIGHT = 12024
-    FONT_SIZE = 12025
-    FONT_TYPE = 12026
-    TEXT_ALIGN = 12027
-    TEXT_DECORATION = 12028
-    TEXT_TRANSFORM = 12029
-    SHADOW_TYPE = 12030
-    SHADOW_POSITION = 12031
-    BORDER_TYPE = 12032
-    GRADIENT_TYPE = 12033
-    FILL_TYPE = 12034
-    FILL_POSITION = 12035
-    FILL_SIZE = 12036
-    LENGTH_UNIT = 12037
-    LAYOUT = 12038
-    DISTRIBUTE = 12039
-    ALIGN = 12040
-    DIRECTION = 12041
-    OVERFLOW = 12042
-    TRANSITION_TYPE = 12043
-    SPRING_TYPE = 12044
-    DIMENSION_TYPE = 12045
-    EFFECT_TYPE = 12046
-    REPEAT_TYPE = 12047
-    TEXT_SPLIT_TYPE = 12048
-    OFFSCREEN_BEHAVIOR = 12049
+    FILL_TYPE = 12030
+    FILL_POSITION = 12031
+    FILL_SIZE = 12032
+    FONT_TYPE = 12040
+    FONT_WEIGHT = 12041
+    FONT_SIZE = 12042
+    TEXT_ALIGN = 12043
+    TEXT_DECORATION = 12044
+    TEXT_TRANSFORM = 12045
+    BORDER_TYPE = 12050
+    SHADOW_TYPE = 12060
+    SHADOW_POSITION = 12061
+    GRADIENT_TYPE = 12070
+    TRANSITION_TYPE = 12080
+    SPRING_TYPE = 12081
+    EFFECT_TYPE = 12090
+    STROKE_TYPE = 12100
+    POSITION_TYPE = 12110
+    LENGTH_UNIT = 12111
+    LAYOUT = 12112
+    DISTRIBUTE = 12113
+    ALIGN = 12114
+    DIRECTION = 12115
+    OVERFLOW = 12116
+    DIMENSION_TYPE = 12117
+    REPEAT_TYPE = 12118
+    TEXT_SPLIT_TYPE = 12119
+    OFFSCREEN_BEHAVIOR = 12120
+    EASING = 12121
 
     # meta [50000-51000]
     ENUM_TYPE = 50000
@@ -332,6 +333,10 @@ class StructType(Enum):
     GRID_SPAN = 12028, None, None, "fas fa-grid-2"
     INSETS = 12030, None, None, "fas fa-corner"
     CORNERS = 12032, None, None, "fas fa-corner"
+    STROKE = 12100, None, None, "fas fa-stroke"
+    STROKE_CAP = 12101, None, None, "fas fa-stroke"
+    STROKE_PATH = 12102, None, None, "fas fa-stroke"
+    STROKE_POINT = 12103, None, None, "fas fa-stroke"
 
     # meta [50000-51000]
     SCOPE = 50000
@@ -662,13 +667,14 @@ class NodeType(Enum):
     THEME = 12000, "Theme", None, "fas fa-palette"
     PALETTE = 12010, "Palette", None, "fas fa-palette"
     COLOR_STYLE = 12020, "Color Style", None, "fas fa-palette"
-    FILL_STYLE = 12021, "Fill Style", None, "fas fa-fill"
-    FONT_STYLE = 12022, "Font Style", None, "fas fa-text"
-    BORDER_STYLE = 12023, "Border Style", None, "fas fa-border-outer"
-    SHADOW_STYLE = 12024, "Shadow Style", None, "fas fa-eclipse"
-    GRADIENT_STYLE = 12025, "Gradient Style", None, "fas fa-gradient"
-    TRANSITION_STYLE = 12026, "Transition Style", None, "fas fa-bezier-curve"
-    EFFECT_STYLE = 12027, "Effect Style", None, "fas fa-sparkle"
+    FILL_STYLE = 12030, "Fill Style", None, "fas fa-fill"
+    FONT_STYLE = 12040, "Font Style", None, "fas fa-text"
+    BORDER_STYLE = 12050, "Border Style", None, "fas fa-border-outer"
+    SHADOW_STYLE = 12060, "Shadow Style", None, "fas fa-eclipse"
+    GRADIENT_STYLE = 12070, "Gradient Style", None, "fas fa-gradient"
+    TRANSITION_STYLE = 12080, "Transition Style", None, "fas fa-bezier-curve"
+    EFFECT_STYLE = 12090, "Effect Style", None, "fas fa-sparkle"
+    STROKE_STYLE = 12100, "Stroke Style", None, "fas fa-stroke"
     # BRUSH_STYLE, ...
     # SHADER, MATERIAL, ...
 

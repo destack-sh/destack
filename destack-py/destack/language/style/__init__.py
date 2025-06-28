@@ -15,11 +15,11 @@ from .color import (
     rgb_to_p3,
     to_color,
 )
-from .effect import Effect, EffectBase, EffectStyle, EffectType
+from .easing import Easing
+from .effect import Effect, EffectStyle, EffectType
 from .fill import Fill, FillPosition, FillSize, FillStyle, FillType
 from .font import (
     Font,
-    FontBase,
     FontStyle,
     FontType,
     FontWeight,
@@ -28,10 +28,11 @@ from .font import (
 )
 from .gradient import Gradient, GradientStop, GradientStyle, GradientType
 from .palette import Palette
-from .shadow import Shadow, ShadowBase, ShadowStyle, ShadowType
+from .shadow import Shadow, ShadowStyle, ShadowType
+from .stroke import Stroke, StrokePath, StrokePoint, StrokeStyle, StrokeType
 from .style import Style
 from .theme import Theme
-from .transition import Transition, TransitionBase, TransitionStyle, TransitionType
+from .transition import Transition, TransitionStyle, TransitionType
 
 __all__ = [
     "Border",
@@ -45,8 +46,8 @@ __all__ = [
     "ColorShade",
     "ColorStyle",
     "ColorType",
+    "Easing",
     "Effect",
-    "EffectBase",
     "EffectStyle",
     "EffectType",
     "Fill",
@@ -55,7 +56,6 @@ __all__ = [
     "FillStyle",
     "FillType",
     "Font",
-    "FontBase",
     "FontStyle",
     "FontType",
     "FontWeight",
@@ -65,15 +65,18 @@ __all__ = [
     "GradientType",
     "Palette",
     "Shadow",
-    "ShadowBase",
     "ShadowStyle",
     "ShadowType",
+    "Stroke",
+    "StrokePath",
+    "StrokePoint",
+    "StrokeStyle",
+    "StrokeType",
     "Style",
     "TextDecoration",
     "TextTransform",
     "Theme",
     "Transition",
-    "TransitionBase",
     "TransitionStyle",
     "TransitionType",
     "hsl_to_p3",

@@ -24,24 +24,6 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:12032 ==== */
-/**
- * BorderType
- */
-export enum BorderType {
-  STYLE = 2,
-  SOLID = 10,
-  DASHED = 11,
-  DOTTED = 12,
-  DOUBLE = 13,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.BORDER_TYPE, BorderType);
-/* ==== DESTACK_GENERATED_END:ENUM:12032 ==== */
-
 /* ==== DESTACK_GENERATED_START:STRUCT:12013 ==== */
 /**
  * A border value.
@@ -320,7 +302,25 @@ export class Border extends Struct {
 registerStructClass(StructType.BORDER, Border);
 /* ==== DESTACK_GENERATED_END:STRUCT:12013 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:12023 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:12050 ==== */
+/**
+ * BorderType
+ */
+export enum BorderType {
+  STYLE = 2,
+  SOLID = 10,
+  DASHED = 11,
+  DOTTED = 12,
+  DOUBLE = 13,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.BORDER_TYPE, BorderType);
+/* ==== DESTACK_GENERATED_END:ENUM:12050 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:12050 ==== */
 /**
  * A border style.
  */
@@ -694,7 +694,7 @@ export class BorderStyle extends Node implements Style {
 
   static __packValue__(object: BorderStyle): { [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 12023;
+    objectValue["1"] = 12050;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -802,7 +802,7 @@ export class BorderStyle extends Node implements Style {
   }
 
   static __packProto__(object: BorderStyle): BorderStyleProto {
-    const objectProto: Partial<BorderStyleProto> = { metatype: 12023 };
+    const objectProto: Partial<BorderStyleProto> = { metatype: 12050 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -924,4 +924,4 @@ export class BorderStyle extends Node implements Style {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.BORDER_STYLE, BorderStyle);
-/* ==== DESTACK_GENERATED_END:NODE:12023 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:12050 ==== */
