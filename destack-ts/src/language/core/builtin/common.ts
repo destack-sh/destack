@@ -400,7 +400,6 @@ export enum TraitType {
   ENTITY = 10,
   PARTICLE = 11,
   ANALYTIC = 12,
-  INDEXED = 13,
   RESOURCE = 21,
   EVENT = 22,
   CUSTOM_NODE_DEFINITION = 23,

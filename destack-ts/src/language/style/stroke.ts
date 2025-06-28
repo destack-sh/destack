@@ -1338,11 +1338,6 @@ export class StrokeStyle extends Node implements Style {
   streamline: number;
 
   /**
-   * Whether to simulate pressure if not provided.
-   */
-  simulatePressure: boolean;
-
-  /**
    * The easing function for pressure mapping.
    */
   easing: Easing;
@@ -1373,7 +1368,6 @@ export class StrokeStyle extends Node implements Style {
     thinning: number;
     smoothing: number;
     streamline: number;
-    simulatePressure: boolean;
     easing: Easing;
     start?: StrokeCap | null;
     end?: StrokeCap | null;
@@ -1456,11 +1450,6 @@ export class StrokeStyle extends Node implements Style {
       throw new Error(`StrokeStyle.streamline is required`);
     }
     this.streamline = _streamline;
-    let _simulatePressure = options.simulatePressure;
-    if (_simulatePressure === null) {
-      throw new Error(`StrokeStyle.simulatePressure is required`);
-    }
-    this.simulatePressure = _simulatePressure;
     let _easing = options.easing;
     if (_easing === null) {
       throw new Error(`StrokeStyle.easing is required`);
@@ -1526,9 +1515,6 @@ export class StrokeStyle extends Node implements Style {
     ) {
       return false;
     }
-    if (!(this.simulatePressure === other.simulatePressure)) {
-      return false;
-    }
     if (!(this.easing === other.easing)) {
       return false;
     }
@@ -1561,7 +1547,6 @@ export class StrokeStyle extends Node implements Style {
     h = (h * 31 + hashFloat(this.thinning)) & 0xffffffff;
     h = (h * 31 + hashFloat(this.smoothing)) & 0xffffffff;
     h = (h * 31 + hashFloat(this.streamline)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.simulatePressure)) & 0xffffffff;
     h = (h * 31 + this.easing) & 0xffffffff;
     if (this.start !== null) {
       h = (h * 31 + this.start.hash()) & 0xffffffff;
@@ -1662,7 +1647,6 @@ export class StrokeStyle extends Node implements Style {
     objectValue["51"] = object.thinning;
     objectValue["52"] = object.smoothing;
     objectValue["53"] = object.streamline;
-    objectValue["54"] = object.simulatePressure;
     objectValue["55"] = object.easing;
     if (object.start != null) {
       objectValue["60"] = object.start.toValue();
@@ -1721,7 +1705,6 @@ export class StrokeStyle extends Node implements Style {
       thinning: objectValue["51"],
       smoothing: objectValue["52"],
       streamline: objectValue["53"],
-      simulatePressure: objectValue["54"],
       easing: Number(objectValue["55"]),
       start: unpackedStart,
       end: unpackedEnd,
@@ -1782,7 +1765,6 @@ export class StrokeStyle extends Node implements Style {
     objectProto.thinning = object.thinning;
     objectProto.smoothing = object.smoothing;
     objectProto.streamline = object.streamline;
-    objectProto.simulatePressure = object.simulatePressure;
     objectProto.easing = Number(object.easing) as EasingProto;
     if (object.start != null) {
       objectProto.start = object.start.toProto();
@@ -1806,7 +1788,6 @@ export class StrokeStyle extends Node implements Style {
       thinning: objectProto.thinning,
       smoothing: objectProto.smoothing,
       streamline: objectProto.streamline,
-      simulatePressure: objectProto.simulatePressure,
       easing: Number(objectProto.easing) as Easing,
       start:
         objectProto.start != undefined

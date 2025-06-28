@@ -379,6 +379,150 @@ class StructType(Enum):
     AXIS3 = 50209, None, None, "fas fa-vector-square"
 
 
+@builtin_enum(EnumType.TRAIT_TYPE)
+class TraitType(Enum):
+    # destack [1-400]
+    # where
+    GLOBAL = 1, "Global", "Is global", "fas fa-globe"
+    SPATIAL = 2, "Spatial", "Is in a Space", "fas fa-solar-system"
+    # LOCAL?
+    # kind
+    ENTITY = 10, "Entity", "Is an Entity", "fas fa-hexagon"
+    PARTICLE = 11, "Particle", "Is a Particle", "fas fa-atom"
+    ANALYTIC = 12, "Analytic", "Is an Analytic", "fas fa-chart-line"
+    # type
+    RESOURCE = 21, "Resource", "Is a Resource", "fas fa-server"
+    EVENT = 22, "Event", "Is an Event", "fas fa-bolt"
+    CUSTOM_NODE_DEFINITION = (
+        23,
+        "Custom Node Definition",
+        "Is a Custom Node Definition",
+        "fas fa-table",
+    )
+    CUSTOM_NODE = 24, "Custom Node", "Is a Custom Node", "fas fa-database"
+    # behavior
+    FROZEN = 50, "Frozen", "Is frozen", "fas fa-snowflake"
+    TRACKED = 51, "Tracked", "Is tracked", "fas fa-clock"
+    ARCHIVABLE = 52, "Archivable", "Can be archived", "fas fa-box-archive"
+    DELETABLE = 53, "Deletable", "Can be deleted", "fas fa-trash"
+    EXTENSIBLE = 55, "Extensible", "Is extensible", "fas fa-expand"
+    ORDERED = 56, "Ordered", "Is ordered", "fas fa-sort"
+    # attribute
+    HAS_NAME = 100, "Name", "Has a name", "fas fa-font-case"
+    HAS_SLUG = 101, "Slug", "Has a slug", "fas fa-hashtag"
+    HAS_ICON = 102, "Icon", "Has an icon", "fas fa-icons"
+
+    # access [500-1000]
+    OWNABLE = 500, "Ownable", "Is ownable", "fas fa-user"
+    JOINABLE = 502, "Joinable", "Is joinable", "fas fa-users"
+    SUBJECT = 505, "Subject", "Is a Subject", "fas fa-user"
+    OWNER = 506, "Owner", "Is an Owner", "fas fa-user"
+    MEMBERSHIP = 510, "Membership", "Is a Membership", "fas fa-users"
+    INVITE = 511, "Invite", "Is an Invite", "fas fa-envelope"
+
+    # folder [1000-1500]
+    TAGGABLE = 1000, "Taggable", "Can be tagged", "fas fa-tag"
+    TAG = 1001, "Tag", "Is a Tag", "fas fa-tag"
+
+    # spacetime [1500-2000]
+    # ...
+
+    # entity [2000-2500]
+    # ...
+
+    # data [2500-3000]
+    # ...
+
+    # logic [3000-3500]
+    ACTIONABLE = 3000, "Actionable", "Can define an Action", "fas fa-play"
+    RUNNABLE = 3001, "Runnable", "Can be run", "fas fa-play"
+    SCRIPTABLE = 3002, "Scriptable", "Can be scripted", "fas fa-code"
+    SOURCEABLE = 3003, "Sourcable", "Can be defined in a Script", "fas fa-code"
+    # PAUSEABLE?
+    CURSOR = 3012, "Cursor", "Is a Cursor", "fas fa-mouse-pointer"
+
+    # test [3500-4000]
+    # ...
+
+    # runtime [4000-4500]
+    METRIC = 4010, "Instrument", "Is an Instrument", "fas fa-microscope"
+    MEASUREMENT = 4011, "Measurement", "Is a Measurement", "fas fa-microscope"
+    # ...
+
+    # deployment [4500-5000]
+    # ...
+
+    # product [5000-5500]
+    SETTINGS = 5000, "Settings", "Defines Settings", "fas fa-cog"
+
+    # social [5500-6000]
+    # MESSAGE, THREAD, ...
+    STARABLE = 5530, "Starable", "Can be starred", "fas fa-star"
+    REACTABLE = 5532, "Reactable", "Can be reacted to", "fas fa-heart"
+    FOLLOWABLE = 5534, "Followable", "Can be followed", "fas fa-plus"
+    FOLLOW = 5535, "Follow", "Follow", "fas fa-plus"
+    # RATEABLE, VOTABLE, ...
+    # ASSIGNABLE, MESSAGEABLE, CLOSABLE, LOCKABLE, ...
+
+    # finance [6000-6500]
+    # ...
+
+    # locale [6500-7000]
+    # ...
+
+    # internet [7000-7500]
+    # ...
+
+    # infra [7500-8000]
+    # ...
+
+    # intelligence [8000-8500]
+    # ...
+
+    # world [8500-9000]
+    # ...
+
+    # scene [9000-9500]
+    VISUAL = 9000, "Visual", "Is a Visual", "fas fa-eye"
+    VIEW = 9001, "View", "Is a View", "fas fa-eye"
+    VIEW_EVENT = 9002, "View Event", "Is a View Event", "fas fa-eye"
+
+    # interaction [9500-10000]
+    INPUT_EVENT = 9500, "Input Event", "Is an Input Event", "fas fa-mouse-pointer"
+    POINTER_EVENT = 9501, "Pointer Event", "Is a Pointer Event", "fas fa-mouse-pointer"
+    MOUSE_EVENT = 9510, "Mouse Event", "Is a Mouse Event", "fas fa-mouse-pointer"
+    CLICK_EVENT = 9511, "Click Event", "Is a Click Event", "fas fa-mouse-pointer"
+    KEYBOARD_EVENT = 9520, "Keyboard Event", "Is a Keyboard Event", "fas fa-keyboard"
+    DRAG_EVENT = 9530, "Drag Event", "Is a Drag Event", "fas fa-arrows-up-down-left-right"
+    CLIPBOARD_EVENT = 9540, "Clipboard Event", "Is a Clipboard Event", "fas fa-clipboard"
+    FOCUS_EVENT = 9550, "Focus Event", "Is a Focus Event", "fas fa-focus"
+
+    # container views [10000-10200]
+    CONTAINER_VIEW = 10000, "Container View", "Is a Container View", "fas fa-container"
+
+    # content views [10200-10400]
+    CONTENT_VIEW = 10200, "Content View", "Is a Content View", "fas fa-content"
+
+    # input views [10400-10600]
+    INPUT_VIEW = 10400, "Input View", "Is an Input View", "fas fa-input"
+
+    # node/internal views [10600-10800]
+    NODE_VIEW = 10600, "Node View", "Is a Node View", "fas fa-node"
+    INTERNAL_VIEW = 10650, "Internal View", "Is an Internal View", "fas fa-internal"
+
+    # canvas [11000-11500]
+    SHAPE = 11000, "Shape", "Is a Shape", "fas fa-shapes"
+
+    # animation [11500-12000]
+    # ...
+
+    # style [12000-12500]
+    STYLE = 12000, "Style", "Is a Style", "fas fa-palette"
+
+    # meta [50000-51000]
+    # ...
+
+
 @builtin_enum(EnumType.NODE_TYPE)
 class NodeType(Enum):
     # space [1-500]
@@ -661,7 +805,7 @@ class NodeType(Enum):
 
     # animation [11500-12000]
     # ANIMATION, TRACK, KEYFRAME, ...
-    # SOUND, ...
+    # AUDIO, AUDIO_PLAYER, VIDEO, VIDEO_PLAYER, ...
 
     # style [12000-12500]
     THEME = 12000, "Theme", None, "fas fa-palette"
@@ -677,151 +821,6 @@ class NodeType(Enum):
     STROKE_STYLE = 12100, "Stroke Style", None, "fas fa-stroke"
     # BRUSH_STYLE, ...
     # SHADER, MATERIAL, ...
-
-    # meta [50000-51000]
-    # ...
-
-
-@builtin_enum(EnumType.TRAIT_TYPE)
-class TraitType(Enum):
-    # destack [1-400]
-    # where
-    GLOBAL = 1, "Global", "Is global", "fas fa-globe"
-    SPATIAL = 2, "Spatial", "Is in a Space", "fas fa-solar-system"
-    # LOCAL?
-    # kind
-    ENTITY = 10, "Entity", "Is an Entity", "fas fa-hexagon"
-    PARTICLE = 11, "Particle", "Is a Particle", "fas fa-atom"
-    ANALYTIC = 12, "Analytic", "Is an Analytic", "fas fa-chart-line"
-    INDEXED = 13, "Indexed", "Is indexed", "fas fa-search"
-    # type
-    RESOURCE = 21, "Resource", "Is a Resource", "fas fa-server"
-    EVENT = 22, "Event", "Is an Event", "fas fa-bolt"
-    CUSTOM_NODE_DEFINITION = (
-        23,
-        "Custom Node Definition",
-        "Is a Custom Node Definition",
-        "fas fa-table",
-    )
-    CUSTOM_NODE = 24, "Custom Node", "Is a Custom Node", "fas fa-database"
-    # behavior
-    FROZEN = 50, "Frozen", "Is frozen", "fas fa-snowflake"
-    TRACKED = 51, "Tracked", "Is tracked", "fas fa-clock"
-    ARCHIVABLE = 52, "Archivable", "Can be archived", "fas fa-box-archive"
-    DELETABLE = 53, "Deletable", "Can be deleted", "fas fa-trash"
-    EXTENSIBLE = 55, "Extensible", "Is extensible", "fas fa-expand"
-    ORDERED = 56, "Ordered", "Is ordered", "fas fa-sort"
-    # attribute
-    HAS_NAME = 100, "Name", "Has a name", "fas fa-font-case"
-    HAS_SLUG = 101, "Slug", "Has a slug", "fas fa-hashtag"
-    HAS_ICON = 102, "Icon", "Has an icon", "fas fa-icons"
-
-    # access [500-1000]
-    OWNABLE = 500, "Ownable", "Is ownable", "fas fa-user"
-    JOINABLE = 502, "Joinable", "Is joinable", "fas fa-users"
-    SUBJECT = 505, "Subject", "Is a Subject", "fas fa-user"
-    OWNER = 506, "Owner", "Is an Owner", "fas fa-user"
-    MEMBERSHIP = 510, "Membership", "Is a Membership", "fas fa-users"
-    INVITE = 511, "Invite", "Is an Invite", "fas fa-envelope"
-
-    # folder [1000-1500]
-    TAGGABLE = 1000, "Taggable", "Can be tagged", "fas fa-tag"
-    TAG = 1001, "Tag", "Is a Tag", "fas fa-tag"
-
-    # spacetime [1500-2000]
-    # ...
-
-    # entity [2000-2500]
-    # ...
-
-    # data [2500-3000]
-    # ...
-
-    # logic [3000-3500]
-    ACTIONABLE = 3000, "Actionable", "Can define an Action", "fas fa-play"
-    RUNNABLE = 3001, "Runnable", "Can be run", "fas fa-play"
-    SCRIPTABLE = 3002, "Scriptable", "Can be scripted", "fas fa-code"
-    SOURCEABLE = 3003, "Sourcable", "Can be defined in a Script", "fas fa-code"
-    # PAUSEABLE?
-    CURSOR = 3012, "Cursor", "Is a Cursor", "fas fa-mouse-pointer"
-
-    # test [3500-4000]
-    # ...
-
-    # runtime [4000-4500]
-    METRIC = 4010, "Instrument", "Is an Instrument", "fas fa-microscope"
-    MEASUREMENT = 4011, "Measurement", "Is a Measurement", "fas fa-microscope"
-    # ...
-
-    # deployment [4500-5000]
-    # ...
-
-    # product [5000-5500]
-    SETTINGS = 5000, "Settings", "Defines Settings", "fas fa-cog"
-
-    # social [5500-6000]
-    # MESSAGE, THREAD, ...
-    STARABLE = 5530, "Starable", "Can be starred", "fas fa-star"
-    REACTABLE = 5532, "Reactable", "Can be reacted to", "fas fa-heart"
-    FOLLOWABLE = 5534, "Followable", "Can be followed", "fas fa-plus"
-    FOLLOW = 5535, "Follow", "Follow", "fas fa-plus"
-    # RATEABLE, VOTABLE, ...
-    # ASSIGNABLE, MESSAGEABLE, CLOSABLE, LOCKABLE, ...
-
-    # finance [6000-6500]
-    # ...
-
-    # locale [6500-7000]
-    # ...
-
-    # internet [7000-7500]
-    # ...
-
-    # infra [7500-8000]
-    # ...
-
-    # intelligence [8000-8500]
-    # ...
-
-    # world [8500-9000]
-    # ...
-
-    # scene [9000-9500]
-    VISUAL = 9000, "Visual", "Is a Visual", "fas fa-eye"
-    VIEW = 9001, "View", "Is a View", "fas fa-eye"
-    VIEW_EVENT = 9002, "View Event", "Is a View Event", "fas fa-eye"
-
-    # interaction [9500-10000]
-    INPUT_EVENT = 9500, "Input Event", "Is an Input Event", "fas fa-mouse-pointer"
-    POINTER_EVENT = 9501, "Pointer Event", "Is a Pointer Event", "fas fa-mouse-pointer"
-    MOUSE_EVENT = 9510, "Mouse Event", "Is a Mouse Event", "fas fa-mouse-pointer"
-    CLICK_EVENT = 9511, "Click Event", "Is a Click Event", "fas fa-mouse-pointer"
-    KEYBOARD_EVENT = 9520, "Keyboard Event", "Is a Keyboard Event", "fas fa-keyboard"
-    DRAG_EVENT = 9530, "Drag Event", "Is a Drag Event", "fas fa-arrows-up-down-left-right"
-    CLIPBOARD_EVENT = 9540, "Clipboard Event", "Is a Clipboard Event", "fas fa-clipboard"
-    FOCUS_EVENT = 9550, "Focus Event", "Is a Focus Event", "fas fa-focus"
-
-    # container views [10000-10200]
-    CONTAINER_VIEW = 10000, "Container View", "Is a Container View", "fas fa-container"
-
-    # content views [10200-10400]
-    CONTENT_VIEW = 10200, "Content View", "Is a Content View", "fas fa-content"
-
-    # input views [10400-10600]
-    INPUT_VIEW = 10400, "Input View", "Is an Input View", "fas fa-input"
-
-    # node/internal views [10600-10800]
-    NODE_VIEW = 10600, "Node View", "Is a Node View", "fas fa-node"
-    INTERNAL_VIEW = 10650, "Internal View", "Is an Internal View", "fas fa-internal"
-
-    # canvas [11000-11500]
-    SHAPE = 11000, "Shape", "Is a Shape", "fas fa-shapes"
-
-    # animation [11500-12000]
-    # ...
-
-    # style [12000-12500]
-    STYLE = 12000, "Style", "Is a Style", "fas fa-palette"
 
     # meta [50000-51000]
     # ...

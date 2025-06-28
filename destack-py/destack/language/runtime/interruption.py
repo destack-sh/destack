@@ -5,7 +5,6 @@ from destack.language.core import (
     Analytic,
     Enum,
     EnumType,
-    Indexed,
     IsExtensible,
     IsRunnable,
     Node,
@@ -60,7 +59,6 @@ class Interruption(
     Spatial,
     Particle,
     Analytic,
-    Indexed,
     IsExtensible,
     Node[InterruptionProto],
 ):

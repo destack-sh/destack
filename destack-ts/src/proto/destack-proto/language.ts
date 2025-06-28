@@ -11056,10 +11056,6 @@ export interface StrokeStyleProto {
      */
     streamline: number;
     /**
-     * @generated from protobuf field: bool simulate_pressure = 54
-     */
-    simulatePressure: boolean;
-    /**
      * @generated from protobuf field: symbol.destack.EasingProto easing = 55
      */
     easing: EasingProto;
@@ -18726,10 +18722,6 @@ export enum TraitTypeProto {
      * @generated from protobuf enum value: TRAIT_TYPE_ANALYTIC = 12;
      */
     TRAIT_TYPE_ANALYTIC = 12,
-    /**
-     * @generated from protobuf enum value: TRAIT_TYPE_INDEXED = 13;
-     */
-    TRAIT_TYPE_INDEXED = 13,
     /**
      * @generated from protobuf enum value: TRAIT_TYPE_RESOURCE = 21;
      */
@@ -44845,7 +44837,6 @@ class StrokeStyleProto$Type extends MessageType<StrokeStyleProto> {
             { no: 51, name: "thinning", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 52, name: "smoothing", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 53, name: "streamline", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
-            { no: 54, name: "simulate_pressure", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 55, name: "easing", kind: "enum", T: () => ["symbol.destack.EasingProto", EasingProto] },
             { no: 60, name: "start", kind: "message", T: () => StrokeCapProto },
             { no: 61, name: "end", kind: "message", T: () => StrokeCapProto }
@@ -44862,7 +44853,6 @@ class StrokeStyleProto$Type extends MessageType<StrokeStyleProto> {
         message.thinning = 0;
         message.smoothing = 0;
         message.streamline = 0;
-        message.simulatePressure = false;
         message.easing = 0;
         if (value !== undefined)
             reflectionMergePartial<StrokeStyleProto>(this, message, value);
@@ -44920,9 +44910,6 @@ class StrokeStyleProto$Type extends MessageType<StrokeStyleProto> {
                     break;
                 case /* double streamline */ 53:
                     message.streamline = reader.double();
-                    break;
-                case /* bool simulate_pressure */ 54:
-                    message.simulatePressure = reader.bool();
                     break;
                 case /* symbol.destack.EasingProto easing */ 55:
                     message.easing = reader.int32();
@@ -44993,9 +44980,6 @@ class StrokeStyleProto$Type extends MessageType<StrokeStyleProto> {
         /* double streamline = 53; */
         if (message.streamline !== 0)
             writer.tag(53, WireType.Bit64).double(message.streamline);
-        /* bool simulate_pressure = 54; */
-        if (message.simulatePressure !== false)
-            writer.tag(54, WireType.Varint).bool(message.simulatePressure);
         /* symbol.destack.EasingProto easing = 55; */
         if (message.easing !== 0)
             writer.tag(55, WireType.Varint).int32(message.easing);

@@ -8,7 +8,6 @@ import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@des
 import {
   Analytic,
   EnumType,
-  Indexed,
   IsExtensible,
   IsRunnable,
   IsSubject,
@@ -85,16 +84,12 @@ registerEnumClass(EnumType.INTERRUPTION_RESPONSE, InterruptionResponse);
 /**
  * An Interruption in run of something.
  */
-export class Interruption
-  extends Node
-  implements Spatial, Particle, Analytic, Indexed, IsExtensible
-{
+export class Interruption extends Node implements Spatial, Particle, Analytic, IsExtensible {
   static metatype: NodeType = NodeType.INTERRUPTION;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.PARTICLE,
     TraitType.ANALYTIC,
-    TraitType.INDEXED,
     TraitType.TRACKED,
     TraitType.EXTENSIBLE,
   ];

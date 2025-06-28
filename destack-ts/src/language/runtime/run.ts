@@ -9,7 +9,6 @@ import {
   Analytic,
   EnumType,
   Event,
-  Indexed,
   IsExtensible,
   IsRunnable,
   IsSubject,
@@ -65,13 +64,12 @@ registerEnumClass(EnumType.RUN_STATUS, RunStatus);
 /**
  * Run something somewhere, somehow.
  */
-export class Run extends Node implements Spatial, Particle, Analytic, Indexed, IsExtensible {
+export class Run extends Node implements Spatial, Particle, Analytic, IsExtensible {
   static metatype: NodeType = NodeType.RUN;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.PARTICLE,
     TraitType.ANALYTIC,
-    TraitType.INDEXED,
     TraitType.TRACKED,
     TraitType.EXTENSIBLE,
   ];
@@ -853,7 +851,6 @@ export class RunStartedEvent extends Node implements Event {
     TraitType.SPATIAL,
     TraitType.PARTICLE,
     TraitType.ANALYTIC,
-    TraitType.INDEXED,
     TraitType.FROZEN,
     TraitType.TRACKED,
     TraitType.EVENT,
@@ -1348,7 +1345,6 @@ export class RunPauseRequestedEvent extends Node implements Event {
     TraitType.SPATIAL,
     TraitType.PARTICLE,
     TraitType.ANALYTIC,
-    TraitType.INDEXED,
     TraitType.FROZEN,
     TraitType.TRACKED,
     TraitType.EVENT,
@@ -1855,7 +1851,6 @@ export class RunPausedEvent extends Node implements Event {
     TraitType.SPATIAL,
     TraitType.PARTICLE,
     TraitType.ANALYTIC,
-    TraitType.INDEXED,
     TraitType.FROZEN,
     TraitType.TRACKED,
     TraitType.EVENT,
@@ -2350,7 +2345,6 @@ export class RunResumeRequestedEvent extends Node implements Event {
     TraitType.SPATIAL,
     TraitType.PARTICLE,
     TraitType.ANALYTIC,
-    TraitType.INDEXED,
     TraitType.FROZEN,
     TraitType.TRACKED,
     TraitType.EVENT,
@@ -2857,7 +2851,6 @@ export class RunResumedEvent extends Node implements Event {
     TraitType.SPATIAL,
     TraitType.PARTICLE,
     TraitType.ANALYTIC,
-    TraitType.INDEXED,
     TraitType.FROZEN,
     TraitType.TRACKED,
     TraitType.EVENT,
@@ -3352,7 +3345,6 @@ export class RunStopRequestedEvent extends Node implements Event {
     TraitType.SPATIAL,
     TraitType.PARTICLE,
     TraitType.ANALYTIC,
-    TraitType.INDEXED,
     TraitType.FROZEN,
     TraitType.TRACKED,
     TraitType.EVENT,
@@ -3859,7 +3851,6 @@ export class RunFailedEvent extends Node implements Event {
     TraitType.SPATIAL,
     TraitType.PARTICLE,
     TraitType.ANALYTIC,
-    TraitType.INDEXED,
     TraitType.FROZEN,
     TraitType.TRACKED,
     TraitType.EVENT,
@@ -4354,7 +4345,6 @@ export class RunCompletedEvent extends Node implements Event {
     TraitType.SPATIAL,
     TraitType.PARTICLE,
     TraitType.ANALYTIC,
-    TraitType.INDEXED,
     TraitType.FROZEN,
     TraitType.TRACKED,
     TraitType.EVENT,

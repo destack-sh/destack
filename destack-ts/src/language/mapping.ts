@@ -55,7 +55,6 @@ import type {
   HasIcon,
   HasName,
   HasSlug,
-  Indexed,
   IsActionable,
   IsArchivable,
   IsCustomNode,
@@ -616,7 +615,6 @@ export type TraitTypeMapping = {
   [TraitType.ENTITY]: Entity;
   [TraitType.PARTICLE]: Particle;
   [TraitType.ANALYTIC]: Analytic;
-  [TraitType.INDEXED]: Indexed;
   [TraitType.RESOURCE]: Resource;
   [TraitType.METRIC]: Metric;
   [TraitType.MEASUREMENT]: Measurement;
@@ -719,8 +717,8 @@ export type StructTypeMapping = {
 export type EnumTypeMapping = {
   [EnumType.ENUM_TYPE]: EnumType;
   [EnumType.STRUCT_TYPE]: StructType;
-  [EnumType.NODE_TYPE]: NodeType;
   [EnumType.TRAIT_TYPE]: TraitType;
+  [EnumType.NODE_TYPE]: NodeType;
   [EnumType.STORE_ZONE]: StoreZone;
   [EnumType.STORE_TYPE]: StoreType;
   [EnumType.STORE_IMPLEMENTATION]: StoreImplementation;
