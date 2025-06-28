@@ -1,8 +1,6 @@
-import { EASINGS } from "@destack-web/shared/easings";
 import { renderStroke } from "@destack-web/shared/freehand/svg";
-import { StrokeOptions } from "@destack-web/shared/freehand/types";
-import { computed, Signal, signal, useSignal } from "@preact/signals-react";
-import { Line, LineType, Vector3 } from "destack";
+import { computed, Signal, signal } from "@preact/signals-react";
+import { Easing, Line, Stroke, StrokeCap, StrokeType, Vector3 } from "destack";
 import React, { useRef } from "react";
 
 const size = signal(12);
@@ -14,30 +12,34 @@ const taperStart = signal(false);
 const taperEnd = signal(false);
 const isDrawing = signal(false);
 const lastMousePosition = signal<Vector3 | null>(null);
-const strokeOptions: Signal<StrokeOptions> = computed(() => ({
-  size: size.value,
-  thinning: thinning.value,
-  smoothing: smoothing.value,
-  streamline: streamline.value,
-  simulatePressure: simulatePressure.value,
-  easing: EASINGS.linear,
-  last: false,
-  start: {
-    cap: true,
-    taper: taperStart.value,
-    easing: EASINGS.easeOutCubic,
-  },
-  end: {
-    cap: true,
-    taper: taperEnd.value,
-    easing: EASINGS.easeOutCubic,
-  },
-}));
+const strokeOptions: Signal<Stroke> = computed(
+  () =>
+    new Stroke({
+      type: StrokeType.FREEHAND,
+      size: size.value,
+      thinning: thinning.value,
+      smoothing: smoothing.value,
+      streamline: streamline.value,
+      simulatePressure: simulatePressure.value,
+      easing: Easing.LINEAR,
+      start: new StrokeCap({
+        cap: true,
+        taper: taperStart.value,
+        easing: Easing.EASE_OUT_CUBIC,
+      }),
+      end: new StrokeCap({
+        cap: true,
+        taper: taperEnd.value,
+        easing: Easing.EASE_OUT_CUBIC,
+      }),
+    }),
+);
+
+const currentLine = signal<Line | null>(null);
+const lines = signal<Line[]>([]);
+const selectedLine = signal<Line | null>(null);
 
 export const Canvas: React.FC = () => {
-  const currentLine = useSignal<Line | null>(null);
-  const lines = useSignal<Line[]>([]);
-
   const svgRef = useRef<SVGSVGElement>(null);
 
   const getMousePosition = (event: React.MouseEvent<SVGSVGElement>): Vector3 => {
@@ -56,7 +58,7 @@ export const Canvas: React.FC = () => {
     isDrawing.value = true;
     const point = getMousePosition(event);
     lastMousePosition.value = point;
-    currentLine.value = new Line({ type: LineType.SOLID, points: [point] });
+    currentLine.value = new Line({ points: [point] });
     console.log("mouse down", currentLine.value.points.length);
   };
 
@@ -67,7 +69,6 @@ export const Canvas: React.FC = () => {
     const lastPoint = currentLine.value.points[currentLine.value.points.length - 1];
     if (lastPoint.x !== currentPoint.x || lastPoint.y !== currentPoint.y) {
       currentLine.value = new Line({
-        type: LineType.SOLID,
         points: [...currentLine.value.points, currentPoint],
       });
       console.log("mouse move", currentLine.value.points.length, currentPoint.repr());
@@ -219,7 +220,7 @@ export const Canvas: React.FC = () => {
         {lines.value.map((line, index) => (
           <path
             key={index}
-            d={renderStroke(line.points, { ...strokeOptions.value, last: true })}
+            d={renderStroke(line.points, strokeOptions.value, { isComplete: true })}
             fill="#2563eb"
             stroke="none"
           />
@@ -228,7 +229,7 @@ export const Canvas: React.FC = () => {
         {/* render current line being drawn */}
         {currentLine.value && currentLine.value.points.length > 1 && (
           <path
-            d={renderStroke(currentLine.value.points, { ...strokeOptions.value, last: true })}
+            d={renderStroke(currentLine.value.points, strokeOptions.value, { isComplete: false })}
             fill="#94a3b8"
             stroke="none"
           />

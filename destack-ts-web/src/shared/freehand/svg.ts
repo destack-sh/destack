@@ -1,23 +1,29 @@
 import { averageVector2String, toDomPrecision, vector2String } from "@destack-web/shared/dom/utils";
-import { setStrokePointRadii } from "@destack-web/shared/freehand/radius";
-import { getStrokeOutlineTracks, getStrokePoints } from "@destack-web/shared/freehand/stroke";
-import { StrokeOptions, StrokePoint } from "@destack-web/shared/freehand/types";
-import { Vector3 } from "destack";
+import {
+  getStrokeOutlineTracks,
+  getStrokePoints,
+  setStrokePointRadii,
+} from "@destack-web/shared/freehand/stroke";
+import { Stroke, StrokePoint, Vector3 } from "destack";
 
 /**
  * Generate SVG path data for stroke with ink-like rendering.
  * Uses partitioning at elbows for more natural line appearance.
  */
-export function renderStroke(rawInputPoints: readonly Vector3[], options: StrokeOptions) {
-  const points = getStrokePoints(rawInputPoints, options);
-  setStrokePointRadii(points, options);
-  const partitions = partitionStroke(points);
+export function renderStroke(
+  points: readonly Vector3[],
+  stroke: Stroke,
+  options: { isComplete: boolean },
+) {
+  const strokePoints = getStrokePoints(points, stroke, options);
+  setStrokePointRadii(strokePoints, stroke);
+  const partitions = partitionStroke(strokePoints);
 
-  let svg = "";
+  const svgPartitions = [];
   for (const partition of partitions) {
-    svg += renderPartition(partition, options);
+    svgPartitions.push(renderPartition(partition, stroke));
   }
-  return svg;
+  return svgPartitions.join("");
 }
 
 /**
@@ -51,7 +57,7 @@ function renderCirclePath(cx: number, cy: number, r: number) {
  * Render a partition of stroke points as SVG path.
  * Handles single points as circles and multi-point strokes as paths with caps.
  */
-function renderPartition(strokePoints: StrokePoint[], options: StrokeOptions): string {
+function renderPartition(strokePoints: StrokePoint[], options: Stroke): string {
   if (strokePoints.length === 0) return "";
 
   if (strokePoints.length === 1) {
@@ -172,10 +178,10 @@ function partitionStroke(points: StrokePoint[]): StrokePoint[][] {
     if (dpr < -0.8) {
       // always treat such acute angles as elbows
       // and use the extended .input point as the elbow point for swooshiness in fast zaggy lines
-      const elbowPoint = {
+      const elbowPoint = new StrokePoint({
         ...thisPoint,
         point: thisPoint.originalPoint,
-      };
+      });
       currentPartition.push(elbowPoint);
       partitions.push(cleanUpPartition(currentPartition));
       currentPartition = [elbowPoint];
@@ -248,16 +254,16 @@ function cleanUpPartition(partition: StrokePoint[]) {
 
   // now readjust the cap point vectors to point to their nearest neighbors
   if (partition.length > 1) {
-    partition[0] = {
+    partition[0] = new StrokePoint({
       ...partition[0],
       direction: partition[0].point.sub(partition[1].point).normalize(),
-    };
-    partition[partition.length - 1] = {
+    });
+    partition[partition.length - 1] = new StrokePoint({
       ...partition[partition.length - 1],
       direction: partition[partition.length - 2].point
         .sub(partition[partition.length - 1].point)
         .normalize(),
-    };
+    });
   }
 
   return partition;

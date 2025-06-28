@@ -420,7 +420,6 @@ registerStructClass(StructType.SHADOW, Shadow);
  * ShadowType
  */
 export enum ShadowType {
-  STYLE = 2,
   BOX = 10,
   REALISTIC = 11,
 

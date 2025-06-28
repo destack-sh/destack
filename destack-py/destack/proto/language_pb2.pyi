@@ -156,8 +156,6 @@ class ColorTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     COLOR_TYPE_UNSPECIFIED: _ClassVar[ColorTypeProto]
     COLOR_TYPE_BUILTIN: _ClassVar[ColorTypeProto]
-    COLOR_TYPE_STYLE: _ClassVar[ColorTypeProto]
-    COLOR_TYPE_FIELD: _ClassVar[ColorTypeProto]
     COLOR_TYPE_RGB: _ClassVar[ColorTypeProto]
     COLOR_TYPE_HSL: _ClassVar[ColorTypeProto]
     COLOR_TYPE_P3: _ClassVar[ColorTypeProto]
@@ -307,7 +305,6 @@ class EditTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class EffectTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     EFFECT_TYPE_UNSPECIFIED: _ClassVar[EffectTypeProto]
-    EFFECT_TYPE_STYLE: _ClassVar[EffectTypeProto]
     EFFECT_TYPE_APPEAR: _ClassVar[EffectTypeProto]
     EFFECT_TYPE_ENTER: _ClassVar[EffectTypeProto]
     EFFECT_TYPE_EXIT: _ClassVar[EffectTypeProto]
@@ -611,7 +608,6 @@ class FillSizeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class FillTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     FILL_TYPE_UNSPECIFIED: _ClassVar[FillTypeProto]
-    FILL_TYPE_STYLE: _ClassVar[FillTypeProto]
     FILL_TYPE_SOLID: _ClassVar[FillTypeProto]
     FILL_TYPE_GRADIENT: _ClassVar[FillTypeProto]
     FILL_TYPE_IMAGE: _ClassVar[FillTypeProto]
@@ -643,7 +639,6 @@ class FontSizeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class FontTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     FONT_TYPE_UNSPECIFIED: _ClassVar[FontTypeProto]
-    FONT_TYPE_STYLE: _ClassVar[FontTypeProto]
     FONT_TYPE_SERIF: _ClassVar[FontTypeProto]
     FONT_TYPE_SANS: _ClassVar[FontTypeProto]
     FONT_TYPE_MONO: _ClassVar[FontTypeProto]
@@ -674,7 +669,6 @@ class FunctionTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class GradientTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     GRADIENT_TYPE_UNSPECIFIED: _ClassVar[GradientTypeProto]
-    GRADIENT_TYPE_STYLE: _ClassVar[GradientTypeProto]
     GRADIENT_TYPE_LINEAR: _ClassVar[GradientTypeProto]
     GRADIENT_TYPE_RADIAL: _ClassVar[GradientTypeProto]
     GRADIENT_TYPE_CONIC: _ClassVar[GradientTypeProto]
@@ -1246,7 +1240,6 @@ class ShadowPositionProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class ShadowTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     SHADOW_TYPE_UNSPECIFIED: _ClassVar[ShadowTypeProto]
-    SHADOW_TYPE_STYLE: _ClassVar[ShadowTypeProto]
     SHADOW_TYPE_BOX: _ClassVar[ShadowTypeProto]
     SHADOW_TYPE_REALISTIC: _ClassVar[ShadowTypeProto]
 
@@ -1317,6 +1310,7 @@ class StrokeTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STROKE_TYPE_SOLID: _ClassVar[StrokeTypeProto]
     STROKE_TYPE_DASHED: _ClassVar[StrokeTypeProto]
     STROKE_TYPE_DOTTED: _ClassVar[StrokeTypeProto]
+    STROKE_TYPE_FREEHAND: _ClassVar[StrokeTypeProto]
 
 class StructTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1524,7 +1518,6 @@ class TraitTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class TransitionTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     TRANSITION_TYPE_UNSPECIFIED: _ClassVar[TransitionTypeProto]
-    TRANSITION_TYPE_STYLE: _ClassVar[TransitionTypeProto]
     TRANSITION_TYPE_TWEEN: _ClassVar[TransitionTypeProto]
     TRANSITION_TYPE_SPRING: _ClassVar[TransitionTypeProto]
 
@@ -1654,8 +1647,6 @@ COLOR_SHADE_S900: ColorShadeProto
 COLOR_SHADE_S950: ColorShadeProto
 COLOR_TYPE_UNSPECIFIED: ColorTypeProto
 COLOR_TYPE_BUILTIN: ColorTypeProto
-COLOR_TYPE_STYLE: ColorTypeProto
-COLOR_TYPE_FIELD: ColorTypeProto
 COLOR_TYPE_RGB: ColorTypeProto
 COLOR_TYPE_HSL: ColorTypeProto
 COLOR_TYPE_P3: ColorTypeProto
@@ -1760,7 +1751,6 @@ EDIT_TYPE_DELETE: EditTypeProto
 EDIT_TYPE_RESTORE: EditTypeProto
 EDIT_TYPE_ERASE: EditTypeProto
 EFFECT_TYPE_UNSPECIFIED: EffectTypeProto
-EFFECT_TYPE_STYLE: EffectTypeProto
 EFFECT_TYPE_APPEAR: EffectTypeProto
 EFFECT_TYPE_ENTER: EffectTypeProto
 EFFECT_TYPE_EXIT: EffectTypeProto
@@ -2031,7 +2021,6 @@ FILL_SIZE_STRETCH: FillSizeProto
 FILL_SIZE_FIT: FillSizeProto
 FILL_SIZE_TILE: FillSizeProto
 FILL_TYPE_UNSPECIFIED: FillTypeProto
-FILL_TYPE_STYLE: FillTypeProto
 FILL_TYPE_SOLID: FillTypeProto
 FILL_TYPE_GRADIENT: FillTypeProto
 FILL_TYPE_IMAGE: FillTypeProto
@@ -2054,7 +2043,6 @@ FONT_SIZE_XL5: FontSizeProto
 FONT_SIZE_XL6: FontSizeProto
 FONT_SIZE_XL7: FontSizeProto
 FONT_TYPE_UNSPECIFIED: FontTypeProto
-FONT_TYPE_STYLE: FontTypeProto
 FONT_TYPE_SERIF: FontTypeProto
 FONT_TYPE_SANS: FontTypeProto
 FONT_TYPE_MONO: FontTypeProto
@@ -2076,7 +2064,6 @@ FUNCTION_TYPE_DIVIDE: FunctionTypeProto
 FUNCTION_TYPE_MODULO: FunctionTypeProto
 FUNCTION_TYPE_POWER: FunctionTypeProto
 GRADIENT_TYPE_UNSPECIFIED: GradientTypeProto
-GRADIENT_TYPE_STYLE: GradientTypeProto
 GRADIENT_TYPE_LINEAR: GradientTypeProto
 GRADIENT_TYPE_RADIAL: GradientTypeProto
 GRADIENT_TYPE_CONIC: GradientTypeProto
@@ -2498,7 +2485,6 @@ SHADOW_POSITION_UNSPECIFIED: ShadowPositionProto
 SHADOW_POSITION_OUTSIDE: ShadowPositionProto
 SHADOW_POSITION_INSIDE: ShadowPositionProto
 SHADOW_TYPE_UNSPECIFIED: ShadowTypeProto
-SHADOW_TYPE_STYLE: ShadowTypeProto
 SHADOW_TYPE_BOX: ShadowTypeProto
 SHADOW_TYPE_REALISTIC: ShadowTypeProto
 SORT_MODE_UNSPECIFIED: SortModeProto
@@ -2542,6 +2528,7 @@ STROKE_TYPE_UNSPECIFIED: StrokeTypeProto
 STROKE_TYPE_SOLID: StrokeTypeProto
 STROKE_TYPE_DASHED: StrokeTypeProto
 STROKE_TYPE_DOTTED: StrokeTypeProto
+STROKE_TYPE_FREEHAND: StrokeTypeProto
 STRUCT_TYPE_UNSPECIFIED: StructTypeProto
 STRUCT_TYPE_VALUE: StructTypeProto
 STRUCT_TYPE_TYPE: StructTypeProto
@@ -2713,7 +2700,6 @@ TRAIT_TYPE_INTERNAL_VIEW: TraitTypeProto
 TRAIT_TYPE_SHAPE: TraitTypeProto
 TRAIT_TYPE_STYLE: TraitTypeProto
 TRANSITION_TYPE_UNSPECIFIED: TransitionTypeProto
-TRANSITION_TYPE_STYLE: TransitionTypeProto
 TRANSITION_TYPE_TWEEN: TransitionTypeProto
 TRANSITION_TYPE_SPRING: TransitionTypeProto
 TRIGGER_TYPE_UNSPECIFIED: TriggerTypeProto
@@ -8466,9 +8452,9 @@ class StrokeCapProto(_message.Message):
     EASING_FIELD_NUMBER: _ClassVar[int]
     metatype: StructTypeProto
     cap: bool
-    taper: float
+    taper: bool
     easing: EasingProto
-    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., cap: bool = ..., taper: _Optional[float] = ..., easing: _Optional[_Union[EasingProto, str]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., cap: bool = ..., taper: bool = ..., easing: _Optional[_Union[EasingProto, str]] = ...) -> None: ...
 
 class StrokePathProto(_message.Message):
     __slots__ = ("metatype", "points")
@@ -8489,14 +8475,14 @@ class StrokePointProto(_message.Message):
     RUNNING_LENGTH_FIELD_NUMBER: _ClassVar[int]
     RADIUS_FIELD_NUMBER: _ClassVar[int]
     metatype: StructTypeProto
-    point: Vector2Proto
+    point: Vector3Proto
     original_point: Vector3Proto
     pressure: float
     direction: Vector3Proto
     distance: float
     running_length: float
     radius: float
-    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., point: _Optional[_Union[Vector2Proto, _Mapping]] = ..., original_point: _Optional[_Union[Vector3Proto, _Mapping]] = ..., pressure: _Optional[float] = ..., direction: _Optional[_Union[Vector3Proto, _Mapping]] = ..., distance: _Optional[float] = ..., running_length: _Optional[float] = ..., radius: _Optional[float] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., point: _Optional[_Union[Vector3Proto, _Mapping]] = ..., original_point: _Optional[_Union[Vector3Proto, _Mapping]] = ..., pressure: _Optional[float] = ..., direction: _Optional[_Union[Vector3Proto, _Mapping]] = ..., distance: _Optional[float] = ..., running_length: _Optional[float] = ..., radius: _Optional[float] = ...) -> None: ...
 
 class StrokeStyleProto(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "order_key", "type", "name", "size", "thinning", "smoothing", "streamline", "simulate_pressure", "easing", "start", "end")

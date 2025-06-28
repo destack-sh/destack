@@ -7,7 +7,6 @@ from destack.language.core import (
     NodeType,
     StructFrozen,
     StructType,
-    Vector2,
     Vector3,
     builtin_enum,
     builtin_node,
@@ -20,7 +19,7 @@ from .easing import Easing
 from .style import Style
 
 if TYPE_CHECKING:
-    pass
+    from destack.language import Color
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -30,6 +29,7 @@ class StrokeType(Enum):
     SOLID = 1
     DASHED = 2
     DOTTED = 3
+    FREEHAND = 4
 
 
 @builtin_struct(StructType.STROKE, frozen=True)
@@ -49,6 +49,7 @@ class Stroke(StructFrozen):
     easing: Easing = property_(55, description="The easing function for pressure mapping.")
     start: Optional["StrokeCap"] = property_(60, description="The start cap configuration.")
     end: Optional["StrokeCap"] = property_(61, description="The end cap configuration.")
+    color: Optional["Color"] = property_(70, description="The stroke color.")
 
 
 @builtin_struct(StructType.STROKE_CAP, frozen=True)
@@ -56,7 +57,7 @@ class StrokeCap(StructFrozen):
     """A stroke cap."""
 
     cap: bool = property_(50, description="Whether to cap the stroke.")
-    taper: float | None = property_(51, description="The taper amount (0-1).")
+    taper: bool = property_(51, description="Whether to taper the stroke.")
     easing: Easing = property_(52, description="The easing function for taper.")
 
 
@@ -83,7 +84,7 @@ class StrokeStyle(Style, Node[StrokeStyleProto]):
 class StrokePoint(StructFrozen):
     """A computed point in a stroke."""
 
-    point: Vector2 = property_(50, is_repr=True, description="The adjusted point position.")
+    point: Vector3 = property_(50, is_repr=True, description="The adjusted point position.")
     original_point: Vector3 = property_(51, is_repr=True, description="The original input point.")
     pressure: float = property_(52, description="The pressure value at this point (0-1).")
     direction: Vector3 = property_(

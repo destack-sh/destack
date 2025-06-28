@@ -578,7 +578,6 @@ registerStructClass(StructType.GRADIENT, Gradient);
  * GradientType
  */
 export enum GradientType {
-  STYLE = 2,
   LINEAR = 10,
   RADIAL = 11,
   CONIC = 12,

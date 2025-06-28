@@ -690,7 +690,6 @@ registerStructClass(StructType.EFFECT, Effect);
  * EffectType
  */
 export enum EffectType {
-  STYLE = 2,
   APPEAR = 10,
   ENTER = 11,
   EXIT = 12,
