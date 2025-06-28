@@ -1,9 +1,5 @@
 import { averageVector2String, toDomPrecision, vector2String } from "@destack-web/shared/dom/utils";
-import {
-  getStrokeOutlineTracks,
-  getStrokePoints,
-  setStrokePointRadii,
-} from "@destack-web/shared/freehand/stroke";
+import { getStrokeOutlineTracks, getStrokePoints } from "@destack-web/shared/freehand/stroke";
 import { Stroke, StrokePoint, Vector3 } from "destack";
 
 /**
@@ -16,7 +12,6 @@ export function renderStroke(
   options: { isComplete: boolean },
 ) {
   const strokePoints = getStrokePoints(points, stroke, options);
-  setStrokePointRadii(strokePoints, stroke);
   const partitions = partitionStroke(strokePoints);
 
   const svgPartitions = [];

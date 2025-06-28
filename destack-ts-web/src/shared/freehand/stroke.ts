@@ -18,8 +18,7 @@ export function getStroke(
   options: { isComplete: boolean },
 ): Vector3[] {
   const strokePoints = getStrokePoints(points, stroke, options);
-  const strokePointsWithRadii = setStrokePointRadii(strokePoints, stroke);
-  return getStrokeOutlinePoints(strokePointsWithRadii, stroke, options);
+  return getStrokeOutlinePoints(strokePoints, stroke, options);
 }
 
 /**
@@ -261,7 +260,7 @@ export function getStrokeOutlinePoints(
 
 /**
  * Get an array of stroke points with computed properties.
- * Transform raw input points into stroke points with pressure, vectors, and distances.
+ * Transform raw input points into stroke points with pressure, vectors, distances, and radii.
  */
 export function getStrokePoints(
   points: readonly Vector3[],
@@ -270,7 +269,7 @@ export function getStrokePoints(
 ): StrokePoint[] {
   if (points.length === 0) return [];
 
-  const { streamline, size, simulatePressure } = stroke;
+  const { streamline, size, simulatePressure, thinning, easing, start, end } = stroke;
   const t = 0.15 + (1 - streamline) * 0.85;
 
   let pts = points.slice();
@@ -365,29 +364,25 @@ export function getStrokePoints(
     }),
   ];
 
-  // we use the totalLength to keep track of the total distance
   let totalLength = 0;
-
-  // we're set this to the latest point, so we can use it to calculate
-  // the distance and vector of the next point
-  let prev = strokePoints[0];
-
-  // iterate through all of the points, creating StrokePoints
-  let point: Vector3, distance: number;
+  let prevPoint = strokePoints[0];
+  let point: Vector3;
+  let distance: number;
 
   if (isComplete && streamline > 0) {
     pts.push(pts[pts.length - 1]);
   }
 
   for (let i = 1, n = pts.length; i < n; i++) {
-    point = !t || (options.isComplete && i === n - 1) ? pts[i] : pts[i].lerp(prev.point, 1 - t);
+    point =
+      !t || (options.isComplete && i === n - 1) ? pts[i] : pts[i].lerp(prevPoint.point, 1 - t);
 
     // if the new point is the same as the previous point, skip ahead
-    if (prev.point.x === point.x && prev.point.y === point.y) {
+    if (prevPoint.point.x === point.x && prevPoint.point.y === point.y) {
       continue;
     }
 
-    distance = point.distance(prev.point);
+    distance = point.distance(prevPoint.point);
     totalLength += distance;
 
     // at the start of the line, we wait until the new point is a
@@ -397,16 +392,16 @@ export function getStrokePoints(
     }
 
     // new strokepoint
-    prev = new StrokePoint({
+    prevPoint = new StrokePoint({
       originalPoint: pts[i],
       point,
       pressure: simulatePressure ? SIMULATED_PRESSURE : pts[i].z,
-      direction: prev.point.sub(point).normalize(),
+      direction: prevPoint.point.sub(point).normalize(),
       distance,
       runningLength: totalLength,
       radius: 1,
     });
-    strokePoints.push(prev);
+    strokePoints.push(prevPoint);
   }
 
   // set the vector of the first point to be the same as the second point
@@ -423,30 +418,22 @@ export function getStrokePoints(
       SIMULATED_PRESSURE,
       ...strokePoints.map((s) => s.pressure),
     );
-    strokePoints = strokePoints.map((s) =>
-      new StrokePoint({
-        ...s,
-        pressure: maxPressureAmongPoints,
-      }),
+    strokePoints = strokePoints.map(
+      (s) =>
+        new StrokePoint({
+          ...s,
+          pressure: maxPressureAmongPoints,
+        }),
     );
   }
 
-  return strokePoints;
-}
-
-/**
- * Calculate and set radius values for stroke points.
- * Apply pressure-based thinning and tapering effects.
- */
-export function setStrokePointRadii(strokePoints: StrokePoint[], stroke: Stroke): StrokePoint[] {
-  const { size, thinning, simulatePressure, easing, start, end } = stroke;
+  // calculate and set radius values for stroke points
+  // apply pressure-based thinning and tapering effects
   const taperStartEase = start?.easing;
   const taperEndEase = end?.easing;
   const easingFunction = EASING_FUNCTIONS[easing];
   const taperStartEaseFunction = taperStartEase ? EASING_FUNCTIONS[taperStartEase] : undefined;
   const taperEndEaseFunction = taperEndEase ? EASING_FUNCTIONS[taperEndEase] : undefined;
-
-  const totalLength = strokePoints[strokePoints.length - 1].runningLength;
 
   let firstRadius: number | undefined;
   let prevPressure = strokePoints[0].pressure;
@@ -455,11 +442,14 @@ export function setStrokePointRadii(strokePoints: StrokePoint[], stroke: Stroke)
   // handle very short strokes without pressure simulation
   if (!simulatePressure && totalLength < size) {
     const max = strokePoints.reduce((max, curr) => Math.max(max, curr.pressure), 0.5);
-    strokePoints.forEach((sp) => {
-      sp.pressure = max;
-      sp.radius = size * easingFunction(0.5 - thinning * (0.5 - sp.pressure));
-    });
-    return strokePoints;
+    return strokePoints.map(
+      (sp) =>
+        new StrokePoint({
+          ...sp,
+          pressure: max,
+          radius: size * easingFunction(0.5 - thinning * (0.5 - max)),
+        }),
+    );
   }
 
   // calculate initial pressure based on average of first n points
@@ -499,34 +489,39 @@ export function setStrokePointRadii(strokePoints: StrokePoint[], stroke: Stroke)
         );
       }
 
-      strokePoint.radius = size * easingFunction(0.5 - thinning * (0.5 - pressure));
+      const radius = size * easingFunction(0.5 - thinning * (0.5 - pressure));
+      strokePoints[i] = new StrokePoint({ ...strokePoint, radius });
       prevPressure = pressure;
     } else {
-      strokePoint.radius = size / 2;
+      strokePoints[i] = new StrokePoint({ ...strokePoint, radius: size / 2 });
     }
 
     if (firstRadius === undefined) {
-      firstRadius = strokePoint.radius;
+      firstRadius = strokePoints[i].radius;
     }
   }
 
   // apply tapering at start and end
-  const taperStart = start?.taper == null ? 0 : start.taper;
-  const taperEnd = end?.taper == null ? 0 : end.taper;
-  if (taperStart || taperEnd) {
+  const taperStart = start?.taper ? Math.max(size, totalLength) : 0;
+  const taperEnd = end?.taper ? Math.max(size, totalLength) : 0;
+  if (taperStart > 0 || taperEnd > 0) {
     for (let i = 0; i < strokePoints.length; i++) {
       strokePoint = strokePoints[i];
       const { runningLength } = strokePoint;
       const taperStartFactor =
-        runningLength < taperStart ? taperStartEaseFunction(runningLength / taperStart) : 1;
+        typeof taperStart === "number" && runningLength < taperStart && taperStartEaseFunction
+          ? taperStartEaseFunction(runningLength / taperStart)
+          : 1;
       const taperEndFactor =
-        totalLength - runningLength < taperEnd
+        typeof taperEnd === "number" &&
+        totalLength - runningLength < taperEnd &&
+        taperEndEaseFunction
           ? taperEndEaseFunction((totalLength - runningLength) / taperEnd)
           : 1;
-      strokePoint.radius = Math.max(
-        0.01,
-        strokePoint.radius * Math.min(taperStartFactor, taperEndFactor),
-      );
+      strokePoints[i] = new StrokePoint({
+        ...strokePoint,
+        radius: Math.max(0.01, strokePoint.radius * Math.min(taperStartFactor, taperEndFactor)),
+      });
     }
   }
 
