@@ -574,14 +574,13 @@ registerNodeClass(NodeType.GAUGE_METRIC, GaugeMetric);
 /**
  * A Gauge Measurement.
  */
-export class GaugeMeasurement extends Node implements Spatial, Measurement {
+export class GaugeMeasurement extends Node implements Measurement {
   static metatype: NodeType = NodeType.GAUGE_MEASUREMENT;
   static __traits__: TraitType[] = [
+    TraitType.CUSTOM_NODE,
     TraitType.SPATIAL,
     TraitType.MEASUREMENT,
-    TraitType.ANALYTIC,
-    TraitType.TRACKED,
-    TraitType.CUSTOM_NODE,
+    TraitType.EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -629,48 +628,30 @@ export class GaugeMeasurement extends Node implements Spatial, Measurement {
   definitionPtr: NodeReference;
 
   /**
-   * IsTracked.createdAt
+   * The Node this Event is about.
    */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
+  get node(): Node | null {
+    const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+  set node(node: Node | null) {
+    if (node === null) {
+      this.nodePtr = null;
+    } else {
+      this.nodePtr = node.toRef();
     }
-    return null;
   }
-  readonly updatedByPtr: NodeReference | null;
+  nodePtr: NodeReference | null;
 
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     definition: GaugeMetric | NodeReference;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
+    node?: Node | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -718,6 +699,11 @@ export class GaugeMeasurement extends Node implements Spatial, Measurement {
       throw new Error(`GaugeMeasurement.definition is required`);
     }
     this.definitionPtr = _definition;
+    let _node = options.node ?? null;
+    if (_node != null && _node instanceof Node) {
+      _node = _node.toRef();
+    }
+    this.nodePtr = _node;
 
     // identity
     if (options.id == null) {
@@ -756,6 +742,9 @@ export class GaugeMeasurement extends Node implements Spatial, Measurement {
     if (!(this.definitionPtr.id === other.definitionPtr.id)) {
       return false;
     }
+    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -766,6 +755,9 @@ export class GaugeMeasurement extends Node implements Spatial, Measurement {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    if (this.nodePtr !== null) {
+      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -773,14 +765,6 @@ export class GaugeMeasurement extends Node implements Spatial, Measurement {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -836,13 +820,8 @@ export class GaugeMeasurement extends Node implements Spatial, Measurement {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["6"] = object.definitionPtr.toValue();
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+    if (object.nodePtr != null) {
+      objectValue["35"] = object.nodePtr.toValue();
     }
     return objectValue;
   }
@@ -854,6 +833,11 @@ export class GaugeMeasurement extends Node implements Spatial, Measurement {
     _graph?: any | null,
     _connection?: any | null,
   ): GaugeMeasurement {
+    const nodePtrValue = objectValue["35"];
+    const unpackedNodePtr =
+      nodePtrValue != undefined
+        ? NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -864,16 +848,6 @@ export class GaugeMeasurement extends Node implements Spatial, Measurement {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new GaugeMeasurement({
       definition: NodeReference.fromValue(
         objectValue["6"],
@@ -882,13 +856,10 @@ export class GaugeMeasurement extends Node implements Spatial, Measurement {
         _graph,
         _connection,
       ),
+      node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -925,13 +896,8 @@ export class GaugeMeasurement extends Node implements Spatial, Measurement {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
     objectProto.definitionPtr = object.definitionPtr.toProto();
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    if (object.nodePtr != null) {
+      objectProto.nodePtr = object.nodePtr.toProto();
     }
     return objectProto as GaugeMeasurementProto;
   }
@@ -951,6 +917,16 @@ export class GaugeMeasurement extends Node implements Spatial, Measurement {
         _graph,
         _connection,
       ),
+      node:
+        objectProto.nodePtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.nodePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       parent:
         objectProto.parentPtr != undefined
           ? NodeReference.fromProto(
@@ -972,28 +948,6 @@ export class GaugeMeasurement extends Node implements Spatial, Measurement {
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -1576,14 +1530,13 @@ registerNodeClass(NodeType.COUNTER_METRIC, CounterMetric);
 /**
  * A Counter Measurement.
  */
-export class CounterMeasurement extends Node implements Spatial, Measurement {
+export class CounterMeasurement extends Node implements Measurement {
   static metatype: NodeType = NodeType.COUNTER_MEASUREMENT;
   static __traits__: TraitType[] = [
+    TraitType.CUSTOM_NODE,
     TraitType.SPATIAL,
     TraitType.MEASUREMENT,
-    TraitType.ANALYTIC,
-    TraitType.TRACKED,
-    TraitType.CUSTOM_NODE,
+    TraitType.EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -1631,48 +1584,30 @@ export class CounterMeasurement extends Node implements Spatial, Measurement {
   definitionPtr: NodeReference;
 
   /**
-   * IsTracked.createdAt
+   * The Node this Event is about.
    */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
+  get node(): Node | null {
+    const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+  set node(node: Node | null) {
+    if (node === null) {
+      this.nodePtr = null;
+    } else {
+      this.nodePtr = node.toRef();
     }
-    return null;
   }
-  readonly updatedByPtr: NodeReference | null;
+  nodePtr: NodeReference | null;
 
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     definition: CounterMetric | NodeReference;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
+    node?: Node | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -1720,6 +1655,11 @@ export class CounterMeasurement extends Node implements Spatial, Measurement {
       throw new Error(`CounterMeasurement.definition is required`);
     }
     this.definitionPtr = _definition;
+    let _node = options.node ?? null;
+    if (_node != null && _node instanceof Node) {
+      _node = _node.toRef();
+    }
+    this.nodePtr = _node;
 
     // identity
     if (options.id == null) {
@@ -1758,6 +1698,9 @@ export class CounterMeasurement extends Node implements Spatial, Measurement {
     if (!(this.definitionPtr.id === other.definitionPtr.id)) {
       return false;
     }
+    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -1768,6 +1711,9 @@ export class CounterMeasurement extends Node implements Spatial, Measurement {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    if (this.nodePtr !== null) {
+      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -1775,14 +1721,6 @@ export class CounterMeasurement extends Node implements Spatial, Measurement {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -1838,13 +1776,8 @@ export class CounterMeasurement extends Node implements Spatial, Measurement {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["6"] = object.definitionPtr.toValue();
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+    if (object.nodePtr != null) {
+      objectValue["35"] = object.nodePtr.toValue();
     }
     return objectValue;
   }
@@ -1856,6 +1789,11 @@ export class CounterMeasurement extends Node implements Spatial, Measurement {
     _graph?: any | null,
     _connection?: any | null,
   ): CounterMeasurement {
+    const nodePtrValue = objectValue["35"];
+    const unpackedNodePtr =
+      nodePtrValue != undefined
+        ? NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -1866,16 +1804,6 @@ export class CounterMeasurement extends Node implements Spatial, Measurement {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new CounterMeasurement({
       definition: NodeReference.fromValue(
         objectValue["6"],
@@ -1884,13 +1812,10 @@ export class CounterMeasurement extends Node implements Spatial, Measurement {
         _graph,
         _connection,
       ),
+      node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -1927,13 +1852,8 @@ export class CounterMeasurement extends Node implements Spatial, Measurement {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
     objectProto.definitionPtr = object.definitionPtr.toProto();
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    if (object.nodePtr != null) {
+      objectProto.nodePtr = object.nodePtr.toProto();
     }
     return objectProto as CounterMeasurementProto;
   }
@@ -1953,6 +1873,16 @@ export class CounterMeasurement extends Node implements Spatial, Measurement {
         _graph,
         _connection,
       ),
+      node:
+        objectProto.nodePtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.nodePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       parent:
         objectProto.parentPtr != undefined
           ? NodeReference.fromProto(
@@ -1974,28 +1904,6 @@ export class CounterMeasurement extends Node implements Spatial, Measurement {
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -2578,14 +2486,13 @@ registerNodeClass(NodeType.HISTOGRAM_METRIC, HistogramMetric);
 /**
  * A Histogram Measurement.
  */
-export class HistogramMeasurement extends Node implements Spatial, Measurement {
+export class HistogramMeasurement extends Node implements Measurement {
   static metatype: NodeType = NodeType.HISTOGRAM_MEASUREMENT;
   static __traits__: TraitType[] = [
+    TraitType.CUSTOM_NODE,
     TraitType.SPATIAL,
     TraitType.MEASUREMENT,
-    TraitType.ANALYTIC,
-    TraitType.TRACKED,
-    TraitType.CUSTOM_NODE,
+    TraitType.EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -2633,48 +2540,30 @@ export class HistogramMeasurement extends Node implements Spatial, Measurement {
   definitionPtr: NodeReference;
 
   /**
-   * IsTracked.createdAt
+   * The Node this Event is about.
    */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
+  get node(): Node | null {
+    const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+  set node(node: Node | null) {
+    if (node === null) {
+      this.nodePtr = null;
+    } else {
+      this.nodePtr = node.toRef();
     }
-    return null;
   }
-  readonly updatedByPtr: NodeReference | null;
+  nodePtr: NodeReference | null;
 
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     definition: HistogramMetric | NodeReference;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
+    node?: Node | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -2722,6 +2611,11 @@ export class HistogramMeasurement extends Node implements Spatial, Measurement {
       throw new Error(`HistogramMeasurement.definition is required`);
     }
     this.definitionPtr = _definition;
+    let _node = options.node ?? null;
+    if (_node != null && _node instanceof Node) {
+      _node = _node.toRef();
+    }
+    this.nodePtr = _node;
 
     // identity
     if (options.id == null) {
@@ -2760,6 +2654,9 @@ export class HistogramMeasurement extends Node implements Spatial, Measurement {
     if (!(this.definitionPtr.id === other.definitionPtr.id)) {
       return false;
     }
+    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -2770,6 +2667,9 @@ export class HistogramMeasurement extends Node implements Spatial, Measurement {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    if (this.nodePtr !== null) {
+      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -2777,14 +2677,6 @@ export class HistogramMeasurement extends Node implements Spatial, Measurement {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -2840,13 +2732,8 @@ export class HistogramMeasurement extends Node implements Spatial, Measurement {
       objectValue["5"] = object.spacePtr.toValue();
     }
     objectValue["6"] = object.definitionPtr.toValue();
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+    if (object.nodePtr != null) {
+      objectValue["35"] = object.nodePtr.toValue();
     }
     return objectValue;
   }
@@ -2858,6 +2745,11 @@ export class HistogramMeasurement extends Node implements Spatial, Measurement {
     _graph?: any | null,
     _connection?: any | null,
   ): HistogramMeasurement {
+    const nodePtrValue = objectValue["35"];
+    const unpackedNodePtr =
+      nodePtrValue != undefined
+        ? NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -2868,16 +2760,6 @@ export class HistogramMeasurement extends Node implements Spatial, Measurement {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new HistogramMeasurement({
       definition: NodeReference.fromValue(
         objectValue["6"],
@@ -2886,13 +2768,10 @@ export class HistogramMeasurement extends Node implements Spatial, Measurement {
         _graph,
         _connection,
       ),
+      node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -2929,13 +2808,8 @@ export class HistogramMeasurement extends Node implements Spatial, Measurement {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
     objectProto.definitionPtr = object.definitionPtr.toProto();
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    if (object.nodePtr != null) {
+      objectProto.nodePtr = object.nodePtr.toProto();
     }
     return objectProto as HistogramMeasurementProto;
   }
@@ -2955,6 +2829,16 @@ export class HistogramMeasurement extends Node implements Spatial, Measurement {
         _graph,
         _connection,
       ),
+      node:
+        objectProto.nodePtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.nodePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       parent:
         objectProto.parentPtr != undefined
           ? NodeReference.fromProto(
@@ -2976,28 +2860,6 @@ export class HistogramMeasurement extends Node implements Spatial, Measurement {
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,

@@ -155,25 +155,6 @@ export const IsVisual = new IsVisual$Type(TraitType.VISUAL);
 registerTraitClass(TraitType.VISUAL, IsVisual);
 /* ==== DESTACK_GENERATED_END:TRAIT:9000 ==== */
 
-/* ==== DESTACK_GENERATED_START:TRAIT:50 ==== */
-/**
- * A Node that is frozen (read-only).
- */
-export interface IsFrozen {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node that is frozen (read-only).
- */
-class IsFrozen$Type extends TraitClass<IsFrozen, TraitType.FROZEN> {}
-
-export const IsFrozen = new IsFrozen$Type(TraitType.FROZEN);
-registerTraitClass(TraitType.FROZEN, IsFrozen);
-/* ==== DESTACK_GENERATED_END:TRAIT:50 ==== */
-
 /* ==== DESTACK_GENERATED_START:TRAIT:52 ==== */
 /**
  * A Node that can be archived.
@@ -722,44 +703,6 @@ export const Entity = new Entity$Type(TraitType.ENTITY);
 registerTraitClass(TraitType.ENTITY, Entity);
 /* ==== DESTACK_GENERATED_END:TRAIT:10 ==== */
 
-/* ==== DESTACK_GENERATED_START:TRAIT:11 ==== */
-/**
- * A Particle is a forward-only Node in primary document storage (OLTP, high volume).
- */
-export interface Particle extends IsTracked {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Particle is a forward-only Node in primary document storage (OLTP, high volume).
- */
-class Particle$Type extends TraitClass<Particle, TraitType.PARTICLE> {}
-
-export const Particle = new Particle$Type(TraitType.PARTICLE);
-registerTraitClass(TraitType.PARTICLE, Particle);
-/* ==== DESTACK_GENERATED_END:TRAIT:11 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:12 ==== */
-/**
- * An Analytic is a read-only Node in primary or secondary warehouse storage (OLAP, bulk).
- */
-export interface Analytic extends IsTracked {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * An Analytic is a read-only Node in primary or secondary warehouse storage (OLAP, bulk).
- */
-class Analytic$Type extends TraitClass<Analytic, TraitType.ANALYTIC> {}
-
-export const Analytic = new Analytic$Type(TraitType.ANALYTIC);
-registerTraitClass(TraitType.ANALYTIC, Analytic);
-/* ==== DESTACK_GENERATED_END:TRAIT:12 ==== */
-
 /* ==== DESTACK_GENERATED_START:TRAIT:21 ==== */
 /**
  * A Resource represents an external asset.
@@ -812,9 +755,9 @@ registerTraitClass(TraitType.METRIC, Metric);
 
 /* ==== DESTACK_GENERATED_START:TRAIT:4011 ==== */
 /**
- * An Analytic that represents a Measurement.
+ * An Event that represents a Measurement.
  */
-export interface Measurement extends Analytic, IsCustomNode {
+export interface Measurement extends Event, IsCustomNode {
   get definition(): (Node & Metric) | null;
   readonly definitionPtr: NodeReference;
 
@@ -824,7 +767,7 @@ export interface Measurement extends Analytic, IsCustomNode {
 }
 
 /**
- * An Analytic that represents a Measurement.
+ * An Event that represents a Measurement.
  */
 class Measurement$Type extends TraitClass<Measurement, TraitType.MEASUREMENT> {}
 
@@ -836,7 +779,7 @@ registerTraitClass(TraitType.MEASUREMENT, Measurement);
 /**
  * An Event represents something happening in a Space.
  */
-export interface Event extends Spatial, Particle, Analytic, IsFrozen {
+export interface Event extends Spatial {
   get node(): Node | null;
   set node(value: Node | null);
   nodePtr: NodeReference | null;

@@ -35,7 +35,6 @@ class GaugeMetric(
 
 @builtin_node(NodeType.GAUGE_MEASUREMENT)
 class GaugeMeasurement(
-    Spatial,
     Measurement,
     Node[GaugeMeasurementProto],
 ):
@@ -58,7 +57,6 @@ class CounterMetric(
 
 @builtin_node(NodeType.COUNTER_MEASUREMENT)
 class CounterMeasurement(
-    Spatial,
     Measurement,
     Node[CounterMeasurementProto],
 ):
@@ -81,7 +79,6 @@ class HistogramMetric(
 
 @builtin_node(NodeType.HISTOGRAM_MEASUREMENT)
 class HistogramMeasurement(
-    Spatial,
     Measurement,
     Node[HistogramMeasurementProto],
 ):

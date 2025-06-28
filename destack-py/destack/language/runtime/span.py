@@ -1,11 +1,9 @@
 from typing import TYPE_CHECKING, Union
 
 from destack.language.core import (
-    Analytic,
-    IsFrozen,
+    Event,
     Node,
     NodeType,
-    Spatial,
     builtin_node,
     property_parent_,
 )
@@ -20,9 +18,7 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.SPAN)
 class Span(
-    Spatial,
-    Analytic,
-    IsFrozen,
+    Event,
     Node[SpanProto],
 ):
     """
