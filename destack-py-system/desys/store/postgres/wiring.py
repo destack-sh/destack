@@ -83,11 +83,11 @@ def _generate_pack_scalar_value(prop: "PropertyDeclaration", value_expr: str) ->
         elif prop.primitive_type == PrimitiveType.UUID:
             return f"uuid.UUID({value_expr})"
         elif prop.primitive_type == PrimitiveType.DATETIME:
-            return f"datetime.fromisoformat({value_expr}).replace(tzinfo=None)"
+            return f"datetime.fromisoformat({value_expr}).astimezone(UTC).replace(tzinfo=None)"
         elif prop.primitive_type == PrimitiveType.DATE:
             return f"date.fromisoformat({value_expr})"
         elif prop.primitive_type == PrimitiveType.TIME:
-            return f"time.fromisoformat({value_expr}).replace(tzinfo=None)"
+            return f"time.fromisoformat({value_expr})"
         elif prop.primitive_type == PrimitiveType.DURATION:
             return f"timedelta_from_isoformat({value_expr})"
         else:
@@ -109,11 +109,11 @@ def _generate_unpack_scalar_value(prop: "PropertyDeclaration", value_expr: str) 
         elif prop.primitive_type == PrimitiveType.UUID:
             return f"str({value_expr})"
         elif prop.primitive_type == PrimitiveType.DATETIME:
-            return f"{value_expr}.astimezone(UTC).isoformat()"
+            return f"{value_expr}.replace(tzinfo=UTC).isoformat()"
         elif prop.primitive_type == PrimitiveType.DATE:
             return f"{value_expr}.isoformat()"
         elif prop.primitive_type == PrimitiveType.TIME:
-            return f"{value_expr}.astimezone(UTC).isoformat()"
+            return f"{value_expr}.replace(tzinfo=UTC).isoformat()"
         elif prop.primitive_type == PrimitiveType.DURATION:
             return f"timedelta_to_isoformat({value_expr})"
         else:
@@ -342,11 +342,11 @@ def _pack_column_scalar(type: "PropertyDefinition | Type | CustomProperty", valu
         elif type.primitive_type == PrimitiveType.UUID:
             return uuid.UUID(value)
         elif type.primitive_type == PrimitiveType.DATETIME:
-            return datetime.fromisoformat(value).replace(tzinfo=None)
+            return datetime.fromisoformat(value).astimezone(UTC).replace(tzinfo=None)
         elif type.primitive_type == PrimitiveType.DATE:
             return date.fromisoformat(value)
         elif type.primitive_type == PrimitiveType.TIME:
-            return time.fromisoformat(value).replace(tzinfo=None)
+            return time.fromisoformat(value)
         elif type.primitive_type == PrimitiveType.DURATION:
             return timedelta_from_isoformat(value)
         else:
@@ -417,11 +417,9 @@ def _unpack_column_scalar(type: "PropertyDefinition | Type | CustomProperty", va
         elif type.primitive_type == PrimitiveType.UUID:
             return str(value)
         elif type.primitive_type == PrimitiveType.DATETIME:
-            return value.astimezone(UTC).isoformat()
-        elif type.primitive_type == PrimitiveType.DATE:
+            return value.replace(tzinfo=UTC).isoformat()
+        elif type.primitive_type == PrimitiveType.DATE or type.primitive_type == PrimitiveType.TIME:
             return value.isoformat()
-        elif type.primitive_type == PrimitiveType.TIME:
-            return value.astimezone(UTC).isoformat()
         elif type.primitive_type == PrimitiveType.DURATION:
             return timedelta_to_isoformat(value)
         else:

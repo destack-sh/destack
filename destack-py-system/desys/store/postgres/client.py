@@ -10,6 +10,22 @@ from destack.language import DatabaseBase
 _pool_by_url: dict[str, asyncpg.Pool] = {}
 
 
+async def _get_pool(database: DatabaseBase) -> asyncpg.Pool:
+    """Get a pool for a database."""
+
+    assert database.connection_url, f"no connection_url for {database!r}"
+
+    pool = _pool_by_url.get(database.connection_url)
+    if pool is None:
+        pool = await asyncpg.create_pool(
+            database.connection_url,
+            server_settings={"timezone": "UTC"},  # keep DB session in UTC
+        )
+        _pool_by_url[database.connection_url] = pool
+
+    return pool
+
+
 @asynccontextmanager
 async def pg_connection(database: DatabaseBase) -> AsyncGenerator[asyncpg.Connection, None]:
     """
@@ -18,11 +34,7 @@ async def pg_connection(database: DatabaseBase) -> AsyncGenerator[asyncpg.Connec
 
     assert database.connection_url, f"no connection_url for {database!r}"
 
-    pool = _pool_by_url.get(database.connection_url)
-    if pool is None:
-        pool = await asyncpg.create_pool(database.connection_url)
-        _pool_by_url[database.connection_url] = pool
-
+    pool = await _get_pool(database)
     async with pool.acquire() as conn:
         yield conn
 

@@ -30,11 +30,6 @@ class Oracle(abc.ABC):
         """Source of randomness."""
 
     @abc.abstractmethod
-    def time_ns(self) -> int:
-        """Current time in nanoseconds since the epoch."""
-        ...
-
-    @abc.abstractmethod
     def time(self) -> float:
         """Current time in seconds since the epoch."""
         ...
@@ -88,10 +83,6 @@ class WorldOracle(Oracle):
     @override
     def time(self) -> float:
         return self._time.time()
-
-    @override
-    def time_ns(self) -> int:
-        return self._time.time_ns()
 
     @override
     def utc(self) -> datetime:
