@@ -6,15 +6,12 @@ import {
 } from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
-  Analytic,
   EnumType,
+  Event,
   IsExtensible,
   IsRunnable,
-  IsSubject,
   Node,
   NodeType,
-  Particle,
-  Spatial,
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
@@ -84,15 +81,9 @@ registerEnumClass(EnumType.INTERRUPTION_RESPONSE, InterruptionResponse);
 /**
  * An Interruption in run of something.
  */
-export class Interruption extends Node implements Spatial, Particle, Analytic, IsExtensible {
+export class Interruption extends Node implements Event, IsExtensible {
   static metatype: NodeType = NodeType.INTERRUPTION;
-  static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
-    TraitType.PARTICLE,
-    TraitType.ANALYTIC,
-    TraitType.TRACKED,
-    TraitType.EXTENSIBLE,
-  ];
+  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT, TraitType.EXTENSIBLE];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.RUN];
   static __childTypes__: NodeType[] = [NodeType.CUSTOM_PROPERTY];
@@ -128,40 +119,6 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
-
-  /**
    * IsExtensible.value
    */
   value: Map<string, Value>;
@@ -189,6 +146,25 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
     }
   }
   runnablePtr: NodeReference | null;
+
+  /**
+   * The Node this Event is about.
+   */
+  get node(): Node | null {
+    const nodePtr: NodeReference | null = this.nodePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Node | null;
+    }
+    return null;
+  }
+  set node(node: Node | null) {
+    if (node === null) {
+      this.nodePtr = null;
+    } else {
+      this.nodePtr = node.toRef();
+    }
+  }
+  nodePtr: NodeReference | null;
 
   /**
    * Interruption.span
@@ -252,13 +228,10 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
     id?: string;
     parent?: Run | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
     value?: Map<string, Value>;
     type: InterruptionType;
     runnable?: (Node & IsRunnable) | NodeReference | null;
+    node?: Node | NodeReference | null;
     span?: Span | NodeReference | null;
     status?: InterruptionStatus;
     duration?: Temporal.Duration | null;
@@ -319,6 +292,11 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
       _runnable = _runnable.toRef();
     }
     this.runnablePtr = _runnable;
+    let _node = options.node ?? null;
+    if (_node != null && _node instanceof Node) {
+      _node = _node.toRef();
+    }
+    this.nodePtr = _node;
     let _span = options.span ?? null;
     if (_span != null && _span instanceof Node) {
       _span = _span.toRef();
@@ -402,6 +380,9 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
     if (!(this.messagePtr?.id === other.messagePtr?.id)) {
       return false;
     }
+    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -445,18 +426,13 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
     if (this.messagePtr !== null) {
       h = (h * 31 + hashString(this.messagePtr.id)) & 0xffffffff;
     }
+    if (this.nodePtr !== null) {
+      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
     if (this.value && Object.keys(this.value).length > 0) {
       for (const [_key, _value] of Object.entries(this.value)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
@@ -516,14 +492,6 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
-    }
     if (object.value.size > 0) {
       const packedValue: { [key: string]: any } = {};
       for (const [key, value] of object.value) {
@@ -534,6 +502,9 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
     objectValue["30"] = object.type;
     if (object.runnablePtr != null) {
       objectValue["32"] = object.runnablePtr.toValue();
+    }
+    if (object.nodePtr != null) {
+      objectValue["35"] = object.nodePtr.toValue();
     }
     if (object.spanPtr != null) {
       objectValue["37"] = object.spanPtr.toValue();
@@ -591,20 +562,15 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
       messagePtrValue != undefined
         ? NodeReference.fromValue(messagePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const nodePtrValue = objectValue["35"];
+    const unpackedNodePtr =
+      nodePtrValue != undefined
+        ? NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedValue = new Map();
     if (objectValue["21"] != undefined) {
@@ -625,12 +591,9 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
       closedAt: unpackedClosedAt,
       response: unpackedResponse,
       message: unpackedMessagePtr,
+      node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       value: unpackedValue,
       _session,
       _graph,
@@ -661,14 +624,6 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
-    }
     if (object.value) {
       objectProto.value = {};
       for (const [key, value] of object.value) {
@@ -678,6 +633,9 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
     objectProto.type = Number(object.type) as InterruptionTypeProto;
     if (object.runnablePtr != null) {
       objectProto.runnablePtr = object.runnablePtr.toProto();
+    }
+    if (object.nodePtr != null) {
+      objectProto.nodePtr = object.nodePtr.toProto();
     }
     if (object.spanPtr != null) {
       objectProto.spanPtr = object.spanPtr.toProto();
@@ -765,6 +723,16 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
               _connection,
             )
           : null,
+      node:
+        objectProto.nodePtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.nodePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       space:
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(
@@ -776,28 +744,6 @@ export class Interruption extends Node implements Spatial, Particle, Analytic, I
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       value: unpackedValue,
       _session,
       _graph,

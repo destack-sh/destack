@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
-    Analytic,
+    Entity,
     Enum,
     EnumType,
     Event,
@@ -10,7 +10,6 @@ from destack.language.core import (
     IsRunnable,
     Node,
     NodeType,
-    Particle,
     Spatial,
     builtin_enum,
     builtin_node,
@@ -183,8 +182,7 @@ class RunCompletedEvent(
 @builtin_node(NodeType.RUN)
 class Run(
     Spatial,
-    Particle,
-    Analytic,
+    Entity,
     IsExtensible,
     Node[RunProto],
 ):

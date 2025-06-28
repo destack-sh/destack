@@ -74,10 +74,10 @@ TRAIT_PREFIXES = ("Is", "Has", "Like")
 # traits you must have at least one of
 AT_LEAST_ONE_TRAITS = (
     (TraitType.GLOBAL, TraitType.SPATIAL),
-    (TraitType.ENTITY, TraitType.PARTICLE, TraitType.ANALYTIC),
+    (TraitType.ENTITY, TraitType.EVENT),
 )
 # traits you can have at most one of
-AT_MOST_ONE_TRAITS = ((TraitType.ENTITY, TraitType.PARTICLE),)
+AT_MOST_ONE_TRAITS = ((TraitType.ENTITY, TraitType.EVENT),)
 # traits where every descendant must have the trait
 INFECTIOUS_TRAITS = (TraitType.ARCHIVABLE, TraitType.DELETABLE)
 
@@ -458,18 +458,6 @@ class IsVisual(IsTracked):
     pass
 
 
-# TODO :Cleanup: Nodes don't set 'real' frozen=True (like StructFrozen) :PretendFrozen
-#    (because that would require two separate inheritance chains for NodeMutable and NodeFrozen,
-#    which would have to include copies of every relevant trait and .. ughh no)
-@builtin_trait(TraitType.FROZEN, pretend_frozen=True)
-class IsFrozen(Trait):
-    """
-    A Node that is frozen (read-only).
-    """
-
-    pass
-
-
 @builtin_trait(TraitType.ARCHIVABLE)
 class IsArchivable(Trait):
     """A Node that can be archived."""
@@ -762,22 +750,15 @@ class Entity(IsTracked):
         template_ptr: Optional["NodeReference"] = None
 
 
-@builtin_trait(TraitType.PARTICLE)
-class Particle(IsTracked):
+@builtin_trait(TraitType.EVENT, pretend_frozen=True)
+class Event[N: Node = Node](Spatial):
     """
-    A Particle is a forward-only Node in primary document storage (OLTP, high volume).
-    """
-
-    pass
-
-
-@builtin_trait(TraitType.ANALYTIC)
-class Analytic(IsTracked):
-    """
-    An Analytic is a read-only Node in primary or secondary warehouse storage (OLAP, bulk).
+    An Event represents something happening in a Space.
     """
 
-    pass
+    node: Optional["Node"] = property_(35, description="The Node this Event is about.")
+    if TYPE_CHECKING:
+        node_ptr: Optional[NodeReference] = None
 
 
 @builtin_trait(TraitType.RESOURCE)
@@ -800,18 +781,7 @@ class Metric(Entity, IsSourceable, IsCustomNodeDefinition):
 
 
 @builtin_trait(TraitType.MEASUREMENT)
-class Measurement(Analytic, IsCustomNode):
-    """An Analytic that represents a Measurement."""
+class Measurement(Event, IsCustomNode):
+    """An Event that represents a Measurement."""
 
     definition: "Metric" = property_(6, is_managed=True, can_write=None)
-
-
-@builtin_trait(TraitType.EVENT, pretend_frozen=True)
-class Event[N: Node = Node](Spatial, Particle, Analytic, IsFrozen):
-    """
-    An Event represents something happening in a Space.
-    """
-
-    node: Optional["Node"] = property_(35, description="The Node this Event is about.")
-    if TYPE_CHECKING:
-        node_ptr: Optional[NodeReference] = None

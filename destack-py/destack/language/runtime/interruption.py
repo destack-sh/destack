@@ -2,16 +2,14 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
-    Analytic,
     Enum,
     EnumType,
+    Event,
     IsExtensible,
     IsRunnable,
     Node,
     NodeReference,
     NodeType,
-    Particle,
-    Spatial,
     builtin_enum,
     builtin_node,
     property_,
@@ -56,9 +54,7 @@ class InterruptionResponse(Enum):
 
 @builtin_node(NodeType.INTERRUPTION)
 class Interruption(
-    Spatial,
-    Particle,
-    Analytic,
+    Event,
     IsExtensible,
     Node[InterruptionProto],
 ):

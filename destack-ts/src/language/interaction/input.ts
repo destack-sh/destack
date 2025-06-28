@@ -1,9 +1,7 @@
-import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
   EnumType,
   Event,
-  IsSubject,
   Node,
   NodeType,
   StructType,
@@ -306,13 +304,9 @@ export class PointerDownEvent extends Node implements PointerEvent {
   static metatype: NodeType = NodeType.POINTER_DOWN_EVENT;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
-    TraitType.PARTICLE,
-    TraitType.ANALYTIC,
-    TraitType.FROZEN,
-    TraitType.TRACKED,
-    TraitType.EVENT,
     TraitType.INPUT_EVENT,
     TraitType.POINTER_EVENT,
+    TraitType.EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -343,40 +337,6 @@ export class PointerDownEvent extends Node implements PointerEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * IsTracked.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -436,10 +396,6 @@ export class PointerDownEvent extends Node implements PointerEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     pressure: number;
@@ -612,14 +568,6 @@ export class PointerDownEvent extends Node implements PointerEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -673,14 +621,6 @@ export class PointerDownEvent extends Node implements PointerEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
-    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -716,16 +656,6 @@ export class PointerDownEvent extends Node implements PointerEvent {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new PointerDownEvent({
       position: Vector2.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
       pressure: objectValue["51"],
@@ -738,10 +668,6 @@ export class PointerDownEvent extends Node implements PointerEvent {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -776,14 +702,6 @@ export class PointerDownEvent extends Node implements PointerEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
@@ -850,28 +768,6 @@ export class PointerDownEvent extends Node implements PointerEvent {
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -915,13 +811,9 @@ export class PointerUpEvent extends Node implements PointerEvent {
   static metatype: NodeType = NodeType.POINTER_UP_EVENT;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
-    TraitType.PARTICLE,
-    TraitType.ANALYTIC,
-    TraitType.FROZEN,
-    TraitType.TRACKED,
-    TraitType.EVENT,
     TraitType.INPUT_EVENT,
     TraitType.POINTER_EVENT,
+    TraitType.EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -952,40 +844,6 @@ export class PointerUpEvent extends Node implements PointerEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * IsTracked.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -1045,10 +903,6 @@ export class PointerUpEvent extends Node implements PointerEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     pressure: number;
@@ -1221,14 +1075,6 @@ export class PointerUpEvent extends Node implements PointerEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -1282,14 +1128,6 @@ export class PointerUpEvent extends Node implements PointerEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
-    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -1325,16 +1163,6 @@ export class PointerUpEvent extends Node implements PointerEvent {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new PointerUpEvent({
       position: Vector2.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
       pressure: objectValue["51"],
@@ -1347,10 +1175,6 @@ export class PointerUpEvent extends Node implements PointerEvent {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -1379,14 +1203,6 @@ export class PointerUpEvent extends Node implements PointerEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
@@ -1453,28 +1269,6 @@ export class PointerUpEvent extends Node implements PointerEvent {
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -1512,13 +1306,9 @@ export class PointerMoveEvent extends Node implements PointerEvent {
   static metatype: NodeType = NodeType.POINTER_MOVE_EVENT;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
-    TraitType.PARTICLE,
-    TraitType.ANALYTIC,
-    TraitType.FROZEN,
-    TraitType.TRACKED,
-    TraitType.EVENT,
     TraitType.INPUT_EVENT,
     TraitType.POINTER_EVENT,
+    TraitType.EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -1549,40 +1339,6 @@ export class PointerMoveEvent extends Node implements PointerEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * IsTracked.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -1642,10 +1398,6 @@ export class PointerMoveEvent extends Node implements PointerEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     pressure: number;
@@ -1818,14 +1570,6 @@ export class PointerMoveEvent extends Node implements PointerEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -1879,14 +1623,6 @@ export class PointerMoveEvent extends Node implements PointerEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
-    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -1922,16 +1658,6 @@ export class PointerMoveEvent extends Node implements PointerEvent {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new PointerMoveEvent({
       position: Vector2.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
       pressure: objectValue["51"],
@@ -1944,10 +1670,6 @@ export class PointerMoveEvent extends Node implements PointerEvent {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -1982,14 +1704,6 @@ export class PointerMoveEvent extends Node implements PointerEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
@@ -2056,28 +1770,6 @@ export class PointerMoveEvent extends Node implements PointerEvent {
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -2121,13 +1813,9 @@ export class PointerEnterEvent extends Node implements PointerEvent {
   static metatype: NodeType = NodeType.POINTER_ENTER_EVENT;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
-    TraitType.PARTICLE,
-    TraitType.ANALYTIC,
-    TraitType.FROZEN,
-    TraitType.TRACKED,
-    TraitType.EVENT,
     TraitType.INPUT_EVENT,
     TraitType.POINTER_EVENT,
+    TraitType.EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -2158,40 +1846,6 @@ export class PointerEnterEvent extends Node implements PointerEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * IsTracked.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -2251,10 +1905,6 @@ export class PointerEnterEvent extends Node implements PointerEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     pressure: number;
@@ -2427,14 +2077,6 @@ export class PointerEnterEvent extends Node implements PointerEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -2488,14 +2130,6 @@ export class PointerEnterEvent extends Node implements PointerEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
-    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -2531,16 +2165,6 @@ export class PointerEnterEvent extends Node implements PointerEvent {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new PointerEnterEvent({
       position: Vector2.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
       pressure: objectValue["51"],
@@ -2553,10 +2177,6 @@ export class PointerEnterEvent extends Node implements PointerEvent {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -2591,14 +2211,6 @@ export class PointerEnterEvent extends Node implements PointerEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
@@ -2665,28 +2277,6 @@ export class PointerEnterEvent extends Node implements PointerEvent {
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -2730,13 +2320,9 @@ export class PointerOverEvent extends Node implements PointerEvent {
   static metatype: NodeType = NodeType.POINTER_OVER_EVENT;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
-    TraitType.PARTICLE,
-    TraitType.ANALYTIC,
-    TraitType.FROZEN,
-    TraitType.TRACKED,
-    TraitType.EVENT,
     TraitType.INPUT_EVENT,
     TraitType.POINTER_EVENT,
+    TraitType.EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -2767,40 +2353,6 @@ export class PointerOverEvent extends Node implements PointerEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * IsTracked.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -2860,10 +2412,6 @@ export class PointerOverEvent extends Node implements PointerEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     pressure: number;
@@ -3036,14 +2584,6 @@ export class PointerOverEvent extends Node implements PointerEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -3097,14 +2637,6 @@ export class PointerOverEvent extends Node implements PointerEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
-    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -3140,16 +2672,6 @@ export class PointerOverEvent extends Node implements PointerEvent {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new PointerOverEvent({
       position: Vector2.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
       pressure: objectValue["51"],
@@ -3162,10 +2684,6 @@ export class PointerOverEvent extends Node implements PointerEvent {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -3200,14 +2718,6 @@ export class PointerOverEvent extends Node implements PointerEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
@@ -3274,28 +2784,6 @@ export class PointerOverEvent extends Node implements PointerEvent {
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -3339,13 +2827,9 @@ export class PointerLeaveEvent extends Node implements PointerEvent {
   static metatype: NodeType = NodeType.POINTER_LEAVE_EVENT;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
-    TraitType.PARTICLE,
-    TraitType.ANALYTIC,
-    TraitType.FROZEN,
-    TraitType.TRACKED,
-    TraitType.EVENT,
     TraitType.INPUT_EVENT,
     TraitType.POINTER_EVENT,
+    TraitType.EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -3376,40 +2860,6 @@ export class PointerLeaveEvent extends Node implements PointerEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * IsTracked.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -3469,10 +2919,6 @@ export class PointerLeaveEvent extends Node implements PointerEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     pressure: number;
@@ -3645,14 +3091,6 @@ export class PointerLeaveEvent extends Node implements PointerEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -3706,14 +3144,6 @@ export class PointerLeaveEvent extends Node implements PointerEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
-    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -3749,16 +3179,6 @@ export class PointerLeaveEvent extends Node implements PointerEvent {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new PointerLeaveEvent({
       position: Vector2.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
       pressure: objectValue["51"],
@@ -3771,10 +3191,6 @@ export class PointerLeaveEvent extends Node implements PointerEvent {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -3809,14 +3225,6 @@ export class PointerLeaveEvent extends Node implements PointerEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
@@ -3883,28 +3291,6 @@ export class PointerLeaveEvent extends Node implements PointerEvent {
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -3948,13 +3334,9 @@ export class LongPressEvent extends Node implements PointerEvent {
   static metatype: NodeType = NodeType.LONG_PRESS_EVENT;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
-    TraitType.PARTICLE,
-    TraitType.ANALYTIC,
-    TraitType.FROZEN,
-    TraitType.TRACKED,
-    TraitType.EVENT,
     TraitType.INPUT_EVENT,
     TraitType.POINTER_EVENT,
+    TraitType.EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -3985,40 +3367,6 @@ export class LongPressEvent extends Node implements PointerEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * IsTracked.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -4078,10 +3426,6 @@ export class LongPressEvent extends Node implements PointerEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     pressure: number;
@@ -4254,14 +3598,6 @@ export class LongPressEvent extends Node implements PointerEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -4315,14 +3651,6 @@ export class LongPressEvent extends Node implements PointerEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
-    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -4358,16 +3686,6 @@ export class LongPressEvent extends Node implements PointerEvent {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new LongPressEvent({
       position: Vector2.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
       pressure: objectValue["51"],
@@ -4380,10 +3698,6 @@ export class LongPressEvent extends Node implements PointerEvent {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -4412,14 +3726,6 @@ export class LongPressEvent extends Node implements PointerEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
@@ -4486,28 +3792,6 @@ export class LongPressEvent extends Node implements PointerEvent {
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -4547,10 +3831,6 @@ export class LeftClickEvent extends Node implements ClickEvent {
     TraitType.SPATIAL,
     TraitType.MOUSE_EVENT,
     TraitType.CLICK_EVENT,
-    TraitType.PARTICLE,
-    TraitType.ANALYTIC,
-    TraitType.FROZEN,
-    TraitType.TRACKED,
     TraitType.EVENT,
     TraitType.INPUT_EVENT,
     TraitType.POINTER_EVENT,
@@ -4584,40 +3864,6 @@ export class LeftClickEvent extends Node implements ClickEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * IsTracked.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -4682,10 +3928,6 @@ export class LeftClickEvent extends Node implements ClickEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     pressure: number;
@@ -4868,14 +4110,6 @@ export class LeftClickEvent extends Node implements ClickEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -4929,14 +4163,6 @@ export class LeftClickEvent extends Node implements ClickEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
-    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -4973,16 +4199,6 @@ export class LeftClickEvent extends Node implements ClickEvent {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new LeftClickEvent({
       button: Number(objectValue["60"]),
       position: Vector2.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
@@ -4996,10 +4212,6 @@ export class LeftClickEvent extends Node implements ClickEvent {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -5028,14 +4240,6 @@ export class LeftClickEvent extends Node implements ClickEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
@@ -5104,28 +4308,6 @@ export class LeftClickEvent extends Node implements ClickEvent {
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -5165,10 +4347,6 @@ export class RightClickEvent extends Node implements ClickEvent {
     TraitType.SPATIAL,
     TraitType.MOUSE_EVENT,
     TraitType.CLICK_EVENT,
-    TraitType.PARTICLE,
-    TraitType.ANALYTIC,
-    TraitType.FROZEN,
-    TraitType.TRACKED,
     TraitType.EVENT,
     TraitType.INPUT_EVENT,
     TraitType.POINTER_EVENT,
@@ -5202,40 +4380,6 @@ export class RightClickEvent extends Node implements ClickEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * IsTracked.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -5300,10 +4444,6 @@ export class RightClickEvent extends Node implements ClickEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     pressure: number;
@@ -5486,14 +4626,6 @@ export class RightClickEvent extends Node implements ClickEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -5547,14 +4679,6 @@ export class RightClickEvent extends Node implements ClickEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
-    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -5591,16 +4715,6 @@ export class RightClickEvent extends Node implements ClickEvent {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new RightClickEvent({
       button: Number(objectValue["60"]),
       position: Vector2.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
@@ -5614,10 +4728,6 @@ export class RightClickEvent extends Node implements ClickEvent {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -5646,14 +4756,6 @@ export class RightClickEvent extends Node implements ClickEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
@@ -5722,28 +4824,6 @@ export class RightClickEvent extends Node implements ClickEvent {
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -5783,10 +4863,6 @@ export class MiddleClickEvent extends Node implements ClickEvent {
     TraitType.SPATIAL,
     TraitType.MOUSE_EVENT,
     TraitType.CLICK_EVENT,
-    TraitType.PARTICLE,
-    TraitType.ANALYTIC,
-    TraitType.FROZEN,
-    TraitType.TRACKED,
     TraitType.EVENT,
     TraitType.INPUT_EVENT,
     TraitType.POINTER_EVENT,
@@ -5820,40 +4896,6 @@ export class MiddleClickEvent extends Node implements ClickEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * IsTracked.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -5918,10 +4960,6 @@ export class MiddleClickEvent extends Node implements ClickEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     pressure: number;
@@ -6104,14 +5142,6 @@ export class MiddleClickEvent extends Node implements ClickEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -6165,14 +5195,6 @@ export class MiddleClickEvent extends Node implements ClickEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
-    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -6209,16 +5231,6 @@ export class MiddleClickEvent extends Node implements ClickEvent {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new MiddleClickEvent({
       button: Number(objectValue["60"]),
       position: Vector2.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
@@ -6232,10 +5244,6 @@ export class MiddleClickEvent extends Node implements ClickEvent {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -6270,14 +5278,6 @@ export class MiddleClickEvent extends Node implements ClickEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
@@ -6346,28 +5346,6 @@ export class MiddleClickEvent extends Node implements ClickEvent {
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -6413,10 +5391,6 @@ export class DoubleClickEvent extends Node implements ClickEvent {
     TraitType.SPATIAL,
     TraitType.MOUSE_EVENT,
     TraitType.CLICK_EVENT,
-    TraitType.PARTICLE,
-    TraitType.ANALYTIC,
-    TraitType.FROZEN,
-    TraitType.TRACKED,
     TraitType.EVENT,
     TraitType.INPUT_EVENT,
     TraitType.POINTER_EVENT,
@@ -6450,40 +5424,6 @@ export class DoubleClickEvent extends Node implements ClickEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * IsTracked.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -6548,10 +5488,6 @@ export class DoubleClickEvent extends Node implements ClickEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     pressure: number;
@@ -6734,14 +5670,6 @@ export class DoubleClickEvent extends Node implements ClickEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -6795,14 +5723,6 @@ export class DoubleClickEvent extends Node implements ClickEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
-    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -6839,16 +5759,6 @@ export class DoubleClickEvent extends Node implements ClickEvent {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new DoubleClickEvent({
       button: Number(objectValue["60"]),
       position: Vector2.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
@@ -6862,10 +5772,6 @@ export class DoubleClickEvent extends Node implements ClickEvent {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -6900,14 +5806,6 @@ export class DoubleClickEvent extends Node implements ClickEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
@@ -6976,28 +5874,6 @@ export class DoubleClickEvent extends Node implements ClickEvent {
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -7042,10 +5918,6 @@ export class WheelEvent extends Node implements MouseEvent {
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.MOUSE_EVENT,
-    TraitType.PARTICLE,
-    TraitType.ANALYTIC,
-    TraitType.FROZEN,
-    TraitType.TRACKED,
     TraitType.EVENT,
     TraitType.INPUT_EVENT,
     TraitType.POINTER_EVENT,
@@ -7079,40 +5951,6 @@ export class WheelEvent extends Node implements MouseEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * IsTracked.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -7182,10 +6020,6 @@ export class WheelEvent extends Node implements MouseEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     pressure: number;
@@ -7378,14 +6212,6 @@ export class WheelEvent extends Node implements MouseEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -7439,14 +6265,6 @@ export class WheelEvent extends Node implements MouseEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
-    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -7484,16 +6302,6 @@ export class WheelEvent extends Node implements MouseEvent {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new WheelEvent({
       delta: Vector2.fromValue(objectValue["70"], _session, _supergraph, _graph, _connection),
       button: Number(objectValue["60"]),
@@ -7508,10 +6316,6 @@ export class WheelEvent extends Node implements MouseEvent {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -7540,14 +6344,6 @@ export class WheelEvent extends Node implements MouseEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
@@ -7618,28 +6414,6 @@ export class WheelEvent extends Node implements MouseEvent {
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -7676,14 +6450,10 @@ registerNodeClass(NodeType.WHEEL_EVENT, WheelEvent);
 export class KeyDownEvent extends Node implements KeyboardEvent {
   static metatype: NodeType = NodeType.KEY_DOWN_EVENT;
   static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
-    TraitType.PARTICLE,
-    TraitType.ANALYTIC,
     TraitType.KEYBOARD_EVENT,
-    TraitType.FROZEN,
-    TraitType.TRACKED,
-    TraitType.EVENT,
+    TraitType.SPATIAL,
     TraitType.INPUT_EVENT,
+    TraitType.EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -7714,40 +6484,6 @@ export class KeyDownEvent extends Node implements KeyboardEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * IsTracked.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -7807,10 +6543,6 @@ export class KeyDownEvent extends Node implements KeyboardEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     key: string;
     code: string;
@@ -7983,14 +6715,6 @@ export class KeyDownEvent extends Node implements KeyboardEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -8044,14 +6768,6 @@ export class KeyDownEvent extends Node implements KeyboardEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
-    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -8087,16 +6803,6 @@ export class KeyDownEvent extends Node implements KeyboardEvent {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new KeyDownEvent({
       key: objectValue["50"],
       code: objectValue["51"],
@@ -8109,10 +6815,6 @@ export class KeyDownEvent extends Node implements KeyboardEvent {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -8141,14 +6843,6 @@ export class KeyDownEvent extends Node implements KeyboardEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
@@ -8209,28 +6903,6 @@ export class KeyDownEvent extends Node implements KeyboardEvent {
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -8267,14 +6939,10 @@ registerNodeClass(NodeType.KEY_DOWN_EVENT, KeyDownEvent);
 export class KeyUpEvent extends Node implements KeyboardEvent {
   static metatype: NodeType = NodeType.KEY_UP_EVENT;
   static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
-    TraitType.PARTICLE,
-    TraitType.ANALYTIC,
     TraitType.KEYBOARD_EVENT,
-    TraitType.FROZEN,
-    TraitType.TRACKED,
-    TraitType.EVENT,
+    TraitType.SPATIAL,
     TraitType.INPUT_EVENT,
+    TraitType.EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -8305,40 +6973,6 @@ export class KeyUpEvent extends Node implements KeyboardEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * IsTracked.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -8398,10 +7032,6 @@ export class KeyUpEvent extends Node implements KeyboardEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     key: string;
     code: string;
@@ -8574,14 +7204,6 @@ export class KeyUpEvent extends Node implements KeyboardEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -8635,14 +7257,6 @@ export class KeyUpEvent extends Node implements KeyboardEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
-    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -8678,16 +7292,6 @@ export class KeyUpEvent extends Node implements KeyboardEvent {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new KeyUpEvent({
       key: objectValue["50"],
       code: objectValue["51"],
@@ -8700,10 +7304,6 @@ export class KeyUpEvent extends Node implements KeyboardEvent {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -8732,14 +7332,6 @@ export class KeyUpEvent extends Node implements KeyboardEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
@@ -8800,28 +7392,6 @@ export class KeyUpEvent extends Node implements KeyboardEvent {
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -8858,14 +7428,10 @@ registerNodeClass(NodeType.KEY_UP_EVENT, KeyUpEvent);
 export class KeyPressEvent extends Node implements KeyboardEvent {
   static metatype: NodeType = NodeType.KEY_PRESS_EVENT;
   static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
-    TraitType.PARTICLE,
-    TraitType.ANALYTIC,
     TraitType.KEYBOARD_EVENT,
-    TraitType.FROZEN,
-    TraitType.TRACKED,
-    TraitType.EVENT,
+    TraitType.SPATIAL,
     TraitType.INPUT_EVENT,
+    TraitType.EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -8896,40 +7462,6 @@ export class KeyPressEvent extends Node implements KeyboardEvent {
     return null;
   }
   readonly spacePtr: NodeReference | null;
-
-  /**
-   * IsTracked.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
 
   /**
    * The Node this Event is about.
@@ -8989,10 +7521,6 @@ export class KeyPressEvent extends Node implements KeyboardEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     key: string;
     code: string;
@@ -9165,14 +7693,6 @@ export class KeyPressEvent extends Node implements KeyboardEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -9226,14 +7746,6 @@ export class KeyPressEvent extends Node implements KeyboardEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
-    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -9269,16 +7781,6 @@ export class KeyPressEvent extends Node implements KeyboardEvent {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new KeyPressEvent({
       key: objectValue["50"],
       code: objectValue["51"],
@@ -9291,10 +7793,6 @@ export class KeyPressEvent extends Node implements KeyboardEvent {
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -9323,14 +7821,6 @@ export class KeyPressEvent extends Node implements KeyboardEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
@@ -9391,28 +7881,6 @@ export class KeyPressEvent extends Node implements KeyboardEvent {
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -9449,14 +7917,10 @@ registerNodeClass(NodeType.KEY_PRESS_EVENT, KeyPressEvent);
 export class DragStartEvent extends Node implements DragEvent {
   static metatype: NodeType = NodeType.DRAG_START_EVENT;
   static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
-    TraitType.PARTICLE,
-    TraitType.ANALYTIC,
-    TraitType.FROZEN,
-    TraitType.TRACKED,
-    TraitType.EVENT,
     TraitType.DRAG_EVENT,
+    TraitType.SPATIAL,
     TraitType.INPUT_EVENT,
+    TraitType.EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -9489,40 +7953,6 @@ export class DragStartEvent extends Node implements DragEvent {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
-
-  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -9550,10 +7980,6 @@ export class DragStartEvent extends Node implements DragEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
@@ -9666,14 +8092,6 @@ export class DragStartEvent extends Node implements DragEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -9727,14 +8145,6 @@ export class DragStartEvent extends Node implements DragEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
-    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -9764,26 +8174,12 @@ export class DragStartEvent extends Node implements DragEvent {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new DragStartEvent({
       position: Vector2.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -9812,14 +8208,6 @@ export class DragStartEvent extends Node implements DragEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
@@ -9874,28 +8262,6 @@ export class DragStartEvent extends Node implements DragEvent {
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -9932,14 +8298,10 @@ registerNodeClass(NodeType.DRAG_START_EVENT, DragStartEvent);
 export class DragEndEvent extends Node implements DragEvent {
   static metatype: NodeType = NodeType.DRAG_END_EVENT;
   static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
-    TraitType.PARTICLE,
-    TraitType.ANALYTIC,
-    TraitType.FROZEN,
-    TraitType.TRACKED,
-    TraitType.EVENT,
     TraitType.DRAG_EVENT,
+    TraitType.SPATIAL,
     TraitType.INPUT_EVENT,
+    TraitType.EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -9972,40 +8334,6 @@ export class DragEndEvent extends Node implements DragEvent {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
-
-  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -10033,10 +8361,6 @@ export class DragEndEvent extends Node implements DragEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
@@ -10149,14 +8473,6 @@ export class DragEndEvent extends Node implements DragEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -10210,14 +8526,6 @@ export class DragEndEvent extends Node implements DragEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
-    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -10247,26 +8555,12 @@ export class DragEndEvent extends Node implements DragEvent {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new DragEndEvent({
       position: Vector2.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -10295,14 +8589,6 @@ export class DragEndEvent extends Node implements DragEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
@@ -10357,28 +8643,6 @@ export class DragEndEvent extends Node implements DragEvent {
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -10415,14 +8679,10 @@ registerNodeClass(NodeType.DRAG_END_EVENT, DragEndEvent);
 export class DragOverEvent extends Node implements DragEvent {
   static metatype: NodeType = NodeType.DRAG_OVER_EVENT;
   static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
-    TraitType.PARTICLE,
-    TraitType.ANALYTIC,
-    TraitType.FROZEN,
-    TraitType.TRACKED,
-    TraitType.EVENT,
     TraitType.DRAG_EVENT,
+    TraitType.SPATIAL,
     TraitType.INPUT_EVENT,
+    TraitType.EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -10455,40 +8715,6 @@ export class DragOverEvent extends Node implements DragEvent {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
-
-  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -10516,10 +8742,6 @@ export class DragOverEvent extends Node implements DragEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
@@ -10632,14 +8854,6 @@ export class DragOverEvent extends Node implements DragEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -10693,14 +8907,6 @@ export class DragOverEvent extends Node implements DragEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
-    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -10730,26 +8936,12 @@ export class DragOverEvent extends Node implements DragEvent {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new DragOverEvent({
       position: Vector2.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -10778,14 +8970,6 @@ export class DragOverEvent extends Node implements DragEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
@@ -10840,28 +9024,6 @@ export class DragOverEvent extends Node implements DragEvent {
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -10898,14 +9060,10 @@ registerNodeClass(NodeType.DRAG_OVER_EVENT, DragOverEvent);
 export class DragEnterEvent extends Node implements DragEvent {
   static metatype: NodeType = NodeType.DRAG_ENTER_EVENT;
   static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
-    TraitType.PARTICLE,
-    TraitType.ANALYTIC,
-    TraitType.FROZEN,
-    TraitType.TRACKED,
-    TraitType.EVENT,
     TraitType.DRAG_EVENT,
+    TraitType.SPATIAL,
     TraitType.INPUT_EVENT,
+    TraitType.EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -10938,40 +9096,6 @@ export class DragEnterEvent extends Node implements DragEvent {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
-
-  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -10999,10 +9123,6 @@ export class DragEnterEvent extends Node implements DragEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
@@ -11115,14 +9235,6 @@ export class DragEnterEvent extends Node implements DragEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -11176,14 +9288,6 @@ export class DragEnterEvent extends Node implements DragEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
-    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -11213,26 +9317,12 @@ export class DragEnterEvent extends Node implements DragEvent {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new DragEnterEvent({
       position: Vector2.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -11261,14 +9351,6 @@ export class DragEnterEvent extends Node implements DragEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
@@ -11323,28 +9405,6 @@ export class DragEnterEvent extends Node implements DragEvent {
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -11381,14 +9441,10 @@ registerNodeClass(NodeType.DRAG_ENTER_EVENT, DragEnterEvent);
 export class DragLeaveEvent extends Node implements DragEvent {
   static metatype: NodeType = NodeType.DRAG_LEAVE_EVENT;
   static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
-    TraitType.PARTICLE,
-    TraitType.ANALYTIC,
-    TraitType.FROZEN,
-    TraitType.TRACKED,
-    TraitType.EVENT,
     TraitType.DRAG_EVENT,
+    TraitType.SPATIAL,
     TraitType.INPUT_EVENT,
+    TraitType.EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -11421,40 +9477,6 @@ export class DragLeaveEvent extends Node implements DragEvent {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
-
-  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -11482,10 +9504,6 @@ export class DragLeaveEvent extends Node implements DragEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
@@ -11598,14 +9616,6 @@ export class DragLeaveEvent extends Node implements DragEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -11659,14 +9669,6 @@ export class DragLeaveEvent extends Node implements DragEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
-    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -11696,26 +9698,12 @@ export class DragLeaveEvent extends Node implements DragEvent {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new DragLeaveEvent({
       position: Vector2.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -11744,14 +9732,6 @@ export class DragLeaveEvent extends Node implements DragEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
@@ -11806,28 +9786,6 @@ export class DragLeaveEvent extends Node implements DragEvent {
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -11864,14 +9822,10 @@ registerNodeClass(NodeType.DRAG_LEAVE_EVENT, DragLeaveEvent);
 export class DropEvent extends Node implements DragEvent {
   static metatype: NodeType = NodeType.DROP_EVENT;
   static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
-    TraitType.PARTICLE,
-    TraitType.ANALYTIC,
-    TraitType.FROZEN,
-    TraitType.TRACKED,
-    TraitType.EVENT,
     TraitType.DRAG_EVENT,
+    TraitType.SPATIAL,
     TraitType.INPUT_EVENT,
+    TraitType.EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -11904,40 +9858,6 @@ export class DropEvent extends Node implements DragEvent {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
-
-  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -11965,10 +9885,6 @@ export class DropEvent extends Node implements DragEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     position: Vector2;
     _session?: Session | null;
@@ -12081,14 +9997,6 @@ export class DropEvent extends Node implements DragEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -12142,14 +10050,6 @@ export class DropEvent extends Node implements DragEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
-    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -12179,26 +10079,12 @@ export class DropEvent extends Node implements DragEvent {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new DropEvent({
       position: Vector2.fromValue(objectValue["50"], _session, _supergraph, _graph, _connection),
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -12227,14 +10113,6 @@ export class DropEvent extends Node implements DragEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
@@ -12289,28 +10167,6 @@ export class DropEvent extends Node implements DragEvent {
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -12349,12 +10205,8 @@ export class CopyEvent extends Node implements ClipboardEvent {
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.CLIPBOARD_EVENT,
-    TraitType.PARTICLE,
-    TraitType.ANALYTIC,
-    TraitType.FROZEN,
-    TraitType.TRACKED,
-    TraitType.EVENT,
     TraitType.INPUT_EVENT,
+    TraitType.EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -12387,40 +10239,6 @@ export class CopyEvent extends Node implements ClipboardEvent {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
-
-  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -12443,10 +10261,6 @@ export class CopyEvent extends Node implements ClipboardEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -12549,14 +10363,6 @@ export class CopyEvent extends Node implements ClipboardEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -12610,14 +10416,6 @@ export class CopyEvent extends Node implements ClipboardEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
-    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -12646,25 +10444,11 @@ export class CopyEvent extends Node implements ClipboardEvent {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new CopyEvent({
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -12693,14 +10477,6 @@ export class CopyEvent extends Node implements ClipboardEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
@@ -12747,28 +10523,6 @@ export class CopyEvent extends Node implements ClipboardEvent {
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -12807,12 +10561,8 @@ export class CutEvent extends Node implements ClipboardEvent {
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.CLIPBOARD_EVENT,
-    TraitType.PARTICLE,
-    TraitType.ANALYTIC,
-    TraitType.FROZEN,
-    TraitType.TRACKED,
-    TraitType.EVENT,
     TraitType.INPUT_EVENT,
+    TraitType.EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -12845,40 +10595,6 @@ export class CutEvent extends Node implements ClipboardEvent {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
-
-  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -12901,10 +10617,6 @@ export class CutEvent extends Node implements ClipboardEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -13007,14 +10719,6 @@ export class CutEvent extends Node implements ClipboardEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -13068,14 +10772,6 @@ export class CutEvent extends Node implements ClipboardEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
-    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -13104,25 +10800,11 @@ export class CutEvent extends Node implements ClipboardEvent {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new CutEvent({
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -13151,14 +10833,6 @@ export class CutEvent extends Node implements ClipboardEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
@@ -13205,28 +10879,6 @@ export class CutEvent extends Node implements ClipboardEvent {
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -13265,12 +10917,8 @@ export class PasteEvent extends Node implements ClipboardEvent {
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.CLIPBOARD_EVENT,
-    TraitType.PARTICLE,
-    TraitType.ANALYTIC,
-    TraitType.FROZEN,
-    TraitType.TRACKED,
-    TraitType.EVENT,
     TraitType.INPUT_EVENT,
+    TraitType.EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -13303,40 +10951,6 @@ export class PasteEvent extends Node implements ClipboardEvent {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
-
-  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -13359,10 +10973,6 @@ export class PasteEvent extends Node implements ClipboardEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -13465,14 +11075,6 @@ export class PasteEvent extends Node implements ClipboardEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -13526,14 +11128,6 @@ export class PasteEvent extends Node implements ClipboardEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
-    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -13562,25 +11156,11 @@ export class PasteEvent extends Node implements ClipboardEvent {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new PasteEvent({
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -13609,14 +11189,6 @@ export class PasteEvent extends Node implements ClipboardEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
@@ -13663,28 +11235,6 @@ export class PasteEvent extends Node implements ClipboardEvent {
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -13722,13 +11272,9 @@ export class FocusInEvent extends Node implements FocusEvent {
   static metatype: NodeType = NodeType.FOCUS_IN_EVENT;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
-    TraitType.PARTICLE,
-    TraitType.ANALYTIC,
-    TraitType.FOCUS_EVENT,
-    TraitType.FROZEN,
-    TraitType.TRACKED,
-    TraitType.EVENT,
     TraitType.INPUT_EVENT,
+    TraitType.FOCUS_EVENT,
+    TraitType.EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -13761,40 +11307,6 @@ export class FocusInEvent extends Node implements FocusEvent {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
-
-  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -13817,10 +11329,6 @@ export class FocusInEvent extends Node implements FocusEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -13923,14 +11431,6 @@ export class FocusInEvent extends Node implements FocusEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -13984,14 +11484,6 @@ export class FocusInEvent extends Node implements FocusEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
-    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -14020,25 +11512,11 @@ export class FocusInEvent extends Node implements FocusEvent {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new FocusInEvent({
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -14067,14 +11545,6 @@ export class FocusInEvent extends Node implements FocusEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
@@ -14121,28 +11591,6 @@ export class FocusInEvent extends Node implements FocusEvent {
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -14180,13 +11628,9 @@ export class FocusOutEvent extends Node implements FocusEvent {
   static metatype: NodeType = NodeType.FOCUS_OUT_EVENT;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
-    TraitType.PARTICLE,
-    TraitType.ANALYTIC,
-    TraitType.FOCUS_EVENT,
-    TraitType.FROZEN,
-    TraitType.TRACKED,
-    TraitType.EVENT,
     TraitType.INPUT_EVENT,
+    TraitType.FOCUS_EVENT,
+    TraitType.EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -14219,40 +11663,6 @@ export class FocusOutEvent extends Node implements FocusEvent {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
-
-  /**
    * The Node this Event is about.
    */
   get node(): Node | null {
@@ -14275,10 +11685,6 @@ export class FocusOutEvent extends Node implements FocusEvent {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
     node?: Node | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -14381,14 +11787,6 @@ export class FocusOutEvent extends Node implements FocusEvent {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -14442,14 +11840,6 @@ export class FocusOutEvent extends Node implements FocusEvent {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
-    }
     if (object.nodePtr != null) {
       objectValue["35"] = object.nodePtr.toValue();
     }
@@ -14478,25 +11868,11 @@ export class FocusOutEvent extends Node implements FocusEvent {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new FocusOutEvent({
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -14525,14 +11901,6 @@ export class FocusOutEvent extends Node implements FocusEvent {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
@@ -14579,28 +11947,6 @@ export class FocusOutEvent extends Node implements FocusEvent {
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,

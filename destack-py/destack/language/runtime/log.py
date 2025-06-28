@@ -1,14 +1,12 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
-    Analytic,
     Enum,
     EnumType,
-    IsFrozen,
+    Event,
     Json,
     Node,
     NodeType,
-    Spatial,
     builtin_enum,
     builtin_node,
     property_,
@@ -34,9 +32,7 @@ class LogLevel(Enum):
 
 @builtin_node(NodeType.LOG, pretend_frozen=True)
 class Log(
-    Spatial,
-    Analytic,
-    IsFrozen,
+    Event,
     Node[LogProto],
 ):
     """A Log message."""

@@ -40,7 +40,6 @@ import type {
   PolygonShapeType,
 } from "@destack/language/canvas";
 import type {
-  Analytic,
   CascadeAction,
   ClientType,
   Cloud,
@@ -62,7 +61,6 @@ import type {
   IsDeletable,
   IsExtensible,
   IsFollowable,
-  IsFrozen,
   IsJoinable,
   IsOrdered,
   IsOwnable,
@@ -89,7 +87,6 @@ import type {
   NodePermission,
   NodeType,
   OperatingSystem,
-  Particle,
   PlatformType,
   PrimitiveType,
   Region,
@@ -586,7 +583,6 @@ export type TraitTypeMapping = {
   [TraitType.HAS_ICON]: HasIcon;
   [TraitType.TRACKED]: IsTracked;
   [TraitType.VISUAL]: IsVisual;
-  [TraitType.FROZEN]: IsFrozen;
   [TraitType.ARCHIVABLE]: IsArchivable;
   [TraitType.DELETABLE]: IsDeletable;
   [TraitType.CUSTOM_NODE_DEFINITION]: IsCustomNodeDefinition;
@@ -613,12 +609,10 @@ export type TraitTypeMapping = {
   [TraitType.GLOBAL]: Global;
   [TraitType.SPATIAL]: Spatial;
   [TraitType.ENTITY]: Entity;
-  [TraitType.PARTICLE]: Particle;
-  [TraitType.ANALYTIC]: Analytic;
+  [TraitType.EVENT]: Event;
   [TraitType.RESOURCE]: Resource;
   [TraitType.METRIC]: Metric;
   [TraitType.MEASUREMENT]: Measurement;
-  [TraitType.EVENT]: Event;
   [TraitType.VIEW_EVENT]: ViewEvent;
   [TraitType.VIEW]: View;
   [TraitType.CONTAINER_VIEW]: ContainerView;

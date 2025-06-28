@@ -445,14 +445,7 @@ registerNodeClass(NodeType.FRIENDSHIP, Friendship);
  */
 export class FriendshipInviteSentEvent extends Node implements Event {
   static metatype: NodeType = NodeType.FRIENDSHIP_INVITE_SENT_EVENT;
-  static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
-    TraitType.PARTICLE,
-    TraitType.ANALYTIC,
-    TraitType.FROZEN,
-    TraitType.TRACKED,
-    TraitType.EVENT,
-  ];
+  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -484,40 +477,6 @@ export class FriendshipInviteSentEvent extends Node implements Event {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
-
-  /**
    * FriendshipInviteSentEvent.node
    */
   get node(): FriendshipInvite | null {
@@ -536,10 +495,6 @@ export class FriendshipInviteSentEvent extends Node implements Event {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
     node: FriendshipInvite | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -643,14 +598,6 @@ export class FriendshipInviteSentEvent extends Node implements Event {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -704,14 +651,6 @@ export class FriendshipInviteSentEvent extends Node implements Event {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
-    }
     objectValue["35"] = object.nodePtr.toValue();
     return objectValue;
   }
@@ -733,25 +672,11 @@ export class FriendshipInviteSentEvent extends Node implements Event {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new FriendshipInviteSentEvent({
       node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -786,14 +711,6 @@ export class FriendshipInviteSentEvent extends Node implements Event {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     objectProto.nodePtr = object.nodePtr.toProto();
     return objectProto as FriendshipInviteSentEventProto;
@@ -835,28 +752,6 @@ export class FriendshipInviteSentEvent extends Node implements Event {
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -898,14 +793,7 @@ registerNodeClass(NodeType.FRIENDSHIP_INVITE_SENT_EVENT, FriendshipInviteSentEve
  */
 export class FriendshipInviteRescindedEvent extends Node implements Event {
   static metatype: NodeType = NodeType.FRIENDSHIP_INVITE_RESCINDED_EVENT;
-  static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
-    TraitType.PARTICLE,
-    TraitType.ANALYTIC,
-    TraitType.FROZEN,
-    TraitType.TRACKED,
-    TraitType.EVENT,
-  ];
+  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -937,40 +825,6 @@ export class FriendshipInviteRescindedEvent extends Node implements Event {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
-
-  /**
    * FriendshipInviteRescindedEvent.node
    */
   get node(): FriendshipInvite | null {
@@ -989,10 +843,6 @@ export class FriendshipInviteRescindedEvent extends Node implements Event {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
     node: FriendshipInvite | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -1096,14 +946,6 @@ export class FriendshipInviteRescindedEvent extends Node implements Event {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -1157,14 +999,6 @@ export class FriendshipInviteRescindedEvent extends Node implements Event {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
-    }
     objectValue["35"] = object.nodePtr.toValue();
     return objectValue;
   }
@@ -1186,25 +1020,11 @@ export class FriendshipInviteRescindedEvent extends Node implements Event {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new FriendshipInviteRescindedEvent({
       node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -1241,14 +1061,6 @@ export class FriendshipInviteRescindedEvent extends Node implements Event {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     objectProto.nodePtr = object.nodePtr.toProto();
     return objectProto as FriendshipInviteRescindedEventProto;
@@ -1290,28 +1102,6 @@ export class FriendshipInviteRescindedEvent extends Node implements Event {
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -1353,14 +1143,7 @@ registerNodeClass(NodeType.FRIENDSHIP_INVITE_RESCINDED_EVENT, FriendshipInviteRe
  */
 export class FriendshipInviteAcceptedEvent extends Node implements Event {
   static metatype: NodeType = NodeType.FRIENDSHIP_INVITE_ACCEPTED_EVENT;
-  static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
-    TraitType.PARTICLE,
-    TraitType.ANALYTIC,
-    TraitType.FROZEN,
-    TraitType.TRACKED,
-    TraitType.EVENT,
-  ];
+  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -1392,40 +1175,6 @@ export class FriendshipInviteAcceptedEvent extends Node implements Event {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
-
-  /**
    * FriendshipInviteAcceptedEvent.node
    */
   get node(): FriendshipInvite | null {
@@ -1444,10 +1193,6 @@ export class FriendshipInviteAcceptedEvent extends Node implements Event {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
     node: FriendshipInvite | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -1551,14 +1296,6 @@ export class FriendshipInviteAcceptedEvent extends Node implements Event {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -1612,14 +1349,6 @@ export class FriendshipInviteAcceptedEvent extends Node implements Event {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
-    }
     objectValue["35"] = object.nodePtr.toValue();
     return objectValue;
   }
@@ -1641,25 +1370,11 @@ export class FriendshipInviteAcceptedEvent extends Node implements Event {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new FriendshipInviteAcceptedEvent({
       node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -1694,14 +1409,6 @@ export class FriendshipInviteAcceptedEvent extends Node implements Event {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     objectProto.nodePtr = object.nodePtr.toProto();
     return objectProto as FriendshipInviteAcceptedEventProto;
@@ -1743,28 +1450,6 @@ export class FriendshipInviteAcceptedEvent extends Node implements Event {
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -1806,14 +1491,7 @@ registerNodeClass(NodeType.FRIENDSHIP_INVITE_ACCEPTED_EVENT, FriendshipInviteAcc
  */
 export class FriendshipInviteRejectedEvent extends Node implements Event {
   static metatype: NodeType = NodeType.FRIENDSHIP_INVITE_REJECTED_EVENT;
-  static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
-    TraitType.PARTICLE,
-    TraitType.ANALYTIC,
-    TraitType.FROZEN,
-    TraitType.TRACKED,
-    TraitType.EVENT,
-  ];
+  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -1845,40 +1523,6 @@ export class FriendshipInviteRejectedEvent extends Node implements Event {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
-
-  /**
    * FriendshipInviteRejectedEvent.node
    */
   get node(): FriendshipInvite | null {
@@ -1897,10 +1541,6 @@ export class FriendshipInviteRejectedEvent extends Node implements Event {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
     node: FriendshipInvite | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -2004,14 +1644,6 @@ export class FriendshipInviteRejectedEvent extends Node implements Event {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -2065,14 +1697,6 @@ export class FriendshipInviteRejectedEvent extends Node implements Event {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
-    }
     objectValue["35"] = object.nodePtr.toValue();
     return objectValue;
   }
@@ -2094,25 +1718,11 @@ export class FriendshipInviteRejectedEvent extends Node implements Event {
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new FriendshipInviteRejectedEvent({
       node: NodeReference.fromValue(objectValue["35"], _session, _supergraph, _graph, _connection),
       parent: unpackedParentPtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -2147,14 +1757,6 @@ export class FriendshipInviteRejectedEvent extends Node implements Event {
     }
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     objectProto.nodePtr = object.nodePtr.toProto();
     return objectProto as FriendshipInviteRejectedEventProto;
@@ -2196,28 +1798,6 @@ export class FriendshipInviteRejectedEvent extends Node implements Event {
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,

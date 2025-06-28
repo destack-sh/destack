@@ -388,11 +388,9 @@ class TraitType(Enum):
     # LOCAL?
     # kind
     ENTITY = 10, "Entity", "Is an Entity", "fas fa-hexagon"
-    PARTICLE = 11, "Particle", "Is a Particle", "fas fa-atom"
-    ANALYTIC = 12, "Analytic", "Is an Analytic", "fas fa-chart-line"
+    EVENT = 22, "Event", "Is an Event", "fas fa-bolt"
     # type
     RESOURCE = 21, "Resource", "Is a Resource", "fas fa-server"
-    EVENT = 22, "Event", "Is an Event", "fas fa-bolt"
     CUSTOM_NODE_DEFINITION = (
         23,
         "Custom Node Definition",
@@ -401,7 +399,6 @@ class TraitType(Enum):
     )
     CUSTOM_NODE = 24, "Custom Node", "Is a Custom Node", "fas fa-database"
     # behavior
-    FROZEN = 50, "Frozen", "Is frozen", "fas fa-snowflake"
     TRACKED = 51, "Tracked", "Is tracked", "fas fa-clock"
     ARCHIVABLE = 52, "Archivable", "Can be archived", "fas fa-box-archive"
     DELETABLE = 53, "Deletable", "Can be deleted", "fas fa-trash"

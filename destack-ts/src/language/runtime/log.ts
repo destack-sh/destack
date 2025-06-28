@@ -1,18 +1,10 @@
-import {
-  packProtoJson,
-  packProtoTimestamp,
-  unpackProtoJson,
-  unpackProtoTimestamp,
-} from "@destack/grpc";
+import { packProtoJson, unpackProtoJson } from "@destack/grpc";
 import { Graph, NodeReference, QueryConnection, Session, Supergraph } from "@destack/language/core";
 import {
-  Analytic,
   EnumType,
-  IsFrozen,
-  IsSubject,
+  Event,
   Node,
   NodeType,
-  Spatial,
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
@@ -46,14 +38,9 @@ registerEnumClass(EnumType.LOG_LEVEL, LogLevel);
 /**
  * A Log message.
  */
-export class Log extends Node implements Spatial, Analytic, IsFrozen {
+export class Log extends Node implements Event {
   static metatype: NodeType = NodeType.LOG;
-  static __traits__: TraitType[] = [
-    TraitType.SPATIAL,
-    TraitType.TRACKED,
-    TraitType.ANALYTIC,
-    TraitType.FROZEN,
-  ];
+  static __traits__: TraitType[] = [TraitType.SPATIAL, TraitType.EVENT];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];
@@ -85,38 +72,23 @@ export class Log extends Node implements Spatial, Analytic, IsFrozen {
   readonly spacePtr: NodeReference | null;
 
   /**
-   * IsTracked.createdAt
+   * The Node this Event is about.
    */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.createdBy
-   */
-  get createdBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
+  get node(): Node | null {
+    const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
   }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * IsTracked.updatedAt
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * IsTracked.updatedBy
-   */
-  get updatedBy(): (Node & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+  set node(node: Node | null) {
+    if (node === null) {
+      this.nodePtr = null;
+    } else {
+      this.nodePtr = node.toRef();
     }
-    return null;
   }
-  readonly updatedByPtr: NodeReference | null;
+  nodePtr: NodeReference | null;
 
   /**
    * Log.content
@@ -137,10 +109,7 @@ export class Log extends Node implements Spatial, Analytic, IsFrozen {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
+    node?: Node | NodeReference | null;
     content: string;
     attributes?: Map<string, any>;
     level: LogLevel;
@@ -183,6 +152,11 @@ export class Log extends Node implements Spatial, Analytic, IsFrozen {
       _space = _space.toRef();
     }
     this.spacePtr = _space;
+    let _node = options.node ?? null;
+    if (_node != null && _node instanceof Node) {
+      _node = _node.toRef();
+    }
+    this.nodePtr = _node;
     let _content = options.content;
     if (_content === null) {
       throw new Error(`Log.content is required`);
@@ -242,6 +216,9 @@ export class Log extends Node implements Spatial, Analytic, IsFrozen {
     if (!(this.level === other.level)) {
       return false;
     }
+    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
+      return false;
+    }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
@@ -262,18 +239,13 @@ export class Log extends Node implements Spatial, Analytic, IsFrozen {
       }
     }
     h = (h * 31 + this.level) & 0xffffffff;
+    if (this.nodePtr !== null) {
+      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -327,13 +299,8 @@ export class Log extends Node implements Spatial, Analytic, IsFrozen {
     if (object.spacePtr != null) {
       objectValue["5"] = object.spacePtr.toValue();
     }
-    objectValue["15"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["16"] = object.createdByPtr.toValue();
-    }
-    objectValue["17"] = object.updatedAt.toString({ timeZoneName: "never" });
-    if (object.updatedByPtr != null) {
-      objectValue["18"] = object.updatedByPtr.toValue();
+    if (object.nodePtr != null) {
+      objectValue["35"] = object.nodePtr.toValue();
     }
     objectValue["40"] = object.content;
     if (object.attributes.size > 0) {
@@ -365,32 +332,24 @@ export class Log extends Node implements Spatial, Analytic, IsFrozen {
         unpackedAttributes.set(key, value as any);
       }
     }
+    const nodePtrValue = objectValue["35"];
+    const unpackedNodePtr =
+      nodePtrValue != undefined
+        ? NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
         ? NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const createdByPtrValue = objectValue["16"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["18"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Log({
       parent: unpackedParentPtr,
       content: objectValue["40"],
       attributes: unpackedAttributes,
       level: Number(objectValue["42"]),
+      node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
-      createdAt: Temporal.Instant.from(objectValue["15"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["17"]).toZonedDateTimeISO("UTC"),
-      updatedBy: unpackedUpdatedByPtr,
       _session,
       _graph,
       _connection,
@@ -420,13 +379,8 @@ export class Log extends Node implements Spatial, Analytic, IsFrozen {
     if (object.spacePtr != null) {
       objectProto.spacePtr = object.spacePtr.toProto();
     }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    if (object.nodePtr != null) {
+      objectProto.nodePtr = object.nodePtr.toProto();
     }
     objectProto.content = object.content;
     if (object.attributes) {
@@ -466,6 +420,16 @@ export class Log extends Node implements Spatial, Analytic, IsFrozen {
       content: objectProto.content,
       attributes: unpackedAttributes,
       level: Number(objectProto.level) as LogLevel,
+      node:
+        objectProto.nodePtr != undefined
+          ? NodeReference.fromProto(
+              objectProto.nodePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       space:
         objectProto.spacePtr != undefined
           ? NodeReference.fromProto(
@@ -477,28 +441,6 @@ export class Log extends Node implements Spatial, Analytic, IsFrozen {
             )
           : null,
       id: String(objectProto.id),
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
