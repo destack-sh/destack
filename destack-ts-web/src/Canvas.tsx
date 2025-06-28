@@ -1,17 +1,20 @@
 import { renderStroke } from "@destack-web/shared/freehand/svg";
 import { computed, Signal, signal } from "@preact/signals-react";
-import { Easing, Line, Stroke, StrokeCap, StrokeType, Vector3 } from "destack";
+import { Easing, Line, Stroke, StrokeCap, StrokeType, Vector2 } from "destack";
 import React, { useRef } from "react";
+
+// nocheckin
+const 
 
 const size = signal(12);
 const thinning = signal(0.5);
-const smoothing = signal(0.4);
-const streamline = signal(0.2);
+const smoothing = signal(0.6);
+const streamline = signal(0.6);
 const simulatePressure = signal(true);
 const taperStart = signal(false);
 const taperEnd = signal(false);
 const isDrawing = signal(false);
-const lastMousePosition = signal<Vector3 | null>(null);
+const lastMousePosition = signal<Vector2 | null>(null);
 const strokeOptions: Signal<Stroke> = computed(
   () =>
     new Stroke({
@@ -42,15 +45,14 @@ const selectedLine = signal<Line | null>(null);
 export const Canvas: React.FC = () => {
   const svgRef = useRef<SVGSVGElement>(null);
 
-  const getMousePosition = (event: React.MouseEvent<SVGSVGElement>): Vector3 => {
+  const getMousePosition = (event: React.MouseEvent<SVGSVGElement>): Vector2 => {
     if (!svgRef.current) {
       throw new Error("SVG element not found");
     }
     const rect = svgRef.current.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
-    const pressure = 1.0;
-    return new Vector3({ x, y, z: pressure });
+    return new Vector2({ x, y });
   };
 
   // begin drawing on mouse down

@@ -9,7 +9,7 @@ import {
   StructType,
   TraitType,
 } from "@destack/language/core/builtin";
-import { Align, Dimension, Position, Vector3 } from "@destack/language/core/common";
+import { Align, Dimension, Position, Vector2 } from "@destack/language/core/common";
 import { Script } from "@destack/language/logic";
 import { registerNodeClass, registerStructClass } from "@destack/language/registry";
 import { Layer, Scene, Window } from "@destack/language/scene";
@@ -230,7 +230,7 @@ export class LineShape extends Node implements ContentView, IsShape {
   /**
    * LineShape.points
    */
-  points: Array<Vector3>;
+  points: Array<Vector2>;
 
   /**
    * LineShape.stroke
@@ -277,7 +277,7 @@ export class LineShape extends Node implements ContentView, IsShape {
     align?: Align | null;
     isVisible?: boolean | null;
     opacity?: number | null;
-    points?: Array<Vector3>;
+    points?: Array<Vector2>;
     stroke?: Stroke | null;
     script?: Script | NodeReference | null;
     _session?: Session | null;
@@ -673,7 +673,7 @@ export class LineShape extends Node implements ContentView, IsShape {
     const unpackedPoints: any[] = [];
     if (objectValue["100"] != undefined) {
       for (const item of objectValue["100"]) {
-        unpackedPoints.push(Vector3.fromValue(item, _session, _supergraph, _graph, _connection));
+        unpackedPoints.push(Vector2.fromValue(item, _session, _supergraph, _graph, _connection));
       }
     }
     const strokeValue = objectValue["101"];
@@ -874,7 +874,7 @@ export class LineShape extends Node implements ContentView, IsShape {
     const unpackedPoints: any[] = [];
     if (objectProto.points) {
       for (const item of objectProto.points) {
-        unpackedPoints.push(Vector3.fromProto(item!, _session, _supergraph, _graph, _connection));
+        unpackedPoints.push(Vector2.fromProto(item!, _session, _supergraph, _graph, _connection));
       }
     }
     return new LineShape({
@@ -1011,7 +1011,7 @@ export class Line extends StructFrozen {
   /**
    * Line.points
    */
-  readonly points: Array<Vector3>;
+  readonly points: Array<Vector2>;
 
   /**
    * Line.stroke
@@ -1019,7 +1019,7 @@ export class Line extends StructFrozen {
   readonly stroke: Stroke | null;
 
   constructor(options: {
-    points?: Array<Vector3>;
+    points?: Array<Vector2>;
     stroke?: Stroke | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -1152,7 +1152,7 @@ export class Line extends StructFrozen {
     const unpackedPoints: any[] = [];
     if (objectValue["100"] != undefined) {
       for (const item of objectValue["100"]) {
-        unpackedPoints.push(Vector3.fromValue(item, _session, _supergraph, _graph, _connection));
+        unpackedPoints.push(Vector2.fromValue(item, _session, _supergraph, _graph, _connection));
       }
     }
     const strokeValue = objectValue["101"];
@@ -1211,7 +1211,7 @@ export class Line extends StructFrozen {
     const unpackedPoints: any[] = [];
     if (objectProto.points) {
       for (const item of objectProto.points) {
-        unpackedPoints.push(Vector3.fromProto(item!, _session, _supergraph, _graph, _connection));
+        unpackedPoints.push(Vector2.fromProto(item!, _session, _supergraph, _graph, _connection));
       }
     }
     return new Line({

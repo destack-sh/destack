@@ -282,10 +282,14 @@ export class Vector2 extends StructFrozen {
 
   /** Get the absolute value of a vector. */
   abs(): Vector2 {
-    return new Vector2({
-      x: Math.abs(this.x),
-      y: Math.abs(this.y),
-    });
+    if (this.x >= 0 && this.y >= 0) {
+      return this;
+    } else {
+      return new Vector2({
+        x: Math.abs(this.x),
+        y: Math.abs(this.y),
+      });
+    }
   }
 
   /**
@@ -661,11 +665,15 @@ export class Vector3 extends StructFrozen {
 
   /** Get the absolute value of a vector. */
   abs(): Vector3 {
-    return new Vector3({
-      x: Math.abs(this.x),
-      y: Math.abs(this.y),
-      z: Math.abs(this.z),
-    });
+    if (this.x >= 0 && this.y >= 0 && this.z >= 0) {
+      return this;
+    } else {
+      return new Vector3({
+        x: Math.abs(this.x),
+        y: Math.abs(this.y),
+        z: Math.abs(this.z),
+      });
+    }
   }
 
   /**
@@ -1086,12 +1094,16 @@ export class Vector4 extends StructFrozen {
 
   /** Get the absolute value of a vector. */
   abs(): Vector4 {
-    return new Vector4({
-      x: Math.abs(this.x),
-      y: Math.abs(this.y),
-      z: Math.abs(this.z),
-      w: Math.abs(this.w),
-    });
+    if (this.x >= 0 && this.y >= 0 && this.z >= 0 && this.w >= 0) {
+      return this;
+    } else {
+      return new Vector4({
+        x: Math.abs(this.x),
+        y: Math.abs(this.y),
+        z: Math.abs(this.z),
+        w: Math.abs(this.w),
+      });
+    }
   }
 
   /**
@@ -1457,10 +1469,14 @@ export class Vector2i extends StructFrozen {
 
   /** Get the absolute value of a vector. */
   abs(): Vector2i {
-    return new Vector2i({
-      x: Math.abs(this.x),
-      y: Math.abs(this.y),
-    });
+    if (this.x >= 0 && this.y >= 0) {
+      return this;
+    } else {
+      return new Vector2i({
+        x: Math.abs(this.x),
+        y: Math.abs(this.y),
+      });
+    }
   }
 
   /**
@@ -1825,11 +1841,15 @@ export class Vector3i extends StructFrozen {
 
   /** Get the absolute value of a vector. */
   abs(): Vector3i {
-    return new Vector3i({
-      x: Math.abs(this.x),
-      y: Math.abs(this.y),
-      z: Math.abs(this.z),
-    });
+    if (this.x >= 0 && this.y >= 0 && this.z >= 0) {
+      return this;
+    } else {
+      return new Vector3i({
+        x: Math.abs(this.x),
+        y: Math.abs(this.y),
+        z: Math.abs(this.z),
+      });
+    }
   }
 
   /**
@@ -2239,12 +2259,16 @@ export class Vector4i extends StructFrozen {
 
   /** Get the absolute value of a vector. */
   abs(): Vector4i {
-    return new Vector4i({
-      x: Math.abs(this.x),
-      y: Math.abs(this.y),
-      z: Math.abs(this.z),
-      w: Math.abs(this.w),
-    });
+    if (this.x >= 0 && this.y >= 0 && this.z >= 0 && this.w >= 0) {
+      return this;
+    } else {
+      return new Vector4i({
+        x: Math.abs(this.x),
+        y: Math.abs(this.y),
+        z: Math.abs(this.z),
+        w: Math.abs(this.w),
+      });
+    }
   }
 
   /**
@@ -2252,6 +2276,18 @@ export class Vector4i extends StructFrozen {
    */
   dot(other: Vector4i): number {
     return this.x * other.x + this.y * other.y + this.z * other.z + this.w * other.w;
+  }
+
+  /**
+   * Calculate the cross product with another vector.
+   */
+  cross(other: Vector4i): Vector4i {
+    return new Vector4i({
+      x: this.y * other.z - this.z * other.y + this.w * other.x - this.x * other.w,
+      y: this.z * other.w - this.w * other.z + this.x * other.y - this.y * other.x,
+      z: this.w * other.x - this.x * other.w + this.y * other.z - this.z * other.y,
+      w: this.x * other.y - this.y * other.x + this.z * other.w - this.w * other.z,
+    });
   }
 
   /**

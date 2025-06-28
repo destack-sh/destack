@@ -6011,9 +6011,9 @@ export interface LineProto {
      */
     metatype: StructTypeProto;
     /**
-     * @generated from protobuf field: repeated symbol.destack.Vector3Proto points = 100
+     * @generated from protobuf field: repeated symbol.destack.Vector2Proto points = 100
      */
-    points: Vector3Proto[];
+    points: Vector2Proto[];
     /**
      * @generated from protobuf field: optional symbol.destack.StrokeProto stroke = 101
      */
@@ -6110,9 +6110,9 @@ export interface LineShapeProto {
      */
     opacity?: number;
     /**
-     * @generated from protobuf field: repeated symbol.destack.Vector3Proto points = 100
+     * @generated from protobuf field: repeated symbol.destack.Vector2Proto points = 100
      */
-    points: Vector3Proto[];
+    points: Vector2Proto[];
     /**
      * @generated from protobuf field: optional symbol.destack.StrokeProto stroke = 101
      */
@@ -8040,9 +8040,9 @@ export interface PolygonProto {
      */
     type: PolygonShapeTypeProto;
     /**
-     * @generated from protobuf field: repeated symbol.destack.Vector3Proto points = 100
+     * @generated from protobuf field: repeated symbol.destack.Vector2Proto points = 100
      */
-    points: Vector3Proto[];
+    points: Vector2Proto[];
 }
 /**
  * A PolygonShape is a shape that represents a polygon.
@@ -8209,9 +8209,9 @@ export interface PolygonShapeProto {
      */
     radius?: CornersProto;
     /**
-     * @generated from protobuf field: repeated symbol.destack.Vector3Proto points = 100
+     * @generated from protobuf field: repeated symbol.destack.Vector2Proto points = 100
      */
-    points: Vector3Proto[];
+    points: Vector2Proto[];
     /**
      * @generated from protobuf field: optional symbol.destack.StrokeProto stroke = 101
      */
@@ -10909,6 +10909,10 @@ export interface StrokeProto {
      * @generated from protobuf field: optional symbol.destack.StrokeCapProto end = 61
      */
     end?: StrokeCapProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.ColorProto color = 70
+     */
+    color?: ColorProto;
 }
 /**
  * @generated from protobuf message symbol.destack.StrokeCapProto
@@ -10953,21 +10957,21 @@ export interface StrokePointProto {
      */
     metatype: StructTypeProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector3Proto point = 50
+     * @generated from protobuf field: symbol.destack.Vector2Proto point = 50
      */
-    point?: Vector3Proto;
+    point?: Vector2Proto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector3Proto original_point = 51
+     * @generated from protobuf field: symbol.destack.Vector2Proto original_point = 51
      */
-    originalPoint?: Vector3Proto;
+    originalPoint?: Vector2Proto;
     /**
      * @generated from protobuf field: double pressure = 52
      */
     pressure: number;
     /**
-     * @generated from protobuf field: symbol.destack.Vector3Proto direction = 53
+     * @generated from protobuf field: symbol.destack.Vector2Proto direction = 53
      */
-    direction?: Vector3Proto;
+    direction?: Vector2Proto;
     /**
      * @generated from protobuf field: double distance = 54
      */
@@ -32970,7 +32974,7 @@ class LineProto$Type extends MessageType<LineProto> {
     constructor() {
         super("symbol.destack.LineProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
-            { no: 100, name: "points", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => Vector3Proto },
+            { no: 100, name: "points", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => Vector2Proto },
             { no: 101, name: "stroke", kind: "message", T: () => StrokeProto }
         ]);
     }
@@ -32990,8 +32994,8 @@ class LineProto$Type extends MessageType<LineProto> {
                 case /* symbol.destack.StructTypeProto metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* repeated symbol.destack.Vector3Proto points */ 100:
-                    message.points.push(Vector3Proto.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbol.destack.Vector2Proto points */ 100:
+                    message.points.push(Vector2Proto.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* optional symbol.destack.StrokeProto stroke */ 101:
                     message.stroke = StrokeProto.internalBinaryRead(reader, reader.uint32(), options, message.stroke);
@@ -33011,9 +33015,9 @@ class LineProto$Type extends MessageType<LineProto> {
         /* symbol.destack.StructTypeProto metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* repeated symbol.destack.Vector3Proto points = 100; */
+        /* repeated symbol.destack.Vector2Proto points = 100; */
         for (let i = 0; i < message.points.length; i++)
-            Vector3Proto.internalBinaryWrite(message.points[i], writer.tag(100, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.points[i], writer.tag(100, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.destack.StrokeProto stroke = 101; */
         if (message.stroke)
             StrokeProto.internalBinaryWrite(message.stroke, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
@@ -33052,7 +33056,7 @@ class LineShapeProto$Type extends MessageType<LineShapeProto> {
             { no: 53, name: "align", kind: "enum", opt: true, T: () => ["symbol.destack.AlignProto", AlignProto] },
             { no: 60, name: "is_visible", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 61, name: "opacity", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
-            { no: 100, name: "points", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => Vector3Proto },
+            { no: 100, name: "points", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => Vector2Proto },
             { no: 101, name: "stroke", kind: "message", T: () => StrokeProto },
             { no: 200, name: "script_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -33136,8 +33140,8 @@ class LineShapeProto$Type extends MessageType<LineShapeProto> {
                 case /* optional double opacity */ 61:
                     message.opacity = reader.double();
                     break;
-                case /* repeated symbol.destack.Vector3Proto points */ 100:
-                    message.points.push(Vector3Proto.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbol.destack.Vector2Proto points */ 100:
+                    message.points.push(Vector2Proto.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* optional symbol.destack.StrokeProto stroke */ 101:
                     message.stroke = StrokeProto.internalBinaryRead(reader, reader.uint32(), options, message.stroke);
@@ -33220,9 +33224,9 @@ class LineShapeProto$Type extends MessageType<LineShapeProto> {
         /* optional double opacity = 61; */
         if (message.opacity !== undefined)
             writer.tag(61, WireType.Bit64).double(message.opacity);
-        /* repeated symbol.destack.Vector3Proto points = 100; */
+        /* repeated symbol.destack.Vector2Proto points = 100; */
         for (let i = 0; i < message.points.length; i++)
-            Vector3Proto.internalBinaryWrite(message.points[i], writer.tag(100, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.points[i], writer.tag(100, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.destack.StrokeProto stroke = 101; */
         if (message.stroke)
             StrokeProto.internalBinaryWrite(message.stroke, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
@@ -37745,7 +37749,7 @@ class PolygonProto$Type extends MessageType<PolygonProto> {
         super("symbol.destack.PolygonProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbol.destack.PolygonShapeTypeProto", PolygonShapeTypeProto] },
-            { no: 100, name: "points", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => Vector3Proto }
+            { no: 100, name: "points", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => Vector2Proto }
         ]);
     }
     create(value?: PartialMessage<PolygonProto>): PolygonProto {
@@ -37768,8 +37772,8 @@ class PolygonProto$Type extends MessageType<PolygonProto> {
                 case /* symbol.destack.PolygonShapeTypeProto type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* repeated symbol.destack.Vector3Proto points */ 100:
-                    message.points.push(Vector3Proto.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbol.destack.Vector2Proto points */ 100:
+                    message.points.push(Vector2Proto.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -37789,9 +37793,9 @@ class PolygonProto$Type extends MessageType<PolygonProto> {
         /* symbol.destack.PolygonShapeTypeProto type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* repeated symbol.destack.Vector3Proto points = 100; */
+        /* repeated symbol.destack.Vector2Proto points = 100; */
         for (let i = 0; i < message.points.length; i++)
-            Vector3Proto.internalBinaryWrite(message.points[i], writer.tag(100, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.points[i], writer.tag(100, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -37845,7 +37849,7 @@ class PolygonShapeProto$Type extends MessageType<PolygonShapeProto> {
             { no: 66, name: "shadow", kind: "message", T: () => ShadowProto },
             { no: 67, name: "border", kind: "message", T: () => BorderProto },
             { no: 68, name: "radius", kind: "message", T: () => CornersProto },
-            { no: 100, name: "points", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => Vector3Proto },
+            { no: 100, name: "points", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => Vector2Proto },
             { no: 101, name: "stroke", kind: "message", T: () => StrokeProto },
             { no: 200, name: "script_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -37985,8 +37989,8 @@ class PolygonShapeProto$Type extends MessageType<PolygonShapeProto> {
                 case /* optional symbol.destack.CornersProto radius */ 68:
                     message.radius = CornersProto.internalBinaryRead(reader, reader.uint32(), options, message.radius);
                     break;
-                case /* repeated symbol.destack.Vector3Proto points */ 100:
-                    message.points.push(Vector3Proto.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbol.destack.Vector2Proto points */ 100:
+                    message.points.push(Vector2Proto.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* optional symbol.destack.StrokeProto stroke */ 101:
                     message.stroke = StrokeProto.internalBinaryRead(reader, reader.uint32(), options, message.stroke);
@@ -38143,9 +38147,9 @@ class PolygonShapeProto$Type extends MessageType<PolygonShapeProto> {
         /* optional symbol.destack.CornersProto radius = 68; */
         if (message.radius)
             CornersProto.internalBinaryWrite(message.radius, writer.tag(68, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbol.destack.Vector3Proto points = 100; */
+        /* repeated symbol.destack.Vector2Proto points = 100; */
         for (let i = 0; i < message.points.length; i++)
-            Vector3Proto.internalBinaryWrite(message.points[i], writer.tag(100, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.points[i], writer.tag(100, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.destack.StrokeProto stroke = 101; */
         if (message.stroke)
             StrokeProto.internalBinaryWrite(message.stroke, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
@@ -44484,7 +44488,8 @@ class StrokeProto$Type extends MessageType<StrokeProto> {
             { no: 54, name: "simulate_pressure", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 55, name: "easing", kind: "enum", T: () => ["symbol.destack.EasingProto", EasingProto] },
             { no: 60, name: "start", kind: "message", T: () => StrokeCapProto },
-            { no: 61, name: "end", kind: "message", T: () => StrokeCapProto }
+            { no: 61, name: "end", kind: "message", T: () => StrokeCapProto },
+            { no: 70, name: "color", kind: "message", T: () => ColorProto }
         ]);
     }
     create(value?: PartialMessage<StrokeProto>): StrokeProto {
@@ -44536,6 +44541,9 @@ class StrokeProto$Type extends MessageType<StrokeProto> {
                 case /* optional symbol.destack.StrokeCapProto end */ 61:
                     message.end = StrokeCapProto.internalBinaryRead(reader, reader.uint32(), options, message.end);
                     break;
+                case /* optional symbol.destack.ColorProto color */ 70:
+                    message.color = ColorProto.internalBinaryRead(reader, reader.uint32(), options, message.color);
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -44578,6 +44586,9 @@ class StrokeProto$Type extends MessageType<StrokeProto> {
         /* optional symbol.destack.StrokeCapProto end = 61; */
         if (message.end)
             StrokeCapProto.internalBinaryWrite(message.end, writer.tag(61, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.ColorProto color = 70; */
+        if (message.color)
+            ColorProto.internalBinaryWrite(message.color, writer.tag(70, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -44719,10 +44730,10 @@ class StrokePointProto$Type extends MessageType<StrokePointProto> {
     constructor() {
         super("symbol.destack.StrokePointProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
-            { no: 50, name: "point", kind: "message", T: () => Vector3Proto },
-            { no: 51, name: "original_point", kind: "message", T: () => Vector3Proto },
+            { no: 50, name: "point", kind: "message", T: () => Vector2Proto },
+            { no: 51, name: "original_point", kind: "message", T: () => Vector2Proto },
             { no: 52, name: "pressure", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
-            { no: 53, name: "direction", kind: "message", T: () => Vector3Proto },
+            { no: 53, name: "direction", kind: "message", T: () => Vector2Proto },
             { no: 54, name: "distance", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 55, name: "running_length", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 56, name: "radius", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ }
@@ -44747,17 +44758,17 @@ class StrokePointProto$Type extends MessageType<StrokePointProto> {
                 case /* symbol.destack.StructTypeProto metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* symbol.destack.Vector3Proto point */ 50:
-                    message.point = Vector3Proto.internalBinaryRead(reader, reader.uint32(), options, message.point);
+                case /* symbol.destack.Vector2Proto point */ 50:
+                    message.point = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.point);
                     break;
-                case /* symbol.destack.Vector3Proto original_point */ 51:
-                    message.originalPoint = Vector3Proto.internalBinaryRead(reader, reader.uint32(), options, message.originalPoint);
+                case /* symbol.destack.Vector2Proto original_point */ 51:
+                    message.originalPoint = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.originalPoint);
                     break;
                 case /* double pressure */ 52:
                     message.pressure = reader.double();
                     break;
-                case /* symbol.destack.Vector3Proto direction */ 53:
-                    message.direction = Vector3Proto.internalBinaryRead(reader, reader.uint32(), options, message.direction);
+                case /* symbol.destack.Vector2Proto direction */ 53:
+                    message.direction = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.direction);
                     break;
                 case /* double distance */ 54:
                     message.distance = reader.double();
@@ -44783,18 +44794,18 @@ class StrokePointProto$Type extends MessageType<StrokePointProto> {
         /* symbol.destack.StructTypeProto metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbol.destack.Vector3Proto point = 50; */
+        /* symbol.destack.Vector2Proto point = 50; */
         if (message.point)
-            Vector3Proto.internalBinaryWrite(message.point, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector3Proto original_point = 51; */
+            Vector2Proto.internalBinaryWrite(message.point, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.Vector2Proto original_point = 51; */
         if (message.originalPoint)
-            Vector3Proto.internalBinaryWrite(message.originalPoint, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.originalPoint, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
         /* double pressure = 52; */
         if (message.pressure !== 0)
             writer.tag(52, WireType.Bit64).double(message.pressure);
-        /* symbol.destack.Vector3Proto direction = 53; */
+        /* symbol.destack.Vector2Proto direction = 53; */
         if (message.direction)
-            Vector3Proto.internalBinaryWrite(message.direction, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.direction, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
         /* double distance = 54; */
         if (message.distance !== 0)
             writer.tag(54, WireType.Bit64).double(message.distance);

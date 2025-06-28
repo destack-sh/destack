@@ -26,7 +26,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.06.28.0"
+VERSION = "2025.06.28.1"
 FLOAT_EPSILON = 1e-6
 BEGINNING_OF_TIME = datetime.fromisoformat("1970-01-01T00:00:00+00:00")
 

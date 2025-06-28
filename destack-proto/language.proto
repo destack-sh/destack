@@ -3297,7 +3297,7 @@ message LengthProto {
 
 message LineProto {
   StructTypeProto metatype = 1;
-  repeated Vector3Proto points = 100;
+  repeated Vector2Proto points = 100;
   optional StrokeProto stroke = 101;
 }
 
@@ -3324,7 +3324,7 @@ message LineShapeProto {
   optional AlignProto align = 53;
   optional bool is_visible = 60;
   optional double opacity = 61;
-  repeated Vector3Proto points = 100;
+  repeated Vector2Proto points = 100;
   optional StrokeProto stroke = 101;
   optional NodeReferenceProto script_ptr = 200;
 }
@@ -3881,7 +3881,7 @@ message PointerUpEventProto {
 message PolygonProto {
   StructTypeProto metatype = 1;
   PolygonShapeTypeProto type = 30;
-  repeated Vector3Proto points = 100;
+  repeated Vector2Proto points = 100;
 }
 
 // A PolygonShape is a shape that represents a polygon.
@@ -3925,7 +3925,7 @@ message PolygonShapeProto {
   optional ShadowProto shadow = 66;
   optional BorderProto border = 67;
   optional CornersProto radius = 68;
-  repeated Vector3Proto points = 100;
+  repeated Vector2Proto points = 100;
   optional StrokeProto stroke = 101;
   optional NodeReferenceProto script_ptr = 200;
 }
@@ -4698,6 +4698,7 @@ message StrokeProto {
   EasingProto easing = 55;
   optional StrokeCapProto start = 60;
   optional StrokeCapProto end = 61;
+  optional ColorProto color = 70;
 }
 
 message StrokeCapProto {
@@ -4714,10 +4715,10 @@ message StrokePathProto {
 
 message StrokePointProto {
   StructTypeProto metatype = 1;
-  Vector3Proto point = 50;
-  Vector3Proto original_point = 51;
+  Vector2Proto point = 50;
+  Vector2Proto original_point = 51;
   double pressure = 52;
-  Vector3Proto direction = 53;
+  Vector2Proto direction = 53;
   double distance = 54;
   double running_length = 55;
   double radius = 56;
