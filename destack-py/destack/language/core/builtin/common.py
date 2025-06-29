@@ -386,18 +386,22 @@ class TraitType(Enum):
     GLOBAL = 1, "Global", "Is global", "fas fa-globe"
     SPATIAL = 2, "Spatial", "Is in a Space", "fas fa-solar-system"
     # LOCAL?
+    # storage
+    # RELATIONAL/OLTP, INDEXED; ANALYTIC, ...?
+
     # kind
-    ENTITY = 10, "Entity", "Is an Entity", "fas fa-hexagon"
-    EVENT = 22, "Event", "Is an Event", "fas fa-bolt"
+    ENTITY = 20, "Entity", "Is an Entity", "fas fa-hexagon"
+    EVENT = 21, "Event", "Is an Event", "fas fa-bolt"
+
     # type
-    RESOURCE = 21, "Resource", "Is a Resource", "fas fa-server"
+    RESOURCE = 30, "Resource", "Is a Resource", "fas fa-server"
     CUSTOM_NODE_DEFINITION = (
-        23,
+        31,
         "Custom Node Definition",
         "Is a Custom Node Definition",
         "fas fa-table",
     )
-    CUSTOM_NODE = 24, "Custom Node", "Is a Custom Node", "fas fa-database"
+    CUSTOM_NODE = 32, "Custom Node", "Is a Custom Node", "fas fa-database"
     # behavior
     TRACKED = 51, "Tracked", "Is tracked", "fas fa-clock"
     ARCHIVABLE = 52, "Archivable", "Can be archived", "fas fa-box-archive"
@@ -798,6 +802,7 @@ class NodeType(Enum):
     POLYGON_SHAPE = 11011, "Plane Shape", None, "fas fa-shapes"
     ARROW_SHAPE = 11012, "Arrow Shape", None, "fas fa-arrow-right"
     ANNOTATION_SHAPE = 11013, "Annotation Shape", None, "fas fa-comment"
+    # VECTOR/POINT, VECTOR_NETWORK, ...
     # BITMAP, ...
 
     # animation [11500-12000]

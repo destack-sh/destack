@@ -37,12 +37,14 @@ const defaultConfig = defineConfig(() => ({
       babel: {
         plugins: [
           ["module:@preact/signals-react-transform", PreactSignalsReactTransformConfig],
+          ["@babel/plugin-proposal-decorators", { version: "2023-11" }],
+          ["@babel/plugin-proposal-class-static-block", { loose: true }],
+          ["@babel/plugin-proposal-class-properties", { loose: true }],
           // TODO :Performance: enable react compiler when it plays nicely with signals
           // ["babel-plugin-react-compiler", ReactCompilerConfig],
         ],
-        generatorOpts: {
-          compact: false,
-          retainLines: true,
+        parserOpts: {
+          plugins: ["decorators", "classProperties", "classStaticBlock"],
         },
       },
     }),
