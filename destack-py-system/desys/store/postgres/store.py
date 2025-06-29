@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from collections.abc import AsyncIterator, Sequence
 from typing import ClassVar, Self, assert_never, override
 
 import asyncpg
@@ -17,6 +17,7 @@ from destack.language import (
     NodeType,
     Query,
     QueryResult,
+    QueryUpdate,
     RelationReference,
     RelationType,
     Store,
@@ -123,6 +124,10 @@ class PostgresStore(Store):
                 results.append(result)
         logger.debug("postgres.commit", changes=changes, results=results, span="current")
         return results
+
+    @override
+    async def subscribe(self, query: Query) -> AsyncIterator[QueryUpdate]:
+        raise NotImplementedError
 
 
 class PostgresStoreContext(PostgresContext):

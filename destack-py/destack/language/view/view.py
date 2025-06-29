@@ -2,14 +2,12 @@ from typing import TYPE_CHECKING, Optional, Union
 
 from destack.language.core import (
     Entity,
-    Event,
     HasName,
     IsDeletable,
     IsOrdered,
     IsScriptable,
     IsTaggable,
     IsVisual,
-    Node,
     Spatial,
     TraitType,
     builtin_trait,
@@ -21,13 +19,6 @@ if TYPE_CHECKING:
     from destack.language import ContainerView, Dimension, Layer, Position, Scene, View, Window
 
 # pyright: reportIncompatibleVariableOverride=false
-
-
-@builtin_trait(TraitType.VIEW_EVENT)
-class ViewEvent[NodeT: Node = View](Event[NodeT]):
-    """A ViewEvent is an event on a View node."""
-
-    pass
 
 
 @builtin_trait(TraitType.VIEW)

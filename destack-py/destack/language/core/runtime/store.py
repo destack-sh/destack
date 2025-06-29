@@ -54,31 +54,7 @@ class Store(abc.ABC):
         """
         ...
 
-
-class LiveStore(Store, abc.ABC):
-    """
-    A Store that can be subscribed to for Query updates.
-    """
-
     @abc.abstractmethod
     async def subscribe(self, query: "Query") -> AsyncIterator["QueryUpdate"]:
         """Subscribe to a Query in the Store."""
-        ...
-
-
-class OptimisticStore(LiveStore, abc.ABC):
-    """
-    A Store that can stage Changes optimistically.
-    To commit Changes (incl. staged), pass these Changes to Store.commit as usual.
-    To remove Changes without committing, call Store.unstage.
-    """
-
-    @abc.abstractmethod
-    async def stage(self, changes: Sequence["Change"]) -> None:
-        """Stage Changes locally."""
-        ...
-
-    @abc.abstractmethod
-    async def unstage(self, changes: Sequence["Change"]) -> None:
-        """Unstage Changes locally."""
         ...

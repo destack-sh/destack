@@ -23,7 +23,6 @@ from ..common import (
 )
 from .graph import Supergraph
 from .oracle import WORLD_ORACLE, Oracle
-from .store import OptimisticStore
 
 if TYPE_CHECKING:
     from destack.language import Edit, Origin, QueryConnection, Space, Store
@@ -256,8 +255,6 @@ class Session:
         """Stage pending Edits. Also stages pending Changes in the Store if possible."""
         assert self.store is not None, f"{self!r} has no Store"
         self.flush()
-        if isinstance(self.store, OptimisticStore):
-            await self.store.stage(self.changes)
 
     async def commit(self) -> Sequence[ChangeResult]:
         """

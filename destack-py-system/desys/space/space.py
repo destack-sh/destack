@@ -180,7 +180,7 @@ class SpaceService(ServiceBase, SpaceBase):
         changes = [Change.from_proto(change) for change in request.changes]
         approved_changes: list[Change] = []
         for _ in changes:
-            pass  # nocheckin: access control (approve/reject changes, also for query)
+            pass  # nocheckin: access control (approve/reject/amend Queries & Changes)
         results = await self.store.commit(approved_changes)
         return CommitResponse(results=[result.to_proto() for result in results])
 

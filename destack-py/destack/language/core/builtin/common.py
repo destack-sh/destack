@@ -486,7 +486,7 @@ class TraitType(Enum):
     # scene [9000-9500]
     VISUAL = 9000, "Visual", "Is a Visual", "fas fa-eye"
     VIEW = 9001, "View", "Is a View", "fas fa-eye"
-    VIEW_EVENT = 9002, "View Event", "Is a View Event", "fas fa-eye"
+    # VIEW_ENTER_EVENT, VIEW_EXIT_EVENT, ...
 
     # interaction [9500-10000]
     INPUT_EVENT = 9500, "Input Event", "Is an Input Event", "fas fa-mouse-pointer"
@@ -729,7 +729,8 @@ class NodeType(Enum):
     SCENE_EXITED_EVENT = 9031, "Scene Exited Event", None, "fas fa-masks-theater"
     LAYER = 9040, "Layer", "Layer of a Scene", "fas fa-layer-group"
     VARIANT = 9060, "Variant", "Variant of a Scene", "fas fa-shapes"
-    # VIEWPORT, OVERLAY, WIDGET, MENU, ...
+    # VIEWPORT, OVERLAY, WIDGET,
+    # FORM, MENU, ...
 
     # interaction [9500-10000]
     # pointer events
@@ -764,7 +765,7 @@ class NodeType(Enum):
     # focus events
     FOCUS_IN_EVENT = 9552, "Focus In Event", None, "fas fa-keyboard"
     FOCUS_OUT_EVENT = 9553, "Focus Out Event", None, "fas fa-keyboard"
-
+    # command
     # COMMAND, MODE, TOOL, SHORTCUT/KEYBINDING, ...
     # GESTURE, ...
     # CLIPBOARD, ...
