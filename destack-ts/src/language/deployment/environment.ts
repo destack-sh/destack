@@ -27,8 +27,8 @@ import { Temporal } from "temporal-polyfill";
 export class Environment extends Node implements Spatial, Entity, HasName, HasIcon, IsDeletable {
   static metatype: NodeType = NodeType.ENVIRONMENT;
   static __traits__: TraitType[] = [
-    TraitType.TRACKED,
     TraitType.SPATIAL,
+    TraitType.TRACKED,
     TraitType.ENTITY,
     TraitType.DELETABLE,
   ];

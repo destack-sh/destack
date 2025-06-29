@@ -35,8 +35,8 @@ export class CustomOption
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.TAGGABLE,
-    TraitType.ENTITY,
     TraitType.TRACKED,
+    TraitType.ENTITY,
     TraitType.DELETABLE,
     TraitType.ORDERED,
     TraitType.SOURCEABLE,

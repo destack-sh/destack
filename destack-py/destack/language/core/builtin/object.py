@@ -465,7 +465,7 @@ def __to_ref__(self) -> "NodeReference":
         space_id=self.id,
     )
 """
-    elif TraitType.CUSTOM_NODE in cls.__traits__:
+    elif NodeType.CUSTOM_NODE in cls.__extends__:
         ref_impl = f"""\
 def __to_ref__(self) -> "NodeReference":
     return NodeReference(
@@ -859,6 +859,8 @@ def _process_object_cls[ObjectT: BuiltinObjectBase](
     is_struct: bool = False,
     is_node: bool = False,
     is_root_node: bool = False,
+    is_abstract: bool = False,
+    base_type: NodeType | None = None,
     traits: tuple[TraitType, ...] = (),
 ) -> tuple[type[ObjectT], dict[str, "PropertyDeclaration"]]:
     """Process a BuiltinObject base class and return the processed class and its properties."""

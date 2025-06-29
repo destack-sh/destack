@@ -18,7 +18,6 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.proto import OrganizationProto
 
 if TYPE_CHECKING:
     from destack.language import Handle, Space
@@ -41,7 +40,7 @@ class Organization(
     HasName,
     IsOwner,
     IsJoinable,
-    Node[OrganizationProto],
+    Node,
 ):
     """
     An Organization with Users and Teams.

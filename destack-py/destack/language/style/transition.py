@@ -12,7 +12,6 @@ from destack.language.core import (
     builtin_struct,
     property_,
 )
-from destack.proto import TransitionStyleProto
 
 from .style import Style
 
@@ -58,7 +57,7 @@ class Transition(StructMutable):
 @builtin_node(NodeType.TRANSITION_STYLE)
 class TransitionStyle(
     Style,
-    Node[TransitionStyleProto],
+    Node,
 ):
     """A transition style."""
 

@@ -6,19 +6,11 @@ from destack.language.core import (
     Global,
     IsOwnable,
     IsSubject,
-    LikeInvite,
     Node,
     NodeType,
     RoleType,
     builtin_node,
     property_,
-)
-from destack.proto import (
-    FriendshipInviteAcceptedEventProto,
-    FriendshipInviteProto,
-    FriendshipInviteRescindedEventProto,
-    FriendshipInviteSentEventProto,
-    FriendshipProto,
 )
 
 if TYPE_CHECKING:
@@ -31,7 +23,7 @@ if TYPE_CHECKING:
 class Friendship(
     Global,
     Entity,
-    Node[FriendshipProto],
+    Node,
 ):
     """A Friendship between two Users."""
 
@@ -42,7 +34,7 @@ class Friendship(
 @builtin_node(NodeType.FRIENDSHIP_INVITE_SENT_EVENT)
 class FriendshipInviteSentEvent(
     Event["FriendshipInvite"],
-    Node[FriendshipInviteSentEventProto],
+    Node,
 ):
     """A Event regarding a Friendship Invite."""
 
@@ -52,7 +44,7 @@ class FriendshipInviteSentEvent(
 @builtin_node(NodeType.FRIENDSHIP_INVITE_RESCINDED_EVENT)
 class FriendshipInviteRescindedEvent(
     Event["FriendshipInvite"],
-    Node[FriendshipInviteRescindedEventProto],
+    Node,
 ):
     """A Event regarding a Friendship Invite."""
 
@@ -62,7 +54,7 @@ class FriendshipInviteRescindedEvent(
 @builtin_node(NodeType.FRIENDSHIP_INVITE_ACCEPTED_EVENT)
 class FriendshipInviteAcceptedEvent(
     Event["FriendshipInvite"],
-    Node[FriendshipInviteAcceptedEventProto],
+    Node,
 ):
     """A Event regarding a Friendship Invite."""
 
@@ -72,7 +64,7 @@ class FriendshipInviteAcceptedEvent(
 @builtin_node(NodeType.FRIENDSHIP_INVITE_REJECTED_EVENT)
 class FriendshipInviteRejectedEvent(
     Event["FriendshipInvite"],
-    Node[FriendshipInviteRescindedEventProto],
+    Node,
 ):
     """A Event regarding a Friendship Invite."""
 
@@ -83,9 +75,8 @@ class FriendshipInviteRejectedEvent(
 class FriendshipInvite(
     Global,
     Entity,
-    LikeInvite,
     IsOwnable,
-    Node[FriendshipInviteProto],
+    Node,
 ):
     """An invite to be friends with another User."""
 

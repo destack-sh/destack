@@ -303,10 +303,10 @@ registerTraitClass(TraitType.FOCUS_EVENT, FocusEvent);
 export class PointerDownEvent extends Node implements PointerEvent {
   static metatype: NodeType = NodeType.POINTER_DOWN_EVENT;
   static __traits__: TraitType[] = [
+    TraitType.EVENT,
     TraitType.SPATIAL,
     TraitType.INPUT_EVENT,
     TraitType.POINTER_EVENT,
-    TraitType.EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -810,10 +810,10 @@ registerNodeClass(NodeType.POINTER_DOWN_EVENT, PointerDownEvent);
 export class PointerUpEvent extends Node implements PointerEvent {
   static metatype: NodeType = NodeType.POINTER_UP_EVENT;
   static __traits__: TraitType[] = [
+    TraitType.EVENT,
     TraitType.SPATIAL,
     TraitType.INPUT_EVENT,
     TraitType.POINTER_EVENT,
-    TraitType.EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -1305,10 +1305,10 @@ registerNodeClass(NodeType.POINTER_UP_EVENT, PointerUpEvent);
 export class PointerMoveEvent extends Node implements PointerEvent {
   static metatype: NodeType = NodeType.POINTER_MOVE_EVENT;
   static __traits__: TraitType[] = [
+    TraitType.EVENT,
     TraitType.SPATIAL,
     TraitType.INPUT_EVENT,
     TraitType.POINTER_EVENT,
-    TraitType.EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -1812,10 +1812,10 @@ registerNodeClass(NodeType.POINTER_MOVE_EVENT, PointerMoveEvent);
 export class PointerEnterEvent extends Node implements PointerEvent {
   static metatype: NodeType = NodeType.POINTER_ENTER_EVENT;
   static __traits__: TraitType[] = [
+    TraitType.EVENT,
     TraitType.SPATIAL,
     TraitType.INPUT_EVENT,
     TraitType.POINTER_EVENT,
-    TraitType.EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -2319,10 +2319,10 @@ registerNodeClass(NodeType.POINTER_ENTER_EVENT, PointerEnterEvent);
 export class PointerOverEvent extends Node implements PointerEvent {
   static metatype: NodeType = NodeType.POINTER_OVER_EVENT;
   static __traits__: TraitType[] = [
+    TraitType.EVENT,
     TraitType.SPATIAL,
     TraitType.INPUT_EVENT,
     TraitType.POINTER_EVENT,
-    TraitType.EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -2826,10 +2826,10 @@ registerNodeClass(NodeType.POINTER_OVER_EVENT, PointerOverEvent);
 export class PointerLeaveEvent extends Node implements PointerEvent {
   static metatype: NodeType = NodeType.POINTER_LEAVE_EVENT;
   static __traits__: TraitType[] = [
+    TraitType.EVENT,
     TraitType.SPATIAL,
     TraitType.INPUT_EVENT,
     TraitType.POINTER_EVENT,
-    TraitType.EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -3333,10 +3333,10 @@ registerNodeClass(NodeType.POINTER_LEAVE_EVENT, PointerLeaveEvent);
 export class LongPressEvent extends Node implements PointerEvent {
   static metatype: NodeType = NodeType.LONG_PRESS_EVENT;
   static __traits__: TraitType[] = [
+    TraitType.EVENT,
     TraitType.SPATIAL,
     TraitType.INPUT_EVENT,
     TraitType.POINTER_EVENT,
-    TraitType.EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -10203,10 +10203,10 @@ registerNodeClass(NodeType.DROP_EVENT, DropEvent);
 export class CopyEvent extends Node implements ClipboardEvent {
   static metatype: NodeType = NodeType.COPY_EVENT;
   static __traits__: TraitType[] = [
+    TraitType.EVENT,
     TraitType.SPATIAL,
     TraitType.CLIPBOARD_EVENT,
     TraitType.INPUT_EVENT,
-    TraitType.EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -10559,10 +10559,10 @@ registerNodeClass(NodeType.COPY_EVENT, CopyEvent);
 export class CutEvent extends Node implements ClipboardEvent {
   static metatype: NodeType = NodeType.CUT_EVENT;
   static __traits__: TraitType[] = [
+    TraitType.EVENT,
     TraitType.SPATIAL,
     TraitType.CLIPBOARD_EVENT,
     TraitType.INPUT_EVENT,
-    TraitType.EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -10915,10 +10915,10 @@ registerNodeClass(NodeType.CUT_EVENT, CutEvent);
 export class PasteEvent extends Node implements ClipboardEvent {
   static metatype: NodeType = NodeType.PASTE_EVENT;
   static __traits__: TraitType[] = [
+    TraitType.EVENT,
     TraitType.SPATIAL,
     TraitType.CLIPBOARD_EVENT,
     TraitType.INPUT_EVENT,
-    TraitType.EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -11273,8 +11273,8 @@ export class FocusInEvent extends Node implements FocusEvent {
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.INPUT_EVENT,
-    TraitType.FOCUS_EVENT,
     TraitType.EVENT,
+    TraitType.FOCUS_EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -11629,8 +11629,8 @@ export class FocusOutEvent extends Node implements FocusEvent {
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.INPUT_EVENT,
-    TraitType.FOCUS_EVENT,
     TraitType.EVENT,
+    TraitType.FOCUS_EVENT,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];

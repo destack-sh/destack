@@ -29,10 +29,10 @@ export class Star extends Node implements Global, Spatial, Entity, IsDeletable, 
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
     TraitType.SPATIAL,
-    TraitType.ENTITY,
     TraitType.TRACKED,
-    TraitType.OWNABLE,
+    TraitType.ENTITY,
     TraitType.DELETABLE,
+    TraitType.OWNABLE,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.FOLDER, NodeType.SPACE];

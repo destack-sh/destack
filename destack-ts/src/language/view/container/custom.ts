@@ -54,15 +54,15 @@ export class CustomViewDefinition extends Node implements ContainerView, IsCusto
     TraitType.SPATIAL,
     TraitType.VISUAL,
     TraitType.VIEW,
-    TraitType.ENTITY,
     TraitType.TAGGABLE,
     TraitType.CONTAINER_VIEW,
     TraitType.TRACKED,
-    TraitType.CUSTOM_NODE_DEFINITION,
+    TraitType.ENTITY,
     TraitType.DELETABLE,
     TraitType.EXTENSIBLE,
     TraitType.ORDERED,
     TraitType.SCRIPTABLE,
+    TraitType.CUSTOM_NODE_DEFINITION,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.FOLDER, NodeType.SCENE];
@@ -1561,17 +1561,17 @@ registerNodeClass(NodeType.CUSTOM_VIEW_DEFINITION, CustomViewDefinition);
 export class CustomView extends Node implements ContainerView, IsCustomNode {
   static metatype: NodeType = NodeType.CUSTOM_VIEW;
   static __traits__: TraitType[] = [
+    TraitType.CUSTOM_NODE,
     TraitType.SPATIAL,
     TraitType.VISUAL,
     TraitType.VIEW,
-    TraitType.ENTITY,
     TraitType.TAGGABLE,
     TraitType.CONTAINER_VIEW,
     TraitType.TRACKED,
+    TraitType.ENTITY,
     TraitType.DELETABLE,
     TraitType.EXTENSIBLE,
     TraitType.ORDERED,
-    TraitType.CUSTOM_NODE,
     TraitType.SCRIPTABLE,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;

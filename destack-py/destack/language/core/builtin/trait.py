@@ -26,7 +26,6 @@ from .common import (
     Enum,
     EnumType,
     NodeType,
-    ResourceStatus,
     RoleType,
     TraitType,
     builtin_enum,
@@ -46,7 +45,6 @@ if TYPE_CHECKING:
     from destack.language import (
         Condition,
         ExpressionIn,
-        Folder,
         Icon,
         Node,
         NodeDefinition,
@@ -72,18 +70,15 @@ if TYPE_CHECKING:
 
 TRAIT_PREFIXES = ("Is", "Has", "Like")
 # traits you must have at least one of
-AT_LEAST_ONE_TRAITS = (
-    (TraitType.GLOBAL, TraitType.SPATIAL),
-    (TraitType.ENTITY, TraitType.EVENT),
-)
+AT_LEAST_ONE_TRAITS = ((TraitType.GLOBAL, TraitType.SPATIAL),)
 # traits you can have at most one of
-AT_MOST_ONE_TRAITS = ((TraitType.ENTITY, TraitType.EVENT),)
+AT_MOST_ONE_TRAITS = ()
 # traits where every descendant must have the trait
 INFECTIOUS_TRAITS = (TraitType.ARCHIVABLE, TraitType.DELETABLE)
 
 # traits where all matching nodes are ordered together
-INTER_ORDER_TRAITS = (TraitType.VIEW, TraitType.STYLE)
-register_constant("INTER_ORDER_TRAITS", INTER_ORDER_TRAITS)
+INTER_ORDER_TYPES = (NodeType.VIEW, NodeType.STYLE)
+register_constant("INTER_ORDER_TYPES", INTER_ORDER_TYPES)
 
 
 @dataclass(slots=True, frozen=True)
@@ -127,12 +122,16 @@ def builtin_trait(
         )
         cls.__is_trait__ = True
         traits = set()
+        base_traits = set()
         for superclass in get_superclasses(cls):
             if superclass == cls:
                 continue
             if super_trait_type := _resolve_trait_type(superclass.__name__):
                 traits.add(super_trait_type)
+            if super_trait_type := _resolve_trait_type(superclass.__name__):
+                base_traits.add(super_trait_type)
         cls.__traits__ = tuple(traits)
+        cls.__base_traits__ = tuple(base_traits)
 
         # register
         if trait_type is not None:
@@ -156,8 +155,13 @@ class NodeBase[NodeProtoT: AnyObjectProto](BuiltinObjectMutable[NodeProtoT]):
 
     __is_node__: ClassVar[bool] = True
     __is_trait__: ClassVar[bool] = False  # override Trait.__is_trait__
-    __traits__: ClassVar[tuple[TraitType, ...]] = ()
     __indexes__: ClassVar[tuple[IndexIn, ...]] = ()
+    __is_abstract__: ClassVar[bool] = False
+    __base_type__: ClassVar[NodeType | None] = None
+    __extends__: ClassVar[tuple[NodeType, ...]] = ()
+    __extended_by__: ClassVar[tuple[NodeType, ...]] = ()
+    __base_traits__: ClassVar[tuple[TraitType, ...]] = ()
+    __traits__: ClassVar[tuple[TraitType, ...]] = ()
 
     __root_type__: ClassVar[NodeType | None] = None
     __parent_property__: ClassVar[PropertyDeclaration] = UNSET
@@ -451,13 +455,6 @@ class IsTracked(Trait):
         updated_by_ptr: Optional[NodeReference] = None
 
 
-@builtin_trait(TraitType.VISUAL)
-class IsVisual(IsTracked):
-    """A Node that is a visual in some sense (views, styles, drawings, ...)."""
-
-    pass
-
-
 @builtin_trait(TraitType.ARCHIVABLE)
 class IsArchivable(Trait):
     """A Node that can be archived."""
@@ -494,25 +491,6 @@ class IsDeletable(Trait):
         """Restore this deleted Node from the trash."""
         assert self.deleted_at, f"{self!r} is not deleted"
         self._session.restore(self)
-
-
-@builtin_trait(TraitType.CUSTOM_NODE_DEFINITION)
-class IsCustomNodeDefinition(Trait):
-    """A Node that defines a Custom Node type."""
-
-    prototype: Optional["IsCustomNode"] = property_(
-        6,
-        description="A custom Node Definition's prototype is the default template new CustomNode instances are based on.",
-    )
-
-
-@builtin_trait(TraitType.CUSTOM_NODE)
-class IsCustomNode(Trait):
-    """A Node that is asome Custom Node."""
-
-    definition: "IsCustomNodeDefinition" = property_(6, is_managed=True, can_write=None)
-    if TYPE_CHECKING:
-        definition_ptr: Optional[NodeReference] = None
 
 
 @builtin_trait(TraitType.EXTENSIBLE)
@@ -588,13 +566,6 @@ class IsOwnable(Trait):
         owned_by_ptr: Optional[NodeReference] = None
 
 
-@builtin_trait(TraitType.SETTINGS)
-class IsSettings(Trait):
-    """A Node that defines Settings."""
-
-    pass
-
-
 @builtin_enum(EnumType.JOINABLE_PERMISSION)
 class JoinablePermission(Enum):
     """A Permission for a Joinable."""
@@ -634,39 +605,6 @@ class IsTaggable(Trait):
 
 
 #
-# Like* Traits (mimic for a specific builtin node type)
-#
-
-
-@builtin_trait(TraitType.MEMBERSHIP)
-class LikeMembership(Trait):
-    """A Node that represents a Membership."""
-
-    member: "IsSubject" = property_(40)
-
-
-@builtin_trait(TraitType.INVITE)
-class LikeInvite(Trait):
-    """A Node that represents an Invite."""
-
-    member: "IsSubject" = property_(40)
-
-
-@builtin_trait(TraitType.TAG)
-class LikeTag(Trait):
-    """A Node that represents a Tag."""
-
-    pass
-
-
-@builtin_trait(TraitType.FOLLOW)
-class LikeFollow(Trait):
-    """A Node that represents a Follow."""
-
-    pass
-
-
-#
 # Bare Traits (main type/location)
 #
 
@@ -690,98 +628,3 @@ class Spatial(Trait):
     )
     if TYPE_CHECKING:
         space_ptr: Optional[NodeReference] = None
-
-
-@builtin_trait(TraitType.ENTITY)
-class Entity(IsTracked):
-    """
-    An Entity is a versioned Node in primary relational storage (OLTP).
-    """
-
-    # nocheckin: support Entity branching & variants
-    # primary key: (id, snapshot_id)
-    # two pairs of ids (root container, base pointer):
-    #  - time: (snapshot_id, base_id)
-    #  - space: (instance_id, template_id)
-    # when merging: time before space (id+snapshot_id over template)
-    # snapshot and template properties must be READ ONLY (no write)
-    # materialization: MaterializationType = property_(
-    #     7,
-    #     is_managed=True,
-    #     is_eq=False,
-    #     is_hash=False,
-    #     is_repr=False,
-    #     default=MaterializationType.FULL_GRAPH,
-    # )
-    # snapshot: Optional["Snapshot"] = property_(
-    #     8,
-    #     can_write=None,
-    #     is_managed=True,
-    #     node_space_from="self",
-    #     description="The Snapshot this Entity is part of.",
-    # )
-    # base: Optional["Snapshot"] = property_(
-    #     9,
-    #     can_write=None,
-    #     is_managed=True,
-    #     node_is_customizable=False,
-    #     node_space_from="self",
-    #     description="The Snapshot this Entity's snapshot is based on.",
-    # )
-    # instance: Optional["Entity"] = property_(
-    #     10,
-    #     can_write=None,
-    #     is_managed=True,
-    #     node_is_customizable=False,
-    #     description="The (root) Entity in this Entity's instance tree.",
-    # )
-    # template: Optional["Entity"] = property_(
-    #     11,
-    #     can_write=None,
-    #     is_managed=True,
-    #     node_is_customizable=False,
-    #     description="The template this Entity instance is based on.",
-    # )
-    # Entity.set_properties/set_fields: 12-13
-    if TYPE_CHECKING:
-        snapshot_ptr: Optional["NodeReference"] = None
-        base_ptr: Optional["NodeReference"] = None
-        instance_ptr: Optional["NodeReference"] = None
-        template_ptr: Optional["NodeReference"] = None
-
-
-@builtin_trait(TraitType.EVENT, pretend_frozen=True)
-class Event[N: Node = Node](Spatial):
-    """
-    An Event represents something happening in a Space.
-    """
-
-    node: Optional["Node"] = property_(35, description="The Node this Event is about.")
-    if TYPE_CHECKING:
-        node_ptr: Optional[NodeReference] = None
-
-
-@builtin_trait(TraitType.RESOURCE)
-class Resource(Entity):
-    """
-    A Resource represents an external asset.
-    The lifecycle of a Resource may be managed by some provisioner.
-    """
-
-    parent: Optional["Folder"] = property_parent_(node_is_customizable=False)
-    status: ResourceStatus = property_(40, default=ResourceStatus.PENDING)
-    target_status: Optional[datetime] = property_(41)
-
-
-@builtin_trait(TraitType.METRIC)
-class Metric(Entity, IsSourceable, IsCustomNodeDefinition):
-    """An Entity that represents a Metric."""
-
-    pass
-
-
-@builtin_trait(TraitType.MEASUREMENT)
-class Measurement(Event, IsCustomNode):
-    """An Event that represents a Measurement."""
-
-    definition: "Metric" = property_(6, is_managed=True, can_write=None)

@@ -49,8 +49,8 @@ export class Organization
   static metatype: NodeType = NodeType.ORGANIZATION;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
-    TraitType.ENTITY,
     TraitType.TRACKED,
+    TraitType.ENTITY,
     TraitType.JOINABLE,
     TraitType.OWNER,
   ];

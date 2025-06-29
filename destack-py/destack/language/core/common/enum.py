@@ -1,7 +1,5 @@
 from typing import TYPE_CHECKING
 
-from destack.proto import CustomEnumDefinitionProto
-
 from ..builtin import (
     Entity,
     HasIcon,
@@ -32,7 +30,7 @@ class CustomEnumDefinition(
     IsDeletable,
     IsSourceable,
     IsExtensible,
-    Node[CustomEnumDefinitionProto],
+    Node,
 ):
     """A CustomEnumDefinition describes a custom Enum with Options."""
 

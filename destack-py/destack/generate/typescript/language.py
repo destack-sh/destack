@@ -900,7 +900,7 @@ __toRef__(): NodeReference {{
   }});
 }}
 """
-    elif TraitType.CUSTOM_NODE in cls.__traits__:
+    elif NodeType.CUSTOM_NODE in cls.__extends__:
         ref_impl = f"""\
 __toRef__(): NodeReference {{
   return new NodeReference({{

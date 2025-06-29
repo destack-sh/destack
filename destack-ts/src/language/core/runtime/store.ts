@@ -21,6 +21,8 @@ export abstract class Store {
    */
   abstract commit(changes: Change[]): Promise<ChangeResult[]>;
 
-  /** Subscribe to a Query in the Store. */
+  /**
+   * Subscribe to a Query in the Store.
+   */
   abstract subscribe(query: Query): AsyncIterator<QueryUpdate>;
 }

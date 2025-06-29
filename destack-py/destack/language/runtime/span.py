@@ -7,7 +7,6 @@ from destack.language.core import (
     builtin_node,
     property_parent_,
 )
-from destack.proto import SpanProto
 
 if TYPE_CHECKING:
     from destack.language import Run
@@ -19,7 +18,7 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.SPAN)
 class Span(
     Event,
-    Node[SpanProto],
+    Node,
 ):
     """
     A Span is a trace inside a Run.

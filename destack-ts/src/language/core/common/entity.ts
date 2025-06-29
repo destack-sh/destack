@@ -53,15 +53,15 @@ export class CustomEntityDefinition
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.TAGGABLE,
-    TraitType.ENTITY,
     TraitType.TRACKED,
+    TraitType.ENTITY,
     TraitType.OWNABLE,
     TraitType.DELETABLE,
     TraitType.ACTIONABLE,
-    TraitType.CUSTOM_NODE_DEFINITION,
     TraitType.ORDERED,
     TraitType.SCRIPTABLE,
     TraitType.SOURCEABLE,
+    TraitType.CUSTOM_NODE_DEFINITION,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.FOLDER];
@@ -811,12 +811,12 @@ export class CustomEntity
 {
   static metatype: NodeType = NodeType.CUSTOM_ENTITY;
   static __traits__: TraitType[] = [
+    TraitType.CUSTOM_NODE,
     TraitType.SPATIAL,
-    TraitType.ENTITY,
     TraitType.TRACKED,
+    TraitType.ENTITY,
     TraitType.DELETABLE,
     TraitType.EXTENSIBLE,
-    TraitType.CUSTOM_NODE,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.CUSTOM_ENTITY_DEFINITION, NodeType.CUSTOM_ENTITY];

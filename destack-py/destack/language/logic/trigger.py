@@ -16,7 +16,6 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.proto import TriggerProto, TriggerStartedEventProto, TriggerStoppedEventProto
 from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
@@ -28,7 +27,7 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.TRIGGER_STARTED_EVENT)
 class TriggerStartedEvent(
     Event["Trigger"],
-    Node[TriggerStartedEventProto],
+    Node,
 ):
     """A Event regarding a Trigger."""
 
@@ -38,7 +37,7 @@ class TriggerStartedEvent(
 @builtin_node(NodeType.TRIGGER_STOPPED_EVENT)
 class TriggerStoppedEvent(
     Event["Trigger"],
-    Node[TriggerStoppedEventProto],
+    Node,
 ):
     """A Event regarding a Trigger."""
 
@@ -55,7 +54,7 @@ class Trigger(
     Spatial,
     Entity,
     HasName,
-    Node[TriggerProto],
+    Node,
 ):
     """A Trigger is a dynamic event to run something."""
 

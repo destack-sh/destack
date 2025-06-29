@@ -15,13 +15,6 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import (
-    InviteAcceptedEventProto,
-    InviteProto,
-    InviteRejectedEventProto,
-    InviteRescindedEventProto,
-    InviteSentEventProto,
-)
 
 if TYPE_CHECKING:
     from destack.language import Role, RoleType
@@ -32,7 +25,7 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.INVITE_SENT_EVENT)
 class InviteSentEvent(
     Event["Invite"],
-    Node[InviteSentEventProto],
+    Node,
 ):
     """A Event regarding an Invite."""
 
@@ -46,7 +39,7 @@ class InviteSentEvent(
 @builtin_node(NodeType.INVITE_RESCINDED_EVENT)
 class InviteRescindedEvent(
     Event["Invite"],
-    Node[InviteRescindedEventProto],
+    Node,
 ):
     """A Event regarding an Invite."""
 
@@ -58,7 +51,7 @@ class InviteRescindedEvent(
 @builtin_node(NodeType.INVITE_ACCEPTED_EVENT)
 class InviteAcceptedEvent(
     Event["Invite"],
-    Node[InviteAcceptedEventProto],
+    Node,
 ):
     """A Event regarding an Invite."""
 
@@ -72,7 +65,7 @@ class InviteAcceptedEvent(
 @builtin_node(NodeType.INVITE_REJECTED_EVENT)
 class InviteRejectedEvent(
     Event["Invite"],
-    Node[InviteRejectedEventProto],
+    Node,
 ):
     """A Event regarding an Invite."""
 
@@ -88,7 +81,7 @@ class Invite(
     Entity,
     IsOwnable,
     IsDeletable,
-    Node[InviteProto],
+    Node,
 ):
     """An Invite to a Joinable."""
 

@@ -1,7 +1,5 @@
 from typing import TYPE_CHECKING, Optional, Union
 
-from destack.proto import BranchProto, SnapshotProto
-
 from ..builtin import (
     Entity,
     HasName,
@@ -30,7 +28,7 @@ class Snapshot(
     HasSlug,
     IsOwnable,
     IsDeletable,
-    Node[SnapshotProto],
+    Node,
 ):
     """A Snapshot is a point in Space time."""
 
@@ -45,7 +43,7 @@ class Branch(
     HasSlug,
     IsOwnable,
     IsDeletable,
-    Node[BranchProto],
+    Node,
 ):
     """A Branch is a version of a Snapshot."""
 

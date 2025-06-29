@@ -230,8 +230,13 @@ class TraitDefinition(StructFrozen):
     alias: str = property_(32, is_repr=True)
     icon: "Icon | None" = property_(34)
     description: str | None = property_(36, is_repr=True)
-    properties: list["PropertyDefinition"] = property_(50)
-    traits: list[TraitType] = property_(51)
+    properties: list["PropertyDefinition"] = property_(40)
+    traits: list[TraitType] = property_(
+        51, description="Traits directly and indirectly inherited by this trait."
+    )
+    base_traits: list[TraitType] = property_(
+        52, description="Traits directly inherited by this trait."
+    )
 
     @classmethod
     def from_trait(cls, trait_cls: _type["NodeBase"]) -> "TraitDefinition":
@@ -250,6 +255,7 @@ class TraitDefinition(StructFrozen):
                 prop.definition for prop in trait_cls.__properties__.values() if prop.is_wired
             ],
             traits=list(trait_cls.__traits__),
+            base_traits=list(trait_cls.__base_traits__),
         )
 
 
@@ -262,13 +268,22 @@ class NodeDefinition(StructFrozen):
     name: str = property_(31, is_repr=True)
     icon: "Icon | None" = property_(34)
     description: str | None = property_(36, is_repr=True)
-    properties: list["PropertyDefinition"] = property_(50)
-    traits: list[TraitType] = property_(51)
-    root_type: NodeType | None = property_(52)
-    parent_types: list[NodeType] = property_(53)
-    child_types: list[NodeType] = property_(54)
-    ancestor_types: list[NodeType] = property_(55)
-    descendant_types: list[NodeType] = property_(56)
+    is_abstract: bool = property_(37, is_repr=True)
+    properties: list["PropertyDefinition"] = property_(40)
+    base_type: NodeType | None = property_(50, description="The base type this Node extends.")
+    extends: list[NodeType] = property_(51, description="Nodes that this Node extends.")
+    extended_by: list[NodeType] = property_(52, description="Nodes that extend this Node type.")
+    base_traits: list[TraitType] = property_(
+        53, description="Traits directly inherited by this Node."
+    )
+    traits: list[TraitType] = property_(
+        54, description="Traits directly and indirectly inherited by this Node."
+    )
+    root_type: NodeType | None = property_(60)
+    parent_types: list[NodeType] = property_(61)
+    child_types: list[NodeType] = property_(62)
+    ancestor_types: list[NodeType] = property_(63)
+    descendant_types: list[NodeType] = property_(64)
 
     @classmethod
     def from_node(cls, node_cls: _type["Node"]) -> "NodeDefinition":
@@ -281,10 +296,14 @@ class NodeDefinition(StructFrozen):
             name=node_cls.__name__,
             icon=to_icon(node_cls.metatype.icon) if node_cls.metatype.icon else None,
             description=node_cls.__doc__,
+            is_abstract=node_cls.__is_abstract__,
             properties=[
                 prop.definition for prop in node_cls.__properties__.values() if prop.is_wired
             ],
+            base_type=node_cls.__base_type__,
+            extended_by=list(node_cls.__extended_by__),
             traits=list(node_cls.__traits__),
+            base_traits=list(node_cls.__base_traits__),
             root_type=node_cls.__root_type__,
             parent_types=list(node_cls.__parent_types__),
             child_types=list(node_cls.__child_types__),

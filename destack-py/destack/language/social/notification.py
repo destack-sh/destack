@@ -13,14 +13,6 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.proto import (
-    NotificationDismissedEventProto,
-    NotificationExpiredEventProto,
-    NotificationProto,
-    NotificationReadEventProto,
-    NotificationRescindedEventProto,
-    NotificationSentEventProto,
-)
 
 if TYPE_CHECKING:
     from destack.language import Text
@@ -42,7 +34,7 @@ class NotificationStatus(Enum):
 @builtin_node(NodeType.NOTIFICATION_SENT_EVENT)
 class NotificationSentEvent(
     Event["Notification"],
-    Node[NotificationSentEventProto],
+    Node,
 ):
     """A Event regarding a Notification."""
 
@@ -52,7 +44,7 @@ class NotificationSentEvent(
 @builtin_node(NodeType.NOTIFICATION_RESCINDED_EVENT)
 class NotificationRescindedEvent(
     Event["Notification"],
-    Node[NotificationRescindedEventProto],
+    Node,
 ):
     """A Event regarding a Notification."""
 
@@ -62,7 +54,7 @@ class NotificationRescindedEvent(
 @builtin_node(NodeType.NOTIFICATION_READ_EVENT)
 class NotificationReadEvent(
     Event["Notification"],
-    Node[NotificationReadEventProto],
+    Node,
 ):
     """A Event regarding a Notification."""
 
@@ -72,7 +64,7 @@ class NotificationReadEvent(
 @builtin_node(NodeType.NOTIFICATION_DISMISSED_EVENT)
 class NotificationDismissedEvent(
     Event["Notification"],
-    Node[NotificationDismissedEventProto],
+    Node,
 ):
     """A Event regarding a Notification."""
 
@@ -82,7 +74,7 @@ class NotificationDismissedEvent(
 @builtin_node(NodeType.NOTIFICATION_EXPIRED_EVENT)
 class NotificationExpiredEvent(
     Event["Notification"],
-    Node[NotificationExpiredEventProto],
+    Node,
 ):
     """A Event regarding a Notification."""
 
@@ -94,7 +86,7 @@ class Notification(
     Spatial,
     Entity,
     IsOwnable,
-    Node[NotificationProto],
+    Node,
 ):
     """A Notification is a message about something."""
 

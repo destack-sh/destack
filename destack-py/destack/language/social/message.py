@@ -20,7 +20,6 @@ from destack.language.core import (
     property_parent_,
     to_text,
 )
-from destack.proto import MessageProto
 
 if TYPE_CHECKING:
     from destack.language import NodeReference, Thread
@@ -38,7 +37,7 @@ class Message(
     IsDeletable,
     IsTaggable,
     IsReactable,
-    Node[MessageProto],
+    Node,
 ):
     """
     A Message about something (usually in a Thread or a Channel).

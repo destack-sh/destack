@@ -44,8 +44,8 @@ registerEnumClass(EnumType.MACHINE_TYPE, MachineType);
 export class Machine extends Node implements Spatial, Resource {
   static metatype: NodeType = NodeType.MACHINE;
   static __traits__: TraitType[] = [
-    TraitType.TRACKED,
     TraitType.SPATIAL,
+    TraitType.TRACKED,
     TraitType.ENTITY,
     TraitType.RESOURCE,
   ];

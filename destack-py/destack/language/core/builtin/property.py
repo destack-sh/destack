@@ -15,7 +15,6 @@ from typing import (
 from destack.language.registry import (
     ENUM_CLASS_BY_TYPE,
     NODE_CLASS_BY_TYPE,
-    NODE_TYPES_BY_TRAIT_TYPE,
 )
 from destack.utils.func import hash_stable
 from destack.utils.string import Casing, to_casing
@@ -524,7 +523,7 @@ class PropertyDeclaration(TypeDeclaration):
             node_types = expand_node_types(self.node_types or ())
             self.node_has_type = len(node_types) > 1
             self.node_has_definition = self.node_is_customizable and any(
-                node_type in NODE_TYPES_BY_TRAIT_TYPE[TraitType.CUSTOM_NODE]
+                NodeType.CUSTOM_NODE in NODE_CLASS_BY_TYPE[node_type].__extends__
                 for node_type in node_types
             )
             self.node_has_space = self.node_space_from is None and any(

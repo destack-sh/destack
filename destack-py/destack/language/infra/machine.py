@@ -14,7 +14,6 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.proto import MachineProto
 
 if TYPE_CHECKING:
     from destack.language import Client
@@ -35,7 +34,7 @@ class MachineType(Enum):
 class Machine(
     Spatial,
     Resource,
-    Node[MachineProto],
+    Node,
 ):
     """
     A Machine provides physical compute.

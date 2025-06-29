@@ -36,11 +36,11 @@ export class GaugeMetric extends Node implements Spatial, Metric, HasName {
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.METRIC,
-    TraitType.ENTITY,
     TraitType.TRACKED,
-    TraitType.CUSTOM_NODE_DEFINITION,
+    TraitType.ENTITY,
     TraitType.ORDERED,
     TraitType.SOURCEABLE,
+    TraitType.CUSTOM_NODE_DEFINITION,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -992,11 +992,11 @@ export class CounterMetric extends Node implements Spatial, Metric, HasName {
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.METRIC,
-    TraitType.ENTITY,
     TraitType.TRACKED,
-    TraitType.CUSTOM_NODE_DEFINITION,
+    TraitType.ENTITY,
     TraitType.ORDERED,
     TraitType.SOURCEABLE,
+    TraitType.CUSTOM_NODE_DEFINITION,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -1948,11 +1948,11 @@ export class HistogramMetric extends Node implements Spatial, Metric, HasName {
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.METRIC,
-    TraitType.ENTITY,
     TraitType.TRACKED,
-    TraitType.CUSTOM_NODE_DEFINITION,
+    TraitType.ENTITY,
     TraitType.ORDERED,
     TraitType.SOURCEABLE,
+    TraitType.CUSTOM_NODE_DEFINITION,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];

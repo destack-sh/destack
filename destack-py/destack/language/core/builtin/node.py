@@ -1,10 +1,12 @@
 from collections.abc import Sequence
+from datetime import datetime
 from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
     Optional,
     Self,
+    Union,
     cast,
     dataclass_transform,
 )
@@ -15,7 +17,7 @@ from destack.utils.fractional import get_order_key
 from destack.utils.func import get_superclasses
 from destack.utils.uuid import UUID
 
-from .common import NodeType, RoleType, TraitType
+from .common import NodeType, ResourceStatus, RoleType, TraitType
 from .object import _process_object_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
@@ -24,10 +26,32 @@ from .property import (
     property_parent_,
     property_runtime_,
 )
-from .trait import INTER_ORDER_TRAITS, IndexIn, IsOrdered, NodeBase, Spatial
+from .trait import (
+    INTER_ORDER_TYPES,
+    HasName,
+    IndexIn,
+    IsActionable,
+    IsDeletable,
+    IsExtensible,
+    IsOrdered,
+    IsOwnable,
+    IsScriptable,
+    IsSourceable,
+    IsTaggable,
+    IsTracked,
+    NodeBase,
+    Spatial,
+)
 
 if TYPE_CHECKING:
-    from destack.language import Graph, NodeReference, QueryConnection, Session, Supergraph
+    from destack.language import (
+        Folder,
+        Graph,
+        NodeReference,
+        QueryConnection,
+        Session,
+        Supergraph,
+    )
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -40,6 +64,7 @@ def builtin_node(
     root_type: NodeType | None = NodeType.SPACE,
     pretend_frozen: bool = False,  # :PretendFrozen
     index: tuple[IndexIn, ...] = (),
+    is_abstract: bool = False,
 ):
     """Register a class as a concrete node for the given node type."""
 
@@ -51,10 +76,16 @@ def builtin_node(
         assert cls.__name__ == "Node" or issubclass(cls, Node), f"{cls.__name__} is not a Node"
         cls.__is_trait__ = False  # override Trait.__is_trait__
         traits = set()
+        base_traits = set()
         for superclass in get_superclasses(cls):
             if trait := _resolve_trait_type(superclass.__name__):
                 traits.add(trait)
+        for base in cls.__bases__:
+            if trait := _resolve_trait_type(base.__name__):
+                base_traits.add(trait)
         cls.__traits__ = tuple(traits)
+        cls.__base_traits__ = tuple(base_traits)
+        cls.__is_abstract__ = is_abstract
 
         cls, _ = _process_object_cls(
             cls=cls,
@@ -63,6 +94,7 @@ def builtin_node(
             is_node=True,
             is_root_node=root_type is None,
             is_frozen=pretend_frozen,
+            is_abstract=is_abstract,
             traits=cls.__traits__,
         )
         cls.__indexes__ = index
@@ -106,7 +138,6 @@ class Node[NodeProtoT: AnyNodeProto](NodeBase[NodeProtoT]):
     # Entity.materialization: 7
     # Entity.snapshot/template: 8-11
     # Entity.set_properties: 12
-    # Entity.set_fields: 13
     if TYPE_CHECKING:
         parent_ptr: Optional[NodeReference] = None
 
@@ -196,7 +227,7 @@ class Node[NodeProtoT: AnyNodeProto](NodeBase[NodeProtoT]):
         # assign order
         if isinstance(child, IsOrdered):
             order_trait = next(
-                (trait for trait in child.__traits__ if trait in INTER_ORDER_TRAITS), None
+                (trait for trait in child.__traits__ if trait in INTER_ORDER_TYPES), None
             )
             existing_nodes = self._graph.get_children(self, type=order_trait or child.metatype)
             if existing_nodes:
@@ -331,3 +362,167 @@ class Node[NodeProtoT: AnyNodeProto](NodeBase[NodeProtoT]):
             _connection=_connection,
         )
         return cast(Self, node)
+
+
+@builtin_node(NodeType.ENTITY)
+class Entity(IsTracked, Node):
+    """
+    An Entity is a versioned Node in primary relational storage (OLTP).
+    """
+
+    # nocheckin: support Entity branching & variants
+    # primary key: (id, snapshot_id)
+    # two pairs of ids (root container, base pointer):
+    #  - time: (snapshot_id, base_id)
+    #  - space: (instance_id, template_id)
+    # when merging: time before space (id+snapshot_id over template)
+    # snapshot and template properties must be READ ONLY (no write)
+    # materialization: MaterializationType = property_(
+    #     7,
+    #     is_managed=True,
+    #     is_eq=False,
+    #     is_hash=False,
+    #     is_repr=False,
+    #     default=MaterializationType.FULL_GRAPH,
+    # )
+    # snapshot: Optional["Snapshot"] = property_(
+    #     8,
+    #     can_write=None,
+    #     is_managed=True,
+    #     node_space_from="self",
+    #     description="The Snapshot this Entity is part of.",
+    # )
+    # base: Optional["Snapshot"] = property_(
+    #     9,
+    #     can_write=None,
+    #     is_managed=True,
+    #     node_is_customizable=False,
+    #     node_space_from="self",
+    #     description="The Snapshot this Entity's snapshot is based on.",
+    # )
+    # instance: Optional["Entity"] = property_(
+    #     10,
+    #     can_write=None,
+    #     is_managed=True,
+    #     node_is_customizable=False,
+    #     description="The (root) Entity in this Entity's instance tree.",
+    # )
+    # template: Optional["Entity"] = property_(
+    #     11,
+    #     can_write=None,
+    #     is_managed=True,
+    #     node_is_customizable=False,
+    #     description="The template this Entity instance is based on.",
+    # )
+    # Entity.set_properties/set_fields: 12-13
+    if TYPE_CHECKING:
+        snapshot_ptr: Optional["NodeReference"] = None
+        base_ptr: Optional["NodeReference"] = None
+        instance_ptr: Optional["NodeReference"] = None
+        template_ptr: Optional["NodeReference"] = None
+
+
+@builtin_node(NodeType.CUSTOM_ENTITY_DEFINITION)
+class CustomEntityDefinition(
+    Spatial,
+    HasName,
+    IsTaggable,
+    IsOwnable,
+    IsDeletable,
+    IsScriptable,
+    IsSourceable,
+    IsActionable,
+    Entity,
+):
+    """
+    A definition for a custom Entity type (instantiated in CustomEntities).
+    Custom Entities may be materialized as physical or logical tables in primary storage.
+    """
+
+    # type?
+    parent: Optional["Folder"] = property_parent_(node_is_customizable=False)
+    prototype: Optional["CustomEntity"] = property_(
+        6,
+        description="A custom Entity's prototype is the default template new CustomEntity instances are based on.",
+    )
+    traits: list[TraitType] = property_(40)
+
+
+@builtin_node(NodeType.CUSTOM_ENTITY)
+class CustomEntity(
+    Spatial,
+    IsExtensible,
+    IsDeletable,
+    Entity,
+):
+    """
+    A CustomEntity is an instance of a CustomEntityDefinition.
+    """
+
+    parent: Union["CustomEntityDefinition", "CustomEntity", None] = property_parent_(
+        node_is_customizable=True
+    )
+    definition: "CustomEntityDefinition" = property_(
+        6,
+        description="The CustomEntityDefinition this CustomEntity is an instance of.",
+        is_managed=True,
+        can_write=None,
+    )
+    if TYPE_CHECKING:
+        definition_ptr: Optional[NodeReference] = None
+
+
+@builtin_node(NodeType.EVENT, pretend_frozen=True)
+class Event[N: Node = Node](Spatial):
+    """
+    An Event represents something happening in a Space.
+    """
+
+    node: Optional["Node"] = property_(35, description="The Node this Event is about.")
+    if TYPE_CHECKING:
+        node_ptr: Optional[NodeReference] = None
+
+
+@builtin_node(NodeType.CUSTOM_EVENT_DEFINITION)
+class CustomEventDefinition(
+    Spatial,
+    HasName,
+    IsSourceable,
+    Entity,
+):
+    """A CustomEventDefinition defines a kind of CustomEvent."""
+
+    pass
+
+
+@builtin_node(NodeType.CUSTOM_EVENT, pretend_frozen=True)
+class CustomEvent(Event):
+    """An instance of a CustomEventDefinition."""
+
+    definition: "CustomEventDefinition" = property_(
+        40, description="The CustomEventDefinition this CustomEvent is an instance of."
+    )
+
+
+@builtin_node(NodeType.RESOURCE)
+class Resource(Entity):
+    """
+    A Resource represents an external asset.
+    The lifecycle of a Resource may be managed by some provisioner.
+    """
+
+    parent: Optional["Folder"] = property_parent_(node_is_customizable=False)
+    status: ResourceStatus = property_(40, default=ResourceStatus.PENDING)
+    target_status: Optional[datetime] = property_(41)
+
+
+@builtin_node(NodeType.METRIC)
+class Metric(IsSourceable, Entity):
+    """An Entity that represents a Metric."""
+
+
+@builtin_node(NodeType.MEASUREMENT)
+class Measurement(Event):
+    """An Event that represents a Measurement."""
+
+    definition: "Metric" = property_(6, is_managed=True, can_write=None)

@@ -6230,31 +6230,39 @@ export interface NodeDefinitionProto {
      */
     description?: string;
     /**
-     * @generated from protobuf field: repeated symbol.destack.PropertyDefinitionProto properties = 50
+     * @generated from protobuf field: repeated symbol.destack.PropertyDefinitionProto properties = 40
      */
     properties: PropertyDefinitionProto[];
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeTypeProto base_type = 50
+     */
+    baseType?: NodeTypeProto;
     /**
      * @generated from protobuf field: repeated symbol.destack.TraitTypeProto traits = 51
      */
     traits: TraitTypeProto[];
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeTypeProto root_type = 52
+     * @generated from protobuf field: repeated symbol.destack.TraitTypeProto base_traits = 52
+     */
+    baseTraits: TraitTypeProto[];
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeTypeProto root_type = 60
      */
     rootType?: NodeTypeProto;
     /**
-     * @generated from protobuf field: repeated symbol.destack.NodeTypeProto parent_types = 53
+     * @generated from protobuf field: repeated symbol.destack.NodeTypeProto parent_types = 61
      */
     parentTypes: NodeTypeProto[];
     /**
-     * @generated from protobuf field: repeated symbol.destack.NodeTypeProto child_types = 54
+     * @generated from protobuf field: repeated symbol.destack.NodeTypeProto child_types = 62
      */
     childTypes: NodeTypeProto[];
     /**
-     * @generated from protobuf field: repeated symbol.destack.NodeTypeProto ancestor_types = 55
+     * @generated from protobuf field: repeated symbol.destack.NodeTypeProto ancestor_types = 63
      */
     ancestorTypes: NodeTypeProto[];
     /**
-     * @generated from protobuf field: repeated symbol.destack.NodeTypeProto descendant_types = 56
+     * @generated from protobuf field: repeated symbol.destack.NodeTypeProto descendant_types = 64
      */
     descendantTypes: NodeTypeProto[];
 }
@@ -10771,13 +10779,17 @@ export interface TraitDefinitionProto {
      */
     description?: string;
     /**
-     * @generated from protobuf field: repeated symbol.destack.PropertyDefinitionProto properties = 50
+     * @generated from protobuf field: repeated symbol.destack.PropertyDefinitionProto properties = 40
      */
     properties: PropertyDefinitionProto[];
     /**
      * @generated from protobuf field: repeated symbol.destack.TraitTypeProto traits = 51
      */
     traits: TraitTypeProto[];
+    /**
+     * @generated from protobuf field: repeated symbol.destack.TraitTypeProto base_traits = 52
+     */
+    baseTraits: TraitTypeProto[];
 }
 /**
  * @generated from protobuf message symbol.destack.TransitionProto
@@ -17567,25 +17579,25 @@ export enum TraitTypeProto {
      */
     TRAIT_TYPE_SPATIAL = 2,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_ENTITY = 10;
+     * @generated from protobuf enum value: TRAIT_TYPE_ENTITY = 20;
      */
-    TRAIT_TYPE_ENTITY = 10,
+    TRAIT_TYPE_ENTITY = 20,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_EVENT = 22;
+     * @generated from protobuf enum value: TRAIT_TYPE_EVENT = 21;
      */
-    TRAIT_TYPE_EVENT = 22,
+    TRAIT_TYPE_EVENT = 21,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_RESOURCE = 21;
+     * @generated from protobuf enum value: TRAIT_TYPE_RESOURCE = 30;
      */
-    TRAIT_TYPE_RESOURCE = 21,
+    TRAIT_TYPE_RESOURCE = 30,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_CUSTOM_NODE_DEFINITION = 23;
+     * @generated from protobuf enum value: TRAIT_TYPE_CUSTOM_NODE_DEFINITION = 31;
      */
-    TRAIT_TYPE_CUSTOM_NODE_DEFINITION = 23,
+    TRAIT_TYPE_CUSTOM_NODE_DEFINITION = 31,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_CUSTOM_NODE = 24;
+     * @generated from protobuf enum value: TRAIT_TYPE_CUSTOM_NODE = 32;
      */
-    TRAIT_TYPE_CUSTOM_NODE = 24,
+    TRAIT_TYPE_CUSTOM_NODE = 32,
     /**
      * @generated from protobuf enum value: TRAIT_TYPE_TRACKED = 51;
      */
@@ -17706,10 +17718,6 @@ export enum TraitTypeProto {
      * @generated from protobuf enum value: TRAIT_TYPE_VIEW = 9001;
      */
     TRAIT_TYPE_VIEW = 9001,
-    /**
-     * @generated from protobuf enum value: TRAIT_TYPE_VIEW_EVENT = 9002;
-     */
-    TRAIT_TYPE_VIEW_EVENT = 9002,
     /**
      * @generated from protobuf enum value: TRAIT_TYPE_INPUT_EVENT = 9500;
      */
@@ -32579,13 +32587,15 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconProto },
             { no: 36, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 50, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyDefinitionProto },
+            { no: 40, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyDefinitionProto },
+            { no: 50, name: "base_type", kind: "enum", opt: true, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 51, name: "traits", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.TraitTypeProto", TraitTypeProto] },
-            { no: 52, name: "root_type", kind: "enum", opt: true, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
-            { no: 53, name: "parent_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
-            { no: 54, name: "child_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
-            { no: 55, name: "ancestor_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
-            { no: 56, name: "descendant_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] }
+            { no: 52, name: "base_traits", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.TraitTypeProto", TraitTypeProto] },
+            { no: 60, name: "root_type", kind: "enum", opt: true, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+            { no: 61, name: "parent_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+            { no: 62, name: "child_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+            { no: 63, name: "ancestor_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+            { no: 64, name: "descendant_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] }
         ]);
     }
     create(value?: PartialMessage<NodeDefinitionProto>): NodeDefinitionProto {
@@ -32596,6 +32606,7 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
         message.name = "";
         message.properties = [];
         message.traits = [];
+        message.baseTraits = [];
         message.parentTypes = [];
         message.childTypes = [];
         message.ancestorTypes = [];
@@ -32627,8 +32638,11 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
                 case /* optional string description */ 36:
                     message.description = reader.string();
                     break;
-                case /* repeated symbol.destack.PropertyDefinitionProto properties */ 50:
+                case /* repeated symbol.destack.PropertyDefinitionProto properties */ 40:
                     message.properties.push(PropertyDefinitionProto.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* optional symbol.destack.NodeTypeProto base_type */ 50:
+                    message.baseType = reader.int32();
                     break;
                 case /* repeated symbol.destack.TraitTypeProto traits */ 51:
                     if (wireType === WireType.LengthDelimited)
@@ -32637,31 +32651,38 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
                     else
                         message.traits.push(reader.int32());
                     break;
-                case /* optional symbol.destack.NodeTypeProto root_type */ 52:
+                case /* repeated symbol.destack.TraitTypeProto base_traits */ 52:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.baseTraits.push(reader.int32());
+                    else
+                        message.baseTraits.push(reader.int32());
+                    break;
+                case /* optional symbol.destack.NodeTypeProto root_type */ 60:
                     message.rootType = reader.int32();
                     break;
-                case /* repeated symbol.destack.NodeTypeProto parent_types */ 53:
+                case /* repeated symbol.destack.NodeTypeProto parent_types */ 61:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
                             message.parentTypes.push(reader.int32());
                     else
                         message.parentTypes.push(reader.int32());
                     break;
-                case /* repeated symbol.destack.NodeTypeProto child_types */ 54:
+                case /* repeated symbol.destack.NodeTypeProto child_types */ 62:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
                             message.childTypes.push(reader.int32());
                     else
                         message.childTypes.push(reader.int32());
                     break;
-                case /* repeated symbol.destack.NodeTypeProto ancestor_types */ 55:
+                case /* repeated symbol.destack.NodeTypeProto ancestor_types */ 63:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
                             message.ancestorTypes.push(reader.int32());
                     else
                         message.ancestorTypes.push(reader.int32());
                     break;
-                case /* repeated symbol.destack.NodeTypeProto descendant_types */ 56:
+                case /* repeated symbol.destack.NodeTypeProto descendant_types */ 64:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
                             message.descendantTypes.push(reader.int32());
@@ -32698,9 +32719,12 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
         /* optional string description = 36; */
         if (message.description !== undefined)
             writer.tag(36, WireType.LengthDelimited).string(message.description);
-        /* repeated symbol.destack.PropertyDefinitionProto properties = 50; */
+        /* repeated symbol.destack.PropertyDefinitionProto properties = 40; */
         for (let i = 0; i < message.properties.length; i++)
-            PropertyDefinitionProto.internalBinaryWrite(message.properties[i], writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+            PropertyDefinitionProto.internalBinaryWrite(message.properties[i], writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeTypeProto base_type = 50; */
+        if (message.baseType !== undefined)
+            writer.tag(50, WireType.Varint).int32(message.baseType);
         /* repeated symbol.destack.TraitTypeProto traits = 51; */
         if (message.traits.length) {
             writer.tag(51, WireType.LengthDelimited).fork();
@@ -32708,33 +32732,40 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
                 writer.int32(message.traits[i]);
             writer.join();
         }
-        /* optional symbol.destack.NodeTypeProto root_type = 52; */
+        /* repeated symbol.destack.TraitTypeProto base_traits = 52; */
+        if (message.baseTraits.length) {
+            writer.tag(52, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.baseTraits.length; i++)
+                writer.int32(message.baseTraits[i]);
+            writer.join();
+        }
+        /* optional symbol.destack.NodeTypeProto root_type = 60; */
         if (message.rootType !== undefined)
-            writer.tag(52, WireType.Varint).int32(message.rootType);
-        /* repeated symbol.destack.NodeTypeProto parent_types = 53; */
+            writer.tag(60, WireType.Varint).int32(message.rootType);
+        /* repeated symbol.destack.NodeTypeProto parent_types = 61; */
         if (message.parentTypes.length) {
-            writer.tag(53, WireType.LengthDelimited).fork();
+            writer.tag(61, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.parentTypes.length; i++)
                 writer.int32(message.parentTypes[i]);
             writer.join();
         }
-        /* repeated symbol.destack.NodeTypeProto child_types = 54; */
+        /* repeated symbol.destack.NodeTypeProto child_types = 62; */
         if (message.childTypes.length) {
-            writer.tag(54, WireType.LengthDelimited).fork();
+            writer.tag(62, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.childTypes.length; i++)
                 writer.int32(message.childTypes[i]);
             writer.join();
         }
-        /* repeated symbol.destack.NodeTypeProto ancestor_types = 55; */
+        /* repeated symbol.destack.NodeTypeProto ancestor_types = 63; */
         if (message.ancestorTypes.length) {
-            writer.tag(55, WireType.LengthDelimited).fork();
+            writer.tag(63, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.ancestorTypes.length; i++)
                 writer.int32(message.ancestorTypes[i]);
             writer.join();
         }
-        /* repeated symbol.destack.NodeTypeProto descendant_types = 56; */
+        /* repeated symbol.destack.NodeTypeProto descendant_types = 64; */
         if (message.descendantTypes.length) {
-            writer.tag(56, WireType.LengthDelimited).fork();
+            writer.tag(64, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.descendantTypes.length; i++)
                 writer.int32(message.descendantTypes[i]);
             writer.join();
@@ -43704,8 +43735,9 @@ class TraitDefinitionProto$Type extends MessageType<TraitDefinitionProto> {
             { no: 32, name: "alias", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconProto },
             { no: 36, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 50, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyDefinitionProto },
-            { no: 51, name: "traits", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.TraitTypeProto", TraitTypeProto] }
+            { no: 40, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyDefinitionProto },
+            { no: 51, name: "traits", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.TraitTypeProto", TraitTypeProto] },
+            { no: 52, name: "base_traits", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.TraitTypeProto", TraitTypeProto] }
         ]);
     }
     create(value?: PartialMessage<TraitDefinitionProto>): TraitDefinitionProto {
@@ -43717,6 +43749,7 @@ class TraitDefinitionProto$Type extends MessageType<TraitDefinitionProto> {
         message.alias = "";
         message.properties = [];
         message.traits = [];
+        message.baseTraits = [];
         if (value !== undefined)
             reflectionMergePartial<TraitDefinitionProto>(this, message, value);
         return message;
@@ -43747,7 +43780,7 @@ class TraitDefinitionProto$Type extends MessageType<TraitDefinitionProto> {
                 case /* optional string description */ 36:
                     message.description = reader.string();
                     break;
-                case /* repeated symbol.destack.PropertyDefinitionProto properties */ 50:
+                case /* repeated symbol.destack.PropertyDefinitionProto properties */ 40:
                     message.properties.push(PropertyDefinitionProto.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* repeated symbol.destack.TraitTypeProto traits */ 51:
@@ -43756,6 +43789,13 @@ class TraitDefinitionProto$Type extends MessageType<TraitDefinitionProto> {
                             message.traits.push(reader.int32());
                     else
                         message.traits.push(reader.int32());
+                    break;
+                case /* repeated symbol.destack.TraitTypeProto base_traits */ 52:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.baseTraits.push(reader.int32());
+                    else
+                        message.baseTraits.push(reader.int32());
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -43790,14 +43830,21 @@ class TraitDefinitionProto$Type extends MessageType<TraitDefinitionProto> {
         /* optional string description = 36; */
         if (message.description !== undefined)
             writer.tag(36, WireType.LengthDelimited).string(message.description);
-        /* repeated symbol.destack.PropertyDefinitionProto properties = 50; */
+        /* repeated symbol.destack.PropertyDefinitionProto properties = 40; */
         for (let i = 0; i < message.properties.length; i++)
-            PropertyDefinitionProto.internalBinaryWrite(message.properties[i], writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+            PropertyDefinitionProto.internalBinaryWrite(message.properties[i], writer.tag(40, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbol.destack.TraitTypeProto traits = 51; */
         if (message.traits.length) {
             writer.tag(51, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.traits.length; i++)
                 writer.int32(message.traits[i]);
+            writer.join();
+        }
+        /* repeated symbol.destack.TraitTypeProto base_traits = 52; */
+        if (message.baseTraits.length) {
+            writer.tag(52, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.baseTraits.length; i++)
+                writer.int32(message.baseTraits[i]);
             writer.join();
         }
         let u = options.writeUnknownFields;

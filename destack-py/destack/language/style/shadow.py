@@ -13,7 +13,6 @@ from destack.language.core import (
     builtin_struct,
     property_,
 )
-from destack.proto import ShadowStyleProto
 
 from .color import Color
 from .style import Style
@@ -57,7 +56,7 @@ class Shadow(StructMutable):
 @builtin_node(NodeType.SHADOW_STYLE)
 class ShadowStyle(
     Style,
-    Node[ShadowStyleProto],
+    Node,
 ):
     """A shadow style."""
 

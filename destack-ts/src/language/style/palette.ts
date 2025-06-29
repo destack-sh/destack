@@ -38,8 +38,8 @@ export class Palette
     TraitType.SPATIAL,
     TraitType.VISUAL,
     TraitType.TAGGABLE,
-    TraitType.ENTITY,
     TraitType.TRACKED,
+    TraitType.ENTITY,
     TraitType.DELETABLE,
     TraitType.ORDERED,
   ];

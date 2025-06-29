@@ -16,17 +16,6 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import (
-    RunCompletedEventProto,
-    RunFailedEventProto,
-    RunPausedEventProto,
-    RunPauseRequestedEventProto,
-    RunProto,
-    RunResumedEventProto,
-    RunResumeRequestedEventProto,
-    RunStartedEventProto,
-    RunStopRequestedEventProto,
-)
 
 if TYPE_CHECKING:
     from destack.language import Interruption, NodeReference, Space
@@ -78,7 +67,7 @@ class RunStatus(Enum):
 @builtin_node(NodeType.RUN_STARTED_EVENT)
 class RunStartedEvent(
     Event["Run"],
-    Node[RunStartedEventProto],
+    Node,
 ):
     """An Event regarding a Run."""
 
@@ -91,7 +80,7 @@ class RunStartedEvent(
 @builtin_node(NodeType.RUN_PAUSE_REQUESTED_EVENT)
 class RunPauseRequestedEvent(
     Event["Run"],
-    Node[RunPauseRequestedEventProto],
+    Node,
 ):
     """An Event regarding a Run."""
 
@@ -104,7 +93,7 @@ class RunPauseRequestedEvent(
 @builtin_node(NodeType.RUN_PAUSED_EVENT)
 class RunPausedEvent(
     Event["Run"],
-    Node[RunPausedEventProto],
+    Node,
 ):
     """A Event regarding a Run."""
 
@@ -117,7 +106,7 @@ class RunPausedEvent(
 @builtin_node(NodeType.RUN_RESUME_REQUESTED_EVENT)
 class RunResumeRequestedEvent(
     Event["Run"],
-    Node[RunResumeRequestedEventProto],
+    Node,
 ):
     """An Event regarding a Run."""
 
@@ -130,7 +119,7 @@ class RunResumeRequestedEvent(
 @builtin_node(NodeType.RUN_RESUMED_EVENT)
 class RunResumedEvent(
     Event["Run"],
-    Node[RunResumedEventProto],
+    Node,
 ):
     """A Event regarding a Run."""
 
@@ -143,7 +132,7 @@ class RunResumedEvent(
 @builtin_node(NodeType.RUN_STOP_REQUESTED_EVENT)
 class RunStopRequestedEvent(
     Event["Run"],
-    Node[RunStopRequestedEventProto],
+    Node,
 ):
     """An Event regarding a Run."""
 
@@ -156,7 +145,7 @@ class RunStopRequestedEvent(
 @builtin_node(NodeType.RUN_FAILED_EVENT)
 class RunFailedEvent(
     Event["Run"],
-    Node[RunFailedEventProto],
+    Node,
 ):
     """An Event regarding a Run."""
 
@@ -169,7 +158,7 @@ class RunFailedEvent(
 @builtin_node(NodeType.RUN_COMPLETED_EVENT)
 class RunCompletedEvent(
     Event["Run"],
-    Node[RunCompletedEventProto],
+    Node,
 ):
     """An Event regarding a Run."""
 
@@ -184,7 +173,7 @@ class Run(
     Spatial,
     Entity,
     IsExtensible,
-    Node[RunProto],
+    Node,
 ):
     """
     Run something somewhere, somehow.

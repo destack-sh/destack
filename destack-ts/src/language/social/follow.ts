@@ -33,10 +33,10 @@ export class Follow
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
     TraitType.SPATIAL,
-    TraitType.ENTITY,
     TraitType.TRACKED,
-    TraitType.OWNABLE,
+    TraitType.ENTITY,
     TraitType.DELETABLE,
+    TraitType.OWNABLE,
     TraitType.FOLLOW,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;

@@ -1488,11 +1488,11 @@ enum TraitTypeProto {
   TRAIT_TYPE_UNSPECIFIED = 0;
   TRAIT_TYPE_GLOBAL = 1;
   TRAIT_TYPE_SPATIAL = 2;
-  TRAIT_TYPE_ENTITY = 10;
-  TRAIT_TYPE_EVENT = 22;
-  TRAIT_TYPE_RESOURCE = 21;
-  TRAIT_TYPE_CUSTOM_NODE_DEFINITION = 23;
-  TRAIT_TYPE_CUSTOM_NODE = 24;
+  TRAIT_TYPE_ENTITY = 20;
+  TRAIT_TYPE_EVENT = 21;
+  TRAIT_TYPE_RESOURCE = 30;
+  TRAIT_TYPE_CUSTOM_NODE_DEFINITION = 31;
+  TRAIT_TYPE_CUSTOM_NODE = 32;
   TRAIT_TYPE_TRACKED = 51;
   TRAIT_TYPE_ARCHIVABLE = 52;
   TRAIT_TYPE_DELETABLE = 53;
@@ -1523,7 +1523,6 @@ enum TraitTypeProto {
   TRAIT_TYPE_FOLLOW = 5535;
   TRAIT_TYPE_VISUAL = 9000;
   TRAIT_TYPE_VIEW = 9001;
-  TRAIT_TYPE_VIEW_EVENT = 9002;
   TRAIT_TYPE_INPUT_EVENT = 9500;
   TRAIT_TYPE_POINTER_EVENT = 9501;
   TRAIT_TYPE_MOUSE_EVENT = 9510;
@@ -3374,13 +3373,15 @@ message NodeDefinitionProto {
   string name = 31;
   optional IconProto icon = 34;
   optional string description = 36;
-  repeated PropertyDefinitionProto properties = 50;
+  repeated PropertyDefinitionProto properties = 40;
+  optional NodeTypeProto base_type = 50;
   repeated TraitTypeProto traits = 51;
-  optional NodeTypeProto root_type = 52;
-  repeated NodeTypeProto parent_types = 53;
-  repeated NodeTypeProto child_types = 54;
-  repeated NodeTypeProto ancestor_types = 55;
-  repeated NodeTypeProto descendant_types = 56;
+  repeated TraitTypeProto base_traits = 52;
+  optional NodeTypeProto root_type = 60;
+  repeated NodeTypeProto parent_types = 61;
+  repeated NodeTypeProto child_types = 62;
+  repeated NodeTypeProto ancestor_types = 63;
+  repeated NodeTypeProto descendant_types = 64;
 }
 
 message NodeReferenceProto {
@@ -4700,8 +4701,9 @@ message TraitDefinitionProto {
   string alias = 32;
   optional IconProto icon = 34;
   optional string description = 36;
-  repeated PropertyDefinitionProto properties = 50;
+  repeated PropertyDefinitionProto properties = 40;
   repeated TraitTypeProto traits = 51;
+  repeated TraitTypeProto base_traits = 52;
 }
 
 message TransitionProto {

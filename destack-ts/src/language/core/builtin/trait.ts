@@ -203,56 +203,6 @@ export const IsDeletable = new IsDeletable$Type(TraitType.DELETABLE);
 registerTraitClass(TraitType.DELETABLE, IsDeletable);
 /* ==== DESTACK_GENERATED_END:TRAIT:53 ==== */
 
-/* ==== DESTACK_GENERATED_START:TRAIT:23 ==== */
-/**
- * A Node that defines a Custom Node type.
- */
-export interface IsCustomNodeDefinition {
-  get prototype(): (Node & IsCustomNode) | null;
-  set prototype(value: (Node & IsCustomNode) | null);
-  prototypePtr: NodeReference | null;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node that defines a Custom Node type.
- */
-class IsCustomNodeDefinition$Type extends TraitClass<
-  IsCustomNodeDefinition,
-  TraitType.CUSTOM_NODE_DEFINITION
-> {}
-
-export const IsCustomNodeDefinition = new IsCustomNodeDefinition$Type(
-  TraitType.CUSTOM_NODE_DEFINITION,
-);
-registerTraitClass(TraitType.CUSTOM_NODE_DEFINITION, IsCustomNodeDefinition);
-/* ==== DESTACK_GENERATED_END:TRAIT:23 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:24 ==== */
-/**
- * A Node that is asome Custom Node.
- */
-export interface IsCustomNode {
-  get definition(): (Node & IsCustomNodeDefinition) | null;
-  readonly definitionPtr: NodeReference;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node that is asome Custom Node.
- */
-class IsCustomNode$Type extends TraitClass<IsCustomNode, TraitType.CUSTOM_NODE> {}
-
-export const IsCustomNode = new IsCustomNode$Type(TraitType.CUSTOM_NODE);
-registerTraitClass(TraitType.CUSTOM_NODE, IsCustomNode);
-/* ==== DESTACK_GENERATED_END:TRAIT:24 ==== */
-
 /* ==== DESTACK_GENERATED_START:TRAIT:55 ==== */
 /**
  * A Node that can be extended with custom Values (one Value per Field).
@@ -684,40 +634,14 @@ export const Spatial = new Spatial$Type(TraitType.SPATIAL);
 registerTraitClass(TraitType.SPATIAL, Spatial);
 /* ==== DESTACK_GENERATED_END:TRAIT:2 ==== */
 
-/* ==== DESTACK_GENERATED_START:TRAIT:10 ==== */
-/**
- * An Entity is a versioned Node in primary relational storage (OLTP).
- */
-export interface Entity extends IsTracked {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * An Entity is a versioned Node in primary relational storage (OLTP).
- */
-class Entity$Type extends TraitClass<Entity, TraitType.ENTITY> {}
-
-export const Entity = new Entity$Type(TraitType.ENTITY);
-registerTraitClass(TraitType.ENTITY, Entity);
-/* ==== DESTACK_GENERATED_END:TRAIT:10 ==== */
-
 /* ==== DESTACK_GENERATED_START:TRAIT:21 ==== */
 /**
- * A Resource represents an external asset.
- * The lifecycle of a Resource may be managed by some provisioner.
+ * An Event represents something happening in a Space.
  */
-export interface Resource extends Entity {
-  /**
-   * Resource.status
-   */
-  status: ResourceStatus;
-
-  /**
-   * Resource.targetStatus
-   */
-  targetStatus: Temporal.ZonedDateTime | null;
+export interface Event extends Spatial {
+  get node(): Node | null;
+  set node(value: Node | null);
+  nodePtr: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -725,13 +649,12 @@ export interface Resource extends Entity {
 }
 
 /**
- * A Resource represents an external asset.
- * The lifecycle of a Resource may be managed by some provisioner.
+ * An Event represents something happening in a Space.
  */
-class Resource$Type extends TraitClass<Resource, TraitType.RESOURCE> {}
+class Event$Type extends TraitClass<Event, TraitType.EVENT> {}
 
-export const Resource = new Resource$Type(TraitType.RESOURCE);
-registerTraitClass(TraitType.RESOURCE, Resource);
+export const Event = new Event$Type(TraitType.EVENT);
+registerTraitClass(TraitType.EVENT, Event);
 /* ==== DESTACK_GENERATED_END:TRAIT:21 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:4010 ==== */
@@ -775,29 +698,6 @@ export const Measurement = new Measurement$Type(TraitType.MEASUREMENT);
 registerTraitClass(TraitType.MEASUREMENT, Measurement);
 /* ==== DESTACK_GENERATED_END:TRAIT:4011 ==== */
 
-/* ==== DESTACK_GENERATED_START:TRAIT:22 ==== */
-/**
- * An Event represents something happening in a Space.
- */
-export interface Event extends Spatial {
-  get node(): Node | null;
-  set node(value: Node | null);
-  nodePtr: NodeReference | null;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * An Event represents something happening in a Space.
- */
-class Event$Type extends TraitClass<Event, TraitType.EVENT> {}
-
-export const Event = new Event$Type(TraitType.EVENT);
-registerTraitClass(TraitType.EVENT, Event);
-/* ==== DESTACK_GENERATED_END:TRAIT:22 ==== */
-
 /* ==== DESTACK_GENERATED_START:CONSTANT:INTER_ORDER_TRAITS ==== */
 /**
  * INTER_ORDER_TRAITS
@@ -809,3 +709,103 @@ export const INTER_ORDER_TRAITS = [
 ];
 
 /* ==== DESTACK_GENERATED_END:CONSTANT:INTER_ORDER_TRAITS ==== */
+
+/* ==== DESTACK_GENERATED_START:TRAIT:31 ==== */
+/**
+ * A Node that defines a Custom Node type.
+ */
+export interface IsCustomNodeDefinition {
+  get prototype(): (Node & IsCustomNode) | null;
+  set prototype(value: (Node & IsCustomNode) | null);
+  prototypePtr: NodeReference | null;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+
+/**
+ * A Node that defines a Custom Node type.
+ */
+class IsCustomNodeDefinition$Type extends TraitClass<
+  IsCustomNodeDefinition,
+  TraitType.CUSTOM_NODE_DEFINITION
+> {}
+
+export const IsCustomNodeDefinition = new IsCustomNodeDefinition$Type(
+  TraitType.CUSTOM_NODE_DEFINITION,
+);
+registerTraitClass(TraitType.CUSTOM_NODE_DEFINITION, IsCustomNodeDefinition);
+/* ==== DESTACK_GENERATED_END:TRAIT:31 ==== */
+
+/* ==== DESTACK_GENERATED_START:TRAIT:32 ==== */
+/**
+ * A Node that is asome Custom Node.
+ */
+export interface IsCustomNode {
+  get definition(): (Node & IsCustomNodeDefinition) | null;
+  readonly definitionPtr: NodeReference;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+
+/**
+ * A Node that is asome Custom Node.
+ */
+class IsCustomNode$Type extends TraitClass<IsCustomNode, TraitType.CUSTOM_NODE> {}
+
+export const IsCustomNode = new IsCustomNode$Type(TraitType.CUSTOM_NODE);
+registerTraitClass(TraitType.CUSTOM_NODE, IsCustomNode);
+/* ==== DESTACK_GENERATED_END:TRAIT:32 ==== */
+
+/* ==== DESTACK_GENERATED_START:TRAIT:20 ==== */
+/**
+ * An Entity is a versioned Node in primary relational storage (OLTP).
+ */
+export interface Entity extends IsTracked {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+
+/**
+ * An Entity is a versioned Node in primary relational storage (OLTP).
+ */
+class Entity$Type extends TraitClass<Entity, TraitType.ENTITY> {}
+
+export const Entity = new Entity$Type(TraitType.ENTITY);
+registerTraitClass(TraitType.ENTITY, Entity);
+/* ==== DESTACK_GENERATED_END:TRAIT:20 ==== */
+
+/* ==== DESTACK_GENERATED_START:TRAIT:30 ==== */
+/**
+ * A Resource represents an external asset.
+ * The lifecycle of a Resource may be managed by some provisioner.
+ */
+export interface Resource extends Entity {
+  /**
+   * Resource.status
+   */
+  status: ResourceStatus;
+
+  /**
+   * Resource.targetStatus
+   */
+  targetStatus: Temporal.ZonedDateTime | null;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+
+/**
+ * A Resource represents an external asset.
+ * The lifecycle of a Resource may be managed by some provisioner.
+ */
+class Resource$Type extends TraitClass<Resource, TraitType.RESOURCE> {}
+
+export const Resource = new Resource$Type(TraitType.RESOURCE);
+registerTraitClass(TraitType.RESOURCE, Resource);
+/* ==== DESTACK_GENERATED_END:TRAIT:30 ==== */

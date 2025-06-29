@@ -721,7 +721,6 @@ export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {
     NodeType.COUNTER_MEASUREMENT,
     NodeType.HISTOGRAM_MEASUREMENT,
   ],
-  [TraitType.VIEW_EVENT]: [],
   [TraitType.VIEW]: [
     NodeType.CUSTOM_VIEW_DEFINITION,
     NodeType.CUSTOM_VIEW,

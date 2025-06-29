@@ -50,8 +50,8 @@ export class User
   static metatype: NodeType = NodeType.USER;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
-    TraitType.ENTITY,
     TraitType.TRACKED,
+    TraitType.ENTITY,
     TraitType.SUBJECT,
     TraitType.OWNER,
     TraitType.FOLLOWABLE,

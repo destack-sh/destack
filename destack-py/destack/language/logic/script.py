@@ -15,7 +15,6 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import ScriptProto
 
 if TYPE_CHECKING:
     from destack.language import Folder
@@ -32,7 +31,7 @@ class Script(
     IsDeletable,
     IsRunnable,
     IsExtensible,
-    Node[ScriptProto],
+    Node,
 ):
     """A Script."""
 

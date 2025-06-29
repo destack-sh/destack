@@ -406,7 +406,7 @@ import type {
   TransitionStyle,
   TransitionType,
 } from "@destack/language/style";
-import type { View, ViewEvent } from "@destack/language/view";
+import type { View } from "@destack/language/view";
 import type {
   ContainerView,
   CustomView,
@@ -613,7 +613,6 @@ export type TraitTypeMapping = {
   [TraitType.RESOURCE]: Resource;
   [TraitType.METRIC]: Metric;
   [TraitType.MEASUREMENT]: Measurement;
-  [TraitType.VIEW_EVENT]: ViewEvent;
   [TraitType.VIEW]: View;
   [TraitType.CONTAINER_VIEW]: ContainerView;
   [TraitType.CONTENT_VIEW]: ContentView;

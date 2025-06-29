@@ -32,10 +32,10 @@ export class Snapshot
   static metatype: NodeType = NodeType.SNAPSHOT;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
-    TraitType.ENTITY,
     TraitType.TRACKED,
-    TraitType.OWNABLE,
+    TraitType.ENTITY,
     TraitType.DELETABLE,
+    TraitType.OWNABLE,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE, NodeType.BRANCH];
@@ -566,10 +566,10 @@ export class Branch
   static metatype: NodeType = NodeType.BRANCH;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
-    TraitType.ENTITY,
     TraitType.TRACKED,
-    TraitType.OWNABLE,
+    TraitType.ENTITY,
     TraitType.DELETABLE,
+    TraitType.OWNABLE,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];

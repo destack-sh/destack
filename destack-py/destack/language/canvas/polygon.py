@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Optional
 from destack.language.core import (
     Enum,
     EnumType,
-    Node,
     NodeType,
     StructFrozen,
     StructType,
@@ -13,10 +12,9 @@ from destack.language.core import (
     builtin_struct,
     property_,
 )
-from destack.proto import PolygonProto, PolygonShapeProto
+from destack.proto import PolygonProto
 
-from ..view import ContainerView
-from .shape import IsShape
+from .shape import Shape
 
 if TYPE_CHECKING:
     from destack.language import Stroke
@@ -45,7 +43,7 @@ class Polygon(StructFrozen[PolygonProto]):
 
 
 @builtin_node(NodeType.POLYGON_SHAPE, pretend_frozen=True)
-class PolygonShape(ContainerView, IsShape, Node[PolygonShapeProto]):
+class PolygonShape(Shape):
     """A PolygonShape is a shape that represents a polygon."""
 
     type: PolygonShapeType = property_(30, is_repr=True)

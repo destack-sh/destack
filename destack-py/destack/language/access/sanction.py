@@ -19,7 +19,6 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import SanctionGrantedEventProto, SanctionProto, SanctionRequestedEventProto
 
 if TYPE_CHECKING:
     pass
@@ -30,7 +29,7 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.SANCTION_REQUESTED_EVENT)
 class SanctionRequestedEvent(
     Event["Sanction"],
-    Node[SanctionRequestedEventProto],
+    Node,
 ):
     node: "Sanction" = property_(35)
     target: "IsSubject" = property_(40)
@@ -39,7 +38,7 @@ class SanctionRequestedEvent(
 @builtin_node(NodeType.SANCTION_GRANTED_EVENT)
 class SanctionGrantedEvent(
     Event["Sanction"],
-    Node[SanctionGrantedEventProto],
+    Node,
 ):
     node: "Sanction" = property_(35)
     target: "IsSubject" = property_(40)
@@ -48,7 +47,7 @@ class SanctionGrantedEvent(
 @builtin_node(NodeType.SANCTION_REVOKED_EVENT)
 class SanctionRevokedEvent(
     Event["Sanction"],
-    Node[SanctionGrantedEventProto],
+    Node,
 ):
     node: "Sanction" = property_(35)
     target: "IsSubject" = property_(40)
@@ -57,7 +56,7 @@ class SanctionRevokedEvent(
 @builtin_node(NodeType.SANCTION_EXPIRED_EVENT)
 class SanctionExpiredEvent(
     Event["Sanction"],
-    Node[SanctionGrantedEventProto],
+    Node,
 ):
     node: "Sanction" = property_(35)
     target: "IsSubject" = property_(40)
@@ -76,7 +75,7 @@ class Sanction(
     Spatial,
     Entity,
     IsDeletable,
-    Node[SanctionProto],
+    Node,
 ):
     """A Sanction on some Subject."""
 

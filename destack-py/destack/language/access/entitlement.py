@@ -19,11 +19,6 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import (
-    EntitlementExpiredEventProto,
-    EntitlementGrantedEventProto,
-    EntitlementProto,
-)
 
 if TYPE_CHECKING:
     pass
@@ -34,7 +29,7 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.ENTITLEMENT_REQUESTED_EVENT)
 class EntitlementRequestedEvent(
     Event["Entitlement"],
-    Node[EntitlementGrantedEventProto],
+    Node,
 ):
     node: "Entitlement" = property_(35)
     target: "IsSubject" = property_(40)
@@ -43,7 +38,7 @@ class EntitlementRequestedEvent(
 @builtin_node(NodeType.ENTITLEMENT_GRANTED_EVENT)
 class EntitlementGrantedEvent(
     Event["Entitlement"],
-    Node[EntitlementGrantedEventProto],
+    Node,
 ):
     node: "Entitlement" = property_(35)
     target: "IsSubject" = property_(40)
@@ -52,7 +47,7 @@ class EntitlementGrantedEvent(
 @builtin_node(NodeType.ENTITLEMENT_REVOKED_EVENT)
 class EntitlementRevokedEvent(
     Event["Entitlement"],
-    Node[EntitlementExpiredEventProto],
+    Node,
 ):
     node: "Entitlement" = property_(35)
     target: "IsSubject" = property_(40)
@@ -61,7 +56,7 @@ class EntitlementRevokedEvent(
 @builtin_node(NodeType.ENTITLEMENT_EXPIRED_EVENT)
 class EntitlementExpiredEvent(
     Event["Entitlement"],
-    Node[EntitlementExpiredEventProto],
+    Node,
 ):
     node: "Entitlement" = property_(35)
     target: "IsSubject" = property_(40)
@@ -80,7 +75,7 @@ class Entitlement(
     Spatial,
     Entity,
     IsDeletable,
-    Node[EntitlementProto],
+    Node,
 ):
     """A Entitlement to some Subject."""
 

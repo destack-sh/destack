@@ -48,8 +48,8 @@ export class Permission
 {
   static metatype: NodeType = NodeType.PERMISSION;
   static __traits__: TraitType[] = [
-    TraitType.TRACKED,
     TraitType.SPATIAL,
+    TraitType.TRACKED,
     TraitType.ENTITY,
     TraitType.DELETABLE,
   ];

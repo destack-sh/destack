@@ -39,8 +39,8 @@ registerEnumClass(EnumType.LINK_TYPE, LinkType);
 export class Link extends Node implements Spatial, Resource {
   static metatype: NodeType = NodeType.LINK;
   static __traits__: TraitType[] = [
-    TraitType.TRACKED,
     TraitType.SPATIAL,
+    TraitType.TRACKED,
     TraitType.ENTITY,
     TraitType.RESOURCE,
   ];

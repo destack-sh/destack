@@ -7,9 +7,8 @@ from .edit import (
     EditOperation,
     EditType,
 )
-from .entity import CustomEntity, CustomEntityDefinition
 from .enum import CustomEnumDefinition
-from .event import CustomEvent, CustomEventDefinition, EditEvent
+from .event import EditEvent
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
 from .meta import (
     ConstantDefinition,
@@ -146,11 +145,7 @@ __all__ = [
     "Corners",
     "CounterMeasurement",
     "CounterMetric",
-    "CustomEntity",
-    "CustomEntityDefinition",
     "CustomEnumDefinition",
-    "CustomEvent",
-    "CustomEventDefinition",
     "CustomOption",
     "CustomProperty",
     "CustomPropertyType",

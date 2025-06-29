@@ -23,7 +23,6 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import FolderProto
 
 if TYPE_CHECKING:
     from destack.language import Scene, Space
@@ -58,7 +57,7 @@ class Folder(
     IsDeletable,
     IsStarable,
     IsFollowable,
-    Node[FolderProto],
+    Node,
 ):
     """A Folder is a sub-space of a Space."""
 

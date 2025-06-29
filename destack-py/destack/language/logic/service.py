@@ -16,7 +16,6 @@ from destack.language.core import (
     Spatial,
     builtin_node,
 )
-from destack.proto import ServiceProto
 
 if TYPE_CHECKING:
     pass
@@ -38,7 +37,7 @@ class Service(
     IsScriptable,
     IsSourceable,
     IsExtensible,
-    Node[ServiceProto],
+    Node,
 ):
     """
     A set of Actions for a Node.

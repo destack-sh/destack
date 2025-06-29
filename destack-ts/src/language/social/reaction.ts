@@ -32,10 +32,10 @@ export class Reaction
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
     TraitType.SPATIAL,
-    TraitType.ENTITY,
     TraitType.TRACKED,
-    TraitType.OWNABLE,
+    TraitType.ENTITY,
     TraitType.DELETABLE,
+    TraitType.OWNABLE,
     TraitType.REACTABLE,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;

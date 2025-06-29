@@ -32,7 +32,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Friendship extends Node implements Global, Entity {
   static metatype: NodeType = NodeType.FRIENDSHIP;
-  static __traits__: TraitType[] = [TraitType.GLOBAL, TraitType.ENTITY, TraitType.TRACKED];
+  static __traits__: TraitType[] = [TraitType.GLOBAL, TraitType.TRACKED, TraitType.ENTITY];
   static __rootType__: NodeType | null = null;
   static __parentTypes__: NodeType[] = [];
   static __childTypes__: NodeType[] = [];
@@ -1841,8 +1841,8 @@ export class FriendshipInvite extends Node implements Global, Entity, LikeInvite
   static metatype: NodeType = NodeType.FRIENDSHIP_INVITE;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
-    TraitType.ENTITY,
     TraitType.TRACKED,
+    TraitType.ENTITY,
     TraitType.OWNABLE,
     TraitType.INVITE,
   ];

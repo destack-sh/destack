@@ -48,8 +48,8 @@ export class Agent
   static __traits__: TraitType[] = [
     TraitType.SCRIPTABLE,
     TraitType.SPATIAL,
-    TraitType.ENTITY,
     TraitType.TRACKED,
+    TraitType.ENTITY,
     TraitType.DELETABLE,
     TraitType.SUBJECT,
     TraitType.OWNER,

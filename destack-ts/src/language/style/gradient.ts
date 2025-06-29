@@ -600,8 +600,8 @@ export class GradientStyle extends Node implements Style {
     TraitType.SPATIAL,
     TraitType.VISUAL,
     TraitType.TAGGABLE,
-    TraitType.ENTITY,
     TraitType.TRACKED,
+    TraitType.ENTITY,
     TraitType.DELETABLE,
     TraitType.ORDERED,
   ];

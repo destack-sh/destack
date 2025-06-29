@@ -12,7 +12,6 @@ from destack.language.core import (
     IsFollowable,
     IsOwner,
     IsSubject,
-    Node,
     NodeType,
     RoleType,
     StringFormat,
@@ -20,7 +19,6 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.proto import UserProto
 
 if TYPE_CHECKING:
     from destack.language import Cursor, Handle, NodeReference, Space
@@ -37,14 +35,13 @@ class UserStatus(Enum):
 @builtin_node(NodeType.USER, root_type=None)
 class User(
     Global,
-    Entity,
     HasName,
     HasIcon,
     HasSlug,
     IsOwner,
     IsFollowable,
     IsSubject,
-    Node[UserProto],
+    Entity,
 ):
     """A User is a human using Destack."""
 

@@ -7,7 +7,6 @@ from destack.language.core import (
     IsDeletable,
     IsOwnable,
     IsSubject,
-    LikeFollow,
     Node,
     NodeType,
     Spatial,
@@ -15,7 +14,6 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import FollowProto
 
 if TYPE_CHECKING:
     from destack.language import IsFollowable
@@ -31,12 +29,11 @@ class Follow(
     Global,
     Spatial,
     Entity,
-    LikeFollow,
     IsDeletable,
     IsOwnable,
-    Node[FollowProto],
+    Node,
 ):
-    """A Follow is a relationship between a Subject and a Followred Node."""
+    """A Follow is a relationship between a Subject and an IsFollowable Node."""
 
     parent: Union["IsFollowable", None] = property_parent_(node_is_customizable=True)
     owned_by: "IsSubject" = property_(25)

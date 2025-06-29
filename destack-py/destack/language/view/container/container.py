@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
-from destack.language.core import IsExtensible, TraitType, builtin_trait, property_
+from destack.language.core import IsExtensible, NodeType, builtin_node, property_
 
 from ..view import View
 
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_trait(TraitType.CONTAINER_VIEW)
+@builtin_node(NodeType.CONTAINER_VIEW)
 class ContainerView(View, IsExtensible):
     """A container View contains other Views."""
 
