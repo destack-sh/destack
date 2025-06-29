@@ -51,8 +51,8 @@ export class Window
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.VISUAL,
-    TraitType.ENTITY,
     TraitType.TRACKED,
+    TraitType.ENTITY,
     TraitType.OWNABLE,
     TraitType.DELETABLE,
     TraitType.ORDERED,

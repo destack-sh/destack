@@ -107,7 +107,7 @@ def finalize():
     # index node types by store type
     node_types_by_store_type: dict[StoreType, list[NodeType]] = defaultdict(list)
     for node_cls in NODE_CLASS_BY_TYPE.values():
-        if TraitType.ENTITY in node_cls.__traits__:
+        if NodeType.ENTITY in node_cls.__extends__:
             if TraitType.GLOBAL in node_cls.__traits__:
                 node_types_by_store_type[StoreType.GLOBAL_ENTITY].append(node_cls.metatype)
             elif TraitType.SPATIAL in node_cls.__traits__:
@@ -271,7 +271,6 @@ def finalize():
     if IS_DEV or IS_TEST:
         from destack.language.core.builtin.trait import (
             AT_LEAST_ONE_TRAITS,
-            AT_MOST_ONE_TRAITS,
             INFECTIOUS_TRAITS,
         )
 
@@ -281,12 +280,6 @@ def finalize():
                 if not any(trait in cls.__traits__ for trait in traits):
                     raise AssertionError(
                         f"{cls.__name__} must have at least one of {[t.name for t in traits]} traits (has {[t.name for t in cls.__traits__]})"
-                    )
-            for traits in AT_MOST_ONE_TRAITS:
-                matching_traits = [trait for trait in traits if trait in cls.__traits__]
-                if len(matching_traits) > 1:
-                    raise AssertionError(
-                        f"{cls.__name__} must have at most one of {[t.name for t in traits]} traits (has {[t.name for t in matching_traits]})"
                     )
         for trait_type in INFECTIOUS_TRAITS:
             for node_type in NODE_TYPES_BY_TRAIT_TYPE[trait_type]:

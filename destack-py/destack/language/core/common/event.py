@@ -1,21 +1,11 @@
 from typing import TYPE_CHECKING
 
-from destack.proto import (
-    CustomEventDefinitionProto,
-    CustomEventProto,
-    EditEventProto,
-)
-
 from ..builtin import (
     UNSET,
-    Entity,
     Event,
-    HasName,
-    IsSourceable,
     IsTaggable,
     Node,
     NodeType,
-    Spatial,
     builtin_node,
     property_,
 )
@@ -37,7 +27,7 @@ if TYPE_CHECKING:
 class EditEvent(
     Event,
     IsTaggable,
-    Node[EditEventProto],
+    Node,
 ):
     """A Event of an Edit. Only EditEvents of Entities are allowed."""
 
@@ -54,28 +44,3 @@ class EditEvent(
 
     # value
     value: "Value | None" = property_(40)
-
-
-@builtin_node(NodeType.CUSTOM_EVENT_DEFINITION)
-class CustomEventDefinition(
-    Spatial,
-    Entity,
-    HasName,
-    IsSourceable,
-    Node[CustomEventDefinitionProto],
-):
-    """A CustomEventDefinition defines a kind of CustomEvent."""
-
-    pass
-
-
-@builtin_node(NodeType.CUSTOM_EVENT, pretend_frozen=True)
-class CustomEvent(
-    Event,
-    Node[CustomEventProto],
-):
-    """An instance of a CustomEventDefinition."""
-
-    definition: CustomEventDefinition = property_(
-        40, description="The CustomEventDefinition this CustomEvent is an instance of."
-    )

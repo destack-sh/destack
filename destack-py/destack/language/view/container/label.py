@@ -1,5 +1,4 @@
 from destack.language.core import Node, NodeType, builtin_node
-from destack.proto import LabelViewProto
 
 from .container import ContainerView
 
@@ -9,6 +8,6 @@ from .container import ContainerView
 @builtin_node(NodeType.LABEL_VIEW)
 class LabelView(
     ContainerView,
-    Node[LabelViewProto],
+    Node,
 ):
     """A label container View for form-like input views."""

@@ -17,7 +17,6 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import AgentProto
 
 if TYPE_CHECKING:
     from destack.language import Cursor, Folder, NodeReference
@@ -37,7 +36,7 @@ class Agent(
     IsScriptable,
     IsDeletable,
     IsSubject,
-    Node[AgentProto],
+    Node,
 ):
     """An Agent is an identity for a bot."""
 

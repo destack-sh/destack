@@ -10,10 +10,10 @@ from destack.language.core import (
     builtin_struct,
     property_,
 )
-from destack.proto import LineProto, LineShapeProto
+from destack.proto import LineProto
 
 from ..view import ContentView
-from .shape import IsShape
+from .shape import Shape
 
 if TYPE_CHECKING:
     from destack.language import Stroke
@@ -30,7 +30,7 @@ class Line(StructFrozen[LineProto]):
 
 
 @builtin_node(NodeType.LINE_SHAPE, pretend_frozen=True)
-class LineShape(ContentView, IsShape, Node[LineShapeProto]):
+class LineShape(ContentView, Shape, Node):
     """A LineShape is a shape that represents a line."""
 
     points: list[Vector2] = property_(100)

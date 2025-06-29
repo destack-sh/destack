@@ -11,7 +11,6 @@ from destack.language.core import (
     builtin_node,
     property_parent_,
 )
-from destack.proto import EnvironmentProto
 
 if TYPE_CHECKING:
     from destack.language import Space
@@ -26,7 +25,7 @@ class Environment(
     HasName,
     HasIcon,
     IsDeletable,
-    Node[EnvironmentProto],
+    Node,
 ):
     """An Environment is a deployment of a Space."""
 

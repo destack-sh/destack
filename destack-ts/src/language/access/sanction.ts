@@ -1617,8 +1617,8 @@ registerNodeClass(NodeType.SANCTION_EXPIRED_EVENT, SanctionExpiredEvent);
 export class Sanction extends Node implements Spatial, Entity, IsDeletable {
   static metatype: NodeType = NodeType.SANCTION;
   static __traits__: TraitType[] = [
-    TraitType.TRACKED,
     TraitType.SPATIAL,
+    TraitType.TRACKED,
     TraitType.ENTITY,
     TraitType.DELETABLE,
   ];

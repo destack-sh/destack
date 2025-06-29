@@ -13,7 +13,6 @@ from destack.language.core import (
     builtin_node,
     property_parent_,
 )
-from destack.proto import TeamProto
 
 if TYPE_CHECKING:
     from destack.language import Organization
@@ -30,7 +29,7 @@ class Team(
     HasName,
     IsOwner,
     IsJoinable,
-    Node[TeamProto],
+    Node,
 ):
     """
     An Team with Users and Teams.

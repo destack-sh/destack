@@ -14,7 +14,7 @@ from destack.language import (
 from destack.store.memory import MemoryStore
 
 # nocheckin: implement BufferedStore
-#  (keep store_type in Node & NodeReference instances?)
+#  (keep store_type/snapshot/... in Node & NodeReference instances?)
 #  (including live/in-memory overrides with Snapshots?)
 
 

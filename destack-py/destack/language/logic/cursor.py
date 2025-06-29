@@ -9,14 +9,11 @@ from destack.language.core import (
     Node,
     NodeType,
     Spatial,
-    TraitType,
     Vector2i,
     builtin_enum,
     builtin_node,
-    builtin_trait,
     property_,
 )
-from destack.proto import EventCursorProto, ScreenCursorProto, ThreadCursorProto
 
 if TYPE_CHECKING:
     pass
@@ -46,8 +43,8 @@ class CursorStatus(Enum):
     COMPLETED = 53, "Completed", "Completed", "fas fa-check"
 
 
-@builtin_trait(TraitType.CURSOR)
-class Cursor(Spatial, Entity):
+@builtin_node(NodeType.CURSOR, is_abstract=True)
+class Cursor(Spatial, IsOwnable, Entity, Node):
     """A Node that is a Cursor."""
 
     status: CursorStatus = property_(40, default=CursorStatus.CREATED, is_repr=True)
@@ -55,11 +52,7 @@ class Cursor(Spatial, Entity):
 
 
 @builtin_node(NodeType.EVENT_CURSOR)
-class EventCursor(
-    Cursor,
-    IsOwnable,
-    Node[EventCursorProto],
-):
+class EventCursor(Cursor):
     """
     A EventCursor is a cursor for iterating over Events.
     """
@@ -69,11 +62,7 @@ class EventCursor(
 
 
 @builtin_node(NodeType.SCREEN_CURSOR)
-class ScreenCursor(
-    Cursor,
-    IsOwnable,
-    Node[ScreenCursorProto],
-):
+class ScreenCursor(Cursor):
     """
     A ScreenCursor is a visual cursor corresponding to a pointing device on some screen.
     """
@@ -83,11 +72,7 @@ class ScreenCursor(
 
 
 @builtin_node(NodeType.THREAD_CURSOR)
-class ThreadCursor(
-    Cursor,
-    IsOwnable,
-    Node[ThreadCursorProto],
-):
+class ThreadCursor(Cursor):
     """
     A ThreadCursor is a cursor corresponding to a Thread.
     """

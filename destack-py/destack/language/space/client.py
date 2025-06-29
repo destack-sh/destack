@@ -18,7 +18,7 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import ClientProto, OriginProto
+from destack.proto import OriginProto
 from destack.utils.uuid import UUID
 
 if TYPE_CHECKING:
@@ -33,7 +33,7 @@ class Client(
     Global,
     Entity,
     IsDeletable,
-    Node[ClientProto],
+    Node,
 ):
     """A Client to connect with the system."""
 

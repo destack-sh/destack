@@ -341,8 +341,8 @@ registerStructClass(StructType.DATABASE_INFO, DatabaseInfo);
 export class Database extends Node implements Spatial, Resource, HasName {
   static metatype: NodeType = NodeType.DATABASE;
   static __traits__: TraitType[] = [
-    TraitType.TRACKED,
     TraitType.SPATIAL,
+    TraitType.TRACKED,
     TraitType.ENTITY,
     TraitType.RESOURCE,
   ];

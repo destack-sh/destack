@@ -13,7 +13,6 @@ from destack.language.core import (
     builtin_struct,
     property_,
 )
-from destack.proto import FontStyleProto
 
 from .fill import Fill
 from .style import Style
@@ -101,7 +100,7 @@ class Font(StructMutable):
 @builtin_node(NodeType.FONT_STYLE)
 class FontStyle(
     Style,
-    Node[FontStyleProto],
+    Node,
 ):
     """A font style."""
 

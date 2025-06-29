@@ -66,8 +66,8 @@ registerEnumClass(EnumType.RUN_STATUS, RunStatus);
 export class Run extends Node implements Spatial, Entity, IsExtensible {
   static metatype: NodeType = NodeType.RUN;
   static __traits__: TraitType[] = [
-    TraitType.TRACKED,
     TraitType.SPATIAL,
+    TraitType.TRACKED,
     TraitType.ENTITY,
     TraitType.EXTENSIBLE,
   ];

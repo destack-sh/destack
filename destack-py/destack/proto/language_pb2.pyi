@@ -1494,7 +1494,6 @@ class TraitTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TRAIT_TYPE_FOLLOW: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_VISUAL: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_VIEW: _ClassVar[TraitTypeProto]
-    TRAIT_TYPE_VIEW_EVENT: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_INPUT_EVENT: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_POINTER_EVENT: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_MOUSE_EVENT: _ClassVar[TraitTypeProto]
@@ -2675,7 +2674,6 @@ TRAIT_TYPE_FOLLOWABLE: TraitTypeProto
 TRAIT_TYPE_FOLLOW: TraitTypeProto
 TRAIT_TYPE_VISUAL: TraitTypeProto
 TRAIT_TYPE_VIEW: TraitTypeProto
-TRAIT_TYPE_VIEW_EVENT: TraitTypeProto
 TRAIT_TYPE_INPUT_EVENT: TraitTypeProto
 TRAIT_TYPE_POINTER_EVENT: TraitTypeProto
 TRAIT_TYPE_MOUSE_EVENT: TraitTypeProto
@@ -5981,7 +5979,7 @@ class NodeConstraintProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., node_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., node_traits: _Optional[_Iterable[_Union[TraitTypeProto, str]]] = ...) -> None: ...
 
 class NodeDefinitionProto(_message.Message):
-    __slots__ = ("metatype", "id", "type", "name", "icon", "description", "properties", "traits", "root_type", "parent_types", "child_types", "ancestor_types", "descendant_types")
+    __slots__ = ("metatype", "id", "type", "name", "icon", "description", "properties", "base_type", "traits", "base_traits", "root_type", "parent_types", "child_types", "ancestor_types", "descendant_types")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -5989,7 +5987,9 @@ class NodeDefinitionProto(_message.Message):
     ICON_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     PROPERTIES_FIELD_NUMBER: _ClassVar[int]
+    BASE_TYPE_FIELD_NUMBER: _ClassVar[int]
     TRAITS_FIELD_NUMBER: _ClassVar[int]
+    BASE_TRAITS_FIELD_NUMBER: _ClassVar[int]
     ROOT_TYPE_FIELD_NUMBER: _ClassVar[int]
     PARENT_TYPES_FIELD_NUMBER: _ClassVar[int]
     CHILD_TYPES_FIELD_NUMBER: _ClassVar[int]
@@ -6002,13 +6002,15 @@ class NodeDefinitionProto(_message.Message):
     icon: IconProto
     description: str
     properties: _containers.RepeatedCompositeFieldContainer[PropertyDefinitionProto]
+    base_type: NodeTypeProto
     traits: _containers.RepeatedScalarFieldContainer[TraitTypeProto]
+    base_traits: _containers.RepeatedScalarFieldContainer[TraitTypeProto]
     root_type: NodeTypeProto
     parent_types: _containers.RepeatedScalarFieldContainer[NodeTypeProto]
     child_types: _containers.RepeatedScalarFieldContainer[NodeTypeProto]
     ancestor_types: _containers.RepeatedScalarFieldContainer[NodeTypeProto]
     descendant_types: _containers.RepeatedScalarFieldContainer[NodeTypeProto]
-    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[int] = ..., type: _Optional[_Union[NodeTypeProto, str]] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconProto, _Mapping]] = ..., description: _Optional[str] = ..., properties: _Optional[_Iterable[_Union[PropertyDefinitionProto, _Mapping]]] = ..., traits: _Optional[_Iterable[_Union[TraitTypeProto, str]]] = ..., root_type: _Optional[_Union[NodeTypeProto, str]] = ..., parent_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., child_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., ancestor_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., descendant_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[int] = ..., type: _Optional[_Union[NodeTypeProto, str]] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconProto, _Mapping]] = ..., description: _Optional[str] = ..., properties: _Optional[_Iterable[_Union[PropertyDefinitionProto, _Mapping]]] = ..., base_type: _Optional[_Union[NodeTypeProto, str]] = ..., traits: _Optional[_Iterable[_Union[TraitTypeProto, str]]] = ..., base_traits: _Optional[_Iterable[_Union[TraitTypeProto, str]]] = ..., root_type: _Optional[_Union[NodeTypeProto, str]] = ..., parent_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., child_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., ancestor_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., descendant_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ...) -> None: ...
 
 class NodeReferenceProto(_message.Message):
     __slots__ = ("metatype", "node_type", "id", "space_id", "definition_id")
@@ -8365,7 +8367,7 @@ class TimerStoppedEventProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., node_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ...) -> None: ...
 
 class TraitDefinitionProto(_message.Message):
-    __slots__ = ("metatype", "id", "type", "name", "alias", "icon", "description", "properties", "traits")
+    __slots__ = ("metatype", "id", "type", "name", "alias", "icon", "description", "properties", "traits", "base_traits")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -8375,6 +8377,7 @@ class TraitDefinitionProto(_message.Message):
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     TRAITS_FIELD_NUMBER: _ClassVar[int]
+    BASE_TRAITS_FIELD_NUMBER: _ClassVar[int]
     metatype: StructTypeProto
     id: int
     type: TraitTypeProto
@@ -8384,7 +8387,8 @@ class TraitDefinitionProto(_message.Message):
     description: str
     properties: _containers.RepeatedCompositeFieldContainer[PropertyDefinitionProto]
     traits: _containers.RepeatedScalarFieldContainer[TraitTypeProto]
-    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[int] = ..., type: _Optional[_Union[TraitTypeProto, str]] = ..., name: _Optional[str] = ..., alias: _Optional[str] = ..., icon: _Optional[_Union[IconProto, _Mapping]] = ..., description: _Optional[str] = ..., properties: _Optional[_Iterable[_Union[PropertyDefinitionProto, _Mapping]]] = ..., traits: _Optional[_Iterable[_Union[TraitTypeProto, str]]] = ...) -> None: ...
+    base_traits: _containers.RepeatedScalarFieldContainer[TraitTypeProto]
+    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[int] = ..., type: _Optional[_Union[TraitTypeProto, str]] = ..., name: _Optional[str] = ..., alias: _Optional[str] = ..., icon: _Optional[_Union[IconProto, _Mapping]] = ..., description: _Optional[str] = ..., properties: _Optional[_Iterable[_Union[PropertyDefinitionProto, _Mapping]]] = ..., traits: _Optional[_Iterable[_Union[TraitTypeProto, str]]] = ..., base_traits: _Optional[_Iterable[_Union[TraitTypeProto, str]]] = ...) -> None: ...
 
 class TransitionProto(_message.Message):
     __slots__ = ("metatype", "type", "style_ptr", "delay", "duration", "ease", "stiffness", "damping", "mass", "bounce", "spring_type")

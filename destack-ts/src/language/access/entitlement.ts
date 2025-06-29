@@ -1617,8 +1617,8 @@ registerNodeClass(NodeType.ENTITLEMENT_EXPIRED_EVENT, EntitlementExpiredEvent);
 export class Entitlement extends Node implements Spatial, Entity, IsDeletable {
   static metatype: NodeType = NodeType.ENTITLEMENT;
   static __traits__: TraitType[] = [
-    TraitType.TRACKED,
     TraitType.SPATIAL,
+    TraitType.TRACKED,
     TraitType.ENTITY,
     TraitType.DELETABLE,
   ];

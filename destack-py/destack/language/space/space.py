@@ -21,7 +21,6 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.proto import SpaceProto
 
 if TYPE_CHECKING:
     from destack.language import Database, Folder, Handle, NodeReference
@@ -51,7 +50,7 @@ class Space(
     IsOwnable,
     IsStarable,
     Spatial,
-    Node[SpaceProto],
+    Node,
 ):
     """
     A Space is the home of your personal software studio.

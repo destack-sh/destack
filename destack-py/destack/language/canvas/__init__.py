@@ -3,7 +3,7 @@ from .arrow import ArrowHeadType, ArrowShape
 from .canvas import Canvas, CanvasType
 from .line import LineShape
 from .polygon import PolygonShape, PolygonShapeType
-from .shape import IsShape
+from .shape import Shape
 
 __all__ = [
     "AnnotationShape",
@@ -11,8 +11,8 @@ __all__ = [
     "ArrowShape",
     "Canvas",
     "CanvasType",
-    "IsShape",
     "LineShape",
     "PolygonShape",
     "PolygonShapeType",
+    "Shape",
 ]

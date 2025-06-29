@@ -18,10 +18,9 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import VariantProto
 
 if TYPE_CHECKING:
-    from destack.language import CustomViewDefinition, Layer, Scene
+    from destack.language import Layer, Scene
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -51,13 +50,11 @@ class Variant(
     HasIcon,
     IsOwnable,
     IsDeletable,
-    Node[VariantProto],
+    Node,
 ):
     """A Variant is an alternative presentation of a visual."""
 
-    parent: Union["Scene", "Layer", "CustomViewDefinition", None] = property_parent_(
-        node_is_customizable=True
-    )
+    parent: Union["Scene", "Layer", None] = property_parent_(node_is_customizable=True)
     type: VariantType = property_(30)
 
     max_width: Optional[Length] = property_(50)

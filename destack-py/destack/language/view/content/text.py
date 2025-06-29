@@ -6,7 +6,6 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.proto import TextViewProto
 
 from .content import ContentView
 
@@ -17,7 +16,7 @@ if TYPE_CHECKING:
 
 
 @builtin_node(NodeType.TEXT_VIEW)
-class TextView(ContentView, Node[TextViewProto]):
+class TextView(ContentView, Node):
     """A (rich) text view."""
 
     # appearance

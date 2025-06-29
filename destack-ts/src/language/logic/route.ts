@@ -36,10 +36,10 @@ export class Route
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.TAGGABLE,
-    TraitType.ENTITY,
     TraitType.TRACKED,
-    TraitType.OWNABLE,
+    TraitType.ENTITY,
     TraitType.DELETABLE,
+    TraitType.OWNABLE,
     TraitType.ORDERED,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;

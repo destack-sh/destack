@@ -20,7 +20,6 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import RoleAssignedEventProto, RoleProto, RoleUnassignedEventProto
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -28,7 +27,7 @@ from destack.proto import RoleAssignedEventProto, RoleProto, RoleUnassignedEvent
 @builtin_node(NodeType.ROLE_ASSIGNED_EVENT)
 class RoleAssignedEvent(
     Event["Role"],
-    Node[RoleAssignedEventProto],
+    Node,
 ):
     """A Event regarding a Role."""
 
@@ -38,7 +37,7 @@ class RoleAssignedEvent(
 @builtin_node(NodeType.ROLE_UNASSIGNED_EVENT)
 class RoleUnassignedEvent(
     Event["Role"],
-    Node[RoleUnassignedEventProto],
+    Node,
 ):
     """A Event regarding a Role."""
 
@@ -56,7 +55,7 @@ class Role(
     IsOwner,
     IsOrdered,
     IsDeletable,
-    Node[RoleProto],
+    Node,
 ):
     """A Role for Subjects to take."""
 

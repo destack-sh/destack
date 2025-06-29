@@ -36,8 +36,8 @@ export class Tag
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.TAG,
-    TraitType.ENTITY,
     TraitType.TRACKED,
+    TraitType.ENTITY,
     TraitType.DELETABLE,
     TraitType.ORDERED,
   ];
@@ -537,8 +537,8 @@ export class Tagging extends Node implements Spatial, Entity, IsTaggable, IsOrde
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.TAGGABLE,
-    TraitType.ENTITY,
     TraitType.TRACKED,
+    TraitType.ENTITY,
     TraitType.DELETABLE,
     TraitType.ORDERED,
   ];

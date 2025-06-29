@@ -1,8 +1,10 @@
-from destack.language.core import Trait, TraitType, builtin_trait
+from destack.language.core import NodeType, builtin_node
+
+from ..view import ContainerView
 
 
-@builtin_trait(TraitType.SHAPE)
-class IsShape(Trait):
-    """A Node that is a Shape."""
+@builtin_node(NodeType.SHAPE)
+class Shape(ContainerView):
+    """A Shape is a View representing a Shape."""
 
     pass

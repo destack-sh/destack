@@ -69,8 +69,8 @@ export class Space
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
     TraitType.SPATIAL,
-    TraitType.ENTITY,
     TraitType.TRACKED,
+    TraitType.ENTITY,
     TraitType.OWNABLE,
     TraitType.JOINABLE,
     TraitType.STARABLE,

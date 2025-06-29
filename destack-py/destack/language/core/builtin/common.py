@@ -381,49 +381,17 @@ class StructType(Enum):
 
 @builtin_enum(EnumType.TRAIT_TYPE)
 class TraitType(Enum):
-    # destack [1-400]
-    # where
-    GLOBAL = 1, "Global", "Is global", "fas fa-globe"
-    SPATIAL = 2, "Spatial", "Is in a Space", "fas fa-solar-system"
-    # LOCAL?
-    # storage
-    # RELATIONAL/OLTP, INDEXED; ANALYTIC, ...?
-
-    # kind
-    ENTITY = 20, "Entity", "Is an Entity", "fas fa-hexagon"
-    EVENT = 21, "Event", "Is an Event", "fas fa-bolt"
-
-    # type
-    RESOURCE = 30, "Resource", "Is a Resource", "fas fa-server"
-    CUSTOM_NODE_DEFINITION = (
-        31,
-        "Custom Node Definition",
-        "Is a Custom Node Definition",
-        "fas fa-table",
-    )
-    CUSTOM_NODE = 32, "Custom Node", "Is a Custom Node", "fas fa-database"
-    # behavior
-    TRACKED = 51, "Tracked", "Is tracked", "fas fa-clock"
-    ARCHIVABLE = 52, "Archivable", "Can be archived", "fas fa-box-archive"
-    DELETABLE = 53, "Deletable", "Can be deleted", "fas fa-trash"
-    EXTENSIBLE = 55, "Extensible", "Is extensible", "fas fa-expand"
-    ORDERED = 56, "Ordered", "Is ordered", "fas fa-sort"
-    # attribute
-    HAS_NAME = 100, "Name", "Has a name", "fas fa-font-case"
-    HAS_SLUG = 101, "Slug", "Has a slug", "fas fa-hashtag"
-    HAS_ICON = 102, "Icon", "Has an icon", "fas fa-icons"
+    # destack [1-500]
+    # ...
 
     # access [500-1000]
     OWNABLE = 500, "Ownable", "Is ownable", "fas fa-user"
     JOINABLE = 502, "Joinable", "Is joinable", "fas fa-users"
     SUBJECT = 505, "Subject", "Is a Subject", "fas fa-user"
     OWNER = 506, "Owner", "Is an Owner", "fas fa-user"
-    MEMBERSHIP = 510, "Membership", "Is a Membership", "fas fa-users"
-    INVITE = 511, "Invite", "Is an Invite", "fas fa-envelope"
 
     # folder [1000-1500]
     TAGGABLE = 1000, "Taggable", "Can be tagged", "fas fa-tag"
-    TAG = 1001, "Tag", "Is a Tag", "fas fa-tag"
 
     # spacetime [1500-2000]
     # ...
@@ -440,28 +408,24 @@ class TraitType(Enum):
     SCRIPTABLE = 3002, "Scriptable", "Can be scripted", "fas fa-code"
     SOURCEABLE = 3003, "Sourcable", "Can be defined in a Script", "fas fa-code"
     # PAUSEABLE?
-    CURSOR = 3012, "Cursor", "Is a Cursor", "fas fa-mouse-pointer"
 
     # test [3500-4000]
     # ...
 
     # runtime [4000-4500]
-    METRIC = 4010, "Instrument", "Is an Instrument", "fas fa-microscope"
-    MEASUREMENT = 4011, "Measurement", "Is a Measurement", "fas fa-microscope"
     # ...
 
     # deployment [4500-5000]
     # ...
 
     # product [5000-5500]
-    SETTINGS = 5000, "Settings", "Defines Settings", "fas fa-cog"
+    # ...
 
     # social [5500-6000]
     # MESSAGE, THREAD, ...
     STARABLE = 5530, "Starable", "Can be starred", "fas fa-star"
     REACTABLE = 5532, "Reactable", "Can be reacted to", "fas fa-heart"
     FOLLOWABLE = 5534, "Followable", "Can be followed", "fas fa-plus"
-    FOLLOW = 5535, "Follow", "Follow", "fas fa-plus"
     # RATEABLE, VOTABLE, ...
     # ASSIGNABLE, MESSAGEABLE, CLOSABLE, LOCKABLE, ...
 
@@ -484,44 +448,50 @@ class TraitType(Enum):
     # ...
 
     # scene [9000-9500]
-    VISUAL = 9000, "Visual", "Is a Visual", "fas fa-eye"
-    VIEW = 9001, "View", "Is a View", "fas fa-eye"
-    # VIEW_ENTER_EVENT, VIEW_EXIT_EVENT, ...
+    # ...
 
     # interaction [9500-10000]
-    INPUT_EVENT = 9500, "Input Event", "Is an Input Event", "fas fa-mouse-pointer"
-    POINTER_EVENT = 9501, "Pointer Event", "Is a Pointer Event", "fas fa-mouse-pointer"
-    MOUSE_EVENT = 9510, "Mouse Event", "Is a Mouse Event", "fas fa-mouse-pointer"
-    CLICK_EVENT = 9511, "Click Event", "Is a Click Event", "fas fa-mouse-pointer"
-    KEYBOARD_EVENT = 9520, "Keyboard Event", "Is a Keyboard Event", "fas fa-keyboard"
-    DRAG_EVENT = 9530, "Drag Event", "Is a Drag Event", "fas fa-arrows-up-down-left-right"
-    CLIPBOARD_EVENT = 9540, "Clipboard Event", "Is a Clipboard Event", "fas fa-clipboard"
-    FOCUS_EVENT = 9550, "Focus Event", "Is a Focus Event", "fas fa-focus"
+    # ...
 
     # container views [10000-10200]
-    CONTAINER_VIEW = 10000, "Container View", "Is a Container View", "fas fa-container"
+    # ...
 
     # content views [10200-10400]
-    CONTENT_VIEW = 10200, "Content View", "Is a Content View", "fas fa-content"
+    # ...
 
     # input views [10400-10600]
-    INPUT_VIEW = 10400, "Input View", "Is an Input View", "fas fa-input"
+    # ...
 
     # node/internal views [10600-10800]
-    NODE_VIEW = 10600, "Node View", "Is a Node View", "fas fa-node"
-    INTERNAL_VIEW = 10650, "Internal View", "Is an Internal View", "fas fa-internal"
+    # ...
 
     # canvas [11000-11500]
-    SHAPE = 11000, "Shape", "Is a Shape", "fas fa-shapes"
+    # ...
 
     # animation [11500-12000]
     # ...
 
     # style [12000-12500]
-    STYLE = 12000, "Style", "Is a Style", "fas fa-palette"
+    # ...
 
     # meta [50000-51000]
-    # ...
+    # where
+    GLOBAL = 50001, "Global", "Is global", "fas fa-globe"
+    SPATIAL = 50002, "Spatial", "Is in a Space", "fas fa-solar-system"
+    # LOCAL?
+    # storage
+    # RELATIONAL/OLTP, INDEXED; ANALYTIC, ...?
+
+    # behavior
+    TRACKED = 50100, "Tracked", "Is tracked", "fas fa-clock"
+    ARCHIVABLE = 50101, "Archivable", "Can be archived", "fas fa-box-archive"
+    DELETABLE = 50102, "Deletable", "Can be deleted", "fas fa-trash"
+    EXTENSIBLE = 50103, "Extensible", "Is extensible", "fas fa-expand"
+    ORDERED = 50104, "Ordered", "Is ordered", "fas fa-sort"
+    # attribute
+    HAS_NAME = 50200, "Name", "Has a name", "fas fa-font-case"
+    HAS_SLUG = 50201, "Slug", "Has a slug", "fas fa-hashtag"
+    HAS_ICON = 50202, "Icon", "Has an icon", "fas fa-icons"
 
 
 @builtin_enum(EnumType.NODE_TYPE)
@@ -627,9 +597,10 @@ class NodeType(Enum):
     TIMER_STARTED_EVENT = 3110, "Timer Started Event", None, "fas fa-clock"
     TIMER_STOPPED_EVENT = 3111, "Timer Stopped Event", None, "fas fa-clock"
     # BREAKPOINT, ...
-    EVENT_CURSOR = 3200, "Event Cursor", None, "fas fa-signal"
-    SCREEN_CURSOR = 3201, "Mouse Cursor", None, "fas fa-mouse"
-    THREAD_CURSOR = 3202, "Query Cursor", None, "fas fa-magnifying-glass"
+    CURSOR = 3200, "Cursor", None, "fas fa-mouse-pointer"
+    EVENT_CURSOR = 3201, "Event Cursor", None, "fas fa-signal"
+    SCREEN_CURSOR = 3202, "Screen Cursor", None, "fas fa-mouse"
+    THREAD_CURSOR = 3203, "Thread Cursor", None, "fas fa-magnifying-glass"
     # QUERY_CURSOR, WEB_CURSOR, ...
     # ROOM, CHANNEL, LOCK, ...
     # TASK, ...
@@ -642,6 +613,7 @@ class NodeType(Enum):
 
     # runtime [4000-4500]
     RUN = 4000, "Run", None, "fas fa-play"
+    RUN_EVENT = 4001, "Run Event", None, "fas fa-play"
     RUN_STARTED_EVENT = 4011, "Run Started Event", None, "fas fa-play"
     RUN_PAUSE_REQUESTED_EVENT = 4012, "Run Pause Requested Event", None, "fas fa-play"
     RUN_PAUSED_EVENT = 4013, "Run Paused Event", None, "fas fa-play"
@@ -655,15 +627,18 @@ class NodeType(Enum):
     INTERRUPTION = 4040, "Interruption", None, "fas fa-hand"
     # JOB, ...
     LOG = 4100, "Log", None, "fas fa-file-lines"
-    GAUGE_METRIC = 4110, "Gauge Metric", None, "fas fa-gauge"
-    GAUGE_MEASUREMENT = 4111, "Gauge Measurement", None, "fas fa-gauge"
-    COUNTER_METRIC = 4112, "Counter Metric", None, "fas fa-gauge"
-    COUNTER_MEASUREMENT = 4113, "Counter Measurement", None, "fas fa-gauge"
-    HISTOGRAM_METRIC = 4114, "Histogram Metric", None, "fas fa-gauge"
-    HISTOGRAM_MEASUREMENT = 4115, "Histogram Measurement", None, "fas fa-gauge"
-    CUSTOM_EVENT_DEFINITION = 4200, "Custom Event Definition", None, "fas fa-signal"
-    CUSTOM_EVENT = 4201, "Custom Event", None, "fas fa-signal"
-    EDIT_EVENT = 4202, "Edit Event", None, "fas fa-file-lines"
+    METRIC = 4200, "Metric", None, "fas fa-gauge"
+    MEASUREMENT = 4220, "Measurement", None, "fas fa-gauge"
+    GAUGE_METRIC = 4240, "Gauge Metric", None, "fas fa-gauge"
+    GAUGE_MEASUREMENT = 4241, "Gauge Measurement", None, "fas fa-gauge"
+    COUNTER_METRIC = 4260, "Counter Metric", None, "fas fa-gauge"
+    COUNTER_MEASUREMENT = 4261, "Counter Measurement", None, "fas fa-gauge"
+    HISTOGRAM_METRIC = 4280, "Histogram Metric", None, "fas fa-gauge"
+    HISTOGRAM_MEASUREMENT = 4281, "Histogram Measurement", None, "fas fa-gauge"
+    # event
+    CUSTOM_EVENT_DEFINITION = 4300, "Custom Event Definition", None, "fas fa-signal"
+    CUSTOM_EVENT = 4301, "Custom Event", None, "fas fa-signal"
+    EDIT_EVENT = 4302, "Edit Event", None, "fas fa-file-lines"
     # CHANGE_EVENT, QUERY_EVENT, ...
 
     # deployment [4500-5000]
@@ -729,42 +704,52 @@ class NodeType(Enum):
     SCENE_EXITED_EVENT = 9031, "Scene Exited Event", None, "fas fa-masks-theater"
     LAYER = 9040, "Layer", "Layer of a Scene", "fas fa-layer-group"
     VARIANT = 9060, "Variant", "Variant of a Scene", "fas fa-shapes"
+    VIEW = 9100, "View", "View in a Scene", "fas fa-eye"
+    # VIEW_ENTER_EVENT, VIEW_EXIT_EVENT, ...
     # VIEWPORT, OVERLAY, WIDGET,
     # FORM, MENU, ...
 
     # interaction [9500-10000]
+    INPUT_EVENT = 9500, "Input Event", None, "fas fa-mouse-pointer"
     # pointer events
-    POINTER_DOWN_EVENT = 9500, "Pointer Down Event", None, "fas fa-mouse-pointer"
-    POINTER_UP_EVENT = 9501, "Pointer Up Event", None, "fas fa-mouse-pointer"
-    POINTER_MOVE_EVENT = 9502, "Pointer Move Event", None, "fas fa-mouse-pointer"
-    POINTER_ENTER_EVENT = 9503, "Pointer Enter Event", None, "fas fa-mouse-pointer"
-    POINTER_OVER_EVENT = 9504, "Pointer Over Event", None, "fas fa-mouse-pointer"
-    POINTER_LEAVE_EVENT = 9505, "Pointer Leave Event", None, "fas fa-mouse-pointer"
-    LONG_PRESS_EVENT = 9506, "Long Press Event", None, "fas fa-mouse-pointer"
+    POINTER_EVENT = 9510, "Pointer Event", None, "fas fa-mouse-pointer"
+    POINTER_DOWN_EVENT = 9511, "Pointer Down Event", None, "fas fa-mouse-pointer"
+    POINTER_UP_EVENT = 9512, "Pointer Up Event", None, "fas fa-mouse-pointer"
+    POINTER_MOVE_EVENT = 9513, "Pointer Move Event", None, "fas fa-mouse-pointer"
+    POINTER_ENTER_EVENT = 9514, "Pointer Enter Event", None, "fas fa-mouse-pointer"
+    POINTER_OVER_EVENT = 9515, "Pointer Over Event", None, "fas fa-mouse-pointer"
+    POINTER_LEAVE_EVENT = 9516, "Pointer Leave Event", None, "fas fa-mouse-pointer"
+    LONG_PRESS_EVENT = 9517, "Long Press Event", None, "fas fa-mouse-pointer"
     # mouse events
-    LEFT_CLICK_EVENT = 9510, "Left Click Event", None, "fas fa-mouse-pointer"
-    RIGHT_CLICK_EVENT = 9511, "Right Click Event", None, "fas fa-mouse-pointer"
-    MIDDLE_CLICK_EVENT = 9512, "Middle Click Event", None, "fas fa-mouse-pointer"
-    DOUBLE_CLICK_EVENT = 9513, "Double Click Event", None, "fas fa-mouse-pointer"
-    WHEEL_EVENT = 9514, "Wheel Event", None, "fas fa-mouse-pointer"
+    MOUSE_EVENT = 9520, "Mouse Event", None, "fas fa-mouse-pointer"
+    CLICK_EVENT = 9521, "Click Event", None, "fas fa-mouse-pointer"
+    LEFT_CLICK_EVENT = 9522, "Left Click Event", None, "fas fa-mouse-pointer"
+    RIGHT_CLICK_EVENT = 9523, "Right Click Event", None, "fas fa-mouse-pointer"
+    MIDDLE_CLICK_EVENT = 9524, "Middle Click Event", None, "fas fa-mouse-pointer"
+    DOUBLE_CLICK_EVENT = 9525, "Double Click Event", None, "fas fa-mouse-pointer"
+    WHEEL_EVENT = 9526, "Wheel Event", None, "fas fa-mouse-pointer"
     # keyboard events
-    KEY_DOWN_EVENT = 9520, "Key Down Event", None, "fas fa-keyboard"
-    KEY_UP_EVENT = 9521, "Key Up Event", None, "fas fa-keyboard"
-    KEY_PRESS_EVENT = 9522, "Key Press Event", None, "fas fa-keyboard"
+    KEYBOARD_EVENT = 9530, "Key Event", None, "fas fa-keyboard"
+    KEY_DOWN_EVENT = 9531, "Key Down Event", None, "fas fa-keyboard"
+    KEY_UP_EVENT = 9532, "Key Up Event", None, "fas fa-keyboard"
+    KEY_PRESS_EVENT = 9533, "Key Press Event", None, "fas fa-keyboard"
     # drag events
-    DRAG_START_EVENT = 9530, "Drag Start Event", None, "fas fa-arrows-up-down-left-right"
-    DRAG_END_EVENT = 9531, "Drag End Event", None, "fas fa-arrows-up-down-left-right"
-    DRAG_OVER_EVENT = 9532, "Drag Over Event", None, "fas fa-arrows-up-down-left-right"
-    DRAG_ENTER_EVENT = 9533, "Drag Enter Event", None, "fas fa-arrows-up-down-left-right"
-    DRAG_LEAVE_EVENT = 9534, "Drag Leave Event", None, "fas fa-arrows-up-down-left-right"
-    DROP_EVENT = 9535, "Drop Event", None, "fas fa-arrows-up-down-left-right"
+    DRAG_EVENT = 9540, "Drag Event", None, "fas fa-arrows-up-down-left-right"
+    DRAG_START_EVENT = 9541, "Drag Start Event", None, "fas fa-arrows-up-down-left-right"
+    DRAG_END_EVENT = 9542, "Drag End Event", None, "fas fa-arrows-up-down-left-right"
+    DRAG_OVER_EVENT = 9543, "Drag Over Event", None, "fas fa-arrows-up-down-left-right"
+    DRAG_ENTER_EVENT = 9544, "Drag Enter Event", None, "fas fa-arrows-up-down-left-right"
+    DRAG_LEAVE_EVENT = 9545, "Drag Leave Event", None, "fas fa-arrows-up-down-left-right"
+    DROP_EVENT = 9546, "Drop Event", None, "fas fa-arrows-up-down-left-right"
     # clipboard events
-    COPY_EVENT = 9540, "Copy Event", None, "fas fa-clipboard"
-    CUT_EVENT = 9541, "Cut Event", None, "fas fa-clipboard"
-    PASTE_EVENT = 9542, "Paste Event", None, "fas fa-clipboard"
+    CLIPBOARD_EVENT = 9550, "Clipboard Event", None, "fas fa-clipboard"
+    COPY_EVENT = 9551, "Copy Event", None, "fas fa-clipboard"
+    CUT_EVENT = 9552, "Cut Event", None, "fas fa-clipboard"
+    PASTE_EVENT = 9553, "Paste Event", None, "fas fa-clipboard"
     # focus events
-    FOCUS_IN_EVENT = 9552, "Focus In Event", None, "fas fa-keyboard"
-    FOCUS_OUT_EVENT = 9553, "Focus Out Event", None, "fas fa-keyboard"
+    FOCUS_EVENT = 9560, "Focus Event", None, "fas fa-keyboard"
+    FOCUS_IN_EVENT = 9561, "Focus In Event", None, "fas fa-keyboard"
+    FOCUS_OUT_EVENT = 9562, "Focus Out Event", None, "fas fa-keyboard"
     # command
     # COMMAND, MODE, TOOL, SHORTCUT/KEYBINDING, ...
     # GESTURE, ...
@@ -772,37 +757,41 @@ class NodeType(Enum):
     # CAMERA, SPEAKER, MICROPHONE, ...
 
     # container views [10000-10200]
-    CUSTOM_VIEW_DEFINITION = 10000, "Custom View Definition", None, "fas fa-table"
-    CUSTOM_VIEW = 10001, "Custom View", None, "fas fa-table"
+    CONTAINER_VIEW = 10000, "Container View", None, "fas fa-table"
+    CUSTOM_VIEW_DEFINITION = 10020, "Custom View Definition", None, "fas fa-table"
+    CUSTOM_VIEW = 10040, "Custom View", None, "fas fa-table"
+    FRAME_VIEW = 10060, "Frame View", "Fixed Container", "fas fa-frame"
+    LABEL_VIEW = 10080, "Label View", "Label Container", "fas fa-font-case"
+    SPLIT_VIEW = 10100, "Split View", "Split Container", "fas fa-columns"
     # SLOT_DEFINITION_VIEW, SLOT_VIEW, ...
-    FRAME_VIEW = 10020, "Frame View", "Fixed Container", "fas fa-frame"
-    LABEL_VIEW = 10030, "Label View", "Label Container", "fas fa-font-case"
     # FORM_VIEW, MENU_VIEW, ...
-    SPLIT_VIEW = 10040, "Split View", "Split Container", "fas fa-columns"
     # TAB_VIEW, ...
     # DRAWER_VIEW, SPLIT_DRAWER_VIEW, GRID/GRID_ELEMENT_VIEW, ...
 
     # content views [10200-10400]
-    TEXT_VIEW = 10200, "Text View", "Text", "fas fa-text"
+    CONTENT_VIEW = 10200, "Content View", None, "fas fa-text"
+    TEXT_VIEW = 10220, "Text View", "Text", "fas fa-text"
     # CODE_VIEW, ICON_VIEW, IMAGE_VIEW, AUDIO_VIEW, VIDEO_VIEW, DOCUMENT_VIEW, ...
 
     # input views [10400-10600]
-    NUMBER_INPUT_VIEW = 10400, "Number Input View", "Number Input", "fas fa-hashtag"
-    SLIDER_INPUT_VIEW = 10401, "Slider Input View", "Slider Input", "fas fa-slider"
+    INPUT_VIEW = 10400, "Input View", None, "fas fa-hashtag"
+    NUMBER_INPUT_VIEW = 10420, "Number Input View", "Number Input", "fas fa-hashtag"
+    SLIDER_INPUT_VIEW = 10440, "Slider Input View", "Slider Input", "fas fa-slider"
     # STRING_INPUT_VIEW, TOGGLE_INPUT_VIEW, PICKER_INPUT_VIEW, COLOR_INPUT_VIEW, ...
     # ICON_INPUT_VIEW, FILE_INPUT_VIEW, DATETIME_INPUT_VIEW, DURATION_INPUT_VIEW, ...
 
     # NOTE :Architecture: node and internal views should probably be defined in user space?
     # node/internal views [10600-10800]
-    THREAD_VIEW = 10600, "Thread View", "Thread", "fas fa-reel"
-    WIZARD_VIEW = 10650, "Wizard View", "Wizard", "fas fa-wand-sparkles"
+    INTERNAL_VIEW = 10600, "Internal View", None, "fas fa-eye"
+    # WIZARD_VIEW, ...
 
     # canvas [11000-11500]
     CANVAS = 11000, "Canvas", None, "fas fa-canvas"
-    LINE_SHAPE = 11010, "Line Shape", None, "fas fa-line"
-    POLYGON_SHAPE = 11011, "Plane Shape", None, "fas fa-shapes"
-    ARROW_SHAPE = 11012, "Arrow Shape", None, "fas fa-arrow-right"
-    ANNOTATION_SHAPE = 11013, "Annotation Shape", None, "fas fa-comment"
+    SHAPE = 11020, "Shape", None, "fas fa-shapes"
+    LINE_SHAPE = 11040, "Line Shape", None, "fas fa-line"
+    POLYGON_SHAPE = 11060, "Plane Shape", None, "fas fa-shapes"
+    ARROW_SHAPE = 11080, "Arrow Shape", None, "fas fa-arrow-right"
+    ANNOTATION_SHAPE = 11100, "Annotation Shape", None, "fas fa-comment"
     # VECTOR/POINT, VECTOR_NETWORK, ...
     # BITMAP, ...
 
@@ -812,21 +801,33 @@ class NodeType(Enum):
 
     # style [12000-12500]
     THEME = 12000, "Theme", None, "fas fa-palette"
-    PALETTE = 12010, "Palette", None, "fas fa-palette"
-    COLOR_STYLE = 12020, "Color Style", None, "fas fa-palette"
-    FILL_STYLE = 12030, "Fill Style", None, "fas fa-fill"
-    FONT_STYLE = 12040, "Font Style", None, "fas fa-text"
-    BORDER_STYLE = 12050, "Border Style", None, "fas fa-border-outer"
-    SHADOW_STYLE = 12060, "Shadow Style", None, "fas fa-eclipse"
-    GRADIENT_STYLE = 12070, "Gradient Style", None, "fas fa-gradient"
-    TRANSITION_STYLE = 12080, "Transition Style", None, "fas fa-bezier-curve"
-    EFFECT_STYLE = 12090, "Effect Style", None, "fas fa-sparkle"
-    STROKE_STYLE = 12100, "Stroke Style", None, "fas fa-stroke"
+    PALETTE = 12020, "Palette", None, "fas fa-palette"
+    STYLE = 12040, "Style", None, "fas fa-palette"
+    COLOR_STYLE = 12060, "Color Style", None, "fas fa-palette"
+    FILL_STYLE = 12061, "Fill Style", None, "fas fa-fill"
+    FONT_STYLE = 12062, "Font Style", None, "fas fa-text"
+    BORDER_STYLE = 12063, "Border Style", None, "fas fa-border-outer"
+    SHADOW_STYLE = 12064, "Shadow Style", None, "fas fa-eclipse"
+    GRADIENT_STYLE = 12065, "Gradient Style", None, "fas fa-gradient"
+    TRANSITION_STYLE = 12066, "Transition Style", None, "fas fa-bezier-curve"
+    EFFECT_STYLE = 12067, "Effect Style", None, "fas fa-sparkle"
+    STROKE_STYLE = 12068, "Stroke Style", None, "fas fa-stroke"
     # BRUSH_STYLE, ...
     # SHADER, MATERIAL, ...
 
     # meta [50000-51000]
-    # ...
+    # nocheckin: move meta into 1-1000 range
+    NODE = 51000, "Node", "Root of all Node types", "fas fa-dot"
+    ENTITY = 51001, "Entity", "Is an Entity", "fas fa-dot"
+    EVENT = 51002, "Event", "Is an Event", "fas fa-dot"
+    RESOURCE = 51003, "Resource", "Is a Resource", "fas fa-dot"
+    CUSTOM_NODE_DEFINITION = (
+        50040,
+        "Custom Node Definition",
+        "Is a Custom Node Definition",
+        "fas fa-dot",
+    )
+    CUSTOM_NODE = 50041, "Custom Node", "Is a Custom Node", "fas fa-dot"
 
 
 ENUM_TYPES: tuple[EnumType, ...] = tuple(EnumType)

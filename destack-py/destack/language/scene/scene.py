@@ -10,7 +10,6 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import SceneEnteredEventProto, SceneExitedEventProto, SceneProto
 
 from ..view import ContainerView
 
@@ -23,7 +22,7 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.SCENE_ENTERED_EVENT)
 class SceneEnteredEvent(
     Event["Scene"],
-    Node[SceneEnteredEventProto],
+    Node,
 ):
     """A Event regarding a Scene."""
 
@@ -33,7 +32,7 @@ class SceneEnteredEvent(
 @builtin_node(NodeType.SCENE_EXITED_EVENT)
 class SceneExitedEvent(
     Event["Scene"],
-    Node[SceneExitedEventProto],
+    Node,
 ):
     """A Event regarding a Scene."""
 
@@ -45,7 +44,7 @@ class Scene(
     ContainerView,
     HasIcon,
     IsOwnable,
-    Node[SceneProto],
+    Node,
 ):
     """A Scene is a container for a specific interaction point."""
 

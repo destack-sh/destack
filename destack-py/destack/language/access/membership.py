@@ -10,7 +10,6 @@ from destack.language.core import (
     IsJoinable,
     IsOwnable,
     IsSubject,
-    LikeMembership,
     Node,
     NodeType,
     Spatial,
@@ -19,7 +18,6 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import MembershipJoinedEventProto, MembershipLeftEventProto, MembershipProto
 
 if TYPE_CHECKING:
     from destack.language import Role, RoleType
@@ -30,7 +28,7 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.MEMBERSHIP_JOINED_EVENT)
 class MembershipJoinedEvent(
     Event["Membership"],
-    Node[MembershipJoinedEventProto],
+    Node,
 ):
     """A Event regarding a Membership Join."""
 
@@ -44,7 +42,7 @@ class MembershipJoinedEvent(
 @builtin_node(NodeType.MEMBERSHIP_LEFT_EVENT)
 class MembershipLeftEvent(
     Event["Membership"],
-    Node[MembershipLeftEventProto],
+    Node,
 ):
     """A Event regarding a Membership Leave."""
 
@@ -68,10 +66,9 @@ class Membership(
     Global,
     Spatial,
     Entity,
-    LikeMembership,
     IsOwnable,
     IsDeletable,
-    Node[MembershipProto],
+    Node,
 ):
     """A Membership of a Subject in a Joinable."""
 

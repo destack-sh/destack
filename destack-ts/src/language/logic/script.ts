@@ -35,8 +35,8 @@ export class Script
   static metatype: NodeType = NodeType.SCRIPT;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
-    TraitType.ENTITY,
     TraitType.TRACKED,
+    TraitType.ENTITY,
     TraitType.DELETABLE,
     TraitType.EXTENSIBLE,
     TraitType.ORDERED,

@@ -58,8 +58,8 @@ export class Membership
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
     TraitType.SPATIAL,
-    TraitType.ENTITY,
     TraitType.TRACKED,
+    TraitType.ENTITY,
     TraitType.OWNABLE,
     TraitType.DELETABLE,
     TraitType.MEMBERSHIP,

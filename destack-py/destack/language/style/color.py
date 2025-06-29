@@ -13,7 +13,6 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import ColorStyleProto
 
 from .style import Style
 
@@ -116,7 +115,7 @@ class Color(StructMutable):
 @builtin_node(NodeType.COLOR_STYLE)
 class ColorStyle(
     Style,
-    Node[ColorStyleProto],
+    Node,
 ):
     """A color style, with an optional dark variant."""
 

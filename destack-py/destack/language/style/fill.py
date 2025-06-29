@@ -12,7 +12,6 @@ from destack.language.core import (
     builtin_struct,
     property_,
 )
-from destack.proto import FillStyleProto
 
 from .color import Color
 from .gradient import Gradient
@@ -76,7 +75,7 @@ class Fill(StructFrozen):
 @builtin_node(NodeType.FILL_STYLE)
 class FillStyle(
     Style,
-    Node[FillStyleProto],
+    Node,
 ):
     """A fill style."""
 

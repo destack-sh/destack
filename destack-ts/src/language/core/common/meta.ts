@@ -1271,9 +1271,14 @@ export class TraitDefinition extends StructFrozen {
   readonly properties: Array<PropertyDefinition>;
 
   /**
-   * TraitDefinition.traits
+   * Traits directly and indirectly inherited by this trait.
    */
   readonly traits: Array<TraitType>;
+
+  /**
+   * Traits directly inherited by this trait.
+   */
+  readonly baseTraits: Array<TraitType>;
 
   constructor(options: {
     id: number;
@@ -1284,6 +1289,7 @@ export class TraitDefinition extends StructFrozen {
     description?: string | null;
     properties?: Array<PropertyDefinition>;
     traits?: Array<TraitType>;
+    baseTraits?: Array<TraitType>;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -1333,6 +1339,11 @@ export class TraitDefinition extends StructFrozen {
       _traits = [];
     }
     this.traits = _traits;
+    let _baseTraits = options.baseTraits ?? null;
+    if (_baseTraits === null) {
+      _baseTraits = [];
+    }
+    this.baseTraits = _baseTraits;
 
     // identity
     // @ts-expect-error(readonly)
@@ -1386,6 +1397,14 @@ export class TraitDefinition extends StructFrozen {
         return false;
       }
     }
+    if (this.baseTraits.length !== other.baseTraits.length) {
+      return false;
+    }
+    for (let i = 0; i < this.baseTraits.length; i++) {
+      if (!(this.baseTraits[i] === other.baseTraits[i])) {
+        return false;
+      }
+    }
     return true;
   }
 
@@ -1432,6 +1451,11 @@ export class TraitDefinition extends StructFrozen {
         h = (h * 31 + _item) & 0xffffffff;
       }
     }
+    if (this.baseTraits && this.baseTraits.length > 0) {
+      for (const _item of this.baseTraits) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -1468,7 +1492,7 @@ export class TraitDefinition extends StructFrozen {
       for (const item of object.properties) {
         packedProperties.push(item.toValue());
       }
-      objectValue["50"] = packedProperties;
+      objectValue["40"] = packedProperties;
     }
     if (object.traits.length > 0) {
       const packedTraits: any[] = [];
@@ -1476,6 +1500,13 @@ export class TraitDefinition extends StructFrozen {
         packedTraits.push(item);
       }
       objectValue["51"] = packedTraits;
+    }
+    if (object.baseTraits.length > 0) {
+      const packedBaseTraits: any[] = [];
+      for (const item of object.baseTraits) {
+        packedBaseTraits.push(item);
+      }
+      objectValue["52"] = packedBaseTraits;
     }
     return objectValue;
   }
@@ -1495,8 +1526,8 @@ export class TraitDefinition extends StructFrozen {
     const descriptionValue = objectValue["36"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     const unpackedProperties: any[] = [];
-    if (objectValue["50"] != undefined) {
-      for (const item of objectValue["50"]) {
+    if (objectValue["40"] != undefined) {
+      for (const item of objectValue["40"]) {
         unpackedProperties.push(
           PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
         );
@@ -1508,6 +1539,12 @@ export class TraitDefinition extends StructFrozen {
         unpackedTraits.push(Number(item));
       }
     }
+    const unpackedBaseTraits: any[] = [];
+    if (objectValue["52"] != undefined) {
+      for (const item of objectValue["52"]) {
+        unpackedBaseTraits.push(Number(item));
+      }
+    }
     return new TraitDefinition({
       id: Number(objectValue["2"]),
       type: Number(objectValue["30"]),
@@ -1517,6 +1554,7 @@ export class TraitDefinition extends StructFrozen {
       description: unpackedDescription,
       properties: unpackedProperties,
       traits: unpackedTraits,
+      baseTraits: unpackedBaseTraits,
       _value: objectValue,
       _supergraph,
     });
@@ -1566,6 +1604,13 @@ export class TraitDefinition extends StructFrozen {
       }
       objectProto.traits = packedTraits;
     }
+    if (object.baseTraits) {
+      const packedBaseTraits: any[] = [];
+      for (const item of object.baseTraits) {
+        packedBaseTraits.push(Number(item) as TraitTypeProto);
+      }
+      objectProto.baseTraits = packedBaseTraits;
+    }
     return objectProto as TraitDefinitionProto;
   }
 
@@ -1590,6 +1635,12 @@ export class TraitDefinition extends StructFrozen {
         unpackedTraits.push(Number(item) as TraitType);
       }
     }
+    const unpackedBaseTraits: any[] = [];
+    if (objectProto.baseTraits) {
+      for (const item of objectProto.baseTraits) {
+        unpackedBaseTraits.push(Number(item) as TraitType);
+      }
+    }
     return new TraitDefinition({
       id: Number(objectProto.id),
       type: Number(objectProto.type) as TraitType,
@@ -1602,6 +1653,7 @@ export class TraitDefinition extends StructFrozen {
       description: objectProto.description != undefined ? objectProto.description : null,
       properties: unpackedProperties,
       traits: unpackedTraits,
+      baseTraits: unpackedBaseTraits,
       _proto: objectProto,
       _supergraph,
     });
@@ -1669,9 +1721,19 @@ export class NodeDefinition extends StructFrozen {
   readonly properties: Array<PropertyDefinition>;
 
   /**
-   * NodeDefinition.traits
+   * The base type this Node extends.
+   */
+  readonly baseType: NodeType | null;
+
+  /**
+   * Traits directly and indirectly inherited by this Node.
    */
   readonly traits: Array<TraitType>;
+
+  /**
+   * Traits directly inherited by this Node.
+   */
+  readonly baseTraits: Array<TraitType>;
 
   /**
    * NodeDefinition.rootType
@@ -1705,7 +1767,9 @@ export class NodeDefinition extends StructFrozen {
     icon?: Icon | null;
     description?: string | null;
     properties?: Array<PropertyDefinition>;
+    baseType?: NodeType | null;
     traits?: Array<TraitType>;
+    baseTraits?: Array<TraitType>;
     rootType?: NodeType | null;
     parentTypes?: Array<NodeType>;
     childTypes?: Array<NodeType>;
@@ -1750,11 +1814,18 @@ export class NodeDefinition extends StructFrozen {
       _properties = [];
     }
     this.properties = _properties;
+    let _baseType = options.baseType ?? null;
+    this.baseType = _baseType;
     let _traits = options.traits ?? null;
     if (_traits === null) {
       _traits = [];
     }
     this.traits = _traits;
+    let _baseTraits = options.baseTraits ?? null;
+    if (_baseTraits === null) {
+      _baseTraits = [];
+    }
+    this.baseTraits = _baseTraits;
     let _rootType = options.rootType ?? null;
     this.rootType = _rootType;
     let _parentTypes = options.parentTypes ?? null;
@@ -1819,11 +1890,22 @@ export class NodeDefinition extends StructFrozen {
         return false;
       }
     }
+    if (!(this.baseType === other.baseType)) {
+      return false;
+    }
     if (this.traits.length !== other.traits.length) {
       return false;
     }
     for (let i = 0; i < this.traits.length; i++) {
       if (!(this.traits[i] === other.traits[i])) {
+        return false;
+      }
+    }
+    if (this.baseTraits.length !== other.baseTraits.length) {
+      return false;
+    }
+    for (let i = 0; i < this.baseTraits.length; i++) {
+      if (!(this.baseTraits[i] === other.baseTraits[i])) {
         return false;
       }
     }
@@ -1901,8 +1983,16 @@ export class NodeDefinition extends StructFrozen {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
+    if (this.baseType !== null) {
+      h = (h * 31 + this.baseType) & 0xffffffff;
+    }
     if (this.traits && this.traits.length > 0) {
       for (const _item of this.traits) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this.baseTraits && this.baseTraits.length > 0) {
+      for (const _item of this.baseTraits) {
         h = (h * 31 + _item) & 0xffffffff;
       }
     }
@@ -1964,7 +2054,10 @@ export class NodeDefinition extends StructFrozen {
       for (const item of object.properties) {
         packedProperties.push(item.toValue());
       }
-      objectValue["50"] = packedProperties;
+      objectValue["40"] = packedProperties;
+    }
+    if (object.baseType != null) {
+      objectValue["50"] = object.baseType;
     }
     if (object.traits.length > 0) {
       const packedTraits: any[] = [];
@@ -1973,36 +2066,43 @@ export class NodeDefinition extends StructFrozen {
       }
       objectValue["51"] = packedTraits;
     }
+    if (object.baseTraits.length > 0) {
+      const packedBaseTraits: any[] = [];
+      for (const item of object.baseTraits) {
+        packedBaseTraits.push(item);
+      }
+      objectValue["52"] = packedBaseTraits;
+    }
     if (object.rootType != null) {
-      objectValue["52"] = object.rootType;
+      objectValue["60"] = object.rootType;
     }
     if (object.parentTypes.length > 0) {
       const packedParentTypes: any[] = [];
       for (const item of object.parentTypes) {
         packedParentTypes.push(item);
       }
-      objectValue["53"] = packedParentTypes;
+      objectValue["61"] = packedParentTypes;
     }
     if (object.childTypes.length > 0) {
       const packedChildTypes: any[] = [];
       for (const item of object.childTypes) {
         packedChildTypes.push(item);
       }
-      objectValue["54"] = packedChildTypes;
+      objectValue["62"] = packedChildTypes;
     }
     if (object.ancestorTypes.length > 0) {
       const packedAncestorTypes: any[] = [];
       for (const item of object.ancestorTypes) {
         packedAncestorTypes.push(item);
       }
-      objectValue["55"] = packedAncestorTypes;
+      objectValue["63"] = packedAncestorTypes;
     }
     if (object.descendantTypes.length > 0) {
       const packedDescendantTypes: any[] = [];
       for (const item of object.descendantTypes) {
         packedDescendantTypes.push(item);
       }
-      objectValue["56"] = packedDescendantTypes;
+      objectValue["64"] = packedDescendantTypes;
     }
     return objectValue;
   }
@@ -2022,42 +2122,50 @@ export class NodeDefinition extends StructFrozen {
     const descriptionValue = objectValue["36"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     const unpackedProperties: any[] = [];
-    if (objectValue["50"] != undefined) {
-      for (const item of objectValue["50"]) {
+    if (objectValue["40"] != undefined) {
+      for (const item of objectValue["40"]) {
         unpackedProperties.push(
           PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
+    const baseTypeValue = objectValue["50"];
+    const unpackedBaseType = baseTypeValue != undefined ? Number(baseTypeValue) : null;
     const unpackedTraits: any[] = [];
     if (objectValue["51"] != undefined) {
       for (const item of objectValue["51"]) {
         unpackedTraits.push(Number(item));
       }
     }
-    const rootTypeValue = objectValue["52"];
+    const unpackedBaseTraits: any[] = [];
+    if (objectValue["52"] != undefined) {
+      for (const item of objectValue["52"]) {
+        unpackedBaseTraits.push(Number(item));
+      }
+    }
+    const rootTypeValue = objectValue["60"];
     const unpackedRootType = rootTypeValue != undefined ? Number(rootTypeValue) : null;
     const unpackedParentTypes: any[] = [];
-    if (objectValue["53"] != undefined) {
-      for (const item of objectValue["53"]) {
+    if (objectValue["61"] != undefined) {
+      for (const item of objectValue["61"]) {
         unpackedParentTypes.push(Number(item));
       }
     }
     const unpackedChildTypes: any[] = [];
-    if (objectValue["54"] != undefined) {
-      for (const item of objectValue["54"]) {
+    if (objectValue["62"] != undefined) {
+      for (const item of objectValue["62"]) {
         unpackedChildTypes.push(Number(item));
       }
     }
     const unpackedAncestorTypes: any[] = [];
-    if (objectValue["55"] != undefined) {
-      for (const item of objectValue["55"]) {
+    if (objectValue["63"] != undefined) {
+      for (const item of objectValue["63"]) {
         unpackedAncestorTypes.push(Number(item));
       }
     }
     const unpackedDescendantTypes: any[] = [];
-    if (objectValue["56"] != undefined) {
-      for (const item of objectValue["56"]) {
+    if (objectValue["64"] != undefined) {
+      for (const item of objectValue["64"]) {
         unpackedDescendantTypes.push(Number(item));
       }
     }
@@ -2068,7 +2176,9 @@ export class NodeDefinition extends StructFrozen {
       icon: unpackedIcon,
       description: unpackedDescription,
       properties: unpackedProperties,
+      baseType: unpackedBaseType,
       traits: unpackedTraits,
+      baseTraits: unpackedBaseTraits,
       rootType: unpackedRootType,
       parentTypes: unpackedParentTypes,
       childTypes: unpackedChildTypes,
@@ -2115,12 +2225,22 @@ export class NodeDefinition extends StructFrozen {
       }
       objectProto.properties = packedProperties;
     }
+    if (object.baseType != null) {
+      objectProto.baseType = Number(object.baseType) as NodeTypeProto;
+    }
     if (object.traits) {
       const packedTraits: any[] = [];
       for (const item of object.traits) {
         packedTraits.push(Number(item) as TraitTypeProto);
       }
       objectProto.traits = packedTraits;
+    }
+    if (object.baseTraits) {
+      const packedBaseTraits: any[] = [];
+      for (const item of object.baseTraits) {
+        packedBaseTraits.push(Number(item) as TraitTypeProto);
+      }
+      objectProto.baseTraits = packedBaseTraits;
     }
     if (object.rootType != null) {
       objectProto.rootType = Number(object.rootType) as NodeTypeProto;
@@ -2177,6 +2297,12 @@ export class NodeDefinition extends StructFrozen {
         unpackedTraits.push(Number(item) as TraitType);
       }
     }
+    const unpackedBaseTraits: any[] = [];
+    if (objectProto.baseTraits) {
+      for (const item of objectProto.baseTraits) {
+        unpackedBaseTraits.push(Number(item) as TraitType);
+      }
+    }
     const unpackedParentTypes: any[] = [];
     if (objectProto.parentTypes) {
       for (const item of objectProto.parentTypes) {
@@ -2211,7 +2337,10 @@ export class NodeDefinition extends StructFrozen {
           : null,
       description: objectProto.description != undefined ? objectProto.description : null,
       properties: unpackedProperties,
+      baseType:
+        objectProto.baseType != undefined ? (Number(objectProto.baseType) as NodeType) : null,
       traits: unpackedTraits,
+      baseTraits: unpackedBaseTraits,
       rootType:
         objectProto.rootType != undefined ? (Number(objectProto.rootType) as NodeType) : null,
       parentTypes: unpackedParentTypes,

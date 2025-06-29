@@ -597,8 +597,8 @@ export class CustomEventDefinition extends Node implements Spatial, Entity, HasN
   static metatype: NodeType = NodeType.CUSTOM_EVENT_DEFINITION;
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
-    TraitType.ENTITY,
     TraitType.TRACKED,
+    TraitType.ENTITY,
     TraitType.ORDERED,
     TraitType.SOURCEABLE,
   ];

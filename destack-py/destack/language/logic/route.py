@@ -14,7 +14,6 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import RouteProto
 
 if TYPE_CHECKING:
     from destack.language import Folder, Scene
@@ -31,7 +30,7 @@ class Route(
     IsOrdered,
     IsOwnable,
     IsTaggable,
-    Node[RouteProto],
+    Node,
 ):
     """A Route is a path to a Scene."""
 

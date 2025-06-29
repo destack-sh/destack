@@ -7,14 +7,12 @@ from destack.language.core import (
     IsDeletable,
     IsOrdered,
     IsTaggable,
-    IsVisual,
     Node,
     NodeType,
     Spatial,
     builtin_node,
     property_parent_,
 )
-from destack.proto import PaletteProto
 
 if TYPE_CHECKING:
     from destack.language import Scene, Theme
@@ -28,11 +26,10 @@ class Palette(
     Entity,
     HasName,
     HasIcon,
-    IsVisual,
     IsOrdered,
     IsTaggable,
     IsDeletable,
-    Node[PaletteProto],
+    Node,
 ):
     """A Palette with common ColorStyles."""
 

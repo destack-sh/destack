@@ -32,8 +32,8 @@ export class Team
   static metatype: NodeType = NodeType.TEAM;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
-    TraitType.ENTITY,
     TraitType.TRACKED,
+    TraitType.ENTITY,
     TraitType.JOINABLE,
     TraitType.OWNER,
   ];

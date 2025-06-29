@@ -23,7 +23,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Handle extends Node implements Global, Entity, HasSlug {
   static metatype: NodeType = NodeType.HANDLE;
-  static __traits__: TraitType[] = [TraitType.GLOBAL, TraitType.ENTITY, TraitType.TRACKED];
+  static __traits__: TraitType[] = [TraitType.GLOBAL, TraitType.TRACKED, TraitType.ENTITY];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
   static __childTypes__: NodeType[] = [];

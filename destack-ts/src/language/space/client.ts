@@ -271,8 +271,8 @@ export class Client extends Node implements HasName, Global, Entity, IsDeletable
   static metatype: NodeType = NodeType.CLIENT;
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
-    TraitType.ENTITY,
     TraitType.TRACKED,
+    TraitType.ENTITY,
     TraitType.DELETABLE,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;

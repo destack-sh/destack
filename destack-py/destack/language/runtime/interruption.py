@@ -15,7 +15,6 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import InterruptionProto
 
 if TYPE_CHECKING:
     from destack.language import Message, Run, Span
@@ -56,7 +55,7 @@ class InterruptionResponse(Enum):
 class Interruption(
     Event,
     IsExtensible,
-    Node[InterruptionProto],
+    Node,
 ):
     """An Interruption in run of something."""
 

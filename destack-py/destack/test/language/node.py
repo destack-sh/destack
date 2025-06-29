@@ -1,4 +1,27 @@
-from destack.language import REGION, Folder, Session, Space, SpaceStatus, Tag
+from destack.language import (
+    REGION,
+    Cursor,
+    EventCursor,
+    Folder,
+    Node,
+    NodeType,
+    Session,
+    Space,
+    SpaceStatus,
+    Tag,
+)
+
+
+def test_node_inheritance(session: Session):
+    """Test that Node is abstract."""
+    assert Node.__is_abstract__
+    assert Cursor.__is_abstract__
+    assert EventCursor.__base_type__ == Cursor.metatype
+    assert Cursor.__extended_by__ == (
+        NodeType.EVENT_CURSOR,
+        NodeType.SCREEN_CURSOR,
+        NodeType.THREAD_CURSOR,
+    )
 
 
 def test_node_space_ptr(session: Session):

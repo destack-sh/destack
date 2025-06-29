@@ -90,9 +90,9 @@ export class EventCursor extends Node implements Cursor, IsOwnable {
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.CURSOR,
-    TraitType.ENTITY,
     TraitType.TRACKED,
     TraitType.OWNABLE,
+    TraitType.ENTITY,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -600,9 +600,9 @@ export class ScreenCursor extends Node implements Cursor, IsOwnable {
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.CURSOR,
-    TraitType.ENTITY,
     TraitType.TRACKED,
     TraitType.OWNABLE,
+    TraitType.ENTITY,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];
@@ -1143,9 +1143,9 @@ export class ThreadCursor extends Node implements Cursor, IsOwnable {
   static __traits__: TraitType[] = [
     TraitType.SPATIAL,
     TraitType.CURSOR,
-    TraitType.ENTITY,
     TraitType.TRACKED,
     TraitType.OWNABLE,
+    TraitType.ENTITY,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;
   static __parentTypes__: NodeType[] = [NodeType.SPACE];

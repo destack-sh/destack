@@ -54,8 +54,8 @@ registerEnumClass(EnumType.NOTIFICATION_STATUS, NotificationStatus);
 export class Notification extends Node implements Spatial, Entity, IsOwnable {
   static metatype: NodeType = NodeType.NOTIFICATION;
   static __traits__: TraitType[] = [
-    TraitType.TRACKED,
     TraitType.SPATIAL,
+    TraitType.TRACKED,
     TraitType.ENTITY,
     TraitType.OWNABLE,
   ];

@@ -8,7 +8,6 @@ from destack.language.core import (
     IsDeletable,
     IsOrdered,
     IsOwnable,
-    IsVisual,
     Node,
     NodeType,
     Spatial,
@@ -16,7 +15,6 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.proto import WindowProto
 
 if TYPE_CHECKING:
     pass
@@ -36,11 +34,10 @@ class Window(
     Spatial,
     Entity,
     HasName,
-    IsVisual,
     IsOwnable,
     IsOrdered,
     IsDeletable,
-    Node[WindowProto],
+    Node,
 ):
     """
     A Window for someone to interact with a Space via Scenes.

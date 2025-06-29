@@ -17,7 +17,6 @@ from destack.language.core import (
     property_,
     property_parent_,
 )
-from destack.proto import PermissionProto
 
 if TYPE_CHECKING:
     from destack.language import Folder
@@ -40,7 +39,7 @@ class Permission(
     HasSlug,
     HasIcon,
     IsDeletable,
-    Node[PermissionProto],
+    Node,
 ):
     """A Permission for something."""
 

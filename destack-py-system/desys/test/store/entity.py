@@ -6,7 +6,6 @@ from pytest_lazy_fixtures import lf
 from destack.language import (
     Client,
     ClientType,
-    CustomView,
     Folder,
     FolderType,
     FrameView,
@@ -178,11 +177,8 @@ async def test_create_scene_with_heterogeneous_views(session: Session):
             for k in range(4):
                 text_view = TextView(name=f"Text {i}/{j}/{k}")
                 label_view.add_child(text_view)
-        custom_view = CustomView(
-            name=f"Custom {i}",
-            definition_ptr=NodeReference(node_type=NodeType.CUSTOM_VIEW_DEFINITION, id=uuid4()),
-        )
-        root_view.add_child(custom_view)
+        label_view = LabelView(name=f"Label {i}")
+        root_view.add_child(label_view)
     await session.commit()
 
     # query view (child, non-recursive)

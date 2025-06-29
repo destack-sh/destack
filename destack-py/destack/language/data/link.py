@@ -18,7 +18,6 @@ from destack.language.core import (
     builtin_node,
     property_,
 )
-from destack.proto import LinkProto
 
 if TYPE_CHECKING:
     pass
@@ -38,7 +37,7 @@ class LinkType(Enum):
 class Link(
     Spatial,
     Resource,
-    Node[LinkProto],
+    Node,
 ):
     """
     A Link to an external resource (like a web URL, or anything that doesn't fit into other Nodes).

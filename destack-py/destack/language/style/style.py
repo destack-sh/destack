@@ -6,10 +6,9 @@ from destack.language.core import (
     IsDeletable,
     IsOrdered,
     IsTaggable,
-    IsVisual,
+    NodeType,
     Spatial,
-    TraitType,
-    builtin_trait,
+    builtin_node,
     property_parent_,
 )
 
@@ -19,12 +18,11 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_trait(TraitType.STYLE)
+@builtin_node(NodeType.STYLE)
 class Style(
     Spatial,
     Entity,
     HasName,
-    IsVisual,
     IsOrdered,
     IsTaggable,
     IsDeletable,

@@ -199,8 +199,8 @@ export class File extends Node implements Spatial, Global, Resource, HasName {
   static __traits__: TraitType[] = [
     TraitType.GLOBAL,
     TraitType.SPATIAL,
-    TraitType.ENTITY,
     TraitType.TRACKED,
+    TraitType.ENTITY,
     TraitType.RESOURCE,
   ];
   static __rootType__: NodeType | null = NodeType.SPACE;

@@ -13,7 +13,6 @@ from destack.language.core import (
     builtin_struct,
     property_,
 )
-from destack.proto import StrokeStyleProto
 
 from .easing import Easing
 from .style import Style
@@ -62,7 +61,7 @@ class StrokeCap(StructFrozen):
 
 
 @builtin_node(NodeType.STROKE_STYLE)
-class StrokeStyle(Style, Node[StrokeStyleProto]):
+class StrokeStyle(Style, Node):
     """A StrokeStyle."""
 
     type: StrokeType = property_(30)
