@@ -13,34 +13,14 @@ export abstract class Store {
 
   /**
    * Query the Store.
-   * Returns a QueryResult.
    */
   abstract query(query: Query): Promise<QueryResult>;
 
   /**
    * Commit the Changes as individual transactions (every Change is atomic by itself).
-   * Returns the ChangeResults per Change.
    */
   abstract commit(changes: Change[]): Promise<ChangeResult[]>;
-}
 
-/**
- * A Store that can be subscribed to for Query updates.
- */
-export abstract class LiveStore extends Store {
   /** Subscribe to a Query in the Store. */
   abstract subscribe(query: Query): AsyncIterator<QueryUpdate>;
-}
-
-/**
- * A Store that can stage Changes optimistically.
- * To commit Changes (incl. staged), pass these Changes to Store.commit as usual.
- * To remove Changes without committing, call Store.unstage.
- */
-export abstract class OptimisticStore extends LiveStore {
-  /** Stage Changes locally. */
-  abstract stage(changes: Change[]): Promise<void>;
-
-  /** Unstage Changes locally. */
-  abstract unstage(changes: Change[]): Promise<void>;
 }

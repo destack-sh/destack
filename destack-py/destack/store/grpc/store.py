@@ -1,10 +1,10 @@
 from collections.abc import AsyncIterator, Sequence
 from typing import override
 
-from destack.language import Change, ChangeResult, LiveStore, Query, QueryResult, QueryUpdate
+from destack.language import Change, ChangeResult, Query, QueryResult, QueryUpdate, Store
 
 
-class GrpcStore(LiveStore):
+class GrpcStore(Store):
     """A Store that fetches data from a remote source via gRPC."""
 
     @override

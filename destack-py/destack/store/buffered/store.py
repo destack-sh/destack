@@ -4,7 +4,6 @@ from typing import ClassVar, override
 from destack.language import (
     Change,
     ChangeResult,
-    OptimisticStore,
     Query,
     QueryResult,
     QueryUpdate,
@@ -14,11 +13,12 @@ from destack.language import (
 )
 from destack.store.memory import MemoryStore
 
-# nocheckin: proper split committing/querying (keep store_type in Node & NodeReference instances?)
-#  (including live/in-memory overrides)
+# nocheckin: implement BufferedStore
+#  (keep store_type in Node & NodeReference instances?)
+#  (including live/in-memory overrides with Snapshots?)
 
 
-class BufferedStore(OptimisticStore):
+class BufferedStore(Store):
     """
     Route Queries and commits to underlying Stores, buffer certain Changes in memory.
     Does not support atomic Changes across Stores (yet).
@@ -63,11 +63,3 @@ class BufferedStore(OptimisticStore):
     @override
     async def subscribe(self, query: Query) -> AsyncIterator[QueryUpdate]:
         raise NotImplementedError
-
-    @override
-    async def stage(self, changes: Sequence[Change]) -> None:
-        pass
-
-    @override
-    async def unstage(self, changes: Sequence[Change]) -> None:
-        pass

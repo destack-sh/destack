@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from collections.abc import AsyncIterator, Sequence
 from typing import ClassVar, override
 
 import opentelemetry.trace as trace
@@ -10,6 +10,7 @@ from destack.language import (
     ChangeStatus,
     Query,
     QueryResult,
+    QueryUpdate,
     Store,
     StoreImplementation,
     StoreType,
@@ -68,3 +69,7 @@ class MemoryStore(Store):
             )
         logger.debug("memory.commit", changes=changes, results=results, span="current")
         return results
+
+    @override
+    async def subscribe(self, query: Query) -> AsyncIterator[QueryUpdate]:
+        raise NotImplementedError
